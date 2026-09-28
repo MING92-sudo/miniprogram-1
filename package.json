@@ -1,0 +1,13 @@
+{
+  "name": "miniprogram-1",
+  "version": "1.0.0",
+  "private": true,
+  "description": "微信小程序项目",
+  "scripts": {
+    "lint": "eslint ."
+  },
+  "devDependencies": {
+    "eslint": "^8.57.1",
+    "miniprogram-ci": "^2.1.31"
+  }
+}
