@@ -1,0 +1,17 @@
+# 本地开发数据库（Q7=A）：MySQL 8 utf8mb4/InnoDB，与云托管版本对齐
+# 启动：docker compose up -d
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: maintenance-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: maintenance
+    ports:
+      - "3306:3306"
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    volumes:
+      - mysql-data:/var/lib/mysql
+
+volumes:
+  mysql-data:

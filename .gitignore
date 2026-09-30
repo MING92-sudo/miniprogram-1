@@ -2,6 +2,8 @@
 node_modules/
 miniprogram_npm/
 tmp/
+backend/data/
+data/
 
 # 日志
 *.log
