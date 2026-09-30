@@ -117,14 +117,14 @@ const db = {
   },
 
   elevators: [
-    { id: 'el_1', elevatorCode: 'EM-2024-001', elevatorName: '世纪大厦 1# 客梯', location: '渝北区龙山一路 88 号世纪大厦', regCode: 'TSCQ5001120001', deviceCode: 'DT-CQ-2024-001', insideNumber: 'KT-01', useUnitId: 'uu_1', category: '曳引驱动电梯', nextCheckDate: addDays(45),
+    { id: 'el_1', elevatorCode: 'EM-2024-001', elevatorName: '世纪大厦 1# 客梯', location: '渝北区龙山一路 88 号世纪大厦', regCode: 'TSCQ5001120001', deviceCode: 'DT-CQ-2024-001', insideNumber: 'KT-01', model: 'OTIS 300VF', useUnitId: 'uu_1', category: '曳引驱动电梯', nextCheckDate: addDays(45),
       // 维保绑定配置：到期自动派单的人员与频次（正式版为维保合同 + 排班表）
       maintenance: { workTypeCode: 'HM', intervalDays: 15, workerName: '张伟', workerPlatformId: '990001', assistantName: '李强', assistantPlatformId: '990003', lastMaintenanceAt: addDays(-3) } },
-    { id: 'el_2', elevatorCode: 'EM-2024-002', elevatorName: '世纪大厦 2# 客梯', location: '渝北区龙山一路 88 号世纪大厦', regCode: 'TSCQ5001120002', deviceCode: 'DT-CQ-2024-002', insideNumber: 'KT-02', useUnitId: 'uu_1', category: '曳引驱动电梯', nextCheckDate: addDays(18),
+    { id: 'el_2', elevatorCode: 'EM-2024-002', elevatorName: '世纪大厦 2# 客梯', location: '渝北区龙山一路 88 号世纪大厦', regCode: 'TSCQ5001120002', deviceCode: 'DT-CQ-2024-002', insideNumber: 'KT-02', model: 'OTIS 300VF', useUnitId: 'uu_1', category: '曳引驱动电梯', nextCheckDate: addDays(18),
       maintenance: { workTypeCode: 'HM', intervalDays: 15, workerName: '张伟', workerPlatformId: '990001', assistantName: '李强', assistantPlatformId: '990003', lastMaintenanceAt: addDays(-3) } },
-    { id: 'el_3', elevatorCode: 'EM-2024-003', elevatorName: '蓝湾国际 A 座货梯', location: '江北区滨江路 6 号蓝湾国际', regCode: 'TSCQ5001120003', deviceCode: 'DT-CQ-2024-003', insideNumber: 'HT-01', useUnitId: 'uu_2', category: '曳引驱动电梯', nextCheckDate: addDays(200),
+    { id: 'el_3', elevatorCode: 'EM-2024-003', elevatorName: '蓝湾国际 A 座货梯', location: '江北区滨江路 6 号蓝湾国际', regCode: 'TSCQ5001120003', deviceCode: 'DT-CQ-2024-003', insideNumber: 'HT-01', model: '三菱 GPS-III', useUnitId: 'uu_2', category: '曳引驱动电梯', nextCheckDate: addDays(200),
       maintenance: { workTypeCode: 'FM', intervalDays: 30, workerName: '张伟', workerPlatformId: '990001', assistantName: '', assistantPlatformId: '', lastMaintenanceAt: addDays(-10) } },
-    { id: 'el_4', elevatorCode: 'EM-2024-004', elevatorName: '蓝湾国际 B 座客梯', location: '江北区滨江路 6 号蓝湾国际', regCode: 'TSCQ5001120004', deviceCode: 'DT-CQ-2024-004', insideNumber: 'KT-01', useUnitId: 'uu_2', category: '曳引驱动电梯', nextCheckDate: addDays(240),
+    { id: 'el_4', elevatorCode: 'EM-2024-004', elevatorName: '蓝湾国际 B 座客梯', location: '江北区滨江路 6 号蓝湾国际', regCode: 'TSCQ5001120004', deviceCode: 'DT-CQ-2024-004', insideNumber: 'KT-01', model: '日立 YK', useUnitId: 'uu_2', category: '曳引驱动电梯', nextCheckDate: addDays(240),
       // 演示到期自动派单：上次维保 16 天前，已超半月周期 → 进入工单台即自动生成并派给李强
       maintenance: { workTypeCode: 'HM', intervalDays: 15, workerName: '李强', workerPlatformId: '990003', assistantName: '', assistantPlatformId: '', lastMaintenanceAt: addDays(-16) } }
   ],
@@ -439,6 +439,13 @@ function listOrders(query) {
   }
   return list.map((o) => Object.assign({}, o, {
     elevatorName: (getElevator(o.elevatorId) || {}).elevatorName || ''
+    // 工单卡片展示字段（对齐无纸化维保工单卡：设备代码/登记证号/内部编号/型号/项目名称）
+    , elevatorCode: (getElevator(o.elevatorId) || {}).elevatorCode || ''
+    , deviceCode: (getElevator(o.elevatorId) || {}).deviceCode || ''
+    , regCode: (getElevator(o.elevatorId) || {}).regCode || ''
+    , insideNumber: (getElevator(o.elevatorId) || {}).insideNumber || ''
+    , model: (getElevator(o.elevatorId) || {}).model || ''
+    , projectName: (getUseUnit((getElevator(o.elevatorId) || {}).useUnitId) || {}).unitName || ''
   }))
 }
 

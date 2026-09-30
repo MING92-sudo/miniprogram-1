@@ -1,79 +1,57 @@
-.search-bar {
-  padding: 20rpx 24rpx;
-  background: #ffffff;
+/* 工单页：参照无纸化维保截屏（蓝色页头 + 电梯信息卡） */
+.wo-page {
+  min-height: 100vh;
+  background: #f0f4fa;
+  padding-bottom: 40rpx;
 }
 
-.search-input {
-  background: var(--em-bg-page);
-  border-radius: var(--em-radius);
-  padding: 16rpx 24rpx;
+/* ── 蓝色页头 ── */
+.wo-header {
+  background: linear-gradient(160deg, #1668dc 0%, #4096ff 100%);
+  padding: 32rpx 24rpx 36rpx;
+  border-radius: 0 0 32rpx 32rpx;
 }
 
-.tabs {
-  display: flex;
-  background: #ffffff;
-  padding: 0 12rpx 20rpx;
-  gap: 8rpx;
-}
-
-.tab {
-  flex: 1;
-  text-align: center;
-  padding: 12rpx 0;
-  border-radius: 999rpx;
-  font-size: 26rpx;
-  color: var(--em-text-secondary);
-  background: var(--em-bg-page);
-}
-
-.tab-active {
-  background: var(--em-brand);
+.wo-title {
   color: #ffffff;
-  font-weight: 600;
+  font-size: 36rpx;
+  font-weight: 700;
+  text-align: center;
+  margin-bottom: 28rpx;
 }
 
-.order-head {
+.wo-search-row {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-bottom: 8rpx;
+  gap: 20rpx;
 }
 
-.order-title {
-  font-weight: 600;
+.wo-search {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  background: #ffffff;
+  border-radius: 999rpx;
+  padding: 14rpx 28rpx;
 }
 
-.tag {
-  flex-shrink: 0;
-  font-size: 22rpx;
-  padding: 4rpx 16rpx;
-  border-radius: 8rpx;
+.wo-search-icon {
+  font-size: 26rpx;
+  margin-right: 12rpx;
 }
 
-.tag-PENDING {
-  color: var(--em-warning);
-  background: #fdf6ec;
+.wo-search-input {
+  flex: 1;
+  font-size: 26rpx;
+  color: var(--em-text, #1d2129);
 }
 
-.tag-PROCESSING {
-  color: var(--em-brand);
-  background: var(--em-brand-light);
+.wo-scan {
+  font-size: 44rpx;
+  color: #ffffff;
 }
 
-.tag-DONE {
-  color: var(--em-success);
-  background: #e8f7f0;
-}
-
-.empty {
-  text-align: center;
-  padding: 80rpx 24rpx;
-}
-
-.loading-tip {
-  text-align: center;
-  padding: 24rpx;
-}
+/* ── 过滤提示 ── */
 .due-banner {
   display: flex;
   align-items: center;
@@ -81,8 +59,126 @@
   color: #d46b08;
   font-size: 26rpx;
   padding: 16rpx 24rpx;
+  margin: 20rpx 24rpx 0;
 }
 
 .due-clear {
   color: #1890ff;
+}
+
+/* ── 状态 tabs ── */
+.wo-tabs {
+  display: flex;
+  background: #ffffff;
+  border-radius: 16rpx;
+  margin: 20rpx 24rpx 0;
+  padding: 8rpx;
+}
+
+.wo-tab {
+  flex: 1;
+  text-align: center;
+  font-size: 26rpx;
+  color: var(--em-text-secondary, #86909c);
+  padding: 14rpx 0;
+  border-radius: 12rpx;
+}
+
+.wo-tab-active {
+  color: #1668dc;
+  font-weight: 600;
+  background: rgba(22, 104, 220, 0.08);
+}
+
+/* ── 工单卡片 ── */
+.wo-list {
+  padding: 20rpx 24rpx 0;
+}
+
+.wo-empty {
+  text-align: center;
+  color: var(--em-text-secondary, #86909c);
+}
+
+.wo-card {
+  background: #ffffff;
+  border-radius: 20rpx;
+  padding: 24rpx;
+  margin-bottom: 24rpx;
+  box-shadow: 0 4rpx 16rpx rgba(22, 104, 220, 0.06);
+}
+
+.wo-card-head {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  margin-bottom: 20rpx;
+}
+
+.wo-type-tag {
+  background: #ffa940;
+  color: #ffffff;
+  font-size: 24rpx;
+  font-weight: 600;
+  padding: 6rpx 20rpx;
+  border-radius: 10rpx;
+}
+
+.wo-status {
+  margin-left: auto;
+  font-size: 26rpx;
+  font-weight: 600;
+}
+
+.status-PENDING { color: #fa8c16; }
+.status-PROCESSING { color: #1890ff; }
+.status-DONE { color: #52c41a; }
+
+/* ── 信息区 ── */
+.wo-info {
+  background: #f5f8fd;
+  border-radius: 16rpx;
+  padding: 20rpx 24rpx;
+  font-size: 26rpx;
+  color: #4e5969;
+  line-height: 1.9;
+}
+
+.wo-info-row {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.wo-info-cell {
+  width: 50%;
+}
+
+.wo-strong {
+  color: #1d2129;
+  font-weight: 600;
+}
+
+/* ── 按钮 ── */
+.wo-btns {
+  display: flex;
+  justify-content: flex-end;
+  gap: 20rpx;
+  margin-top: 24rpx;
+}
+
+.wo-btn {
+  font-size: 26rpx;
+  padding: 12rpx 36rpx;
+  border-radius: 999rpx;
+}
+
+.wo-btn-ghost {
+  color: #1668dc;
+  border: 2rpx solid #1668dc;
+  background: #f0f7ff;
+}
+
+.wo-btn-primary {
+  color: #ffffff;
+  background: linear-gradient(150deg, #4096ff, #1668dc);
 }

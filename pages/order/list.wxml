@@ -1,47 +1,73 @@
-<view class="em-page">
+<view class="wo-page">
+  <!-- 蓝色页头：标题(过滤维度+计数) + 搜索/扫码 -->
+  <view class="wo-header">
+    <view class="wo-title">{{dueLabel ? dueLabel : '维保工单'}}（{{total || 0}}{{dueLabel ? '台' : '单'}}）</view>
+    <view class="wo-search-row">
+      <view class="wo-search">
+        <view class="wo-search-icon">🔍</view>
+        <input
+          class="wo-search-input"
+          placeholder="请输入页面展示信息进行查询"
+          value="{{keyword}}"
+          confirm-type="search"
+          bindconfirm="onSearch"
+        />
+      </view>
+      <view class="wo-scan" bindtap="onScan">📷</view>
+    </view>
+  </view>
+
   <view wx:if="{{dueLabel}}" class="em-card due-banner">
     筛选：{{dueLabel}}
     <view class="due-clear" bindtap="clearDue">清除</view>
   </view>
 
-  <view class="search-bar">
-    <input
-      class="search-input"
-      placeholder="搜索电梯名称/编号/工单号"
-      value="{{keyword}}"
-      confirm-type="search"
-      bindconfirm="onSearch"
-    />
-  </view>
-
-  <view class="tabs">
+  <!-- 状态筛选 -->
+  <view class="wo-tabs">
     <view
       wx:for="{{tabs}}"
       wx:key="key"
-      class="tab {{activeTab === item.key ? 'tab-active' : ''}}"
+      class="wo-tab {{activeTab === item.key ? 'wo-tab-active' : ''}}"
       data-key="{{item.key}}"
       bindtap="onTabChange"
     >{{item.label}}</view>
   </view>
 
-  <view wx:if="{{!loading && list.length === 0}}" class="em-card em-text-secondary empty">
-    暂无工单
-  </view>
+  <!-- 工单卡片 -->
+  <view class="wo-list">
+    <view wx:if="{{list.length === 0 && !loading}}" class="em-card wo-empty">暂无工单</view>
 
-  <view
-    wx:for="{{list}}"
-    wx:key="id"
-    class="em-card order-item"
-    data-id="{{item.id}}"
-    bindtap="goDetail"
-  >
-    <view class="order-head">
-      <view class="order-title">{{item.orderNo}}</view>
-      <view class="tag tag-{{item.status}}">{{item.statusText}}</view>
+    <view wx:for="{{list}}" wx:key="id" class="wo-card">
+      <view class="wo-card-head">
+        <view class="wo-type-tag">{{item.workType}}</view>
+        <view class="wo-status status-{{item.status}}">{{item.statusText}}</view>
+      </view>
+
+      <view class="wo-info">
+        <view class="wo-info-row">
+          <view class="wo-info-cell">电梯编号：<text class="wo-strong">{{item.elevatorCode || '/'}}</text></view>
+          <view class="wo-info-cell">项目名称：<text class="wo-strong">{{item.projectName || '/'}}</text></view>
+        </view>
+        <view class="wo-info-row">设备代码：<text class="wo-strong">{{item.deviceCode || '/'}}</text></view>
+        <view class="wo-info-row">使用登记证号：<text class="wo-strong">{{item.regCode || '/'}}</text></view>
+        <view class="wo-info-row">
+          <view class="wo-info-cell">单位内部编号：<text class="wo-strong">{{item.insideNumber || '/'}}</text></view>
+          <view class="wo-info-cell">电梯型号：<text class="wo-strong">{{item.model || '/'}}</text></view>
+        </view>
+        <view class="wo-info-row">维保周期：{{item.workType}} · 计划 {{item.planTime || '/'}}</view>
+      </view>
+
+      <view class="wo-btns">
+        <view class="wo-btn wo-btn-ghost" data-id="{{item.id}}" bindtap="goDetail">查看详情</view>
+        <view
+          wx:if="{{item.status !== 'DONE'}}"
+          class="wo-btn wo-btn-primary"
+          data-id="{{item.id}}"
+          data-status="{{item.status}}"
+          bindtap="onAction"
+        >{{item.status === 'PENDING' ? '开始维保' : '继续作业'}}</view>
+        <view wx:else class="wo-btn wo-btn-primary" data-id="{{item.id}}" bindtap="goDetail">查看记录</view>
+      </view>
     </view>
-    <view class="em-text-secondary">{{item.elevatorName}}</view>
-    <view class="em-text-secondary">{{item.workType}} · 计划 {{item.planTime}}</view>
   </view>
-
-  <view wx:if="{{loading}}" class="loading-tip em-text-secondary">加载中...</view>
 </view>

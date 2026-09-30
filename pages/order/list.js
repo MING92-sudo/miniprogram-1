@@ -1,5 +1,5 @@
-// 工单列表：历史工单检索 + 状态筛选
-const { getOrderList } = require('../../services/order')
+// 工单列表：看板式卡片（蓝色页头 + 搜索/扫码 + 电梯信息卡，UI 参照无纸化维保截屏）
+const { getOrderList, resolveByElevatorCode } = require('../../services/order')
 const { STATUS_TEXT } = require('../../constants/index')
 const { ensureLogin } = require('../../utils/guard')
 
@@ -118,7 +118,33 @@ Page({
     this.fetchList(true)
   },
 
+  // 页头扫码：扫电梯二维码 → 直接定位关联工单（与首页扫码一致）
+  onScan() {
+    wx.scanCode({
+      onlyFromCamera: true,
+      success: (res) => {
+        const code = String(res.result || '').trim()
+        if (!code) return
+        resolveByElevatorCode(code)
+          .then((order) => wx.navigateTo({ url: `/pages/order/detail?orderId=${order.id}` }))
+          .catch((e) => wx.showModal({ title: '扫码结果', content: e.message || '未找到关联工单', showCancel: false }))
+      }
+    })
+  },
+
   goDetail(e) {
     wx.navigateTo({ url: `/pages/order/detail?orderId=${e.currentTarget.dataset.id}` })
+  },
+
+  // 右侧主按钮：待执行→去签到；进行中→继续作业；已完成→查看记录
+  onAction(e) {
+    const { id, status } = e.currentTarget.dataset
+    if (status === 'PENDING') {
+      wx.navigateTo({ url: `/pages/order/checkin?orderId=${id}` })
+    } else if (status === 'PROCESSING') {
+      wx.navigateTo({ url: `/pages/order/checklist?orderId=${id}` })
+    } else {
+      wx.navigateTo({ url: `/pages/order/detail?orderId=${id}` })
+    }
   }
 })
