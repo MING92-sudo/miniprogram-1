@@ -56,11 +56,15 @@ app:
   dev-openid: ${DEV_OPENID:dev_openid}
   # 演示种子数据（生产置 false）
   seed-demo-data: ${SEED_DEMO_DATA:${DB_SEED_DEMO:true}}
-  # 文件存储：配置 COS_* 时走 COS 代理上传，否则回退本地磁盘（仅开发用）
+  # 文件存储：配置 COS_BUCKET/COS_REGION 即走 COS 代理上传，否则回退本地磁盘（仅开发用）。
+  # 桶名/地域非凭证，可直接入库（微信云托管控制台-对象存储-存储配置）；
+  # 云托管托管桶无静态密钥，走内网临时凭证 COS_AUTH_URL（/_/cos/getauth），
+  # 仅自建 COS 桶（本地联调）才注入 COS_SECRET_ID/COS_SECRET_KEY。
   cos-secret-id: ${COS_SECRET_ID:}
   cos-secret-key: ${COS_SECRET_KEY:}
-  cos-region: ${COS_REGION:}
-  cos-bucket: ${COS_BUCKET:}
+  cos-region: ${COS_REGION:ap-shanghai}
+  cos-bucket: ${COS_BUCKET:7072-prod-d3gg6nba2f3160af9-1498557567}
+  cos-auth-url: ${COS_AUTH_URL:http://api.weixin.qq.com/_/cos/getauth}
   file-storage-dir: ${FILE_STORAGE_DIR:${APP_FILE_ROOT:./data/files}}
   # LBS 逆地址解析 key（前端不接触 key，docs/08 审查 #5）
   lbs-amap-key: ${LBS_AMAP_KEY:}

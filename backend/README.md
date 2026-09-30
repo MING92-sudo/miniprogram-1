@@ -48,7 +48,9 @@ DB_PASSWORD=xxx
 | `REG_RETRY_AUTO` | **必须保持 false**（幂等性未获平台书面确认，AGENTS §2.3） |
 | `DB_HOST/DB_PORT/DB_NAME/DB_USER/DB_PASSWORD` | MySQL 连接 |
 | `JWT_SECRET` | 自建 JWT 签名密钥（生产必须强随机） |
-| `COS_SECRET_ID/COS_SECRET_KEY/COS_REGION/COS_BUCKET` | 腾讯云 COS（不配则本地磁盘回退） |
+| `COS_REGION/COS_BUCKET` | 对象存储桶名/地域（application.yml 已带云托管托管桶默认值，不配则本地磁盘回退） |
+| `COS_AUTH_URL` | 云托管内网临时凭证接口（托管桶自动使用，默认 `/_/cos/getauth`，无需密钥） |
+| `COS_SECRET_ID/COS_SECRET_KEY` | 仅自建 COS 桶（本地联调）需要；云托管托管桶无静态密钥 |
 | `LBS_AMAP_KEY / LBS_TENCENT_KEY` | 逆地址解析（前端不接触 key） |
 | `SEED_DEMO_DATA` | 演示种子数据开关，生产置 false |
 
