@@ -2,11 +2,9 @@
 // 登录成功后绑定微信（wx.login → /auth/bind-wechat），下次可微信一键登录（P2）
 const auth = require('../../services/auth')
 const { isLoggedIn } = require('../../utils/auth')
-const config = require('../../config/index')
 
 Page({
   data: {
-    useMock: config.useMock,
     phone: '',
     password: '',
     showPassword: false,

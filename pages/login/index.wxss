@@ -130,13 +130,6 @@
   font-size: 28rpx;
 }
 
-.demo-hint {
-  position: relative;
-  text-align: center;
-  margin-top: 40rpx;
-  font-size: 22rpx;
-}
-
 /* ── 协议 ── */
 .agreement {
   position: relative;
