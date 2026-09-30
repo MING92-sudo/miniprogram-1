@@ -1,11 +1,65 @@
 // 逆地址解析：经纬度 → 具体位置文字（省市区 + 道路/POI）
-// 真实环境走腾讯位置服务（需在小程序后台把 https://apis.map.qq.com 加入 request 合法域名）
+// 支持高德（amap）/ 腾讯（tencent）双服务商，按 config.lbs 自动选择；坐标系均为 gcj02
+// ⚠ key 暂存于前端配置仅为联调便利；P2 起应后移到自建后端代理（/location/reverse），前端不接触 key
 const config = require('../config/index')
 
+function pickProvider() {
+  const lbs = config.lbs || {}
+  if (lbs.provider === 'amap' && lbs.amapKey) return { name: 'amap', key: lbs.amapKey }
+  if (lbs.provider === 'tencent' && lbs.tencentKey) return { name: 'tencent', key: lbs.tencentKey }
+  if (lbs.amapKey) return { name: 'amap', key: lbs.amapKey }
+  if (lbs.tencentKey) return { name: 'tencent', key: lbs.tencentKey }
+  return null
+}
+
+// 高德逆地理：GET https://restapi.amap.com/v3/geocode/regeo?key=&location=lng,lat
+function requestAmap(key, lat, lng, finish, fallback) {
+  wx.request({
+    url: 'https://restapi.amap.com/v3/geocode/regeo',
+    data: { key: key, location: `${lng},${lat}`, extensions: 'base' },
+    success(res) {
+      const b = res.data || {}
+      // amap: status '1' 成功；infocode 10000 正常
+      if (b.status === '1' && b.regeocode) {
+        finish(b.regeocode.formatted_address || fallback)
+      } else {
+        console.warn('[location] 高德逆地址解析返回异常，已回退坐标：', b)
+        finish(fallback)
+      }
+    },
+    fail(err) {
+      console.warn('[location] 高德逆地址解析请求失败，已回退坐标：', err && err.errMsg)
+      finish(fallback)
+    }
+  })
+}
+
+// 腾讯逆地理：GET https://apis.map.qq.com/ws/geocoder/v1/?location=lat,lng
+function requestTencent(key, lat, lng, finish, fallback) {
+  wx.request({
+    url: 'https://apis.map.qq.com/ws/geocoder/v1/',
+    data: { location: `${lat},${lng}`, key: key },
+    success(res) {
+      const b = res.data || {}
+      if (b.status === 0 && b.result) {
+        const fa = b.result.formatted_addresses || {}
+        finish(fa.recommend || b.result.address || fallback)
+      } else {
+        console.warn('[location] 腾讯逆地址解析返回异常，已回退坐标：', b)
+        finish(fallback)
+      }
+    },
+    fail(err) {
+      console.warn('[location] 腾讯逆地址解析请求失败，已回退坐标：', err && err.errMsg)
+      finish(fallback)
+    }
+  })
+}
+
 function reverseGeocode(lat, lng) {
-  // 未配置 key：返回演示地址，保证前端流程可走通
-  // （逆地址解析独立于后端接口，配置 lbsKey 后即使 useMock=true 也走真实解析）
-  if (!config.lbsKey) {
+  const provider = pickProvider()
+  // 未配置任何 key：返回演示地址，保证前端流程可走通
+  if (!provider) {
     return Promise.resolve('重庆市渝北区龙山一路 88 号世纪大厦')
   }
 
@@ -25,24 +79,8 @@ function reverseGeocode(lat, lng) {
       console.warn('[location] 逆地址解析超时（10s），已回退坐标。若反复出现：请检查开发者工具"详情→本地设置→不校验合法域名"，或后台 request 合法域名是否包含 https://apis.map.qq.com')
       finish(fallback)
     }, 10000)
-    wx.request({
-      url: 'https://apis.map.qq.com/ws/geocoder/v1/',
-      data: { location: `${lat},${lng}`, key: config.lbsKey },
-      success(res) {
-        const b = res.data || {}
-        if (b.status === 0 && b.result) {
-          const fa = b.result.formatted_addresses || {}
-          finish(fa.recommend || b.result.address || fallback)
-        } else {
-          console.warn('[location] 逆地址解析接口返回异常，已回退坐标：', b)
-          finish(fallback)
-        }
-      },
-      fail(err) {
-        console.warn('[location] 逆地址解析请求失败，已回退坐标：', err && err.errMsg)
-        finish(fallback)
-      }
-    })
+    if (provider.name === 'amap') requestAmap(provider.key, lat, lng, finish, fallback)
+    else requestTencent(provider.key, lat, lng, finish, fallback)
   })
 }
 

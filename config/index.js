@@ -17,9 +17,16 @@ const config = {
   //   后端就绪联调时改为 false，services 层接口签名不变
   useMock: true,
   apiBaseUrl: API_BASE_URL[ENV],
-  // 腾讯位置服务 key（逆地址解析用，lbs.qq.com 控制台 → 应用管理 → 我的应用 → 添加 Key，勾选 WebService API）
-  // ★ 在下面引号内粘贴你申请的 KEY 即可生效；同时需在小程序后台把 https://apis.map.qq.com 加入 request 合法域名
-  lbsKey: 'PB7BZ-4A4CZ-VZDXQ-7OMQA-GOZYV-RUFKF',
+  // ── 逆地址解析（坐标 → 位置文字）服务商配置 ──
+  // 高德 / 腾讯均有个人免费额度（实名认证后每日数千次，覆盖签到+拍照量级）；
+  // 自动选择：填了 amapKey 优先用高德，否则用腾讯 key。坐标系均为 gcj02，与 wx.getLocation 直接兼容。
+  // 域名加白（小程序后台 request 合法域名）：高德 https://restapi.amap.com ｜ 腾讯 https://apis.map.qq.com
+  // ★ P2 待办：key 后移到自建后端代理（前端不接触 key，见 services/location.js 注释）
+  lbs: {
+    provider: 'auto', // auto（按 key 有无自动选）| amap | tencent
+    amapKey: '', // 高德 Web服务 key：lbs.amap.com 控制台 → 应用管理 → 创建应用 → 添加 Key（Web服务）
+    tencentKey: 'PB7BZ-4A4CZ-VZDXQ-7OMQA-GOZYV-RUFKF' // 腾讯位置服务 key（现有）
+  },
   requestTimeout: 15000, // 普通请求 15s（接口文档 A.0 约定）
   uploadTimeout: 120000, // 文件上传 120s
   pageSize: 20 // 分页默认 size
