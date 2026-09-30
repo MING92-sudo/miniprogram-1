@@ -74,3 +74,15 @@
   text-align: center;
   padding: 24rpx;
 }
+.due-banner {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  color: #d46b08;
+  font-size: 26rpx;
+  padding: 16rpx 24rpx;
+}
+
+.due-clear {
+  color: #1890ff;
+}

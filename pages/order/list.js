@@ -18,9 +18,19 @@ Page({
     page: 1,
     size: 20,
     total: 0,
-    keyword: '',
-    status: '',
-    loading: false
+  keyword: '',
+  status: '',
+  due: '',
+  dueLabel: '',
+  loading: false
+  },
+
+  onLoad(query) {
+    // 首页统计卡下钻：按到期维度过滤（today/soon/overdue）
+    if (query && query.due && DUE_LABEL[query.due]) {
+      this.setData({ due: query.due, dueLabel: DUE_LABEL[query.due] })
+      this._due = query.due
+    }
   },
 
   onShow() {
@@ -55,7 +65,8 @@ Page({
         page,
         size: this.data.size,
         keyword: this.data.keyword,
-        status: this.data.status
+        status: this.data.status,
+        due: this._due || ''
       })
       const list = ((data && data.list) || []).map((o) =>
         Object.assign({}, o, { statusText: STATUS_TEXT[o.status] || o.status })
@@ -74,6 +85,12 @@ Page({
   onTabChange(e) {
     const key = e.currentTarget.dataset.key
     this.setData({ status: key, activeTab: key })
+    this.fetchList(true)
+  },
+
+  clearDue() {
+    this._due = ''
+    this.setData({ due: '', dueLabel: '' })
     this.fetchList(true)
   },
 

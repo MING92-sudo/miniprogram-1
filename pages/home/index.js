@@ -107,4 +107,9 @@ Page({
     wx.navigateTo({ url })
   },
 
+  // 三色统计卡下钻：跳转工单列表并按到期维度过滤
+  goStat(e) {
+    wx.navigateTo({ url: '/pages/order/list?due=' + e.currentTarget.dataset.due })
+  },
+
 })

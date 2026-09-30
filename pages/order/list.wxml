@@ -1,4 +1,9 @@
 <view class="em-page">
+  <view wx:if="{{dueLabel}}" class="em-card due-banner">
+    筛选：{{dueLabel}}
+    <view class="due-clear" bindtap="clearDue">清除</view>
+  </view>
+
   <view class="search-bar">
     <input
       class="search-input"

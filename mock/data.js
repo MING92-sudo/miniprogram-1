@@ -410,6 +410,19 @@ function getOrder(id) {
 
 function listOrders(query) {
   let list = db.orders.slice()
+  // 首页统计卡下钻过滤：今日到期 / 即将到期(3天内) / 保养超期（仅未完成工单）
+  if (query && query.due) {
+    const today = formatTime().slice(0, 10)
+    const soonEnd = formatTime(new Date(Date.now() + 3 * 86400000)).slice(0, 10)
+    list = list.filter(function (o) {
+      const day = (o.planTime || '').slice(0, 10)
+      if (!day || o.status === 'DONE') return false
+      if (query.due === 'today') return day === today
+      if (query.due === 'soon') return day > today && day <= soonEnd
+      if (query.due === 'overdue') return day < today
+      return true
+    })
+  }
   if (query && query.status) {
     list = list.filter((o) => o.status === query.status)
   }

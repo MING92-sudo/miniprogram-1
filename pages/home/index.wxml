@@ -5,7 +5,6 @@
     <view class="banner-deco banner-deco-2"></view>
     <view class="banner-title">无纸化维保</view>
     <view class="banner-sub">智慧维保新模式</view>
-    <view class="banner-user">您好，{{userInfo.name || ''}} · {{roleText}}</view>
     <button class="banner-scan" bindtap="onScanTap">📷 扫码签到</button>
     <view wx:if="{{useMock}}" class="banner-mock" bindtap="onMockScan">演示：模拟扫码（世纪大厦 1#）</view>
   </view>
@@ -14,17 +13,17 @@
     <!-- 今日待维保电梯 -->
     <view class="section-title">今日待维保电梯</view>
     <view class="stat-grid">
-      <view class="stat-card stat-orange">
+      <view class="stat-card stat-orange" data-due="today" bindtap="goStat">
         <view class="stat-num">{{summary.dueToday}} 台</view>
         <view class="stat-label">今日到期</view>
         <view class="stat-emoji">⏰</view>
       </view>
-      <view class="stat-card stat-purple">
+      <view class="stat-card stat-purple" data-due="soon" bindtap="goStat">
         <view class="stat-num">{{summary.dueSoon}} 台</view>
         <view class="stat-label">即将到期</view>
         <view class="stat-emoji">📣</view>
       </view>
-      <view class="stat-card stat-red">
+      <view class="stat-card stat-red" data-due="overdue" bindtap="goStat">
         <view class="stat-num">{{summary.overdue}} 台</view>
         <view class="stat-label">保养超期</view>
         <view class="stat-emoji">🗓️</view>
