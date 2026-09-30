@@ -1,6 +1,14 @@
 package com.cqwlw.maintenance.service;
 
+import com.cqwlw.maintenance.common.BusinessException;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.util.MultiValueMap;
+import org.springframework.web.client.HttpStatusCodeException;
+import org.springframework.web.client.RestTemplate;
 
 /**
  * 监管平台业务接口转发层。
@@ -9,12 +17,30 @@ import org.springframework.stereotype.Service;
 @Service
 public class PlatformClient {
 
-    /**
-     * 转发业务请求到平台。
-     * TODO 按各业务接口实现表单参数拼装（平台为 x-www-form-urlencoded，非 JSON）。
-     * 合规约定：请求/响应日志脱敏 token、手机号、密钥；平台自动重试默认关闭。
-     */
-    public String forward(String path, Object payload) {
-        throw new UnsupportedOperationException("平台转发尚未实现: " + path);
+    private final PlatformTokenService tokenService;
+    private final RestTemplate restTemplate;
+
+    public PlatformClient(PlatformTokenService tokenService, RestTemplate restTemplate) {
+        this.tokenService = tokenService;
+        this.restTemplate = restTemplate;
+    }
+
+    public ResponseEntity<String> postForm(String path, MultiValueMap<String, String> form) {
+        try {
+            return exchange(path, form);
+        } catch (HttpStatusCodeException e) {
+            if (e.getStatusCode().value() != 401) {
+                throw e;
+            }
+            tokenService.invalidate();
+            return exchange(path, form);
+        }
+    }
+
+    private ResponseEntity<String> exchange(String path, MultiValueMap<String, String> form) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+        headers.setBearerAuth(tokenService.getToken());
+        return restTemplate.postForEntity(path, new HttpEntity<>(form, headers), String.class);
     }
 }

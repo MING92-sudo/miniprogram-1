@@ -5,6 +5,20 @@ server:
 spring:
   application:
     name: maintenance-backend
+  datasource:
+    url: jdbc:mysql://${DB_HOST:127.0.0.1}:${DB_PORT:3306}/${DB_NAME:maintenance}?useUnicode=true&characterEncoding=utf8&serverTimezone=GMT%2B8&useSSL=false&allowPublicKeyRetrieval=true
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+  jackson:
+    time-zone: GMT+8
+  servlet:
+    multipart:
+      max-file-size: 20MB
+      max-request-size: 25MB
 
 platform:
   # 以下凭证一律由环境变量 / .env 注入，禁止写真实值入库
@@ -16,6 +30,13 @@ platform:
   secret: ${REG_SECRET:}
   retry-auto: ${REG_RETRY_AUTO:false}
   legacy-upload-enabled: ${REG_LEGACY_UPLOAD_ENABLED:false}
+
+app:
+  jwt:
+    secret: ${APP_JWT_SECRET:change-me-before-production-32-bytes-minimum!}
+    ttl-hours: ${APP_JWT_TTL_HOURS:12}
+  file-root: ${APP_FILE_ROOT:./data/files}
+  work-duration-minutes: ${APP_WORK_DURATION_MINUTES:30}
 
 logging:
   level:

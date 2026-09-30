@@ -1,10 +1,15 @@
 package com.cqwlw.maintenance.service;
 
 import com.cqwlw.maintenance.config.PlatformProperties;
+import com.cqwlw.maintenance.common.BusinessException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.util.UriComponentsBuilder;
 
 /**
  * 监管平台 token 中控：
@@ -18,13 +23,15 @@ public class PlatformTokenService {
 
     private final PlatformProperties props;
     private final RestTemplate restTemplate;
+    private final ObjectMapper objectMapper;
 
     private volatile String cachedToken;
     private volatile long tokenExpireAt;
 
-    public PlatformTokenService(PlatformProperties props, RestTemplate restTemplate) {
+    public PlatformTokenService(PlatformProperties props, RestTemplate restTemplate, ObjectMapper objectMapper) {
         this.props = props;
         this.restTemplate = restTemplate;
+        this.objectMapper = objectMapper;
     }
 
     /**
@@ -36,8 +43,32 @@ public class PlatformTokenService {
         if (cachedToken != null && System.currentTimeMillis() < tokenExpireAt) {
             return cachedToken;
         }
-        // TODO: GET props.getAuthLoginUrl()，查询串由 REG_* 环境变量拼装；日志必须脱敏完整凭证。
-        throw new UnsupportedOperationException("平台登录换 token 尚未实现");
+        String url = UriComponentsBuilder.fromHttpUrl(props.getAuthLoginUrl())
+                .queryParam("username", props.getUsername())
+                .queryParam("key", props.getKey())
+                .queryParam("appcode", props.getAppcode())
+                .queryParam("secret", props.getSecret())
+                .toUriString();
+        try {
+            ResponseEntity<String> response = restTemplate.getForEntity(url, String.class);
+            JsonNode root = objectMapper.readTree(response.getBody() == null ? "{}" : response.getBody());
+            String code = root.path("code").asText();
+            String token = root.path("token").asText("");
+            long expiresIn = root.path("expires_in").asLong(0);
+            if (!"200".equals(code) || token.isBlank()) {
+                throw new BusinessException(2001, "监管平台 token 获取失败");
+            }
+            cachedToken = token;
+            tokenExpireAt = System.currentTimeMillis() + Math.max(60, expiresIn - 60) * 1000L;
+            return cachedToken;
+        } catch (BusinessException e) {
+            invalidate();
+            throw e;
+        } catch (Exception e) {
+            log.warn("监管平台 token 获取失败");
+            invalidate();
+            throw new BusinessException(2001, "监管平台 token 获取失败");
+        }
     }
 
     /** token 失效（平台返回 401/特定 code）时强制刷新。 */
