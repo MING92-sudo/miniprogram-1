@@ -597,6 +597,7 @@ function markCheckout(orderId, body) {
     items,
     photos,
     workerSignatureUrl: (body && body.signatureUrl) || '',
+    assistantSignatureUrl: (body && body.assistantSignatureUrl) || '',
     problemCodes,
     originalRecordId: o.originalRecordId,
     reportStatus: o.reportStatus,

@@ -22,6 +22,8 @@ Page({
       { key: 'run', label: '电梯试运行正常', checked: false }
     ],
     signature: '',
+    assistantSignature: '',
+    hasAssistant: false, // 工单配有配合人员时需双人签字（docs/04 A.2 签退自检）
     submitting: false
   },
 
@@ -39,7 +41,8 @@ Page({
       const order = await getOrderDetail(this.data.orderId)
       this.setData({
         elevatorName: (order.elevator && order.elevator.elevatorName) || '',
-        checkinTime: order.checkinTime || ''
+        checkinTime: order.checkinTime || '',
+        hasAssistant: !!(order.assistantName && order.assistantName !== '无')
       })
       this.startTicker()
     } catch (e) {
@@ -82,29 +85,28 @@ Page({
     })
   },
 
-  // 跳转签名板，完成后通过 EventChannel 回传图片路径
-  goSignature() {
+  // 跳转签名板（主维保/配合人员两个签字位）
+  goSignature(e) {
     // 签退成功后的 Toast 等待期内页面即将 reLaunch，禁止再发起新路由（避免路由竞态）
     if (this._leaving) return
+    this._sigTarget = e.currentTarget.dataset.field
     wx.navigateTo({
-      url: `/pages/common/signature?from=checkout&orderId=${this.data.orderId}`,
-      events: {
-        signatureDone: (data) => {
-          this.setData({ signature: data.path })
-        }
-      }
+      url: `/pages/common/signature?from=checkout&orderId=${this.data.orderId}`
     })
   },
 
   // 签名页直接方法回传（EventChannel 降级通道）
   onSignatureReady(data) {
-    this.setData({ signature: data.path })
+    if (this._sigTarget) this.setData({ [this._sigTarget]: data.path })
   },
 
   async onSubmit() {
     const allChecked = this.data.selfChecks.every((c) => c.checked)
     if (!allChecked) return wx.showToast({ title: '请完成全部自检项', icon: 'none' })
-    if (!this.data.signature) return wx.showToast({ title: '请完成签名', icon: 'none' })
+    if (!this.data.signature) return wx.showToast({ title: '请完成主维保人员签名', icon: 'none' })
+    if (this.data.hasAssistant && !this.data.assistantSignature) {
+      return wx.showToast({ title: '请完成配合人员签名（双人签字）', icon: 'none' })
+    }
     // 时长下限前端校验（后端 422 双保险）
     if (!this.data.durationOk) {
       return wx.showToast({
@@ -121,6 +123,8 @@ Page({
       await checkout(this.data.orderId, {
         signatureFileId: sigFileId,
         signatureUrl: this.data.signature, // mock 演示回显；真实后端忽略
+        assistantSignatureFileId: this.data.assistantSignature || '',
+        assistantSignatureUrl: this.data.assistantSignature || '',
         collectedAt: formatTime()
       })
       wx.showToast({ title: '签退成功，记录已提交上报', icon: 'success' })
