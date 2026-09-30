@@ -244,26 +244,3 @@
 .bg-green.record-emoji { background: rgba(82, 196, 26, 0.12); }
 .bg-blue.record-emoji { background: rgba(24, 144, 255, 0.12); }
 .bg-orange.record-emoji { background: rgba(250, 140, 22, 0.12); }
-
-/* ── 任务列表 ── */
-.task-card {
-  padding: 8rpx 24rpx;
-}
-
-.task-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 24rpx 0;
-  border-bottom: 2rpx solid #f2f3f5;
-}
-
-.task-item:last-child {
-  border-bottom: none;
-}
-
-.task-name {
-  font-size: 28rpx;
-  font-weight: 500;
-  margin-bottom: 6rpx;
-}

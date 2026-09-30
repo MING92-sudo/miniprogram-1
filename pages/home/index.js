@@ -1,9 +1,8 @@
 // 首页（首页服务）：无纸化维保看板 + 扫码签到 + 功能宫格
 // UI 参照「无纸化维保 · 智慧维保新模式」首页截屏设计（2026-09-30）
 const config = require('../../config/index')
-const { getOrderList, resolveByElevatorCode } = require('../../services/order')
+const { resolveByElevatorCode } = require('../../services/order')
 const { getHomeSummary } = require('../../services/home')
-const { STATUS_TEXT } = require('../../constants/index')
 const { ensureLogin } = require('../../utils/guard')
 const { refreshUnreadBadge } = require('../../utils/badge')
 
@@ -32,8 +31,6 @@ Page({
       { title: '消息通知', icon: '💬', color: 'blue', url: '/pages/message/index', tab: true },
       { title: '知识库', icon: '📚', color: 'purple', url: '/pages/knowledge/index' }
     ],
-    todayTasks: [],
-    loading: false
   },
 
   onShow() {
@@ -57,7 +54,6 @@ Page({
       roleText: (app.globalData.userInfo && app.globalData.userInfo.roleText) || ''
     })
     this.fetchSummary()
-    this.fetchTodayTasks()
     refreshUnreadBadge()
   },
 
@@ -77,20 +73,6 @@ Page({
     } catch (e) {
       // 汇总失败不阻断首页，看板显示 0 值
     }
-  },
-
-  async fetchTodayTasks() {
-    this.setData({ loading: true })
-    try {
-      const data = await getOrderList({ page: 1, size: 20 })
-      const list = ((data && data.list) || []).map(function (o) {
-        return Object.assign({}, o, { statusText: STATUS_TEXT[o.status] || o.status })
-      })
-      this.setData({ todayTasks: list })
-    } catch (e) {
-      wx.showToast({ title: e.message || '加载失败', icon: 'none' })
-    }
-    this.setData({ loading: false })
   },
 
   // 扫码签到主入口：扫电梯二维码 → 定位工单
@@ -125,7 +107,4 @@ Page({
     wx.navigateTo({ url })
   },
 
-  onTaskTap(e) {
-    wx.navigateTo({ url: `/pages/order/detail?orderId=${e.currentTarget.dataset.id}` })
-  }
 })

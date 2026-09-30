@@ -92,23 +92,5 @@
       </view>
     </view>
 
-    <!-- 今日任务列表 -->
-    <view class="section-title">今日任务</view>
-    <view class="em-card task-card">
-      <view wx:if="{{todayTasks.length === 0}}" class="em-text-secondary">今日暂无任务</view>
-      <view
-        wx:for="{{todayTasks}}"
-        wx:key="id"
-        class="task-item"
-        data-id="{{item.id}}"
-        bindtap="onTaskTap"
-      >
-        <view class="task-main">
-          <view class="task-name">{{item.elevatorName}}</view>
-          <view class="em-text-secondary">{{item.workType}} · {{item.planTime}}</view>
-        </view>
-        <view class="tag tag-{{item.status}}">{{item.statusText}}</view>
-      </view>
-    </view>
   </view>
 </view>
