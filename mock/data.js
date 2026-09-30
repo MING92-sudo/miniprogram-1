@@ -72,9 +72,9 @@ function makeDoneItems(workTypeCode, withAbnormal) {
     it.recordedAt = formatTime()
   })
   if (withAbnormal) {
-    const item = items.find(function (i) { return i.itemCode === 'A-1-16' })
+    const item = items.find(function (i) { return i.itemCode === 'A-1-18' })
     item.result = 'ABNORMAL'
-    item.abnormalDesc = '轿厢报警装置通话杂音大，已清洁触点并复测'
+    item.abnormalDesc = '轿内报警装置通话杂音大，已清洁触点并复测'
     item.problemCode = 'S5'
     item.photos = [DEMO_PHOTO + '?abn=' + item.itemCode]
     item.photoFileIds = ['mock_file_abn_' + item.itemCode]

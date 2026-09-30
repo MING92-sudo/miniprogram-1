@@ -17,7 +17,7 @@
     </view>
   </view>
 
-  <view class="em-card">
+  <view wx:if="{{useMock}}" class="em-card">
     <view class="em-text-secondary demo-tip">演示辅助：模拟弱网断网时的本地写入，用于体验补传流程。</view>
     <button size="mini" bindtap="onDemoEnqueue">模拟写入一条待补传数据</button>
   </view>

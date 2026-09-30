@@ -1,10 +1,13 @@
 // 离线缓存管理
 // 约定（docs/02）：按工单分 key 存储 + offline_queue 补传队列；网络恢复时自动补传
+const config = require('../../config/index')
 const offline = require('../../utils/offline')
 const { formatTime } = require('../../utils/util')
 
 Page({
   data: {
+    // 演示辅助入口仅 mock 模式渲染（docs/08 P1 收口）
+    useMock: config.useMock,
     cacheList: [],
     queueCount: 0,
     syncing: false
@@ -74,14 +77,14 @@ Page({
       orderNo: 'WO20260929-002',
       elevatorName: '蓝湾国际 A 座货梯',
       checklist: [
-        { id: 'ci_1', name: '机房环境与曳引机检查', result: 'NORMAL', abnormalDesc: '', skipReason: '', photos: [] }
+        { id: 'ci_A-1-01', name: '机房、滑轮间环境', result: 'NORMAL', abnormalDesc: '', skipReason: '', photos: [] }
       ]
     })
     offline.enqueue({
-      url: '/work-orders/wo_2/checklist/ci_1',
+      url: '/work-orders/wo_2/checklist/ci_A-1-01',
       method: 'POST',
       data: {
-        clientItemId: 'ci_1',
+        clientItemId: 'ci_A-1-01',
         result: 'NORMAL',
         value: null,
         valueText: '',
@@ -91,7 +94,7 @@ Page({
         photoFileIds: [],
         photoUrls: []
       },
-      desc: '机房环境与曳引机检查'
+      desc: '机房、滑轮间环境（A-1-01）'
     })
     wx.showToast({ title: '已模拟写入 1 条', icon: 'success' })
     this.refresh()
