@@ -72,17 +72,16 @@ Page({
       success: (res) => {
         const data = { path: res.tempFilePath }
         // 通道①：EventChannel（规范用法，在被打开页自身 emit）
-        let delivered = false
         if (this._channel && typeof this._channel.emit === 'function') {
           try {
             this._channel.emit('signatureDone', data)
-            delivered = true
           } catch (e) {
-            delivered = false
+            // EventChannel 失效时走通道②
           }
         }
-        // 通道②：直接调用上一页方法（EventChannel 建立失败时的可靠降级）
-        if (!delivered) {
+        // 通道②：直接调用上一页方法（未注册 events 监听 / EventChannel 失效时兜底；
+        // 两通道同时生效时 setData 幂等，无副作用）
+        {
           const pages = getCurrentPages()
           const prev = pages[pages.length - 2]
           if (prev && typeof prev.onSignatureReady === 'function') {

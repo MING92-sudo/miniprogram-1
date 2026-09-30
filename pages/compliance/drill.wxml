@@ -1,0 +1,53 @@
+<view class="em-page">
+  <view class="em-card">
+    <view class="section-title">半年覆盖检查</view>
+    <view wx:if="{{coverage.missing.length === 0}}" class="coverage-ok">✓ 在保品种半年内均已演练</view>
+    <view wx:else class="coverage-warn">⚠ 未覆盖品种：{{coverage.missing}}</view>
+    <view class="em-text-secondary">法定要求：每半年至少 1 轮，覆盖本单位在保的全部电梯品种</view>
+  </view>
+
+  <view wx:for="{{list}}" wx:key="id" class="em-card">
+    <view class="row-title">{{item.category}} · {{item.scene}}</view>
+    <view class="em-text-secondary">{{item.drillDate}} · {{item.participants}}</view>
+    <view class="em-text-secondary drill-process">{{item.process}}</view>
+    <view class="em-text-secondary" wx:if="{{item.problems}}">发现问题：{{item.problems}}</view>
+    <view class="em-text-secondary" wx:if="{{item.actions}}">整改措施：{{item.actions}}</view>
+  </view>
+
+  <view class="em-card">
+    <button class="em-btn-primary" bindtap="toggleForm">{{showForm ? '收起登记' : '+ 登记演练'}}</button>
+  </view>
+
+  <view class="em-card" wx:if="{{showForm}}">
+    <view class="form-label">演练日期</view>
+    <picker mode="date" value="{{drillDate}}" bindchange="onDateChange">
+      <view class="form-input">{{drillDate || '请选择日期'}}</view>
+    </picker>
+
+    <view class="form-label">电梯品种</view>
+    <picker range="{{categories}}" value="{{categoryIndex}}" bindchange="onCategoryChange">
+      <view class="form-input">{{categoryIndex > -1 ? categories[categoryIndex] : '请选择品种'}}</view>
+    </picker>
+
+    <view class="form-label">演练场景</view>
+    <picker range="{{scenes}}" value="{{sceneIndex}}" bindchange="onSceneChange">
+      <view class="form-input">{{sceneIndex > -1 ? scenes[sceneIndex] : '请选择场景'}}</view>
+    </picker>
+
+    <view class="form-label">参与人员</view>
+    <input class="form-input" value="{{participants}}" data-field="participants" bindinput="onInput" placeholder="参与人员名单" />
+
+    <view class="form-label">演练过程</view>
+    <textarea class="form-textarea" value="{{process}}" data-field="process" bindinput="onInput" maxlength="500" placeholder="演练过程记录" />
+
+    <view class="form-label">发现问题</view>
+    <textarea class="form-textarea" value="{{problems}}" data-field="problems" bindinput="onInput" maxlength="300" placeholder="发现问题（可空）" />
+
+    <view class="form-label">整改措施</view>
+    <textarea class="form-textarea" value="{{actions}}" data-field="actions" bindinput="onInput" maxlength="300" placeholder="整改措施（可空）" />
+
+    <view class="submit-wrap">
+      <button class="em-btn-primary" disabled="{{submitting}}" bindtap="onSubmit">{{submitting ? '提交中...' : '保存登记'}}</button>
+    </view>
+  </view>
+</view>

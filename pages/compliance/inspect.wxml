@@ -1,0 +1,20 @@
+<view class="em-page">
+  <view class="em-card">
+    <view class="section-title">自行检查（年度法定动作）</view>
+    <view class="em-text-secondary">每台电梯每年至少 1 次，须在下次定期检验前完成；检查项不少于年度维保项。逾期未检将预警上报。</view>
+  </view>
+
+  <view
+    wx:for="{{list}}"
+    wx:key="elevatorId"
+    class="em-card inspect-item"
+    data-index="{{index}}"
+    bindtap="goRun"
+  >
+    <view class="row-title">{{item.elevatorName}}</view>
+    <view class="em-text-secondary">{{item.elevatorCode}} · {{item.category}}</view>
+    <view class="em-text-secondary">下次定期检验：{{item.nextCheckDate || '-'}}</view>
+    <view class="em-text-secondary">上次自行检查：{{item.lastInspectDate || '无记录'}}</view>
+    <view class="status {{item.status === '已完成' ? 'status-ok' : (item.status === '逾期未检' ? 'status-overdue' : 'status-todo')}}">{{item.status}}</view>
+  </view>
+</view>

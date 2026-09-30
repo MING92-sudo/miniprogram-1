@@ -38,3 +38,15 @@
   color: var(--em-brand);
   font-size: 26rpx;
 }
+.time-row {
+  display: flex;
+  gap: 16rpx;
+}
+
+.time-cell {
+  flex: 1;
+}
+
+.form-label {
+  margin-top: 20rpx;
+}

@@ -177,6 +177,22 @@ const routes = [
     return { ok: true }
   }],
 
+  // ── 合规台账（TSG 法定项，数据暂存本地不上报平台）──
+  ['GET', '/drills', () => d.listDrills()],
+  ['POST', '/drills', ({ body }) => d.createDrill(body)],
+  ['GET', '/inspects', () => d.listInspects()],
+  ['GET', '/inspects/template', () => {
+    // 自行检查项 = 年度维保项并集（表A-1~A-4 累计 76 项，docs/01 §3.17"不少于年度维保项"）
+    const items = []
+    d.FREQ_CHAIN.OY.forEach(function (freq) {
+      d.APPENDIX_A_TPL[freq].forEach(function (it) {
+        items.push(it)
+      })
+    })
+    return { items: items }
+  }],
+  ['POST', '/inspects', ({ body }) => d.createInspect(body)],
+
   // ── 消息 ──
   ['GET', '/messages', ({ query }) => {
     d.ensureDueOrders()

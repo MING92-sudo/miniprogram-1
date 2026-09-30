@@ -117,14 +117,14 @@ const db = {
   },
 
   elevators: [
-    { id: 'el_1', elevatorCode: 'EM-2024-001', elevatorName: '世纪大厦 1# 客梯', location: '渝北区龙山一路 88 号世纪大厦', regCode: 'TSCQ5001120001', deviceCode: 'DT-CQ-2024-001', insideNumber: 'KT-01', useUnitId: 'uu_1',
+    { id: 'el_1', elevatorCode: 'EM-2024-001', elevatorName: '世纪大厦 1# 客梯', location: '渝北区龙山一路 88 号世纪大厦', regCode: 'TSCQ5001120001', deviceCode: 'DT-CQ-2024-001', insideNumber: 'KT-01', useUnitId: 'uu_1', category: '曳引驱动电梯', nextCheckDate: addDays(45),
       // 维保绑定配置：到期自动派单的人员与频次（正式版为维保合同 + 排班表）
       maintenance: { workTypeCode: 'HM', intervalDays: 15, workerName: '张伟', workerPlatformId: '990001', assistantName: '李强', assistantPlatformId: '990003', lastMaintenanceAt: addDays(-3) } },
-    { id: 'el_2', elevatorCode: 'EM-2024-002', elevatorName: '世纪大厦 2# 客梯', location: '渝北区龙山一路 88 号世纪大厦', regCode: 'TSCQ5001120002', deviceCode: 'DT-CQ-2024-002', insideNumber: 'KT-02', useUnitId: 'uu_1',
+    { id: 'el_2', elevatorCode: 'EM-2024-002', elevatorName: '世纪大厦 2# 客梯', location: '渝北区龙山一路 88 号世纪大厦', regCode: 'TSCQ5001120002', deviceCode: 'DT-CQ-2024-002', insideNumber: 'KT-02', useUnitId: 'uu_1', category: '曳引驱动电梯', nextCheckDate: addDays(18),
       maintenance: { workTypeCode: 'HM', intervalDays: 15, workerName: '张伟', workerPlatformId: '990001', assistantName: '李强', assistantPlatformId: '990003', lastMaintenanceAt: addDays(-3) } },
-    { id: 'el_3', elevatorCode: 'EM-2024-003', elevatorName: '蓝湾国际 A 座货梯', location: '江北区滨江路 6 号蓝湾国际', regCode: 'TSCQ5001120003', deviceCode: 'DT-CQ-2024-003', insideNumber: 'HT-01', useUnitId: 'uu_2',
+    { id: 'el_3', elevatorCode: 'EM-2024-003', elevatorName: '蓝湾国际 A 座货梯', location: '江北区滨江路 6 号蓝湾国际', regCode: 'TSCQ5001120003', deviceCode: 'DT-CQ-2024-003', insideNumber: 'HT-01', useUnitId: 'uu_2', category: '曳引驱动电梯', nextCheckDate: addDays(200),
       maintenance: { workTypeCode: 'FM', intervalDays: 30, workerName: '张伟', workerPlatformId: '990001', assistantName: '', assistantPlatformId: '', lastMaintenanceAt: addDays(-10) } },
-    { id: 'el_4', elevatorCode: 'EM-2024-004', elevatorName: '蓝湾国际 B 座客梯', location: '江北区滨江路 6 号蓝湾国际', regCode: 'TSCQ5001120004', deviceCode: 'DT-CQ-2024-004', insideNumber: 'KT-01', useUnitId: 'uu_2',
+    { id: 'el_4', elevatorCode: 'EM-2024-004', elevatorName: '蓝湾国际 B 座客梯', location: '江北区滨江路 6 号蓝湾国际', regCode: 'TSCQ5001120004', deviceCode: 'DT-CQ-2024-004', insideNumber: 'KT-01', useUnitId: 'uu_2', category: '曳引驱动电梯', nextCheckDate: addDays(240),
       // 演示到期自动派单：上次维保 16 天前，已超半月周期 → 进入工单台即自动生成并派给李强
       maintenance: { workTypeCode: 'HM', intervalDays: 15, workerName: '李强', workerPlatformId: '990003', assistantName: '', assistantPlatformId: '', lastMaintenanceAt: addDays(-16) } }
   ],
@@ -186,6 +186,28 @@ const db = {
     { id: 'ft_2', elevatorCode: 'EM-2024-001', faultType: '平层异常', desc: '平层偏差明显，已调整', status: 'CLOSED', createdAt: today('08:20:00'), handleDesc: '调整平层感应器后恢复正常' }
   ],
 
+  // ── 合规台账（TSG 法定项，docs/01 §3.17/3.18；数据暂存本地，不上报平台）──
+  // 应急演练：每半年至少 1 轮，覆盖本单位在保的全部电梯品种
+  drills: [
+    {
+      id: 'dr_1', drillDate: addDays(-20), category: '曳引驱动电梯', scene: '困人救援',
+      participants: '张伟、李强、王芳',
+      process: '模拟 3 层困人，按预案盘车平层、开门解救，全程 18 分钟',
+      problems: '对讲通话音量偏小',
+      actions: '已调整对讲音量并复测正常'
+    }
+  ],
+
+  // 自行检查：每台电梯每年至少 1 次，须在下次定期检验前完成（复用年度维保检查项）
+  inspects: [
+    {
+      id: 'in_1', elevatorId: 'el_1', inspectDate: addDays(-100),
+      itemTotal: 76, abnormalCount: 1,
+      problems: '层门地坎有杂物，已清理',
+      inspectorSign: 'mock_file_ins1', reviewerSign: 'mock_file_ins1r'
+    }
+  ],
+
   // 使用单位待确认记录（签退时冻结的维保记录快照）
   unitRecords: [
     {
@@ -215,6 +237,12 @@ const db = {
   ],
 
   knowledge: [
+    {
+      id: 'kb_0',
+      title: '法定合规动作说明',
+      tag: '应急处置',
+      content: '一、自行检查（TSG 第五条(九)）：每台电梯每年至少 1 次，须在下次定期检验前完成，检查项不少于年度维保项。\n\n二、应急演练（TSG 第五条(三)）：每半年至少 1 轮，覆盖本单位在保的全部电梯品种。\n\n三、困人救援（TSG 第五条(四)）：接报后直辖市 30 分钟内抵达，超时记录不可删除。'
+    },
     {
       id: 'kb_1',
       title: '曳引机异响排查手册',
@@ -475,12 +503,30 @@ function updateChecklistItem(orderId, itemId, patch) {
 }
 
 function createRescue(body) {
+  // 救援节点耗时自动计算（docs/01 §3.9.3.1：系统自动计算并留痕各节点耗时，
+  // 抵达超 30 分钟自动标记超时且记录不可删除；重庆为直辖市，法定时限 30 分钟）
+  const arriveMin = body.arriveAt && body.alarmAt
+    ? Math.round((parseTime(body.arriveAt) - parseTime(body.alarmAt)) / 60000)
+    : null
+  const rescuedMin = body.rescuedAt && body.alarmAt
+    ? Math.round((parseTime(body.rescuedAt) - parseTime(body.alarmAt)) / 60000)
+    : null
+  const overtime = arriveMin != null && arriveMin > 30
   const r = {
     id: nextId('rs'),
     elevatorCode: body.elevatorCode,
     trappedCount: body.trappedCount || 0,
     desc: body.desc || '',
-    status: '处理中',
+    alarmAt: body.alarmAt || '',
+    departAt: body.departAt || '',
+    arriveAt: body.arriveAt || '',
+    rescuedAt: body.rescuedAt || '',
+    arriveMinutes: arriveMin,
+    rescuedMinutes: rescuedMin,
+    overtime: overtime, // 超时记录不可删除（法定留痕）
+    reason: body.reason || '',
+    action: body.action || '',
+    status: body.rescuedAt ? '已解除' : '处理中',
     createdAt: formatTime()
   }
   db.rescues.unshift(r)
@@ -509,6 +555,101 @@ function closeFault(id, body) {
   return f
 }
 
+// ── 应急演练（docs/01 §3.18）──
+function listDrills() {
+  // 覆盖检查：近半年内，本单位在保的每个电梯品种均须有演练记录
+  const halfYearAgo = Date.now() - 182 * 86400000
+  const covered = []
+  db.drills.forEach(function (r) {
+    const t = parseTime(r.drillDate)
+    if (t >= halfYearAgo && covered.indexOf(r.category) === -1) covered.push(r.category)
+  })
+  const all = []
+  db.elevators.forEach(function (el) {
+    if (el.category && all.indexOf(el.category) === -1) all.push(el.category)
+  })
+  const missing = all.filter(function (c) {
+    return covered.indexOf(c) === -1
+  })
+  return { list: db.drills.slice(), coverage: { covered: covered, missing: missing } }
+}
+
+function createDrill(body) {
+  if (!body.drillDate) throw { code: 422, message: '请填写演练日期' }
+  if (!body.category) throw { code: 422, message: '请选择电梯品种' }
+  const r = {
+    id: nextId('dr'),
+    drillDate: body.drillDate,
+    category: body.category,
+    scene: body.scene || '',
+    participants: body.participants || '',
+    process: body.process || '',
+    problems: body.problems || '',
+    actions: body.actions || '',
+    createdAt: formatTime()
+  }
+  db.drills.unshift(r)
+  return r
+}
+
+// ── 自行检查（docs/01 §3.17，独立记录类型 inspect_record，不触发 2.6 上报）──
+function listInspects() {
+  const now = Date.now()
+  return db.elevators.map(function (el) {
+    const record = db.inspects.find(function (i) {
+      return i.elevatorId === el.id
+    })
+    const nextCheck = parseTime(el.nextCheckDate)
+    let status = '未检'
+    if (record) {
+      status = '已完成'
+    } else if (nextCheck && nextCheck - now < 30 * 86400000) {
+      // 法定要求：须在下次定期检验之前完成，临近/超过即逾期预警
+      status = '逾期未检'
+    }
+    return {
+      elevatorId: el.id,
+      elevatorName: el.elevatorName,
+      elevatorCode: el.elevatorCode,
+      category: el.category || '',
+      nextCheckDate: el.nextCheckDate || '',
+      lastInspectDate: record ? record.inspectDate : '',
+      status: status
+    }
+  })
+}
+
+function createInspect(body) {
+  const items = body.items || []
+  const unmarked = items.filter(function (i) {
+    return !i.result
+  })
+  if (unmarked.length) throw { code: 422, message: '尚有 ' + unmarked.length + ' 项未填写检查结果' }
+  const abnormal = items.filter(function (i) {
+    return i.result === 'ABNORMAL'
+  })
+  const noDesc = abnormal.filter(function (i) {
+    return !i.abnormalDesc
+  })
+  if (noDesc.length) throw { code: 422, message: '不合格项请填写问题描述' }
+  if (!body.inspectorSign) throw { code: 422, message: '请完成检查人员签字' }
+  if (!body.reviewerSign) throw { code: 422, message: '请完成审核人员签字' }
+  const r = {
+    id: nextId('in'),
+    elevatorId: body.elevatorId,
+    inspectDate: formatTime().slice(0, 10),
+    itemTotal: items.length,
+    abnormalCount: abnormal.length,
+    problems: abnormal.map(function (i) {
+      return i.name + '：' + i.abnormalDesc
+    }).join('；'),
+    inspectorSign: body.inspectorSign,
+    reviewerSign: body.reviewerSign
+  }
+  db.inspects.unshift(r)
+  return r
+}
+
 // 初始演示记录补挂平台 2.6 报文快照
 db.unitRecords.forEach((r) => {
   const el = getElevatorByCode(r.elevatorCode) || {}
@@ -517,6 +658,8 @@ db.unitRecords.forEach((r) => {
 
 module.exports = {
   db,
+  APPENDIX_A_TPL,
+  FREQ_CHAIN,
   nextId,
   nextRecordId,
   ensureDueOrders,
@@ -529,6 +672,10 @@ module.exports = {
   markCheckout,
   buildReportPayload,
   updateChecklistItem,
+  listDrills,
+  createDrill,
+  listInspects,
+  createInspect,
   createRescue,
   createFault,
   closeFault

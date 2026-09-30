@@ -1,0 +1,19 @@
+.coverage-ok {
+  color: var(--em-success, #2ba471);
+  font-weight: 600;
+  margin-bottom: 8rpx;
+}
+
+.coverage-warn {
+  color: #e34d59;
+  font-weight: 600;
+  margin-bottom: 8rpx;
+}
+
+.drill-process {
+  margin-top: 8rpx;
+}
+
+.submit-wrap {
+  margin-top: 24rpx;
+}
