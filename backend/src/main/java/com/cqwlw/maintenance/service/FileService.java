@@ -42,11 +42,12 @@ public class FileService {
             if (dot > -1) extension = originalName.substring(dot);
             String storageName = UUID.randomUUID().toString().replace("-", "") + extension;
             Path target = root.resolve(storageName);
-            file.transferTo(target);
+            Path absoluteTarget = target.toAbsolutePath();
+            file.transferTo(absoluteTarget);
 
             FileRecord record = new FileRecord();
             record.setOriginalName(originalName);
-            record.setStoragePath(target.toString());
+            record.setStoragePath(absoluteTarget.toString());
             record.setContentType(file.getContentType());
             record.setSize(file.getSize());
             record.setOwnerPhone(authContext.currentPhone());
