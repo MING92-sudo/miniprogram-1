@@ -6,6 +6,8 @@ const { compressImage } = require('../../utils/image')
 Page({
   data: {
     orderId: '',
+    itemId: '',
+    itemName: '', // 检查项名称水印（检查项拍照时携带）
     from: '',
     photo: '', // 原始照片
     output: '', // 水印合成结果
@@ -32,8 +34,16 @@ Page({
         locationText = lat.toFixed(5) + ', ' + lng.toFixed(5)
       }
     }
+    let itemName = ''
+    try {
+      itemName = decodeURIComponent(query.itemName || '')
+    } catch (e) {
+      itemName = query.itemName || ''
+    }
     this.setData({
       orderId: query.orderId || '',
+      itemId: query.itemId || '',
+      itemName: itemName,
       from: query.from || '',
       watermarkTime: formatTime(),
       locationText
@@ -98,18 +108,25 @@ Page({
           ctx.fillRect(0, 0, cssW, cssH)
           ctx.drawImage(img, (cssW - dw) / 2, (cssH - dh) / 2, dw, dh)
 
-          // 底部水印条
-          const barH = 84
+          // 底部水印条：行数随内容动态（时间/工单/检查项/位置）
+          const rows = ['时间：' + this.data.watermarkTime, '工单：' + (this.data.orderId || '-')]
+          if (this.data.itemName) rows.push('项目：' + this.data.itemName)
+          if (this.data.locationText) rows.push('位置：' + this.data.locationText)
+          const barH = 20 + rows.length * 24
           ctx.fillStyle = 'rgba(0, 0, 0, 0.6)'
           ctx.fillRect(0, cssH - barH, cssW, barH)
           ctx.fillStyle = '#ffffff'
           ctx.font = '13px sans-serif'
           ctx.textBaseline = 'top'
-          ctx.fillText('时间：' + this.data.watermarkTime, 12, cssH - barH + 10)
-          ctx.fillText('工单：' + (this.data.orderId || '-') + ' · 电梯维保', 12, cssH - barH + 34)
-          if (this.data.locationText) {
-            ctx.fillText('位置：' + this.data.locationText, 12, cssH - barH + 58)
-          }
+          // 超宽文字按画布宽度截断，避免溢出画面
+          const maxW = cssW - 24
+          rows.forEach(function (line, i) {
+            let text = line
+            while (ctx.measureText(text).width > maxW && text.length > 4) {
+              text = text.slice(0, text.length - 2) + '…'
+            }
+            ctx.fillText(text, 12, cssH - barH + 10 + i * 24)
+          })
 
           wx.canvasToTempFilePath({
             canvas,

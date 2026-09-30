@@ -1,10 +1,8 @@
 // 检查项填写：结果 + 读数/说明书判定 + 异常描述/隐患码 + 跳过原因 + 现场照片
 // 枚举与字段对齐 docs/04 A.2：result=NORMAL/ABNORMAL/NA；NA 必填 skipReason；
 // NUMERIC 填 value；MANUFACTURER 填 valueText；ABNORMAL 必填 abnormalDesc + problemCode(S1-S7)
-// 照片拍照后压缩：长边 ≤1200px、≤500KB
 const { getChecklist, submitChecklistItem } = require('../../services/order')
 const { uploadImage } = require('../../services/upload')
-const { compressImage } = require('../../utils/image')
 const { formatTime } = require('../../utils/util')
 const { PROBLEM_CODES } = require('../../constants/index')
 const offline = require('../../utils/offline')
@@ -90,19 +88,19 @@ Page({
     if (this.data.photos.length >= MAX_PHOTOS) {
       return wx.showToast({ title: `最多 ${MAX_PHOTOS} 张`, icon: 'none' })
     }
-    wx.chooseMedia({
-      count: 1,
-      mediaType: ['image'],
-      sourceType: ['camera'],
-      sizeType: ['compressed'],
-      success: async (res) => {
-        // 压缩至约定范围（长边 ≤1200px、≤500KB）后再入列
-        wx.showLoading({ title: '照片处理中', mask: true })
-        const path = await compressImage(res.tempFiles[0].tempFilePath)
-        wx.hideLoading()
-        this.setData({ photos: this.data.photos.concat(path) })
-      }
+    // 拍照统一走水印相机：现场照片须带时间/工单/检查项水印留证（docs/04）
+    // 水印相机内已完成合成与压缩（长边 ≤1200px、≤500KB），回传直接入列
+    const name = (this.data.item && this.data.item.name) || ''
+    wx.navigateTo({
+      url: `/pages/common/watermark-camera?from=item&orderId=${this.data.orderId}` +
+        `&itemId=${this.data.itemId}&itemName=${encodeURIComponent(name)}`
     })
+  },
+
+  // 由水印相机页面回传（已完成水印合成与压缩）
+  onPhotoReady(photo) {
+    if (!photo) return
+    this.setData({ photos: this.data.photos.concat(photo) })
   },
 
   removePhoto(e) {

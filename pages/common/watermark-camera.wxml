@@ -1,6 +1,6 @@
 <view class="em-page">
   <view class="em-card">
-    <view class="wm-info">水印：{{watermarkTime}} · 工单 {{orderId || '-'}}</view>
+    <view class="wm-info">水印：{{watermarkTime}} · 工单 {{orderId || '-'}}{{itemName ? ' · ' + itemName : ''}}</view>
     <view class="wm-wrap">
       <canvas id="wm-canvas" type="2d" class="wm-canvas"></canvas>
       <view wx:if="{{!output}}" class="preview-empty" bindtap="takePhoto">
