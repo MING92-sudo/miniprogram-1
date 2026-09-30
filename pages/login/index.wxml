@@ -43,10 +43,6 @@
     </button>
   </view>
 
-  <view wx:if="{{useMock}}" class="demo-hint em-text-secondary">
-    演示账号：13800000001（维保人员）/ 13800000002（班组长）/ 13800000003（安全管理员），密码 123456
-  </view>
-
   <view class="agreement">
     <view class="checkbox {{agreed ? 'checked' : ''}}" bindtap="toggleAgreed">{{agreed ? '✓' : ''}}</view>
     <view class="agreement-text">登录代表您已经同意<text class="link">《用户协议》</text>和<text class="link">《隐私政策》</text></view>

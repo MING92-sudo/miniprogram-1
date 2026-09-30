@@ -1,5 +1,4 @@
 //
-const config = require('../../config/index')
 const { resolveByElevatorCode } = require('../../services/order')
 const { getHomeSummary } = require('../../services/home')
 const { ensureLogin } = require('../../utils/guard')
@@ -15,7 +14,6 @@ const TAB_PAGES = [
 
 Page({
   data: {
-    useMock: config.useMock,
     userInfo: null,
     roleText: '',
     summary: {
@@ -82,11 +80,6 @@ Page({
         this.resolveElevator(res.result)
       }
     })
-  },
-
-  // 演示入口：模拟扫到世纪大厦 1# 客梯（仅 mock 模式渲染）
-  onMockScan() {
-    this.resolveElevator('EM-2024-001')
   },
 
   async resolveElevator(elevatorCode) {

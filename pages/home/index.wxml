@@ -6,7 +6,6 @@
     <view class="banner-title">无纸化维保</view>
     <view class="banner-sub">智慧维保新模式</view>
     <button class="banner-scan" bindtap="onScanTap">📷 扫码签到</button>
-    <view wx:if="{{useMock}}" class="banner-mock" bindtap="onMockScan">演示：模拟扫码（世纪大厦 1#）</view>
   </view>
 
   <view class="home-body">
