@@ -1,74 +1,66 @@
-# maintenance-backend（自建后端：平台 token 中控 + 接口转发层）
+# maintenance-backend（P2 最小代理后端：token 中控 + 41 条业务契约 + MySQL）
 
-Spring Boot 3.3.4（Java 17 / Maven）后端骨架，定位为小程序与监管平台（重庆市智慧特种设备安全管理系统）之间的 **token 中控 + 接口转发层**：
+Spring Boot 3.3.4（Java 17 / Maven / MyBatis-Plus / MySQL 8 / Flyway）。
+P2 落地范围（docs/08）：小程序全部 41 条业务路由真实后端化、平台 token 中控、2.2/2.7 只读转发、
+每日 09:00 自动派单、COS 代理上传、LBS 逆地址解析代理（key 不落前端）。
+**不含**：2.6 上报闭环 / 2.3-2.5 / STS 直传 / Redis（P3-P5）。
 
-- 平台凭证（`REG_*`）只存在于此服务进程，小程序前端永远不接触真实凭证；
-- 小程序统一调用 `https://<本服务域名>/api/v1/**`；
-- 本服务用 `PlatformTokenService` 登录换 token 并缓存，`PlatformClient` 转发业务请求。
-
-## 当前状态（2026-09-30 与代码核对）
+## 当前状态（2026-10-01 与代码核对）
 
 | 组件 | 状态 |
 |---|---|
-| `HealthController`（`GET /health`） | ✅ 可用 |
-| `CountController`（`/api/count`，云托管联调示例） | ✅ 可用（内存计数） |
-| `AuthController`（`POST /api/v1/auth/login`） | 🔴 返回 501，code2session → JWT 未实现 |
-| `ReportController`（`POST /api/v1/reports`） | 🔴 返回 501，校验/落库/转发未实现 |
-| `PlatformTokenService` | 🔴 缓存骨架已写，`getToken()` 抛 `UnsupportedOperationException` |
-| `PlatformClient` | 🔴 `forward()` 抛 `UnsupportedOperationException` |
-| 数据库 / COS / 鉴权拦截器 | 🔴 未接入 |
+| 认证（/auth/*，JWT + BCrypt + 云托管免鉴权 openid） | ✅ |
+| 平台 token 中控（GET 登录 / TTL=expires_in−60s / 401 重登重试 1 次） | ✅ |
+| 2.2/2.7 只读转发（POST 表单，code 兼容数字/字符串） | ✅（`POST /platform/sync` 触发落库） |
+| 41 条业务路由（路径与 mock 契约一致，`{ code, message, data }` 信封） | ✅ |
+| 每日 09:00 派单 + 业务触达即时补派（口径同 `scripts/verify-dispatch.js`） | ✅ |
+| 文件上传（COS 代理，未配 COS 时回退本地磁盘） | ✅ |
+| LBS `/location/reverse` 代理（高德/腾讯，key 走环境变量） | ✅ |
+| 幂等（X-Idempotency-Key 全部写接口去重，重放返回首次响应） | ✅ |
+| 2.6 上报 / 2.3-2.5 / Redis / STS | 🔴 P3-P5 |
 
-> 前端小程序当前（`config/index.js` `useMock: true`）**尚未调用本后端**；接通方式见根目录 README「小程序前端」一节。
+## 本地运行
 
-## 目录
-
-```
-backend/
-├─ pom.xml
-└─ src/main/
-   ├─ java/com/cqwlw/maintenance/
-   │  ├─ MaintenanceBackendApplication.java   # 启动类
-   │  ├─ config/        # PlatformProperties（REG_* 环境变量注入）、RestTemplate
-   │  ├─ common/        # ApiResponse 统一响应、GlobalExceptionHandler
-   │  ├─ controller/    # health / count / auth / reports 入口
-   │  └─ service/       # 平台 token 中控、平台转发（均为 TODO 骨架）
-   └─ resources/application.yml、application.example.env
+```powershell
+cd backend
+$env:JAVA_HOME='...jdk-17'        # 若未全局安装
+mvn spring-boot:run               # 默认 8080；首次启动 Flyway 建表 + 写入演示种子数据
 ```
 
-## 运行
+**.env 加载（V1.5 起）**：Spring Boot 启动时自动导入根目录 `.env`（与平台联调脚本共用）。
+在 `.env` 追加云端数据库连接即可，无需 `$env:` 注入：
+
+```ini
+DB_HOST=你的云端MySQL地址
+DB_PORT=3306
+DB_NAME=maintenance
+DB_USER=xxx
+DB_PASSWORD=xxx
+```
+
+验证：`GET http://localhost:8080/health`；登录演示账号 `13800000001 / 123456`。
+
+## 环境变量（全部经环境变量注入，严禁写真实值入库，AGENTS §2）
+
+| 变量 | 说明 |
+|---|---|
+| `REG_*`（auth-login-url/api-base-url/username/key/appcode/secret） | 平台凭证，P2 转发必需 |
+| `REG_RETRY_AUTO` | **必须保持 false**（幂等性未获平台书面确认，AGENTS §2.3） |
+| `DB_HOST/DB_PORT/DB_NAME/DB_USER/DB_PASSWORD` | MySQL 连接 |
+| `JWT_SECRET` | 自建 JWT 签名密钥（生产必须强随机） |
+| `COS_SECRET_ID/COS_SECRET_KEY/COS_REGION/COS_BUCKET` | 腾讯云 COS（不配则本地磁盘回退） |
+| `LBS_AMAP_KEY / LBS_TENCENT_KEY` | 逆地址解析（前端不接触 key） |
+| `SEED_DEMO_DATA` | 演示种子数据开关，生产置 false |
+
+## 测试
 
 ```bash
-cd backend
-mvn spring-boot:run   # 本地开发默认 8080（PowerShell: $env:SERVER_PORT='8080' 可自定义）
+mvn test   # token 中控 / 401 重试 / 表单编码 / 派单 6 台同日一次性 09:00 / 检查项模板
 ```
-
-启动后验证：`GET http://localhost:8080/health`
-
-> 注意：Java 端**不读取** `.env`（无 dotenv 依赖）。本地运行需手动 `$env:` 注入 `REG_*` 环境变量。
 
 ## 微信云托管部署
 
-已按 wxcloudrun-springboot 模板规范对齐：容器监听端口 **80**、`Dockerfile`（JDK 17 多阶段构建）、`settings.xml`（腾讯云 Maven 镜像）、`container.config.json`。仓库根目录 Dockerfile 也会转发到本目录构建。
-
-### 部署/发布流程（二开仓库 MING92-sudo/miniprogram-1）
-
-```bash
-git add backend
-git commit -m 'update' && git push -u origin master
-```
-
-随后在云托管控制台：
-
-1. 流水线/手动上传时构建目录选择 `backend/`（或根目录 Dockerfile）；
-2. 「服务设置」监听端口保持 **80**；
-3. `REG_*` 平台凭证在「服务设置 → 环境变量」配置，严禁写入代码或 `container.config.json`；
-4. 幂等性未经平台书面确认前，`REG_RETRY_AUTO` 必须保持 `false`。
-
-## 待实现（按优先级）
-
-1. **平台 token 中控**（`PlatformTokenService`）：⚠ 实测 2.1 登录为 **GET + 查询串**（规范 2.1 写 POST + Body 是错的）；token 为 JWT，`expires_in≈3599`，缓存 TTL = expires_in − 60s；401 时清缓存重登重试 1 次（见 `docs/07`）。
-2. **2.2/2.7 只读转发**（`PlatformClient`）：POST + `x-www-form-urlencoded` 表单（非 JSON）；code 兼容数字/字符串 `200`。
-3. **微信登录**：code2session → openid → 自建 JWT（`AuthController`）。
-4. **2.6 上报闭环**（`ReportController`）：签退冻结快照 → 表单组装（20 字段已实测确认，`workMan2Id` 必填）→ `reg_upload_log` 脱敏落库 → 保守重试（默认不自动重试）。
-5. 2.3/2.4（multipart + contractFile/certificateFile）与 2.5 人员 `platform_id` 同步（按证书号匹配）。
-6. 数据库（最小 schema：电梯/工单/记录/上报日志）、鉴权拦截器、文件上传代理。
+1. 流水线构建目录 `backend/`，监听端口 80（`SERVER_PORT=80`）；
+2. 开启「小程序免鉴权调用」，请求头自动携带 `X-WX-OPENID`；
+3. 上表环境变量在「服务设置 → 环境变量」配置；
+4. MySQL 使用云托管数据库（版本 8.0，utf8mb4）。

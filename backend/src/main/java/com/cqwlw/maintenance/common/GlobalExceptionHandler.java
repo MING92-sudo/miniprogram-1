@@ -14,6 +14,13 @@ public class GlobalExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
+    /** 业务异常：HTTP 200 + 业务码（前端 request.js 以 body.code 判定业务结果） */
+    @ExceptionHandler(BizException.class)
+    @ResponseStatus(HttpStatus.OK)
+    public ApiResponse<Void> handleBiz(BizException e) {
+        return ApiResponse.error(e.getCode(), e.getMessage());
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ApiResponse<Void> handleValidation(MethodArgumentNotValidException e) {

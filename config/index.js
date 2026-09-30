@@ -2,13 +2,12 @@
 const ENV = 'dev' // dev | prod
 
 const API_BASE_URL = {
-  // dev：监管平台网关（重庆市智慧特种设备安全管理系统），2026-09-28 平台分配
-  // 业务根路径（平台确认）：https://tzsb.scjgj.cq.gov.cn:1443/api/wlw/maintenance/
-  // 此处按 request.js 拼接约定（url 以 / 开头）去掉尾斜杠
-  // 注意：平台 token 凭证（.env 中 REG_*）由后端/脚本持有，小程序代码中严禁出现
-  // TODO: 自建后端（Spring Boot，平台 token 中控）部署后替换为 https://api-dev.{domain}/v1
-  dev: 'https://tzsb.scjgj.cq.gov.cn:1443/api/wlw/maintenance',
-  prod: 'https://api.example.com/v1'
+  // dev：自建后端（P2 最小代理：平台 token 中控 + 41 条业务契约，docs/08 P2）。
+  // 本地开发：backend/ Spring Boot 默认 8080（开发者工具需开启"不校验合法域名"）
+  // 云托管联调：改为云托管域名（容器监听 80），路由与本地完全一致
+  // 注意：监管平台凭证（.env 中 REG_*）只存在于后端进程，小程序代码中严禁出现
+  dev: 'http://localhost:8080',
+  prod: 'https://your-wxcloudrun-domain.example'
 }
 
 const config = {
@@ -17,19 +16,6 @@ const config = {
   //   后端就绪联调时改为 false，services 层接口签名不变
   useMock: true,
   apiBaseUrl: API_BASE_URL[ENV],
-  // ── 逆地址解析（坐标 → 位置文字）服务商配置 ──
-  // 高德 / 腾讯均有个人免费额度（实名认证后每日数千次，覆盖签到+拍照量级）；
-  // 自动选择：填了 amapKey 优先用高德，否则用腾讯 key。坐标系均为 gcj02，与 wx.getLocation 直接兼容。
-  // 域名加白（小程序后台 request 合法域名）：高德 https://restapi.amap.com ｜ 腾讯 https://apis.map.qq.com
-  // 🔴 安全（docs/08 审查 #5）：真实 key 曾提交入库，请到对应控制台**重置/吊销**该 key！
-  // key 现改为不入库：本地调试可在开发者工具 Console 执行一次（存 storage，随设备本地保留）：
-  //   wx.setStorageSync('lbs_tencent_key', '你的key')   // 或 lbs_amap_key
-  // 正式方案（P2）：由自建后端代理 /location/reverse 下发结果，前端彻底不接触 key
-  lbs: {
-    provider: 'auto', // auto（按 key 有无自动选）| amap | tencent
-    amapKey: '',
-    tencentKey: ''
-  },
   requestTimeout: 15000, // 普通请求 15s（接口文档 A.0 约定）
   uploadTimeout: 120000, // 文件上传 120s
   pageSize: 20 // 分页默认 size

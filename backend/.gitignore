@@ -4,3 +4,5 @@ target/
 .idea/
 *.iml
 .vscode/
+# 本地文件存储回退目录（未配 COS 时，仅开发用，不入库）
+data/

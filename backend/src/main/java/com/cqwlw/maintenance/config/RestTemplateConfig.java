@@ -2,17 +2,23 @@ package com.cqwlw.maintenance.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.web.client.RestTemplate;
 
+import java.time.Duration;
+
+/**
+ * 调用监管平台/LBS 的 HTTP 客户端。
+ * 超时按 docs/08 P2：连接 3s / 读 30s（文件接口 120s，P2 无文件转发）。
+ */
 @Configuration
 public class RestTemplateConfig {
 
-    /**
-     * 调用监管平台用的 HTTP 客户端。
-     * TODO 按接口文档 A.0 约定配置超时（普通 15s / 上传 120s）与日志拦截器。
-     */
     @Bean
     public RestTemplate platformRestTemplate() {
-        return new RestTemplate();
+        SimpleClientHttpRequestFactory f = new SimpleClientHttpRequestFactory();
+        f.setConnectTimeout((int) Duration.ofSeconds(3).toMillis());
+        f.setReadTimeout((int) Duration.ofSeconds(30).toMillis());
+        return new RestTemplate(f);
     }
 }
