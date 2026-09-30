@@ -109,11 +109,17 @@ const db = {
   ],
 
   // 演示账号（正式版由 /auth/wx-login + 绑定流程产生）；platformId 为平台人员ID（2.5 同步产物）
+  // 2.5 规范字段对齐：workManCertificate=同步匹配键（严禁姓名匹配）、workStartDate/workEndDate=
+  // 合同期（到期从平台列表消失→不可派工）、workStat=normal 才可派工、syncStatus=本地同步状态
   employees: {
-    WORKER: { id: 'emp_1', name: '张伟', phone: '138****0001', role: 'WORKER', roleText: '维保人员', platformId: '990001' },
-    LEADER: { id: 'emp_2', name: '陈刚', phone: '138****0002', role: 'LEADER', roleText: '班组长', platformId: '990002' },
-    WORKER2: { id: 'emp_3', name: '李强', phone: '138****0004', role: 'WORKER', roleText: '维保人员', platformId: '990003' },
-    UNIT_ADMIN: { id: 'unit_1', name: '王芳', phone: '138****0003', role: 'UNIT_ADMIN', roleText: '使用单位安全管理员', platformId: '' }
+    WORKER: { id: 'emp_1', name: '张伟', phone: '138****0001', role: 'WORKER', roleText: '维保人员', platformId: '990001',
+      certificate: 'CQ3601030001', workStartDate: '2024-03-01', workEndDate: addDays(400), workStat: 'normal', syncStatus: 'ACTIVE' },
+    LEADER: { id: 'emp_2', name: '陈刚', phone: '138****0002', role: 'LEADER', roleText: '班组长', platformId: '990002',
+      certificate: 'CQ3601030002', workStartDate: '2023-06-01', workEndDate: addDays(250), workStat: 'normal', syncStatus: 'ACTIVE' },
+    WORKER2: { id: 'emp_3', name: '李强', phone: '138****0004', role: 'WORKER', roleText: '维保人员', platformId: '990003',
+      certificate: 'CQ3601030003', workStartDate: '2024-08-01', workEndDate: addDays(500), workStat: 'normal', syncStatus: 'ACTIVE' },
+    UNIT_ADMIN: { id: 'unit_1', name: '王芳', phone: '138****0003', role: 'UNIT_ADMIN', roleText: '使用单位安全管理员', platformId: '',
+      certificate: '', workStartDate: '', workEndDate: '', workStat: '', syncStatus: 'NOT_SYNCED' }
   },
 
   elevators: [
@@ -127,7 +133,7 @@ const db = {
       brand: '奥的斯', manufacturer: '奥的斯电梯（中国）有限公司', productNo: 'OTIS-2013-8817',
       driveMode: '曳引驱动', ratedLoad: 1000, ratedLoadUnit: 'kg', ratedSpeed: 1.75, ratedSpeedUnit: 'm/s', stationsDoors: '11/11',
       // 维保绑定配置：到期自动派单的人员与频次（正式版为维保合同 + 排班表）
-      maintenance: { workTypeCode: 'HM', intervalDays: 15, workerName: '张伟', workerPlatformId: '990001', assistantName: '李强', assistantPlatformId: '990003', lastMaintenanceAt: addDays(-3) } },
+      maintenance: { workTypeCode: 'HM', intervalDays: 15, workerName: '张伟', workerPhone: '138****0001', workerPlatformId: '990001', assistantName: '李强', assistantPlatformId: '990003', lastMaintenanceAt: addDays(-3) } },
     { id: 'el_2', elevatorCode: 'EM-2024-002', elevatorName: '世纪大厦 2# 客梯', location: '渝北区龙山一路 88 号世纪大厦', regCode: 'TSCQ5001120002', deviceCode: 'DT-CQ-2024-002', insideNumber: 'KT-02', model: 'OTIS 300VF', useUnitId: 'uu_1', category: '曳引驱动电梯', nextCheckDate: addDays(18),
       factoryNumber: 'SGL20131212-2', useUnitEntityId: '5633318206815862786',
       elevatorAdminister: '王芳', elevatorAdministerPhone: '138****0003', emergencyPhone: '400****588',
@@ -143,7 +149,7 @@ const db = {
       lng: 106.574210, lat: 29.588660,
       brand: '三菱', manufacturer: '上海三菱电梯有限公司', productNo: 'MLS-2018-0331',
       driveMode: '曳引驱动', ratedLoad: 2000, ratedLoadUnit: 'kg', ratedSpeed: 1.0, ratedSpeedUnit: 'm/s', stationsDoors: '6/6',
-      maintenance: { workTypeCode: 'FM', intervalDays: 30, workerName: '张伟', workerPlatformId: '990001', assistantName: '', assistantPlatformId: '', lastMaintenanceAt: addDays(-10) } },
+      maintenance: { workTypeCode: 'FM', intervalDays: 30, workerName: '张伟', workerPhone: '138****0001', workerPlatformId: '990001', assistantName: '', assistantPlatformId: '', lastMaintenanceAt: addDays(-10) } },
     { id: 'el_4', elevatorCode: 'EM-2024-004', elevatorName: '蓝湾国际 B 座客梯', location: '江北区滨江路 6 号蓝湾国际', regCode: 'TSCQ5001120004', deviceCode: 'DT-CQ-2024-004', insideNumber: 'KT-01', model: '日立 YK', useUnitId: 'uu_2', category: '曳引驱动电梯', nextCheckDate: addDays(240),
       factoryNumber: 'HIT-2021-1102', useUnitEntityId: '5633318206815862790',
       elevatorAdminister: '吴静', elevatorAdministerPhone: '138****3005', emergencyPhone: '023-67****',
@@ -152,7 +158,7 @@ const db = {
       brand: '日立', manufacturer: '日立电梯（中国）有限公司', productNo: 'HIT-2021-1102',
       driveMode: '曳引驱动', ratedLoad: 1000, ratedLoadUnit: 'kg', ratedSpeed: 1.5, ratedSpeedUnit: 'm/s', stationsDoors: '8/8',
       // 演示到期自动派单：上次维保 16 天前，已超半月周期 → 进入工单台即自动生成并派给李强
-      maintenance: { workTypeCode: 'HM', intervalDays: 15, workerName: '李强', workerPlatformId: '990003', assistantName: '', assistantPlatformId: '', lastMaintenanceAt: addDays(-16) } }
+      maintenance: { workTypeCode: 'HM', intervalDays: 15, workerName: '李强', workerPhone: '138****0004', workerPlatformId: '990003', assistantName: '', assistantPlatformId: '', lastMaintenanceAt: addDays(-16) } }
   ],
 
   orders: [
@@ -346,6 +352,17 @@ function ensureDueOrders() {
       return o.workerName === cfg.workerName && o.status !== 'DONE'
     })
     if (busy) return
+    // 派工前置校验（docs/04：platform_id 为空不可派工=1004；workStat=normal 且合同期内才可派工；
+    // 五类手机号互斥：维保人员手机不得与使用单位负责人/安全管理员/维保经理重复，docs/04 B.6）
+    if (!cfg.workerPhone || !cfg.workerPlatformId) return // 平台人员ID未同步，不可派工
+    let emp = null
+    Object.keys(db.employees).forEach(function (k) {
+      if (db.employees[k].name === cfg.workerName) emp = db.employees[k]
+    })
+    if (emp && (emp.workStat !== 'normal' || parseTime(emp.workEndDate) < now)) return // 证书/合同失效
+    const uu0 = getUseUnit(el.useUnitId) || {}
+    const conflictPhones = [uu0.unitPrincipalPhone, uu0.elevatorAdministerPhone, db.company.workMenegerPhone]
+    if (conflictPhones.indexOf(cfg.workerPhone) > -1) return // 手机号互斥冲突，挂起人工处理
     const seq = String(db.orders.length + 1).padStart(3, '0')
     const order = {
       id: nextId('wo'),
@@ -599,6 +616,12 @@ function buildReportPayload(r, el, uu) {
   el = el || getElevatorByCode(r.elevatorCode) || {}
   uu = uu || getUseUnit(el.useUnitId) || {}
   const c = db.company
+  // recorderPhone：按记录填写人姓名查人员档案（原实现硬编码张伟，双人/配合人员签退时会错）
+  let recorderPhone = ''
+  Object.keys(db.employees).forEach(function (k) {
+    if (db.employees[k].name === r.workerName) recorderPhone = db.employees[k].phone
+  })
+  if (!recorderPhone) recorderPhone = (db.employees.WORKER || {}).phone || ''
   return {
     elevatorCode: r.elevatorCode,
     deviceCode: el.deviceCode || '',
@@ -616,7 +639,7 @@ function buildReportPayload(r, el, uu) {
     endTime: r.checkoutTime,
     workType: r.workTypeCode,
     recorder: r.workerName,
-    recorderPhone: (db.employees.WORKER || {}).phone || '',
+    recorderPhone: recorderPhone,
     originalRecordId: r.originalRecordId,
     problemCode: r.problemCodes,
     nextMaintenanceDate: r.nextMaintenanceDate
