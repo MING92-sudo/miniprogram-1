@@ -9,6 +9,7 @@ Page({
     itemId: '',
     itemName: '', // 检查项名称水印（检查项拍照时携带）
     from: '',
+    lens: 'back', // 摄像头朝向：front=签到自拍 / back=现场照
     photo: '', // 原始照片
     output: '', // 水印合成结果
     watermarkTime: '',
@@ -45,9 +46,14 @@ Page({
       itemId: query.itemId || '',
       itemName: itemName,
       from: query.from || '',
+      // 摄像头朝向按场景：签到自拍=前置；检查项现场照=后置
+      lens: query.from === 'checkin' ? 'front' : 'back',
       watermarkTime: formatTime(),
       locationText
     })
+
+    // 进入页面直接拉起摄像头，免去二次点击"拍照"确认
+    this.takePhoto()
   },
 
   takePhoto() {
@@ -56,7 +62,7 @@ Page({
       mediaType: ['image'],
       sourceType: ['camera'],
       sizeType: ['compressed'],
-      camera: 'front',
+      camera: this.data.lens || 'back',
       success: (res) => {
         this.setData({ photo: res.tempFiles[0].tempFilePath, ready: false })
         this.renderWatermark(res.tempFiles[0].tempFilePath)
