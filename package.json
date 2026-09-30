@@ -6,9 +6,6 @@
   "scripts": {
     "lint": "eslint ."
   },
-  "dependencies": {
-    "tdesign-miniprogram": "^1.17.0"
-  },
   "devDependencies": {
     "eslint": "^8.57.1",
     "miniprogram-ci": "^2.1.31"

@@ -29,13 +29,14 @@ public class PlatformTokenService {
 
     /**
      * 获取可用 token，过期前自动刷新。
-     * TODO 按平台 V1.5 规范实现 login 表单参数（注意文档中 scret 拼写）与返回字段解析。
+     * TODO 按实测约定实现：2.1 登录为 GET + URL 查询串（docs/04 B.1 / docs/07），
+     * token 为 JWT，缓存 TTL = expires_in - 60s；401 时 invalidate() 后重登并重试 1 次。
      */
     public synchronized String getToken() {
         if (cachedToken != null && System.currentTimeMillis() < tokenExpireAt) {
             return cachedToken;
         }
-        // TODO: POST props.getAuthLoginUrl()，表单 x-www-form-urlencoded
+        // TODO: GET props.getAuthLoginUrl()，查询串由 REG_* 环境变量拼装；日志必须脱敏完整凭证。
         throw new UnsupportedOperationException("平台登录换 token 尚未实现");
     }
 

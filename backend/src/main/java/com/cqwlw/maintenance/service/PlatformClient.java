@@ -12,6 +12,7 @@ public class PlatformClient {
     /**
      * 转发业务请求到平台。
      * TODO 按各业务接口实现表单参数拼装（平台为 x-www-form-urlencoded，非 JSON）。
+     * 合规约定：请求/响应日志脱敏 token、手机号、密钥；平台自动重试默认关闭。
      */
     public String forward(String path, Object payload) {
         throw new UnsupportedOperationException("平台转发尚未实现: " + path);
