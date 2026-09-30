@@ -106,7 +106,8 @@ const routes = [
     }
     // 关键项（试验/测试/校验/检测类，TSG 注A-2）执行时须照片留证；
     // 结果为"不适用"（NA，如该电梯无此部件）时豁免——部件不存在无从拍照（docs/08 BUG 修复）
-    if (item.isKey && item.photoRequired && item.result !== 'NA' &&
+    // ⚠ 必须用 body.result（本次选择），item.result 是旧状态：新填项为空串，恒 !== 'NA'，导致 BUG 复现
+    if (item.isKey && item.photoRequired && body.result !== 'NA' &&
         !(body.photoFileIds || []).length && !(body.photoUrls || []).length) {
       throw { code: 422, message: '关键项「' + item.name + '」为试验/测试/校验/检测类，必须至少附 1 张照片留证（TSG 注A-2）' }
     }

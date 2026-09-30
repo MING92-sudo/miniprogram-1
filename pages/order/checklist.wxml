@@ -58,7 +58,7 @@
       <view class="section-title">现场照片（{{photos.length}}）</view>
       <view wx:if="{{photos.length === 0}}" class="em-text-secondary">暂无照片</view>
       <view class="cl-photo-grid">
-        <view wx:for="{{photos}}" wx:key="src" class="cl-photo-item">
+        <view wx:for="{{photos}}" wx:key="src" class="cl-photo-item" data-src="{{item.src}}" bindtap="previewPhoto">
           <image class="cl-photo" src="{{item.src}}" mode="aspectFill" />
           <view class="cl-photo-name">{{item.itemName}}</view>
         </view>

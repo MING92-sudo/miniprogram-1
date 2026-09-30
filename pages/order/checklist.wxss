@@ -56,7 +56,7 @@
 
 .cl-tr {
   display: flex;
-  align-items: stretch;
+  align-items: center;
   border-bottom: 2rpx solid #e8eef7;
 }
 
@@ -74,6 +74,9 @@
   padding: 18rpx 14rpx;
   font-size: 24rpx;
   line-height: 1.5;
+  display: flex;
+  align-items: center;
+  min-height: 88rpx;
 }
 
 .cl-th .cl-td {
@@ -84,11 +87,13 @@
   width: 26%;
   font-weight: 500;
   color: #1d2129;
+  display: block;
 }
 
 .cl-td-req {
   width: 30%;
   color: #4e5969;
+  display: block;
 }
 
 .cl-td-result {
@@ -99,6 +104,7 @@
 
 .cl-td-remark {
   width: 24%;
+  display: block;
 }
 
 .cl-key {

@@ -75,6 +75,15 @@ Page({
     wx.pageScrollTo({ selector: '#' + e.currentTarget.dataset.target, offsetTop: -10, duration: 300 })
   },
 
+  // 照片汇总：点击全屏预览（可左右滑动查看本单全部照片）
+  previewPhoto(e) {
+    const current = e.currentTarget.dataset.src
+    wx.previewImage({
+      current: current,
+      urls: this.data.photos.map(function (p) { return p.src })
+    })
+  },
+
   // 全部完成后进入签退
   goCheckout() {
     if (this.data.doneCount < this.data.total) {
