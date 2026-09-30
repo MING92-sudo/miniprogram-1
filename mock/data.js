@@ -330,24 +330,45 @@ function ensureDueOrders() {
   db.elevators.forEach(function (el) {
     const cfg = el.maintenance
     if (!cfg) return
-    const code = cfg.workTypeCode || 'HM'
-    // 该电梯该频次已有进行中/待办工单 → 不重复生成
+    // 该电梯已有进行中/待办工单（任意类型）→ 一次只派一单
     const hasActive = db.orders.some(function (o) {
-      return o.elevatorId === el.id && o.workTypeCode === code && o.status !== 'DONE'
+      return o.elevatorId === el.id && o.status !== 'DONE'
     })
     if (hasActive) return
-    // 上次维保时间：优先取该电梯该频次最近一次 DONE 工单的签退时间
+    // 上次维保时间（任意类型）：最近一次 DONE 工单的签退时间
     let last = 0
     db.orders.forEach(function (o) {
-      if (o.elevatorId === el.id && o.workTypeCode === code && o.status === 'DONE' && o.checkoutTime) {
+      if (o.elevatorId === el.id && o.status === 'DONE' && o.checkoutTime) {
         const t = parseTime(o.checkoutTime)
         if (t > last) last = t
       }
     })
     if (!last) last = parseTime(cfg.lastMaintenanceAt)
     if (!last) return
-    const intervalMs = (cfg.intervalDays || WORK_TYPE_INTERVAL_DAYS[code] || 15) * 86400000
+    // 到期判定：以半月周期（intervalDays，默认15天）为基准节拍
+    const intervalMs = (cfg.intervalDays || WORK_TYPE_INTERVAL_DAYS[cfg.workTypeCode] || 15) * 86400000
     if (now - last < intervalMs) return // 未到期
+    // ★ 保养类型按时间自动升级（TSG 附件A 累加式：季度=半月+季度项，半年=+半年项，年度=+年度项）：
+    //   距上次年度维保 ≥365 天 → 本次派年度单（76 项清单）
+    //   距上次半年维保 ≥180 天 → 半年单（59 项）；距上次季度维保 ≥90 天 → 季度单（44 项）；否则半月单（31 项）
+    //   某类型从未执行时以其基线日期（lastMaintenanceAt/上次任意维保）起算
+    const lastOf = function (c) {
+      let t = 0
+      db.orders.forEach(function (o) {
+        if (o.elevatorId === el.id && o.workTypeCode === c && o.status === 'DONE' && o.checkoutTime) {
+          const tt = parseTime(o.checkoutTime)
+          if (tt > t) t = tt
+        }
+      })
+      return t || last
+    }
+    const dueType = function (c, days) {
+      return now - lastOf(c) >= days * 86400000
+    }
+    let code = 'HM'
+    if (dueType('OY', 365)) code = 'OY'
+    else if (dueType('SM', 180)) code = 'SM'
+    else if (dueType('TM', 90)) code = 'TM'
     // 手机号互斥：绑定主维保名下尚有未完成工单 → 本次挂起（待清空后补派）
     const busy = db.orders.some(function (o) {
       return o.workerName === cfg.workerName && o.status !== 'DONE'
