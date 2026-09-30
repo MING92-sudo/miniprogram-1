@@ -8,6 +8,12 @@ Page({
 
   onLoad(query) {
     this.setData({ orderId: query.orderId || '', from: query.from || '' })
+    // 在被打开页自身捕获 EventChannel（规范用法；拖到 onConfirm 时再取可能为 undefined）
+    try {
+      this._channel = this.getOpenerEventChannel ? this.getOpenerEventChannel() : null
+    } catch (e) {
+      this._channel = null
+    }
   },
 
   onReady() {
@@ -64,14 +70,23 @@ Page({
     wx.canvasToTempFilePath({
       canvas: this.canvas,
       success: (res) => {
-        const pages = getCurrentPages()
-        const prev = pages[pages.length - 2]
-        // 通过 EventChannel 通知上一页（checkout 等待 signatureDone）
-        if (prev && prev.getOpenerEventChannel) {
+        const data = { path: res.tempFilePath }
+        // 通道①：EventChannel（规范用法，在被打开页自身 emit）
+        let delivered = false
+        if (this._channel && typeof this._channel.emit === 'function') {
           try {
-            prev.getOpenerEventChannel().emit('signatureDone', { path: res.tempFilePath })
+            this._channel.emit('signatureDone', data)
+            delivered = true
           } catch (e) {
-            // 降级：直接回退
+            delivered = false
+          }
+        }
+        // 通道②：直接调用上一页方法（EventChannel 建立失败时的可靠降级）
+        if (!delivered) {
+          const pages = getCurrentPages()
+          const prev = pages[pages.length - 2]
+          if (prev && typeof prev.onSignatureReady === 'function') {
+            prev.onSignatureReady(data)
           }
         }
         wx.navigateBack()

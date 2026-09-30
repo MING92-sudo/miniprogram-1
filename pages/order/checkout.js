@@ -96,6 +96,11 @@ Page({
     })
   },
 
+  // 签名页直接方法回传（EventChannel 降级通道）
+  onSignatureReady(data) {
+    this.setData({ signature: data.path })
+  },
+
   async onSubmit() {
     const allChecked = this.data.selfChecks.every((c) => c.checked)
     if (!allChecked) return wx.showToast({ title: '请完成全部自检项', icon: 'none' })

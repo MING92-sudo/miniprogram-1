@@ -25,6 +25,11 @@ Page({
     })
   },
 
+  // 签名页直接方法回传（EventChannel 降级通道）
+  onSignatureReady(data) {
+    this.setData({ signature: data.path })
+  },
+
   onSatisfaction(e) {
     this.setData({ satisfaction: Number(e.currentTarget.dataset.value) })
   },
