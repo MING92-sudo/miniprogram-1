@@ -2,12 +2,8 @@
 const ENV = 'dev' // dev | prod
 
 const API_BASE_URL = {
-  // dev：监管平台网关（重庆市智慧特种设备安全管理系统），2026-09-28 平台分配
-  // 业务根路径（平台确认）：https://tzsb.scjgj.cq.gov.cn:1443/api/wlw/maintenance/
-  // 此处按 request.js 拼接约定（url 以 / 开头）去掉尾斜杠
-  // 注意：平台 token 凭证（.env 中 REG_*）由后端/脚本持有，小程序代码中严禁出现
-  // TODO: 自建后端（Spring Boot，平台 token 中控）部署后替换为 https://api-dev.{domain}/v1
-  dev: 'https://tzsb.scjgj.cq.gov.cn:1443/api/wlw/maintenance',
+  // dev：自建后端（Spring Boot，平台 token 中控）。联调时仅将 useMock 改为 false。
+  dev: 'http://localhost:8080/api/v1',
   prod: 'https://api.example.com/v1'
 }
 

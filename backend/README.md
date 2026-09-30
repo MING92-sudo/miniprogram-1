@@ -12,11 +12,12 @@ Spring Boot 3.3.4（Java 17 / Maven）后端骨架，定位为小程序与监管
 |---|---|
 | `HealthController`（`GET /health`） | ✅ 可用 |
 | `CountController`（`/api/count`，云托管联调示例） | ✅ 可用（内存计数） |
-| `AuthController`（`POST /api/v1/auth/login`） | 🔴 返回 501，code2session → JWT 未实现 |
-| `ReportController`（`POST /api/v1/reports`） | 🔴 返回 501，校验/落库/转发未实现 |
-| `PlatformTokenService` | 🔴 缓存骨架已写，`getToken()` 抛 `UnsupportedOperationException` |
-| `PlatformClient` | 🔴 `forward()` 抛 `UnsupportedOperationException` |
-| 数据库 / COS / 鉴权拦截器 | 🔴 未接入 |
+| `AuthController`（`POST /api/v1/auth/login`） | ✅ 手机号 + 密码登录、JWT 已实现 |
+| `WorkOrderController` | ✅ 工单列表/详情/签到/清单/检查项/签退 MVP |
+| `FileController` | ✅ multipart 磁盘存证 MVP |
+| `PlatformTokenService` / `PlatformClient` | ✅ 2.1 token 中控与 2.6 表单转发 MVP |
+| MySQL / Flyway / MyBatis-Plus | ✅ 核心表与访问层已接入 |
+| COS / Redis / 微信登录 | 🔴 后置 |
 
 > 前端小程序当前（`config/index.js` `useMock: true`）**尚未调用本后端**；接通方式见根目录 README「小程序前端」一节。
 
@@ -30,8 +31,10 @@ backend/
    │  ├─ MaintenanceBackendApplication.java   # 启动类
    │  ├─ config/        # PlatformProperties（REG_* 环境变量注入）、RestTemplate
    │  ├─ common/        # ApiResponse 统一响应、GlobalExceptionHandler
-   │  ├─ controller/    # health / count / auth / reports 入口
-   │  └─ service/       # 平台 token 中控、平台转发（均为 TODO 骨架）
+   │  ├─ controller/    # auth / work-order / file / elevator / message / business-record
+   │  ├─ service/       # 工单、文件、台账、平台 token 与转发
+   │  ├─ entity/、mapper/
+   │  └─ security/      # JWT、Spring Security
    └─ resources/application.yml、application.example.env
 ```
 
@@ -42,7 +45,16 @@ cd backend
 mvn spring-boot:run   # 本地开发默认 8080（PowerShell: $env:SERVER_PORT='8080' 可自定义）
 ```
 
-启动后验证：`GET http://localhost:8080/health`
+启动前先准备 MySQL，并通过环境变量注入：
+
+```powershell
+$env:DB_HOST='127.0.0.1'; $env:DB_PORT='3306'; $env:DB_NAME='maintenance'
+$env:DB_USERNAME='root'; $env:DB_PASSWORD='<local-password>'
+$env:APP_JWT_SECRET='<32+随机字符>'
+mvn spring-boot:run
+```
+
+启动后验证：`GET http://localhost:8080/health`。
 
 > 注意：Java 端**不读取** `.env`（无 dotenv 依赖）。本地运行需手动 `$env:` 注入 `REG_*` 环境变量。
 
@@ -68,7 +80,7 @@ git commit -m 'update' && git push -u origin master
 
 1. **平台 token 中控**（`PlatformTokenService`）：⚠ 实测 2.1 登录为 **GET + 查询串**（规范 2.1 写 POST + Body 是错的）；token 为 JWT，`expires_in≈3599`，缓存 TTL = expires_in − 60s；401 时清缓存重登重试 1 次（见 `docs/07`）。
 2. **2.2/2.7 只读转发**（`PlatformClient`）：POST + `x-www-form-urlencoded` 表单（非 JSON）；code 兼容数字/字符串 `200`。
-3. **微信登录**：code2session → openid → 自建 JWT（`AuthController`）。
-4. **2.6 上报闭环**（`ReportController`）：签退冻结快照 → 表单组装（20 字段已实测确认，`workMan2Id` 必填）→ `reg_upload_log` 脱敏落库 → 保守重试（默认不自动重试）。
+3. **微信登录**：code2session → openid → 自建 JWT。
+4. **2.6 上报闭环**：签退冻结快照 → 表单组装（20 字段已实测确认，`workMan2Id` 必填）→ `reg_upload_log` 落库 → 保守重试（默认不自动重试）。
 5. 2.3/2.4（multipart + contractFile/certificateFile）与 2.5 人员 `platform_id` 同步（按证书号匹配）。
 6. 数据库（最小 schema：电梯/工单/记录/上报日志）、鉴权拦截器、文件上传代理。

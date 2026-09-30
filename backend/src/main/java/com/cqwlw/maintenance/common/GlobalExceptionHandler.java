@@ -30,6 +30,15 @@ public class GlobalExceptionHandler {
         return ApiResponse.error(400, "请求体格式错误");
     }
 
+    @ExceptionHandler(BusinessException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ApiResponse<Void> handleBusiness(BusinessException e) {
+        if (e.getCode() == 401) {
+            throw new org.springframework.security.access.AccessDeniedException(e.getMessage());
+        }
+        return ApiResponse.error(e.getCode(), e.getMessage());
+    }
+
     @ExceptionHandler(Exception.class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     public ApiResponse<Void> handleUnknown(Exception e) {
