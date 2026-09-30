@@ -214,15 +214,17 @@ const routes = [
   ['GET', '/drills', () => d.listDrills()],
   ['POST', '/drills', ({ body }) => d.createDrill(body)],
   ['GET', '/inspects', () => d.listInspects()],
-  ['GET', '/inspects/template', () => {
-    // 自行检查项 = 年度维保项并集（表A-1~A-4 累计 76 项，docs/01 §3.17"不少于年度维保项"）
+  ['GET', '/inspects/template', ({ query }) => {
+    // 自行检查项 = 该电梯品种对应附件的年度维保项并集；不同品种分别取 A/B/C/D（docs/01 §3.17）
+    const el = query && query.elevatorId ? d.getElevator(query.elevatorId) : null
+    const appendix = d.CATEGORY_APPENDIX[el && el.category] || 'A'
     const items = []
     d.FREQ_CHAIN.OY.forEach(function (freq) {
-      d.APPENDIX_A_TPL[freq].forEach(function (it) {
+      d.APPENDIX_TPLS[appendix][freq].forEach(function (it) {
         items.push(it)
       })
     })
-    return { items: items }
+    return { appendix: appendix, items: items }
   }],
   ['POST', '/inspects', ({ body }) => d.createInspect(body)],
 

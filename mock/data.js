@@ -1,7 +1,12 @@
 // Mock 数据仓库（仅 config.useMock=true 时生效；后端就绪后可整体删除 mock/ 目录）
 // 数据为内存态：小程序冷启动后重置，一次会话内保持状态流转
 const { formatTime, formatDuration, parseTime } = require('../utils/util')
-const { APPENDIX_A_TPL, FREQ_CHAIN, FREQ_LABEL } = require('./checklist-template')
+const {
+  APPENDIX_TPLS,
+  FREQ_CHAIN,
+  FREQ_LABELS,
+  CATEGORY_APPENDIX
+} = require('./checklist-template')
 
 // 演示用网络图片（正式环境为 COS 文件 url）
 const DEMO_PHOTO = 'https://picsum.photos/seed/em-elev/600/450'
@@ -11,22 +16,25 @@ const DEMO_SIGNATURE = 'https://picsum.photos/seed/em-sig/480/180'
 // HM=表A-1(31项)；TM=+表A-2(44)；SM=+表A-3(59)；OY=+表A-4(76)；FM 按需取半月基础表
 // 周期性/季节性条目（execCycleMonth/ageCondition/seasonWindow）默认"本次无需执行"，
 // 灰显不计入未完成项，允许人工点选"本次仍要执行"（docs/03 §6.1）
-function buildChecklist(workTypeCode) {
+function buildChecklist(workTypeCode, categoryCode) {
   const chain = FREQ_CHAIN[workTypeCode] || FREQ_CHAIN.HM
+  const appendix = CATEGORY_APPENDIX[categoryCode] || 'A'
+  const tplMap = require('./checklist-template').APPENDIX_TPLS[appendix]
   const items = []
   chain.forEach(function (freq) {
-    APPENDIX_A_TPL[freq].forEach(function (tpl) {
+    tplMap[freq].forEach(function (tpl) {
       const periodic = !!(tpl.execCycleMonth || tpl.ageCondition || tpl.seasonWindow)
       items.push({
         id: 'ci_' + tpl.itemCode,
         itemCode: tpl.itemCode, // 附件-频次-序号（如 A-1-29）
         seq: tpl.seq,
         freq: tpl.freq,
-        freqLabel: FREQ_LABEL[freq],
+        freqLabel: FREQ_LABELS[appendix][freq],
         name: tpl.name,
         requirement: tpl.requirement, // TSG 原文"维护保养基本要求"
         judgeType: tpl.judgeType,
         valueMin: tpl.valueMin,
+        valueMax: tpl.valueMax,
         valueUnit: tpl.valueUnit,
         isKey: tpl.isKey, // TSG 注A-2：要求含试验/测试/校验/检测
         photoRequired: tpl.photoRequired,
@@ -51,8 +59,8 @@ function buildChecklist(workTypeCode) {
 }
 
 // 预填"已完成"演示工单的检查项（关键项附照片留证，周期条目保持"本次无需执行"）
-function makeDoneItems(workTypeCode, withAbnormal) {
-  const items = buildChecklist(workTypeCode)
+function makeDoneItems(workTypeCode, withAbnormal, categoryCode) {
+  const items = buildChecklist(workTypeCode, categoryCode)
   items.forEach(function (it, idx) {
     if (it.notInThisRun) return // 周期条目灰显不填
     if (it.judgeType === 'NUMERIC') {
@@ -72,7 +80,9 @@ function makeDoneItems(workTypeCode, withAbnormal) {
     it.recordedAt = formatTime()
   })
   if (withAbnormal) {
-    const item = items.find(function (i) { return i.itemCode === 'A-1-18' })
+    const item = items.find(function (i) {
+      return !i.notInThisRun && (i.itemCode === 'A-1-18' || i.name.indexOf('报警') > -1)
+    }) || items.find(function (i) { return !i.notInThisRun })
     item.result = 'ABNORMAL'
     item.abnormalDesc = '轿内报警装置通话杂音大，已清洁触点并复测'
     item.problemCode = 'S5'
@@ -168,7 +178,7 @@ const db = {
       workType: '半月维保', workTypeCode: 'HM', planTime: today('09:00:00'), status: 'PENDING',
       workerName: '张伟', assistantName: '李强', workerPlatformId: '990001', assistantPlatformId: '990003',
       checkinTime: '', checkoutTime: '', duration: '', originalRecordId: '', reportStatus: '',
-      checklist: buildChecklist('HM')
+      checklist: buildChecklist('HM', '曳引驱动电梯')
     },
     {
       id: 'wo_2', orderNo: 'WO20260929-002', elevatorId: 'el_3',
@@ -176,7 +186,7 @@ const db = {
       workerName: '张伟', assistantName: '', workerPlatformId: '990001', assistantPlatformId: '',
       // 签到时间留足 30 分钟作业时长下限（constants MIN_WORK_DURATION_MINUTES），保证演示可直接签退
       checkinTime: today('08:00:00'), checkoutTime: '', duration: '', originalRecordId: '', reportStatus: '',
-      checklist: buildChecklist('FM')
+      checklist: buildChecklist('FM', '曳引驱动电梯')
     },
     {
       id: 'wo_3', orderNo: 'WO20260928-011', elevatorId: 'el_2',
@@ -184,7 +194,7 @@ const db = {
       workerName: '张伟', assistantName: '李强', workerPlatformId: '990001', assistantPlatformId: '990003',
       checkinTime: today('08:52:00'), checkoutTime: today('11:20:00'), duration: '02:28:00',
       originalRecordId: '19480012609000011', reportStatus: 'REPORTED',
-      checklist: makeDoneItems('HM', true)
+      checklist: makeDoneItems('HM', true, '曳引驱动电梯')
     },
     {
       id: 'wo_4', orderNo: 'WO20260927-008', elevatorId: 'el_3',
@@ -192,7 +202,7 @@ const db = {
       workerName: '张伟', assistantName: '', workerPlatformId: '990001', assistantPlatformId: '',
       checkinTime: today('16:28:00'), checkoutTime: today('18:05:00'), duration: '01:37:00',
       originalRecordId: '19480012609000008', reportStatus: 'REPORTED',
-      checklist: makeDoneItems('FM', false)
+      checklist: makeDoneItems('FM', false, '曳引驱动电梯')
     },
     {
       id: 'wo_5', orderNo: 'WO20260926-005', elevatorId: 'el_1',
@@ -200,7 +210,7 @@ const db = {
       workerName: '张伟', assistantName: '李强', workerPlatformId: '990001', assistantPlatformId: '990003',
       checkinTime: today('09:02:00'), checkoutTime: today('15:40:00'), duration: '06:38:00',
       originalRecordId: '19480012609000005', reportStatus: 'REPORTED',
-      checklist: makeDoneItems('OY', false)
+      checklist: makeDoneItems('OY', false, '曳引驱动电梯')
     }
   ],
 
@@ -248,7 +258,7 @@ const db = {
       workType: '半月维保', workTypeCode: 'HM',
       workerName: '张伟', assistantName: '李强', workerPlatformId: '990001', assistantPlatformId: '990003',
       checkinTime: today('08:52:00'), checkoutTime: today('11:20:00'), duration: '02:28:00',
-      items: makeDoneItems('HM', true), photos: [DEMO_PHOTO],
+      items: makeDoneItems('HM', true, '曳引驱动电梯'), photos: [DEMO_PHOTO],
       workerSignatureUrl: DEMO_SIGNATURE,
       problemCodes: ['S5'],
       originalRecordId: '19480012609000011', reportStatus: 'REPORTED', retryCount: 0,
@@ -260,7 +270,7 @@ const db = {
       workType: '困人救援', workTypeCode: 'FM',
       workerName: '张伟', assistantName: '', workerPlatformId: '990001', assistantPlatformId: '',
       checkinTime: today('16:28:00'), checkoutTime: today('18:05:00'), duration: '01:37:00',
-      items: makeDoneItems('FM', false), photos: [],
+      items: makeDoneItems('FM', false, '曳引驱动电梯'), photos: [],
       workerSignatureUrl: DEMO_SIGNATURE,
       problemCodes: ['S0'], // 无隐患必须填 S0（平台 2.6 约定）
       originalRecordId: '19480012609000008', reportStatus: 'REPORTED', retryCount: 0,
@@ -391,7 +401,7 @@ function ensureDueOrders() {
       assistantPlatformId: cfg.assistantPlatformId || '',
       checkinTime: '', checkoutTime: '', duration: '', originalRecordId: '', reportStatus: '',
       autoDispatched: true, // 自动派单标识（管理端/后端可追溯）
-      checklist: buildChecklist(code)
+      checklist: buildChecklist(code, el.category)
     }
     db.orders.unshift(order)
     db.messages.unshift({
@@ -862,8 +872,12 @@ db.unitRecords.forEach((r) => {
 
 module.exports = {
   db,
-  APPENDIX_A_TPL,
+  APPENDIX_TPLS,
   FREQ_CHAIN,
+  FREQ_LABELS,
+  CATEGORY_APPENDIX,
+  buildChecklist,
+  makeDoneItems,
   nextId,
   nextRecordId,
   ensureDueOrders,

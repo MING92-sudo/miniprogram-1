@@ -17,8 +17,8 @@ function getInspects() {
 }
 
 // 自行检查项模板（年度维保项，docs/01 §3.17"不少于年度维保项"）
-function getInspectTemplate() {
-  return get('/inspects/template')
+function getInspectTemplate(elevatorId) {
+  return get('/inspects/template', { elevatorId: elevatorId || '' })
 }
 
 // 提交自行检查记录

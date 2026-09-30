@@ -27,6 +27,6 @@ module.exports = {
     requireMiniProgram: true,
   },
   // extends: 'eslint:recommended',
-  ignorePatterns: ['miniprogram_npm/**'],
+  ignorePatterns: ['miniprogram_npm/**', 'tmp/**'],
   rules: {},
 }
