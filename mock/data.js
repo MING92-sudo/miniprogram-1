@@ -99,13 +99,13 @@ const db = {
     organizationCode: '91500106MAABU3795M',
     name: '重庆博威电梯有限公司',
     workMenegerName: '赵敏',
-    workMenegerPhone: '137****2001'
+    workMenegerPhone: '13723220001'
   },
 
   // 使用单位档案（平台 2.6 冻结字段来源：unitPrincipal/elevatorAdminister/emergencyPhone）
   useUnits: [
-    { id: 'uu_1', unitName: '重庆世纪物业管理有限公司', unitPrincipal: '刘建国', unitPrincipalPhone: '139****1001', elevatorAdminister: '王芳', elevatorAdministerPhone: '138****0003', emergencyPhone: '023-6761****' },
-    { id: 'uu_2', unitName: '重庆蓝湾物业服务有限公司', unitPrincipal: '周涛', unitPrincipalPhone: '139****3002', elevatorAdminister: '吴静', elevatorAdministerPhone: '138****3005', emergencyPhone: '023-6799****' }
+    { id: 'uu_1', unitName: '重庆世纪物业管理有限公司', unitPrincipal: '刘建国', unitPrincipalPhone: '13910001001', elevatorAdminister: '王芳', elevatorAdministerPhone: '13800000003', emergencyPhone: '023-67612345' },
+    { id: 'uu_2', unitName: '重庆蓝湾物业服务有限公司', unitPrincipal: '周涛', unitPrincipalPhone: '13930003002', elevatorAdminister: '吴静', elevatorAdministerPhone: '13800003005', emergencyPhone: '023-67991234' }
   ],
 
   // 演示账号（正式版由 /auth/wx-login + 绑定流程产生）；platformId 为平台人员ID（2.5 同步产物）
@@ -119,25 +119,25 @@ const db = {
       certificate: 'CQ3601030002', workStartDate: '2023-06-01', workEndDate: addDays(250), workStat: 'normal', syncStatus: 'ACTIVE' },
     WORKER2: { id: 'emp_3', name: '李强', phone: '13800000004', account: '13800000004', password: '123456', role: 'WORKER', roleText: '维保人员', platformId: '6901284774286860288',
       certificate: 'CQ3601030003', workStartDate: '2024-08-01', workEndDate: addDays(500), workStat: 'normal', syncStatus: 'ACTIVE' },
-    UNIT_ADMIN: { id: 'unit_1', name: '王芳', phone: '138****0003', account: '13800000003', password: '123456', role: 'UNIT_ADMIN', roleText: '使用单位安全管理员', platformId: '',
+    UNIT_ADMIN: { id: 'unit_1', name: '王芳', phone: '13800000003', account: '13800000003', password: '123456', role: 'UNIT_ADMIN', roleText: '使用单位安全管理员', platformId: '',
       certificate: '', workStartDate: '', workEndDate: '', workStat: '', syncStatus: 'NOT_SYNCED' }
   },
 
   elevators: [
     { id: 'el_1', elevatorCode: 'EM-2024-001', elevatorName: '世纪大厦 1# 客梯', location: '渝北区龙山一路 88 号世纪大厦', regCode: 'TSCQ5001120001', deviceCode: 'DT-CQ-2024-001', insideNumber: 'KT-01', model: 'OTIS 300VF', useUnitId: 'uu_1', category: '曳引驱动电梯', nextCheckDate: addDays(45),
-      // ── 平台 2.7 自动获取字段（8 个，电话为平台脱敏值不可回填上报）──
+      // ── 平台 2.7 自动获取字段（8 个，电话未脱敏，可直接回填用于 2.6 上报）──
       factoryNumber: 'SGL20131212-1', useUnitEntityId: '5633318206815862786',
-      elevatorAdminister: '王芳', elevatorAdministerPhone: '138****0003', emergencyPhone: '400****588',
+      elevatorAdminister: '王芳', elevatorAdministerPhone: '13800000003', emergencyPhone: '023-67612345',
       platformSyncedAt: '2026-09-29 14:20:00',
       // ── 本地维护字段（平台不提供：地址/经纬度/型号品牌/制造单位/下次检验）──
       lng: 106.633520, lat: 29.719210,
       brand: '奥的斯', manufacturer: '奥的斯电梯（中国）有限公司', productNo: 'OTIS-2013-8817',
       driveMode: '曳引驱动', ratedLoad: 1000, ratedLoadUnit: 'kg', ratedSpeed: 1.75, ratedSpeedUnit: 'm/s', stationsDoors: '11/11',
       // 维保绑定配置：到期自动派单的人员与频次（正式版为维保合同 + 排班表）
-      maintenance: { workTypeCode: 'HM', intervalDays: 15, workerName: '张伟', workerPhone: '138****0001', workerPlatformId: '990001', assistantName: '李强', assistantPlatformId: '990003', lastMaintenanceAt: addDays(-3) } },
+      maintenance: { workTypeCode: 'HM', intervalDays: 15, workerName: '张伟', workerPhone: '13800000001', workerPlatformId: '990001', assistantName: '李强', assistantPlatformId: '990003', lastMaintenanceAt: addDays(-3) } },
     { id: 'el_2', elevatorCode: 'EM-2024-002', elevatorName: '世纪大厦 2# 客梯', location: '渝北区龙山一路 88 号世纪大厦', regCode: 'TSCQ5001120002', deviceCode: 'DT-CQ-2024-002', insideNumber: 'KT-02', model: 'OTIS 300VF', useUnitId: 'uu_1', category: '曳引驱动电梯', nextCheckDate: addDays(18),
       factoryNumber: 'SGL20131212-2', useUnitEntityId: '5633318206815862786',
-      elevatorAdminister: '王芳', elevatorAdministerPhone: '138****0003', emergencyPhone: '400****588',
+      elevatorAdminister: '王芳', elevatorAdministerPhone: '13800000003', emergencyPhone: '023-67612345',
       platformSyncedAt: '2026-09-29 14:20:00',
       lng: 106.633520, lat: 29.719210,
       brand: '奥的斯', manufacturer: '奥的斯电梯（中国）有限公司', productNo: 'OTIS-2013-8818',
@@ -145,21 +145,21 @@ const db = {
       maintenance: { workTypeCode: 'HM', intervalDays: 15, workerName: '张伟', workerPlatformId: '990001', assistantName: '李强', assistantPlatformId: '990003', lastMaintenanceAt: addDays(-3) } },
     { id: 'el_3', elevatorCode: 'EM-2024-003', elevatorName: '蓝湾国际 A 座货梯', location: '江北区滨江路 6 号蓝湾国际', regCode: 'TSCQ5001120003', deviceCode: 'DT-CQ-2024-003', insideNumber: 'HT-01', model: '三菱 GPS-III', useUnitId: 'uu_2', category: '曳引驱动电梯', nextCheckDate: addDays(200),
       factoryNumber: 'MITS-2018-0331', useUnitEntityId: '5633318206815862790',
-      elevatorAdminister: '吴静', elevatorAdministerPhone: '138****3005', emergencyPhone: '023-67****',
+      elevatorAdminister: '吴静', elevatorAdministerPhone: '13800003005', emergencyPhone: '023-67991234',
       platformSyncedAt: '2026-09-29 14:25:00',
       lng: 106.574210, lat: 29.588660,
       brand: '三菱', manufacturer: '上海三菱电梯有限公司', productNo: 'MLS-2018-0331',
       driveMode: '曳引驱动', ratedLoad: 2000, ratedLoadUnit: 'kg', ratedSpeed: 1.0, ratedSpeedUnit: 'm/s', stationsDoors: '6/6',
-      maintenance: { workTypeCode: 'FM', intervalDays: 30, workerName: '张伟', workerPhone: '138****0001', workerPlatformId: '990001', assistantName: '', assistantPlatformId: '', lastMaintenanceAt: addDays(-10) } },
+      maintenance: { workTypeCode: 'FM', intervalDays: 30, workerName: '张伟', workerPhone: '13800000001', workerPlatformId: '990001', assistantName: '', assistantPlatformId: '', lastMaintenanceAt: addDays(-10) } },
     { id: 'el_4', elevatorCode: 'EM-2024-004', elevatorName: '蓝湾国际 B 座客梯', location: '江北区滨江路 6 号蓝湾国际', regCode: 'TSCQ5001120004', deviceCode: 'DT-CQ-2024-004', insideNumber: 'KT-01', model: '日立 YK', useUnitId: 'uu_2', category: '曳引驱动电梯', nextCheckDate: addDays(240),
       factoryNumber: 'HIT-2021-1102', useUnitEntityId: '5633318206815862790',
-      elevatorAdminister: '吴静', elevatorAdministerPhone: '138****3005', emergencyPhone: '023-67****',
+      elevatorAdminister: '吴静', elevatorAdministerPhone: '13800003005', emergencyPhone: '023-67991234',
       platformSyncedAt: '2026-09-29 14:25:00',
       lng: 106.574210, lat: 29.588660,
       brand: '日立', manufacturer: '日立电梯（中国）有限公司', productNo: 'HIT-2021-1102',
       driveMode: '曳引驱动', ratedLoad: 1000, ratedLoadUnit: 'kg', ratedSpeed: 1.5, ratedSpeedUnit: 'm/s', stationsDoors: '8/8',
       // 演示到期自动派单：上次维保 16 天前，已超半月周期 → 进入工单台即自动生成并派给李强
-      maintenance: { workTypeCode: 'HM', intervalDays: 15, workerName: '李强', workerPhone: '138****0004', workerPlatformId: '990003', assistantName: '', assistantPlatformId: '', lastMaintenanceAt: addDays(-16) } }
+      maintenance: { workTypeCode: 'HM', intervalDays: 15, workerName: '李强', workerPhone: '13800000004', workerPlatformId: '990003', assistantName: '', assistantPlatformId: '', lastMaintenanceAt: addDays(-16) } }
   ],
 
   orders: [
@@ -318,12 +318,11 @@ function nextRecordId() {
 // 规则：
 //   1) 电梯维护配置（maintenance）绑定：维保频次周期 + 主维保/配合人员（含平台ID）；
 //   2) 上次签退时间（无历史时取 lastMaintenanceAt）+ 周期天数 = 下次维保到期日；
-//   3) 到期且该电梯该频次无进行中工单 → 自动生成工单并按绑定关系派单；
-//   4) 同日多台排程：同一人一天最多 MAX_PER_DAY 台（默认4），时段 09/11/14/16 点错开；
-//      当日排满顺延次日——同一项目多台电梯自然聚合为同人同日连做，杜绝"有单即挂起"死锁；
-//   5) 平台手机号互斥（docs/04 1002）：维保人员手机与使用单位负责人/安全管理员/维保经理
-//      重复时挂起人工处理（此类冲突无法靠排程解决）；派单同时写入消息中心通知。
-// 真实后端实现为：plans 计划表 + 定时任务扫描 + assign 校验（互斥/资质/platform_id 同步）。
+//   3) **到期前一天**自动把名下全部到期电梯派给对应维保人员（一次性全部派单，不限时段/台数——
+//      作业时长由签退时 30 分钟校验把关，即"只验证作业时间"，用户确认 2026-09-30）；
+//   4) 保养类型按时间自动升级（TSG 累加式：年365/半年180/季90/半月15）；
+//   5) 派单同时写入消息中心通知。
+// 真实后端实现为：plans 计划表 + 定时任务（到期前一天触发）+ 派单通知。
 const WORK_TYPE_LABEL = { HM: '半月维保', TM: '季度维保', SM: '半年维保', OY: '年度维保', FM: '按需维保' }
 
 function ensureDueOrders() {
@@ -347,9 +346,10 @@ function ensureDueOrders() {
     })
     if (!last) last = parseTime(cfg.lastMaintenanceAt)
     if (!last) return
-    // 到期判定：以半月周期（intervalDays，默认15天）为基准节拍
+    // 到期日 = 上次维保 + 周期天数；**到期前一天**即自动派单（用户规则）
     const intervalMs = (cfg.intervalDays || WORK_TYPE_INTERVAL_DAYS[cfg.workTypeCode] || 15) * 86400000
-    if (now - last < intervalMs) return // 未到期
+    const dueMs = last + intervalMs
+    if (now < dueMs - 86400000) return // 未到"到期前一天"，暂不派单
     // ★ 保养类型按时间自动升级（TSG 附件A 累加式：季度=半月+季度项，半年=+半年项，年度=+年度项）：
     //   距上次年度维保 ≥365 天 → 本次派年度单（76 项清单）
     //   距上次半年维保 ≥180 天 → 半年单（59 项）；距上次季度维保 ≥90 天 → 季度单（44 项）；否则半月单（31 项）
@@ -371,38 +371,11 @@ function ensureDueOrders() {
     if (dueType('OY', 365)) code = 'OY'
     else if (dueType('SM', 180)) code = 'SM'
     else if (dueType('TM', 90)) code = 'TM'
-    // 派工前置校验（docs/04：platform_id 为空不可派工=1004；workStat=normal 且合同期内才可派工；
-    // 五类手机号互斥：维保人员手机不得与使用单位负责人/安全管理员/维保经理重复，docs/04 B.6）
-    if (!cfg.workerPhone || !cfg.workerPlatformId) return // 平台人员ID未同步，不可派工
-    let emp = null
-    Object.keys(db.employees).forEach(function (k) {
-      if (db.employees[k].name === cfg.workerName) emp = db.employees[k]
-    })
-    if (emp && (emp.workStat !== 'normal' || parseTime(emp.workEndDate) < now)) return // 证书/合同失效
-    const uu0 = getUseUnit(el.useUnitId) || {}
-    const conflictPhones = [uu0.unitPrincipalPhone, uu0.elevatorAdministerPhone, db.company.workMenegerPhone]
-    if (conflictPhones.indexOf(cfg.workerPhone) > -1) return // 手机号互斥冲突，挂起人工处理
-    // ── 同日多台排程（修复"名下有单即挂起"的死锁）──
-    // 规则：同一维保人员一天最多做 MAX_PER_DAY 台（默认 4），按时段错开
-    // （09:00/11:00/14:00/16:00）；当日排满自动顺延次日，而非无限期挂起。
-    // 同一项目（使用单位）的多台电梯因遍历相邻，会自然聚合到同一人同日连做。
-    // 真正的互斥只保留两类：平台手机号互斥（上）与"已在作业中的电梯不重复派单"（上）。
-    const MAX_PER_DAY = cfg.maxPerDay || 4
-    const SLOTS = ['09:00:00', '11:00:00', '14:00:00', '16:00:00']
-    let target = new Date(now)
-    let slot = -1
-    for (let dOff = 0; dOff < 30; dOff++) {
-      const dateStr = formatTime(new Date(target.getTime())).slice(0, 10)
-      const count = db.orders.filter(function (o) {
-        return o.workerName === cfg.workerName && o.status !== 'DONE' &&
-          (o.planTime || '').slice(0, 10) === dateStr
-      }).length
-      if (count < MAX_PER_DAY) { slot = count; break }
-      target = new Date(target.getTime() + 86400000)
-    }
-    if (slot < 0) return // 30 天内都排满（理论上不会发生）
-    const planDay = formatTime(new Date(target.getTime())).slice(0, 10)
-    const planTime = planDay + ' ' + (SLOTS[slot] || '09:00:00')
+    // 计划时间 = 到期日当天 09:00（已过期则记为今日，前端统计呈"保养超期"）
+    const dueDay = formatTime(new Date(dueMs)).slice(0, 10)
+    const todayStr = formatTime().slice(0, 10)
+    const planDay = dueDay >= todayStr ? dueDay : todayStr
+    const planTime = planDay + ' 09:00:00'
     const seq = String(db.orders.length + 1).padStart(3, '0')
     const order = {
       id: nextId('wo'),
@@ -486,7 +459,7 @@ function getUseUnit(id) {
 
 // ── 电梯详细档案（docs/01 §3.4.1 + 平台 2.7 回填，docs/04 B.7）──
 // 字段分两组标注来源：
-//   platform: 平台 2.7 自动获取（8 字段；电话为脱敏值，不可回填用于 2.6 上报）
+//   platform: 平台 2.7 自动获取（8 字段；电话未脱敏，可直接回填用于 2.6 上报）
 //   local:    平台不提供、本地维护（安装地址/经纬度/型号品牌/制造单位/下次检验日期等）
 function getElevatorProfile(id) {
   const el = getElevator(id)
@@ -669,9 +642,10 @@ function buildReportPayload(r, el, uu) {
     insideNumber: el.insideNumber || '',
     unitPrincipal: uu.unitPrincipal || '',
     unitPrincipalPhone: uu.unitPrincipalPhone || '',
-    elevatorAdminister: uu.elevatorAdminister || '',
-    elevatorAdministerPhone: uu.elevatorAdministerPhone || '',
-    emergencyPhone: uu.emergencyPhone || '',
+    // 安全管理员/紧急电话：优先取平台 2.7 回填值（实测未脱敏，可直接回填 2.6 上报）
+    elevatorAdminister: el.elevatorAdminister || uu.elevatorAdminister || '',
+    elevatorAdministerPhone: el.elevatorAdministerPhone || uu.elevatorAdministerPhone || '',
+    emergencyPhone: el.emergencyPhone || uu.emergencyPhone || '',
     workMenegerName: c.workMenegerName,
     workMenegerPhone: c.workMenegerPhone,
     workMan1Id: r.workerPlatformId || '',

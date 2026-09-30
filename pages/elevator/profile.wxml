@@ -24,7 +24,7 @@
       <view class="info-row"><text>电梯安全管理员</text><text>{{profile.platform.elevatorAdminister || '-'}}</text></view>
       <view class="info-row"><text>安全管理员电话</text><text>{{profile.platform.elevatorAdministerPhone || '-'}}</text></view>
       <view class="info-row"><text>紧急联系电话</text><text>{{profile.platform.emergencyPhone || '-'}}</text></view>
-      <view class="src-tip">电话为平台脱敏值，不可回填用于 2.6 上报；真实号码以本地档案为准</view>
+      <view class="src-tip">电话由平台 2.7 获取（未脱敏），可直接回填用于 2.6 上报</view>
     </view>
 
     <view class="em-card">
