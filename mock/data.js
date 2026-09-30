@@ -319,8 +319,10 @@ function nextRecordId() {
 //   1) 电梯维护配置（maintenance）绑定：维保频次周期 + 主维保/配合人员（含平台ID）；
 //   2) 上次签退时间（无历史时取 lastMaintenanceAt）+ 周期天数 = 下次维保到期日；
 //   3) 到期且该电梯该频次无进行中工单 → 自动生成工单并按绑定关系派单；
-//   4) 手机号互斥（docs/04 错误码 1002）：绑定主维保名下尚有未完成工单时挂起，待其清空后下次触发补派；
-//   5) 派单同时写入消息中心通知。
+//   4) 同日多台排程：同一人一天最多 MAX_PER_DAY 台（默认4），时段 09/11/14/16 点错开；
+//      当日排满顺延次日——同一项目多台电梯自然聚合为同人同日连做，杜绝"有单即挂起"死锁；
+//   5) 平台手机号互斥（docs/04 1002）：维保人员手机与使用单位负责人/安全管理员/维保经理
+//      重复时挂起人工处理（此类冲突无法靠排程解决）；派单同时写入消息中心通知。
 // 真实后端实现为：plans 计划表 + 定时任务扫描 + assign 校验（互斥/资质/platform_id 同步）。
 const WORK_TYPE_LABEL = { HM: '半月维保', TM: '季度维保', SM: '半年维保', OY: '年度维保', FM: '按需维保' }
 
@@ -369,11 +371,6 @@ function ensureDueOrders() {
     if (dueType('OY', 365)) code = 'OY'
     else if (dueType('SM', 180)) code = 'SM'
     else if (dueType('TM', 90)) code = 'TM'
-    // 手机号互斥：绑定主维保名下尚有未完成工单 → 本次挂起（待清空后补派）
-    const busy = db.orders.some(function (o) {
-      return o.workerName === cfg.workerName && o.status !== 'DONE'
-    })
-    if (busy) return
     // 派工前置校验（docs/04：platform_id 为空不可派工=1004；workStat=normal 且合同期内才可派工；
     // 五类手机号互斥：维保人员手机不得与使用单位负责人/安全管理员/维保经理重复，docs/04 B.6）
     if (!cfg.workerPhone || !cfg.workerPlatformId) return // 平台人员ID未同步，不可派工
@@ -385,6 +382,27 @@ function ensureDueOrders() {
     const uu0 = getUseUnit(el.useUnitId) || {}
     const conflictPhones = [uu0.unitPrincipalPhone, uu0.elevatorAdministerPhone, db.company.workMenegerPhone]
     if (conflictPhones.indexOf(cfg.workerPhone) > -1) return // 手机号互斥冲突，挂起人工处理
+    // ── 同日多台排程（修复"名下有单即挂起"的死锁）──
+    // 规则：同一维保人员一天最多做 MAX_PER_DAY 台（默认 4），按时段错开
+    // （09:00/11:00/14:00/16:00）；当日排满自动顺延次日，而非无限期挂起。
+    // 同一项目（使用单位）的多台电梯因遍历相邻，会自然聚合到同一人同日连做。
+    // 真正的互斥只保留两类：平台手机号互斥（上）与"已在作业中的电梯不重复派单"（上）。
+    const MAX_PER_DAY = cfg.maxPerDay || 4
+    const SLOTS = ['09:00:00', '11:00:00', '14:00:00', '16:00:00']
+    let target = new Date(now)
+    let slot = -1
+    for (let dOff = 0; dOff < 30; dOff++) {
+      const dateStr = formatTime(new Date(target.getTime())).slice(0, 10)
+      const count = db.orders.filter(function (o) {
+        return o.workerName === cfg.workerName && o.status !== 'DONE' &&
+          (o.planTime || '').slice(0, 10) === dateStr
+      }).length
+      if (count < MAX_PER_DAY) { slot = count; break }
+      target = new Date(target.getTime() + 86400000)
+    }
+    if (slot < 0) return // 30 天内都排满（理论上不会发生）
+    const planDay = formatTime(new Date(target.getTime())).slice(0, 10)
+    const planTime = planDay + ' ' + (SLOTS[slot] || '09:00:00')
     const seq = String(db.orders.length + 1).padStart(3, '0')
     const order = {
       id: nextId('wo'),
@@ -392,7 +410,7 @@ function ensureDueOrders() {
       elevatorId: el.id,
       workType: WORK_TYPE_LABEL[code] || code,
       workTypeCode: code,
-      planTime: today('09:00:00'),
+      planTime: planTime,
       status: 'PENDING',
       workerName: cfg.workerName,
       assistantName: cfg.assistantName || '',
