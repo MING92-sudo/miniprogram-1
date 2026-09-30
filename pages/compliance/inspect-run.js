@@ -24,7 +24,7 @@ Page({
 
   async fetchTemplate() {
     try {
-      const data = await getInspectTemplate()
+      const data = await getInspectTemplate(this.data.elevatorId)
       const items = (data.items || []).map(function (it) {
         return {
           itemCode: it.itemCode,

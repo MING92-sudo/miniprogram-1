@@ -1,6 +1,7 @@
 # 依赖
 node_modules/
 miniprogram_npm/
+tmp/
 
 # 日志
 *.log
