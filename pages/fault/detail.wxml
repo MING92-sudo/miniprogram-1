@@ -1,0 +1,18 @@
+<view class="em-page">
+  <view wx:if="{{loading}}" class="em-card em-text-secondary">加载中...</view>
+
+  <block wx:if="{{fault}}">
+    <view class="em-card">
+      <view class="info-row"><text>电梯编号</text><text>{{fault.elevatorCode}}</text></view>
+      <view class="info-row"><text>故障类型</text><text>{{fault.faultType}}</text></view>
+      <view class="info-row"><text>状态</text><text>{{fault.status}}</text></view>
+      <view class="info-row"><text>描述</text><text>{{fault.desc}}</text></view>
+    </view>
+
+    <view class="em-card" wx:if="{{fault.status !== 'CLOSED'}}">
+      <view class="form-label">处理结果</view>
+      <textarea class="form-textarea" value="{{handleDesc}}" bindinput="onHandleInput" maxlength="500" placeholder="处理结果描述" />
+      <button class="em-btn-primary" disabled="{{submitting}}" bindtap="onClose">确认闭环</button>
+    </view>
+  </block>
+</view>

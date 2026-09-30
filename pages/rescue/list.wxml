@@ -1,0 +1,13 @@
+<view class="em-page">
+  <view wx:if="{{list.length === 0}}" class="em-card em-text-secondary">暂无救援记录</view>
+
+  <view wx:for="{{list}}" wx:key="id" class="em-card">
+    <view class="row-title">{{item.elevatorCode || '电梯'}}</view>
+    <view class="em-text-secondary">被困 {{item.trappedCount || 0}} 人 · {{item.status || ''}}</view>
+    <view class="em-text-secondary">{{item.createdAt || ''}}</view>
+  </view>
+
+  <view class="em-card">
+    <button class="em-btn-primary" bindtap="goCreate">新增救援登记</button>
+  </view>
+</view>

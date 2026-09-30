@@ -1,24 +1,72 @@
 {
   "pages": [
-    "pages/index/index"
+    "pages/home/index",
+    "pages/order/list",
+    "pages/message/index",
+    "pages/mine/index",
+    "pages/order/detail",
+    "pages/order/checkin",
+    "pages/order/dynamic-code",
+    "pages/order/checklist",
+    "pages/order/item-form",
+    "pages/order/checkout",
+    "pages/common/watermark-camera",
+    "pages/common/signature",
+    "pages/rescue/create",
+    "pages/rescue/list",
+    "pages/fault/report",
+    "pages/fault/detail",
+    "pages/fault/list",
+    "pages/mine/offline",
+    "pages/knowledge/index",
+    "pages/unit/pending",
+    "pages/unit/record",
+    "pages/unit/confirm",
+    "pages/login/index"
   ],
   "window": {
+    "navigationBarBackgroundColor": "#ffffff",
     "navigationBarTextStyle": "black",
-    "navigationStyle": "custom"
+    "navigationBarTitleText": "电梯无纸化维保",
+    "backgroundColor": "#f5f6f7",
+    "backgroundTextStyle": "dark"
   },
-  "style": "v2",
-  "renderer": "skyline",
-  "rendererOptions": {
-    "skyline": {
-      "defaultDisplayBlock": true,
-      "defaultContentBox": true,
-      "tagNameStyleIsolation": "legacy",
-      "disableABTest": true,
-      "sdkVersionBegin": "3.0.0",
-      "sdkVersionEnd": "15.255.255"
+  "tabBar": {
+    "color": "#666666",
+    "selectedColor": "#0052d9",
+    "backgroundColor": "#ffffff",
+    "borderStyle": "black",
+    "list": [
+      {
+        "pagePath": "pages/home/index",
+        "text": "工单台"
+      },
+      {
+        "pagePath": "pages/order/list",
+        "text": "工单"
+      },
+      {
+        "pagePath": "pages/message/index",
+        "text": "消息"
+      },
+      {
+        "pagePath": "pages/mine/index",
+        "text": "我的"
+      }
+    ]
+  },
+  "permission": {
+    "scope.userLocation": {
+      "desc": "用于维保现场签到定位打卡"
     }
   },
-  "componentFramework": "glass-easel",
-  "sitemapLocation": "sitemap.json",
-  "lazyCodeLoading": "requiredComponents"
+  "requiredPrivateInfos": [
+    "getLocation"
+  ],
+  "networkTimeout": {
+    "request": 15000,
+    "uploadFile": 120000
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json"
 }

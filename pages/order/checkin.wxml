@@ -1,0 +1,26 @@
+<view class="em-page">
+  <view class="em-card">
+    <view class="step-no">STEP 1</view>
+    <view class="step-title">到场定位</view>
+    <view wx:if="{{location}}" class="location-ok">{{locationText}}</view>
+    <view wx:else class="em-text-secondary">{{locationText || '定位获取中...'}}</view>
+    <view class="step-action"><button size="mini" bindtap="getLocation">重新定位</button></view>
+  </view>
+
+  <view class="em-card">
+    <view class="step-no">STEP 2</view>
+    <view class="step-title">水印自拍</view>
+    <view wx:if="{{photo}}" class="photo-wrap">
+      <image class="photo-preview" src="{{photo}}" mode="aspectFill" bindtap="goCamera" />
+      <view class="photo-remove" bindtap="removePhoto">重拍</view>
+    </view>
+    <view wx:else class="photo-empty" bindtap="goCamera">📷 点击拍照（自动叠加时间水印）</view>
+  </view>
+
+  <view class="em-card">
+    <button class="em-btn-primary" disabled="{{submitting}}" bindtap="onSubmit">
+      {{submitting ? '提交中...' : '提交签到'}}
+    </button>
+    <view class="em-text-secondary submit-tip">签到后开始作业清单填写</view>
+  </view>
+</view>

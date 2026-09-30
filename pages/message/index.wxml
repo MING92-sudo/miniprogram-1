@@ -1,0 +1,22 @@
+<view class="em-page">
+  <view class="mark-all" bindtap="onMarkAll" wx:if="{{unreadCount > 0}}">
+    全部已读（{{unreadCount}} 条未读）
+  </view>
+
+  <view wx:if="{{list.length === 0}}" class="em-card em-text-secondary empty">暂无消息</view>
+
+  <view
+    wx:for="{{list}}"
+    wx:key="id"
+    class="em-card msg-item {{item.read ? 'read' : ''}}"
+    data-id="{{item.id}}"
+    bindtap="onItemTap"
+  >
+    <view class="msg-head">
+      <view class="msg-title">{{item.title || '消息'}}</view>
+      <view wx:if="{{!item.read}}" class="dot"></view>
+    </view>
+    <view class="em-text-secondary">{{item.content || ''}}</view>
+    <view class="em-text-secondary msg-time">{{item.createdAt || ''}}</view>
+  </view>
+</view>

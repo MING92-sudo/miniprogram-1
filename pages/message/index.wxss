@@ -1,0 +1,39 @@
+.mark-all {
+  text-align: right;
+  padding: 20rpx 24rpx;
+  color: var(--em-brand);
+  font-size: 26rpx;
+}
+
+.msg-head {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  margin-bottom: 8rpx;
+}
+
+.msg-title {
+  font-weight: 600;
+}
+
+.dot {
+  width: 14rpx;
+  height: 14rpx;
+  border-radius: 50%;
+  background: var(--em-error);
+  flex-shrink: 0;
+}
+
+.msg-item.read {
+  opacity: 0.6;
+}
+
+.msg-time {
+  margin-top: 8rpx;
+  font-size: 22rpx;
+}
+
+.empty {
+  text-align: center;
+  padding: 80rpx 24rpx;
+}

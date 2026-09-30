@@ -1,0 +1,48 @@
+<view class="em-page">
+  <view wx:if="{{loading}}" class="em-card em-text-secondary">加载中...</view>
+
+  <block wx:if="{{order}}">
+    <view class="em-card">
+      <view class="head-row">
+        <view>
+          <view class="order-no">{{order.orderNo}}</view>
+          <view class="em-text-secondary">{{order.workType}} · 计划 {{order.planTime || '-'}}</view>
+        </view>
+        <view class="tag tag-{{order.status}}">{{statusText}}</view>
+      </view>
+    </view>
+
+    <view class="em-card">
+      <view class="section-title">电梯信息</view>
+      <view class="info-row"><text>电梯名称</text><text>{{elevator.elevatorName || '-'}}</text></view>
+      <view class="info-row"><text>电梯编号</text><text>{{elevator.elevatorCode || '-'}}</text></view>
+      <view class="info-row"><text>电梯位置</text><text>{{elevator.location || '-'}}</text></view>
+      <view class="info-row"><text>注册代码</text><text>{{elevator.regCode || '-'}}</text></view>
+    </view>
+
+    <view class="em-card">
+      <view class="section-title">作业信息</view>
+      <view class="info-row"><text>维保人员</text><text>{{order.workerName || '-'}}</text></view>
+      <view class="info-row"><text>配合人员</text><text>{{order.assistantName || '无'}}</text></view>
+      <view class="info-row"><text>签到时间</text><text>{{order.checkinTime || '-'}}</text></view>
+      <view class="info-row"><text>签退时间</text><text>{{order.checkoutTime || '-'}}</text></view>
+    </view>
+
+    <view class="em-card" wx:if="{{order.status === 'PENDING'}}">
+      <button class="em-btn-primary" bindtap="goCheckin">开始签到</button>
+    </view>
+
+    <view class="em-card" wx:if="{{order.status === 'PROCESSING'}}">
+      <button class="em-btn-primary" bindtap="goChecklist">继续作业清单</button>
+      <view class="sub-action" bindtap="goDynamicCode">配合人员到场？输入双人动态码 ›</view>
+    </view>
+
+    <view class="em-card" wx:if="{{order.status === 'DONE'}}">
+      <view class="section-title">维保记录与上报</view>
+      <view class="info-row"><text>作业时长</text><text>{{order.duration || '-'}}</text></view>
+      <view class="info-row"><text>记录ID</text><text>{{order.originalRecordId || '-'}}</text></view>
+      <view class="info-row"><text>上报状态</text><text class="report-status">{{reportStatusText || '未上报'}}</text></view>
+      <view class="em-text-secondary record-tip">维保记录已生成（含平台 2.6 上报快照），确认结果不上报平台</view>
+    </view>
+  </block>
+</view>

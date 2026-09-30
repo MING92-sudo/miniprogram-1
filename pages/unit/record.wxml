@@ -1,0 +1,80 @@
+<view class="em-page">
+  <view wx:if="{{loading}}" class="em-card em-text-secondary">加载中...</view>
+
+  <block wx:if="{{record}}">
+    <view class="em-card">
+      <view class="section-title">维保记录</view>
+      <view class="info-row"><text>电梯</text><text>{{record.elevatorName || '-'}}</text></view>
+      <view class="info-row"><text>维保类型</text><text>{{record.workType || '-'}}</text></view>
+      <view class="info-row"><text>维保人员</text><text>{{record.workerName || '-'}}{{record.assistantName ? ' / ' + record.assistantName : ''}}</text></view>
+      <view class="info-row"><text>签到时间</text><text>{{record.checkinTime || '-'}}</text></view>
+      <view class="info-row"><text>签退时间</text><text>{{record.checkoutTime || '-'}}</text></view>
+      <view class="info-row"><text>作业时长</text><text>{{record.duration || '-'}}</text></view>
+      <view class="info-row"><text>上报状态</text><text class="report-status">{{reportStatusText || '-'}}</text></view>
+      <view class="info-row"><text>隐患代码</text><text>{{problemText || '-'}}</text></view>
+      <view class="info-row"><text>下次维保</text><text>{{record.nextMaintenanceDate || '-'}}</text></view>
+      <view class="info-row"><text>记录ID</text><text>{{record.originalRecordId || '-'}}</text></view>
+    </view>
+
+    <view class="em-card">
+      <view class="section-title">检查项（{{record.items.length}} 项）</view>
+      <view wx:for="{{record.items}}" wx:key="id" class="check-item">
+        <view class="check-head">
+          <view class="check-name">{{index + 1}}. {{item.name}}</view>
+          <view class="tag {{item.result === 'NORMAL' ? 'tag-ok' : item.result === 'ABNORMAL' ? 'tag-ng' : 'tag-na'}}">
+            {{item.resultText}}
+          </view>
+        </view>
+        <view wx:if="{{item.requirement}}" class="em-text-secondary">要求：{{item.requirement}}</view>
+        <view wx:if="{{item.value != null}}" class="em-text-secondary">读数：{{item.value}}{{item.valueUnit || ''}}</view>
+        <view wx:if="{{item.valueText}}" class="em-text-secondary">说明书判定：{{item.valueText}}</view>
+        <view wx:if="{{item.abnormalDesc}}" class="abnormal-text">异常说明：{{item.abnormalDesc}}</view>
+        <view wx:if="{{item.skipReason}}" class="em-text-secondary">跳过原因：{{item.skipReason}}</view>
+      </view>
+    </view>
+
+    <view class="em-card" wx:if="{{record.photos.length > 0}}">
+      <view class="section-title">现场照片（{{record.photos.length}}）</view>
+      <view class="photo-grid">
+        <image
+          wx:for="{{record.photos}}"
+          wx:key="*this"
+          class="grid-photo"
+          src="{{item}}"
+          mode="aspectFill"
+          data-src="{{item}}"
+          bindtap="previewPhoto"
+        />
+      </view>
+    </view>
+
+    <view class="em-card" wx:if="{{record.workerSignatureUrl}}">
+      <view class="section-title">维保人员签名</view>
+      <image class="sig-img" src="{{record.workerSignatureUrl}}" mode="aspectFit" />
+    </view>
+
+    <view class="em-card" wx:if="{{record.confirmStatus === 'CONFIRMED'}}">
+      <view class="section-title">单位确认</view>
+      <view class="info-row"><text>满意度</text><text>{{record.satisfaction || '-'}} 星</text></view>
+      <view class="info-row"><text>状态</text><text>已确认归档</text></view>
+      <image wx:if="{{record.signatureUrl}}" class="sig-img" src="{{record.signatureUrl}}" mode="aspectFit" />
+    </view>
+
+    <view class="em-card">
+      <view class="payload-head" bindtap="togglePayload">
+        <view class="section-title">平台上报快照（2.6 报文 {{payloadRows.length}} 字段）</view>
+        <view class="payload-arrow">{{payloadExpanded ? '收起' : '展开'}}</view>
+      </view>
+      <block wx:if="{{payloadExpanded}}">
+        <view wx:for="{{payloadRows}}" wx:key="k" class="info-row">
+          <text>{{item.k}}</text>
+          <text>{{item.v}}</text>
+        </view>
+      </block>
+    </view>
+
+    <view class="em-card" wx:if="{{record.confirmStatus !== 'CONFIRMED'}}">
+      <button class="em-btn-primary" bindtap="goConfirm">去确认</button>
+    </view>
+  </block>
+</view>

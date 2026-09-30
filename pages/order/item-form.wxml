@@ -1,0 +1,79 @@
+<view class="em-page">
+  <view class="em-card" wx:if="{{item}}">
+    <view class="item-head">
+      <view class="item-title">{{item.name}}</view>
+      <view wx:if="{{item.isKey}}" class="key-badge">关键项</view>
+    </view>
+    <view class="em-text-secondary item-meta">
+      {{item.itemCode}} · 判定要求：{{item.requirement || '按现场规范判定'}}
+    </view>
+
+    <view class="form-label">检查结果</view>
+    <view class="result-options">
+      <view
+        class="option {{result === 'NORMAL' ? 'opt-ok' : ''}}"
+        data-value="NORMAL"
+        bindtap="onResultChange"
+      >正常</view>
+      <view
+        class="option {{result === 'ABNORMAL' ? 'opt-ng' : ''}}"
+        data-value="ABNORMAL"
+        bindtap="onResultChange"
+      >异常</view>
+      <view
+        class="option {{result === 'NA' ? 'opt-na' : ''}}"
+        data-value="NA"
+        bindtap="onResultChange"
+      >不适用</view>
+    </view>
+  </view>
+
+  <!-- 读数型检查项（judgeType=NUMERIC） -->
+  <view class="em-card" wx:if="{{item && item.judgeType === 'NUMERIC' && result !== 'NA'}}">
+    <view class="form-label">测量读数{{item.valueUnit ? '（' + item.valueUnit + '）' : ''}}</view>
+    <input class="read-input" type="digit" value="{{value}}" bindinput="onValueInput" placeholder="填写本次测量值" />
+    <view class="em-text-secondary read-tip">要求：{{item.requirement}}</view>
+  </view>
+
+  <!-- 按本机说明书判定（judgeType=MANUFACTURER） -->
+  <view class="em-card" wx:if="{{item && item.judgeType === 'MANUFACTURER' && result !== 'NA'}}">
+    <view class="form-label">说明书判定结论</view>
+    <textarea class="form-textarea" value="{{valueText}}" bindinput="onValueTextInput" maxlength="200" placeholder="按本机说明书要求填写的文字结论" />
+  </view>
+
+  <!-- 异常：描述 + 隐患码 -->
+  <view class="em-card" wx:if="{{result === 'ABNORMAL'}}">
+    <view class="form-label">异常描述（必填）</view>
+    <textarea class="form-textarea" value="{{abnormalDesc}}" bindinput="onAbnormalInput" maxlength="500" placeholder="异常情况详细描述" />
+
+    <view class="form-label">隐患代码（必填，随记录上报平台）</view>
+    <picker mode="selector" range="{{problemOptions}}" bindchange="onProblemChange">
+      <view class="picker-value {{problemCode ? '' : 'placeholder'}}">
+        {{problemCode ? problemCode + ' ' + problemDesc : '选择 S1-S7 严重事故隐患代码'}}
+      </view>
+    </picker>
+  </view>
+
+  <!-- 不适用：跳过原因 -->
+  <view class="em-card" wx:if="{{result === 'NA'}}">
+    <view class="form-label">跳过原因（必填，TSG 注 A-1）</view>
+    <textarea class="form-textarea" value="{{skipReason}}" bindinput="onSkipInput" maxlength="200" placeholder="如：设备改造后无此部件" />
+  </view>
+
+  <view class="em-card">
+    <view class="form-label">现场照片（{{photos.length}}/4）{{item && item.photoRequired && result === 'ABNORMAL' ? ' · 关键项异常必拍' : ''}}</view>
+    <view class="photo-list">
+      <view wx:for="{{photos}}" wx:key="*this" class="photo-wrap">
+        <image class="photo" src="{{item}}" mode="aspectFill" data-src="{{item}}" bindtap="previewPhoto" />
+        <view class="photo-del" data-index="{{index}}" catchtap="removePhoto">×</view>
+      </view>
+      <view wx:if="{{photos.length < 4}}" class="photo photo-add" bindtap="choosePhoto">＋</view>
+    </view>
+  </view>
+
+  <view class="em-card">
+    <button class="em-btn-primary" disabled="{{submitting}}" bindtap="onSubmit">
+      {{submitting ? '保存中...' : '保存'}}
+    </button>
+  </view>
+</view>

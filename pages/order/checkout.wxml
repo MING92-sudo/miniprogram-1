@@ -1,0 +1,46 @@
+<view class="em-page">
+  <view class="em-card head-card">
+    <view class="head-title">签退自检</view>
+    <view class="em-text-secondary">{{elevatorName}}</view>
+  </view>
+
+  <view class="em-card">
+    <view class="section-title">作业时长</view>
+    <view class="info-row"><text>签到时间</text><text>{{checkinTime || '-'}}</text></view>
+    <view class="info-row">
+      <text>已作业时长</text>
+      <text class="{{durationOk ? 'elapsed-ok' : 'elapsed-warn'}}">{{elapsedText}}</text>
+    </view>
+    <view wx:if="{{!durationOk}}" class="em-text-secondary duration-tip">
+      签退要求签到与签退间隔不少于 30 分钟（24小时制计时），还需约 {{remainMinutes}} 分钟
+    </view>
+  </view>
+
+  <view class="em-card">
+    <view class="section-title">自检项（{{selfChecks.length}} 项全选后可提交）</view>
+    <view
+      wx:for="{{selfChecks}}"
+      wx:key="key"
+      class="check-row"
+      data-key="{{item.key}}"
+      bindtap="onCheckToggle"
+    >
+      <view class="check-icon {{item.checked ? 'checked' : ''}}">{{item.checked ? '✓' : ''}}</view>
+      <view>{{item.label}}</view>
+    </view>
+  </view>
+
+  <view class="em-card">
+    <view class="section-title">维保人员签名</view>
+    <image wx:if="{{signature}}" class="sig-preview" src="{{signature}}" mode="aspectFit" bindtap="goSignature" />
+    <view wx:else class="sig-empty" bindtap="goSignature">点击签名</view>
+    <view class="em-text-secondary sig-tip">签名将作为维保记录的签退凭证</view>
+  </view>
+
+  <view class="em-card">
+    <button class="em-btn-primary" disabled="{{submitting || !durationOk}}" bindtap="onSubmit">
+      {{!durationOk ? '作业时长不足 30 分钟' : submitting ? '提交中...' : '提交签退'}}
+    </button>
+    <view class="em-text-secondary submit-tip">提交后生成维保记录（含 2.6 上报快照），并上报监管平台</view>
+  </view>
+</view>

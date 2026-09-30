@@ -1,0 +1,27 @@
+<view class="em-page">
+  <view class="em-card">
+    <input
+      class="kb-input"
+      placeholder="搜索知识条目"
+      value="{{keyword}}"
+      confirm-type="search"
+      bindconfirm="onSearch"
+    />
+  </view>
+
+  <view wx:if="{{!loading && list.length === 0}}" class="em-card em-text-secondary empty">
+    未找到相关知识条目
+  </view>
+
+  <view
+    wx:for="{{list}}"
+    wx:key="id"
+    class="em-card"
+  >
+    <view class="kb-item" data-id="{{item.id}}" bindtap="onItemTap">
+      <view class="kb-title">{{item.title}}</view>
+      <view class="kb-tag">{{item.tag}}</view>
+    </view>
+    <view wx:if="{{expandedId === item.id}}" class="kb-content">{{item.content}}</view>
+  </view>
+</view>

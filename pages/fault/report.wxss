@@ -1,0 +1,25 @@
+.form-label {
+  font-weight: 600;
+  margin: 16rpx 0 12rpx;
+}
+
+.form-label:first-child {
+  margin-top: 0;
+}
+
+.form-input,
+.form-textarea {
+  background: var(--em-bg-page);
+  border-radius: var(--em-radius);
+  padding: 16rpx 20rpx;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.form-textarea {
+  min-height: 160rpx;
+}
+
+.picker {
+  color: var(--em-text-secondary);
+}

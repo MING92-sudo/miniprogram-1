@@ -1,0 +1,103 @@
+.header {
+  padding: 32rpx 32rpx 0;
+}
+
+.hello {
+  font-size: 40rpx;
+  font-weight: 600;
+  margin-bottom: 8rpx;
+}
+
+.scan-card {
+  text-align: center;
+  padding: 48rpx 24rpx;
+}
+
+.scan-title {
+  font-size: 34rpx;
+  font-weight: 600;
+  margin-bottom: 12rpx;
+}
+
+.scan-btn {
+  margin-top: 32rpx;
+  width: 80%;
+}
+
+.mock-scan {
+  margin-top: 20rpx;
+  text-decoration: underline;
+}
+
+.stats-row {
+  display: flex;
+  gap: 20rpx;
+  margin: 0 24rpx;
+}
+
+.stat-card {
+  flex: 1;
+  background: var(--em-bg-card);
+  border-radius: var(--em-radius);
+  padding: 24rpx 0;
+  text-align: center;
+}
+
+.stat-num {
+  font-size: 44rpx;
+  font-weight: 600;
+}
+
+.stat-num.warn {
+  color: var(--em-warning);
+}
+
+.stat-num.ok {
+  color: var(--em-success);
+}
+
+.section-title {
+  font-size: 30rpx;
+  font-weight: 600;
+  margin-bottom: 16rpx;
+}
+
+.task-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20rpx 0;
+  border-bottom: 1rpx solid var(--em-border);
+}
+
+.task-item:last-child {
+  border-bottom: none;
+}
+
+.task-name {
+  font-weight: 500;
+  margin-bottom: 6rpx;
+}
+
+.tag {
+  flex-shrink: 0;
+  margin-left: 16rpx;
+  font-size: 22rpx;
+  padding: 4rpx 16rpx;
+  border-radius: 8rpx;
+}
+
+.tag-PENDING {
+  color: var(--em-warning);
+  background: #fdf6ec;
+}
+
+.tag-PROCESSING {
+  color: var(--em-brand);
+  background: var(--em-brand-light);
+}
+
+.tag-DONE {
+  color: var(--em-success);
+  background: #e8f7f0;
+}

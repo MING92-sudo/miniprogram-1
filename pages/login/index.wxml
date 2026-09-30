@@ -1,0 +1,25 @@
+<view class="login-page">
+  <view class="login-header">
+    <view class="login-logo">梯</view>
+    <view class="login-title">电梯无纸化维保</view>
+    <view class="em-text-secondary">作业工具 · 管理平台 · 合规通道</view>
+  </view>
+
+  <view class="login-tip em-text-secondary">演示模式：选择身份直接进入（已跳过微信授权与短信验证）</view>
+
+  <view
+    wx:for="{{demoAccounts}}"
+    wx:key="role"
+    class="account-card"
+    data-index="{{index}}"
+    bindtap="onDemoLogin"
+  >
+    <view class="account-main">
+      <view class="account-name">{{item.name}} · {{item.title}}</view>
+      <view class="em-text-secondary">{{item.desc}}</view>
+    </view>
+    <view class="account-arrow">›</view>
+  </view>
+
+  <view class="login-footer em-text-secondary">登录即代表同意《用户服务协议》与《隐私政策》</view>
+</view>

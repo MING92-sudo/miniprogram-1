@@ -5,6 +5,10 @@ node_modules/
 *.log
 npm-debug.log*
 
+# 联调诊断/抓包 trace（含内网IP，不入库）
+curl-debug-log.txt
+trace-*.txt
+
 # 系统文件
 .DS_Store
 Thumbs.db
@@ -14,3 +18,26 @@ Thumbs.db
 
 # 微信开发者工具个人配置（官方建议不入库）
 project.private.config.json
+
+# ── 凭证与本地配置（严禁入库）────────────────────
+# 平台监管接口凭证 username/key/appcode/secret
+.env
+.env.*
+*.env.local
+# 本地配置覆盖（application-local.yml 等）
+config/local/
+application-local.yml
+application-local.yaml
+# 凭证类文件通配
+credential*.json
+*credential*.json
+secret*.json
+*secret*.json
+*token*.json
+reg-*.json
+# 平台联调请求/响应报文（含脱敏手机号，暂不入库）
+reg-capture/
+*.har
+
+# 说明：.env.example 只放变量名与占位说明，绝不放真实值
+!.env.example

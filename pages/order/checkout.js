@@ -1,0 +1,150 @@
+// 签退自检：自检项确认 + 签名 + 提交
+// 业务规则：签到—签退间隔不少于 30 分钟（constants.MIN_WORK_DURATION_MINUTES，前后端双重校验）
+// 提交后触发记录生成与监管平台上报（后端）
+const { getOrderDetail, checkout } = require('../../services/order')
+const { uploadImage } = require('../../services/upload')
+const { formatTime, formatDuration, parseTime } = require('../../utils/util')
+const { MIN_WORK_DURATION_MINUTES } = require('../../constants/index')
+const offline = require('../../utils/offline')
+
+Page({
+  data: {
+    orderId: '',
+    elevatorName: '',
+    checkinTime: '',
+    elapsedText: '-:--:--', // 已作业时长（24小时制 HH:mm:ss）
+    durationOk: false,
+    remainMinutes: 0,
+    selfChecks: [
+      { key: 'tools', label: '工具已清点带离井道', checked: false },
+      { key: 'site', label: '现场已清理干净', checked: false },
+      { key: 'power', label: '电梯电源已恢复', checked: false },
+      { key: 'run', label: '电梯试运行正常', checked: false }
+    ],
+    signature: '',
+    submitting: false
+  },
+
+  onLoad(query) {
+    this.setData({ orderId: query.orderId || '' })
+    this.fetchOrder()
+  },
+
+  onUnload() {
+    this.stopTicker()
+  },
+
+  async fetchOrder() {
+    try {
+      const order = await getOrderDetail(this.data.orderId)
+      this.setData({
+        elevatorName: (order.elevator && order.elevator.elevatorName) || '',
+        checkinTime: order.checkinTime || ''
+      })
+      this.startTicker()
+    } catch (e) {
+      // 头部信息加载失败不阻断签退
+    }
+  },
+
+  // 时长实时刷新（每 30 秒）
+  startTicker() {
+    this.stopTicker()
+    this.updateElapsed()
+    this._ticker = setInterval(() => this.updateElapsed(), 30 * 1000)
+  },
+
+  stopTicker() {
+    if (this._ticker) {
+      clearInterval(this._ticker)
+      this._ticker = null
+    }
+  },
+
+  updateElapsed() {
+    if (!this.data.checkinTime) return
+    const elapsed = Date.now() - parseTime(this.data.checkinTime)
+    const minMs = MIN_WORK_DURATION_MINUTES * 60000
+    const ok = elapsed >= minMs
+    this.setData({
+      elapsedText: formatDuration(elapsed),
+      durationOk: ok,
+      remainMinutes: ok ? 0 : Math.ceil((minMs - elapsed) / 60000)
+    })
+  },
+
+  onCheckToggle(e) {
+    const key = e.currentTarget.dataset.key
+    this.setData({
+      selfChecks: this.data.selfChecks.map((c) =>
+        c.key === key ? Object.assign({}, c, { checked: !c.checked }) : c
+      )
+    })
+  },
+
+  // 跳转签名板，完成后通过 EventChannel 回传图片路径
+  goSignature() {
+    // 签退成功后的 Toast 等待期内页面即将 reLaunch，禁止再发起新路由（避免路由竞态）
+    if (this._leaving) return
+    wx.navigateTo({
+      url: `/pages/common/signature?from=checkout&orderId=${this.data.orderId}`,
+      events: {
+        signatureDone: (data) => {
+          this.setData({ signature: data.path })
+        }
+      }
+    })
+  },
+
+  async onSubmit() {
+    const allChecked = this.data.selfChecks.every((c) => c.checked)
+    if (!allChecked) return wx.showToast({ title: '请完成全部自检项', icon: 'none' })
+    if (!this.data.signature) return wx.showToast({ title: '请完成签名', icon: 'none' })
+    // 时长下限前端校验（后端 422 双保险）
+    if (!this.data.durationOk) {
+      return wx.showToast({
+        title: `作业时长不足 30 分钟，还需约 ${this.data.remainMinutes} 分钟`,
+        icon: 'none'
+      })
+    }
+    this.setData({ submitting: true })
+    let sigFileId = ''
+    try {
+      const sig = await uploadImage(this.data.signature)
+      sigFileId = sig.fileId
+      // 响应：{ duration, originalRecordId, reportStatus }（docs/04 A.2）
+      await checkout(this.data.orderId, {
+        signatureFileId: sigFileId,
+        signatureUrl: this.data.signature, // mock 演示回显；真实后端忽略
+        collectedAt: formatTime()
+      })
+      wx.showToast({ title: '签退成功，记录已提交上报', icon: 'success' })
+      this._leaving = true
+      setTimeout(() => {
+        wx.reLaunch({ url: '/pages/home/index' })
+      }, 800)
+    } catch (e) {
+      if (e && e.code === -1 && sigFileId) {
+        // 签名已上传但签退请求因网络失败：入离线队列，网络恢复后自动补传
+        offline.enqueue({
+          url: `/work-orders/${this.data.orderId}/checkout`,
+          method: 'POST',
+          data: {
+            signatureFileId: sigFileId,
+            signatureUrl: this.data.signature,
+            collectedAt: formatTime()
+          },
+          desc: '签退提交'
+        })
+        wx.showToast({ title: '网络异常，签退已存入离线补传', icon: 'none' })
+        this._leaving = true
+        setTimeout(() => {
+          wx.reLaunch({ url: '/pages/home/index' })
+        }, 1200)
+      } else {
+        wx.showToast({ title: e.message || '签退失败', icon: 'none' })
+      }
+    }
+    this.setData({ submitting: false })
+  }
+})

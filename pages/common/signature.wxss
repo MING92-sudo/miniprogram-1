@@ -1,0 +1,20 @@
+.sig-page {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  padding: 24rpx;
+  box-sizing: border-box;
+}
+
+.sig-canvas {
+  flex: 1;
+  width: 100%;
+  background: #ffffff;
+  border-radius: var(--em-radius);
+}
+
+.sig-actions {
+  display: flex;
+  justify-content: space-between;
+  padding: 24rpx 0;
+}

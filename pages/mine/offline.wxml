@@ -1,0 +1,24 @@
+<view class="em-page">
+  <view class="em-card">
+    <view class="row-title">待补传队列</view>
+    <view class="em-text-secondary">共 {{queueCount}} 条待补传数据（网络恢复后自动补传，也可手动触发）</view>
+    <button size="mini" class="em-btn-primary sync-btn" disabled="{{syncing}}" bindtap="onSyncQueue">立即补传</button>
+  </view>
+
+  <view class="em-card">
+    <view class="row-title">本地工单缓存</view>
+    <view wx:if="{{cacheList.length === 0}}" class="em-text-secondary">暂无缓存</view>
+    <view wx:for="{{cacheList}}" wx:key="key" class="cache-row" data-key="{{item.key}}" data-id="{{item.orderId}}" bindtap="onClearCache">
+      <view class="cache-main">
+        <view>{{item.orderNo}}</view>
+        <view class="em-text-secondary">{{item.elevatorName || '电梯'}} · 缓存于 {{item.cachedAtText}}</view>
+      </view>
+      <view class="em-text-secondary cache-op">点击清除</view>
+    </view>
+  </view>
+
+  <view class="em-card">
+    <view class="em-text-secondary demo-tip">演示辅助：模拟弱网断网时的本地写入，用于体验补传流程。</view>
+    <button size="mini" bindtap="onDemoEnqueue">模拟写入一条待补传数据</button>
+  </view>
+</view>

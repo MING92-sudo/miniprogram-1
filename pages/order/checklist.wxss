@@ -1,0 +1,87 @@
+.progress-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16rpx;
+}
+
+.progress-title {
+  font-size: 30rpx;
+  font-weight: 600;
+}
+
+.progress-num {
+  font-size: 28rpx;
+  color: var(--em-brand);
+  font-weight: 600;
+}
+
+.progress-bar {
+  height: 12rpx;
+  background: var(--em-bg-page);
+  border-radius: 999rpx;
+  overflow: hidden;
+}
+
+.progress-inner {
+  height: 100%;
+  background: var(--em-brand);
+  border-radius: 999rpx;
+  transition: width 0.3s;
+}
+
+.item-row {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+}
+
+.item-idx {
+  flex-shrink: 0;
+  width: 48rpx;
+  height: 48rpx;
+  border-radius: 50%;
+  background: var(--em-bg-page);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24rpx;
+  color: var(--em-text-secondary);
+}
+
+.item-main {
+  flex: 1;
+}
+
+.item-name {
+  margin-bottom: 4rpx;
+}
+
+.item-key {
+  color: var(--em-error);
+  font-weight: 600;
+}
+
+.tag {
+  flex-shrink: 0;
+  font-size: 22rpx;
+  padding: 6rpx 16rpx;
+  border-radius: 8rpx;
+  color: var(--em-text-secondary);
+  background: var(--em-bg-page);
+}
+
+.tag-ok {
+  color: var(--em-success);
+  background: #e8f7f0;
+}
+
+.tag-ng {
+  color: var(--em-error);
+  background: #fdecec;
+}
+
+.tag-na {
+  color: var(--em-text-secondary);
+  background: var(--em-bg-page);
+}

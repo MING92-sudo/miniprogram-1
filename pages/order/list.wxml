@@ -1,0 +1,42 @@
+<view class="em-page">
+  <view class="search-bar">
+    <input
+      class="search-input"
+      placeholder="搜索电梯名称/编号/工单号"
+      value="{{keyword}}"
+      confirm-type="search"
+      bindconfirm="onSearch"
+    />
+  </view>
+
+  <view class="tabs">
+    <view
+      wx:for="{{tabs}}"
+      wx:key="key"
+      class="tab {{activeTab === item.key ? 'tab-active' : ''}}"
+      data-key="{{item.key}}"
+      bindtap="onTabChange"
+    >{{item.label}}</view>
+  </view>
+
+  <view wx:if="{{!loading && list.length === 0}}" class="em-card em-text-secondary empty">
+    暂无工单
+  </view>
+
+  <view
+    wx:for="{{list}}"
+    wx:key="id"
+    class="em-card order-item"
+    data-id="{{item.id}}"
+    bindtap="goDetail"
+  >
+    <view class="order-head">
+      <view class="order-title">{{item.orderNo}}</view>
+      <view class="tag tag-{{item.status}}">{{item.statusText}}</view>
+    </view>
+    <view class="em-text-secondary">{{item.elevatorName}}</view>
+    <view class="em-text-secondary">{{item.workType}} · 计划 {{item.planTime}}</view>
+  </view>
+
+  <view wx:if="{{loading}}" class="loading-tip em-text-secondary">加载中...</view>
+</view>

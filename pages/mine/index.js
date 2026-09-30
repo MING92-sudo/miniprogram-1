@@ -1,0 +1,81 @@
+// 我的：用户信息 + 按角色显隐的功能入口
+const { ROLE } = require('../../constants/index')
+const auth = require('../../services/auth')
+const { ensureLogin } = require('../../utils/guard')
+
+const ROLE_TEXT = {
+  WORKER: '维保人员',
+  ASSISTANT: '配合维保人员',
+  LEADER: '班组长',
+  UNIT_ADMIN: '使用单位安全管理员',
+  ADMIN: '维保部管理员',
+  SYS_ADMIN: '系统管理员'
+}
+
+// 角色可见菜单
+const UNIT_ROLES = [ROLE.UNIT_ADMIN]
+const STAFF_ROLES = [ROLE.WORKER, ROLE.ASSISTANT, ROLE.LEADER]
+
+function buildMenus(role) {
+  const menus = []
+  if (UNIT_ROLES.indexOf(role) > -1) {
+    menus.push({ title: '待确认维保记录', url: '/pages/unit/pending', desc: '确认并评价维保作业' })
+  }
+  if (STAFF_ROLES.indexOf(role) > -1) {
+    menus.push({ title: '故障上报', url: '/pages/fault/report', desc: '现场故障登记' })
+    menus.push({ title: '故障记录', url: '/pages/fault/list', desc: '上报记录与闭环跟踪' })
+    menus.push({ title: '救援记录', url: '/pages/rescue/list', desc: '困人救援登记与跟踪' })
+  }
+  menus.push({ title: '知识库', url: '/pages/knowledge/index', desc: '作业手册与流程规范' })
+  menus.push({ title: '离线缓存管理', url: '/pages/mine/offline', desc: '弱网数据补传' })
+  return menus
+}
+
+Page({
+  data: {
+    userInfo: null,
+    roleText: '',
+    menus: []
+  },
+
+  onShow() {
+    // 首次 onShow 发生在 tab 路由进行中，此时守卫 reLaunch 会与当前路由竞态
+    // （routeDone with a webviewId xxx is not found / 真机白屏），首次守卫延迟到 onReady
+    if (!this._authReady) return
+    if (!ensureLogin()) return
+    this.refresh()
+  },
+
+  onReady() {
+    this._authReady = true
+    if (!ensureLogin()) return
+    this.refresh()
+  },
+
+  refresh() {
+    const app = getApp()
+    const role = app.globalData.role
+    this.setData({
+      userInfo: app.globalData.userInfo,
+      roleText: ROLE_TEXT[role] || ROLE[role] || '未登录',
+      menus: buildMenus(role)
+    })
+  },
+
+  onMenuTap(e) {
+    wx.navigateTo({ url: e.currentTarget.dataset.url })
+  },
+
+  async onLogout() {
+    // 防重：logout 接口有延迟，连点会叠加两次 reLaunch 触发路由竞态
+    if (this._loggingOut) return
+    this._loggingOut = true
+    try {
+      await auth.logout()
+    } catch (e) {
+      // 本地清理不依赖接口成功
+    }
+    getApp().logout()
+    wx.reLaunch({ url: '/pages/login/index' })
+  }
+})

@@ -1,10 +1,48 @@
-/**app.wxss**/
-.container {
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: space-between;
-  padding: 200rpx 0;
+/**app.wxss 全局样式**/
+page {
+  /* 主题色（对齐 TDesign） */
+  --em-brand: #0052d9;
+  --em-brand-light: #ecf2fe;
+  --em-success: #2ba471;
+  --em-warning: #e37318;
+  --em-error: #d54941;
+  --em-text-primary: #000000e6;
+  --em-text-secondary: #00000099;
+  --em-text-disabled: #00000042;
+  --em-bg-page: #f5f6f7;
+  --em-bg-card: #ffffff;
+  --em-border: #e7e7e7;
+  --em-radius: 12rpx;
+
+  background-color: var(--em-bg-page);
+  color: var(--em-text-primary);
+  font-size: 28rpx;
+  line-height: 1.5;
+}
+
+/* 通用卡片 */
+.em-card {
+  margin: 20rpx 24rpx;
+  padding: 24rpx;
+  background: var(--em-bg-card);
+  border-radius: var(--em-radius);
   box-sizing: border-box;
-} 
+}
+
+/* 页面容器 */
+.em-page {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* 通用主按钮 */
+.em-btn-primary {
+  background: var(--em-brand);
+  color: #ffffff;
+  border-radius: var(--em-radius);
+}
+
+/* 辅助文字 */
+.em-text-secondary {
+  color: var(--em-text-secondary);
+  font-size: 24rpx;
+}

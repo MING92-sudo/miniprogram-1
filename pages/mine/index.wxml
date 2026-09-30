@@ -1,0 +1,29 @@
+<view class="em-page">
+  <view class="em-card user-card">
+    <view class="avatar">{{userInfo.name ? userInfo.name[0] : '未'}}</view>
+    <view class="user-main">
+      <view class="user-name">{{userInfo.name || '未登录'}}</view>
+      <view class="role-badge">{{roleText}}</view>
+    </view>
+  </view>
+
+  <view class="em-card">
+    <view
+      wx:for="{{menus}}"
+      wx:key="url"
+      class="menu-item"
+      data-url="{{item.url}}"
+      bindtap="onMenuTap"
+    >
+      <view class="menu-main">
+        <view>{{item.title}}</view>
+        <view class="em-text-secondary menu-desc">{{item.desc}}</view>
+      </view>
+      <view class="menu-arrow">›</view>
+    </view>
+  </view>
+
+  <view class="em-card">
+    <view class="menu-item logout" bindtap="onLogout">退出登录</view>
+  </view>
+</view>

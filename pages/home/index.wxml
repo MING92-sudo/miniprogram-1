@@ -1,0 +1,46 @@
+<view class="em-page">
+  <view class="header">
+    <view class="hello">您好，{{userInfo.name || ''}}</view>
+    <view class="em-text-secondary">{{roleText}} · 今天也有 {{stats.todo}} 条任务待处理</view>
+  </view>
+
+  <view class="em-card scan-card">
+    <view class="scan-title">现场作业</view>
+    <view class="em-text-secondary">扫描电梯二维码，开始维保签到</view>
+    <button class="em-btn-primary scan-btn" bindtap="onScanTap">扫一扫</button>
+    <view class="mock-scan em-text-secondary" bindtap="onMockScan">演示：模拟扫码（世纪大厦 1#）</view>
+  </view>
+
+  <view class="stats-row">
+    <view class="stat-card">
+      <view class="stat-num">{{stats.total}}</view>
+      <view class="em-text-secondary">今日任务</view>
+    </view>
+    <view class="stat-card">
+      <view class="stat-num warn">{{stats.todo}}</view>
+      <view class="em-text-secondary">待处理</view>
+    </view>
+    <view class="stat-card">
+      <view class="stat-num ok">{{stats.done}}</view>
+      <view class="em-text-secondary">已完成</view>
+    </view>
+  </view>
+
+  <view class="em-card">
+    <view class="section-title">任务列表</view>
+    <view wx:if="{{todayTasks.length === 0}}" class="em-text-secondary">今日暂无任务</view>
+    <view
+      wx:for="{{todayTasks}}"
+      wx:key="id"
+      class="task-item"
+      data-id="{{item.id}}"
+      bindtap="onTaskTap"
+    >
+      <view class="task-main">
+        <view class="task-name">{{item.elevatorName}}</view>
+        <view class="em-text-secondary">{{item.workType}} · {{item.planTime}}</view>
+      </view>
+      <view class="tag tag-{{item.status}}">{{item.statusText}}</view>
+    </view>
+  </view>
+</view>

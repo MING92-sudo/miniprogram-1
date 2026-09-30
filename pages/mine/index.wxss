@@ -1,0 +1,62 @@
+.user-card {
+  display: flex;
+  align-items: center;
+  gap: 24rpx;
+  padding: 48rpx 32rpx;
+}
+
+.avatar {
+  flex-shrink: 0;
+  width: 104rpx;
+  height: 104rpx;
+  border-radius: 50%;
+  background: var(--em-brand);
+  color: #ffffff;
+  font-size: 44rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.user-name {
+  font-size: 36rpx;
+  font-weight: 600;
+  margin-bottom: 8rpx;
+}
+
+.role-badge {
+  display: inline-block;
+  font-size: 22rpx;
+  color: var(--em-brand);
+  background: var(--em-brand-light);
+  padding: 4rpx 16rpx;
+  border-radius: 8rpx;
+}
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 26rpx 0;
+  border-bottom: 1rpx solid var(--em-border);
+}
+
+.menu-item:last-child {
+  border-bottom: none;
+}
+
+.menu-desc {
+  margin-top: 4rpx;
+  font-size: 24rpx;
+}
+
+.menu-arrow {
+  color: var(--em-text-disabled);
+  font-size: 40rpx;
+}
+
+.logout {
+  color: var(--em-error);
+  text-align: center;
+  justify-content: center;
+}

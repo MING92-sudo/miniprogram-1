@@ -1,0 +1,76 @@
+.section-title {
+  font-size: 30rpx;
+  font-weight: 600;
+  margin-bottom: 16rpx;
+}
+
+.head-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.order-no {
+  font-size: 34rpx;
+  font-weight: 600;
+  margin-bottom: 8rpx;
+}
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 12rpx 0;
+  color: var(--em-text-secondary);
+}
+
+.info-row text:first-child {
+  color: var(--em-text-primary);
+  flex-shrink: 0;
+  margin-right: 24rpx;
+}
+
+.info-row text:last-child {
+  text-align: right;
+}
+
+.tag {
+  flex-shrink: 0;
+  font-size: 24rpx;
+  padding: 6rpx 20rpx;
+  border-radius: 10rpx;
+}
+
+.tag-PENDING {
+  color: var(--em-warning);
+  background: #fdf6ec;
+}
+
+.tag-PROCESSING {
+  color: var(--em-brand);
+  background: var(--em-brand-light);
+}
+
+.tag-DONE {
+  color: var(--em-success);
+  background: #e8f7f0;
+}
+
+.sub-action {
+  margin-top: 24rpx;
+  text-align: center;
+  color: var(--em-brand);
+  font-size: 26rpx;
+}
+
+.done-tip {
+  text-align: center;
+}
+
+.report-status {
+  color: var(--em-success);
+  font-weight: 600;
+}
+
+.record-tip {
+  margin-top: 12rpx;
+}

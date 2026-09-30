@@ -1,0 +1,12 @@
+<view class="em-page">
+  <view wx:if="{{list.length === 0}}" class="em-card em-text-secondary">暂无待确认记录</view>
+
+  <view wx:for="{{list}}" wx:key="id" class="em-card record-item">
+    <view class="row-title" data-id="{{item.id}}" bindtap="goRecord">
+      {{item.elevatorName || '维保记录'}}
+    </view>
+    <view class="em-text-secondary">{{item.workType || ''}} · {{item.completedAt || ''}}</view>
+    <view class="record-link" data-id="{{item.id}}" bindtap="goRecord">查看记录 ›</view>
+    <button size="mini" class="em-btn-primary confirm-btn" data-id="{{item.id}}" bindtap="goConfirm">去确认</button>
+  </view>
+</view>

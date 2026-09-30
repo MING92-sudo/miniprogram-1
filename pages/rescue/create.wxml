@@ -1,0 +1,19 @@
+<view class="em-page">
+  <view class="em-card">
+    <view class="form-label">电梯编号（可扫码）</view>
+    <view class="code-row">
+      <input class="form-input code-input" value="{{elevatorCode}}" bindinput="onCodeInput" placeholder="电梯编号" />
+      <view class="scan-btn" bindtap="onScan">扫码</view>
+    </view>
+
+    <view class="form-label">被困人数</view>
+    <input class="form-input" type="number" value="{{trappedCount}}" bindinput="onCountInput" placeholder="被困人数" />
+
+    <view class="form-label">情况描述</view>
+    <textarea class="form-textarea" value="{{desc}}" bindinput="onDescInput" maxlength="500" placeholder="现场情况描述" />
+  </view>
+
+  <view class="em-card">
+    <button class="em-btn-primary" disabled="{{submitting}}" bindtap="onSubmit">提交登记</button>
+  </view>
+</view>

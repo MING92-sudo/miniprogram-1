@@ -1,0 +1,17 @@
+<view class="em-page">
+  <view class="em-card">
+    <view class="wm-info">水印：{{watermarkTime}} · 工单 {{orderId || '-'}}</view>
+    <view class="wm-wrap">
+      <canvas id="wm-canvas" type="2d" class="wm-canvas"></canvas>
+      <view wx:if="{{!output}}" class="preview-empty" bindtap="takePhoto">
+        <view wx:if="{{processing}}">水印合成中...</view>
+        <view wx:else>📷 点击拍照</view>
+      </view>
+    </view>
+  </view>
+
+  <view class="em-card" wx:if="{{output}}">
+    <button class="em-btn-primary" bindtap="onConfirm">确认使用</button>
+    <view class="retake" bindtap="onRetake">重新拍摄</view>
+  </view>
+</view>

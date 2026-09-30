@@ -1,0 +1,18 @@
+<view class="em-page">
+  <view class="em-card">
+    <view class="form-label">电梯编号</view>
+    <input class="form-input" value="{{elevatorCode}}" bindinput="onCodeInput" placeholder="电梯编号" />
+
+    <view class="form-label">故障类型</view>
+    <picker mode="selector" range="{{faultTypes}}" bindchange="onTypeChange">
+      <view class="form-input picker">{{faultType || '请选择故障类型'}}</view>
+    </picker>
+
+    <view class="form-label">故障描述</view>
+    <textarea class="form-textarea" value="{{desc}}" bindinput="onDescInput" maxlength="500" placeholder="故障现象描述" />
+  </view>
+
+  <view class="em-card">
+    <button class="em-btn-primary" disabled="{{submitting}}" bindtap="onSubmit">提交上报</button>
+  </view>
+</view>

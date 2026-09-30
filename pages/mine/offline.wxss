@@ -1,0 +1,28 @@
+.row-title {
+  font-weight: 600;
+  margin-bottom: 12rpx;
+}
+
+.cache-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 16rpx 0;
+  border-bottom: 1rpx solid var(--em-border);
+}
+
+.cache-row:last-child {
+  border-bottom: none;
+}
+
+.sync-btn {
+  margin-top: 16rpx;
+}
+
+.cache-op {
+  flex-shrink: 0;
+  margin-left: 16rpx;
+}
+
+.demo-tip {
+  margin-bottom: 12rpx;
+}

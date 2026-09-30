@@ -1,0 +1,44 @@
+<view class="em-page">
+  <view class="em-card">
+    <view class="progress-head">
+      <text class="progress-title">作业清单</text>
+      <text class="progress-num">{{doneCount}}/{{total}}</text>
+    </view>
+    <view class="progress-bar">
+      <view class="progress-inner" style="width: {{progress}}%"></view>
+    </view>
+  </view>
+
+  <view wx:if="{{loading}}" class="em-card em-text-secondary">加载中...</view>
+
+  <view wx:if="{{!loading && items.length === 0}}" class="em-card em-text-secondary">暂无检查项</view>
+
+  <view
+    wx:for="{{items}}"
+    wx:key="id"
+    class="em-card item-row"
+    data-id="{{item.id}}"
+    bindtap="goItemForm"
+  >
+    <view class="item-idx">{{index + 1}}</view>
+    <view class="item-main">
+      <view class="item-name">
+        {{item.name}}
+        <text wx:if="{{item.isKey}}" class="item-key">*</text>
+      </view>
+      <view wx:if="{{item.resultText}}" class="em-text-secondary">
+        {{item.abnormalDesc || item.valueText || (item.value != null ? '读数 ' + item.value + (item.valueUnit || '') : '') || item.skipReason || '已填写'}}
+      </view>
+      <view wx:else class="em-text-secondary">{{item.requirement || '点击填写'}}</view>
+    </view>
+    <view class="tag {{item.result === 'NORMAL' ? 'tag-ok' : item.result === 'ABNORMAL' ? 'tag-ng' : item.result === 'NA' ? 'tag-na' : ''}}">
+      {{item.resultText || '待填写'}}
+    </view>
+  </view>
+
+  <view class="em-card" wx:if="{{!loading}}">
+    <button class="em-btn-primary" bindtap="goCheckout">
+      {{doneCount < total ? '完成清单，去签退（' + (total - doneCount) + ' 项未填）' : '完成清单，去签退'}}
+    </button>
+  </view>
+</view>

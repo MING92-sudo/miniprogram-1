@@ -1,0 +1,24 @@
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 12rpx 0;
+}
+
+.info-row text:first-child {
+  color: var(--em-text-secondary);
+}
+
+.form-label {
+  font-weight: 600;
+  margin-bottom: 12rpx;
+}
+
+.form-textarea {
+  background: var(--em-bg-page);
+  border-radius: var(--em-radius);
+  padding: 16rpx 20rpx;
+  min-height: 160rpx;
+  width: 100%;
+  box-sizing: border-box;
+  margin-bottom: 24rpx;
+}
