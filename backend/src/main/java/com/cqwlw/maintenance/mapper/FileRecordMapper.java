@@ -5,5 +5,6 @@ import com.cqwlw.maintenance.entity.FileRecord;
 import org.apache.ibatis.annotations.Mapper;
 
 @Mapper
-public interface FileRecordMapper.java extends BaseMapper<FileRecord> {
+public interface FileRecordMapper extends BaseMapper<FileRecord> {
 }
+

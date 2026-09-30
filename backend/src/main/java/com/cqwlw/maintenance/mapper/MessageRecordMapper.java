@@ -5,5 +5,6 @@ import com.cqwlw.maintenance.entity.MessageRecord;
 import org.apache.ibatis.annotations.Mapper;
 
 @Mapper
-public interface MessageRecordMapper.java extends BaseMapper<MessageRecord> {
+public interface MessageRecordMapper extends BaseMapper<MessageRecord> {
 }
+

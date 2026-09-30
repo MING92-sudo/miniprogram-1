@@ -5,5 +5,6 @@ import com.cqwlw.maintenance.entity.WorkOrder;
 import org.apache.ibatis.annotations.Mapper;
 
 @Mapper
-public interface WorkOrderMapper.java extends BaseMapper<WorkOrder> {
+public interface WorkOrderMapper extends BaseMapper<WorkOrder> {
 }
+

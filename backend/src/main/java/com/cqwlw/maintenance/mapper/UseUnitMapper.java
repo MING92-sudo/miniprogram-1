@@ -5,5 +5,6 @@ import com.cqwlw.maintenance.entity.UseUnit;
 import org.apache.ibatis.annotations.Mapper;
 
 @Mapper
-public interface UseUnitMapper.java extends BaseMapper<UseUnit> {
+public interface UseUnitMapper extends BaseMapper<UseUnit> {
 }
+

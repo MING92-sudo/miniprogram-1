@@ -5,5 +5,6 @@ import com.cqwlw.maintenance.entity.Company;
 import org.apache.ibatis.annotations.Mapper;
 
 @Mapper
-public interface CompanyMapper.java extends BaseMapper<Company> {
+public interface CompanyMapper extends BaseMapper<Company> {
 }
+

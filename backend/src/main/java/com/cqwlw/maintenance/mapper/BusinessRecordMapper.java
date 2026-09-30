@@ -5,5 +5,6 @@ import com.cqwlw.maintenance.entity.BusinessRecord;
 import org.apache.ibatis.annotations.Mapper;
 
 @Mapper
-public interface BusinessRecordMapper.java extends BaseMapper<BusinessRecord> {
+public interface BusinessRecordMapper extends BaseMapper<BusinessRecord> {
 }
+

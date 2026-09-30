@@ -5,5 +5,6 @@ import com.cqwlw.maintenance.entity.MaintainRecord;
 import org.apache.ibatis.annotations.Mapper;
 
 @Mapper
-public interface MaintainRecordMapper.java extends BaseMapper<MaintainRecord> {
+public interface MaintainRecordMapper extends BaseMapper<MaintainRecord> {
 }
+

@@ -5,5 +5,6 @@ import com.cqwlw.maintenance.entity.Employee;
 import org.apache.ibatis.annotations.Mapper;
 
 @Mapper
-public interface EmployeeMapper.java extends BaseMapper<Employee> {
+public interface EmployeeMapper extends BaseMapper<Employee> {
 }
+

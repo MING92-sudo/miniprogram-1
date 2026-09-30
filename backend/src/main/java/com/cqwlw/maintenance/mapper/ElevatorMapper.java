@@ -5,5 +5,6 @@ import com.cqwlw.maintenance.entity.Elevator;
 import org.apache.ibatis.annotations.Mapper;
 
 @Mapper
-public interface ElevatorMapper.java extends BaseMapper<Elevator> {
+public interface ElevatorMapper extends BaseMapper<Elevator> {
 }
+

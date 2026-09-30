@@ -5,5 +5,6 @@ import com.cqwlw.maintenance.entity.RegUploadLog;
 import org.apache.ibatis.annotations.Mapper;
 
 @Mapper
-public interface RegUploadLogMapper.java extends BaseMapper<RegUploadLog> {
+public interface RegUploadLogMapper extends BaseMapper<RegUploadLog> {
 }
+
