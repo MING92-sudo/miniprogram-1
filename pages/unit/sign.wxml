@@ -19,19 +19,6 @@
 
     <block wx:else>
       <view class="em-card">
-        <view class="section-title">满意度评价</view>
-        <view class="stars">
-          <view
-            wx:for="{{[1,2,3,4,5]}}"
-            wx:key="*this"
-            class="star {{satisfaction >= item ? 'star-active' : ''}}"
-            data-value="{{item}}"
-            bindtap="onSatisfaction"
-          >★</view>
-        </view>
-      </view>
-
-      <view class="em-card">
         <view class="section-title">安全管理员签名</view>
         <canvas
           id="sign-canvas"

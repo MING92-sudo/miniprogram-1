@@ -8,7 +8,6 @@ Page({
     token: '',
     view: null,
     confirmed: false,
-    satisfaction: 0,
     hasDrawn: false,
     submitting: false,
     loadError: ''
@@ -73,13 +72,8 @@ Page({
     this.setData({ hasDrawn: false })
   },
 
-  onSatisfaction(e) {
-    this.setData({ satisfaction: Number(e.currentTarget.dataset.value) })
-  },
-
   async onSubmit() {
     if (this.data.submitting) return
-    if (!this.data.satisfaction) return wx.showToast({ title: '请评价满意度', icon: 'none' })
     if (!this.data.hasDrawn) return wx.showToast({ title: '请在本页签名', icon: 'none' })
     this.setData({ submitting: true })
     const self = this
@@ -88,7 +82,6 @@ Page({
       success: (res) => {
         // 签名图按 mock 约定以路径回填（真实后端为 COS fileId）
         unit.confirmByToken(self.data.rid, self.data.token, {
-          satisfaction: self.data.satisfaction,
           signatureUrl: res.tempFilePath
         })
           .then(function () {

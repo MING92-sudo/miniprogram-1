@@ -106,6 +106,16 @@ Page({
     wx.navigateTo({ url })
   },
 
+  // 维保记录情况三卡下钻（switchTab 页经存储传参）
+  goRecordCard(e) {
+    const jump = e.currentTarget.dataset.jump
+    if (jump === 'platform') {
+      return wx.navigateTo({ url: '/pages/elevator/list' })
+    }
+    wx.setStorageSync('order_status_filter', jump === 'unconfirmed' ? 'DONE' : 'PROCESSING')
+    wx.switchTab({ url: '/pages/order/list' })
+  },
+
   // 三色统计卡下钻：跳转工单列表并按到期维度过滤
   goStat(e) {
     // /pages/order/list 是 tabBar 页：navigateTo 无法打开、switchTab 不能带参，

@@ -6,6 +6,7 @@
     "pages/mine/index",
     "pages/order/detail",
     "pages/elevator/profile",
+    "pages/elevator/list",
     "pages/order/checkin",
     "pages/order/dynamic-code",
     "pages/order/checklist",

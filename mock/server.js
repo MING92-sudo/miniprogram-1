@@ -60,6 +60,7 @@ const routes = [
 
   // ── 工单 ──
   ['GET', '/home/summary', () => d.getHomeSummary()],
+  ['GET', '/elevators', () => d.listElevators()],
   ['GET', '/work-orders', ({ query }) => {
     d.ensureDueOrders()
     return paginate(d.listOrders(query), query)

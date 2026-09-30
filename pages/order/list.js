@@ -46,6 +46,7 @@ Page({
     if (!this._authReady) return
     if (!ensureLogin()) return
     this.applyDueFromStorage()
+    this.applyStatusFromStorage()
     this.fetchList(true)
   },
 
@@ -53,6 +54,7 @@ Page({
     this._authReady = true
     if (!ensureLogin()) return
     this.applyDueFromStorage()
+    this.applyStatusFromStorage()
     this.fetchList(true)
   },
 
@@ -64,6 +66,16 @@ Page({
       this.setData({ due: due, dueLabel: DUE_LABEL[due], status: '', activeTab: '' })
     }
     wx.removeStorageSync('order_due_filter')
+  },
+
+  // 首页"维保中/未确认"卡片下钻：读取一次性状态过滤（switchTab 不能带参）
+  applyStatusFromStorage() {
+    const st = wx.getStorageSync('order_status_filter')
+    if (st && st !== this.data.status) {
+      this._due = ''
+      this.setData({ status: st, activeTab: st, due: '', dueLabel: '' })
+    }
+    wx.removeStorageSync('order_status_filter')
   },
 
   onPullDownRefresh() {

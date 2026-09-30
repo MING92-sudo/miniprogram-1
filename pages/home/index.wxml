@@ -36,21 +36,21 @@
       🔊 您有 {{summary.warnCount}} 台电梯尚未达到无纸化维护保养要求，请核实！
     </view>
     <view class="record-grid">
-      <view class="record-card">
+      <view class="record-card" data-jump="inProgress" bindtap="goRecordCard">
         <view class="record-info">
           <view class="record-label">维保中</view>
           <view class="record-num num-green">{{summary.inProgress}} 份</view>
         </view>
         <view class="record-emoji bg-green">🛡️</view>
       </view>
-      <view class="record-card">
+      <view class="record-card" data-jump="unconfirmed" bindtap="goRecordCard">
         <view class="record-info">
           <view class="record-label">未确认</view>
           <view class="record-num num-blue">{{summary.unconfirmed}} 份</view>
         </view>
         <view class="record-emoji bg-blue">📝</view>
       </view>
-      <view class="record-card">
+      <view class="record-card" data-jump="platform" bindtap="goRecordCard">
         <view class="record-info">
           <view class="record-label">市监局对接(重庆)</view>
           <view class="record-num num-orange">{{summary.platformTotal}} 台</view>

@@ -503,6 +503,22 @@ function getElevatorProfile(id) {
   }
 }
 
+// 电梯列表（工作台看板/市监局对接卡片下钻）
+function listElevators() {
+  return db.elevators.map(function (el) {
+    const uu = getUseUnit(el.useUnitId) || {}
+    return {
+      id: el.id,
+      elevatorName: el.elevatorName || '',
+      elevatorCode: el.elevatorCode || '',
+      deviceCode: el.deviceCode || '',
+      regCode: el.regCode || '',
+      model: el.model || '',
+      projectName: getUseUnit(el.useUnitId) ? getUseUnit(el.useUnitId).unitName : ''
+    }
+  })
+}
+
 // 工单视图：附带电梯信息
 function getOrder(id) {
   const o = db.orders.find((x) => x.id === id)
@@ -852,6 +868,7 @@ module.exports = {
   nextRecordId,
   ensureDueOrders,
   getHomeSummary,
+  listElevators,
   getElevator,
   getElevatorByCode,
   getUseUnit,
