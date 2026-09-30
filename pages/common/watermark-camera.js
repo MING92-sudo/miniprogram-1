@@ -52,7 +52,11 @@ Page({
       locationText
     })
 
-    // 进入页面直接拉起摄像头，免去二次点击"拍照"确认
+  },
+
+  onReady() {
+    // 必须等渲染完成（onReady）再拉起相机：onLoad 阶段部分安卓机不弹相机，
+    // 且此时 #wm-canvas 未布局，拍完立即合成会报"画布初始化失败"
     this.takePhoto()
   },
 
@@ -66,6 +70,24 @@ Page({
       success: (res) => {
         this.setData({ photo: res.tempFiles[0].tempFilePath, ready: false })
         this.renderWatermark(res.tempFiles[0].tempFilePath)
+      },
+      fail: (err) => {
+        const msg = (err && err.errMsg) || ''
+        if (msg.indexOf('cancel') > -1) {
+          // 用户主动取消：留在本页，可点"拍照"重试
+          return wx.showToast({ title: '已取消拍摄', icon: 'none' })
+        }
+        // 权限拒绝等异常：引导去设置开启，或返回上一页
+        wx.showModal({
+          title: '无法打开相机',
+          content: '请检查相机权限是否已开启。',
+          confirmText: '去设置',
+          cancelText: '返回',
+          success: (r) => {
+            if (r.confirm) return wx.openSetting({})
+            wx.navigateBack()
+          }
+        })
       }
     })
   },

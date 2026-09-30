@@ -5,10 +5,13 @@ const config = require('../config/index')
 
 function pickProvider() {
   const lbs = config.lbs || {}
-  if (lbs.provider === 'amap' && lbs.amapKey) return { name: 'amap', key: lbs.amapKey }
-  if (lbs.provider === 'tencent' && lbs.tencentKey) return { name: 'tencent', key: lbs.tencentKey }
-  if (lbs.amapKey) return { name: 'amap', key: lbs.amapKey }
-  if (lbs.tencentKey) return { name: 'tencent', key: lbs.tencentKey }
+  // key 不入库（安全）：配置文件为空时回退读本地 storage 注入（调试用），正式由后端下发
+  const amapKey = lbs.amapKey || wx.getStorageSync('lbs_amap_key') || ''
+  const tencentKey = lbs.tencentKey || wx.getStorageSync('lbs_tencent_key') || ''
+  if (lbs.provider === 'amap' && amapKey) return { name: 'amap', key: amapKey }
+  if (lbs.provider === 'tencent' && tencentKey) return { name: 'tencent', key: tencentKey }
+  if (amapKey) return { name: 'amap', key: amapKey }
+  if (tencentKey) return { name: 'tencent', key: tencentKey }
   return null
 }
 

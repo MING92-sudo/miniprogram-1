@@ -67,17 +67,29 @@ async function flushQueue() {
   const queue = getQueue()
   let success = 0
   const failed = []
-  for (const task of queue) {
+  for (let idx = 0; idx < queue.length; idx++) {
+    const task = queue[idx]
     try {
-      // 离线期间拍摄的照片：补传时先补传图片文件，再把 fileId 填回业务数据
+      // 离线期间拍摄的照片：补传时先补传图片文件，再把 fileId 填回业务数据。
+      // 断点续传：已成功照片的 fileId 记入 task.uploadedFileIds 并即时持久化，
+      // 单张失败不重传整批（docs/08 审查 #6）
       if (Array.isArray(task.photoPaths) && task.photoPaths.length > 0) {
-        const fileIds = []
-        for (const p of task.photoPaths) {
-          const r = await uploadImage(p)
+        const fileIds = task.uploadedFileIds || []
+        while (fileIds.length < task.photoPaths.length) {
+          const r = await uploadImage(task.photoPaths[fileIds.length]) // 按序续传未完成的
           fileIds.push(r.fileId)
+          task.uploadedFileIds = fileIds.slice()
+          // 每成功一张即持久化断点（含本任务剩余照片 + 其后未处理任务）
+          wx.setStorageSync(QUEUE_KEY, failed.concat(queue.slice(idx)))
+        }
+        if (fileIds.length < task.photoPaths.length) {
+          failed.push(task) // 照片未传完：整条留队，下次从断点继续
+          wx.setStorageSync(QUEUE_KEY, failed.concat(queue.slice(idx + 1)))
+          continue
         }
         task.data.photoFileIds = fileIds
         task.photoPaths = undefined
+        task.uploadedFileIds = undefined
       }
       await request({
         url: task.url,
@@ -87,8 +99,12 @@ async function flushQueue() {
         idempotencyKey: task.id
       })
       success++
+      // 本条完成即持久化移除（避免应用被杀后整批重复重放）
+      wx.setStorageSync(QUEUE_KEY, failed.concat(queue.slice(idx + 1)))
     } catch (e) {
       failed.push(task)
+      // 失败任务保留：持久化"失败任务 + 其后未处理任务"
+      wx.setStorageSync(QUEUE_KEY, failed.concat(queue.slice(idx + 1)))
     }
   }
   wx.setStorageSync(QUEUE_KEY, failed)

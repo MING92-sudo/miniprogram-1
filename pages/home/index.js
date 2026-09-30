@@ -25,7 +25,7 @@ Page({
     },
     quickMenus: [],
     queryMenus: [
-      { title: '维保记录', icon: '📋', color: 'orange', url: '/pages/order/list' },
+      { title: '维保记录', icon: '📋', color: 'orange', url: '/pages/order/list', tab: true },
       { title: '待确认', icon: '✅', color: 'green', url: '/pages/unit/pending' },
       { title: '消息通知', icon: '💬', color: 'blue', url: '/pages/message/index', tab: true },
       { title: '知识库', icon: '📚', color: 'purple', url: '/pages/knowledge/index' }
@@ -101,7 +101,8 @@ Page({
 
   onGridTap(e) {
     const url = e.currentTarget.dataset.url
-    const isTab = e.currentTarget.dataset.tab
+    // dataset.tab 显式标记 + TAB_PAGES 兜底（tabBar 页 navigateTo 会被微信拒绝）
+    const isTab = e.currentTarget.dataset.tab || TAB_PAGES.indexOf(url) > -1
     if (isTab) return wx.switchTab({ url })
     wx.navigateTo({ url })
   },

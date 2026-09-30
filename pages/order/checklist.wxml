@@ -32,6 +32,10 @@
         <view class="cl-td cl-td-name">
           {{item.name}}
           <text wx:if="{{item.isKey}}" class="cl-key">*</text>
+          <view wx:if="{{item.notInThisRun}}" class="cl-periodic">
+            <text class="cl-periodic-tag">本次未排</text>
+            <text class="cl-periodic-run" data-id="{{item.id}}" catchtap="onRunThisTime">本次执行</text>
+          </view>
         </view>
         <view class="cl-td cl-td-req">{{item.requirement}}</view>
         <view class="cl-td cl-td-result">
@@ -49,7 +53,7 @@
     <!-- 结论：签退 -->
     <view class="em-card cl-checkout" id="sec-result" wx:if="{{!loading}}">
       <button class="em-btn-primary" bindtap="goCheckout">
-        {{doneCount < total ? '完成清单，去签退（' + (total - doneCount) + ' 项未填）' : '完成清单，去签退'}}
+        {{doneCount < requiredTotal ? '完成清单，去签退（' + (requiredTotal - doneCount) + ' 项未填）' : '完成清单，去签退'}}
       </button>
     </view>
 

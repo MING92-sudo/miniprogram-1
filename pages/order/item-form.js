@@ -154,12 +154,15 @@ Page({
     if (this.data.result !== 'NA' && item.judgeType === 'NUMERIC' && this.data.value === '') {
       return '读数型检查项请填写测量读数'
     }
+    // 照片校验与后端 mock/server.js 完全对齐（避免前端放行、后端 422 打回的体验割裂）：
+    // ① 任何异常项必须附照片；② 关键项（试验/测试/校验/检测，TSG 注A-2）执行（非NA）必须附照片
     if (this.data.result === 'ABNORMAL') {
       if (!this.data.abnormalDesc) return '异常项请填写异常描述'
       if (!this.data.problemCode) return '异常项请选择隐患代码（S1-S7，随维保记录上报平台）'
-      if (item.photoRequired && this.data.photos.length === 0) {
-        return '关键项异常必须至少拍摄 1 张现场照片'
-      }
+    }
+    if (this.data.result !== 'NA' && this.data.photos.length === 0) {
+      if (this.data.result === 'ABNORMAL') return '异常项必须至少拍摄 1 张现场照片'
+      if (item.photoRequired) return '关键项为试验/测试/校验/检测类，必须拍摄照片留证（TSG 注A-2）'
     }
     if (this.data.result === 'NA' && !this.data.skipReason) {
       return '不适用项请填写跳过原因（TSG 注 A-1）'

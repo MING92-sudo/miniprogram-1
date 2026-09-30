@@ -112,6 +112,25 @@
   font-weight: 700;
 }
 
+.cl-periodic {
+  margin-top: 8rpx;
+}
+
+.cl-periodic-tag {
+  font-size: 20rpx;
+  color: #86909c;
+  background: #f2f3f5;
+  padding: 2rpx 12rpx;
+  border-radius: 999rpx;
+  margin-right: 10rpx;
+}
+
+.cl-periodic-run {
+  font-size: 20rpx;
+  color: #1668dc;
+  text-decoration: underline;
+}
+
 .cl-result {
   font-weight: 600;
 }
