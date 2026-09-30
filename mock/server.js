@@ -26,6 +26,24 @@ function findOr404(list, id, name) {
 
 const routes = [
   // ── 鉴权 ──
+  // 账号密码登录（用户需求：账号由维保单位系统分配，手机号为账号）
+  ['POST', '/auth/login', ({ body }) => {
+    const phone = String(body.phone || '').trim()
+    const password = String(body.password || '')
+    let roleKey = null
+    let user = null
+    Object.keys(d.db.employees).forEach(function (k) {
+      if (d.db.employees[k].account === phone) { roleKey = k; user = d.db.employees[k] }
+    })
+    if (!user) throw { code: 401, message: '账号不存在，请联系维保单位管理员分配' }
+    if (user.password !== password) throw { code: 401, message: '账号或密码错误' }
+    return { token: 'mock-token-' + Date.now(), userInfo: user, role: roleKey }
+  }],
+  // 登录后绑定微信：wx.login code → 服务端换 openid 并与账号关联（mock 直接返回成功）
+  ['POST', '/auth/bind-wechat', ({ body }) => {
+    if (!body.code) throw { code: 422, message: '缺少微信 code' }
+    return { ok: true, openid: 'mock_openid_' + Date.now() }
+  }],
   ['POST', '/auth/wx-login', ({ body }) => {
     const role = d.db.employees[body.role] ? body.role : 'WORKER'
     const user = d.db.employees[role]

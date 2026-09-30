@@ -1,28 +1,21 @@
-// 登录页：Mock 演示模式下提供账号快选；接入真实后端后替换为
-// 微信授权登录（wx.login code + 手机号授权）+ 绑定流程
+// 登录页：账号密码登录（账号由维保单位系统分配，手机号为账号）
+// 登录成功后绑定微信（wx.login → /auth/bind-wechat），下次可微信一键登录（P2）
 const auth = require('../../services/auth')
 const { isLoggedIn } = require('../../utils/auth')
 const config = require('../../config/index')
 
 Page({
   data: {
-    // 演示账号仅 mock 模式渲染；真实后端走微信授权登录（docs/08 P1）
     useMock: config.useMock,
-    // 演示账号（mock/data.js employees 同源）
-    demoAccounts: [
-      { role: 'WORKER', name: '张伟', title: '维保人员', desc: '扫码签到 · 作业清单 · 签退上报' },
-      { role: 'LEADER', name: '陈刚', title: '班组长', desc: '工单管理 · 排班确认' },
-      { role: 'UNIT_ADMIN', name: '王芳', title: '使用单位安全管理员', desc: '维保记录确认 · 满意度评价' }
-    ],
+    phone: '',
+    password: '',
+    showPassword: false,
+    agreed: false,
     logging: false
   },
 
   onLoad() {
-    // 已登录直接进首页。onLoad 阶段本页路由尚未 routeDone，此时发起 switchTab
-    // 会与当前路由竞态，触发「routeDone with a webviewId xxx is not found」，
-    // 故仅记录标志，延迟到 onReady（初始路由完成）后再跳。
-    // 注意：这里不走 ensureLogin 守卫——未登录时守卫会 reLaunch 到登录页自身，
-    // 页面加载途中被销毁同样会触发路由竞态错误。
+    // 已登录直接进首页。onLoad 阶段发起 switchTab 会与初始路由竞态（routeDone 错误），延迟到 onReady
     this._signedIn = isLoggedIn()
   },
 
@@ -32,21 +25,56 @@ Page({
     }
   },
 
-  onDemoLogin(e) {
+  onPhoneInput(e) {
+    this.setData({ phone: e.detail.value })
+  },
+
+  onPasswordInput(e) {
+    this.setData({ password: e.detail.value })
+  },
+
+  togglePassword() {
+    this.setData({ showPassword: !this.data.showPassword })
+  },
+
+  toggleAgreed() {
+    this.setData({ agreed: !this.data.agreed })
+  },
+
+  forgotPassword() {
+    wx.showModal({
+      title: '忘记密码',
+      content: '账号由维保单位系统统一分配，请联系本单位管理员重置密码。',
+      showCancel: false,
+      confirmText: '知道了'
+    })
+  },
+
+  async onSubmit() {
     if (this.data.logging) return
-    const index = Number(e.currentTarget.dataset.index)
-    const acc = this.data.demoAccounts[index]
+    const phone = String(this.data.phone).trim()
+    if (!/^1\d{10}$/.test(phone)) return wx.showToast({ title: '请输入 11 位手机号账号', icon: 'none' })
+    if (!this.data.password) return wx.showToast({ title: '请输入密码', icon: 'none' })
+    if (!this.data.agreed) return wx.showToast({ title: '请先勾选同意用户协议与隐私政策', icon: 'none' })
     this.setData({ logging: true })
-    auth
-      .wxLogin('', '', acc.role) // mock：按 role 返回演示账号
-      .then((data) => {
-        auth.applyLoginResult(data)
-        getApp().setAuth(data)
-        wx.reLaunch({ url: '/pages/home/index' })
-      })
-      .catch((err) => {
-        wx.showToast({ title: err.message || '登录失败', icon: 'none' })
-      })
-      .then(() => this.setData({ logging: false }))
+    try {
+      const data = await auth.accountLogin(phone, this.data.password)
+      auth.applyLoginResult(data)
+      getApp().setAuth(data)
+      // 登录成功后绑定微信：wx.login 取 code 与账号关联（下次可微信一键登录，P2）
+      try {
+        const code = await new Promise((resolve, reject) => {
+          wx.login({ success: (r) => resolve(r.code || ''), fail: reject })
+        })
+        if (code) await auth.bindWeChat(code)
+      } catch (e2) {
+        // 微信绑定失败不阻断登录，可稍后重试
+      }
+      wx.showToast({ title: '登录成功', icon: 'success' })
+      wx.reLaunch({ url: '/pages/home/index' })
+    } catch (err) {
+      wx.showToast({ title: err.message || '登录失败', icon: 'none' })
+    }
+    this.setData({ logging: false })
   }
 })

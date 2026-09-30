@@ -111,14 +111,15 @@ const db = {
   // 演示账号（正式版由 /auth/wx-login + 绑定流程产生）；platformId 为平台人员ID（2.5 同步产物）
   // 2.5 规范字段对齐：workManCertificate=同步匹配键（严禁姓名匹配）、workStartDate/workEndDate=
   // 合同期（到期从平台列表消失→不可派工）、workStat=normal 才可派工、syncStatus=本地同步状态
+  // 登录方式（用户需求）：账号由维保单位系统分配，手机号为账号（account），演示密码统一 123456
   employees: {
-    WORKER: { id: 'emp_1', name: '张伟', phone: '138****0001', role: 'WORKER', roleText: '维保人员', platformId: '990001',
+    WORKER: { id: 'emp_1', name: '张伟', phone: '138****0001', account: '13800000001', password: '123456', role: 'WORKER', roleText: '维保人员', platformId: '990001',
       certificate: 'CQ3601030001', workStartDate: '2024-03-01', workEndDate: addDays(400), workStat: 'normal', syncStatus: 'ACTIVE' },
-    LEADER: { id: 'emp_2', name: '陈刚', phone: '138****0002', role: 'LEADER', roleText: '班组长', platformId: '990002',
+    LEADER: { id: 'emp_2', name: '陈刚', phone: '138****0002', account: '13800000002', password: '123456', role: 'LEADER', roleText: '班组长', platformId: '990002',
       certificate: 'CQ3601030002', workStartDate: '2023-06-01', workEndDate: addDays(250), workStat: 'normal', syncStatus: 'ACTIVE' },
-    WORKER2: { id: 'emp_3', name: '李强', phone: '138****0004', role: 'WORKER', roleText: '维保人员', platformId: '990003',
+    WORKER2: { id: 'emp_3', name: '李强', phone: '138****0004', account: '13800000004', password: '123456', role: 'WORKER', roleText: '维保人员', platformId: '990003',
       certificate: 'CQ3601030003', workStartDate: '2024-08-01', workEndDate: addDays(500), workStat: 'normal', syncStatus: 'ACTIVE' },
-    UNIT_ADMIN: { id: 'unit_1', name: '王芳', phone: '138****0003', role: 'UNIT_ADMIN', roleText: '使用单位安全管理员', platformId: '',
+    UNIT_ADMIN: { id: 'unit_1', name: '王芳', phone: '138****0003', account: '13800000003', password: '123456', role: 'UNIT_ADMIN', roleText: '使用单位安全管理员', platformId: '',
       certificate: '', workStartDate: '', workEndDate: '', workStat: '', syncStatus: 'NOT_SYNCED' }
   },
 

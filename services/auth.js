@@ -8,6 +8,16 @@ function wxLogin(code, phoneCode, role) {
   return post('/auth/wx-login', { code, phoneCode, role }, { needAuth: false })
 }
 
+// 账号密码登录（用户需求：账号由维保单位系统分配，手机号为账号）
+function accountLogin(phone, password) {
+  return post('/auth/login', { phone: phone, password: password }, { needAuth: false })
+}
+
+// 登录后绑定微信登录（wx.login code → openid 与账号关联）
+function bindWeChat(code) {
+  return post('/auth/bind-wechat', { code: code }, { needAuth: false })
+}
+
 // 绑定维保人员档案（手机号匹配）
 function bindEmployee(data) {
   return post('/auth/bind-employee', data, { needAuth: false })
@@ -34,6 +44,8 @@ function applyLoginResult(data) {
 }
 
 module.exports = {
+  accountLogin,
+  bindWeChat,
   wxLogin,
   bindEmployee,
   bindUseUnit,

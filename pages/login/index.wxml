@@ -1,27 +1,54 @@
 <view class="login-page">
+  <!-- 装饰色块 -->
+  <view class="deco deco-top"></view>
+  <view class="deco deco-bottom-l"></view>
+  <view class="deco deco-bottom-r"></view>
+
   <view class="login-header">
-    <view class="login-logo">梯</view>
-    <view class="login-title">电梯无纸化维保</view>
-    <view class="em-text-secondary">作业工具 · 管理平台 · 合规通道</view>
+    <view class="login-title">电梯维保管家</view>
+    <view class="login-sub">欢迎登录</view>
+    <view class="login-bar"></view>
   </view>
 
-  <block wx:if="{{useMock}}">
-    <view class="login-tip em-text-secondary">演示模式：选择身份直接进入（已跳过微信授权与短信验证）</view>
-
-    <view
-      wx:for="{{demoAccounts}}"
-      wx:key="role"
-      class="account-card"
-      data-index="{{index}}"
-      bindtap="onDemoLogin"
-    >
-      <view class="account-main">
-        <view class="account-name">{{item.name}} · {{item.title}}</view>
-        <view class="em-text-secondary">{{item.desc}}</view>
-      </view>
-      <view class="account-arrow">›</view>
+  <view class="form-area">
+    <view class="input-row">
+      <text class="input-icon">📱</text>
+      <view class="input-divider"></view>
+      <input
+        class="input-field"
+        type="number"
+        maxlength="11"
+        placeholder="请输入账号（手机号）"
+        value="{{phone}}"
+        bindinput="onPhoneInput"
+      />
     </view>
-  </block>
+    <view class="input-row">
+      <text class="input-icon">🔒</text>
+      <view class="input-divider"></view>
+      <input
+        class="input-field"
+        password="{{!showPassword}}"
+        placeholder="请输入密码"
+        value="{{password}}"
+        bindinput="onPasswordInput"
+      />
+      <text class="eye" bindtap="togglePassword">👁</text>
+    </view>
+    <view class="forgot" bindtap="forgotPassword">忘记密码？</view>
 
-  <view class="login-footer em-text-secondary">登录即代表同意《用户服务协议》与《隐私政策》</view>
+    <button class="login-btn" disabled="{{logging}}" bindtap="onSubmit">
+      {{logging ? '登录中...' : '立即登录'}}
+      <text wx:if="{{!logging}}" class="login-arrow">→</text>
+    </button>
+  </view>
+
+  <view wx:if="{{useMock}}" class="demo-hint em-text-secondary">
+    演示账号：13800000001（维保人员）/ 13800000002（班组长）/ 13800000003（安全管理员），密码 123456
+  </view>
+
+  <view class="agreement">
+    <view class="checkbox {{agreed ? 'checked' : ''}}" bindtap="toggleAgreed">{{agreed ? '✓' : ''}}</view>
+    <view class="agreement-text">登录代表您已经同意<text class="link">《用户协议》</text>和<text class="link">《隐私政策》</text></view>
+  </view>
 </view>
