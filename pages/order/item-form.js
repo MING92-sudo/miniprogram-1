@@ -3,6 +3,7 @@
 // NUMERIC 填 value；MANUFACTURER 填 valueText；ABNORMAL 必填 abnormalDesc + problemCode(S1-S7)
 const { getChecklist, submitChecklistItem } = require('../../services/order')
 const { uploadImage } = require('../../services/upload')
+const { reverseGeocode } = require('../../services/location')
 const { formatTime } = require('../../utils/util')
 const { PROBLEM_CODES } = require('../../constants/index')
 const offline = require('../../utils/offline')
@@ -88,12 +89,25 @@ Page({
     if (this.data.photos.length >= MAX_PHOTOS) {
       return wx.showToast({ title: `最多 ${MAX_PHOTOS} 张`, icon: 'none' })
     }
-    // 拍照统一走水印相机：现场照片须带时间/工单/检查项水印留证（docs/04）
+    // 拍照统一走水印相机：现场照片须带时间/工单/检查项/位置水印留证（docs/04）
     // 水印相机内已完成合成与压缩（长边 ≤1200px、≤500KB），回传直接入列
     const name = (this.data.item && this.data.item.name) || ''
-    wx.navigateTo({
-      url: `/pages/common/watermark-camera?from=item&orderId=${this.data.orderId}` +
-        `&itemId=${this.data.itemId}&itemName=${encodeURIComponent(name)}`
+    let qs = `from=item&orderId=${this.data.orderId}` +
+      `&itemId=${this.data.itemId}&itemName=${encodeURIComponent(name)}`
+    // 现场照定位留证：拍照时实时取点 + 逆地址解析（失败降级为仅时间/工单水印，不阻断拍照）
+    wx.getLocation({
+      type: 'gcj02',
+      success: (loc) => {
+        reverseGeocode(loc.latitude, loc.longitude).then((addr) => {
+          const isCoord = /^[\d.,\s]+$/.test(addr)
+          if (!isCoord) qs += `&address=${encodeURIComponent(addr)}`
+          qs += `&lat=${loc.latitude}&lng=${loc.longitude}`
+          wx.navigateTo({ url: `/pages/common/watermark-camera?${qs}` })
+        })
+      },
+      fail: () => {
+        wx.navigateTo({ url: `/pages/common/watermark-camera?${qs}` })
+      }
     })
   },
 
