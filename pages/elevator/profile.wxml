@@ -1,0 +1,56 @@
+<view class="em-page">
+  <view wx:if="{{loading}}" class="em-card em-text-secondary">档案加载中...</view>
+
+  <block wx:if="{{profile}}">
+    <view class="em-card">
+      <view class="prof-head">
+        <view class="prof-name">{{profile.elevatorName}}</view>
+        <view class="prof-cat">{{profile.category}}</view>
+      </view>
+      <view class="em-text-secondary">单位内编号：{{profile.insideNumber || '-'}} · 电梯型号：{{profile.model || '-'}}</view>
+      <view wx:if="{{profile.platform.syncedAt}}" class="prof-synced">平台档案同步于 {{profile.platform.syncedAt}}</view>
+    </view>
+
+    <view class="em-card">
+      <view class="section-title">注册信息<text class="src-badge src-platform">平台 2.7 自动获取</text></view>
+      <view class="info-row"><text>电梯编码</text><text>{{profile.platform.elevatorCode || '-'}}</text></view>
+      <view class="info-row"><text>使用登记证号</text><text>{{profile.platform.registrationCode || '-'}}</text></view>
+      <view class="info-row"><text>设备代码</text><text>{{profile.platform.deviceCode || '-'}}</text></view>
+      <view class="info-row"><text>出厂编号</text><text>{{profile.platform.factoryNumber || '-'}}</text></view>
+      <view class="info-row">
+        <text>使用单位主体ID</text>
+        <text class="entity-id" bindtap="copyEntityId">{{profile.platform.useUnitEntityId || '-'}}</text>
+      </view>
+      <view class="info-row"><text>电梯安全管理员</text><text>{{profile.platform.elevatorAdminister || '-'}}</text></view>
+      <view class="info-row"><text>安全管理员电话</text><text>{{profile.platform.elevatorAdministerPhone || '-'}}</text></view>
+      <view class="info-row"><text>紧急联系电话</text><text>{{profile.platform.emergencyPhone || '-'}}</text></view>
+      <view class="src-tip">电话为平台脱敏值，不可回填用于 2.6 上报；真实号码以本地档案为准</view>
+    </view>
+
+    <view class="em-card">
+      <view class="section-title">使用单位<text class="src-badge src-local">本地维护</text></view>
+      <view class="info-row"><text>项目名称（使用单位）</text><text>{{profile.local.projectName || '-'}}</text></view>
+      <view class="info-row"><text>单位负责人</text><text>{{profile.local.unitPrincipal || '-'}}</text></view>
+    </view>
+
+    <view class="em-card">
+      <view class="section-title">基本技术参数（TSG 第八条）<text class="src-badge src-local">本地维护</text></view>
+      <view class="info-row"><text>驱动方式</text><text>{{profile.local.driveMode || '-'}}</text></view>
+      <view class="info-row"><text>额定载重量</text><text>{{profile.local.ratedLoad || '-'}}</text></view>
+      <view class="info-row"><text>额定速度</text><text>{{profile.local.ratedSpeed || '-'}}</text></view>
+      <view class="info-row"><text>层站门数</text><text>{{profile.local.stationsDoors || '-'}}</text></view>
+      <view class="info-row"><text>品牌</text><text>{{profile.local.brand || '-'}}</text></view>
+      <view class="info-row"><text>制造单位</text><text>{{profile.local.manufacturer || '-'}}</text></view>
+      <view class="info-row"><text>产品编号</text><text>{{profile.local.productNo || '-'}}</text></view>
+    </view>
+
+    <view class="em-card">
+      <view class="section-title">位置与检验<text class="src-badge src-local">本地维护</text></view>
+      <view class="info-row"><text>安装地址</text><text>{{profile.local.address || '-'}}</text></view>
+      <view class="info-row"><text>经纬度</text><text>{{profile.local.lng}}, {{profile.local.lat}}</text></view>
+      <view class="info-row"><text>下次检验日期</text><text>{{profile.local.nextCheckDate || '-'}}</text></view>
+      <view class="info-row"><text>下次维保日期</text><text>{{profile.local.nextMaintenanceDate || '-'}}</text></view>
+      <view class="src-tip">平台 2.7 不提供安装地址/经纬度/下次检验日期，须由使用单位提供或现场采集回填</view>
+    </view>
+  </block>
+</view>

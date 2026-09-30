@@ -136,6 +136,11 @@ Page({
     wx.navigateTo({ url: `/pages/order/detail?orderId=${e.currentTarget.dataset.id}` })
   },
 
+  // 查看详情 = 电梯详细档案（docs/01 §3.4.1，平台 2.7 自动获取 + 本地维护）
+  goProfile(e) {
+    wx.navigateTo({ url: `/pages/elevator/profile?elevatorId=${e.currentTarget.dataset.elevatorId}` })
+  },
+
   // 右侧主按钮：待执行→去签到；进行中→继续作业；已完成→查看记录
   onAction(e) {
     const { id, status } = e.currentTarget.dataset

@@ -118,13 +118,39 @@ const db = {
 
   elevators: [
     { id: 'el_1', elevatorCode: 'EM-2024-001', elevatorName: '世纪大厦 1# 客梯', location: '渝北区龙山一路 88 号世纪大厦', regCode: 'TSCQ5001120001', deviceCode: 'DT-CQ-2024-001', insideNumber: 'KT-01', model: 'OTIS 300VF', useUnitId: 'uu_1', category: '曳引驱动电梯', nextCheckDate: addDays(45),
+      // ── 平台 2.7 自动获取字段（8 个，电话为平台脱敏值不可回填上报）──
+      factoryNumber: 'SGL20131212-1', useUnitEntityId: '5633318206815862786',
+      elevatorAdminister: '王芳', elevatorAdministerPhone: '138****0003', emergencyPhone: '400****588',
+      platformSyncedAt: '2026-09-29 14:20:00',
+      // ── 本地维护字段（平台不提供：地址/经纬度/型号品牌/制造单位/下次检验）──
+      lng: 106.633520, lat: 29.719210,
+      brand: '奥的斯', manufacturer: '奥的斯电梯（中国）有限公司', productNo: 'OTIS-2013-8817',
+      driveMode: '曳引驱动', ratedLoad: 1000, ratedLoadUnit: 'kg', ratedSpeed: 1.75, ratedSpeedUnit: 'm/s', stationsDoors: '11/11',
       // 维保绑定配置：到期自动派单的人员与频次（正式版为维保合同 + 排班表）
       maintenance: { workTypeCode: 'HM', intervalDays: 15, workerName: '张伟', workerPlatformId: '990001', assistantName: '李强', assistantPlatformId: '990003', lastMaintenanceAt: addDays(-3) } },
     { id: 'el_2', elevatorCode: 'EM-2024-002', elevatorName: '世纪大厦 2# 客梯', location: '渝北区龙山一路 88 号世纪大厦', regCode: 'TSCQ5001120002', deviceCode: 'DT-CQ-2024-002', insideNumber: 'KT-02', model: 'OTIS 300VF', useUnitId: 'uu_1', category: '曳引驱动电梯', nextCheckDate: addDays(18),
+      factoryNumber: 'SGL20131212-2', useUnitEntityId: '5633318206815862786',
+      elevatorAdminister: '王芳', elevatorAdministerPhone: '138****0003', emergencyPhone: '400****588',
+      platformSyncedAt: '2026-09-29 14:20:00',
+      lng: 106.633520, lat: 29.719210,
+      brand: '奥的斯', manufacturer: '奥的斯电梯（中国）有限公司', productNo: 'OTIS-2013-8818',
+      driveMode: '曳引驱动', ratedLoad: 1000, ratedLoadUnit: 'kg', ratedSpeed: 1.75, ratedSpeedUnit: 'm/s', stationsDoors: '11/11',
       maintenance: { workTypeCode: 'HM', intervalDays: 15, workerName: '张伟', workerPlatformId: '990001', assistantName: '李强', assistantPlatformId: '990003', lastMaintenanceAt: addDays(-3) } },
     { id: 'el_3', elevatorCode: 'EM-2024-003', elevatorName: '蓝湾国际 A 座货梯', location: '江北区滨江路 6 号蓝湾国际', regCode: 'TSCQ5001120003', deviceCode: 'DT-CQ-2024-003', insideNumber: 'HT-01', model: '三菱 GPS-III', useUnitId: 'uu_2', category: '曳引驱动电梯', nextCheckDate: addDays(200),
+      factoryNumber: 'MITS-2018-0331', useUnitEntityId: '5633318206815862790',
+      elevatorAdminister: '吴静', elevatorAdministerPhone: '138****3005', emergencyPhone: '023-67****',
+      platformSyncedAt: '2026-09-29 14:25:00',
+      lng: 106.574210, lat: 29.588660,
+      brand: '三菱', manufacturer: '上海三菱电梯有限公司', productNo: 'MLS-2018-0331',
+      driveMode: '曳引驱动', ratedLoad: 2000, ratedLoadUnit: 'kg', ratedSpeed: 1.0, ratedSpeedUnit: 'm/s', stationsDoors: '6/6',
       maintenance: { workTypeCode: 'FM', intervalDays: 30, workerName: '张伟', workerPlatformId: '990001', assistantName: '', assistantPlatformId: '', lastMaintenanceAt: addDays(-10) } },
     { id: 'el_4', elevatorCode: 'EM-2024-004', elevatorName: '蓝湾国际 B 座客梯', location: '江北区滨江路 6 号蓝湾国际', regCode: 'TSCQ5001120004', deviceCode: 'DT-CQ-2024-004', insideNumber: 'KT-01', model: '日立 YK', useUnitId: 'uu_2', category: '曳引驱动电梯', nextCheckDate: addDays(240),
+      factoryNumber: 'HIT-2021-1102', useUnitEntityId: '5633318206815862790',
+      elevatorAdminister: '吴静', elevatorAdministerPhone: '138****3005', emergencyPhone: '023-67****',
+      platformSyncedAt: '2026-09-29 14:25:00',
+      lng: 106.574210, lat: 29.588660,
+      brand: '日立', manufacturer: '日立电梯（中国）有限公司', productNo: 'HIT-2021-1102',
+      driveMode: '曳引驱动', ratedLoad: 1000, ratedLoadUnit: 'kg', ratedSpeed: 1.5, ratedSpeedUnit: 'm/s', stationsDoors: '8/8',
       // 演示到期自动派单：上次维保 16 天前，已超半月周期 → 进入工单台即自动生成并派给李强
       maintenance: { workTypeCode: 'HM', intervalDays: 15, workerName: '李强', workerPlatformId: '990003', assistantName: '', assistantPlatformId: '', lastMaintenanceAt: addDays(-16) } }
   ],
@@ -399,6 +425,52 @@ function getElevatorByCode(code) {
 
 function getUseUnit(id) {
   return db.useUnits.find((u) => u.id === id) || null
+}
+
+// ── 电梯详细档案（docs/01 §3.4.1 + 平台 2.7 回填，docs/04 B.7）──
+// 字段分两组标注来源：
+//   platform: 平台 2.7 自动获取（8 字段；电话为脱敏值，不可回填用于 2.6 上报）
+//   local:    平台不提供、本地维护（安装地址/经纬度/型号品牌/制造单位/下次检验日期等）
+function getElevatorProfile(id) {
+  const el = getElevator(id)
+  if (!el) return null
+  const unit = getUseUnit(el.useUnitId) || {}
+  return {
+    elevatorId: el.id,
+    elevatorName: el.elevatorName,
+    category: el.category || '',
+    insideNumber: el.insideNumber || '',
+    model: el.model || '',
+    // 平台 2.7 自动获取
+    platform: {
+      syncedAt: el.platformSyncedAt || '',
+      elevatorCode: el.elevatorCode || '',
+      registrationCode: el.regCode || '',
+      deviceCode: el.deviceCode || '',
+      factoryNumber: el.factoryNumber || '',
+      useUnitEntityId: el.useUnitEntityId || '',
+      elevatorAdminister: el.elevatorAdminister || '',
+      elevatorAdministerPhone: el.elevatorAdministerPhone || '',
+      emergencyPhone: el.emergencyPhone || ''
+    },
+    // 本地维护（平台 2.7 不返回：使用单位名称/安装地址/经纬度/型号品牌/制造单位/下次检验日期）
+    local: {
+      projectName: unit.unitName || '',
+      unitPrincipal: unit.unitPrincipal || '',
+      address: el.location || '',
+      lng: el.lng != null ? String(el.lng) : '',
+      lat: el.lat != null ? String(el.lat) : '',
+      brand: el.brand || '',
+      manufacturer: el.manufacturer || '',
+      productNo: el.productNo || '',
+      driveMode: el.driveMode || '',
+      ratedLoad: el.ratedLoad != null ? el.ratedLoad + (el.ratedLoadUnit || 'kg') : '',
+      ratedSpeed: el.ratedSpeed != null ? el.ratedSpeed + (el.ratedSpeedUnit || 'm/s') : '',
+      stationsDoors: el.stationsDoors || '',
+      nextCheckDate: el.nextCheckDate || '',
+      nextMaintenanceDate: el.nextMaintenanceDate || ''
+    }
+  }
 }
 
 // 工单视图：附带电梯信息
@@ -725,6 +797,7 @@ module.exports = {
   getElevator,
   getElevatorByCode,
   getUseUnit,
+  getElevatorProfile,
   getOrder,
   listOrders,
   markCheckin,

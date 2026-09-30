@@ -51,6 +51,11 @@ const routes = [
     if (!order) throw { code: 1404, message: '工单不存在' }
     return order
   }],
+  ['GET', '/elevators/:id/profile', ({ params }) => {
+    const p = d.getElevatorProfile(params.id)
+    if (!p) throw { code: 1404, message: '电梯不存在' }
+    return p
+  }],
   ['POST', '/work-orders/resolve-by-elevator', ({ body }) => {
     d.ensureDueOrders()
     const el = d.getElevatorByCode(body.elevatorCode)
