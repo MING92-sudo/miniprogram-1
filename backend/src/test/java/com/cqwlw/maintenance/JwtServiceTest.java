@@ -33,4 +33,11 @@ class JwtServiceTest {
         BizException e = assertThrows(BizException.class, () -> service.verify("not-a-jwt"));
         assertEquals(401, e.getCode());
     }
+
+    @Test
+    void defaultDevSecretMeetsHmacSha256Minimum() {
+        // 回归：容器默认密钥必须 ≥32 字节，否则 Keys.hmacShaKeyFor 启动即抛 WeakKeyException
+        String dev = "dev-only-secret-change-me-32bytes-minimum-0123456789";
+        org.junit.jupiter.api.Assertions.assertTrue(dev.getBytes(java.nio.charset.StandardCharsets.UTF_8).length >= 32);
+    }
 }
