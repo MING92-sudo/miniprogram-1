@@ -112,13 +112,21 @@ const db = {
   employees: {
     WORKER: { id: 'emp_1', name: '张伟', phone: '138****0001', role: 'WORKER', roleText: '维保人员', platformId: '990001' },
     LEADER: { id: 'emp_2', name: '陈刚', phone: '138****0002', role: 'LEADER', roleText: '班组长', platformId: '990002' },
+    WORKER2: { id: 'emp_3', name: '李强', phone: '138****0004', role: 'WORKER', roleText: '维保人员', platformId: '990003' },
     UNIT_ADMIN: { id: 'unit_1', name: '王芳', phone: '138****0003', role: 'UNIT_ADMIN', roleText: '使用单位安全管理员', platformId: '' }
   },
 
   elevators: [
-    { id: 'el_1', elevatorCode: 'EM-2024-001', elevatorName: '世纪大厦 1# 客梯', location: '渝北区龙山一路 88 号世纪大厦', regCode: 'TSCQ5001120001', deviceCode: 'DT-CQ-2024-001', insideNumber: 'KT-01', useUnitId: 'uu_1' },
-    { id: 'el_2', elevatorCode: 'EM-2024-002', elevatorName: '世纪大厦 2# 客梯', location: '渝北区龙山一路 88 号世纪大厦', regCode: 'TSCQ5001120002', deviceCode: 'DT-CQ-2024-002', insideNumber: 'KT-02', useUnitId: 'uu_1' },
-    { id: 'el_3', elevatorCode: 'EM-2024-003', elevatorName: '蓝湾国际 A 座货梯', location: '江北区滨江路 6 号蓝湾国际', regCode: 'TSCQ5001120003', deviceCode: 'DT-CQ-2024-003', insideNumber: 'HT-01', useUnitId: 'uu_2' }
+    { id: 'el_1', elevatorCode: 'EM-2024-001', elevatorName: '世纪大厦 1# 客梯', location: '渝北区龙山一路 88 号世纪大厦', regCode: 'TSCQ5001120001', deviceCode: 'DT-CQ-2024-001', insideNumber: 'KT-01', useUnitId: 'uu_1',
+      // 维保绑定配置：到期自动派单的人员与频次（正式版为维保合同 + 排班表）
+      maintenance: { workTypeCode: 'HM', intervalDays: 15, workerName: '张伟', workerPlatformId: '990001', assistantName: '李强', assistantPlatformId: '990003', lastMaintenanceAt: addDays(-3) } },
+    { id: 'el_2', elevatorCode: 'EM-2024-002', elevatorName: '世纪大厦 2# 客梯', location: '渝北区龙山一路 88 号世纪大厦', regCode: 'TSCQ5001120002', deviceCode: 'DT-CQ-2024-002', insideNumber: 'KT-02', useUnitId: 'uu_1',
+      maintenance: { workTypeCode: 'HM', intervalDays: 15, workerName: '张伟', workerPlatformId: '990001', assistantName: '李强', assistantPlatformId: '990003', lastMaintenanceAt: addDays(-3) } },
+    { id: 'el_3', elevatorCode: 'EM-2024-003', elevatorName: '蓝湾国际 A 座货梯', location: '江北区滨江路 6 号蓝湾国际', regCode: 'TSCQ5001120003', deviceCode: 'DT-CQ-2024-003', insideNumber: 'HT-01', useUnitId: 'uu_2',
+      maintenance: { workTypeCode: 'FM', intervalDays: 30, workerName: '张伟', workerPlatformId: '990001', assistantName: '', assistantPlatformId: '', lastMaintenanceAt: addDays(-10) } },
+    { id: 'el_4', elevatorCode: 'EM-2024-004', elevatorName: '蓝湾国际 B 座客梯', location: '江北区滨江路 6 号蓝湾国际', regCode: 'TSCQ5001120004', deviceCode: 'DT-CQ-2024-004', insideNumber: 'KT-01', useUnitId: 'uu_2',
+      // 演示到期自动派单：上次维保 16 天前，已超半月周期 → 进入工单台即自动生成并派给李强
+      maintenance: { workTypeCode: 'HM', intervalDays: 15, workerName: '李强', workerPlatformId: '990003', assistantName: '', assistantPlatformId: '', lastMaintenanceAt: addDays(-16) } }
   ],
 
   orders: [
@@ -243,6 +251,76 @@ function nextId(prefix) {
 // 雪花ID样式演示（正式版由后端雪花算法生成）
 function nextRecordId() {
   return '1948' + String(Date.now()) + '01'
+}
+
+// ── 自动排期引擎（mock 演示：对齐 docs/04 设计的 /plans/generate + /plans/assign）─────
+// 规则：
+//   1) 电梯维护配置（maintenance）绑定：维保频次周期 + 主维保/配合人员（含平台ID）；
+//   2) 上次签退时间（无历史时取 lastMaintenanceAt）+ 周期天数 = 下次维保到期日；
+//   3) 到期且该电梯该频次无进行中工单 → 自动生成工单并按绑定关系派单；
+//   4) 手机号互斥（docs/04 错误码 1002）：绑定主维保名下尚有未完成工单时挂起，待其清空后下次触发补派；
+//   5) 派单同时写入消息中心通知。
+// 真实后端实现为：plans 计划表 + 定时任务扫描 + assign 校验（互斥/资质/platform_id 同步）。
+const WORK_TYPE_LABEL = { HM: '半月维保', TM: '季度维保', SM: '半年维保', OY: '年度维保', FM: '按需维保' }
+
+function ensureDueOrders() {
+  const now = Date.now()
+  const created = []
+  db.elevators.forEach(function (el) {
+    const cfg = el.maintenance
+    if (!cfg) return
+    const code = cfg.workTypeCode || 'HM'
+    // 该电梯该频次已有进行中/待办工单 → 不重复生成
+    const hasActive = db.orders.some(function (o) {
+      return o.elevatorId === el.id && o.workTypeCode === code && o.status !== 'DONE'
+    })
+    if (hasActive) return
+    // 上次维保时间：优先取该电梯该频次最近一次 DONE 工单的签退时间
+    let last = 0
+    db.orders.forEach(function (o) {
+      if (o.elevatorId === el.id && o.workTypeCode === code && o.status === 'DONE' && o.checkoutTime) {
+        const t = parseTime(o.checkoutTime)
+        if (t > last) last = t
+      }
+    })
+    if (!last) last = parseTime(cfg.lastMaintenanceAt)
+    if (!last) return
+    const intervalMs = (cfg.intervalDays || WORK_TYPE_INTERVAL_DAYS[code] || 15) * 86400000
+    if (now - last < intervalMs) return // 未到期
+    // 手机号互斥：绑定主维保名下尚有未完成工单 → 本次挂起（待清空后补派）
+    const busy = db.orders.some(function (o) {
+      return o.workerName === cfg.workerName && o.status !== 'DONE'
+    })
+    if (busy) return
+    const seq = String(db.orders.length + 1).padStart(3, '0')
+    const order = {
+      id: nextId('wo'),
+      orderNo: 'WO' + formatTime().slice(0, 10).replace(/-/g, '') + '-' + seq,
+      elevatorId: el.id,
+      workType: WORK_TYPE_LABEL[code] || code,
+      workTypeCode: code,
+      planTime: today('09:00:00'),
+      status: 'PENDING',
+      workerName: cfg.workerName,
+      assistantName: cfg.assistantName || '',
+      workerPlatformId: cfg.workerPlatformId || '',
+      assistantPlatformId: cfg.assistantPlatformId || '',
+      checkinTime: '', checkoutTime: '', duration: '', originalRecordId: '', reportStatus: '',
+      autoDispatched: true, // 自动派单标识（管理端/后端可追溯）
+      checklist: buildChecklist(code)
+    }
+    db.orders.unshift(order)
+    db.messages.unshift({
+      id: nextId('msg'),
+      title: '自动派单通知',
+      content: el.elevatorName + ' ' + order.workType + '已到维保周期（上次维保 ' +
+        formatTime(last).slice(0, 10) + '），按绑定关系自动派给 ' + cfg.workerName + '，请及时扫码签到。',
+      createdAt: formatTime(),
+      read: false
+    })
+    created.push(order)
+  })
+  return created
 }
 
 function getElevator(id) {
@@ -441,6 +519,7 @@ module.exports = {
   db,
   nextId,
   nextRecordId,
+  ensureDueOrders,
   getElevator,
   getElevatorByCode,
   getUseUnit,
