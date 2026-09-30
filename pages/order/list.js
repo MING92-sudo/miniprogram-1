@@ -38,13 +38,25 @@ Page({
     // （routeDone with a webviewId xxx is not found），首次守卫延迟到 onReady
     if (!this._authReady) return
     if (!ensureLogin()) return
+    this.applyDueFromStorage()
     this.fetchList(true)
   },
 
   onReady() {
     this._authReady = true
     if (!ensureLogin()) return
+    this.applyDueFromStorage()
     this.fetchList(true)
+  },
+
+  // 首页统计卡下钻：读取一次性过滤条件（switchTab 不能带参，经存储传递）
+  applyDueFromStorage() {
+    const due = wx.getStorageSync('order_due_filter')
+    if (due && DUE_LABEL[due]) {
+      this._due = due
+      this.setData({ due: due, dueLabel: DUE_LABEL[due], status: '', activeTab: '' })
+    }
+    wx.removeStorageSync('order_due_filter')
   },
 
   onPullDownRefresh() {

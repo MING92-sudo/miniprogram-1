@@ -1,5 +1,4 @@
-// 首页（首页服务）：无纸化维保看板 + 扫码签到 + 功能宫格
-// UI 参照「无纸化维保 · 智慧维保新模式」首页截屏设计（2026-09-30）
+//
 const config = require('../../config/index')
 const { resolveByElevatorCode } = require('../../services/order')
 const { getHomeSummary } = require('../../services/home')
@@ -109,7 +108,10 @@ Page({
 
   // 三色统计卡下钻：跳转工单列表并按到期维度过滤
   goStat(e) {
-    wx.navigateTo({ url: '/pages/order/list?due=' + e.currentTarget.dataset.due })
+    // /pages/order/list 是 tabBar 页：navigateTo 无法打开、switchTab 不能带参，
+    // 过滤条件经临时存储传递（list 页 onShow 读取后立即清除）
+    wx.setStorageSync('order_due_filter', e.currentTarget.dataset.due)
+    wx.switchTab({ url: '/pages/order/list' })
   },
 
 })
