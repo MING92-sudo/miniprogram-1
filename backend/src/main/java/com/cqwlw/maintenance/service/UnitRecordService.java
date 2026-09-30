@@ -124,6 +124,7 @@ public class UnitRecordService {
         m.put("problemCodes", r.problemCodesJson == null ? List.of() : JsonUtil.readList(r.problemCodesJson));
         m.put("originalRecordId", r.originalRecordId);
         m.put("reportStatus", r.reportStatus);
+        m.put("uploadStatus", uploadStatus(r.reportStatus));
         m.put("retryCount", r.retryCount);
         m.put("nextMaintenanceDate", TimeUtil.formatDate(r.nextMaintenanceDate));
         m.put("confirmStatus", r.confirmStatus);
@@ -133,5 +134,16 @@ public class UnitRecordService {
         m.put("shareToken", r.shareToken);
         m.put("reportPayload", r.reportPayloadJson == null ? null : JsonUtil.readMap(r.reportPayloadJson));
         return m;
+    }
+
+    /** 上报状态归一（docs/04 A.3 P3 修订）：REPORTED→SUCCESS，FAILED→FAILED，其余 PENDING */
+    static String uploadStatus(String reportStatus) {
+        if ("REPORTED".equals(reportStatus)) {
+            return "SUCCESS";
+        }
+        if ("FAILED".equals(reportStatus)) {
+            return "FAILED";
+        }
+        return "PENDING";
     }
 }

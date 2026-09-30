@@ -1,7 +1,7 @@
 // 工单详情 / 扫码结果页
 // 入参：orderId 或 elevatorCode（扫码进入）
 // 按状态显示操作：PENDING→去签到；PROCESSING→继续作业/双人动态码；DONE→只读
-const { getOrderDetail, resolveByElevatorCode } = require('../../services/order')
+const { getOrderDetail, resolveByElevatorCode, retryRecordUpload } = require('../../services/order')
 const { STATUS_TEXT, REPORT_STATUS_TEXT, CHECK_RESULT_TEXT } = require('../../constants/index')
 
 Page({
@@ -10,6 +10,7 @@ Page({
     elevator: null,
     statusText: '',
     reportStatusText: '',
+    canReupload: false,
     loading: true
   },
 
@@ -61,6 +62,7 @@ Page({
       reportStatusText: order.reportStatus
         ? REPORT_STATUS_TEXT[order.reportStatus] || order.reportStatus
         : '',
+      canReupload: order.reportStatus === 'FAILED',
       recordItems: recordItems,
       recordPhotos: recordPhotos,
       loading: false
@@ -104,5 +106,20 @@ Page({
 
   goDynamicCode() {
     wx.navigateTo({ url: `/pages/order/dynamic-code?orderId=${this.data.order.id}` })
+  },
+
+  // 手动重报平台 2.6（仅 FAILED；后端拦截非 FAILED 记录）
+  async retryReport() {
+    const info = this.data.order.recordInfo || {}
+    const recordId = info.id
+    if (!recordId) return
+    try {
+      const res = await retryRecordUpload(recordId)
+      this.setData({ 'order.reportStatus': res.reportStatus || 'REPORTED', canReupload: false })
+      wx.showToast({ title: '重报成功', icon: 'success' })
+      this.fetchOrder(this.data.order.id)
+    } catch (e) {
+      wx.showToast({ title: e.message || '重报失败', icon: 'none' })
+    }
   }
 })

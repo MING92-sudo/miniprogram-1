@@ -189,6 +189,13 @@ const routes = [
     }
   }],
 
+  // ── 平台写链路（P3）：手动重报 2.6，仅 FAILED 记录（AGENTS §2.3 不自动重试）──
+  ['POST', '/platform/records/:id/reupload', ({ params }) => {
+    const rec = d.reuploadRecord(params.id)
+    if (!rec) throw { code: 1404, message: '维保记录不存在' }
+    return { ok: true, id: rec.id, reportStatus: rec.reportStatus }
+  }],
+
   // ── 救援 ──
   ['POST', '/rescues', ({ body }) => d.createRescue(body)],
   ['GET', '/rescues', ({ query }) => paginate(d.db.rescues, query)],

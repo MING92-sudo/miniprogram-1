@@ -5,6 +5,7 @@ import com.cqwlw.maintenance.config.PlatformProperties;
 import com.fasterxml.jackson.core.type.TypeReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -80,6 +81,151 @@ public class PlatformClient {
                     .toList();
         }
         return List.of();
+    }
+
+    /**
+     * 2.6 记录上报（docs/07-full-test 实测：POST /elevator/maintenanceRecord，20 字段表单）。
+     * reportPayload 为签退冻结快照，直接取用不重新组装（docs/08 V1.4）；
+     * problemCode 传 JSON 数组字符串（docs/04 B.6 V1.1：数组是确定答案）。
+     */
+    public Map<String, Object> uploadMaintenanceRecord(Map<String, Object> payload) {
+        MultiValueMap<String, String> form = new org.springframework.util.LinkedMultiValueMap<>();
+        payload.forEach((k, v) -> {
+            if (v == null) {
+                return;
+            }
+            if ("problemCode".equals(k)) {
+                form.add(k, json(v));
+            } else {
+                form.add(k, String.valueOf(v));
+            }
+        });
+        return postForm("/elevator/maintenanceRecord", form);
+    }
+
+    /** 2.8 存量上报（POST /record/uploadMaintainRecord；workManName1/2 传姓名非 ID，docs/04 B.8） */
+    public Map<String, Object> uploadLegacyRecord(Map<String, Object> payload) {
+        Map<String, Object> legacy = new java.util.LinkedHashMap<>(payload);
+        legacy.remove("workMan1Id");
+        legacy.remove("workMan2Id");
+        return postForm("/record/uploadMaintainRecord", toForm(legacy));
+    }
+
+    /** 2.5 人员列表查询（POST /entity/queryWorkList；按证书号精确匹配 platform_id） */
+    public List<Map<String, Object>> queryWorkList(String changState, String workEndDate) {
+        MultiValueMap<String, String> form = new org.springframework.util.LinkedMultiValueMap<>();
+        form.add("changState", changState == null || changState.isEmpty() ? "0" : changState);
+        if (workEndDate != null && !workEndDate.isEmpty()) {
+            form.add("workEndDate", workEndDate);
+        }
+        Map<String, Object> body = postForm("/entity/queryWorkList", form);
+        Object data = body.get("data");
+        if (data instanceof List<?> list) {
+            return list.stream().filter(x -> x instanceof Map)
+                    .map(x -> {
+                        @SuppressWarnings("unchecked")
+                        Map<String, Object> m = (Map<String, Object>) x;
+                        return m;
+                    }).toList();
+        }
+        return List.of();
+    }
+
+    /** 2.3 建立维保服务关系（multipart + contractFile，参数名按实测 useUnitName，docs/07） */
+    public Map<String, Object> registerServiceState(Map<String, String> fields,
+                                                    byte[] contractFile, String contractFilename) {
+        return postMultipart("/entity/updateServiceState", fields, "contractFile",
+                contractFile, contractFilename);
+    }
+
+    /** 2.4 登记维保人员（multipart + certificateFile，docs/07 实测口径） */
+    public Map<String, Object> registerWorkerState(Map<String, String> fields,
+                                                   byte[] certificateFile, String certificateFilename) {
+        return postMultipart("/entity/updateWorkState", fields, "certificateFile",
+                certificateFile, certificateFilename);
+    }
+
+    private static MultiValueMap<String, String> toForm(Map<String, Object> payload) {
+        MultiValueMap<String, String> form = new org.springframework.util.LinkedMultiValueMap<>();
+        payload.forEach((k, v) -> {
+            if (v == null) {
+                return;
+            }
+            if ("problemCode".equals(k)) {
+                form.add(k, json(v));
+            } else {
+                form.add(k, String.valueOf(v));
+            }
+        });
+        return form;
+    }
+
+    private static String json(Object v) {
+        try {
+            return MAPPER.writeValueAsString(v);
+        } catch (Exception e) {
+            throw new BizException(422, "报文序列化失败: " + e.getMessage());
+        }
+    }
+
+    private Map<String, Object> postMultipart(String path, Map<String, String> fields,
+                                              String fileField, byte[] file, String filename) {
+        if (props.getApiBaseUrl() == null || props.getApiBaseUrl().isEmpty()) {
+            throw new BizException(2001, "监管平台地址未配置（REG_API_BASE_URL）");
+        }
+        String token = tokenService.getToken();
+        try {
+            return exchangeMultipart(path, fields, fileField, file, filename, token);
+        } catch (TokenExpired e) {
+            String fresh = tokenService.getToken();
+            if (fresh.equals(token)) {
+                throw new BizException(2003, "监管平台认证失败");
+            }
+            return exchangeMultipart(path, fields, fileField, file, filename, fresh);
+        }
+    }
+
+    private Map<String, Object> exchangeMultipart(String path, Map<String, String> fields,
+                                                  String fileField, byte[] file, String filename,
+                                                  String token) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.MULTIPART_FORM_DATA);
+        headers.setBearerAuth(token);
+        MultiValueMap<String, Object> body = new org.springframework.util.LinkedMultiValueMap<>();
+        fields.forEach((k, v) -> {
+            if (v != null) {
+                body.add(k, v);
+            }
+        });
+        if (file != null) {
+            ByteArrayResource resource = new ByteArrayResource(file) {
+                @Override
+                public String getFilename() {
+                    return filename == null ? "file.pdf" : filename;
+                }
+            };
+            body.add(fileField, resource);
+        }
+        String url = props.getApiBaseUrl() + path;
+        try {
+            ResponseEntity<String> resp = restTemplate.exchange(
+                    url, HttpMethod.POST, new HttpEntity<>(body, headers), String.class);
+            Map<String, Object> parsed = MAPPER.readValue(resp.getBody(),
+                    new TypeReference<Map<String, Object>>() {
+                    });
+            if (!"200".equals(String.valueOf(parsed.get("code")).trim())) {
+                log.warn("平台接口调用失败: path={}, code={}", path, parsed.get("code"));
+                throw new BizException(2002, "平台返回错误: " + parsed.get("message"));
+            }
+            return parsed;
+        } catch (BizException e) {
+            throw e;
+        } catch (HttpClientErrorException.Unauthorized e) {
+            throw new TokenExpired();
+        } catch (Exception e) {
+            log.warn("平台接口调用异常: path={}, {}", path, e.getMessage());
+            throw new BizException(2002, "平台接口调用失败");
+        }
     }
 
     private Map<String, Object> postForm(String path, MultiValueMap<String, String> form) {

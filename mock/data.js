@@ -544,11 +544,25 @@ function getOrder(id) {
         workerSignatureUrl: rec.workerSignatureUrl || '',
         assistantSignatureUrl: rec.assistantSignatureUrl || '',
         confirmStatus: rec.confirmStatus || '',
+        uploadStatus: rec.reportStatus === 'REPORTED' ? 'SUCCESS'
+          : (rec.reportStatus === 'FAILED' ? 'FAILED' : 'PENDING'),
         satisfaction: rec.satisfaction
       }
     }
   }
   return view
+}
+
+// 手动重报平台 2.6（mock：仅 FAILED 记录可重报，与真实后端拦截行为一致）
+function reuploadRecord(id) {
+  const rec = db.unitRecords.find(function (r) { return r.id === id })
+  if (!rec) return null
+  if (rec.reportStatus !== 'FAILED') throw { code: 1003, message: '仅上报失败的记录可手动重报' }
+  rec.reportStatus = 'REPORTED'
+  rec.retryCount = (rec.retryCount || 0) + 1
+  const order = db.orders.find(function (o) { return o.originalRecordId === rec.originalRecordId })
+  if (order) order.reportStatus = 'REPORTED'
+  return rec
 }
 
 function listOrders(query) {
@@ -623,7 +637,8 @@ function markCheckout(orderId, body) {
   o.status = 'DONE'
   o.checkoutTime = formatTime()
   o.originalRecordId = nextRecordId()
-  o.reportStatus = 'SUBMITTED' // 签退即入上报队列（docs/04 A.2）
+  // mock 平台 2.6 转发即时成功（真实后端签退后自动转发，失败不自动重试，AGENTS §2.3）
+  o.reportStatus = 'REPORTED'
   o.duration = formatDuration(parseTime(o.checkoutTime) - parseTime(o.checkinTime))
 
   // 检查项明细与照片冻结
@@ -891,6 +906,7 @@ module.exports = {
   listOrders,
   markCheckin,
   markCheckout,
+  reuploadRecord,
   buildReportPayload,
   updateChecklistItem,
   listDrills,

@@ -65,6 +65,7 @@ const REPORT_STATUS_TEXT = {
   REPORTED: '平台上报成功',
   RETRY_WAIT: '等待重试',
   FAILED_MAX: '待人工处理',
+  FAILED: '上报失败',
   CONFIRMED: '已确认（本地归档）'
 }
 

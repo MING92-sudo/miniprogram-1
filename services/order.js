@@ -1,5 +1,4 @@
-// 工单模块（列表/详情/签到/清单/签退）
-// TODO: 接口路径按 docs/04 接口文档逐一对齐
+// 工单模块（列表/详情/签到/清单/签退/平台重报）
 const { get, post } = require('../utils/request')
 
 // 工单列表（分页 page 从 1 开始，size 默认 20）
@@ -42,9 +41,14 @@ function runItemThisTime(orderId, itemId) {
   return post(`/work-orders/${orderId}/checklist/${itemId}/run-this-time`, {})
 }
 
-// 签退自检提交
+// 签退提交（后端自动转发平台 2.6，失败不自动重试）
 function checkout(orderId, data) {
   return post(`/work-orders/${orderId}/checkout`, data)
+}
+
+// 手动重报平台 2.6（仅 uploadStatus=FAILED 的记录，docs/04 A.7 P3 修订）
+function retryRecordUpload(recordId) {
+  return post(`/platform/records/${recordId}/reupload`, {})
 }
 
 module.exports = {
@@ -56,5 +60,6 @@ module.exports = {
   getChecklist,
   submitChecklistItem,
   runItemThisTime,
-  checkout
+  checkout,
+  retryRecordUpload
 }
