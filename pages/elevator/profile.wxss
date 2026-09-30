@@ -43,10 +43,24 @@
   background: rgba(250, 140, 22, 0.1);
 }
 
-.src-tip {
-  margin-top: 14rpx;
-  font-size: 22rpx;
-  color: var(--em-text-secondary, #86909c);
+/* 字段行：字段名（灰）+ 冒号 + 内容（深色），左对齐、内容可换行 */
+.info-row {
+  display: flex;
+  align-items: flex-start;
+  padding: 10rpx 0;
+  font-size: 28rpx;
+  line-height: 1.6;
+}
+
+.info-label {
+  color: #86909c;
+  flex-shrink: 0;
+}
+
+.info-value {
+  color: #1d2129;
+  font-weight: 500;
+  word-break: break-all;
 }
 
 .entity-id {
