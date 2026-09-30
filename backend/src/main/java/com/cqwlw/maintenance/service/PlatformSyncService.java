@@ -3,9 +3,11 @@ package com.cqwlw.maintenance.service;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.cqwlw.maintenance.entity.Company;
 import com.cqwlw.maintenance.entity.Elevator;
+import com.cqwlw.maintenance.entity.Employee;
 import com.cqwlw.maintenance.entity.UseUnit;
 import com.cqwlw.maintenance.mapper.CompanyMapper;
 import com.cqwlw.maintenance.mapper.ElevatorMapper;
+import com.cqwlw.maintenance.mapper.EmployeeMapper;
 import com.cqwlw.maintenance.mapper.UseUnitMapper;
 import com.cqwlw.maintenance.util.TimeUtil;
 import org.slf4j.Logger;
@@ -31,15 +33,20 @@ public class PlatformSyncService {
     private final ElevatorMapper elevatorMapper;
     private final PlatformClient platformClient;
     private final PlatformTokenService tokenService;
+    private final EmployeeMapper employeeMapper;
+    private final PlatformReportService reportService;
 
     public PlatformSyncService(CompanyMapper companyMapper, UseUnitMapper useUnitMapper,
                                ElevatorMapper elevatorMapper, PlatformClient platformClient,
-                               PlatformTokenService tokenService) {
+                               PlatformTokenService tokenService, EmployeeMapper employeeMapper,
+                               PlatformReportService reportService) {
         this.companyMapper = companyMapper;
         this.useUnitMapper = useUnitMapper;
         this.elevatorMapper = elevatorMapper;
         this.platformClient = platformClient;
         this.tokenService = tokenService;
+        this.employeeMapper = employeeMapper;
+        this.reportService = reportService;
     }
 
     public Map<String, Object> syncAll() {
@@ -48,11 +55,43 @@ public class PlatformSyncService {
         }
         int entitySynced = syncEntities();
         int elevatorsSynced = syncElevators();
+        int workersSynced = syncWorkers();
+        int legacyUploaded = reportService.syncLegacy();
         Map<String, Object> summary = new LinkedHashMap<>();
         summary.put("entitySynced", entitySynced);
         summary.put("elevatorSynced", elevatorsSynced);
+        summary.put("workerSynced", workersSynced);
+        summary.put("legacyUploaded", legacyUploaded);
         summary.put("syncedAt", TimeUtil.format(TimeUtil.now()));
         return summary;
+    }
+
+    /**
+     * 2.5 人员 platform_id 同步（docs/04 B.4：按证书号轮询精确匹配回填），
+     * 随 /platform/sync 一并触发；单人失败不影响其余人员。
+     */
+    private int syncWorkers() {
+        String end = TimeUtil.date(TimeUtil.now().plusYears(1));
+        List<Map<String, Object>> workers = platformClient.queryWorkList("0", end);
+        if (workers.isEmpty()) {
+            return 0;
+        }
+        int n = 0;
+        for (Employee e : employeeMapper.selectList(new LambdaQueryWrapper<>())) {
+            if (e.certificate == null || e.certificate.isEmpty()) {
+                continue;
+            }
+            for (Map<String, Object> w : workers) {
+                if (e.certificate.equals(str(w.get("workManCertificate"))) && w.get("id") != null) {
+                    e.platformId = String.valueOf(w.get("id"));
+                    e.syncStatus = "SYNCED";
+                    employeeMapper.updateById(e);
+                    n++;
+                    break;
+                }
+            }
+        }
+        return n;
     }
 
     private int syncEntities() {

@@ -57,12 +57,14 @@ public class WorkOrderService {
     private final InspectRecordMapper inspectMapper;
     private final ChecklistService checklistService;
     private final DispatchService dispatchService;
+    private final PlatformReportService reportService;
 
     public WorkOrderService(WorkOrderMapper orderMapper, ElevatorMapper elevatorMapper,
                             UseUnitMapper useUnitMapper, EmployeeMapper employeeMapper,
                             CompanyMapper companyMapper, MaintainRecordMapper recordMapper,
                             FaultMapper faultMapper, InspectRecordMapper inspectMapper,
-                            ChecklistService checklistService, DispatchService dispatchService) {
+                            ChecklistService checklistService, DispatchService dispatchService,
+                            PlatformReportService reportService) {
         this.orderMapper = orderMapper;
         this.elevatorMapper = elevatorMapper;
         this.useUnitMapper = useUnitMapper;
@@ -73,6 +75,7 @@ public class WorkOrderService {
         this.inspectMapper = inspectMapper;
         this.checklistService = checklistService;
         this.dispatchService = dispatchService;
+        this.reportService = reportService;
     }
 
     // ── 首页汇总 ──
@@ -413,6 +416,12 @@ public class WorkOrderService {
         r.createdAt = TimeUtil.now();
         r.reportPayloadJson = JsonUtil.write(buildReportPayload(r, el, uu));
         recordMapper.insert(r);
+        // P3：签退成功后自动转发平台 2.6（失败不自动重试，AGENTS §2.3；
+        // 平台凭证未配置时保持 SUBMITTED=待上报，本地/演示流程不受影响）
+        r.reportStatus = reportService.attemptUpload(r);
+        recordMapper.updateById(r);
+        o.reportStatus = r.reportStatus;
+        orderMapper.updateById(o);
 
         return JsonUtil.map(
                 "workOrderId", o.id,
@@ -500,6 +509,7 @@ public class WorkOrderService {
                     info.put("workerSignatureUrl", nz(rec.workerSignatureUrl));
                     info.put("assistantSignatureUrl", nz(rec.assistantSignatureUrl));
                     info.put("confirmStatus", nz(rec.confirmStatus));
+                    info.put("uploadStatus", UnitRecordService.uploadStatus(rec.reportStatus));
                     info.put("satisfaction", rec.satisfaction);
                     m.put("recordInfo", info);
                 }
