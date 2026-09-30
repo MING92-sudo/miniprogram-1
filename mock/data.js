@@ -351,6 +351,44 @@ function ensureDueOrders() {
   return created
 }
 
+// ── 首页汇总（对齐无纸化维保首页看板：今日到期/即将到期/保养超期/维保中/未确认/平台对接）──
+function getHomeSummary() {
+  ensureDueOrders()
+  const today = formatTime().slice(0, 10)
+  const soonEnd = formatTime(new Date(Date.now() + 3 * 86400000)).slice(0, 10)
+  let dueToday = 0
+  let dueSoon = 0
+  let overdue = 0
+  let inProgress = 0
+  db.orders.forEach(function (o) {
+    const planDay = (o.planTime || '').slice(0, 10)
+    if (o.status === 'PROCESSING') inProgress++
+    if (o.status !== 'DONE') {
+      if (planDay === today) dueToday++
+      else if (planDay > today && planDay <= soonEnd) dueSoon++
+      else if (planDay && planDay < today) overdue++
+    }
+  })
+  return {
+    dueToday: dueToday,
+    dueSoon: dueSoon,
+    overdue: overdue,
+    inProgress: inProgress,
+    unconfirmed: db.unitRecords.filter(function (r) {
+      return r.confirmStatus === 'PENDING'
+    }).length,
+    platformTotal: db.elevators.length, // 已对接监管平台的电梯总数
+    openFaults: db.faults.filter(function (f) {
+      return f.status === 'OPEN'
+    }).length,
+    // 年检预警：自行检查逾期未检台数（须在定期检验前完成，docs/01 §3.17）
+    overdueInspects: listInspects().filter(function (i) {
+      return i.status === '逾期未检'
+    }).length,
+    warnCount: dueToday + overdue
+  }
+}
+
 function getElevator(id) {
   return db.elevators.find((e) => e.id === id) || null
 }
@@ -663,6 +701,7 @@ module.exports = {
   nextId,
   nextRecordId,
   ensureDueOrders,
+  getHomeSummary,
   getElevator,
   getElevatorByCode,
   getUseUnit,

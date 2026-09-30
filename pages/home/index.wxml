@@ -1,46 +1,114 @@
-<view class="em-page">
-  <view class="header">
-    <view class="hello">您好，{{userInfo.name || ''}}</view>
-    <view class="em-text-secondary">{{roleText}} · 今天也有 {{stats.todo}} 条任务待处理</view>
+<view class="home-page">
+  <!-- 顶部渐变 Banner -->
+  <view class="banner">
+    <view class="banner-deco banner-deco-1"></view>
+    <view class="banner-deco banner-deco-2"></view>
+    <view class="banner-title">无纸化维保</view>
+    <view class="banner-sub">智慧维保新模式</view>
+    <view class="banner-user">您好，{{userInfo.name || ''}} · {{roleText}}</view>
+    <button class="banner-scan" bindtap="onScanTap">📷 扫码签到</button>
+    <view wx:if="{{useMock}}" class="banner-mock" bindtap="onMockScan">演示：模拟扫码（世纪大厦 1#）</view>
   </view>
 
-  <view class="em-card scan-card">
-    <view class="scan-title">现场作业</view>
-    <view class="em-text-secondary">扫描电梯二维码，开始维保签到</view>
-    <button class="em-btn-primary scan-btn" bindtap="onScanTap">扫一扫</button>
-    <view wx:if="{{useMock}}" class="mock-scan em-text-secondary" bindtap="onMockScan">演示：模拟扫码（世纪大厦 1#）</view>
-  </view>
-
-  <view class="stats-row">
-    <view class="stat-card">
-      <view class="stat-num">{{stats.total}}</view>
-      <view class="em-text-secondary">今日任务</view>
-    </view>
-    <view class="stat-card">
-      <view class="stat-num warn">{{stats.todo}}</view>
-      <view class="em-text-secondary">待处理</view>
-    </view>
-    <view class="stat-card">
-      <view class="stat-num ok">{{stats.done}}</view>
-      <view class="em-text-secondary">已完成</view>
-    </view>
-  </view>
-
-  <view class="em-card">
-    <view class="section-title">任务列表</view>
-    <view wx:if="{{todayTasks.length === 0}}" class="em-text-secondary">今日暂无任务</view>
-    <view
-      wx:for="{{todayTasks}}"
-      wx:key="id"
-      class="task-item"
-      data-id="{{item.id}}"
-      bindtap="onTaskTap"
-    >
-      <view class="task-main">
-        <view class="task-name">{{item.elevatorName}}</view>
-        <view class="em-text-secondary">{{item.workType}} · {{item.planTime}}</view>
+  <view class="home-body">
+    <!-- 今日待维保电梯 -->
+    <view class="section-title">今日待维保电梯</view>
+    <view class="stat-grid">
+      <view class="stat-card stat-orange">
+        <view class="stat-num">{{summary.dueToday}} 台</view>
+        <view class="stat-label">今日到期</view>
+        <view class="stat-emoji">⏰</view>
       </view>
-      <view class="tag tag-{{item.status}}">{{item.statusText}}</view>
+      <view class="stat-card stat-purple">
+        <view class="stat-num">{{summary.dueSoon}} 台</view>
+        <view class="stat-label">即将到期</view>
+        <view class="stat-emoji">📣</view>
+      </view>
+      <view class="stat-card stat-red">
+        <view class="stat-num">{{summary.overdue}} 台</view>
+        <view class="stat-label">保养超期</view>
+        <view class="stat-emoji">🗓️</view>
+      </view>
+    </view>
+
+    <!-- 维保记录情况 -->
+    <view class="section-title">维保记录情况</view>
+    <view wx:if="{{summary.warnCount > 0}}" class="warn-banner">
+      🔊 您有 {{summary.warnCount}} 台电梯尚未达到无纸化维护保养要求，请核实！
+    </view>
+    <view class="record-grid">
+      <view class="record-card">
+        <view class="record-info">
+          <view class="record-label">维保中</view>
+          <view class="record-num num-green">{{summary.inProgress}} 份</view>
+        </view>
+        <view class="record-emoji bg-green">🛡️</view>
+      </view>
+      <view class="record-card">
+        <view class="record-info">
+          <view class="record-label">未确认</view>
+          <view class="record-num num-blue">{{summary.unconfirmed}} 份</view>
+        </view>
+        <view class="record-emoji bg-blue">📝</view>
+      </view>
+      <view class="record-card">
+        <view class="record-info">
+          <view class="record-label">市监局对接(重庆)</view>
+          <view class="record-num num-orange">{{summary.platformTotal}} 台</view>
+        </view>
+        <view class="record-emoji bg-orange">☁️</view>
+      </view>
+    </view>
+
+    <!-- 辅助功能 -->
+    <view class="section-title">辅助功能</view>
+    <view class="icon-grid">
+      <view
+        wx:for="{{quickMenus}}"
+        wx:key="title"
+        class="icon-item"
+        data-url="{{item.url}}"
+        bindtap="onGridTap"
+      >
+        <view wx:if="{{item.badge > 0}}" class="icon-badge">{{item.badge}}</view>
+        <view class="icon-box bg-{{item.color}}">{{item.icon}}</view>
+        <view class="icon-label">{{item.title}}</view>
+      </view>
+    </view>
+
+    <!-- 综合查询 -->
+    <view class="section-title">综合查询</view>
+    <view class="icon-grid">
+      <view
+        wx:for="{{queryMenus}}"
+        wx:key="title"
+        class="icon-item"
+        data-url="{{item.url}}"
+        data-tab="{{item.tab}}"
+        bindtap="onGridTap"
+      >
+        <view class="icon-box bg-{{item.color}}">{{item.icon}}</view>
+        <view class="icon-label">{{item.title}}</view>
+      </view>
+    </view>
+
+    <!-- 今日任务列表 -->
+    <view class="section-title">今日任务</view>
+    <view class="em-card task-card">
+      <view wx:if="{{todayTasks.length === 0}}" class="em-text-secondary">今日暂无任务</view>
+      <view
+        wx:for="{{todayTasks}}"
+        wx:key="id"
+        class="task-item"
+        data-id="{{item.id}}"
+        bindtap="onTaskTap"
+      >
+        <view class="task-main">
+          <view class="task-name">{{item.elevatorName}}</view>
+          <view class="em-text-secondary">{{item.workType}} · {{item.planTime}}</view>
+        </view>
+        <view class="tag tag-{{item.status}}">{{item.statusText}}</view>
+      </view>
     </view>
   </view>
 </view>

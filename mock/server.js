@@ -41,6 +41,7 @@ const routes = [
   ['POST', '/auth/logout', () => ({ ok: true })],
 
   // ── 工单 ──
+  ['GET', '/home/summary', () => d.getHomeSummary()],
   ['GET', '/work-orders', ({ query }) => {
     d.ensureDueOrders()
     return paginate(d.listOrders(query), query)

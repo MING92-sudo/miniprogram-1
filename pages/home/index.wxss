@@ -1,73 +1,261 @@
-.header {
-  padding: 32rpx 32rpx 0;
+/* 首页：参照「无纸化维保」截屏的看板式布局 */
+.home-page {
+  background: #f0f4fa;
+  min-height: 100vh;
+  padding-bottom: 40rpx;
 }
 
-.hello {
-  font-size: 40rpx;
-  font-weight: 600;
-  margin-bottom: 8rpx;
+/* ── 顶部渐变 Banner ── */
+.banner {
+  position: relative;
+  overflow: hidden;
+  padding: 48rpx 40rpx 56rpx;
+  background: linear-gradient(135deg, #1668dc 0%, #4096ff 60%, #69b1ff 100%);
+  border-radius: 0 0 40rpx 40rpx;
 }
 
-.scan-card {
+.banner-deco {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.banner-deco-1 {
+  width: 280rpx;
+  height: 280rpx;
+  right: -80rpx;
+  top: -100rpx;
+}
+
+.banner-deco-2 {
+  width: 160rpx;
+  height: 160rpx;
+  left: -50rpx;
+  bottom: -60rpx;
+}
+
+.banner-title {
+  position: relative;
+  color: #ffffff;
+  font-size: 52rpx;
+  font-weight: 700;
+  letter-spacing: 8rpx;
   text-align: center;
-  padding: 48rpx 24rpx;
 }
 
-.scan-title {
-  font-size: 34rpx;
-  font-weight: 600;
-  margin-bottom: 12rpx;
-}
-
-.scan-btn {
-  margin-top: 32rpx;
-  width: 80%;
-}
-
-.mock-scan {
-  margin-top: 20rpx;
-  text-decoration: underline;
-}
-
-.stats-row {
-  display: flex;
-  gap: 20rpx;
-  margin: 0 24rpx;
-}
-
-.stat-card {
-  flex: 1;
-  background: var(--em-bg-card);
-  border-radius: var(--em-radius);
-  padding: 24rpx 0;
+.banner-sub {
+  position: relative;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 26rpx;
+  letter-spacing: 12rpx;
   text-align: center;
+  margin-top: 12rpx;
 }
 
-.stat-num {
-  font-size: 44rpx;
+.banner-user {
+  position: relative;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 26rpx;
+  margin-top: 28rpx;
+}
+
+.banner-scan {
+  position: relative;
+  margin-top: 24rpx;
+  background: #ffffff;
+  color: #1668dc;
+  font-size: 30rpx;
   font-weight: 600;
+  border-radius: 999rpx;
+  line-height: 2.4;
 }
 
-.stat-num.warn {
-  color: var(--em-warning);
+.banner-mock {
+  position: relative;
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 24rpx;
+  text-align: center;
+  margin-top: 16rpx;
 }
 
-.stat-num.ok {
-  color: var(--em-success);
+/* ── 主体 ── */
+.home-body {
+  padding: 8rpx 24rpx 0;
 }
 
 .section-title {
-  font-size: 30rpx;
+  font-size: 32rpx;
   font-weight: 600;
-  margin-bottom: 16rpx;
+  margin: 32rpx 8rpx 20rpx;
+}
+
+/* ── 三色到期统计卡 ── */
+.stat-grid {
+  display: flex;
+  gap: 20rpx;
+}
+
+.stat-card {
+  position: relative;
+  flex: 1;
+  border-radius: 24rpx;
+  padding: 28rpx 20rpx 24rpx;
+  color: #ffffff;
+  overflow: hidden;
+}
+
+.stat-orange {
+  background: linear-gradient(150deg, #ffc53d, #ffa940);
+}
+
+.stat-purple {
+  background: linear-gradient(150deg, #9254de, #85a5ff);
+}
+
+.stat-red {
+  background: linear-gradient(150deg, #ff7875, #ff9c6e);
+}
+
+.stat-num {
+  font-size: 40rpx;
+  font-weight: 700;
+  text-align: center;
+}
+
+.stat-label {
+  font-size: 24rpx;
+  text-align: center;
+  margin-top: 8rpx;
+  opacity: 0.95;
+}
+
+.stat-emoji {
+  text-align: center;
+  font-size: 40rpx;
+  margin-top: 16rpx;
+  filter: drop-shadow(0 4rpx 8rpx rgba(0, 0, 0, 0.15));
+}
+
+/* ── 到期预警条 ── */
+.warn-banner {
+  background: #fff7e6;
+  border: 2rpx solid #ffd591;
+  color: #d46b08;
+  border-radius: 16rpx;
+  padding: 16rpx 24rpx;
+  font-size: 24rpx;
+  margin-bottom: 20rpx;
+}
+
+/* ── 维保记录情况 ── */
+.record-grid {
+  display: flex;
+  gap: 20rpx;
+}
+
+.record-card {
+  flex: 1;
+  background: #ffffff;
+  border-radius: 20rpx;
+  padding: 24rpx 20rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.record-label {
+  font-size: 24rpx;
+  color: var(--em-text-secondary, #86909c);
+  margin-bottom: 8rpx;
+}
+
+.record-num {
+  font-size: 40rpx;
+  font-weight: 700;
+}
+
+.num-green { color: #52c41a; }
+.num-blue { color: #1890ff; }
+.num-orange { color: #fa8c16; }
+
+.record-emoji {
+  width: 72rpx;
+  height: 72rpx;
+  border-radius: 20rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 40rpx;
+}
+
+/* ── 功能宫格 ── */
+.icon-grid {
+  background: #ffffff;
+  border-radius: 20rpx;
+  padding: 32rpx 12rpx 20rpx;
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.icon-item {
+  position: relative;
+  width: 25%;
+  text-align: center;
+  margin-bottom: 28rpx;
+}
+
+.icon-badge {
+  position: absolute;
+  top: -14rpx;
+  right: 18rpx;
+  min-width: 32rpx;
+  height: 32rpx;
+  line-height: 32rpx;
+  background: #ff4d4f;
+  color: #ffffff;
+  font-size: 20rpx;
+  border-radius: 999rpx;
+  padding: 0 8rpx;
+  z-index: 2;
+}
+
+.icon-box {
+  width: 92rpx;
+  height: 92rpx;
+  margin: 0 auto;
+  border-radius: 24rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 48rpx;
+}
+
+.bg-blue { background: linear-gradient(150deg, #4096ff, #1668dc); }
+.bg-red { background: linear-gradient(150deg, #ff7875, #f5222d); }
+.bg-purple { background: linear-gradient(150deg, #b37feb, #722ed1); }
+.bg-orange { background: linear-gradient(150deg, #ffc53d, #fa8c16); }
+.bg-green { background: linear-gradient(150deg, #95de64, #52c41a); }
+
+.icon-label {
+  font-size: 26rpx;
+  margin-top: 12rpx;
+}
+
+.bg-green.record-emoji { background: rgba(82, 196, 26, 0.12); }
+.bg-blue.record-emoji { background: rgba(24, 144, 255, 0.12); }
+.bg-orange.record-emoji { background: rgba(250, 140, 22, 0.12); }
+
+/* ── 任务列表 ── */
+.task-card {
+  padding: 8rpx 24rpx;
 }
 
 .task-item {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  padding: 20rpx 0;
-  border-bottom: 1rpx solid var(--em-border);
+  justify-content: space-between;
+  padding: 24rpx 0;
+  border-bottom: 2rpx solid #f2f3f5;
 }
 
 .task-item:last-child {
@@ -75,29 +263,7 @@
 }
 
 .task-name {
+  font-size: 28rpx;
   font-weight: 500;
   margin-bottom: 6rpx;
-}
-
-.tag {
-  flex-shrink: 0;
-  margin-left: 16rpx;
-  font-size: 22rpx;
-  padding: 4rpx 16rpx;
-  border-radius: 8rpx;
-}
-
-.tag-PENDING {
-  color: var(--em-warning);
-  background: #fdf6ec;
-}
-
-.tag-PROCESSING {
-  color: var(--em-brand);
-  background: var(--em-brand-light);
-}
-
-.tag-DONE {
-  color: var(--em-success);
-  background: #e8f7f0;
 }
