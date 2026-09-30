@@ -1,44 +1,75 @@
-<view class="em-page">
-  <view class="em-card">
-    <view class="progress-head">
-      <text class="progress-title">作业清单</text>
-      <text class="progress-num">{{doneCount}}/{{total}}</text>
+<view class="cl-page">
+  <!-- 蓝色页头 -->
+  <view class="cl-header">维保详情</view>
+
+  <view class="cl-body">
+    <!-- 进度（结论锚点上方） -->
+    <view class="em-card cl-progress" id="sec-content">
+      <view class="progress-head">
+        <text class="progress-title">作业清单</text>
+        <text class="progress-num">{{doneCount}}/{{total}}</text>
+      </view>
+      <view class="progress-bar">
+        <view class="progress-inner" style="width: {{progress}}%"></view>
+      </view>
     </view>
-    <view class="progress-bar">
-      <view class="progress-inner" style="width: {{progress}}%"></view>
+
+    <!-- 检查项表格 -->
+    <view class="cl-table">
+      <view class="cl-tr cl-th">
+        <view class="cl-td cl-td-name">维保内容</view>
+        <view class="cl-td cl-td-req">维保要求</view>
+        <view class="cl-td cl-td-result">结果</view>
+        <view class="cl-td cl-td-remark">备注</view>
+      </view>
+      <view
+        wx:for="{{items}}"
+        wx:key="id"
+        class="cl-tr"
+        data-id="{{item.id}}"
+        bindtap="goItemForm"
+      >
+        <view class="cl-td cl-td-name">
+          {{item.name}}
+          <text wx:if="{{item.isKey}}" class="cl-key">*</text>
+        </view>
+        <view class="cl-td cl-td-req">{{item.requirement}}</view>
+        <view class="cl-td cl-td-result">
+          <view class="cl-result {{item.result === 'NORMAL' ? 'cl-ok' : item.result === 'ABNORMAL' ? 'cl-ng' : item.result === 'NA' ? 'cl-na' : ''}}">
+            {{item.resultText || '待填'}}
+          </view>
+          <view class="cl-arrow">›</view>
+        </view>
+        <view class="cl-td cl-td-remark">
+          <view class="cl-remark {{item.remark ? '' : 'cl-remark-empty'}}">{{item.remark || '—'}}</view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 结论：签退 -->
+    <view class="em-card cl-checkout" id="sec-result" wx:if="{{!loading}}">
+      <button class="em-btn-primary" bindtap="goCheckout">
+        {{doneCount < total ? '完成清单，去签退（' + (total - doneCount) + ' 项未填）' : '完成清单，去签退'}}
+      </button>
+    </view>
+
+    <!-- 照片汇总 -->
+    <view class="em-card cl-photos" id="sec-photos">
+      <view class="section-title">现场照片（{{photos.length}}）</view>
+      <view wx:if="{{photos.length === 0}}" class="em-text-secondary">暂无照片</view>
+      <view class="cl-photo-grid">
+        <view wx:for="{{photos}}" wx:key="src" class="cl-photo-item">
+          <image class="cl-photo" src="{{item.src}}" mode="aspectFill" />
+          <view class="cl-photo-name">{{item.itemName}}</view>
+        </view>
+      </view>
     </view>
   </view>
 
-  <view wx:if="{{loading}}" class="em-card em-text-secondary">加载中...</view>
-
-  <view wx:if="{{!loading && items.length === 0}}" class="em-card em-text-secondary">暂无检查项</view>
-
-  <view
-    wx:for="{{items}}"
-    wx:key="id"
-    class="em-card item-row"
-    data-id="{{item.id}}"
-    bindtap="goItemForm"
-  >
-    <view class="item-idx">{{index + 1}}</view>
-    <view class="item-main">
-      <view class="item-name">
-        {{item.name}}
-        <text wx:if="{{item.isKey}}" class="item-key">*</text>
-      </view>
-      <view wx:if="{{item.resultText}}" class="em-text-secondary">
-        {{item.abnormalDesc || item.valueText || (item.value != null ? '读数 ' + item.value + (item.valueUnit || '') : '') || item.skipReason || '已填写'}}
-      </view>
-      <view wx:else class="em-text-secondary">{{item.requirement || '点击填写'}}</view>
-    </view>
-    <view class="tag {{item.result === 'NORMAL' ? 'tag-ok' : item.result === 'ABNORMAL' ? 'tag-ng' : item.result === 'NA' ? 'tag-na' : ''}}">
-      {{item.resultText || '待填写'}}
-    </view>
-  </view>
-
-  <view class="em-card" wx:if="{{!loading}}">
-    <button class="em-btn-primary" bindtap="goCheckout">
-      {{doneCount < total ? '完成清单，去签退（' + (total - doneCount) + ' 项未填）' : '完成清单，去签退'}}
-    </button>
+  <!-- 悬浮锚点导航 -->
+  <view class="cl-nav">
+    <view class="cl-nav-btn cl-nav-active" data-target="sec-content" bindtap="goSection">内容</view>
+    <view class="cl-nav-btn" data-target="sec-result" bindtap="goSection">结论</view>
+    <view class="cl-nav-btn" data-target="sec-photos" bindtap="goSection">照片</view>
   </view>
 </view>

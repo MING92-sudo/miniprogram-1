@@ -1,87 +1,200 @@
+/* 作业清单：表格形式（维保内容/维保要求/结果/备注） */
+.cl-page {
+  min-height: 100vh;
+  background: #f0f4fa;
+  padding-bottom: 60rpx;
+}
+
+.cl-header {
+  background: linear-gradient(160deg, #1668dc 0%, #4096ff 100%);
+  color: #ffffff;
+  font-size: 36rpx;
+  font-weight: 700;
+  text-align: center;
+  padding: 36rpx 0;
+  border-radius: 0 0 32rpx 32rpx;
+}
+
+.cl-body {
+  padding: 20rpx 24rpx 0;
+}
+
+.cl-progress {
+  padding: 24rpx;
+}
+
 .progress-head {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  margin-bottom: 16rpx;
+  margin-bottom: 14rpx;
 }
 
 .progress-title {
-  font-size: 30rpx;
-  font-weight: 600;
-}
-
-.progress-num {
-  font-size: 28rpx;
-  color: var(--em-brand);
   font-weight: 600;
 }
 
 .progress-bar {
-  height: 12rpx;
-  background: var(--em-bg-page);
+  height: 14rpx;
+  background: #eef1f6;
   border-radius: 999rpx;
   overflow: hidden;
 }
 
 .progress-inner {
   height: 100%;
-  background: var(--em-brand);
+  background: linear-gradient(90deg, #4096ff, #1668dc);
   border-radius: 999rpx;
-  transition: width 0.3s;
 }
 
-.item-row {
+/* ── 表格 ── */
+.cl-table {
+  background: #ffffff;
+  border-radius: 16rpx;
+  overflow: hidden;
+  border: 2rpx solid #e8eef7;
+}
+
+.cl-tr {
   display: flex;
-  align-items: center;
-  gap: 20rpx;
+  align-items: stretch;
+  border-bottom: 2rpx solid #e8eef7;
 }
 
-.item-idx {
-  flex-shrink: 0;
-  width: 48rpx;
-  height: 48rpx;
-  border-radius: 50%;
-  background: var(--em-bg-page);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 24rpx;
-  color: var(--em-text-secondary);
+.cl-tr:last-child {
+  border-bottom: none;
 }
 
-.item-main {
-  flex: 1;
-}
-
-.item-name {
-  margin-bottom: 4rpx;
-}
-
-.item-key {
-  color: var(--em-error);
+.cl-th {
+  background: linear-gradient(160deg, #4096ff, #1668dc);
+  color: #ffffff;
   font-weight: 600;
 }
 
-.tag {
-  flex-shrink: 0;
+.cl-td {
+  padding: 18rpx 14rpx;
+  font-size: 24rpx;
+  line-height: 1.5;
+}
+
+.cl-th .cl-td {
+  color: #ffffff;
+}
+
+.cl-td-name {
+  width: 26%;
+  font-weight: 500;
+  color: #1d2129;
+}
+
+.cl-td-req {
+  width: 30%;
+  color: #4e5969;
+}
+
+.cl-td-result {
+  width: 20%;
+  display: flex;
+  align-items: center;
+}
+
+.cl-td-remark {
+  width: 24%;
+}
+
+.cl-key {
+  color: #ff4d4f;
+  font-weight: 700;
+}
+
+.cl-result {
+  font-weight: 600;
+}
+
+.cl-ok { color: #2ba471; }
+.cl-ng { color: #e34d59; }
+.cl-na { color: #86909c; }
+
+.cl-arrow {
+  color: #c9cdd4;
+  margin-left: 8rpx;
+  font-size: 28rpx;
+}
+
+.cl-remark {
+  background: #f5f8fd;
+  border-radius: 10rpx;
+  padding: 10rpx 14rpx;
+  color: #4e5969;
+  word-break: break-all;
+}
+
+.cl-remark-empty {
+  color: #c9cdd4;
+}
+
+/* ── 签退 ── */
+.cl-checkout {
+  margin-top: 24rpx;
+}
+
+/* ── 照片汇总 ── */
+.cl-photos {
+  margin-top: 24rpx;
+}
+
+.cl-photo-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16rpx;
+  margin-top: 16rpx;
+}
+
+.cl-photo-item {
+  width: 210rpx;
+}
+
+.cl-photo {
+  width: 210rpx;
+  height: 158rpx;
+  border-radius: 12rpx;
+  background: #eef1f6;
+}
+
+.cl-photo-name {
+  font-size: 20rpx;
+  color: var(--em-text-secondary, #86909c);
+  margin-top: 6rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── 悬浮锚点导航 ── */
+.cl-nav {
+  position: fixed;
+  right: 16rpx;
+  top: 45%;
+  display: flex;
+  flex-direction: column;
+  gap: 4rpx;
+  background: #ffffff;
+  border-radius: 999rpx;
+  padding: 8rpx;
+  box-shadow: 0 6rpx 20rpx rgba(22, 104, 220, 0.18);
+  z-index: 9;
+}
+
+.cl-nav-btn {
+  width: 76rpx;
+  padding: 14rpx 0;
+  text-align: center;
   font-size: 22rpx;
-  padding: 6rpx 16rpx;
-  border-radius: 8rpx;
-  color: var(--em-text-secondary);
-  background: var(--em-bg-page);
+  color: var(--em-text-secondary, #86909c);
+  border-radius: 999rpx;
 }
 
-.tag-ok {
-  color: var(--em-success);
-  background: #e8f7f0;
-}
-
-.tag-ng {
-  color: var(--em-error);
-  background: #fdecec;
-}
-
-.tag-na {
-  color: var(--em-text-secondary);
-  background: var(--em-bg-page);
+.cl-nav-active {
+  background: linear-gradient(160deg, #4096ff, #1668dc);
+  color: #ffffff;
+  font-weight: 600;
 }

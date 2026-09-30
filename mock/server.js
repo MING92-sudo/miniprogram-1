@@ -104,8 +104,10 @@ const routes = [
     if (body.result === 'ABNORMAL' && !(body.photoFileIds || []).length && !(body.photoUrls || []).length) {
       throw { code: 422, message: '「' + item.name + '」为异常时必须至少附 1 张照片' }
     }
-    // 关键项（试验/测试/校验/检测类，TSG 注A-2）无论结果如何强制照片留证
-    if (item.isKey && item.photoRequired && !(body.photoFileIds || []).length && !(body.photoUrls || []).length) {
+    // 关键项（试验/测试/校验/检测类，TSG 注A-2）执行时须照片留证；
+    // 结果为"不适用"（NA，如该电梯无此部件）时豁免——部件不存在无从拍照（docs/08 BUG 修复）
+    if (item.isKey && item.photoRequired && item.result !== 'NA' &&
+        !(body.photoFileIds || []).length && !(body.photoUrls || []).length) {
       throw { code: 422, message: '关键项「' + item.name + '」为试验/测试/校验/检测类，必须至少附 1 张照片留证（TSG 注A-2）' }
     }
     const updated = d.updateChecklistItem(params.id, params.itemId, {
@@ -138,8 +140,10 @@ const routes = [
     const unfinished = mustRun.filter((i) => !i.result).length
     if (unfinished > 0) throw { code: 1003, message: '还有 ' + unfinished + ' 项检查未填写' }
     // 关键项照片留证校验（TSG 注A-2）
+    // "不适用"（NA）豁免：部件不存在的关键项无须照片（docs/08 BUG 修复）
     const keyNoPhoto = mustRun.filter(
-      (i) => i.isKey && i.photoRequired && i.result && !((i.photoFileIds || []).length || (i.photos || []).length)
+      (i) => i.isKey && i.photoRequired && i.result && i.result !== 'NA' &&
+        !((i.photoFileIds || []).length || (i.photos || []).length)
     )
     if (keyNoPhoto.length) {
       throw { code: 422, message: '关键项「' + keyNoPhoto[0].name + '」须至少附 1 张照片留证（TSG 注A-2），无法签退' }

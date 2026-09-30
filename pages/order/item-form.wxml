@@ -60,7 +60,7 @@
     <textarea class="form-textarea" value="{{skipReason}}" bindinput="onSkipInput" maxlength="200" placeholder="如：设备改造后无此部件" />
   </view>
 
-  <view class="em-card">
+  <view class="em-card" wx:if="{{result !== 'NA'}}">
     <view class="form-label">现场照片（{{photos.length}}/4）{{item && item.photoRequired && result === 'ABNORMAL' ? ' · 关键项异常必拍' : ''}}</view>
     <view class="photo-list">
       <view wx:for="{{photos}}" wx:key="*this" class="photo-wrap">
