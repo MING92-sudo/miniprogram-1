@@ -10,6 +10,13 @@ const TABS = [
   { key: 'DONE', label: '已完成' }
 ]
 
+// 首页统计卡下钻的到期维度文案（today/soon/overdue）
+const DUE_LABEL = {
+  today: '今日到期',
+  soon: '即将到期（3 天内）',
+  overdue: '保养超期'
+}
+
 Page({
   data: {
     tabs: TABS,
