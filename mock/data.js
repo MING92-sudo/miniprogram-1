@@ -507,7 +507,20 @@ function getElevatorProfile(id) {
 function getOrder(id) {
   const o = db.orders.find((x) => x.id === id)
   if (!o) return null
-  return Object.assign({}, o, { elevator: getElevator(o.elevatorId) })
+  const view = Object.assign({}, o, { elevator: getElevator(o.elevatorId) })
+  // 已完成工单附带完整维保记录视图数据（签字/确认状态，docs/01 §3.12.5 归档留痕）
+  if (o.status === 'DONE' && o.originalRecordId) {
+    const rec = db.unitRecords.find(function (r) { return r.originalRecordId === o.originalRecordId })
+    if (rec) {
+      view.recordInfo = {
+        workerSignatureUrl: rec.workerSignatureUrl || '',
+        assistantSignatureUrl: rec.assistantSignatureUrl || '',
+        confirmStatus: rec.confirmStatus || '',
+        satisfaction: rec.satisfaction
+      }
+    }
+  }
+  return view
 }
 
 function listOrders(query) {
@@ -535,7 +548,10 @@ function listOrders(query) {
       return (
         (o.orderNo || '').toLowerCase().indexOf(k) > -1 ||
         (el.elevatorName || '').toLowerCase().indexOf(k) > -1 ||
-        (el.elevatorCode || '').toLowerCase().indexOf(k) > -1
+        (el.elevatorCode || '').toLowerCase().indexOf(k) > -1 ||
+        (el.deviceCode || '').toLowerCase().indexOf(k) > -1 ||
+        (el.regCode || '').toLowerCase().indexOf(k) > -1 ||
+        (el.insideNumber || '').toLowerCase().indexOf(k) > -1
       )
     })
   }

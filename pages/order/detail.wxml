@@ -44,5 +44,49 @@
       <view class="info-row"><text>上报状态</text><text class="report-status">{{reportStatusText || '未上报'}}</text></view>
       <view class="em-text-secondary record-tip">维保记录已生成（含平台 2.6 上报快照），确认结果不上报平台</view>
     </view>
+
+    <!-- 完整维保记录（DONE） -->
+    <block wx:if="{{order.status === 'DONE' && recordItems.length}}">
+      <view class="em-card">
+        <view class="section-title">作业内容与结果（{{recordItems.length}} 项）</view>
+        <view wx:for="{{recordItems}}" wx:key="id" class="rec-item">
+          <view class="rec-name">{{index + 1}}. {{item.name}}</view>
+          <view class="rec-result rec-{{item.result}}">{{item.resultText}}</view>
+          <view class="rec-remark" wx:if="{{item.remark}}">{{item.remark}}</view>
+        </view>
+      </view>
+
+      <view class="em-card" wx:if="{{recordPhotos.length}}">
+        <view class="section-title">现场照片（{{recordPhotos.length}}）</view>
+        <view class="rec-photo-grid">
+          <image
+            wx:for="{{recordPhotos}}"
+            wx:key="*this"
+            class="rec-photo"
+            src="{{item}}"
+            mode="aspectFill"
+            data-src="{{item}}"
+            bindtap="previewRecordPhoto"
+          />
+        </view>
+      </view>
+
+      <view class="em-card" wx:if="{{order.recordInfo}}">
+        <view class="section-title">维保人员签字</view>
+        <view class="rec-sig-row">
+          <view class="rec-sig-cell">
+            <view class="em-text-secondary">主维保：{{order.workerName || '-'}}</view>
+            <image wx:if="{{order.recordInfo.workerSignatureUrl}}" class="rec-sig" src="{{order.recordInfo.workerSignatureUrl}}" mode="aspectFit" />
+          </view>
+          <view class="rec-sig-cell" wx:if="{{order.recordInfo.assistantSignatureUrl}}">
+            <view class="em-text-secondary">配合人员：{{order.assistantName || '-'}}</view>
+            <image class="rec-sig" src="{{order.recordInfo.assistantSignatureUrl}}" mode="aspectFit" />
+          </view>
+        </view>
+        <view class="em-text-secondary rec-confirm" wx:if="{{order.recordInfo.confirmStatus}}">
+          使用单位确认：{{order.recordInfo.confirmStatus === 'CONFIRMED' ? '已确认' : '待确认'}}{{order.recordInfo.satisfaction != null ? ' · 满意度 ' + order.recordInfo.satisfaction + ' 分' : ''}}
+        </view>
+      </view>
+    </block>
   </block>
 </view>

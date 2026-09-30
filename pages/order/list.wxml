@@ -7,7 +7,7 @@
         <view class="wo-search-icon">🔍</view>
         <input
           class="wo-search-input"
-          placeholder="请输入页面展示信息进行查询"
+        placeholder="电梯编码/设备代码/登记证号/名称"
           value="{{keyword}}"
           confirm-type="search"
           bindconfirm="onSearch"
