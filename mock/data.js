@@ -513,6 +513,8 @@ function getOrder(id) {
     const rec = db.unitRecords.find(function (r) { return r.originalRecordId === o.originalRecordId })
     if (rec) {
       view.recordInfo = {
+        id: rec.id,
+        shareToken: rec.shareToken || '',
         workerSignatureUrl: rec.workerSignatureUrl || '',
         assistantSignatureUrl: rec.assistantSignatureUrl || '',
         confirmStatus: rec.confirmStatus || '',
@@ -636,6 +638,8 @@ function markCheckout(orderId, body) {
     signatureFileId: '',
     signatureUrl: ''
   }
+  // 安全管理员签名确认链接令牌（链接可经微信分享远程签字，或维保人员本机代签）
+  record.shareToken = 'sg' + Date.now().toString(36) + Math.floor(Math.random() * 1e8).toString(36)
   record.reportPayload = buildReportPayload(record, el, uu)
   db.unitRecords.unshift(record)
   return record

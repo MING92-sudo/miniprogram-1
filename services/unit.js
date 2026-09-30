@@ -1,23 +1,17 @@
-// 使用单位确认端（安全管理员）
+// 维保记录签名确认（取消独立使用单位端：链接分享远程签字 / 本机代签）
 const { get, post } = require('../utils/request')
 
-// 待确认记录列表
-function getPendingRecords(params) {
-  return get('/unit/records/pending', params)
+// 打开签名链接：校验令牌，返回记录摘要与确认状态（无需登录）
+function getSignView(id, token) {
+  return get('/unit/records/' + id + '/sign-view?token=' + token, { needAuth: false })
 }
 
-// 记录查看
-function getRecordDetail(id) {
-  return get(`/unit/records/${id}`)
-}
-
-// 确认（手写签名 + 满意度评价）
-function confirmRecord(id, data) {
-  return post(`/unit/records/${id}/confirm`, data)
+// 安全管理员签字确认（签名图 + 满意度）
+function confirmByToken(id, token, data) {
+  return post('/unit/records/' + id + '/confirm-by-token?token=' + token, data, { needAuth: false })
 }
 
 module.exports = {
-  getPendingRecords,
-  getRecordDetail,
-  confirmRecord
+  getSignView,
+  confirmByToken
 }

@@ -12,15 +12,11 @@ const ROLE_TEXT = {
   SYS_ADMIN: '系统管理员'
 }
 
-// 角色可见菜单
-const UNIT_ROLES = [ROLE.UNIT_ADMIN]
+// 角色可见菜单（用户需求：取消独立使用单位端，签字确认走分享链接/本机代签）
 const STAFF_ROLES = [ROLE.WORKER, ROLE.ASSISTANT, ROLE.LEADER]
 
 function buildMenus(role) {
   const menus = []
-  if (UNIT_ROLES.indexOf(role) > -1) {
-    menus.push({ title: '待确认维保记录', url: '/pages/unit/pending', desc: '确认并评价维保作业' })
-  }
   if (STAFF_ROLES.indexOf(role) > -1) {
     // 合规台账（TSG 法定项，docs/01 §3.17/3.18）
     menus.push({ title: '自行检查', url: '/pages/compliance/inspect', desc: '年度法定检查，定期检验前完成' })

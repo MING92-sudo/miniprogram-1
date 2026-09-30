@@ -119,18 +119,19 @@ Page({
     try {
       const sig = await uploadImage(this.data.signature)
       sigFileId = sig.fileId
-      // 响应：{ duration, originalRecordId, reportStatus }（docs/04 A.2）
-      await checkout(this.data.orderId, {
+      // 响应：{ duration, originalRecordId, reportStatus, recordId, shareToken }（docs/04 A.2）
+      const resp = await checkout(this.data.orderId, {
         signatureFileId: sigFileId,
         signatureUrl: this.data.signature, // mock 演示回显；真实后端忽略
         assistantSignatureFileId: this.data.assistantSignature || '',
         assistantSignatureUrl: this.data.assistantSignature || '',
         collectedAt: formatTime()
       })
-      wx.showToast({ title: '签退成功，记录已提交上报', icon: 'success' })
+      // 签退成功 → 进入签名确认页（安全管理员本机代签，或分享链接远程签字）
+      wx.showToast({ title: '签退成功', icon: 'success' })
       this._leaving = true
       setTimeout(() => {
-        wx.reLaunch({ url: '/pages/home/index' })
+        wx.redirectTo({ url: `/pages/unit/sign?rid=${resp.recordId}&token=${resp.shareToken}` })
       }, 800)
     } catch (e) {
       if (e && e.code === -1 && sigFileId) {

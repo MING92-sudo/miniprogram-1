@@ -1,0 +1,57 @@
+<view class="sign-page">
+  <view wx:if="{{loadError}}" class="em-card em-text-secondary">{{loadError}}</view>
+
+  <block wx:if="{{view}}">
+    <view class="em-card">
+      <view class="section-title">维保记录确认</view>
+      <view class="info-row"><text class="k">电梯：</text><text>{{view.elevatorName}}（{{view.elevatorCode}}）</text></view>
+      <view class="info-row"><text class="k">维保类型：</text><text>{{view.workType}}</text></view>
+      <view class="info-row"><text class="k">维保人员：</text><text>{{view.workerName}}{{view.assistantName ? ' / ' + view.assistantName : ''}}</text></view>
+      <view class="info-row"><text class="k">作业时间：</text><text>{{view.checkinTime}} ~ {{view.checkoutTime}}</text></view>
+      <view class="info-row"><text class="k">作业时长：</text><text>{{view.duration}}</text></view>
+      <view class="info-row"><text class="k">检查项：</text><text>{{view.itemTotal}} 项 · 现场照片 {{view.photoCount}} 张</text></view>
+    </view>
+
+    <view wx:if="{{confirmed}}" class="em-card">
+      <view class="confirmed">✓ 该维保记录已确认归档</view>
+      <image wx:if="{{view.signatureUrl}}" class="sig-img" src="{{view.signatureUrl}}" mode="aspectFit" />
+    </view>
+
+    <block wx:else>
+      <view class="em-card">
+        <view class="section-title">满意度评价</view>
+        <view class="stars">
+          <view
+            wx:for="{{[1,2,3,4,5]}}"
+            wx:key="*this"
+            class="star {{satisfaction >= item ? 'star-active' : ''}}"
+            data-value="{{item}}"
+            bindtap="onSatisfaction"
+          >★</view>
+        </view>
+      </view>
+
+      <view class="em-card">
+        <view class="section-title">安全管理员签名</view>
+        <canvas
+          id="sign-canvas"
+          class="sign-canvas"
+          type="2d"
+          disable-scroll="{{true}}"
+          bindtouchstart="onTouchStart"
+          bindtouchmove="onTouchMove"
+        ></canvas>
+        <view class="sign-actions">
+          <button size="mini" bindtap="onClear">清除</button>
+          <view class="share-tip em-text-secondary">也可点右上角 ··· 转发给安全管理员远程签字</view>
+        </view>
+      </view>
+
+      <view class="em-card">
+        <button class="em-btn-primary" disabled="{{submitting}}" bindtap="onSubmit">
+          {{submitting ? '提交中...' : '确认归档'}}
+        </button>
+      </view>
+    </block>
+  </block>
+</view>

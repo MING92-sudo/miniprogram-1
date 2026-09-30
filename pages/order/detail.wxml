@@ -86,6 +86,10 @@
         <view class="em-text-secondary rec-confirm" wx:if="{{order.recordInfo.confirmStatus}}">
           使用单位确认：{{order.recordInfo.confirmStatus === 'CONFIRMED' ? '已确认' : '待确认'}}{{order.recordInfo.satisfaction != null ? ' · 满意度 ' + order.recordInfo.satisfaction + ' 分' : ''}}
         </view>
+        <view wx:if="{{order.recordInfo.confirmStatus !== 'CONFIRMED'}}" class="rec-actions">
+          <button size="mini" class="em-btn-primary" bindtap="goSignConfirm">安全管理员签字确认</button>
+          <view class="em-text-secondary rec-share-tip">可本机代签，或分享链接给安全管理员远程签字</view>
+        </view>
       </view>
     </block>
   </block>

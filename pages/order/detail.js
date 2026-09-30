@@ -90,6 +90,14 @@ Page({
     wx.navigateTo({ url: `/pages/order/checkin?orderId=${this.data.order.id}` })
   },
 
+  // 安全管理员签字确认页（本机代签或微信分享远程签字）
+  goSignConfirm() {
+    const info = this.data.order.recordInfo || {}
+    wx.navigateTo({
+      url: `/pages/unit/sign?rid=${info.id}&token=${info.shareToken}`
+    })
+  },
+
   goChecklist() {
     wx.navigateTo({ url: `/pages/order/checklist?orderId=${this.data.order.id}` })
   },

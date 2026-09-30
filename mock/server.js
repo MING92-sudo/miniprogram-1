@@ -181,7 +181,10 @@ const routes = [
       workOrderId: o.id,
       duration: r.duration,
       originalRecordId: r.originalRecordId,
-      reportStatus: r.reportStatus
+      reportStatus: r.reportStatus,
+      // 签名确认链接参数（用户需求：完成后生成链接，安全管理员远程签字或本机代签）
+      recordId: r.id,
+      shareToken: r.shareToken
     }
   }],
 
@@ -252,6 +255,45 @@ const routes = [
     r.satisfaction = body.satisfaction || 0
     r.signatureFileId = body.signatureFileId || ''
     r.signatureUrl = body.signatureUrl || '' // mock 演示回显
+    return { ok: true }
+  }],
+  // 签名链接确认（用户需求：无需登录，凭一次性令牌远程签字或本机代签）
+  ['GET', '/unit/records/:id/sign-view', ({ params, query }) => {
+    const r = findOr404(d.db.unitRecords, params.id, '维保记录')
+    if (!query.token || query.token !== r.shareToken) {
+      throw { code: 401, message: '确认链接无效或已失效' }
+    }
+    return {
+      confirmed: r.confirmStatus === 'CONFIRMED',
+      elevatorName: r.elevatorName || '',
+      elevatorCode: r.elevatorCode || '',
+      workType: r.workType || '',
+      workerName: r.workerName || '',
+      assistantName: r.assistantName || '',
+      checkinTime: r.checkinTime || '',
+      checkoutTime: r.checkoutTime || '',
+      duration: r.duration || '',
+      itemTotal: (r.items || []).length,
+      photoCount: (r.photos || []).length,
+      satisfaction: r.satisfaction,
+      signatureUrl: r.signatureUrl || ''
+    }
+  }],
+  ['POST', '/unit/records/:id/confirm-by-token', ({ params, query, body }) => {
+    const r = findOr404(d.db.unitRecords, params.id, '维保记录')
+    if (!query.token || query.token !== r.shareToken) {
+      throw { code: 401, message: '确认链接无效或已失效' }
+    }
+    if (r.confirmStatus === 'CONFIRMED') {
+      return { ok: true, already: true }
+    }
+    if (!body.signatureUrl && !body.signatureFileId) {
+      throw { code: 422, message: '请先完成签名' }
+    }
+    r.confirmStatus = 'CONFIRMED'
+    r.satisfaction = Number(body.satisfaction) || 0
+    r.signatureFileId = body.signatureFileId || ''
+    r.signatureUrl = body.signatureUrl || ''
     return { ok: true }
   }],
 

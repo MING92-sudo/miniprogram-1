@@ -24,9 +24,7 @@
     "pages/compliance/drill",
     "pages/mine/offline",
     "pages/knowledge/index",
-    "pages/unit/pending",
-    "pages/unit/record",
-    "pages/unit/confirm",
+    "pages/unit/sign",
     "pages/login/index"
   ],
   "window": {
