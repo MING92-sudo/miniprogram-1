@@ -344,7 +344,13 @@ function mockRequest(options) {
   const raw = String(options.url || '')
   const qIdx = raw.indexOf('?')
   const path = qIdx > -1 ? raw.slice(0, qIdx) : raw
-  const query = parseQuery(qIdx > -1 ? raw.slice(qIdx + 1) : '')
+  // 修复：GET 的筛选参数在 options.data（wx.request 约定），必须与 URL 查询串合并，
+  // 否则 status/due/keyword 等永远到不了 listOrders（BUG：状态筛选不过滤）
+  const query = Object.assign(
+    {},
+    (options.data && typeof options.data === 'object') ? options.data : {},
+    parseQuery(qIdx > -1 ? raw.slice(qIdx + 1) : '')
+  )
 
   return new Promise((resolve, reject) => {
     // 模拟 150ms 网络延迟，便于观察 loading 态
