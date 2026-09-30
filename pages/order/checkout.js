@@ -115,17 +115,30 @@ Page({
       })
     }
     this.setData({ submitting: true })
-    let sigFileId = ''
+    const signatureUploads = []
+    const uploadedFields = {}
+    if (this.data.signature) {
+      signatureUploads.push({ field: 'signatureFileId', path: this.data.signature })
+    }
+    if (this.data.assistantSignature) {
+      signatureUploads.push({ field: 'assistantSignatureFileId', path: this.data.assistantSignature })
+    }
+    const signatureData = {
+      signatureUrl: this.data.signature, // mock 演示回显；真实后端忽略
+      assistantSignatureUrl: this.data.assistantSignature || '',
+      collectedAt: formatTime()
+    }
     try {
-      const sig = await uploadImage(this.data.signature)
-      sigFileId = sig.fileId
+      for (const upload of signatureUploads) {
+        if (!uploadedFields[upload.field]) {
+          const r = await uploadImage(upload.path)
+          uploadedFields[upload.field] = r.fileId
+        }
+      }
       // 响应：{ duration, originalRecordId, reportStatus, recordId, shareToken }（docs/04 A.2）
       const resp = await checkout(this.data.orderId, {
-        signatureFileId: sigFileId,
-        signatureUrl: this.data.signature, // mock 演示回显；真实后端忽略
-        assistantSignatureFileId: this.data.assistantSignature || '',
-        assistantSignatureUrl: this.data.assistantSignature || '',
-        collectedAt: formatTime()
+        ...signatureData,
+        ...uploadedFields
       })
       // 签退成功 → 进入签名确认页（安全管理员本机代签，或分享链接远程签字）
       wx.showToast({ title: '签退成功', icon: 'success' })
@@ -134,16 +147,20 @@ Page({
         wx.redirectTo({ url: `/pages/unit/sign?rid=${resp.recordId}&token=${resp.shareToken}` })
       }, 800)
     } catch (e) {
-      if (e && e.code === -1 && sigFileId) {
-        // 签名已上传但签退请求因网络失败：入离线队列，网络恢复后自动补传
+      if (e && e.code === -1) {
+        // 签名已上传的部分写入 data；未上传部分交由离线队列按字段断点续传。
+        const data = { ...signatureData }
+        Object.keys(uploadedFields).forEach((field) => {
+          data[field] = uploadedFields[field]
+        })
+        const remainingUploads = signatureUploads
+          .filter((upload) => !uploadedFields[upload.field])
+          .map((upload) => ({ ...upload }))
         offline.enqueue({
           url: `/work-orders/${this.data.orderId}/checkout`,
           method: 'POST',
-          data: {
-            signatureFileId: sigFileId,
-            signatureUrl: this.data.signature,
-            collectedAt: formatTime()
-          },
+          data,
+          uploads: remainingUploads,
           desc: '签退提交'
         })
         wx.showToast({ title: '网络异常，签退已存入离线补传', icon: 'none' })

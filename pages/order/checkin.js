@@ -1,5 +1,5 @@
 // 签到流程：定位 → 水印自拍 → 提交
-// 错误码约定：1001 定位超阈（申诉）、1003 工单锁定、1006/1007 排班拦截
+// 错误码约定：1001 定位超阈（申诉）、1003 工单锁定；1006/1007 为配置类拦截（docs/04 A.0）
 const { checkin, getOrderDetail } = require('../../services/order')
 const { uploadImage } = require('../../services/upload')
 const { reverseGeocode } = require('../../services/location')

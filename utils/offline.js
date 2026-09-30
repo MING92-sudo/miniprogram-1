@@ -46,7 +46,8 @@ function clearOrderCache(orderId) {
 
 // ── 待补传队列 ────────────────────────────────
 
-// task: { url, method, data, desc, photoPaths? }；重放时自动携带幂等键
+// task: { url, method, data, desc, photoPaths?, uploads? }；重放时自动携带幂等键
+// uploads: [{ field, path, fileId? }]，用于签名等单文件字段先补传再回填业务 data。
 // 同一 url+method 重复入队时替换旧任务（后提交者为准），保证队列级幂等
 function enqueue(task) {
   const queue = wx.getStorageSync(QUEUE_KEY) || []
@@ -67,6 +68,8 @@ async function flushQueue() {
   const queue = getQueue()
   let success = 0
   const failed = []
+  // 统一持久化，避免某一步只写“当前任务 + 后续任务”时丢掉本轮已经失败的前置任务。
+  const persist = (nextQueue) => wx.setStorageSync(QUEUE_KEY, nextQueue)
   for (let idx = 0; idx < queue.length; idx++) {
     const task = queue[idx]
     try {
@@ -80,16 +83,24 @@ async function flushQueue() {
           fileIds.push(r.fileId)
           task.uploadedFileIds = fileIds.slice()
           // 每成功一张即持久化断点（含本任务剩余照片 + 其后未处理任务）
-          wx.setStorageSync(QUEUE_KEY, failed.concat(queue.slice(idx)))
-        }
-        if (fileIds.length < task.photoPaths.length) {
-          failed.push(task) // 照片未传完：整条留队，下次从断点继续
-          wx.setStorageSync(QUEUE_KEY, failed.concat(queue.slice(idx + 1)))
-          continue
+          persist(failed.concat([task], queue.slice(idx + 1)))
         }
         task.data.photoFileIds = fileIds
         task.photoPaths = undefined
         task.uploadedFileIds = undefined
+      }
+
+      // 签名等单文件上传字段：已上传的 fileId 持久化在 upload.fileId，断点续传时不再重传。
+      const uploads = Array.isArray(task.uploads) ? task.uploads : []
+      for (let uIdx = 0; uIdx < uploads.length; uIdx++) {
+        const upload = uploads[uIdx]
+        if (!upload.fileId) {
+          const r = await uploadImage(upload.path)
+          upload.fileId = r.fileId
+          // 每成功一个字段即持久化，避免应用被杀后重复上传。
+          persist(failed.concat([task], queue.slice(idx + 1)))
+        }
+        task.data[upload.field] = upload.fileId
       }
       await request({
         url: task.url,
@@ -100,14 +111,14 @@ async function flushQueue() {
       })
       success++
       // 本条完成即持久化移除（避免应用被杀后整批重复重放）
-      wx.setStorageSync(QUEUE_KEY, failed.concat(queue.slice(idx + 1)))
+      persist(failed.concat(queue.slice(idx + 1)))
     } catch (e) {
       failed.push(task)
-      // 失败任务保留：持久化"失败任务 + 其后未处理任务"
-      wx.setStorageSync(QUEUE_KEY, failed.concat(queue.slice(idx + 1)))
+      // 失败任务保留：持久化"前置失败任务 + 当前任务 + 其后未处理任务"
+      persist(failed.concat(queue.slice(idx)))
     }
   }
-  wx.setStorageSync(QUEUE_KEY, failed)
+  persist(failed)
   return { success, fail: failed.length }
 }
 
