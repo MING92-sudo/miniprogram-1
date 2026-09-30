@@ -16,6 +16,44 @@
   margin-bottom: 16rpx;
 }
 
+.location-fail {
+  color: var(--em-danger, #e34d59);
+  margin-bottom: 16rpx;
+}
+
+.role-row {
+  display: flex;
+  gap: 16rpx;
+}
+
+.role-item {
+  flex: 1;
+  text-align: center;
+  padding: 16rpx 0;
+  border-radius: var(--em-radius);
+  background: var(--em-bg-page);
+  color: var(--em-text-secondary);
+  border: 2rpx solid transparent;
+}
+
+.role-active {
+  color: var(--em-brand);
+  background: rgba(0, 82, 217, 0.06);
+  border-color: var(--em-brand);
+  font-weight: 600;
+}
+
+.code-wrap {
+  margin-top: 20rpx;
+}
+
+.code-input {
+  border: 2rpx solid var(--em-border, #e5e6eb);
+  border-radius: var(--em-radius);
+  padding: 16rpx 24rpx;
+  margin-bottom: 12rpx;
+}
+
 .step-action {
   margin-top: 16rpx;
 }

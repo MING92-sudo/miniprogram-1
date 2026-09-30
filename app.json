@@ -14,6 +14,7 @@
     "pages/common/signature",
     "pages/rescue/create",
     "pages/rescue/list",
+    "pages/rescue/detail",
     "pages/fault/report",
     "pages/fault/detail",
     "pages/fault/list",

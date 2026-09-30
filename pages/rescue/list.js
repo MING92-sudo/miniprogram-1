@@ -37,5 +37,9 @@ Page({
 
   goCreate() {
     wx.navigateTo({ url: '/pages/rescue/create' })
+  },
+
+  goDetail(e) {
+    wx.navigateTo({ url: `/pages/rescue/detail?id=${e.currentTarget.dataset.id}` })
   }
 })

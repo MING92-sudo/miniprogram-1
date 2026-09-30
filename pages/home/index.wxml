@@ -8,7 +8,7 @@
     <view class="scan-title">现场作业</view>
     <view class="em-text-secondary">扫描电梯二维码，开始维保签到</view>
     <button class="em-btn-primary scan-btn" bindtap="onScanTap">扫一扫</button>
-    <view class="mock-scan em-text-secondary" bindtap="onMockScan">演示：模拟扫码（世纪大厦 1#）</view>
+    <view wx:if="{{useMock}}" class="mock-scan em-text-secondary" bindtap="onMockScan">演示：模拟扫码（世纪大厦 1#）</view>
   </view>
 
   <view class="stats-row">

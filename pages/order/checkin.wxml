@@ -3,12 +3,38 @@
     <view class="step-no">STEP 1</view>
     <view class="step-title">到场定位</view>
     <view wx:if="{{location}}" class="location-ok">{{locationText}}</view>
+    <view wx:elif="{{locateFailed}}" class="location-fail">{{locationText}}</view>
     <view wx:else class="em-text-secondary">{{locationText || '定位获取中...'}}</view>
     <view class="step-action"><button size="mini" bindtap="getLocation">重新定位</button></view>
   </view>
 
   <view class="em-card">
     <view class="step-no">STEP 2</view>
+    <view class="step-title">签到身份</view>
+    <view class="role-row">
+      <view
+        wx:for="{{roles}}"
+        wx:key="value"
+        class="role-item {{role === item.value ? 'role-active' : ''}}"
+        data-value="{{item.value}}"
+        bindtap="onRoleChange"
+      >{{item.label}}</view>
+    </view>
+    <view wx:if="{{role === 'ASSISTANT'}}" class="code-wrap">
+      <input
+        class="code-input"
+        type="number"
+        maxlength="6"
+        placeholder="请输入主维保的 6 位动态码"
+        value="{{dynamicCode}}"
+        bindinput="onCodeInput"
+      />
+      <view class="em-text-secondary">双人作业：配合人员须携带主维保生成的动态码（60 秒有效）</view>
+    </view>
+  </view>
+
+  <view class="em-card">
+    <view class="step-no">STEP 3</view>
     <view class="step-title">水印自拍</view>
     <view wx:if="{{photo}}" class="photo-wrap">
       <image class="photo-preview" src="{{photo}}" mode="aspectFill" bindtap="goCamera" />

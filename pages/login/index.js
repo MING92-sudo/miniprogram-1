@@ -2,9 +2,12 @@
 // 微信授权登录（wx.login code + 手机号授权）+ 绑定流程
 const auth = require('../../services/auth')
 const { isLoggedIn } = require('../../utils/auth')
+const config = require('../../config/index')
 
 Page({
   data: {
+    // 演示账号仅 mock 模式渲染；真实后端走微信授权登录（docs/08 P1）
+    useMock: config.useMock,
     // 演示账号（mock/data.js employees 同源）
     demoAccounts: [
       { role: 'WORKER', name: '张伟', title: '维保人员', desc: '扫码签到 · 作业清单 · 签退上报' },

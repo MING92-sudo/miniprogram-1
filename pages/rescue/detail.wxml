@@ -1,0 +1,24 @@
+<view class="em-page">
+  <view wx:if="{{loading}}" class="em-card em-text-secondary">加载中...</view>
+
+  <block wx:if="{{record}}">
+    <view class="em-card">
+      <view class="head-row">
+        <view class="rescue-title">{{record.elevatorCode || '救援记录'}}</view>
+        <view class="tag tag-{{record.status === '已解除' ? 'DONE' : 'PROCESSING'}}">{{record.status}}</view>
+      </view>
+    </view>
+
+    <view class="em-card">
+      <view class="section-title">救援信息</view>
+      <view class="info-row"><text>被困人数</text><text>{{record.trappedCount || 0}} 人</text></view>
+      <view class="info-row"><text>登记时间</text><text>{{record.createdAt || '-'}}</text></view>
+      <view class="info-row"><text>状态</text><text>{{record.status || '-'}}</text></view>
+    </view>
+
+    <view class="em-card" wx:if="{{record.desc}}">
+      <view class="section-title">情况描述</view>
+      <view class="em-text-secondary">{{record.desc}}</view>
+    </view>
+  </block>
+</view>

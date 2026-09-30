@@ -1,4 +1,5 @@
 // 工单台（首页）：今日任务概览 + 扫码签到大按钮
+const config = require('../../config/index')
 const { getOrderList, resolveByElevatorCode } = require('../../services/order')
 const { STATUS_TEXT } = require('../../constants/index')
 const { ensureLogin } = require('../../utils/guard')
@@ -6,6 +7,8 @@ const { refreshUnreadBadge } = require('../../utils/badge')
 
 Page({
   data: {
+    // 演示扫码入口仅 mock 模式渲染（docs/08 P1：生产不出现演示残留）
+    useMock: config.useMock,
     userInfo: null,
     roleText: '',
     todayTasks: [],

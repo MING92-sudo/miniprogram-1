@@ -209,6 +209,8 @@ Page({
       url: `/work-orders/${orderId}/checklist/${itemId}`,
       method: 'POST',
       data: payload,
+      // 本地照片路径随任务入队，补传时先上传文件再回填 photoFileIds（docs/08 P1）
+      photoPaths: this.data.photos.slice(),
       desc: item.name || '检查项填写'
     })
   }

@@ -3,6 +3,7 @@
 // - offline_queue：待补传请求队列，网络恢复时自动逐条重放（复用任务 id 作幂等键）
 const { request } = require('./request')
 const { uuid } = require('./util')
+const { uploadImage } = require('../services/upload')
 
 const QUEUE_KEY = 'offline_queue'
 const ORDER_CACHE_PREFIX = 'em_order_'
@@ -45,10 +46,14 @@ function clearOrderCache(orderId) {
 
 // ── 待补传队列 ────────────────────────────────
 
-// task: { url, method, data, desc }；重放时自动携带幂等键
+// task: { url, method, data, desc, photoPaths? }；重放时自动携带幂等键
+// 同一 url+method 重复入队时替换旧任务（后提交者为准），保证队列级幂等
 function enqueue(task) {
   const queue = wx.getStorageSync(QUEUE_KEY) || []
-  queue.push(Object.assign({ id: uuid(), method: 'POST', createdAt: Date.now() }, task))
+  const taskFull = Object.assign({ id: uuid(), method: 'POST', createdAt: Date.now() }, task)
+  const idx = queue.findIndex((t) => t.url === taskFull.url && t.method === taskFull.method)
+  if (idx > -1) queue[idx] = taskFull
+  else queue.push(taskFull)
   wx.setStorageSync(QUEUE_KEY, queue)
   return queue.length
 }
@@ -64,6 +69,16 @@ async function flushQueue() {
   const failed = []
   for (const task of queue) {
     try {
+      // 离线期间拍摄的照片：补传时先补传图片文件，再把 fileId 填回业务数据
+      if (Array.isArray(task.photoPaths) && task.photoPaths.length > 0) {
+        const fileIds = []
+        for (const p of task.photoPaths) {
+          const r = await uploadImage(p)
+          fileIds.push(r.fileId)
+        }
+        task.data.photoFileIds = fileIds
+        task.photoPaths = undefined
+      }
       await request({
         url: task.url,
         method: task.method,
