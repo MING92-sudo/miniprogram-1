@@ -10,7 +10,12 @@ public class AppProperties {
 
     private String jwtSecret;
     private int jwtExpireHours = 72;
-    private String devOpenid = "dev_openid";
+    /**
+     * 微信小程序凭证：code 换 openid（jscode2session）用，只允许环境变量注入（AGENTS §2.1）。
+     * 生产必须配置，否则 /auth/bind-wechat、/auth/wx-login 直接报错。
+     */
+    private String wxAppid;
+    private String wxAppsecret;
     private boolean seedDemoData = true;
     /** 作业时长下限（分钟，签到→签退）；默认 30，测试可临时调小（APP_WORK_DURATION_MINUTES） */
     private int workDurationMinutes = 30;
@@ -50,12 +55,25 @@ public class AppProperties {
         this.jwtExpireHours = jwtExpireHours;
     }
 
-    public String getDevOpenid() {
-        return devOpenid;
+    public String getWxAppid() {
+        return wxAppid;
     }
 
-    public void setDevOpenid(String devOpenid) {
-        this.devOpenid = devOpenid;
+    public void setWxAppid(String wxAppid) {
+        this.wxAppid = wxAppid;
+    }
+
+    public String getWxAppsecret() {
+        return wxAppsecret;
+    }
+
+    public void setWxAppsecret(String wxAppsecret) {
+        this.wxAppsecret = wxAppsecret;
+    }
+
+    /** jscode2session 是否可用（AppID + AppSecret 均已注入） */
+    public boolean wxConfigured() {
+        return wxAppid != null && !wxAppid.isEmpty() && wxAppsecret != null && !wxAppsecret.isEmpty();
     }
 
     public boolean isSeedDemoData() {

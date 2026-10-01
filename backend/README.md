@@ -11,7 +11,8 @@ P3（V1.8）：签退后自动转发 2.6（失败不自动重试）+ `reg_upload
 
 | 组件 | 状态 |
 |---|---|
-| 认证（/auth/*，JWT + BCrypt + 云托管免鉴权 openid） | ✅ |
+| 认证（/auth/*，JWT + BCrypt + code→jscode2session 真实 openid） | ✅ |
+| 微信绑定防串号（openid 唯一约束 + 存量串号清理 V6 迁移） | ✅ |
 | 平台 token 中控（GET 登录 / TTL=expires_in−60s / 401 重登重试 1 次） | ✅ |
 | 2.2/2.7 只读转发（POST 表单，code 兼容数字/字符串） | ✅（`POST /platform/sync` 触发落库） |
 | 2.6 上报（签退自动转发 / FAILED 手动重报 / `reg_upload_log` 脱敏日志） | ✅ |
@@ -55,6 +56,7 @@ DB_PASSWORD=xxx
 | `REG_LEGACY_UPLOAD_ENABLED` | 2.8 存量推送开关，默认 false（平台关闭存量接口后置 false） |
 | `DB_HOST/DB_PORT/DB_NAME/DB_USER/DB_PASSWORD` | MySQL 连接 |
 | `JWT_SECRET` | 自建 JWT 签名密钥（生产必须强随机） |
+| `WX_APPID` / `WX_APPSECRET` | 微信小程序凭证（**生产必填**）：`/auth/bind-wechat`、`/auth/wx-login` 用 `wx.login` 的 code 调 `jscode2session` 换真实 openid。openid 无其他来源（`DEV_OPENID` / `X-WX-OPENID` 兜底已按 P0 修复移除） |
 | `COS_REGION/COS_BUCKET` | 对象存储桶名/地域（application.yml 已带云托管托管桶默认值，不配则本地磁盘回退） |
 | `COS_AUTH_URL` | 云托管内网临时凭证接口（托管桶自动使用，默认 `/_/cos/getauth`，无需密钥） |
 | `COS_SECRET_ID/COS_SECRET_KEY` | 仅自建 COS 桶（本地联调）需要；云托管托管桶无静态密钥 |
@@ -64,12 +66,12 @@ DB_PASSWORD=xxx
 ## 测试
 
 ```bash
-mvn test   # token 中控 / 401 重试 / 表单编码 / 派单 6 台同日一次性 09:00 / 检查项模板 / 2.6 上报与重报 / 2.8 开关 / PDF 导出
+mvn test   # token 中控 / 401 重试 / 表单编码 / 派单 6 台同日一次性 09:00 / 检查项模板 / 2.6 上报与重报 / 2.8 开关 / PDF 导出 / 微信 code→openid 与绑定防串号
 ```
 
 ## 微信云托管部署
 
 1. 流水线构建目录 `backend/`，监听端口 80（`SERVER_PORT=80`）；
-2. 开启「小程序免鉴权调用」，请求头自动携带 `X-WX-OPENID`；
+2. 「小程序免鉴权调用」可开可不开：openid 主路径是 `WX_APPID`/`WX_APPSECRET` 的 jscode2session，方案 A 直连域名同样可用（`X-WX-OPENID` 已不再被后端信任/读取）；
 3. 上表环境变量在「服务设置 → 环境变量」配置；
 4. MySQL 使用云托管数据库（版本 8.0，utf8mb4）。

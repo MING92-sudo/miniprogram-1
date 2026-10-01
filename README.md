@@ -17,7 +17,8 @@
 - **技术栈**：原生小程序 + 自建分层（`services/` 业务接口、`utils/` 请求/鉴权/离线队列、`mock/` 本地数据、`constants/` 枚举与错误码），UI 组件为自定义样式（未引用第三方组件库）。
 - **页面（27 个）**：工单台/工单列表/详情/签到/动态码/作业清单/检查项/签退、水印相机、签名板、困人救援（登记/列表/详情）、故障（上报/详情/列表）、合规台账（自行检查/演练）、电梯档案（列表/详情）、知识库、消息中心、我的/离线队列、使用单位签字确认、登录页。
 - **Mock 开关**：`config/index.js` 中 `useMock: true` 为前端独立演示模式（无需后端）；联调时改 `false` 并把 `apiBaseUrl` 指向自建后端，`services/` 层接口签名不变。
-- **登录方式**：账号密码登录（账号=维保单位分配的手机号）+ 登录后绑定微信；演示账号见 `mock/data.js`（密码统一 `123456`）。
+- **开发者工具工程范围**：微信开发者工具的项目根是仓库根，`project.config.json` 的 `packOptions.ignore` 已排除 `admin/`、`backend/`、`docs/`、`scripts/` 与 `.env*`。管理端每次 `npm run build` 都会改写 `admin/dist/assets/index-<hash>.js`，工具若仍索引到已删除的旧 hash，会报 `ENOENT ... admin/dist/assets/index-*.js`（不影响小程序本身）；此时执行「工具 → 清除缓存 → 清除全部缓存」后重新编译即可。
+- **登录方式**：账号密码登录（账号=维保单位分配的手机号）+ 登录后绑定微信；微信侧 openid 由后端用 `wx.login` 的 code 调 `jscode2session` 换取（`WX_APPID`/`WX_APPSECRET`，doc/04 A.1），不再依赖 `X-WX-OPENID`；演示账号见 `mock/data.js`（密码统一 `123456`）。
 - **离线能力**：`utils/offline.js` 持久化队列 + `app.js` 网络恢复自动补传。
 
 ## 自建后端（backend/）
@@ -42,12 +43,13 @@ mvn spring-boot:run        # 默认 8080；容器内由 Dockerfile 设 SERVER_PO
 ## 凭证与安全
 
 - `REG_*` 平台凭证一律配置在 `.env`（本地）/ 云托管「服务设置 → 环境变量」，**严禁入库**；`.env.example` 为模板。
+- 微信小程序 `WX_APPID`/`WX_APPSECRET` 同样只进环境变量：`/auth/bind-wechat`、`/auth/wx-login` 用它把 code 换成真实 openid，这是 openid 的**唯一来源**（`DEV_OPENID` 配置与 `X-WX-OPENID` 请求头兜底已按 P0 修复移除——前者导致全员同一 openid 串号，后者在方案 A 下可伪造）。
 - LBS 逆地址解析 key 同样不入库（`config/index.js` 中留空，调试时经 storage 注入）。
 
 ## 云托管部署
 
 - 代码仓库流水线以**根目录 Dockerfile** 构建（内部转 `backend/` 多阶段构建），容器监听端口 80；
-- 部署后小程序经 `wx.cloud.callContainer` 调用，无需配 request 合法域名。
+- 部署后小程序可用 `wx.request` 直连自定义域名（需在公众平台配置 request 合法域名），或用 `wx.cloud.callContainer` 免鉴权调用（无需配合法域名）；两种方式都通过 `/auth/bind-wechat`、`/auth/wx-login` 的 code → jscode2session 完成微信登录绑定（`X-WX-OPENID` 头不再被后端信任；「小程序免鉴权调用」可开可不开）。
 - 对象存储：后端默认使用云托管托管桶（桶名/地域非凭证，已写入 `backend/src/main/resources/application.yml` 默认值），凭证走云托管内网临时接口 `/_/cos/getauth`，**无需在环境变量配置任何 COS 密钥**；仅自建 COS 桶本地联调时才注入 `COS_SECRET_ID/COS_SECRET_KEY`。
 
 ## Web 管理端（admin/，docs/09 一期）

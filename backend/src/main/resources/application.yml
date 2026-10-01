@@ -54,8 +54,11 @@ app:
   # 默认值仅保证容器能启动（jjwt 要求 ≥32 字节）；生产必须注入强随机 JWT_SECRET/APP_JWT_SECRET
   jwt-secret: ${JWT_SECRET:${APP_JWT_SECRET:dev-only-secret-change-me-32bytes-minimum-0123456789}}
   jwt-expire-hours: ${JWT_EXPIRE_HOURS:72}
-  # 云托管免鉴权注入 X-WX-OPENID；本地开发无该头时用 dev_openid 兜底
-  dev-openid: ${DEV_OPENID:dev_openid}
+  # 云托管免鉴权注入 X-WX-OPENID：P0 修复后已不再使用（该头可被方案 A 直连域名伪造，
+  # openid 一律由 code 走 jscode2session 换取，见 docs/04 A.1）
+  # 微信小程序凭证（jscode2session 用，生产必填；AppSecret 严禁入库，AGENTS §2.1）
+  wx-appid: ${WX_APPID:}
+  wx-appsecret: ${WX_APPSECRET:}
   # 演示种子数据（生产置 false）
   seed-demo-data: ${SEED_DEMO_DATA:${DB_SEED_DEMO:true}}
   # 作业时长下限（分钟，签到→签退；业主补充规则，上线前待业务/合规确认）。测试跑通签退流程可临时置 0/1。
