@@ -38,7 +38,15 @@ class EvidenceTokenServiceTest {
         IdempotencyKeyMapper keyMapper = Mockito.mock(IdempotencyKeyMapper.class);
         Mockito.when(keyMapper.selectById(Mockito.anyString())).thenAnswer(inv -> {
             String k = inv.getArgument(0);
-            return occupied.contains(k) ? new IdempotencyKey() : null;
+            if (!occupied.contains(k)) {
+                return null;
+            }
+            // 已占用的行：createdAt 为刚才占用时刻（真实库由 begin() 写入），
+            // 不能留空——留空会被 IdempotencyService 视为遗留行而回收
+            IdempotencyKey row = new IdempotencyKey();
+            row.idemKey = k;
+            row.createdAt = com.cqwlw.maintenance.util.TimeUtil.now();
+            return row;
         });
         Mockito.when(keyMapper.insert(Mockito.any(IdempotencyKey.class))).thenAnswer(inv -> {
             occupied.add(((IdempotencyKey) inv.getArgument(0)).idemKey);
