@@ -12,6 +12,8 @@ public class AppProperties {
     private int jwtExpireHours = 72;
     private String devOpenid = "dev_openid";
     private boolean seedDemoData = true;
+    /** 作业时长下限（分钟，签到→签退）；默认 30，测试可临时调小（APP_WORK_DURATION_MINUTES） */
+    private int workDurationMinutes = 30;
     private String cosSecretId;
     private String cosSecretKey;
     private String cosRegion;
@@ -62,6 +64,14 @@ public class AppProperties {
 
     public void setSeedDemoData(boolean seedDemoData) {
         this.seedDemoData = seedDemoData;
+    }
+
+    public int getWorkDurationMinutes() {
+        return workDurationMinutes;
+    }
+
+    public void setWorkDurationMinutes(int workDurationMinutes) {
+        this.workDurationMinutes = workDurationMinutes;
     }
 
     public String getCosSecretId() {

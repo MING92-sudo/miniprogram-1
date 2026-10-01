@@ -40,8 +40,8 @@ import java.util.stream.Collectors;
 @Service
 public class WorkOrderService {
 
-    /** 业务规则：签到—签退间隔不少于 30 分钟（constants MIN_WORK_DURATION_MINUTES 口径） */
-    private static final int MIN_WORK_DURATION_MINUTES = 30;
+    /** 业务规则：签到—签退间隔不少于 N 分钟（app.work-duration-minutes 默认 30，业主补充规则，上线前待确认） */
+    private static final int DEFAULT_MIN_WORK_DURATION_MINUTES = 30;
     private static final Map<String, Integer> WORK_TYPE_INTERVAL_DAYS =
             Map.of("FM", 30, "HM", 15, "TM", 90, "SM", 180, "OY", 365);
     /** 演示约定：双人动态码固定 888888（与 mock 行为一致） */
@@ -58,13 +58,15 @@ public class WorkOrderService {
     private final ChecklistService checklistService;
     private final DispatchService dispatchService;
     private final PlatformReportService reportService;
+    private final com.cqwlw.maintenance.config.AppProperties props;
 
     public WorkOrderService(WorkOrderMapper orderMapper, ElevatorMapper elevatorMapper,
                             UseUnitMapper useUnitMapper, EmployeeMapper employeeMapper,
                             CompanyMapper companyMapper, MaintainRecordMapper recordMapper,
                             FaultMapper faultMapper, InspectRecordMapper inspectMapper,
                             ChecklistService checklistService, DispatchService dispatchService,
-                            PlatformReportService reportService) {
+                            PlatformReportService reportService,
+                            com.cqwlw.maintenance.config.AppProperties props) {
         this.orderMapper = orderMapper;
         this.elevatorMapper = elevatorMapper;
         this.useUnitMapper = useUnitMapper;
@@ -76,6 +78,12 @@ public class WorkOrderService {
         this.checklistService = checklistService;
         this.dispatchService = dispatchService;
         this.reportService = reportService;
+        this.props = props;
+    }
+
+    private int minWorkDurationMinutes() {
+        int v = props.getWorkDurationMinutes();
+        return v < 0 ? DEFAULT_MIN_WORK_DURATION_MINUTES : v;
     }
 
     // ── 首页汇总 ──
@@ -360,10 +368,11 @@ public class WorkOrderService {
                     + "」须至少附 1 张照片留证（TSG 注A-2），无法签退");
         }
         LocalDateTime checkoutTime = TimeUtil.now();
-        long minutes = o.checkinTime == null ? MIN_WORK_DURATION_MINUTES
+        int minMinutes = minWorkDurationMinutes();
+        long minutes = o.checkinTime == null ? minMinutes
                 : ChronoUnit.MINUTES.between(o.checkinTime, checkoutTime);
-        if (minutes < MIN_WORK_DURATION_MINUTES) {
-            throw new BizException(422, "作业时长不足 30 分钟（当前 " + minutes
+        if (minutes < minMinutes) {
+            throw new BizException(422, "作业时长不足 " + minMinutes + " 分钟（当前 " + minutes
                     + " 分钟），请继续作业后再签退");
         }
 

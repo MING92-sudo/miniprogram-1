@@ -2,7 +2,7 @@
 // 路径模板支持 :id 形式参数；handler 内 return 即业务成功，throw {code,message} 即业务失败
 const d = require('./data')
 const { formatTime, parseTime } = require('../utils/util')
-const { MIN_WORK_DURATION_MINUTES } = require('../constants/index')
+const config = require('../config/index')
 
 // 自动排期触发点：真实后端为定时任务扫描 plans 表到期记录；
 // mock 在进入工单台/扫码/消息中心时即时检查到期电梯并自动派单
@@ -168,12 +168,12 @@ const routes = [
     if (keyNoPhoto.length) {
       throw { code: 422, message: '关键项「' + keyNoPhoto[0].name + '」须至少附 1 张照片留证（TSG 注A-2），无法签退' }
     }
-    // 业务规则：签到—签退间隔不少于 30 分钟（业主补充规则，constants 可配）
+    // 业务规则：签到—签退间隔不少于 N 分钟（config.minWorkDurationMinutes，业主补充规则）
     const minutes = (Date.now() - parseTime(o.checkinTime)) / 60000
-    if (minutes < MIN_WORK_DURATION_MINUTES) {
+    if (minutes < config.minWorkDurationMinutes) {
       throw {
         code: 422,
-        message: '作业时长不足 30 分钟（当前 ' + Math.floor(minutes) + ' 分钟），请继续作业后再签退'
+        message: '作业时长不足 ' + config.minWorkDurationMinutes + ' 分钟（当前 ' + Math.floor(minutes) + ' 分钟），请继续作业后再签退'
       }
     }
     const r = d.markCheckout(o.id, body)

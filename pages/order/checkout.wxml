@@ -12,7 +12,7 @@
       <text class="{{durationOk ? 'elapsed-ok' : 'elapsed-warn'}}">{{elapsedText}}</text>
     </view>
     <view wx:if="{{!durationOk}}" class="em-text-secondary duration-tip">
-      签退要求签到与签退间隔不少于 30 分钟（24小时制计时），还需约 {{remainMinutes}} 分钟
+      签退要求签到与签退间隔不少于 {{minMinutes}} 分钟（24小时制计时），还需约 {{remainMinutes}} 分钟
     </view>
   </view>
 
@@ -46,7 +46,7 @@
 
   <view class="em-card">
     <button class="em-btn-primary" disabled="{{submitting || !durationOk}}" bindtap="onSubmit">
-      {{!durationOk ? '作业时长不足 30 分钟' : submitting ? '提交中...' : '提交签退'}}
+      {{!durationOk ? '作业时长不足 ' + minMinutes + ' 分钟' : submitting ? '提交中...' : '提交签退'}}
     </button>
     <view class="em-text-secondary submit-tip">提交后生成维保记录（含 2.6 上报快照），并上报监管平台</view>
   </view>

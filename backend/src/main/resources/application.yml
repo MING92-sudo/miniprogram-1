@@ -56,6 +56,8 @@ app:
   dev-openid: ${DEV_OPENID:dev_openid}
   # 演示种子数据（生产置 false）
   seed-demo-data: ${SEED_DEMO_DATA:${DB_SEED_DEMO:true}}
+  # 作业时长下限（分钟，签到→签退；业主补充规则，上线前待业务/合规确认）。测试跑通签退流程可临时置 0/1。
+  work-duration-minutes: ${APP_WORK_DURATION_MINUTES:30}
   # 文件存储：配置 COS_BUCKET/COS_REGION 即走 COS 代理上传，否则回退本地磁盘（仅开发用）。
   # 桶名/地域非凭证，可直接入库（微信云托管控制台-对象存储-存储配置）；
   # 云托管托管桶无静态密钥，走内网临时凭证 COS_AUTH_URL（/_/cos/getauth），

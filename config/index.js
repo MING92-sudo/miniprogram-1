@@ -18,7 +18,10 @@ const config = {
   apiBaseUrl: API_BASE_URL[ENV],
   requestTimeout: 15000, // 普通请求 15s（接口文档 A.0 约定）
   uploadTimeout: 120000, // 文件上传 120s
-  pageSize: 20 // 分页默认 size
+  pageSize: 20, // 分页默认 size
+  // 作业时长下限（分钟，签到→签退；docs/01 §3.6.4 业主补充规则，上线前待业务/合规确认）。
+  // ★ 测试跑通签退流程时临时调小/置 0；回归验收后务必恢复 30。
+  minWorkDurationMinutes: 30
 }
 
 module.exports = config

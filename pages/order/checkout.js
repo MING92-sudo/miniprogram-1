@@ -1,10 +1,10 @@
 // 签退自检：自检项确认 + 签名 + 提交
-// 业务规则：签到—签退间隔不少于 30 分钟（constants.MIN_WORK_DURATION_MINUTES，前后端双重校验）
+// 业务规则：签到—签退间隔不少于 N 分钟（config.minWorkDurationMinutes，前后端双重校验）
 // 提交后触发记录生成与监管平台上报（后端）
 const { getOrderDetail, checkout } = require('../../services/order')
 const { uploadImage } = require('../../services/upload')
 const { formatTime, formatDuration, parseTime } = require('../../utils/util')
-const { MIN_WORK_DURATION_MINUTES } = require('../../constants/index')
+const config = require('../../config/index')
 const offline = require('../../utils/offline')
 
 Page({
@@ -12,6 +12,7 @@ Page({
     orderId: '',
     elevatorName: '',
     checkinTime: '',
+    minMinutes: config.minWorkDurationMinutes, // 作业时长下限（分钟，测试可经 config 调小）
     elapsedText: '-:--:--', // 已作业时长（24小时制 HH:mm:ss）
     durationOk: false,
     remainMinutes: 0,
@@ -67,7 +68,7 @@ Page({
   updateElapsed() {
     if (!this.data.checkinTime) return
     const elapsed = Date.now() - parseTime(this.data.checkinTime)
-    const minMs = MIN_WORK_DURATION_MINUTES * 60000
+    const minMs = config.minWorkDurationMinutes * 60000
     const ok = elapsed >= minMs
     this.setData({
       elapsedText: formatDuration(elapsed),
@@ -110,7 +111,7 @@ Page({
     // 时长下限前端校验（后端 422 双保险）
     if (!this.data.durationOk) {
       return wx.showToast({
-        title: `作业时长不足 30 分钟，还需约 ${this.data.remainMinutes} 分钟`,
+        title: `作业时长不足 ${this.data.minMinutes} 分钟，还需约 ${this.data.remainMinutes} 分钟`,
         icon: 'none'
       })
     }
