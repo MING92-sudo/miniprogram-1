@@ -42,8 +42,9 @@ public class DispatchService {
         this.checklistService = checklistService;
     }
 
-    /** 每日 09:00 定时派单（scripts/verify-dispatch.js 验收口径） */
-    @Scheduled(cron = "0 0 9 * * ?")
+    /** 每日 09:00 定时派单（scripts/verify-dispatch.js 验收口径）；zone 必须显式指定，
+     *  否则容器（JVM 默认 UTC）会在北京时间 17:00 才触发，违反 AGENTS §5 V1.1 验收口径 */
+    @Scheduled(cron = "0 0 9 * * ?", zone = "Asia/Shanghai")
     public void scheduledDispatch() {
         int n = ensureDueOrders().size();
         log.info("定时派单完成: 新建 {} 单", n);
