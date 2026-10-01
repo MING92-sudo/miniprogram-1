@@ -138,7 +138,8 @@ public class PlatformSyncService {
                 if (p.get("useUnitEntityId") != null) {
                     el.useUnitEntityId = String.valueOf(p.get("useUnitEntityId"));
                 }
-                // 手机号脱敏值不覆盖本地真实号码（docs/04 B.7：以平台为准、手机号除外）
+                // 平台电话字段的脱敏行为不统一：实测返回明文完整号码（docs/07 §12.5），
+                // 明文可直接回填用于 2.6；仅当含 * 判定为脱敏时才保留本地号码、不覆盖
                 if (isUnmasked(str(p.get("elevatorAdministerPhone")))) {
                     el.elevatorAdministerPhone = str(p.get("elevatorAdministerPhone"));
                 }
