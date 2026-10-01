@@ -19,6 +19,8 @@ import DrillsView from '../views/DrillsView.vue'
 import RescuesView from '../views/RescuesView.vue'
 import FaultsView from '../views/FaultsView.vue'
 import StatsView from '../views/StatsView.vue'
+import ScheduleView from '../views/ScheduleView.vue'
+import TemplateManageView from '../views/TemplateManageView.vue'
 import ForbiddenView from '../views/ForbiddenView.vue'
 import NotFoundView from '../views/NotFoundView.vue'
 
@@ -36,6 +38,8 @@ export const routes = [
       { path: 'reports/failed', component: FailedRecordsView, meta: { title: '上报异常清单' } },
       { path: 'reports/logs', component: UploadLogsView, meta: { title: '上报日志' } },
       { path: 'platform/sync', component: SyncStatusView, meta: { title: '平台同步' } },
+      { path: 'schedule', component: ScheduleView, meta: { title: '计划调度' } },
+      { path: 'templates', component: TemplateManageView, meta: { title: '检查项模板' } },
       { path: 'archive/company', component: CompanyView, meta: { title: '维保单位档案' } },
       { path: 'archive/use-units', component: UseUnitsView, meta: { title: '使用单位档案' } },
       { path: 'archive/employees', component: EmployeesView, meta: { title: '人员档案' } },

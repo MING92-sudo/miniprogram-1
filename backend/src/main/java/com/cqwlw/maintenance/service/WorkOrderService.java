@@ -271,7 +271,8 @@ public class WorkOrderService {
         if (o.checklistJson == null || o.checklistJson.isEmpty()) {
             Elevator el = elevatorMapper.selectById(o.elevatorId);
             String category = el == null ? "" : el.category;
-            o.checklistJson = JsonUtil.write(checklistService.buildChecklist(o.workTypeCode, category));
+            String specialType = el == null || el.specialType == null ? "" : el.specialType;
+            o.checklistJson = JsonUtil.write(checklistService.buildChecklist(o.workTypeCode, category, specialType));
             orderMapper.updateById(o);
         }
         return JsonUtil.readList(o.checklistJson);

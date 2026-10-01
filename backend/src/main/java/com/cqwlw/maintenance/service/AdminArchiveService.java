@@ -340,6 +340,10 @@ public class AdminArchiveService {
         if (body.get("intervalDays") != null) {
             el.intervalDays = intOrNull(str(body, "intervalDays"));
         }
+        if (body.get("specialType") != null) {
+            String s = str(body, "specialType");
+            el.specialType = s.isBlank() ? null : s; // 消防/防爆/NULL（1006 自定义模板匹配）
+        }
         if (body.get("workerName") != null) {
             el.workerName = str(body, "workerName");
         }
@@ -440,6 +444,7 @@ public class AdminArchiveService {
         m.put("emergencyPhone", nz(el.emergencyPhone));
         m.put("workTypeCode", nz(el.workTypeCode));
         m.put("intervalDays", el.intervalDays == null ? 0 : el.intervalDays);
+        m.put("specialType", nz(el.specialType));
         return m;
     }
 

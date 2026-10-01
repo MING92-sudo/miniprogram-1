@@ -55,8 +55,12 @@ class AdminServiceTest {
         PlatformTokenService tokenService = mock(PlatformTokenService.class);
         when(tokenService.configured()).thenReturn(true);
         when(faultMapper.selectCount(any())).thenReturn(1L);
+        // 1006 模板计数桩：自定义模板数返回 0
+        com.cqwlw.maintenance.mapper.ChecklistTemplateMapper templateMapper =
+                mock(com.cqwlw.maintenance.mapper.ChecklistTemplateMapper.class);
+        when(templateMapper.selectCount(any())).thenReturn(0L);
         service = new AdminService(orderMapper, recordMapper, logMapper,
-                elevatorMapper, employeeMapper, faultMapper, dispatchService, tokenService);
+                elevatorMapper, employeeMapper, faultMapper, dispatchService, tokenService, templateMapper);
     }
 
     private WorkOrder order(String status, String planDayOffset, String checkoutDayOffset) {

@@ -1,8 +1,12 @@
 package com.cqwlw.maintenance.service;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.cqwlw.maintenance.entity.ChecklistTemplate;
+import com.cqwlw.maintenance.mapper.ChecklistTemplateMapper;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.cqwlw.maintenance.util.TimeUtil;
 import jakarta.annotation.PostConstruct;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
 
@@ -16,7 +20,9 @@ import static com.cqwlw.maintenance.util.JsonUtil.MAPPER;
 
 /**
  * 检查项清单生成：按维保频次累加式生成 TSG 附件 A—D 清单（docs/01 §3.7.3、docs/08 附件B/C/D 模板）。
- * 模板数据源自 mock/checklist-template.js（257 行，构建期导出为 checklist-template.json）。
+ * 官方模板双路径：`checklist_template` 表已播种（OFFICIAL，payload 为 JSON 原文）时走 DB，否则回落
+ * classpath checklist-template.json——两路径生成结果逐字段一致（docs/09 二期 / docs/05 §10.5）。
+ * 特殊类别（elevator.special_type=消防/防爆）追加启用的 CUSTOM 自定义模板；未配置仅提示（1006 语义）不阻断。
  */
 @Service
 public class ChecklistService {
@@ -28,6 +34,14 @@ public class ChecklistService {
     private Map<String, List<String>> freqChain;
     private Map<String, Map<String, String>> freqLabels;
     private Map<String, String> categoryAppendix;
+
+    /** 模板库（可选：Spring 注入；单测构造时为 null → JSON 路径） */
+    private ChecklistTemplateMapper templateMapper;
+
+    @Autowired(required = false)
+    public void setTemplateMapper(ChecklistTemplateMapper templateMapper) {
+        this.templateMapper = templateMapper;
+    }
 
     @PostConstruct
     @SuppressWarnings("unchecked")
@@ -64,10 +78,15 @@ public class ChecklistService {
         return items;
     }
 
-    /** 累加式生成工单检查清单（周期条目默认"本次无需执行"，docs/03 §6.1） */
+    /** 累加式生成工单检查清单（周期条目默认"本次无需执行"，docs/03 §6.1）；不涉及特殊类别 */
     public List<Map<String, Object>> buildChecklist(String workTypeCode, String categoryCode) {
+        return buildChecklist(workTypeCode, categoryCode, null);
+    }
+
+    /** 含特殊类别：special_type（消防/防爆）匹配的启用自定义模板追加在官方项之后 */
+    public List<Map<String, Object>> buildChecklist(String workTypeCode, String categoryCode, String specialType) {
         String appendix = appendix(categoryCode);
-        Map<String, List<Map<String, Object>>> tpls = appendixTpls.get(appendix);
+        Map<String, List<Map<String, Object>>> tpls = officialTpls(appendix);
         List<Map<String, Object>> items = new ArrayList<>();
         for (String freq : chain(workTypeCode)) {
             for (Map<String, Object> tpl : tpls.get(freq)) {
@@ -104,6 +123,96 @@ public class ChecklistService {
                 it.put("photoFileIds", new ArrayList<>());
                 it.put("recordedAt", "");
                 items.add(it);
+            }
+        }
+        items.addAll(customItems(specialType));
+        return items;
+    }
+
+    /** 官方模板：DB 已播种则走 DB（payload 原文反序列化），否则回落 JSON；两路径结果一致 */
+    private Map<String, List<Map<String, Object>>> officialTpls(String appendix) {
+        if (templateMapper != null) {
+            List<ChecklistTemplate> rows = templateMapper.selectList(new LambdaQueryWrapper<ChecklistTemplate>()
+                    .eq(ChecklistTemplate::getTemplateType, "OFFICIAL")
+                    .eq(ChecklistTemplate::getAppendix, appendix)
+                    .eq(ChecklistTemplate::getEnabled, true)
+                    .orderByAsc(ChecklistTemplate::getSeq));
+            if (rows != null && !rows.isEmpty()) {
+                Map<String, List<Map<String, Object>>> grouped = new LinkedHashMap<>();
+                for (String freq : freqChain.getOrDefault("OY", List.of("HALF", "QUARTER", "HALF_YEAR", "YEAR"))) {
+                    grouped.put(freq, new ArrayList<>());
+                }
+                for (ChecklistTemplate row : rows) {
+                    // 防御：非官方行（mock/脏数据）不进官方周期链
+                    if (!"OFFICIAL".equals(row.templateType) || row.freq == null) {
+                        continue;
+                    }
+                    try {
+                        Map<String, Object> tpl = MAPPER.readValue(row.payload,
+                                new TypeReference<Map<String, Object>>() {
+                                });
+                        grouped.computeIfAbsent(row.freq, k -> new ArrayList<>()).add(tpl);
+                    } catch (Exception ignored) {
+                        // 单行 payload 损坏跳过，不阻断生成
+                    }
+                }
+                return grouped;
+            }
+        }
+        return appendixTpls.get(appendix);
+    }
+
+    /** 自定义模板追加（消防/防爆等，按 elevator.special_type 匹配启用中的 CUSTOM 行） */
+    private List<Map<String, Object>> customItems(String specialType) {
+        if (templateMapper == null || specialType == null || specialType.isBlank()) {
+            return List.of();
+        }
+        List<ChecklistTemplate> rows = templateMapper.selectList(new LambdaQueryWrapper<ChecklistTemplate>()
+                .eq(ChecklistTemplate::getTemplateType, "CUSTOM")
+                .eq(ChecklistTemplate::getCategoryScope, specialType)
+                .eq(ChecklistTemplate::getEnabled, true)
+                .orderByAsc(ChecklistTemplate::getId));
+        List<Map<String, Object>> items = new ArrayList<>();
+        for (ChecklistTemplate row : rows) {
+            // 防御：仅接受 CUSTOM 行（过滤条件在查询里，这里兜底）
+            if (!"CUSTOM".equals(row.templateType) || !Boolean.TRUE.equals(row.enabled)) {
+                continue;
+            }
+            try {
+                Map<String, Object> tpl = MAPPER.readValue(row.payload,
+                        new TypeReference<Map<String, Object>>() {
+                        });
+                Map<String, Object> it = new LinkedHashMap<>();
+                it.put("id", "ci_" + row.itemCode);
+                it.put("itemCode", row.itemCode);
+                it.put("seq", row.seq);
+                it.put("freq", "CUSTOM");
+                it.put("freqLabel", "自定义项目（制造单位要求）");
+                it.put("name", row.name);
+                it.put("requirement", tpl.getOrDefault("requirement", ""));
+                it.put("judgeType", row.judgeType);
+                it.put("valueMin", tpl.get("valueMin"));
+                it.put("valueMax", tpl.get("valueMax"));
+                it.put("valueUnit", tpl.get("valueUnit"));
+                it.put("isKey", Boolean.TRUE.equals(row.isKey));
+                it.put("photoRequired", Boolean.TRUE.equals(row.photoRequired));
+                it.put("ageCondition", "");
+                it.put("execCycleMonth", "");
+                it.put("seasonWindow", "");
+                it.put("notInThisRun", false);
+                it.put("nextRunText", "");
+                it.put("result", null);
+                it.put("value", null);
+                it.put("valueText", "");
+                it.put("abnormalDesc", "");
+                it.put("problemCode", "");
+                it.put("skipReason", "");
+                it.put("photos", new ArrayList<>());
+                it.put("photoFileIds", new ArrayList<>());
+                it.put("recordedAt", "");
+                items.add(it);
+            } catch (Exception ignored) {
+                // 单行 payload 损坏跳过，不阻断生成
             }
         }
         return items;

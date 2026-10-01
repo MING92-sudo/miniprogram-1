@@ -43,11 +43,13 @@ public class AdminService {
     private final FaultMapper faultMapper;
     private final DispatchService dispatchService;
     private final PlatformTokenService tokenService;
+    private final com.cqwlw.maintenance.mapper.ChecklistTemplateMapper templateMapper;
 
     public AdminService(WorkOrderMapper orderMapper, MaintainRecordMapper recordMapper,
                         RegUploadLogMapper logMapper, ElevatorMapper elevatorMapper,
                         EmployeeMapper employeeMapper, FaultMapper faultMapper,
-                        DispatchService dispatchService, PlatformTokenService tokenService) {
+                        DispatchService dispatchService, PlatformTokenService tokenService,
+                        com.cqwlw.maintenance.mapper.ChecklistTemplateMapper templateMapper) {
         this.orderMapper = orderMapper;
         this.recordMapper = recordMapper;
         this.logMapper = logMapper;
@@ -56,6 +58,7 @@ public class AdminService {
         this.faultMapper = faultMapper;
         this.dispatchService = dispatchService;
         this.tokenService = tokenService;
+        this.templateMapper = templateMapper;
     }
 
     // ── 看板（GET /admin/dashboard）──
@@ -301,6 +304,30 @@ public class AdminService {
         out.put("elevatorGeoMissing", geoMissing.size());
         out.put("elevatorGeoMissingList", geoMissing);
         out.put("lastSyncAt", lastSyncAt);
+
+        // 1006 语义（docs/04 A.0）：特殊类别（消防/防爆）电梯缺少启用中的自定义模板数（TSG 第二条）
+        java.util.List<String> specialTypes = java.util.List.of("消防电梯", "防爆电梯");
+        java.util.Map<String, Long> customByScope = new java.util.LinkedHashMap<>();
+        for (String scope : specialTypes) {
+            long n = templateMapper.selectCount(new LambdaQueryWrapper<com.cqwlw.maintenance.entity.ChecklistTemplate>()
+                    .eq(com.cqwlw.maintenance.entity.ChecklistTemplate::getTemplateType, "CUSTOM")
+                    .eq(com.cqwlw.maintenance.entity.ChecklistTemplate::getCategoryScope, scope)
+                    .eq(com.cqwlw.maintenance.entity.ChecklistTemplate::getEnabled, true));
+            customByScope.put(scope, n);
+        }
+        java.util.List<Map<String, Object>> templateMissingList = elevators.stream()
+                .filter(e -> e.specialType != null && specialTypes.contains(e.specialType))
+                .filter(e -> customByScope.getOrDefault(e.specialType, 0L) == 0)
+                .map(e -> {
+                    Map<String, Object> m = new LinkedHashMap<>();
+                    m.put("id", e.id);
+                    m.put("elevatorCode", e.elevatorCode == null ? "" : e.elevatorCode);
+                    m.put("elevatorName", e.elevatorName == null ? "" : e.elevatorName);
+                    m.put("specialType", e.specialType);
+                    return m;
+                }).toList();
+        out.put("templateMissing", templateMissingList.size());
+        out.put("templateMissingList", templateMissingList);
         return out;
     }
 

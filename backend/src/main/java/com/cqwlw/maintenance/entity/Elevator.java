@@ -45,6 +45,8 @@ public class Elevator {
     public String stationsDoors;
     public String workTypeCode;
     public Integer intervalDays;
+    /** 特殊类别：消防/防爆/NULL（匹配自定义检查项模板 category_scope，缺失即 1006 提示，TSG 第二条） */
+    public String specialType;
     public String workerName;
     public String workerPhone;
     public String workerPlatformId;

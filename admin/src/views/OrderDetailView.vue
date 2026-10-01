@@ -3,7 +3,11 @@
     <template #header>
       <div class="head">
         <span>工单详情 {{ order.orderNo ? `（${order.orderNo}）` : '' }}</span>
-        <el-button size="small" @click="$router.back()">返回</el-button>
+        <el-space>
+          <el-button v-if="order.status === 'PENDING' && auth.canRead" size="small"
+                     @click="openTransfer">转派</el-button>
+          <el-button size="small" @click="$router.back()">返回</el-button>
+        </el-space>
       </div>
     </template>
 
@@ -48,22 +52,88 @@
         <template #default="{ row }">{{ (row.photos && row.photos.length) || 0 }} 张</template>
       </el-table-column>
     </el-table>
+
+    <el-dialog v-model="transferDialog" title="转派工单（班组长及以上）" width="460px">
+      <el-form label-width="100px">
+        <el-form-item label="转派给" required>
+          <el-select v-model="transferForm.toEmployeeId" filterable style="width: 100%">
+            <el-option v-for="c in candidates" :key="c.id" :value="c.id" :label="c.name" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="转派原因">
+          <el-input v-model="transferForm.reason" type="textarea" :rows="2" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="transferDialog = false">取消</el-button>
+        <el-button type="primary" :loading="saving" @click="saveTransfer">确认转派</el-button>
+      </template>
+    </el-dialog>
   </el-card>
 </template>
 
 <script setup>
-import { computed, ref, onMounted } from 'vue'
+import { computed, reactive, ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
+import { ElMessage } from 'element-plus'
 import * as orderApi from '../api/order'
-import { showErr } from '../utils/ui'
+import * as scheduleApi from '../api/schedule'
+import { showErr, ok } from '../utils/ui'
+import { useAuthStore } from '../stores/auth'
 
 const route = useRoute()
+const auth = useAuthStore()
 const loading = ref(false)
 const order = ref({})
 const items = ref([])
+const transferDialog = ref(false)
+const saving = ref(false)
+const candidates = ref([])
+const transferForm = reactive({ toEmployeeId: '', reason: '' })
 
 const elevator = computed(() => order.value.elevator || {})
 const recordInfo = computed(() => order.value.recordInfo || null)
+
+async function loadCandidates() {
+  try {
+    const all = await scheduleApi.employees()
+    candidates.value = (all || [])
+      .filter((e) => e.role === 'WORKER' || e.role === 'LEADER')
+      .map((e) => ({
+        id: e.id,
+        name: `${e.name}（${e.platformId ? '已同步' : '未同步'}，证至 ${e.workEndDate || '—'}）`
+      }))
+  } catch (_) {
+    candidates.value = []
+  }
+}
+
+function openTransfer() {
+  transferForm.toEmployeeId = ''
+  transferForm.reason = ''
+  transferDialog.value = true
+  loadCandidates()
+}
+
+async function saveTransfer() {
+  if (!transferForm.toEmployeeId) {
+    ElMessage.warning('请选择转派对象')
+    return
+  }
+  saving.value = true
+  try {
+    const res = await scheduleApi.transferOrder(order.value.id, {
+      toEmployeeId: transferForm.toEmployeeId, reason: transferForm.reason
+    })
+    ok(`已转派给 ${res.workerName}`)
+    transferDialog.value = false
+    order.value = await orderApi.getOrder(order.value.id)
+  } catch (e) {
+    showErr(e)
+  } finally {
+    saving.value = false
+  }
+}
 
 function resultText(r) {
   return { NORMAL: '正常', ABNORMAL: '异常', SKIP: '不适用' }[r] || r || '-'

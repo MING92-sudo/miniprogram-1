@@ -21,6 +21,12 @@
         <el-menu-item index="/platform/sync">
           <el-icon><Refresh /></el-icon><span>平台同步</span>
         </el-menu-item>
+        <el-menu-item index="/schedule">
+          <el-icon><Calendar /></el-icon><span>计划调度</span>
+        </el-menu-item>
+        <el-menu-item index="/templates">
+          <el-icon><List /></el-icon><span>检查项模板</span>
+        </el-menu-item>
         <el-menu-item-group>
           <template #title><span class="group">档案管理</span></template>
           <el-menu-item index="/archive/company"><el-icon><OfficeBuilding /></el-icon><span>维保单位</span></el-menu-item>
@@ -64,7 +70,8 @@ import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import {
   Odometer, Tickets, WarningFilled, Document, Refresh, OfficeBuilding,
-  School, User, Files, Finished, AlarmClock, Bell, CircleCloseFilled, DataAnalysis
+  School, User, Files, Finished, AlarmClock, Bell, CircleCloseFilled, DataAnalysis,
+  Calendar, List
 } from '@element-plus/icons-vue'
 import { useAuthStore } from '../stores/auth'
 import { ROLE_TEXT } from '../constants'
