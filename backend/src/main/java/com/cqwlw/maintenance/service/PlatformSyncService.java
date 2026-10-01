@@ -123,33 +123,64 @@ public class PlatformSyncService {
                 cond.put("registrationCode", el.regCode);
                 cond.put("deviceCode", el.deviceCode);
                 List<Map<String, Object>> list = platformClient.queryElevatorInfo(cond);
-                if (!list.isEmpty()) {
-                    Map<String, Object> p = list.get(0);
-                    if (p.get("elevatorCode") != null) {
-                        el.elevatorCode = String.valueOf(p.get("elevatorCode"));
-                    }
-                    if (p.get("useUnitEntityId") != null) {
-                        el.useUnitEntityId = String.valueOf(p.get("useUnitEntityId"));
-                    }
-                    // 手机号脱敏值不覆盖本地真实号码（docs/04 B.7：以平台为准、手机号除外）
-                    if (isUnmasked(str(p.get("elevatorAdministerPhone")))) {
-                        el.elevatorAdministerPhone = str(p.get("elevatorAdministerPhone"));
-                    }
-                    if (isUnmasked(str(p.get("emergencyPhone")))) {
-                        el.emergencyPhone = str(p.get("emergencyPhone"));
-                    }
-                    if (p.get("elevatorAdminister") != null) {
-                        el.elevatorAdminister = str(p.get("elevatorAdminister"));
-                    }
-                    el.platformSyncedAt = TimeUtil.now();
-                    elevatorMapper.updateById(el);
-                    n++;
+                Map<String, Object> p = matchRecord(cond, list);
+                if (p == null) {
+                    // fail-closed：无法确认返回记录就是本梯时一律不回写。原实现盲取 list.get(0)，
+                    // 平台返回他梯记录时会把他的 elevatorCode 写成本梯的，而该字段是 2.7 查询
+                    // 与派单的身份键，一旦写错后续同步与派单都会落到别的梯上
+                    log.warn("电梯 2.7 同步跳过：返回 {} 条但无一条与本地标识匹配, code={}",
+                            list.size(), el.elevatorCode);
+                    continue;
                 }
+                if (p.get("elevatorCode") != null) {
+                    el.elevatorCode = String.valueOf(p.get("elevatorCode"));
+                }
+                if (p.get("useUnitEntityId") != null) {
+                    el.useUnitEntityId = String.valueOf(p.get("useUnitEntityId"));
+                }
+                // 手机号脱敏值不覆盖本地真实号码（docs/04 B.7：以平台为准、手机号除外）
+                if (isUnmasked(str(p.get("elevatorAdministerPhone")))) {
+                    el.elevatorAdministerPhone = str(p.get("elevatorAdministerPhone"));
+                }
+                if (isUnmasked(str(p.get("emergencyPhone")))) {
+                    el.emergencyPhone = str(p.get("emergencyPhone"));
+                }
+                if (p.get("elevatorAdminister") != null) {
+                    el.elevatorAdminister = str(p.get("elevatorAdminister"));
+                }
+                el.platformSyncedAt = TimeUtil.now();
+                elevatorMapper.updateById(el);
+                n++;
             } catch (Exception e) {
                 log.warn("电梯 2.7 同步失败: code={}, {}", el.elevatorCode, e.getMessage());
             }
         }
         return n;
+    }
+
+    /**
+     * 从平台返回中挑出能确认是本梯的记录：出厂编号/注册代码/设备代码/电梯编码任一非空且相等。
+     * 平台 2.7 会回显这些标识字段（docs/04 B.7 实测样例），故可据此确认归属；
+     * 四项本地标识全为空时无法确认，返回 null 由调用方跳过。
+     */
+    private static Map<String, Object> matchRecord(Map<String, String> cond,
+                                                   List<Map<String, Object>> list) {
+        for (Map<String, Object> p : list) {
+            if (sameValue(cond.get("factoryNumber"), p.get("factoryNumber"))
+                    || sameValue(cond.get("registrationCode"), p.get("registrationCode"))
+                    || sameValue(cond.get("deviceCode"), p.get("deviceCode"))
+                    || sameValue(cond.get("elevatorCode"), p.get("elevatorCode"))) {
+                return p;
+            }
+        }
+        return null;
+    }
+
+    private static boolean sameValue(String local, Object remote) {
+        if (local == null || local.trim().isEmpty() || remote == null) {
+            return false;
+        }
+        return local.trim().equalsIgnoreCase(String.valueOf(remote).trim());
     }
 
     private static String str(Object o) {
