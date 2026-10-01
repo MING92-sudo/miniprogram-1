@@ -105,6 +105,7 @@ const CHECKIN_DISTANCE_LIMIT_M = 200
 // ── 取证令牌（与 backend EvidenceTokenService 同构：HMAC-SHA256 + 一次性核销）──
 const EVIDENCE_CONTEXT = '|evidence-token-v1'
 const EVIDENCE_TTL_MS = 900 * 1000
+const EVIDENCE_TTL_SHOT_MS = 86400 * 1000
 const EVIDENCE_SECRET = 'mock-evidence-secret-not-for-production'
 const usedEvidenceNonces = Object.create(null)
 
@@ -115,21 +116,23 @@ function evidenceHmac(body) {
     .digest('base64url')
 }
 
-function issueEvidence(orderId, lat, lng, distanceText, threshold) {
+function issueEvidence(orderId, lat, lng, distanceText, threshold, itemId, ttlMs) {
   const issuedMs = Date.now()
   const payload = {
     oid: orderId,
     lat: Math.round(lat * 1e6) / 1e6,
     lng: Math.round(lng * 1e6) / 1e6,
     st: Math.floor(issuedMs / 1000),
-    exp: Math.floor((issuedMs + EVIDENCE_TTL_MS) / 1000),
+    exp: Math.floor((issuedMs + (ttlMs || EVIDENCE_TTL_MS)) / 1000),
     n: 'mock-' + issuedMs.toString(36) + Math.floor(Math.random() * 1e6).toString(36)
   }
+  if (itemId) payload.iid = itemId
   const body = JSON.stringify(payload)
   const token = Buffer.from(body, 'utf8').toString('base64url') + '.' + evidenceHmac(body)
   return {
     token,
     orderId,
+    itemId: itemId || '',
     issuedAt: formatTime(),
     issuedAtText: formatTime(),
     latitude: payload.lat,
@@ -138,11 +141,11 @@ function issueEvidence(orderId, lat, lng, distanceText, threshold) {
     lngText: payload.lng.toFixed(5),
     distanceText,
     thresholdText: String(threshold),
-    expiresInSeconds: EVIDENCE_TTL_MS / 1000
+    expiresInSeconds: (ttlMs || EVIDENCE_TTL_MS) / 1000
   }
 }
 
-function verifyEvidence(token, expectOrderId) {
+function verifyEvidence(token, expectOrderId, expectItemId, consumeNonce) {
   if (!token) throw { code: 422, message: '缺少取证令牌，请重新获取定位后再签到' }
   const dot = token.indexOf('.')
   if (dot < 0) throw { code: 422, message: '取证令牌格式无效' }
@@ -161,10 +164,17 @@ function verifyEvidence(token, expectOrderId) {
   if (expectOrderId && payload.oid !== expectOrderId) {
     throw { code: 422, message: '取证令牌与工单不匹配' }
   }
-  if (usedEvidenceNonces[payload.n]) {
-    throw { code: 422, message: '取证令牌已使用，请勿重复提交' }
+  if (expectItemId && payload.iid !== expectItemId) {
+    throw { code: 422, message: '取证令牌与检查项不匹配' }
   }
-  usedEvidenceNonces[payload.n] = true
+  // consumeNonce=false 时仅验签：检查项拍照取证靠 iid 绑定保证一次性，
+  // 使"提交后超时重试"可幂等重放（与后端 EvidenceTokenService.verifyOnly 同口径）
+  if (consumeNonce) {
+    if (usedEvidenceNonces[payload.n]) {
+      throw { code: 422, message: '取证令牌已使用，请勿重复提交' }
+    }
+    usedEvidenceNonces[payload.n] = true
+  }
   return payload
 }
 
@@ -983,6 +993,7 @@ module.exports = {
   nextRecordId,
   CHECKIN_DISTANCE_LIMIT_M,
   distanceMeters,
+  EVIDENCE_TTL_SHOT_MS,
   issueEvidence,
   verifyEvidence,
   ensureDueOrders,

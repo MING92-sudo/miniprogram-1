@@ -1,9 +1,8 @@
 // 检查项填写：结果 + 读数/说明书判定 + 异常描述/隐患码 + 跳过原因 + 现场照片
 // 枚举与字段对齐 docs/04 A.2：result=NORMAL/ABNORMAL/NA；NA 必填 skipReason；
 // NUMERIC 填 value；MANUFACTURER 填 valueText；ABNORMAL 必填 abnormalDesc + problemCode(S1-S7)
-const { getChecklist, submitChecklistItem } = require('../../services/order')
+const { getChecklist, submitChecklistItem, requestShotEvidence } = require('../../services/order')
 const { uploadImage } = require('../../services/upload')
-const { reverseGeocode } = require('../../services/location')
 const { formatTime } = require('../../utils/util')
 const { PROBLEM_CODES } = require('../../constants/index')
 const offline = require('../../utils/offline')
@@ -26,7 +25,8 @@ Page({
     problemKeys: PROBLEM_KEYS,
     problemOptions: PROBLEM_KEYS.map((k) => k + ' ' + PROBLEM_CODES[k]),
     skipReason: '',
-    photos: [],
+    photos: [], // [{ path, evidenceToken }]，令牌与 photoFileIds 按下标一一对应
+    shooting: false,
     submitting: false
   },
 
@@ -50,7 +50,8 @@ Page({
         problemCode: item.problemCode || '',
         problemDesc: item.problemCode ? PROBLEM_CODES[item.problemCode] : '',
         skipReason: item.skipReason || '',
-        photos: item.photos || []
+        // 回显的历史照片无取证令牌（令牌不外发）：如需修改本项须重新拍照，否则提交会被服务端拒绝
+        photos: (item.photos || []).map((p) => ({ path: p, evidenceToken: '' }))
       })
     } catch (e) {
       // 回显失败不阻断填写
@@ -85,36 +86,57 @@ Page({
     this.setData({ skipReason: e.detail.value })
   },
 
-  choosePhoto() {
+  // 现场照片：先向服务端换取证令牌（绑定工单+检查项+已校验坐标+服务端时间），
+  // 再由水印相机按令牌渲染水印。令牌与照片按下标一一对应，提交时随photoFileIds 一并回传。
+  async choosePhoto() {
+    if (this.data.shooting) return
     if (this.data.photos.length >= MAX_PHOTOS) {
       return wx.showToast({ title: `最多 ${MAX_PHOTOS} 张`, icon: 'none' })
     }
-    // 拍照统一走水印相机：现场照片须带时间/工单/检查项/位置水印留证（docs/04）
-    // 水印相机内已完成合成与压缩（长边 ≤1200px、≤500KB），回传直接入列
-    const name = (this.data.item && this.data.item.name) || ''
-    let qs = `from=item&orderId=${this.data.orderId}` +
-      `&itemId=${this.data.itemId}&itemName=${encodeURIComponent(name)}`
-    // 现场照定位留证：拍照时实时取点 + 逆地址解析（失败降级为仅时间/工单水印，不阻断拍照）
-    wx.getLocation({
-      type: 'gcj02',
-      success: (loc) => {
-        reverseGeocode(loc.latitude, loc.longitude).then((addr) => {
-          const isCoord = /^[\d.,\s]+$/.test(addr)
-          if (!isCoord) qs += `&address=${encodeURIComponent(addr)}`
-          qs += `&lat=${loc.latitude}&lng=${loc.longitude}`
-          wx.navigateTo({ url: `/pages/common/watermark-camera?${qs}` })
+    this.setData({ shooting: true })
+    wx.showLoading({ title: '取证中...', mask: true })
+    let evidence
+    try {
+      const loc = await new Promise((resolve, reject) => {
+        wx.getLocation({
+          type: 'gcj02',
+          success: resolve,
+          fail: () => reject(new Error('定位失败，请检查定位权限'))
         })
-      },
-      fail: () => {
-        wx.navigateTo({ url: `/pages/common/watermark-camera?${qs}` })
+      })
+      evidence = await requestShotEvidence(this.data.orderId, this.data.itemId, {
+        latitude: loc.latitude,
+        longitude: loc.longitude,
+        locationAccuracy: loc.accuracy || 0
+      })
+    } catch (e) {
+      wx.hideLoading()
+      this.setData({ shooting: false })
+      if (e && e.code === 1001) {
+        wx.showModal({
+          title: '拍摄被拦截',
+          content: (e.message || '拍摄位置超出允许范围') + '。如确属到场，可提交申诉。',
+          showCancel: false
+        })
+      } else {
+        wx.showToast({ title: (e && e.message) || '取证失败，请重试', icon: 'none' })
       }
+      return
+    }
+    wx.hideLoading()
+    this.setData({ shooting: false })
+    wx.navigateTo({
+      url: '/pages/common/watermark-camera?from=item&evidence=' + encodeURIComponent(evidence.token)
     })
   },
 
-  // 由水印相机页面回传（已完成水印合成与压缩）
-  onPhotoReady(photo) {
+  // 由水印相机页面回传（已完成水印合成与压缩）+ 服务端取证令牌
+  onPhotoReady(photo, evidenceToken) {
     if (!photo) return
-    this.setData({ photos: this.data.photos.concat(photo) })
+    if (!evidenceToken) {
+      return wx.showToast({ title: '照片缺少取证令牌，请重新拍摄', icon: 'none' })
+    }
+    this.setData({ photos: this.data.photos.concat({ path: photo, evidenceToken }) })
   },
 
   removePhoto(e) {
@@ -125,9 +147,10 @@ Page({
   },
 
   previewPhoto(e) {
+    const cur = this.data.photos[Number(e.currentTarget.dataset.index)]
     wx.previewImage({
-      current: e.currentTarget.dataset.src,
-      urls: this.data.photos
+      current: cur ? cur.path : '',
+      urls: this.data.photos.map((p) => p.path)
     })
   },
 
@@ -143,8 +166,10 @@ Page({
       problemCode: this.data.result === 'ABNORMAL' ? this.data.problemCode : '',
       skipReason: this.data.result === 'NA' ? this.data.skipReason : '',
       photoFileIds: fileIds,
-      photoUrls: this.data.photos, // mock 演示回显（本地路径）；真实后端忽略
-      recordedAt: formatTime() // 离线补传时为本地原始时间戳
+      // 与 photoFileIds 按下标一一对应；服务端按下标验签并写入权威拍摄存证
+      photoEvidence: this.data.photos.map((p) => ({ evidenceToken: p.evidenceToken })),
+      photoUrls: this.data.photos.map((p) => p.path), // 本地路径仅用于提交前预览回显
+      recordedAt: formatTime() // 离线补传时为本地原始时间戳；服务端以取证令牌时间为准
     }
   },
 
@@ -178,7 +203,7 @@ Page({
       // 照片已在选取时压缩至约定范围（长边 ≤1200px、≤500KB）
       const fileIds = []
       for (const p of this.data.photos) {
-        const r = await uploadImage(p)
+        const r = await uploadImage(p.path)
         fileIds.push(r.fileId)
       }
       await submitChecklistItem(this.data.orderId, this.data.itemId, this.buildPayload(fileIds))
@@ -225,7 +250,8 @@ Page({
       method: 'POST',
       data: payload,
       // 本地照片路径随任务入队，补传时先上传文件再回填 photoFileIds（docs/08 P1）
-      photoPaths: this.data.photos.slice(),
+      // 顺序与 data.photoEvidence 一致，服务端按下标验签
+      photoPaths: this.data.photos.map((p) => p.path),
       desc: item.name || '检查项填写'
     })
   }

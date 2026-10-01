@@ -1,13 +1,46 @@
-// 水印相机：拍照 → canvas 合成水印（时间/工单号/定位标识）→ 压缩导出回传
+// 水印相机：取证令牌 → 拍照 → canvas 合成水印 → 压缩导出回传
 // 约定：压缩后长边 ≤1200px、≤500KB（docs/04），压缩实现见 utils/image
+//
+//水印文本一律从服务端签发的取证令牌载荷渲染，**不接受任何 URL 参数传入的坐标/时间/地址**。
+// 早期版本从 query 读取 lat/lng/address/watermarkTime，等于让调用方自行决定证据内容，
+// 可用构造 URL 伪造水印（docs/12 审查 NB3）。现改为令牌的纯函数：
+// 工单=oid、项目=iid、时间=st（服务端签发时刻）、位置=lat/lng（已通过地理围栏校验）。
+// 说明：小程序端无法验证 HMAC，故伪造令牌只能渲染出假水印，但服务端在提交时会验签拒绝，
+// 该照片无法进入正式维保记录——权威值始终以服务端记录为准。
 const { formatTime } = require('../../utils/util')
 const { compressImage } = require('../../utils/image')
+
+// URL-safe base64 载荷解码（签名部分不校验，校验由服务端在提交时完成）
+function decodeEvidence(token) {
+  if (!token) return null
+  const parts = String(token).split('.')
+  if (parts.length !== 2 || !parts[1]) return null
+  let b64 = parts[0].replace(/-/g, '+').replace(/_/g, '/')
+  while (b64.length % 4) b64 += '='
+  try {
+    const bytes = wx.base64ToArraySync(b64)
+    let raw = ''
+    for (let i = 0; i < bytes.length; i++) raw += String.fromCharCode(bytes[i])
+    const json = decodeURIComponent(
+      raw
+        .split('')
+        .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+        .join('')
+    )
+    const payload = JSON.parse(json)
+    return payload && payload.oid && payload.st ? payload : null
+  } catch (e) {
+    return null
+  }
+}
 
 Page({
   data: {
     orderId: '',
     itemId: '',
-    itemName: '', // 检查项名称水印（检查项拍照时携带）
+    evidence: null, // 服务端签发的取证令牌载荷（权威水印来源）
+    evidenceToken: '', // 原令牌，提交时随照片回传由服务端验签
+    evidenceMissing: false,
     from: '',
     lens: 'back', // 摄像头朝向：front=签到自拍 / back=现场照
     photo: '', // 原始照片
@@ -19,46 +52,33 @@ Page({
   },
 
   onLoad(query) {
-    // 具体位置文字（逆地址解析结果，优先）；无地址时回退坐标
-    // 部分基础库/真机不会自动解码 query（上一页用 encodeURIComponent 编码了中文），
-    // 这里手动解码一次；已解码的字符串不含 % 序列，重复解码无副作用
-    let locationText = ''
-    try {
-      locationText = decodeURIComponent(query.address || '')
-    } catch (e) {
-      locationText = query.address || ''
-    }
-    if (!locationText) {
-      const lat = parseFloat(query.lat)
-      const lng = parseFloat(query.lng)
-      if (!isNaN(lat) && !isNaN(lng)) {
-        locationText = lat.toFixed(5) + ', ' + lng.toFixed(5)
-      }
-    }
-    let itemName = ''
-    try {
-      itemName = decodeURIComponent(query.itemName || '')
-    } catch (e) {
-      itemName = query.itemName || ''
+    const evidence = decodeEvidence(query.evidence)
+    if (!evidence) {
+      // fail closed：无服务端令牌不拍——否则水印内容由调用方决定，等于无取证价值
+      this.setData({ evidenceMissing: true, ready: false, processing: false })
+      return
     }
     this.setData({
-      orderId: query.orderId || '',
-      itemId: query.itemId || '',
-      itemName: itemName,
       from: query.from || '',
+      evidence,
+      evidenceToken: String(query.evidence || ''),
+      orderId: evidence.oid || '',
+      itemId: evidence.iid || '',
+      watermarkTime: formatTime(new Date(Number(evidence.st) * 1000)),
+      locationText: Number(evidence.lat).toFixed(5) + ', ' + Number(evidence.lng).toFixed(5),
       // 摄像头朝向按场景：签到自拍=前置；检查项现场照=后置
       lens: query.from === 'checkin' ? 'front' : 'back',
-      //签到链路的水印时间由服务端取证令牌下发（watermarkTime），非设备本地时间；
-      // 检查项拍照（from!=checkin）尚无取证令牌，暂回退设备时间，属已知遗留项
-      watermarkTime: query.watermarkTime || formatTime(),
-      locationText
+      ready: false
     })
-
   },
 
   onReady() {
     // 必须等渲染完成（onReady）再拉起相机：onLoad 阶段部分安卓机不弹相机，
     // 且此时 #wm-canvas 未布局，拍完立即合成会报"画布初始化失败"
+    if (this.data.evidenceMissing) {
+      wx.showToast({ title: '缺少取证令牌，请返回重试', icon: 'none' })
+      return
+    }
     this.takePhoto()
   },
 
@@ -138,9 +158,9 @@ Page({
           ctx.fillRect(0, 0, cssW, cssH)
           ctx.drawImage(img, (cssW - dw) / 2, (cssH - dh) / 2, dw, dh)
 
-          // 底部水印条：行数随内容动态（时间/工单/检查项/位置）
+          // 底部水印条：全部取自令牌载荷（权威值），行数随内容动态
           const rows = ['时间：' + this.data.watermarkTime, '工单：' + (this.data.orderId || '-')]
-          if (this.data.itemName) rows.push('项目：' + this.data.itemName)
+          if (this.data.itemId) rows.push('项目：' + this.data.itemId)
           if (this.data.locationText) rows.push('位置：' + this.data.locationText)
           const barH = 20 + rows.length * 24
           ctx.fillStyle = 'rgba(0, 0, 0, 0.6)'
@@ -182,13 +202,13 @@ Page({
       })
   },
 
-  // 确认使用：回传上一页
+  // 确认使用：回传合成图与取证令牌载荷（调用方随照片一起提交，由服务端验签）
   onConfirm() {
     if (!this.data.ready) return wx.showToast({ title: '请先拍照', icon: 'none' })
     const pages = getCurrentPages()
     const prev = pages[pages.length - 2]
     if (prev && typeof prev.onPhotoReady === 'function') {
-      prev.onPhotoReady(this.data.output)
+      prev.onPhotoReady(this.data.output, this.data.evidenceToken)
     }
     wx.navigateBack()
   },

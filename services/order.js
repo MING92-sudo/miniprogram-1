@@ -22,6 +22,11 @@ function requestEvidence(orderId, data) {
   return post(`/work-orders/${orderId}/evidence`, data)
 }
 
+// 检查项拍照取证令牌（拍照前调用）：绑定工单+检查项+已校验坐标+服务端时间
+function requestShotEvidence(orderId, itemId, data) {
+  return post(`/work-orders/${orderId}/evidence/shot`, Object.assign({ itemId }, data))
+}
+
 // 签到（定位 + 水印自拍照片 + 取证令牌）
 function checkin(orderId, data) {
   return post(`/work-orders/${orderId}/checkin`, data)

@@ -309,24 +309,75 @@ public class WorkOrderService {
         Elevator el = elevatorMapper.selectById(o.elevatorId);
         Double lat = dbl(body.get("latitude"));
         Double lng = dbl(body.get("longitude"));
+        Fence fence = checkFence(orderId, el, lat, lng);
+        if (!fence.elevatorLocated) {
+            // 1005 降级放行：电梯未登记坐标时无法判定围栏
+            return evidenceTokenService.issue(orderId, 0d, 0d, -1, CHECKIN_DISTANCE_LIMIT_M);
+        }
+        return evidenceTokenService.issue(orderId, lat, lng, Math.round(fence.distance),
+                CHECKIN_DISTANCE_LIMIT_M);
+    }
+
+    /**
+     * 检查项拍照取证令牌（拍照前调用）：绑定 {工单, 检查项, 已校验坐标, 服务端时间, 一次性随机数}。
+     * 工单须已签到（PROCESSING）——检查项照片是"作业过程中的设备细节证据"，以到场为前提。
+     */
+    public Map<String, Object> issueShotEvidence(String orderId, Map<String, Object> body) {
+        WorkOrder o = findOr404(orderId);
+        if (!"PROCESSING".equals(o.status)) {
+            throw new BizException(1003, "请先完成签到后再拍摄检查项照片");
+        }
+        String itemId = str(body.get("itemId"));
+        if (itemId == null || itemId.isEmpty()) {
+            throw new BizException(422, "缺少检查项 id");
+        }
+        boolean exists = items(o).stream().anyMatch(i -> itemId.equals(i.get("id")));
+        if (!exists) {
+            throw new BizException(1404, "检查项不存在");
+        }
+        Elevator el = elevatorMapper.selectById(o.elevatorId);
+        Double lat = dbl(body.get("latitude"));
+        Double lng = dbl(body.get("longitude"));
+        Fence fence = checkFence(orderId, el, lat, lng);
+        long dist = fence.elevatorLocated ? Math.round(fence.distance) : -1;
+        return evidenceTokenService.issue(orderId, itemId,
+                lat == null ? 0d : lat, lng == null ? 0d : lng, dist,
+                CHECKIN_DISTANCE_LIMIT_M, EvidenceTokenService.TTL_SHOT_SECONDS);
+    }
+
+    private static final class Fence {
+        final boolean elevatorLocated;
+        final double distance;
+        final boolean inRange;
+        final boolean appealApproved;
+
+        Fence(boolean elevatorLocated, double distance, boolean inRange, boolean appealApproved) {
+            this.elevatorLocated = elevatorLocated;
+            this.distance = distance;
+            this.inRange = inRange;
+            this.appealApproved = appealApproved;
+        }
+    }
+
+    /**
+     * 地理围栏校验：电梯已登记坐标且客户端越界、且无已通过申诉时抛 1001（docs/04 A.0.1）。
+     * 电梯未登记坐标则降级放行（1005），但不得伪装成已核验。
+     */
+    private Fence checkFence(String orderId, Elevator el, Double lat, Double lng) {
         Double elLat = el == null || el.lat == null ? null : el.lat.doubleValue();
         Double elLng = el == null || el.lng == null ? null : el.lng.doubleValue();
         boolean elLocated = elLat != null && elLng != null;
         boolean clientLocated = lat != null && lng != null;
         double distance = (elLocated && clientLocated) ? distanceMeters(lat, lng, elLat, elLng) : -1;
         boolean inRange = distance >= 0 && distance <= CHECKIN_DISTANCE_LIMIT_M;
-        if (!elLocated) {
-            // 1005 降级放行：电梯未登记坐标时无法判定围栏
-            return evidenceTokenService.issue(orderId, lat == null ? 0d : lat, lng == null ? 0d : lng,
-                    -1, CHECKIN_DISTANCE_LIMIT_M);
-        }
-        if (!clientLocated) {
+        boolean appealApproved = approvalService.hasApproved(orderId);
+        if (elLocated && !clientLocated) {
             throw geoRejected(null);
         }
-        if (!inRange && !approvalService.hasApproved(orderId)) {
+        if (elLocated && !inRange && !appealApproved) {
             throw geoRejected(Math.round(distance));
         }
-        return evidenceTokenService.issue(orderId, lat, lng, Math.round(distance), CHECKIN_DISTANCE_LIMIT_M);
+        return new Fence(elLocated, distance, inRange, appealApproved);
     }
 
     private static long numOf(Object o) {
@@ -423,20 +474,69 @@ public class WorkOrderService {
         if (isKey && photoRequired && !"NA".equals(result) && !hasPhoto) {
             throw new BizException(422, "关键项「" + name + "」为试验/测试/校验/检测类，必须至少附 1 张照片留证（TSG 注A-2）");
         }
+        // 现场照片取证：照片与令牌按下标一一对应，缺令牌即拒绝（fail closed）——
+        // 水印的权威值以服务端记录为准，无令牌的 photoUrls 只是本地路径
+        List<Map<String, Object>> verifiedPhotos = verifyPhotoEvidence(orderId, itemId, body);
+        List<Object> fileIds = asList(body.get("photoFileIds"));
+        if (!fileIds.isEmpty() && verifiedPhotos.size() < fileIds.size()) {
+            throw new BizException(422, "「" + name + "」现场照片缺少取证令牌（"
+                    + verifiedPhotos.size() + "/" + fileIds.size() + " 张已核验），请重新拍照");
+        }
         item.put("result", result);
-        item.put("value", body.get("value") != null ? ((Number) body.get("value")).doubleValue() : null);
+        item.put("value", body.get("value") != null ? dbl(body.get("value")) : null);
         item.put("valueText", strOrEmpty(body.get("valueText")));
         item.put("abnormalDesc", strOrEmpty(body.get("abnormalDesc")));
         item.put("skipReason", strOrEmpty(body.get("skipReason")));
         item.put("problemCode", strOrEmpty(body.get("problemCode")));
         item.put("photos", body.get("photoUrls") == null ? new ArrayList<>() : body.get("photoUrls"));
         item.put("photoFileIds", body.get("photoFileIds") == null ? new ArrayList<>() : body.get("photoFileIds"));
-        String recordedAt = str(body.get("recordedAt"));
-        item.put("recordedAt", recordedAt == null || recordedAt.isEmpty()
-                ? TimeUtil.format(TimeUtil.now()) : recordedAt);
+        item.put("photoEvidence", verifiedPhotos);
+        // 检查项的权威取证时间：取服务端签发的拍摄时间，而非客户端 recordedAt
+        if (!verifiedPhotos.isEmpty()) {
+            item.put("recordedAt", verifiedPhotos.get(0).get("shotAt"));
+        } else {
+            String recordedAt = str(body.get("recordedAt"));
+            item.put("recordedAt", recordedAt == null || recordedAt.isEmpty()
+                    ? TimeUtil.format(TimeUtil.now()) : recordedAt);
+        }
         o.checklistJson = JsonUtil.write(items);
         orderMapper.updateById(o);
         return JsonUtil.map("ok", true, "itemId", itemId);
+    }
+
+    /**
+     * 校验现场照片的取证令牌，返回服务端权威的拍摄存证。
+     * 令牌与 photoFileIds **按数组下标一一对应**（不用 fileId 匹配），使离线补传在上传照片后
+     * 无需回填 fileId 即可通过校验。令牌必须绑定本工单与本检查项，篡改/过期/跨项一律拒绝。
+     * 缺令牌的项不写入结果，由调用方按数量校验后fail closed 拒绝。
+     */
+    private List<Map<String, Object>> verifyPhotoEvidence(String orderId, String itemId,
+                                                          Map<String, Object> body) {
+        List<Object> fileIds = asList(body.get("photoFileIds"));
+        List<Map<String, Object>> tokens = new ArrayList<>();
+        for (Object raw : asList(body.get("photoEvidence"))) {
+            if (raw instanceof Map) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> m = (Map<String, Object>) raw;
+                tokens.add(m);
+            }
+        }
+        List<Map<String, Object>> out = new ArrayList<>();
+        for (int i = 0; i < fileIds.size(); i++) {
+            String token = i < tokens.size() ? str(tokens.get(i).get("evidenceToken")) : null;
+            if (isBlank(token)) {
+                continue;
+            }
+            Map<String, Object> payload = evidenceTokenService.verifyOnly(token, orderId, itemId);
+            Map<String, Object> rec = new LinkedHashMap<>();
+            rec.put("fileId", String.valueOf(fileIds.get(i)));
+            rec.put("shotAt", TimeUtil.format(TimeUtil.fromMillis(numOf(payload.get("st")) * 1000L)));
+            rec.put("latitude", EvidenceTokenService.latOf(payload));
+            rec.put("longitude", EvidenceTokenService.lngOf(payload));
+            rec.put("evidenceNonce", str(payload.get("n")));
+            out.add(rec);
+        }
+        return out;
     }
 
     public Map<String, Object> runThisTime(String orderId, String itemId) {

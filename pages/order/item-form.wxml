@@ -63,11 +63,11 @@
   <view class="em-card" wx:if="{{result !== 'NA'}}">
     <view class="form-label">现场照片（{{photos.length}}/4）{{item && item.photoRequired && result === 'ABNORMAL' ? ' · 关键项异常必拍' : ''}}</view>
     <view class="photo-list">
-      <view wx:for="{{photos}}" wx:key="*this" class="photo-wrap">
-        <image class="photo" src="{{item}}" mode="aspectFill" data-src="{{item}}" bindtap="previewPhoto" />
+      <view wx:for="{{photos}}" wx:key="path" class="photo-wrap">
+        <image class="photo" src="{{item.path}}" mode="aspectFill" data-index="{{index}}" bindtap="previewPhoto" />
         <view class="photo-del" data-index="{{index}}" catchtap="removePhoto">×</view>
       </view>
-      <view wx:if="{{photos.length < 4}}" class="photo photo-add" bindtap="choosePhoto">＋</view>
+      <view wx:if="{{photos.length < 4 && !shooting}}" class="photo photo-add" bindtap="choosePhoto">＋</view>
     </view>
   </view>
 

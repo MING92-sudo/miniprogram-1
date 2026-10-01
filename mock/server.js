@@ -113,6 +113,42 @@ const routes = [
     }
     return d.issueEvidence(params.id, lat, lng, String(Math.round(distance)), d.CHECKIN_DISTANCE_LIMIT_M)
   }],
+  // 检查项拍照取证令牌（拍照前调用）：绑定工单+检查项，工单须已签到
+  ['POST', '/work-orders/:id/evidence/shot', ({ params, body }) => {
+    const o = findOr404(d.db.orders, params.id, '工单')
+    if (o.status !== 'PROCESSING') throw { code: 1003, message: '请先完成签到后再拍摄检查项照片' }
+    const itemId = String(body.itemId == null ? '' : body.itemId)
+    if (!itemId) throw { code: 422, message: '缺少检查项 id' }
+    if (!(o.checklist || []).some((i) => i.id === itemId)) {
+      throw { code: 1404, message: '检查项不存在' }
+    }
+    const el = d.getElevator(o.elevatorId)
+    const elLocated = !!(el && typeof el.lat === 'number' && typeof el.lng === 'number')
+    const lat = Number(body.latitude)
+    const lng = Number(body.longitude)
+    if (elLocated && (isNaN(lat) || isNaN(lng))) {
+      throw {
+        code: 1001,
+        message: '未获取到定位，无法验证作业地点，请开启定位后重试',
+        data: { distance: '', threshold: d.CHECKIN_DISTANCE_LIMIT_M, appealable: true }
+      }
+    }
+    let distanceText = ''
+    if (elLocated) {
+      const distance = d.distanceMeters(lat, lng, el.lat, el.lng)
+      if (distance > d.CHECKIN_DISTANCE_LIMIT_M) {
+        throw {
+          code: 1001,
+          message: '拍摄位置超出允许范围（' + Math.round(distance) + ' 米 > ' +
+            d.CHECKIN_DISTANCE_LIMIT_M + ' 米），请提交申诉',
+          data: { distance: Math.round(distance), threshold: d.CHECKIN_DISTANCE_LIMIT_M, appealable: true }
+        }
+      }
+      distanceText = String(Math.round(distance))
+    }
+    return d.issueEvidence(params.id, elLocated ? lat : 0, elLocated ? lng : 0, distanceText,
+      d.CHECKIN_DISTANCE_LIMIT_M, itemId, d.EVIDENCE_TTL_SHOT_MS)
+  }],
   ['POST', '/work-orders/:id/checkin', ({ params, body }) => {
     const o = findOr404(d.db.orders, params.id, '工单')
     if (o.status !== 'PENDING') throw { code: 1003, message: '当前状态不允许签到' }
@@ -122,7 +158,7 @@ const routes = [
       if (body.dynamicCode !== '888888') throw { code: 1003, message: '动态码错误（演示环境固定为 888888）' }
     }
     // 取证令牌：验签 + 一次性核销，坐标与时间一律取令牌内值
-    const evidence = d.verifyEvidence(body.evidenceToken, params.id)
+    const evidence = d.verifyEvidence(body.evidenceToken, params.id, null, true)
     d.markCheckin(o.id, body, {
       distance: evidence.distance,
       geoStatus: 'EVIDENCE_VERIFIED'
@@ -174,6 +210,28 @@ const routes = [
         !(body.photoFileIds || []).length && !(body.photoUrls || []).length) {
       throw { code: 422, message: '关键项「' + item.name + '」为试验/测试/校验/检测类，必须至少附 1 张照片留证（TSG 注A-2）' }
     }
+    // 现场照片取证：令牌与 photoFileIds 按下标一一对应，缺失即拒绝（fail closed）
+    const shotFileIds = body.photoFileIds || []
+    const shotTokens = body.photoEvidence || []
+    const verifiedPhotos = []
+    for (let i = 0; i < shotFileIds.length; i++) {
+      const tk = shotTokens[i] && shotTokens[i].evidenceToken
+      if (!tk) continue
+      const pl = d.verifyEvidence(tk, params.id, params.itemId, false)
+      verifiedPhotos.push({
+        fileId: String(shotFileIds[i]),
+        shotAt: formatTime(new Date(pl.st * 1000)),
+        latitude: pl.lat,
+        longitude: pl.lng
+      })
+    }
+    if (shotFileIds.length > 0 && verifiedPhotos.length < shotFileIds.length) {
+      throw {
+        code: 422,
+        message: '现场照片缺少取证令牌（' + verifiedPhotos.length + '/' + shotFileIds.length +
+          ' 张已核验），请重新拍照'
+      }
+    }
     const updated = d.updateChecklistItem(params.id, params.itemId, {
       result: body.result,
       value: body.value != null ? Number(body.value) : null,
@@ -182,8 +240,10 @@ const routes = [
       skipReason: body.skipReason || '',
       problemCode: body.problemCode || '',
       photos: body.photoUrls || [], // mock 演示回显（本地路径）；真实后端只落 photoFileIds
-      photoFileIds: body.photoFileIds || [],
-      recordedAt: body.recordedAt || formatTime()
+      photoFileIds: shotFileIds,
+      photoEvidence: verifiedPhotos,
+      // 权威取证时间取服务端签发的拍摄时间，而非客户端 recordedAt
+      recordedAt: verifiedPhotos.length ? verifiedPhotos[0].shotAt : (body.recordedAt || formatTime())
     })
     if (!updated) throw { code: 1404, message: '检查项不存在' }
     return { ok: true, itemId: params.itemId }

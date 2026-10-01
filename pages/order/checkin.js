@@ -125,19 +125,17 @@ Page({
     }
   },
 
-  // 水印自拍：跳转水印相机页。水印文本一律取自服务端签发的取证令牌
-  //（时间/坐标/订单号），不再使用客户端时间与设备坐标
+  // 水印自拍：跳转水印相机页。水印文本一律由服务端取证令牌载荷渲染
+  //（时间/坐标/工单号），相机页不接受任何坐标/时间参数
   goCamera() {
     const ev = this.data.evidence
     if (!ev) return wx.showToast({ title: '取证未完成，请稍候重试', icon: 'none' })
-    let qs = ''
-    if (this.data.addressText) qs += `&address=${encodeURIComponent(this.data.addressText)}`
-    qs += `&lat=${ev.latitude}&lng=${ev.longitude}`
-    qs += `&watermarkTime=${encodeURIComponent(ev.issuedAtText || '')}`
-    wx.navigateTo({ url: `/pages/common/watermark-camera?from=checkin&orderId=${ev.orderId}${qs}` })
+    wx.navigateTo({
+      url: '/pages/common/watermark-camera?from=checkin&evidence=' + encodeURIComponent(ev.token)
+    })
   },
 
-  // 由水印相机页面回传
+  // 由水印相机页面回传照片（取证令牌已在拍照前换取并随签到提交，此处无需回传）
   onPhotoReady(photo) {
     this.setData({ photo })
   },

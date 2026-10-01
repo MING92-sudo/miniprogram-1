@@ -29,7 +29,13 @@ public class EvidenceTokenService {
     private static final String HMAC_ALG = "HmacSHA256";
     /** 域隔离上下文串：使本模块的签名密钥不等于 JWT 签名密钥，避免跨用途复用 */
     private static final String CONTEXT = "|evidence-token-v1";
-    private static final long TTL_SECONDS = 900L;
+    /** 签到取证令牌有效期：签到必须在线完成，故取短窗口 */
+    public static final long TTL_CHECKIN_SECONDS = 900L;
+    /**
+     * 检查项拍照取证令牌有效期：照片拍完后提交可能走离线队列补传（弱网/无网），
+     * 故窗口放宽到 24h；一次性核销保证令牌不会被重复使用。
+     */
+    public static final long TTL_SHOT_SECONDS = 86400L;
 
     private final AppProperties props;
     private final IdempotencyService idempotencyService;
@@ -45,14 +51,28 @@ public class EvidenceTokenService {
      * @return token、签名载荷各字段（供水印渲染）与人类可读时间文本
      */
     public Map<String, Object> issue(String orderId, double lat, double lng, long distanceMeters, int thresholdM) {
+        return issue(orderId, null, lat, lng, distanceMeters, thresholdM, TTL_CHECKIN_SECONDS);
+    }
+
+    /**
+     * 签发取证令牌。调用方须已通过地理围栏与工单状态校验。
+     *
+     * @param itemId 检查项拍照取证时绑定的检查项 id；签到取证传 null
+     * @return token、签名载荷各字段（供水印渲染）与人类可读时间文本
+     */
+    public Map<String, Object> issue(String orderId, String itemId, double lat, double lng,
+                                     long distanceMeters, int thresholdM, long ttlSeconds) {
         String nonce = java.util.UUID.randomUUID().toString();
         long issuedSec = System.currentTimeMillis() / 1000L;
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("oid", orderId);
+        if (itemId != null && !itemId.isEmpty()) {
+            payload.put("iid", itemId);
+        }
         payload.put("lat", round6(lat));
         payload.put("lng", round6(lng));
         payload.put("st", issuedSec);
-        payload.put("exp", issuedSec + TTL_SECONDS);
+        payload.put("exp", issuedSec + ttlSeconds);
         payload.put("n", nonce);
         String body = JsonUtil.write(payload);
         String token = enc(body) + "." + hmac(body);
@@ -60,6 +80,7 @@ public class EvidenceTokenService {
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("token", token);
         out.put("orderId", orderId);
+        out.put("itemId", itemId == null ? "" : itemId);
         out.put("issuedAt", TimeUtil.format(TimeUtil.now()));
         out.put("issuedAtText", TimeUtil.format(TimeUtil.now()));
         out.put("latitude", round6(lat));
@@ -68,7 +89,7 @@ public class EvidenceTokenService {
         out.put("lngText", String.format("%.5f", lng));
         out.put("distanceText", distanceMeters < 0 ? "" : String.valueOf(distanceMeters));
         out.put("thresholdText", String.valueOf(thresholdM));
-        out.put("expiresInSeconds", TTL_SECONDS);
+        out.put("expiresInSeconds", ttlSeconds);
         return out;
     }
 
@@ -78,6 +99,30 @@ public class EvidenceTokenService {
      * @return 载荷（含服务端时间与已校验坐标）
      */
     public Map<String, Object> verifyAndConsume(String token, String expectOrderId) {
+        return verifyAndConsume(token, expectOrderId, null);
+    }
+
+    /**
+     * 验签 + 一次性核销 + 绑定校验。篡改、过期、已使用、与工单/检查项不匹配均拒绝。
+     *
+     * @param expectItemId 传入时要求令牌绑定该检查项（检查项拍照取证）
+     * @return 载荷（含服务端时间与已校验坐标）
+     */
+    public Map<String, Object> verifyAndConsume(String token, String expectOrderId, String expectItemId) {
+        return verify(token, expectOrderId, expectItemId, true);
+    }
+
+    /**
+     * 仅验签与绑定校验，不核销 nonce。用于检查项拍照取证：一次性由载荷的检查项绑定
+     * （iid）保证——令牌无法用于其他检查项或其他工单，故重复提交同一检查项时重复验签是幂等的。
+     * 若在此核销，"提交后网络超时→用户重试"会被已消费 nonce 永久 422 拒绝。
+     */
+    public Map<String, Object> verifyOnly(String token, String expectOrderId, String expectItemId) {
+        return verify(token, expectOrderId, expectItemId, false);
+    }
+
+    private Map<String, Object> verify(String token, String expectOrderId, String expectItemId,
+                                       boolean consumeNonce) {
         if (token == null || token.isBlank()) {
             throw new BizException(422, "缺少取证令牌，请重新获取定位后再签到");
         }
@@ -110,8 +155,13 @@ public class EvidenceTokenService {
         if (expectOrderId != null && !expectOrderId.equals(oid)) {
             throw new BizException(422, "取证令牌与工单不匹配");
         }
-        // 一次性核销：首次 begin() 占用该 nonce，重复占用由 IdempotencyService 抛 422
-        idempotencyService.begin("evidence:" + str(payload.get("n")), "/evidence");
+        if (expectItemId != null && !expectItemId.isEmpty() && !expectItemId.equals(str(payload.get("iid")))) {
+            throw new BizException(422, "取证令牌与检查项不匹配");
+        }
+        // 一次性核销：首次占用该 nonce，重复占用由 IdempotencyService 抛 422
+        if (consumeNonce) {
+            idempotencyService.begin("evidence:" + str(payload.get("n")), "/evidence");
+        }
         return payload;
     }
 

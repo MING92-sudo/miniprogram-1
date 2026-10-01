@@ -1,6 +1,10 @@
 <view class="em-page">
-  <view class="em-card">
-    <view class="wm-info">水印：{{watermarkTime}} · 工单 {{orderId || '-'}}{{itemName ? ' · ' + itemName : ''}}</view>
+  <view class="em-card" wx:if="{{evidenceMissing}}">
+    <view class="wm-info">缺少服务端取证令牌，无法拍照取证。请返回重新获取。</view>
+  </view>
+
+  <view class="em-card" wx:else>
+    <view class="wm-info">水印：{{watermarkTime}} · 工单 {{orderId || '-'}}{{itemId ? ' · 项目 ' + itemId : ''}}</view>
     <view class="wm-wrap">
       <canvas id="wm-canvas" type="2d" class="wm-canvas"></canvas>
       <view wx:if="{{!output}}" class="preview-empty" bindtap="takePhoto">
