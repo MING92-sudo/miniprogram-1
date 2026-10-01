@@ -27,6 +27,7 @@ module.exports = {
     requireMiniProgram: true,
   },
   // extends: 'eslint:recommended',
-  ignorePatterns: ['miniprogram_npm/**', 'tmp/**'],
+  // admin/ 为独立 SPA（Vue3 + 浏览器 ES2022），使用 admin/.eslintrc.cjs 单独 lint（docs/09 §七.2）
+  ignorePatterns: ['miniprogram_npm/**', 'tmp/**', 'admin/**'],
   rules: {},
 }

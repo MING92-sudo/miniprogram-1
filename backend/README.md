@@ -22,7 +22,8 @@ P3（V1.8）：签退后自动转发 2.6（失败不自动重试）+ `reg_upload
 | 文件上传（COS 代理，未配 COS 时回退本地磁盘） | ✅ |
 | LBS `/location/reverse` 代理（高德/腾讯，key 走环境变量） | ✅ |
 | 幂等（X-Idempotency-Key 全部写接口去重，重放返回首次响应） | ✅ |
-| Redis / STS / Vue3 管理端 | 🔴 后置 |
+| 管理端路由（docs/09 一期，V2.0：dashboard/records/stats/elevators 富视图/upload-logs/sync-status + 四类档案 CRUD + 角色门禁 + 1002 互斥预校验 + client=admin 登录白名单） | ✅ |
+| Redis / STS | 🔴 后置 |
 
 ## 本地运行
 
