@@ -61,7 +61,7 @@ function buildChecklist(workTypeCode, categoryCode) {
 // 预填"已完成"演示工单的检查项（关键项附照片留证，周期条目保持"本次无需执行"）
 function makeDoneItems(workTypeCode, withAbnormal, categoryCode) {
   const items = buildChecklist(workTypeCode, categoryCode)
-  items.forEach(function (it, idx) {
+  items.forEach(function (it) {
     if (it.notInThisRun) return // 周期条目灰显不填
     if (it.judgeType === 'NUMERIC') {
       it.result = 'NORMAL'
@@ -617,7 +617,6 @@ function getElevatorProfile(id) {
 // 电梯列表（工作台看板/市监局对接卡片下钻）
 function listElevators() {
   return db.elevators.map(function (el) {
-    const uu = getUseUnit(el.useUnitId) || {}
     return {
       id: el.id,
       elevatorName: el.elevatorName || '',

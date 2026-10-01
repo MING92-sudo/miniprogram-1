@@ -72,6 +72,8 @@ module.exports = {
   getOrderDetail,
   resolveByElevatorCode,
   requestEvidence,
+  requestShotEvidence,
+  requestSignEvidence,
   checkin,
   verifyDynamicCode,
   getChecklist,
