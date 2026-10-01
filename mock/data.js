@@ -102,6 +102,72 @@ const WORK_TYPE_INTERVAL_DAYS = { FM: 30, HM: 15, TM: 90, SM: 180, OY: 365 }
 // 签到地理围栏阈值（米）；与 backend WorkOrderService.CHECKIN_DISTANCE_LIMIT_M 一致
 const CHECKIN_DISTANCE_LIMIT_M = 200
 
+// ── 取证令牌（与 backend EvidenceTokenService 同构：HMAC-SHA256 + 一次性核销）──
+const EVIDENCE_CONTEXT = '|evidence-token-v1'
+const EVIDENCE_TTL_MS = 900 * 1000
+const EVIDENCE_SECRET = 'mock-evidence-secret-not-for-production'
+const usedEvidenceNonces = Object.create(null)
+
+function evidenceHmac(body) {
+  return require('crypto')
+    .createHmac('sha256', EVIDENCE_SECRET + EVIDENCE_CONTEXT)
+    .update(body)
+    .digest('base64url')
+}
+
+function issueEvidence(orderId, lat, lng, distanceText, threshold) {
+  const issuedMs = Date.now()
+  const payload = {
+    oid: orderId,
+    lat: Math.round(lat * 1e6) / 1e6,
+    lng: Math.round(lng * 1e6) / 1e6,
+    st: Math.floor(issuedMs / 1000),
+    exp: Math.floor((issuedMs + EVIDENCE_TTL_MS) / 1000),
+    n: 'mock-' + issuedMs.toString(36) + Math.floor(Math.random() * 1e6).toString(36)
+  }
+  const body = JSON.stringify(payload)
+  const token = Buffer.from(body, 'utf8').toString('base64url') + '.' + evidenceHmac(body)
+  return {
+    token,
+    orderId,
+    issuedAt: formatTime(),
+    issuedAtText: formatTime(),
+    latitude: payload.lat,
+    longitude: payload.lng,
+    latText: payload.lat.toFixed(5),
+    lngText: payload.lng.toFixed(5),
+    distanceText,
+    thresholdText: String(threshold),
+    expiresInSeconds: EVIDENCE_TTL_MS / 1000
+  }
+}
+
+function verifyEvidence(token, expectOrderId) {
+  if (!token) throw { code: 422, message: '缺少取证令牌，请重新获取定位后再签到' }
+  const dot = token.indexOf('.')
+  if (dot < 0) throw { code: 422, message: '取证令牌格式无效' }
+  let payload
+  try {
+    payload = JSON.parse(Buffer.from(token.slice(0, dot), 'base64url').toString('utf8'))
+  } catch (e) {
+    throw { code: 422, message: '取证令牌解析失败' }
+  }
+  if (evidenceHmac(JSON.stringify(payload)) !== token.slice(dot + 1)) {
+    throw { code: 422, message: '取证令牌签名校验失败' }
+  }
+  if (Date.now() / 1000 > payload.exp) {
+    throw { code: 422, message: '取证令牌已过期，请重新获取定位' }
+  }
+  if (expectOrderId && payload.oid !== expectOrderId) {
+    throw { code: 422, message: '取证令牌与工单不匹配' }
+  }
+  if (usedEvidenceNonces[payload.n]) {
+    throw { code: 422, message: '取证令牌已使用，请勿重复提交' }
+  }
+  usedEvidenceNonces[payload.n] = true
+  return payload
+}
+
 function distanceMeters(lat1, lng1, lat2, lng2) {
   if ([lat1, lng1, lat2, lng2].some((v) => typeof v !== 'number' || isNaN(v))) return -1
   const r = 6371000
@@ -917,6 +983,8 @@ module.exports = {
   nextRecordId,
   CHECKIN_DISTANCE_LIMIT_M,
   distanceMeters,
+  issueEvidence,
+  verifyEvidence,
   ensureDueOrders,
   getHomeSummary,
   listElevators,

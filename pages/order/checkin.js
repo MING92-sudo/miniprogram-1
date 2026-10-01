@@ -1,6 +1,6 @@
 // 签到流程：定位 → 水印自拍 → 提交
 // 错误码约定：1001 定位超阈（申诉）、1003 工单锁定；1006/1007 为配置类拦截（docs/04 A.0）
-const { checkin, getOrderDetail } = require('../../services/order')
+const { checkin, getOrderDetail, requestEvidence } = require('../../services/order')
 const { uploadImage } = require('../../services/upload')
 const { reverseGeocode } = require('../../services/location')
 const { formatTime } = require('../../utils/util')
@@ -23,6 +23,8 @@ Page({
     addressText: '',
     locateFailed: false, // 定位失败如实提示（合规：严禁伪造坐标兜底）
     photo: '',
+    evidence: null, // 服务端签发的取证令牌（水印与维保记录均以令牌内值为准）
+    evidenceError: '',
     submitting: false
   },
 
@@ -90,23 +92,49 @@ Page({
     wx.showToast({ title: '定位失败，请重试', icon: 'none' })
   },
 
-  // 定位成功后逆地址解析出具体位置文字（省市区/道路/POI）
+  // 定位成功后：先向服务端换取证令牌（服务端在此校验地理围栏），
+  // 再用**已校验的坐标**做逆地址解析，避免水印地址来自未验证坐标
   async resolveLocation(location) {
-    // 先换掉"定位获取中"文案，避免解析期间界面停留在误导性的中间状态
-    this.setData({ location, locationText: '已获取坐标，解析地址中...' })
-    // reverseGeocode 永不 reject，失败/超时自动回退坐标
-    const address = await reverseGeocode(location.latitude, location.longitude)
-    const isCoord = /^[\d.,\s]+$/.test(address)
-    this.setData({ addressText: isCoord ? '' : address, locationText: address })
+    this.setData({ location, locationText: '已获取坐标，正在核验作业地点...' })
+    await this.loadEvidence(location)
   },
 
-  // 水印自拍：跳转水印相机页，回传临时文件路径（附带具体位置用于水印）
+  async loadEvidence(location) {
+    try {
+      const evidence = await requestEvidence(this.data.orderId, {
+        latitude: location.latitude,
+        longitude: location.longitude,
+        locationAccuracy: location.accuracy || 0
+      })
+      this.setData({ evidence, evidenceError: '' })
+      // reverseGeocode 永不reject，失败/超时自动回退坐标
+      const address = await reverseGeocode(evidence.latitude, evidence.longitude)
+      const isCoord = /^[\d.,\s]+$/.test(address)
+      this.setData({ addressText: isCoord ? '' : address, locationText: address })
+    } catch (e) {
+      this.setData({ evidence: null, evidenceError: (e && e.message) || '取证失败' })
+      if (e && e.code === 1001) {
+        wx.showModal({
+          title: '签到被拦截',
+          content: (e.message || '签到位置超出允许范围') + '。如确属到场，可提交申诉。',
+          showCancel: false
+        })
+      } else {
+        wx.showToast({ title: (e && e.message) || '取证失败，请重试', icon: 'none' })
+      }
+    }
+  },
+
+  // 水印自拍：跳转水印相机页。水印文本一律取自服务端签发的取证令牌
+  //（时间/坐标/订单号），不再使用客户端时间与设备坐标
   goCamera() {
-    const loc = this.data.location
+    const ev = this.data.evidence
+    if (!ev) return wx.showToast({ title: '取证未完成，请稍候重试', icon: 'none' })
     let qs = ''
     if (this.data.addressText) qs += `&address=${encodeURIComponent(this.data.addressText)}`
-    if (loc) qs += `&lat=${loc.latitude}&lng=${loc.longitude}`
-    wx.navigateTo({ url: `/pages/common/watermark-camera?from=checkin&orderId=${this.data.orderId}${qs}` })
+    qs += `&lat=${ev.latitude}&lng=${ev.longitude}`
+    qs += `&watermarkTime=${encodeURIComponent(ev.issuedAtText || '')}`
+    wx.navigateTo({ url: `/pages/common/watermark-camera?from=checkin&orderId=${ev.orderId}${qs}` })
   },
 
   // 由水印相机页面回传
@@ -120,6 +148,9 @@ Page({
 
   async onSubmit() {
     if (!this.data.location) return wx.showToast({ title: '请先获取定位', icon: 'none' })
+    if (!this.data.evidence) {
+      return wx.showToast({ title: this.data.evidenceError || '取证未完成，请稍候重试', icon: 'none' })
+    }
     if (!this.data.photo) return wx.showToast({ title: '请完成水印自拍', icon: 'none' })
     if (this.data.role === 'ASSISTANT' && !this.data.dynamicCode) {
       return wx.showToast({ title: '配合人员须输入主维保动态码', icon: 'none' })
@@ -127,11 +158,10 @@ Page({
     this.setData({ submitting: true })
     try {
       const uploaded = await uploadImage(this.data.photo)
-      // 字段对齐 docs/04 A.2：定位三要素 + 角色 + 动态码 + 本地采集时间（离线补传时为原始时间戳）
+      // 坐标与时间由服务端从取证令牌中取（令牌内已绑定并通过围栏校验），
+      // 此处不回传 latitude/longitude；collectedAt 仅用于离线对账留痕
       const payload = {
-        latitude: this.data.location.latitude,
-        longitude: this.data.location.longitude,
-        locationAccuracy: this.data.location.accuracy || 0,
+        evidenceToken: this.data.evidence.token,
         photoFileId: uploaded.fileId,
         role: this.data.role,
         collectedAt: formatTime()

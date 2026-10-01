@@ -68,6 +68,7 @@ public class WorkOrderService {
     private final ChecklistService checklistService;
     private final DispatchService dispatchService;
     private final ApprovalService approvalService;
+    private final EvidenceTokenService evidenceTokenService;
     private final PlatformReportService reportService;
     private final com.cqwlw.maintenance.config.AppProperties props;
 
@@ -76,7 +77,8 @@ public class WorkOrderService {
                             CompanyMapper companyMapper, MaintainRecordMapper recordMapper,
                             FaultMapper faultMapper, InspectRecordMapper inspectMapper,
                             ChecklistService checklistService, DispatchService dispatchService,
-                            ApprovalService approvalService, PlatformReportService reportService,
+                            ApprovalService approvalService, EvidenceTokenService evidenceTokenService,
+                            PlatformReportService reportService,
                             com.cqwlw.maintenance.config.AppProperties props) {
         this.orderMapper = orderMapper;
         this.elevatorMapper = elevatorMapper;
@@ -89,6 +91,7 @@ public class WorkOrderService {
         this.checklistService = checklistService;
         this.dispatchService = dispatchService;
         this.approvalService = approvalService;
+        this.evidenceTokenService = evidenceTokenService;
         this.reportService = reportService;
         this.props = props;
     }
@@ -259,6 +262,51 @@ public class WorkOrderService {
             }
         }
         Elevator el = elevatorMapper.selectById(o.elevatorId);
+        //取证令牌：必须在拍照前由服务端签发，绑定已通过围栏校验的坐标与服务端时间。
+        // 验签+一次性核销通过后，签到时间与坐标一律采用令牌内值，客户端自填值仅留存作对账。
+        Map<String, Object> evidence = evidenceTokenService.verifyAndConsume(
+                str(body.get("evidenceToken")), orderId);
+        Double lat = EvidenceTokenService.latOf(evidence);
+        Double lng = EvidenceTokenService.lngOf(evidence);
+        boolean appealApproved = approvalService.hasApproved(orderId);
+        String geoStatus = "EVIDENCE_VERIFIED";
+        // 签到时间以服务端时间为准：上报监管平台的 startTime 必须是服务端可举证时间。
+        // 客户端 collectedAt 不可信，仅留存作离线补传对账（docs/04 A.2 collectedAt 语义修订）。
+        LocalDateTime receivedAt = TimeUtil.now();
+        o.status = "PROCESSING";
+        o.checkinTime = receivedAt;
+        Map<String, Object> extra = new LinkedHashMap<>();
+        extra.put("latitude", lat);
+        extra.put("longitude", lng);
+        extra.put("locationAccuracy", body.get("locationAccuracy") == null ? 0 : body.get("locationAccuracy"));
+        extra.put("role", body.get("role") == null ? "PRINCIPAL" : body.get("role"));
+        extra.put("dynamicCode", strOrEmpty(body.get("dynamicCode")));
+        extra.put("selfPhotoFileId", strOrEmpty(body.get("photoFileId")));
+        extra.put("collectedAtClaimed", strOrEmpty(body.get("collectedAt")));
+        extra.put("receivedAt", TimeUtil.format(receivedAt));
+        extra.put("evidenceIssuedAt", TimeUtil.format(TimeUtil.fromMillis(numOf(evidence.get("st")) * 1000L)));
+        extra.put("threshold", CHECKIN_DISTANCE_LIMIT_M);
+        extra.put("geoStatus", geoStatus);
+        extra.put("locationAppealApproved", appealApproved);
+        o.checkinExtraJson = JsonUtil.write(extra);
+        orderMapper.updateById(o);
+        return JsonUtil.map(
+                "checkinId", Ids.next("chk"),
+                "threshold", CHECKIN_DISTANCE_LIMIT_M,
+                "passed", true,
+                "geoStatus", geoStatus);
+    }
+
+    /**
+     * 签到取证令牌（拍照前调用）：校验工单状态与地理围栏，通过后签发绑定
+     * {工单, 已校验坐标, 服务端时间, 一次性随机数} 的签名令牌，供水印相机渲染与签到核销。
+     */
+    public Map<String, Object> issueEvidence(String orderId, Map<String, Object> body) {
+        WorkOrder o = findOr404(orderId);
+        if (!"PENDING".equals(o.status)) {
+            throw new BizException(1003, "当前状态不允许签到");
+        }
+        Elevator el = elevatorMapper.selectById(o.elevatorId);
         Double lat = dbl(body.get("latitude"));
         Double lng = dbl(body.get("longitude"));
         Double elLat = el == null || el.lat == null ? null : el.lat.doubleValue();
@@ -267,46 +315,29 @@ public class WorkOrderService {
         boolean clientLocated = lat != null && lng != null;
         double distance = (elLocated && clientLocated) ? distanceMeters(lat, lng, elLat, elLng) : -1;
         boolean inRange = distance >= 0 && distance <= CHECKIN_DISTANCE_LIMIT_M;
-        boolean appealApproved = approvalService.hasApproved(orderId);
-        String geoStatus;
         if (!elLocated) {
-            // 1005降级放行：电梯未登记坐标时无法判定，但不得静默伪装成已核验
-            geoStatus = "NO_ELEVATOR_COORDS";
-        } else if (!clientLocated) {
+            // 1005 降级放行：电梯未登记坐标时无法判定围栏
+            return evidenceTokenService.issue(orderId, lat == null ? 0d : lat, lng == null ? 0d : lng,
+                    -1, CHECKIN_DISTANCE_LIMIT_M);
+        }
+        if (!clientLocated) {
             throw geoRejected(null);
-        } else if (inRange) {
-            geoStatus = "VERIFIED";
-        } else if (appealApproved) {
-            geoStatus = "APPEAL_APPROVED";
-        } else {
+        }
+        if (!inRange && !approvalService.hasApproved(orderId)) {
             throw geoRejected(Math.round(distance));
         }
-        // 签到时间以服务端时间为准：上报监管平台的 startTime 必须是服务端可举证时间。
-        // 客户端 collectedAt 不可信，仅留存作离线补传对账（docs/04 A.2 collectedAt 语义修订）。
-        LocalDateTime receivedAt = TimeUtil.now();
-        o.status = "PROCESSING";
-        o.checkinTime = receivedAt;
-        Map<String, Object> extra = new LinkedHashMap<>();
-        extra.put("latitude", body.get("latitude"));
-        extra.put("longitude", body.get("longitude"));
-        extra.put("locationAccuracy", body.get("locationAccuracy") == null ? 0 : body.get("locationAccuracy"));
-        extra.put("role", body.get("role") == null ? "PRINCIPAL" : body.get("role"));
-        extra.put("dynamicCode", strOrEmpty(body.get("dynamicCode")));
-        extra.put("selfPhotoFileId", strOrEmpty(body.get("photoFileId")));
-        extra.put("collectedAtClaimed", strOrEmpty(body.get("collectedAt")));
-        extra.put("receivedAt", TimeUtil.format(receivedAt));
-        extra.put("distance", distance < 0 ? "" : String.valueOf(Math.round(distance)));
-        extra.put("threshold", CHECKIN_DISTANCE_LIMIT_M);
-        extra.put("geoStatus", geoStatus);
-        extra.put("locationAppealApproved", appealApproved);
-        o.checkinExtraJson = JsonUtil.write(extra);
-        orderMapper.updateById(o);
-        return JsonUtil.map(
-                "checkinId", Ids.next("chk"),
-                "distance", distance < 0 ? "" : String.valueOf(Math.round(distance)),
-                "threshold", CHECKIN_DISTANCE_LIMIT_M,
-                "passed", "VERIFIED".equals(geoStatus) || "APPEAL_APPROVED".equals(geoStatus),
-                "geoStatus", geoStatus);
+        return evidenceTokenService.issue(orderId, lat, lng, Math.round(distance), CHECKIN_DISTANCE_LIMIT_M);
+    }
+
+    private static long numOf(Object o) {
+        if (o instanceof Number) {
+            return ((Number) o).longValue();
+        }
+        try {
+            return Long.parseLong(String.valueOf(o).trim());
+        } catch (Exception e) {
+            return 0L;
+        }
     }
 
     /** 1001 地理围栏拒绝：回显实测距离与阈值，前端据此引导申诉（docs/04 A.0.1） */

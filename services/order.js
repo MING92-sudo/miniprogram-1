@@ -16,7 +16,13 @@ function resolveByElevatorCode(elevatorCode) {
   return post('/work-orders/resolve-by-elevator', { elevatorCode })
 }
 
-// 签到（定位 + 水印自拍照片）
+// 签到取证令牌（拍照前调用）：服务端做地理围栏校验并签发绑定坐标与服务端时间的签名令牌，
+// 水印与最终维保记录均以令牌内值为准（docs/04 A.2）
+function requestEvidence(orderId, data) {
+  return post(`/work-orders/${orderId}/evidence`, data)
+}
+
+// 签到（定位 + 水印自拍照片 + 取证令牌）
 function checkin(orderId, data) {
   return post(`/work-orders/${orderId}/checkin`, data)
 }
@@ -55,6 +61,7 @@ module.exports = {
   getOrderList,
   getOrderDetail,
   resolveByElevatorCode,
+  requestEvidence,
   checkin,
   verifyDynamicCode,
   getChecklist,

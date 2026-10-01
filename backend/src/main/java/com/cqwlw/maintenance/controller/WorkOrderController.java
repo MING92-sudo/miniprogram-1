@@ -62,6 +62,12 @@ public class WorkOrderController {
         return ApiResponse.ok(result);
     }
 
+    @PostMapping("/work-orders/{id}/evidence")
+    public ApiResponse<Map<String, Object>> evidence(@PathVariable String id,
+                                                     @RequestBody(required = false) Map<String, Object> body) {
+        return ApiResponse.ok(workOrderService.issueEvidence(id, body == null ? Map.of() : body));
+    }
+
     @PostMapping("/work-orders/{id}/checkin")
     public ApiResponse<Object> checkin(@PathVariable String id, @RequestBody Map<String, Object> body,
                                        @RequestHeader(value = "X-Idempotency-Key", required = false) String idemKey) {

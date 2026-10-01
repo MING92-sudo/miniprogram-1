@@ -48,7 +48,9 @@ Page({
       from: query.from || '',
       // 摄像头朝向按场景：签到自拍=前置；检查项现场照=后置
       lens: query.from === 'checkin' ? 'front' : 'back',
-      watermarkTime: formatTime(),
+      //签到链路的水印时间由服务端取证令牌下发（watermarkTime），非设备本地时间；
+      // 检查项拍照（from!=checkin）尚无取证令牌，暂回退设备时间，属已知遗留项
+      watermarkTime: query.watermarkTime || formatTime(),
       locationText
     })
 
