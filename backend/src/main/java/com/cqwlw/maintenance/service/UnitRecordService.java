@@ -63,8 +63,7 @@ public class UnitRecordService {
             throw new BizException(401, "确认链接无效或已失效");
         }
         List<Map<String, Object>> items = JsonUtil.readList(r.itemsJson);
-        List<String> photos = r.photosJson == null ? List.of() : JsonUtil.readList(r.photosJson).stream()
-                .map(String::valueOf).collect(Collectors.toList());
+        List<String> photos = JsonUtil.readStringList(r.photosJson);
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("confirmed", "CONFIRMED".equals(r.confirmStatus));
         m.put("elevatorName", WorkOrderService.nz(r.elevatorName));
@@ -118,10 +117,10 @@ public class UnitRecordService {
         m.put("checkoutTime", TimeUtil.format(r.checkoutTime));
         m.put("duration", r.duration);
         m.put("items", r.itemsJson == null ? List.of() : JsonUtil.readList(r.itemsJson));
-        m.put("photos", r.photosJson == null ? List.of() : JsonUtil.readList(r.photosJson));
+        m.put("photos", JsonUtil.readStringList(r.photosJson));
         m.put("workerSignatureUrl", r.workerSignatureUrl);
         m.put("assistantSignatureUrl", r.assistantSignatureUrl);
-        m.put("problemCodes", r.problemCodesJson == null ? List.of() : JsonUtil.readList(r.problemCodesJson));
+        m.put("problemCodes", JsonUtil.readStringList(r.problemCodesJson));
         m.put("originalRecordId", r.originalRecordId);
         m.put("reportStatus", r.reportStatus);
         m.put("uploadStatus", uploadStatus(r.reportStatus));

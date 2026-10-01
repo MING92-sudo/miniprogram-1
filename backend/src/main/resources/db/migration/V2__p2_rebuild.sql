@@ -1,5 +1,16 @@
 -- P2 最小 schema：字段名与前端契约（docs/04 A.0.1）camelCase 一一对应（下划线列 + MP 驼峰映射）
 -- 复杂嵌套结构（检查项清单/记录明细/报文快照）以 JSON 列存储，服务层负责组装
+--
+-- 【修复 2026-10-01】本迁移是 P2 全量重建，取代 V1__backend_mvp.sql 的旧 schema。
+-- Flyway 在全新库上会先执行 V1 再执行本迁移，而 company/use_unit/work_order 等同名表
+-- 会被 V1 先建出来，导致 "Table 'company' already exists" 而中断（V3 的 reg_upload_log 同理）。
+-- 故先清理 V1 建的表再重建；V1 旧表（employee/file_record/biz_record/message_record）已无任何
+-- 实体引用，属历史遗留。P2/P3 尚未部署上线，旧表无业务数据。
+-- 若将来已有正式数据，请勿直接沿用本 DROP，改为人工迁移。
+SET FOREIGN_KEY_CHECKS = 0;
+DROP TABLE IF EXISTS company, employee, use_unit, elevator, work_order,
+    maintain_record, file_record, reg_upload_log, biz_record, message_record;
+SET FOREIGN_KEY_CHECKS = 1;
 
 CREATE TABLE company (
   id               VARCHAR(32)  NOT NULL PRIMARY KEY,
