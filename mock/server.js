@@ -4,8 +4,8 @@ const d = require('./data')
 const { formatTime, parseTime } = require('../utils/util')
 const config = require('../config/index')
 
-// 自动排期触发点：真实后端为定时任务扫描 plans 表到期记录；
-// mock 在进入工单台/扫码/消息中心时即时检查到期电梯并自动派单
+// 自动排期触发点：真实后端为定时任务（docs/04 A.10.9），读接口一律不触发派单；
+// mock 无调度器，仅在模块加载时执行一次，读接口不得再调用 ensureDueOrders
 d.ensureDueOrders()
 
 // 分页（page 从 1 开始，size 默认 20，与接口文档 A.0 约定一致）
@@ -61,10 +61,7 @@ const routes = [
   // ── 工单 ──
   ['GET', '/home/summary', () => d.getHomeSummary()],
   ['GET', '/elevators', () => d.listElevators()],
-  ['GET', '/work-orders', ({ query }) => {
-    d.ensureDueOrders()
-    return paginate(d.listOrders(query), query)
-  }],
+  ['GET', '/work-orders', ({ query }) => paginate(d.listOrders(query), query)],
   ['GET', '/work-orders/:id', ({ params }) => {
     const order = d.getOrder(params.id)
     if (!order) throw { code: 1404, message: '工单不存在' }
@@ -76,7 +73,6 @@ const routes = [
     return p
   }],
   ['POST', '/work-orders/resolve-by-elevator', ({ body }) => {
-    d.ensureDueOrders()
     const el = d.getElevatorByCode(body.elevatorCode)
     if (!el) throw { code: 1404, message: '未识别的电梯二维码' }
     const order = d.db.orders.find((o) => o.elevatorId === el.id && o.status !== 'DONE')
@@ -377,7 +373,6 @@ const routes = [
 
   // ── 消息 ──
   ['GET', '/messages', ({ query }) => {
-    d.ensureDueOrders()
     const list = d.db.messages.slice().sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1))
     return paginate(list, query)
   }],

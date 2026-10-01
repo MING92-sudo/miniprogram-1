@@ -520,7 +520,6 @@ function ensureDueOrders() {
 
 // ── 首页汇总（对齐无纸化维保首页看板：今日到期/即将到期/保养超期/维保中/未确认/平台对接）──
 function getHomeSummary() {
-  ensureDueOrders()
   const today = formatTime().slice(0, 10)
   const soonEnd = formatTime(new Date(Date.now() + 3 * 86400000)).slice(0, 10)
   let dueToday = 0

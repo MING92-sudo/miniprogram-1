@@ -67,7 +67,6 @@ public class WorkOrderService {
     private final FaultMapper faultMapper;
     private final InspectRecordMapper inspectMapper;
     private final ChecklistService checklistService;
-    private final DispatchService dispatchService;
     private final ApprovalService approvalService;
     private final EvidenceTokenService evidenceTokenService;
     private final FileStorageService fileStorageService;
@@ -78,7 +77,7 @@ public class WorkOrderService {
                             UseUnitMapper useUnitMapper, EmployeeMapper employeeMapper,
                             CompanyMapper companyMapper, MaintainRecordMapper recordMapper,
                             FaultMapper faultMapper, InspectRecordMapper inspectMapper,
-                            ChecklistService checklistService, DispatchService dispatchService,
+                            ChecklistService checklistService,
                             ApprovalService approvalService, EvidenceTokenService evidenceTokenService,
                             FileStorageService fileStorageService,
                             PlatformReportService reportService,
@@ -92,7 +91,6 @@ public class WorkOrderService {
         this.faultMapper = faultMapper;
         this.inspectMapper = inspectMapper;
         this.checklistService = checklistService;
-        this.dispatchService = dispatchService;
         this.approvalService = approvalService;
         this.evidenceTokenService = evidenceTokenService;
         this.fileStorageService = fileStorageService;
@@ -106,8 +104,9 @@ public class WorkOrderService {
     }
 
     // ── 首页汇总 ──
+    // 读接口不触发派单：派单只由定时任务（09:00 + 13分钟兜底）与管理端显式操作驱动，
+    // 否则并发打开首页会造成重复派单，并使读接口偶发失败（审查 B6/B7）
     public Map<String, Object> homeSummary() {
-        dispatchService.ensureDueOrders();
         String today = TimeUtil.date(TimeUtil.now());
         String soonEnd = TimeUtil.date(TimeUtil.now().plusDays(3));
         int dueToday = 0;
@@ -158,7 +157,6 @@ public class WorkOrderService {
 
     // ── 列表 ──
     public Map<String, Object> listOrders(Map<String, String> query) {
-        dispatchService.ensureDueOrders();
         List<WorkOrder> list = orderMapper.selectList(new LambdaQueryWrapper<WorkOrder>()
                 .orderByDesc(WorkOrder::getPlanTime));
         String due = query.get("due");
@@ -235,7 +233,6 @@ public class WorkOrderService {
     }
 
     public Map<String, Object> resolveByElevator(String elevatorCode) {
-        dispatchService.ensureDueOrders();
         Elevator el = elevatorMapper.selectOne(new LambdaQueryWrapper<Elevator>()
                 .eq(Elevator::getElevatorCode, elevatorCode).last("LIMIT 1"));
         if (el == null) {
