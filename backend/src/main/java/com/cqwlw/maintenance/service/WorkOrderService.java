@@ -852,6 +852,12 @@ public class WorkOrderService {
         r.reportStatus = o.reportStatus;
         r.retryCount = 0;
         r.nextMaintenanceDate = LocalDate.now(TimeUtil.ZONE).plusDays(interval);
+        // 落维保基准时间：平台不提供上次维保时间（docs/06 #1 仍在索要），本地以最近一次
+        // 实际完成作业的签退时间为准。派单按此计算下一周期，管理端电梯档案也会显示。
+        if (el != null) {
+            el.lastMaintenanceAt = checkoutTime;
+            elevatorMapper.updateById(el);
+        }
         r.confirmStatus = "PENDING";
         r.shareToken = "sg" + Long.toString(System.currentTimeMillis(), 36)
                 + Long.toString((long) (Math.random() * 1e8), 36);

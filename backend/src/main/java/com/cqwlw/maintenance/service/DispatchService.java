@@ -98,6 +98,15 @@ public class DispatchService {
                 .eq(Elevator::getId, elevatorId).last("FOR UPDATE"));
     }
 
+    /**
+     * 维保基准时间（= 上次维保时间）：优先取本地已完成工单的签退时间，其次取档案登记的
+     * last_maintenance_at。两者皆空表示该梯**尚无任何维保基准**。
+     */
+    private LocalDateTime baseline(Elevator el) {
+        LocalDateTime last = lastMaintenance(el.id, null);
+        return last != null ? last : el.lastMaintenanceAt;
+    }
+
     /** 无需上锁的快速判断：配置缺失、未绑定维保、尚有未完成工单、未到"到期前一天" */
     private boolean maybeDue(Elevator el, long now) {
         if (el.workTypeCode == null || el.workTypeCode.isEmpty()) {
@@ -108,12 +117,11 @@ public class DispatchService {
         if (active != null && active > 0) {
             return false; // 一次只派一单
         }
-        LocalDateTime last = lastMaintenance(el.id, null);
+        LocalDateTime last = baseline(el);
         if (last == null) {
-            last = el.lastMaintenanceAt;
-        }
-        if (last == null) {
-            return false;
+            // 无基准 → 放行首单。平台不提供上次维保时间（docs/06 #1 仍在索要），
+            // 按既定口径「以我们第一次派单的维保时间为准」，故不能因缺基准而永久不派单。
+            return true;
         }
         long dueMs = TimeUtil.toMillis(last) + intervalDays(el) * 86400000L;
         return now >= dueMs - 86400000L;
@@ -132,15 +140,15 @@ public class DispatchService {
         if (active != null && active > 0) {
             return null;
         }
-        LocalDateTime last = lastMaintenance(el.id, null);
-        if (last == null) {
-            last = el.lastMaintenanceAt;
-        }
-        if (last == null) {
-            return null;
+        LocalDateTime last = baseline(el);
+        boolean firstRun = last == null;
+        if (firstRun) {
+            // 首单：无基准则以本次派单时刻起算，并作为后续周期的基准（用户口径：
+            // 平台不提供上次维保时间时，以我们第一次派单的维保时间为准）
+            last = TimeUtil.fromMillis(now);
         }
         long dueMs = TimeUtil.toMillis(last) + intervalDays(el) * 86400000L;
-        if (now < dueMs - 86400000L) {
+        if (!firstRun && now < dueMs - 86400000L) {
             return null;
         }
         String code = "HM";
@@ -169,8 +177,10 @@ public class DispatchService {
         o.workerPlatformId = el.workerPlatformId;
         o.assistantPlatformId = el.assistantPlatformId;
         o.autoDispatched = true;
+        // 必须传 specialType：特种设备（曳引/液压/防爆等）需按 category_scope 自动追加专项检查项，
+        // 两参重载等价于 specialType=null，会漏生成这部分作业项目
         o.checklistJson = com.cqwlw.maintenance.util.JsonUtil.write(
-                checklistService.buildChecklist(code, el.category));
+                checklistService.buildChecklist(code, el.category, el.specialType));
 
         // order_no 有唯一索引，而序号按当日已有工单数推算：多台电梯同时到期时两个线程
         // 可能算出同一序号。撞唯一键时递增序号重试，避免整个派单循环被中断。
@@ -189,9 +199,10 @@ public class DispatchService {
         Message msg = new Message();
         msg.id = Ids.next("msg");
         msg.title = "自动派单通知";
-        msg.content = el.elevatorName + " " + o.workType + "已到维保周期（上次维保 "
-                + TimeUtil.format(last).substring(0, 10) + "），按绑定关系自动派给 "
-                + el.workerName + "，请及时扫码签到。";
+        msg.content = el.elevatorName + " " + o.workType
+                + (firstRun ? "建档后首次维保安排（平台未提供上次维保时间，以本次为基准）"
+                : "已到维保周期（上次维保 " + TimeUtil.format(last).substring(0, 10) + "）")
+                + "，按绑定关系自动派给 " + el.workerName + "，请及时扫码签到。";
         msg.createdAt = TimeUtil.now();
         msg.readFlag = false;
         messageMapper.insert(msg);

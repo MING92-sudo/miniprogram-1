@@ -15,11 +15,13 @@ import org.mockito.ArgumentCaptor;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -125,6 +127,49 @@ class DispatchServiceTest {
         givenElevators(List.of(el));
 
         assertEquals(0, service.ensureDueOrders().size());
+    }
+
+    @Test
+    void firstOrderIsDispatchedWhenNoBaselineExists() {
+        // 平台不提供上次维保时间（docs/06 #1 仍在索要），口径为「以第一次派单的维保时间为准」。
+        // 若无基准就判为不派单，新建电梯将永远进不了工单流程
+        Elevator el = new Elevator();
+        el.id = "el_new";
+        el.elevatorCode = "EM-NEW";
+        el.elevatorName = "新梯";
+        el.category = "曳引驱动电梯";
+        el.workTypeCode = "HM";
+        el.intervalDays = 15;
+        el.workerName = "张伟";
+        el.workerPlatformId = "990001";
+        el.lastMaintenanceAt = null;
+        givenElevators(List.of(el));
+
+        List<WorkOrder> created = service.ensureDueOrders();
+
+        assertEquals(1, created.size());
+        assertEquals("HM", created.get(0).workTypeCode);
+        // 首单以派单当刻为基准，按 15 天周期排在半个月后
+        assertEquals(TimeUtil.date(TimeUtil.now().plusDays(15)),
+                TimeUtil.date(created.get(0).planTime));
+    }
+
+    @Test
+    void dispatchPassesSpecialTypeToChecklistBuilder() {
+        // 特种设备需按 category_scope 自动追加专项检查项；两参重载等价于 specialType=null，会丢作业项目
+        ChecklistService mockChecklist = mock(ChecklistService.class);
+        when(mockChecklist.label(anyString())).thenReturn("半月维保");
+        when(mockChecklist.buildChecklist(anyString(), anyString(), any()))
+                .thenReturn(List.of(Map.of("id", "i1")));
+        DispatchService withMock = new DispatchService(
+                elevatorMapper, orderMapper, messageMapper, mockChecklist);
+        Elevator el = dueElevator("el_sp");
+        el.specialType = "防爆";
+        givenElevators(List.of(el));
+
+        withMock.ensureDueOrders();
+
+        verify(mockChecklist).buildChecklist("HM", "曳引驱动电梯", "防爆");
     }
 
     @Test
