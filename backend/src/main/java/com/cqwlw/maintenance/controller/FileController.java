@@ -61,4 +61,17 @@ public class FileController {
                         f.contentType == null ? "application/octet-stream" : f.contentType))
                 .body(new FileSystemResource(path));
     }
+
+    /** P4 直传元数据（docs/04 A.6 POST /files/sts）：返回存储模式与直传元数据，真实 STS 签发为云端 CAM 部署项 */
+    @PostMapping("/files/sts")
+    public ApiResponse<Map<String, Object>> sts(@org.springframework.web.bind.annotation.RequestBody(required = false)
+                                                Map<String, Object> body,
+                                                HttpServletRequest request) {
+        String dir = body == null || body.get("dir") == null ? "" : String.valueOf(body.get("dir"));
+        int maxAge = body == null || body.get("maxAge") == null ? 1800
+                : Integer.parseInt(String.valueOf(body.get("maxAge")));
+        String schemeHost = request.getScheme() + "://" + request.getServerName()
+                + (request.getServerPort() == 80 || request.getServerPort() == 443 ? "" : ":" + request.getServerPort());
+        return ApiResponse.ok(fileStorageService.stsDirective(dir, maxAge, schemeHost));
+    }
 }

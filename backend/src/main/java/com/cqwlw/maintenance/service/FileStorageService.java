@@ -32,6 +32,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.LocalDate;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 /**
  * 文件存储（P4 STS 直传前的代理上传方案，Q6=A 决策）：
@@ -122,6 +124,61 @@ public class FileStorageService {
     public Path localPath(AppFile f) {
         return Paths.get(props.getFileStorageDir(), f.objectKey.replace('/', '_'))
                 .toAbsolutePath();
+    }
+
+    /**
+     * P4 直传元数据（docs/04 A.6 POST /files/sts）：返回存储模式与直传所需元数据
+     * （bucket/region/授权目录/内网凭证地址）。真实 STS 临时凭证签发需云端 CAM 角色
+     * + cos-sts SDK，属部署项——未接入前照片/签名统一走 /files/upload 代理上传。
+     */
+    public Map<String, Object> stsDirective(String rawDir, int rawMaxAge, String schemeHost) {
+        String dir = sanitizeDir(rawDir);
+        int maxAge = Math.max(60, Math.min(7200, rawMaxAge <= 0 ? 1800 : rawMaxAge));
+        boolean cos = props.cosConfigured();
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("mode", cos ? "COS" : "LOCAL");
+        m.put("dir", dir);
+        m.put("maxAge", maxAge);
+        m.put("uploadUrl", schemeHost + "/files/upload");
+        if (cos) {
+            m.put("bucket", props.getCosBucket());
+            m.put("region", props.getCosRegion());
+            // 云托管托管桶：内网临时凭证地址（后端代理上传用）；自建桶静态密钥则留空并提示接入 STS/CAM
+            m.put("authUrl", props.cosStaticCredentialConfigured() ? "" : props.getCosAuthUrl());
+            m.put("allowPrefix", props.getCosBucket() + "/" + dir);
+        } else {
+            m.put("bucket", "");
+            m.put("region", "");
+            m.put("authUrl", "");
+            m.put("allowPrefix", "");
+        }
+        m.put("stsNote", cos && props.cosStaticCredentialConfigured()
+                ? "自建 COS 桶：临时凭证直传需云端 CAM 角色 + cos-sts SDK，未接入前走后端 /files/upload 代理上传"
+                : "当前走后端 /files/upload 代理上传；STS 直传为云端部署项（docs/04 A.6）");
+        return m;
+    }
+
+    /** 上传目录消毒：去首斜杠、反斜杠归一、先查路径穿越、仅保留 [A-Za-z0-9/_-] */
+    public static String sanitizeDir(String raw) {
+        String d = raw == null || raw.isBlank()
+                ? "checkin/" + LocalDate.now(TimeUtil.ZONE).toString().replace("-", "") + "/"
+                : raw.trim();
+        d = d.replace('\\', '/');
+        while (d.startsWith("/")) {
+            d = d.substring(1);
+        }
+        // 先按归一化原文判穿越（若先过滤会把 "." 删掉导致漏判）
+        if (d.isEmpty() || "..".equals(d) || d.startsWith("../") || d.contains("/../") || d.endsWith("/..")) {
+            return "checkin/";
+        }
+        d = d.replaceAll("[^A-Za-z0-9/_-]", "");
+        if (d.isEmpty()) {
+            d = "checkin/";
+        }
+        if (!d.endsWith("/")) {
+            d = d + "/";
+        }
+        return d;
     }
 
     private static String extOf(String name) {
