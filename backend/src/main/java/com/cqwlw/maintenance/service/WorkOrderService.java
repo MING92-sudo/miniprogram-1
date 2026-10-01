@@ -1,6 +1,7 @@
 package com.cqwlw.maintenance.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.cqwlw.maintenance.auth.CurrentUser;
 import com.cqwlw.maintenance.common.BizException;
 import com.cqwlw.maintenance.common.Ids;
 import com.cqwlw.maintenance.entity.Company;
@@ -72,6 +73,7 @@ public class WorkOrderService {
     private final FileStorageService fileStorageService;
     private final PlatformReportService reportService;
     private final com.cqwlw.maintenance.config.AppProperties props;
+    private final CurrentUser currentUser;
 
     public WorkOrderService(WorkOrderMapper orderMapper, ElevatorMapper elevatorMapper,
                             UseUnitMapper useUnitMapper, EmployeeMapper employeeMapper,
@@ -81,7 +83,8 @@ public class WorkOrderService {
                             ApprovalService approvalService, EvidenceTokenService evidenceTokenService,
                             FileStorageService fileStorageService,
                             PlatformReportService reportService,
-                            com.cqwlw.maintenance.config.AppProperties props) {
+                            com.cqwlw.maintenance.config.AppProperties props,
+                            CurrentUser currentUser) {
         this.orderMapper = orderMapper;
         this.elevatorMapper = elevatorMapper;
         this.useUnitMapper = useUnitMapper;
@@ -96,6 +99,7 @@ public class WorkOrderService {
         this.fileStorageService = fileStorageService;
         this.reportService = reportService;
         this.props = props;
+        this.currentUser = currentUser;
     }
 
     private int minWorkDurationMinutes() {
@@ -103,10 +107,64 @@ public class WorkOrderService {
         return v < 0 ? DEFAULT_MIN_WORK_DURATION_MINUTES : v;
     }
 
+    /** 管理角色不受工单归属限制（管理端本就按角色全量可见，README 角色矩阵） */
+    private static final java.util.Set<String> UNRESTRICTED_ROLES =
+            java.util.Set.of("LEADER", "ADMIN", "SYS_ADMIN");
+
+    /**
+     * 当前登录人的可见范围：管理角色返回 null（放行全部）；维保人员返回其 Employee 记录。
+     * 账号记录缺失按 401 处理——此时放行等于无鉴权访问（fail-closed）。
+     */
+    private Employee scopeEmployee() {
+        String role = currentUser.roleOrNull();
+        if (role != null && UNRESTRICTED_ROLES.contains(role)) {
+            return null;
+        }
+        Employee me = employeeMapper.selectById(currentUser.requireEmployeeId());
+        if (me == null) {
+            throw new BizException(401, "登录账号不存在，请重新登录");
+        }
+        return me;
+    }
+
+    /** me 为 null 表示管理角色放行 */
+    private static boolean canAccess(Employee me, WorkOrder o) {
+        return me == null || assignedToMe(me, o);
+    }
+
+    /**
+     * 归属判定：工单表没有 employeeId 列，只能用 2.6 的 workMan1Id/workMan2Id
+     * （workerPlatformId/assistantPlatformId）与 sys_employee.platform_id 比对——
+     * 它正是派单时的写入源，不受同名人员影响；仅当双方平台标识都缺失（尚未 2.5 同步）
+     * 时才退回姓名比对。
+     */
+    private static boolean assignedToMe(Employee me, WorkOrder o) {
+        if (me == null) {
+            return false;
+        }
+        return identityMatches(me.platformId, me.name, o.workerPlatformId, o.workerName)
+                || identityMatches(me.platformId, me.name, o.assistantPlatformId, o.assistantName);
+    }
+
+    private static boolean identityMatches(String myPlatformId, String myName,
+                                           String orderPlatformId, String orderName) {
+        if (isBlank(myPlatformId) || isBlank(orderPlatformId)) {
+            return !isBlank(myName) && !isBlank(orderName) && myName.trim().equals(orderName.trim());
+        }
+        return myPlatformId.trim().equals(orderPlatformId.trim());
+    }
+
+    private void requireOwnership(WorkOrder o) {
+        if (!canAccess(scopeEmployee(), o)) {
+            throw new BizException(403, "该工单未指派给你，无法查看或操作");
+        }
+    }
+
     // ── 首页汇总 ──
     // 读接口不触发派单：派单只由定时任务（09:00 + 13分钟兜底）与管理端显式操作驱动，
     // 否则并发打开首页会造成重复派单，并使读接口偶发失败（审查 B6/B7）
     public Map<String, Object> homeSummary() {
+        Employee me = scopeEmployee();
         String today = TimeUtil.date(TimeUtil.now());
         String soonEnd = TimeUtil.date(TimeUtil.now().plusDays(3));
         int dueToday = 0;
@@ -114,6 +172,9 @@ public class WorkOrderService {
         int overdue = 0;
         int inProgress = 0;
         for (WorkOrder o : orderMapper.selectList(null)) {
+            if (!canAccess(me, o)) {
+                continue;
+            }
             String planDay = o.planTime == null ? "" : TimeUtil.date(o.planTime);
             if ("PROCESSING".equals(o.status)) {
                 inProgress++;
@@ -157,8 +218,11 @@ public class WorkOrderService {
 
     // ── 列表 ──
     public Map<String, Object> listOrders(Map<String, String> query) {
+        Employee me = scopeEmployee();
         List<WorkOrder> list = orderMapper.selectList(new LambdaQueryWrapper<WorkOrder>()
-                .orderByDesc(WorkOrder::getPlanTime));
+                        .orderByDesc(WorkOrder::getPlanTime)).stream()
+                .filter(o -> canAccess(me, o))
+                .collect(Collectors.toList());
         String due = query.get("due");
         if (due != null && !due.isEmpty()) {
             String today = TimeUtil.date(TimeUtil.now());
@@ -224,6 +288,7 @@ public class WorkOrderService {
         if (o == null) {
             throw new BizException(1404, "工单不存在");
         }
+        requireOwnership(o);
         return o;
     }
 
@@ -244,6 +309,7 @@ public class WorkOrderService {
         if (o == null) {
             throw new BizException(1404, "该电梯暂无进行中的工单");
         }
+        requireOwnership(o);
         return toMap(o, true);
     }
 
