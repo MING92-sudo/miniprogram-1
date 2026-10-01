@@ -34,10 +34,27 @@ class JwtServiceTest {
         assertEquals(401, e.getCode());
     }
 
+@Test
+    void missingSecretFailsFastAtStartup() {
+        // 回归：签名密钥已无默认值（application.yml 移除 dev 默认串）。缺失必须启动失败，
+        // 否则会以公开密钥签发 token，可伪造任意 role
+        AppProperties props = new AppProperties();
+        IllegalStateException e = assertThrows(IllegalStateException.class, () -> new JwtService(props));
+        org.junit.jupiter.api.Assertions.assertTrue(e.getMessage().contains("JWT_SECRET"));
+    }
+
     @Test
-    void defaultDevSecretMeetsHmacSha256Minimum() {
-        // 回归：容器默认密钥必须 ≥32 字节，否则 Keys.hmacShaKeyFor 启动即抛 WeakKeyException
-        String dev = "dev-only-secret-change-me-32bytes-minimum-0123456789";
-        org.junit.jupiter.api.Assertions.assertTrue(dev.getBytes(java.nio.charset.StandardCharsets.UTF_8).length >= 32);
+    void blankSecretFailsFastAtStartup() {
+        AppProperties props = new AppProperties();
+        props.setJwtSecret("   ");
+        assertThrows(IllegalStateException.class, () -> new JwtService(props));
+    }
+
+    @Test
+    void shortSecretRejectedByHmac() {
+        // 注入但不足 32 字节时 jjwt 抛 WeakKeyException，同样属启动即失败
+        AppProperties props = new AppProperties();
+        props.setJwtSecret("too-short");
+assertThrows(Exception.class, () -> new JwtService(props));
     }
 }

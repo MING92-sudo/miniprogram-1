@@ -99,6 +99,9 @@ public class DemoDataSeeder implements ApplicationRunner {
         if (employees != null && employees > 0) {
             return;
         }
+        log.warn("SEED_DEMO_DATA=true：正在向【空库】写入演示数据，"
+                + "其中包含 4 个口令为 123456 的演示账号（含 SYS_ADMIN，13800000010）。"
+                + "生产环境必须置false（AGENTS §2.1）。已存在员工数据时本Seeder 不执行。");
         log.info("开始写入演示种子数据（SEED_DEMO_DATA=true）");
         seed();
         log.info("演示种子数据写入完成");
