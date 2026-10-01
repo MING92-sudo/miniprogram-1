@@ -1,6 +1,7 @@
 package com.cqwlw.maintenance.controller;
 
 import com.cqwlw.maintenance.common.ApiResponse;
+import com.cqwlw.maintenance.entity.MaintainRecord;
 import com.cqwlw.maintenance.entity.WorkOrder;
 import com.cqwlw.maintenance.service.IdempotencyService;
 import com.cqwlw.maintenance.service.WorkOrderService;
@@ -128,7 +129,10 @@ public class WorkOrderController {
         if (guard.replayed()) {
             return ApiResponse.ok(guard.replayedResult());
         }
-        Map<String, Object> result = workOrderService.checkout(id, body == null ? Map.of() : body);
+        // 先在事务内落库（工单 DONE + 维保记录），事务提交后再转发平台 2.6——
+// 对外 HTTPS 调用不放进事务，避免其超时/异常导致维保记录被回滚（见 WorkOrderService.reportAfterCheckout）
+    MaintainRecord rec = workOrderService.checkout(id, body == null ? Map.of() : body);
+        Map<String, Object> result = workOrderService.reportAfterCheckout(id, rec);
         guard.commit(result);
         return ApiResponse.ok(result);
     }

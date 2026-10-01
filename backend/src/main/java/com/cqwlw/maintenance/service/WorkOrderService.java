@@ -22,6 +22,7 @@ import com.cqwlw.maintenance.mapper.WorkOrderMapper;
 import com.cqwlw.maintenance.util.JsonUtil;
 import com.cqwlw.maintenance.util.TimeUtil;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -606,8 +607,12 @@ public class WorkOrderService {
     }
 
     // ── 签退 ──
-    @SuppressWarnings("unchecked")
-    public Map<String, Object> checkout(String orderId, Map<String, Object> body) {
+    /**
+     * 签退落库（**事务内**）：校验 → 工单置 DONE → 冻结检查项/签名/2.6 报文快照 → 插入维保记录。
+     * 不含任何对外调用；平台 2.6 转发见 {@link #reportAfterCheckout}，必须在事务提交后进行。
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public MaintainRecord checkout(String orderId, Map<String, Object> body) {
         WorkOrder o = findOr404(orderId);
         if (!"PROCESSING".equals(o.status)) {
             throw new BizException(1003, "请先完成签到");
@@ -725,15 +730,27 @@ public class WorkOrderService {
         r.createdAt = TimeUtil.now();
         r.reportPayloadJson = JsonUtil.write(buildReportPayload(r, el, uu));
         recordMapper.insert(r);
-        // P3：签退成功后自动转发平台 2.6（失败不自动重试，AGENTS §2.3；
-        // 平台凭证未配置时保持 SUBMITTED=待上报，本地/演示流程不受影响）
+        return r;
+    }
+
+    /**
+     * 签退后上报平台 2.6 —— **必须在 {@link #checkout} 的事务提交之后**调用。
+     *
+     * <p>平台转发是对外 HTTPS 调用（最长 30s 超时）：若放在签退事务内，一旦它异常/超时，
+     * 事务回滚会把已写入的维保记录一起撤销，而工单状态可能已被外部观察到，
+     * 形成"工单已签退但维保记录不存在"的数据空洞。故签退只负责落库（事务内），
+     * 上报在本方法中单独进行；上报失败按 AGENTS §2.3 不自动重试，只标记 FAILED 待人工处理。
+     */
+    public Map<String, Object> reportAfterCheckout(String orderId, MaintainRecord r) {
         r.reportStatus = reportService.attemptUpload(r);
         recordMapper.updateById(r);
-        o.reportStatus = r.reportStatus;
-        orderMapper.updateById(o);
-
+        WorkOrder o = orderMapper.selectById(orderId);
+        if (o != null) {
+            o.reportStatus = r.reportStatus;
+            orderMapper.updateById(o);
+        }
         return JsonUtil.map(
-                "workOrderId", o.id,
+                "workOrderId", orderId,
                 "duration", r.duration,
                 "originalRecordId", r.originalRecordId,
                 "reportStatus", r.reportStatus,
