@@ -465,7 +465,7 @@ public class WorkOrderService {
         p.put("recorder", nz(r.workerName));
         p.put("recorderPhone", recorderPhone);
         p.put("originalRecordId", r.originalRecordId);
-        p.put("problemCode", r.problemCodesJson == null ? List.of() : JsonUtil.readList(r.problemCodesJson));
+        p.put("problemCode", JsonUtil.readStringList(r.problemCodesJson));
         p.put("nextMaintenanceDate", TimeUtil.formatDate(r.nextMaintenanceDate));
         return p;
     }

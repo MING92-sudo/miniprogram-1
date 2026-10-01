@@ -48,6 +48,24 @@ public final class JsonUtil {
         }
     }
 
+    /**
+     * 字符串列表读取（隐患码 / 照片 URL 等：这些 JSON 列存的是字符串数组，不是对象数组）。
+     * 平台 2.6 的 problemCode 为 JSON 数组（docs/01 §；docs/04 B.6 V1.1），
+     * 用 readList（List&lt;Map&gt;）解析会因元素是字符串而失败。
+     * 空值统一返回空列表，调用方无需再判空。
+     */
+    public static List<String> readStringList(String json) {
+        if (json == null || json.isEmpty()) {
+            return List.of();
+        }
+        try {
+            return MAPPER.readValue(json, new TypeReference<List<String>>() {
+            });
+        } catch (Exception e) {
+            throw new IllegalStateException("JSON 解析失败", e);
+        }
+    }
+
     public static Map<String, Object> map(Object... kv) {
         Map<String, Object> m = new java.util.LinkedHashMap<>();
         for (int i = 0; i + 1 < kv.length; i += 2) {

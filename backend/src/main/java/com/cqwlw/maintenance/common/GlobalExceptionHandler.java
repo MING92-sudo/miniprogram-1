@@ -14,11 +14,15 @@ public class GlobalExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
-    /** 业务异常：HTTP 200 + 业务码（前端 request.js 以 body.code 判定业务结果） */
+    /** 业务异常：HTTP 200 + 业务码（前端 request.js 以 body.code 判定业务结果）；data 可附带 conflicts[] 等 */
     @ExceptionHandler(BizException.class)
     @ResponseStatus(HttpStatus.OK)
-    public ApiResponse<Void> handleBiz(BizException e) {
-        return ApiResponse.error(e.getCode(), e.getMessage());
+    public ApiResponse<Object> handleBiz(BizException e) {
+        ApiResponse<Object> resp = ApiResponse.error(e.getCode(), e.getMessage());
+        if (e.getData() != null) {
+            resp.setData(e.getData());
+        }
+        return resp;
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

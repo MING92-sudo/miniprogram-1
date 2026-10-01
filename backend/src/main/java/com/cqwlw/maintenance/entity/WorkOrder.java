@@ -1,5 +1,6 @@
 package com.cqwlw.maintenance.entity;
 
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import lombok.Data;
 import com.baomidou.mybatisplus.annotation.TableName;
@@ -29,6 +30,8 @@ public class WorkOrder {
     public String originalRecordId;
     public String reportStatus;
     public Boolean autoDispatched;
+    /** 列名与实体字段不可由驼峰推导（V2 建的是 checkin_extra，不是 checkin_extra_json） */
+    @TableField("checkin_extra")
     public String checkinExtraJson;
     public String checklistJson;
 }
