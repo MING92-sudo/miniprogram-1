@@ -4,6 +4,7 @@ import com.cqwlw.maintenance.entity.AppFile;
 import com.cqwlw.maintenance.entity.Elevator;
 import com.cqwlw.maintenance.entity.MaintainRecord;
 import com.cqwlw.maintenance.entity.UseUnit;
+import com.cqwlw.maintenance.config.AppProperties;
 import com.cqwlw.maintenance.mapper.AppFileMapper;
 import com.cqwlw.maintenance.util.JsonUtil;
 import com.cqwlw.maintenance.util.TimeUtil;
@@ -46,12 +47,33 @@ public class RecordPdfService {
     private final RestTemplate restTemplate;
     private final AppFileMapper fileMapper;
     private final FileStorageService fileStorage;
+    private final AppProperties props;
 
     public RecordPdfService(RestTemplate restTemplate, AppFileMapper fileMapper,
-                            FileStorageService fileStorage) {
+                            FileStorageService fileStorage, AppProperties props) {
         this.restTemplate = restTemplate;
         this.fileMapper = fileMapper;
         this.fileStorage = fileStorage;
+        this.props = props;
+    }
+
+    /**
+     * 允许抓取的绝对地址主机名白名单：仅本系统自有的 COS 桶域名。
+     * 维保记录里的图片 URL 全部来自 FileStorageService.store（客户端不可控），
+     * 但历史数据或人工导入可能残留任意地址，故导出时再做一次白名单兜底，
+     * 避免把维保记录变成"服务器代抓任意 URL"的 SSRF 通道。
+     */
+    public boolean allowedHost(String url) {
+        try {
+            String host = java.net.URI.create(url).getHost();
+            if (host == null || props.getCosBucket() == null || props.getCosBucket().isEmpty()) {
+                return false;
+            }
+            String suffix = ".cos." + props.getCosRegion() + ".myqcloud.com";
+            return host.equalsIgnoreCase(props.getCosBucket() + suffix);
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     public byte[] render(MaintainRecord r, Elevator el, UseUnit uu) {
@@ -197,6 +219,10 @@ public class RecordPdfService {
         }
         try {
             if (url.startsWith("http")) {
+                if (!allowedHost(url)) {
+                    log.warn("PDF 图片地址不在白名单内，已跳过抓取: {}", mask(url));
+                    return null;
+                }
                 return restTemplate.getForObject(url, byte[].class);
             }
             if (url.startsWith("/files/")) {

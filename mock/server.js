@@ -246,7 +246,7 @@ const routes = [
       abnormalDesc: body.abnormalDesc || '',
       skipReason: body.skipReason || '',
       problemCode: body.problemCode || '',
-      photos: body.photoUrls || [], // mock 演示回显（本地路径）；真实后端只落 photoFileIds
+      photos: verifiedPhotos.map(function (p) { return 'mock://' + p.fileId }),
       photoFileIds: shotFileIds,
       photoEvidence: verifiedPhotos,
       // 权威取证时间取服务端签发的拍摄时间，而非客户端 recordedAt

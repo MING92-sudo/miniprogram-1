@@ -1,5 +1,6 @@
 package com.cqwlw.maintenance;
 
+import com.cqwlw.maintenance.config.AppProperties;
 import com.cqwlw.maintenance.entity.MaintainRecord;
 import com.cqwlw.maintenance.mapper.AppFileMapper;
 import com.cqwlw.maintenance.service.FileStorageService;
@@ -15,6 +16,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 
@@ -31,13 +33,30 @@ class RecordPdfServiceTest {
 
     @BeforeEach
     void setUp() {
+        AppProperties props = new AppProperties();
+        props.setCosBucket("test-bucket-1250000000");
+        props.setCosRegion("ap-shanghai");
         service = new RecordPdfService(new RestTemplate(), mock(AppFileMapper.class),
-                mock(FileStorageService.class)) {
+                mock(FileStorageService.class), props) {
             @Override
             protected byte[] loadImage(String url) {
                 return url == null || url.isBlank() ? null : TINY_PNG.clone();
             }
         };
+    }
+
+    @Test
+    void onlyOwnCosHostIsFetched() {
+        // 回归 SSRF：维保记录里的图片 URL 只允许本系统自有 COS 桶域名，
+        // 云元数据端点/内网地址一律不得由服务器代抓
+        assertTrue(service.allowedHost(
+                "https://test-bucket-1250000000.cos.ap-shanghai.myqcloud.com/a.png"));
+        assertFalse(service.allowedHost("http://169.254.169.254/latest/meta-data/"));
+        assertFalse(service.allowedHost("http://127.0.0.1:8080/health"));
+        assertFalse(service.allowedHost("file:///etc/passwd"));
+        assertFalse(service.allowedHost("https://evil-bucket.cos.ap-shanghai.myqcloud.com/a.png"));
+        assertFalse(service.allowedHost("https://test-bucket-1250000000.cos.ap-shanghai.myqcloud.com.evil.com/a.png"));
+        assertFalse(service.allowedHost("not a url"));
     }
 
     private MaintainRecord record() {

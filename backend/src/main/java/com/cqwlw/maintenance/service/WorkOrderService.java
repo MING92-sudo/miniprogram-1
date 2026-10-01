@@ -526,7 +526,7 @@ public class WorkOrderService {
         item.put("abnormalDesc", strOrEmpty(body.get("abnormalDesc")));
         item.put("skipReason", strOrEmpty(body.get("skipReason")));
         item.put("problemCode", strOrEmpty(body.get("problemCode")));
-        item.put("photos", body.get("photoUrls") == null ? new ArrayList<>() : body.get("photoUrls"));
+        item.put("photos", resolvePhotoUrls(verifiedPhotos));
         item.put("photoFileIds", body.get("photoFileIds") == null ? new ArrayList<>() : body.get("photoFileIds"));
         item.put("photoEvidence", verifiedPhotos);
         // 检查项的权威取证时间：取服务端签发的拍摄时间，而非客户端 recordedAt
@@ -540,6 +540,22 @@ public class WorkOrderService {
         o.checklistJson = JsonUtil.write(items);
         orderMapper.updateById(o);
         return JsonUtil.map("ok", true, "itemId", itemId);
+    }
+
+    /**
+     * 由已验签的取证令牌按 fileId 反查照片可访问 URL。
+     * 客户端上报的 photoUrls 一律不采信——它会被写入维保记录并在 PDF 导出时由服务器抓取，
+     * 等于给出一条任意 URL 的 SSRF 通道（可打云元数据端点）。
+     */
+    private List<String> resolvePhotoUrls(List<Map<String, Object>> verifiedPhotos) {
+        List<String> urls = new ArrayList<>();
+        for (Map<String, Object> rec : verifiedPhotos) {
+            String url = fileStorageService.resolveUrl(str(rec.get("fileId")));
+            if (!isBlank(url)) {
+                urls.add(url);
+            }
+        }
+        return urls;
     }
 
     /**
