@@ -89,13 +89,22 @@ class ReportPayloadRecorderTest {
     }
 
     @Test
-    void fallsBackToNameWhenPlatformIdAbsent() {
-        // 工单上没有 platform_id（如尚未 2.5 同步）时按姓名匹配，仍须命中维保人员1本人
+    void rejectsWhenPlatformIdAbsentInsteadOfMatchingByName() {
+        // 严禁只按姓名匹配（docs/04 B.4：姓名会重名）：工单无 platform_id 时直接 422，
+        // 不得退化到姓名匹配把某个号码写进 2.6 合规上报
         when(employeeMapper.selectOne(any())).thenReturn(employee("张伟", null, "13911111111"));
 
-        Map<String, Object> p = service.buildReportPayload(record("张伟", ""), null, null);
+        assertEquals(422, assertThrows(BizException.class,
+                () -> service.buildReportPayload(record("张伟", ""), null, null)).getCode());
+    }
 
-        assertEquals("13911111111", p.get("recorderPhone"));
+    @Test
+    void rejectsWhenPrincipalNameDiffersFromRecord() {
+        // platform_id 查得到人，但姓名与工单记录的维保人员1对不上 → 拒绝
+        when(employeeMapper.selectOne(any())).thenReturn(employee("李强", "P_PRINCIPAL", "13911111111"));
+
+        assertEquals(422, assertThrows(BizException.class,
+                () -> service.buildReportPayload(record("张伟", "P_PRINCIPAL"), null, null)).getCode());
     }
 
     @Test

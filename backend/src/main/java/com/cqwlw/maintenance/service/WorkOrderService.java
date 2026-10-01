@@ -902,22 +902,22 @@ public class WorkOrderService {
     /** 平台 2.6 报文快照（20 字段冻结；workMeneger 拼写按规范原文，docs/04 B.6） */
     Map<String, Object> buildReportPayload(MaintainRecord r, Elevator el, UseUnit uu) {
         Company c = companyMapper.selectList(null).stream().findFirst().orElse(new Company());
-        // recorder / recorderPhone 属**维保人员1**（平台 2.6 必填）。先按平台人员标识匹配——
-        // 它不受姓名变更与同名影响；再退回姓名。两者都匹配不到时直接失败，绝不退化为
-        // 「随便取一个 WORKER 的号码」：那等于把不相干者的号码写进合规上报，
-        // 而 2.6 记录的是实际作业人，号码对不上即为记录失真。
+        // recorder / recorderPhone 属**维保人员1**（平台 2.6 必填）。姓名与 platform_id 必须
+        // **同时**匹配上已备案员工——严禁退化为只按姓名匹配（docs/04 B.4：姓名会重名）。
+        // 匹配不到即失败，绝不取「随便一个 WORKER 的号码」：那等于把不相干者的号码写进
+        // 合规上报，而 2.6 记录的是实际作业人，号码对不上即为记录失真。
         Employee principal = null;
-        if (!isBlank(r.workerPlatformId)) {
-            principal = employeeMapper.selectOne(new LambdaQueryWrapper<Employee>()
-                    .eq(Employee::getPlatformId, r.workerPlatformId).last("LIMIT 1"));
-        }
-        if (principal == null) {
-            principal = employeeMapper.selectOne(new LambdaQueryWrapper<Employee>()
-                    .eq(Employee::getName, r.workerName).last("LIMIT 1"));
+        if (!isBlank(r.workerPlatformId) && !isBlank(r.workerName)) {
+            Employee byId = employeeMapper.selectOne(new LambdaQueryWrapper<Employee>()
+                    .eq(Employee::getPlatformId, r.workerPlatformId.trim()).last("LIMIT 1"));
+            if (byId != null
+                    && identityMatches(byId.platformId, byId.name, r.workerPlatformId, r.workerName)) {
+                principal = byId;
+            }
         }
         if (principal == null || isBlank(principal.phone)) {
             throw new BizException(422, "维保人员1「" + nz(r.workerName)
-                    + "」在员工档案中查不到有效手机号，无法生成 2.6 上报（recorderPhone 为必填字段）");
+                    + "」的姓名与 platform_id 未匹配上已备案员工，无法生成 2.6 上报（recorderPhone 为必填字段）");
         }
         String recorderPhone = principal.phone;
         Map<String, Object> p = new LinkedHashMap<>();
