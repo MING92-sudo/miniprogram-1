@@ -12,7 +12,9 @@ spring:
       - optional:file:backend/.env[.properties]
   datasource:
     # Connector/J 8：characterEncoding=UTF-8 即自动映射 MySQL utf8mb4
-    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:maintenance}?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+    # createDatabaseIfNotExist=true：目标库不存在时由驱动自动建库（需账号对该库有 CREATE 权限），
+    # 避免"删库后忘记重建"导致 Hikari 连接失败、容器启动失败（2026-10-01 云托管首部署踩坑）
+    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:maintenance}?createDatabaseIfNotExist=true&useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
     username: ${DB_USERNAME:${DB_USER:root}}
     password: ${DB_PASSWORD:root}
     driver-class-name: com.mysql.cj.jdbc.Driver
