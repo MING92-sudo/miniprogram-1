@@ -37,11 +37,14 @@ function formatTime(date) {
   )
 }
 
-// 解析 yyyy-MM-dd HH:mm:ss 为时间戳，按 GMT+8 解释（不依赖设备时区，iOS 亦安全）
+// 解析 yyyy-MM-dd[ HH:mm[:ss]] 为时间戳，按 GMT+8 解释（不依赖设备时区，iOS 亦安全）。
+// 日期-only（yyyy-MM-dd）按 00:00:00 处理：mock 种子与验收脚本的 lastMaintenanceAt
+// 均为 addDays()/formatTime().slice(0,10) 的日期-only 串，若要求时间部分会解析失败返回 0，
+// 导致该梯被永久判为"无维保基准"而不再派单（scripts/verify-dispatch.js 即因此变红）。
 function parseTime(str) {
   if (!str) return 0
   const m = String(str).trim().match(
-    /^(\d{4})-(\d{1,2})-(\d{1,2})[ T](\d{1,2}):(\d{1,2})(?::(\d{1,2}))?/
+    /^(\d{4})-(\d{1,2})-(\d{1,2})(?:[ T](\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?/
   )
   if (!m) return 0
   return (
@@ -49,8 +52,8 @@ function parseTime(str) {
       Number(m[1]),
       Number(m[2]) - 1,
       Number(m[3]),
-      Number(m[4]),
-      Number(m[5]),
+      Number(m[4] || 0),
+      Number(m[5] || 0),
       Number(m[6] || 0)
     ) - TZ_OFFSET_MS
   )
