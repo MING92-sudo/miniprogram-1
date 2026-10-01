@@ -67,6 +67,15 @@ public class DirectoryService {
     public Map<String, Object> createRescue(Map<String, Object> body) {
         String alarmAt = str(body.get("alarmAt"));
         String arriveAt = str(body.get("arriveAt"));
+        if (WorkOrderService.isBlank(strOrEmpty(body.get("elevatorCode")))) {
+            throw new BizException(422, "请选择电梯");
+        }
+        if (WorkOrderService.isBlank(alarmAt)) {
+            throw new BizException(422, "请填写接警时间");
+        }
+        if (WorkOrderService.isBlank(arriveAt)) {
+            throw new BizException(422, "请填写抵达时间（30 分钟法定红线需据此计算）");
+        }
         String rescuedAt = str(body.get("rescuedAt"));
         Integer arriveMin = alarmAt != null && !alarmAt.isEmpty() && arriveAt != null && !arriveAt.isEmpty()
                 ? (int) TimeUtil.minutesBetween(alarmAt, arriveAt) : null;
@@ -128,6 +137,12 @@ public class DirectoryService {
 
     // ── 故障 ──
     public Map<String, Object> createFault(Map<String, Object> body) {
+        if (WorkOrderService.isBlank(strOrEmpty(body.get("elevatorCode")))) {
+            throw new BizException(422, "请选择电梯");
+        }
+        if (WorkOrderService.isBlank(strOrEmpty(body.get("desc")))) {
+            throw new BizException(422, "请填写故障描述");
+        }
         Fault f = new Fault();
         f.id = Ids.next("ft");
         f.elevatorCode = strOrEmpty(body.get("elevatorCode"));
@@ -277,6 +292,9 @@ public class DirectoryService {
     public Map<String, Object> createInspect(Map<String, Object> body) {
         List<Map<String, Object>> items = body.get("items") == null
                 ? List.of() : (List<Map<String, Object>>) body.get("items");
+        if (items.isEmpty()) {
+            throw new BizException(422, "请至少填写 1 项检查结果");
+        }
         long unmarked = items.stream().filter(i -> WorkOrderService.isBlank(str(i.get("result")))).count();
         if (unmarked > 0) {
             throw new BizException(422, "尚有 " + unmarked + " 项未填写检查结果");
