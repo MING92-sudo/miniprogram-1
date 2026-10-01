@@ -48,6 +48,14 @@ public class WorkOrderService {
     private static final String DYNAMIC_CODE = "888888";
     /** 签到地理围栏阈值（米）；与 mock 契约 threshold=200 一致，1001 码见 docs/04 A.0.1 */
     private static final int CHECKIN_DISTANCE_LIMIT_M = 200;
+    /**
+     * 严重事故隐患码 S0—S7（平台 V1.5 规范 3.2，与前端 constants PROBLEM_CODES 同源）。
+     * S0「未发现严重事故隐患」是合法取值：检查项异常但不构成严重隐患时填 S0；
+     * 只有**没有任何异常检查项**时签退才自动补 S0。异常项一律要求显式记录判定，
+     * 杜绝"有异常却报未发现隐患"的假数据上报监管平台。
+     */
+    private static final java.util.Set<String> PROBLEM_CODES = new java.util.HashSet<>(
+            java.util.Arrays.asList("S0", "S1", "S2", "S3", "S4", "S5", "S6", "S7"));
 
     private final WorkOrderMapper orderMapper;
     private final ElevatorMapper elevatorMapper;
@@ -370,6 +378,15 @@ public class WorkOrderService {
         if ("ABNORMAL".equals(result) && !hasPhoto) {
             throw new BizException(422, "「" + name + "」为异常时必须至少附 1 张照片");
         }
+        if ("ABNORMAL".equals(result)) {
+            String pc = str(body.get("problemCode"));
+            if (isBlank(pc)) {
+                throw new BizException(422, "「" + name + "」为异常时必须记录隐患判定（S0—S7），不得留空");
+            }
+            if (!PROBLEM_CODES.contains(pc)) {
+                throw new BizException(422, "「" + name + "」隐患码非法：" + pc + "（取值范围 S0—S7）");
+            }
+        }
         boolean isKey = Boolean.TRUE.equals(item.get("isKey"));
         boolean photoRequired = Boolean.TRUE.equals(item.get("photoRequired"));
         if (isKey && photoRequired && !"NA".equals(result) && !hasPhoto) {
@@ -453,8 +470,17 @@ public class WorkOrderService {
                 .filter(i -> "ABNORMAL".equals(String.valueOf(i.get("result")))
                         && !String.valueOf(i.get("problemCode")).isEmpty())
                 .map(i -> String.valueOf(i.get("problemCode"))).collect(Collectors.toList());
+        // 兜底防御：存在异常项却无隐患码的检查项（历史数据/绕过 submitItem 的写入）不得静默报S0
+        List<Map<String, Object>> abnormalUncoded = frozen.stream()
+                .filter(i -> "ABNORMAL".equals(String.valueOf(i.get("result"))))
+                .filter(i -> String.valueOf(i.get("problemCode")).isEmpty())
+                .collect(Collectors.toList());
+        if (!abnormalUncoded.isEmpty()) {
+            throw new BizException(1003, "检查项「" + abnormalUncoded.get(0).get("name")
+                    + "」为异常但未记录隐患判定，无法签退");
+        }
         if (problemCodes.isEmpty()) {
-            problemCodes = List.of("S0"); // 无隐患必须填 S0（平台 2.6 约定）
+            problemCodes = List.of("S0"); // 仅当无任何异常项时补 S0 = 未发现严重事故隐患（平台 2.6 约定）
         }
         int interval = WORK_TYPE_INTERVAL_DAYS.getOrDefault(o.workTypeCode, 15);
 

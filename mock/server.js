@@ -153,6 +153,16 @@ const routes = [
     if (body.result === 'ABNORMAL' && !(body.photoFileIds || []).length && !(body.photoUrls || []).length) {
       throw { code: 422, message: '「' + item.name + '」为异常时必须至少附 1 张照片' }
     }
+    // 异常项必须显式记录隐患判定（S0—S7）；S0 表示该项异常但不构成严重事故隐患
+    if (body.result === 'ABNORMAL') {
+      const pc = String(body.problemCode == null ? '' : body.problemCode).trim()
+      if (!pc) {
+        throw { code: 422, message: '「' + item.name + '」为异常时必须记录隐患判定（S0—S7），不得留空' }
+      }
+      if (['S0', 'S1', 'S2', 'S3', 'S4', 'S5', 'S6', 'S7'].indexOf(pc) < 0) {
+        throw { code: 422, message: '「' + item.name + '」隐患码非法：' + pc + '（取值范围 S0—S7）' }
+      }
+    }
     // 关键项（试验/测试/校验/检测类，TSG 注A-2）执行时须照片留证；
     // 结果为"不适用"（NA，如该电梯无此部件）时豁免——部件不存在无从拍照（docs/08 BUG 修复）
     // ⚠ 必须用 body.result（本次选择），item.result 是旧状态：新填项为空串，恒 !== 'NA'，导致 BUG 复现
@@ -197,6 +207,13 @@ const routes = [
     )
     if (keyNoPhoto.length) {
       throw { code: 422, message: '关键项「' + keyNoPhoto[0].name + '」须至少附 1 张照片留证（TSG 注A-2），无法签退' }
+    }
+    // 兜底防御：异常项缺隐患判定时拒绝签退，不得静默报 S0（与后端同一口径）
+    const abnormalUncoded = mustRun.filter(function (i) {
+      return i.result === 'ABNORMAL' && !i.problemCode
+    })
+    if (abnormalUncoded.length) {
+      throw { code: 1003, message: '检查项「' + abnormalUncoded[0].name + '」为异常但未记录隐患判定，无法签退' }
     }
     // 业务规则：签到—签退间隔不少于 N 分钟（config.minWorkDurationMinutes，业主补充规则）
     const minutes = (Date.now() - parseTime(o.checkinTime)) / 60000
