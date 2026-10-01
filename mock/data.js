@@ -99,6 +99,21 @@ function today(t) {
 // 下次维保日期（按维保类别间隔天数推导，01 §3.6.1）
 const WORK_TYPE_INTERVAL_DAYS = { FM: 30, HM: 15, TM: 90, SM: 180, OY: 365 }
 
+// 签到地理围栏阈值（米）；与 backend WorkOrderService.CHECKIN_DISTANCE_LIMIT_M 一致
+const CHECKIN_DISTANCE_LIMIT_M = 200
+
+function distanceMeters(lat1, lng1, lat2, lng2) {
+  if ([lat1, lng1, lat2, lng2].some((v) => typeof v !== 'number' || isNaN(v))) return -1
+  const r = 6371000
+  const dLat = ((lat2 - lat1) * Math.PI) / 180
+  const dLng = ((lng2 - lng1) * Math.PI) / 180
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLng / 2) * Math.sin(dLng / 2)
+  return 2 * r * Math.asin(Math.min(1, Math.sqrt(a)))
+}
+
 function addDays(n) {
   return formatTime(new Date(Date.now() + n * 86400000)).slice(0, 10)
 }
@@ -610,19 +625,24 @@ function listOrders(query) {
 }
 
 // 签到（body 对齐 docs/04 A.2：lng/lat/locationAccuracy/photoFileId/role/dynamicCode/collectedAt）
-function markCheckin(orderId, body) {
+// 签到时间以服务端时间为准，客户端 collectedAt 仅留存作离线补传对账（与后端一致）
+function markCheckin(orderId, body, geo) {
   const o = db.orders.find((x) => x.id === orderId)
   if (!o) return null
   o.status = 'PROCESSING'
-  // 离线补传场景保留本地原始采集时间
-  o.checkinTime = (body && body.collectedAt) || formatTime()
+  o.checkinTime = formatTime()
   o.checkinExtra = {
     latitude: body && body.latitude,
     longitude: body && body.longitude,
     locationAccuracy: (body && body.locationAccuracy) || 0,
     role: (body && body.role) || 'PRINCIPAL',
     dynamicCode: (body && body.dynamicCode) || '',
-    selfPhotoFileId: (body && body.photoFileId) || ''
+    selfPhotoFileId: (body && body.photoFileId) || '',
+    collectedAtClaimed: (body && body.collectedAt) || '',
+    receivedAt: formatTime(),
+    distance: geo && geo.distance >= 0 ? String(Math.round(geo.distance)) : '',
+    threshold: CHECKIN_DISTANCE_LIMIT_M,
+    geoStatus: (geo && geo.geoStatus) || 'NO_ELEVATOR_COORDS'
   }
   return o
 }
@@ -895,6 +915,8 @@ module.exports = {
   makeDoneItems,
   nextId,
   nextRecordId,
+  CHECKIN_DISTANCE_LIMIT_M,
+  distanceMeters,
   ensureDueOrders,
   getHomeSummary,
   listElevators,

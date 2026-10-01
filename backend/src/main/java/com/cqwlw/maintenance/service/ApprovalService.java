@@ -63,6 +63,14 @@ public class ApprovalService {
         return out;
     }
 
+    /** 1001 申诉闭环：存在已通过申述即视为地理围栏放行依据（WorkOrderService.checkin 调用） */
+    public boolean hasApproved(String workOrderId) {
+        Long n = appealMapper.selectCount(new LambdaQueryWrapper<LocationAppeal>()
+                .eq(LocationAppeal::getWorkOrderId, workOrderId)
+                .eq(LocationAppeal::getStatus, "APPROVED"));
+        return n != null && n > 0;
+    }
+
     public Map<String, Object> listApprovals(Map<String, String> q) {
         // bizType 一期仅 LOCATION_APPEAL；预留扩展（延期/解锁/确认撤销，docs/04 A.6）
         LambdaQueryWrapper<LocationAppeal> w = new LambdaQueryWrapper<>();

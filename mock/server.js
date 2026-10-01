@@ -91,13 +91,43 @@ const routes = [
       if (!body.dynamicCode) throw { code: 422, message: '配合人员签到必须携带双人动态码' }
       if (body.dynamicCode !== '888888') throw { code: 1003, message: '动态码错误（演示环境固定为 888888）' }
     }
-    d.markCheckin(o.id, body)
+    // 地理围栏：服务端按电梯坐标实测距离，超阈抛 1001（docs/04 A.0.1，与后端同一口径）。
+    // 演示注意：开发者工具需把模拟定位设到该电梯坐标附近，否则签到会被如实拦截（不伪造兜底）。
+    const el = d.getElevator(o.elevatorId)
+    const elLocated = !!(el && typeof el.lat === 'number' && typeof el.lng === 'number')
+    const lat = Number(body.latitude)
+    const lng = Number(body.longitude)
+    const clientLocated = !isNaN(lat) && !isNaN(lng)
+    let distance = -1
+    let geoStatus
+    if (!elLocated) {
+      geoStatus = 'NO_ELEVATOR_COORDS'
+    } else if (!clientLocated) {
+      throw {
+        code: 1001,
+        message: '未获取到定位，无法验证作业地点，请开启定位后重试',
+        data: { distance: '', threshold: d.CHECKIN_DISTANCE_LIMIT_M, appealable: true }
+      }
+    } else {
+      distance = d.distanceMeters(lat, lng, el.lat, el.lng)
+      if (distance <= d.CHECKIN_DISTANCE_LIMIT_M) {
+        geoStatus = 'VERIFIED'
+      } else {
+        throw {
+          code: 1001,
+          message: '签到位置超出允许范围（' + Math.round(distance) + ' 米 > ' +
+            d.CHECKIN_DISTANCE_LIMIT_M + ' 米），请提交申诉',
+          data: { distance: Math.round(distance), threshold: d.CHECKIN_DISTANCE_LIMIT_M, appealable: true }
+        }
+      }
+    }
+    d.markCheckin(o.id, body, { distance, geoStatus })
     return {
       checkinId: 'chk_' + Date.now(),
-      distance: 35.6,
-      threshold: 200,
-      passed: true,
-      geoStatus: 'PROVIDED'
+      distance: distance < 0 ? '' : String(Math.round(distance)),
+      threshold: d.CHECKIN_DISTANCE_LIMIT_M,
+      passed: geoStatus === 'VERIFIED',
+      geoStatus
     }
   }],
   ['POST', '/work-orders/:id/dynamic-code/verify', ({ body }) => {

@@ -46,6 +46,8 @@ public class WorkOrderService {
             Map.of("FM", 30, "HM", 15, "TM", 90, "SM", 180, "OY", 365);
     /** 演示约定：双人动态码固定 888888（与 mock 行为一致） */
     private static final String DYNAMIC_CODE = "888888";
+    /** 签到地理围栏阈值（米）；与 mock 契约 threshold=200 一致，1001 码见 docs/04 A.0.1 */
+    private static final int CHECKIN_DISTANCE_LIMIT_M = 200;
 
     private final WorkOrderMapper orderMapper;
     private final ElevatorMapper elevatorMapper;
@@ -57,6 +59,7 @@ public class WorkOrderService {
     private final InspectRecordMapper inspectMapper;
     private final ChecklistService checklistService;
     private final DispatchService dispatchService;
+    private final ApprovalService approvalService;
     private final PlatformReportService reportService;
     private final com.cqwlw.maintenance.config.AppProperties props;
 
@@ -65,7 +68,7 @@ public class WorkOrderService {
                             CompanyMapper companyMapper, MaintainRecordMapper recordMapper,
                             FaultMapper faultMapper, InspectRecordMapper inspectMapper,
                             ChecklistService checklistService, DispatchService dispatchService,
-                            PlatformReportService reportService,
+                            ApprovalService approvalService, PlatformReportService reportService,
                             com.cqwlw.maintenance.config.AppProperties props) {
         this.orderMapper = orderMapper;
         this.elevatorMapper = elevatorMapper;
@@ -77,6 +80,7 @@ public class WorkOrderService {
         this.inspectMapper = inspectMapper;
         this.checklistService = checklistService;
         this.dispatchService = dispatchService;
+        this.approvalService = approvalService;
         this.reportService = reportService;
         this.props = props;
     }
@@ -246,10 +250,34 @@ public class WorkOrderService {
                 throw new BizException(1003, "动态码错误（演示环境固定为 888888）");
             }
         }
-        String collectedAt = str(body.get("collectedAt"));
+        Elevator el = elevatorMapper.selectById(o.elevatorId);
+        Double lat = dbl(body.get("latitude"));
+        Double lng = dbl(body.get("longitude"));
+        Double elLat = el == null || el.lat == null ? null : el.lat.doubleValue();
+        Double elLng = el == null || el.lng == null ? null : el.lng.doubleValue();
+        boolean elLocated = elLat != null && elLng != null;
+        boolean clientLocated = lat != null && lng != null;
+        double distance = (elLocated && clientLocated) ? distanceMeters(lat, lng, elLat, elLng) : -1;
+        boolean inRange = distance >= 0 && distance <= CHECKIN_DISTANCE_LIMIT_M;
+        boolean appealApproved = approvalService.hasApproved(orderId);
+        String geoStatus;
+        if (!elLocated) {
+            // 1005降级放行：电梯未登记坐标时无法判定，但不得静默伪装成已核验
+            geoStatus = "NO_ELEVATOR_COORDS";
+        } else if (!clientLocated) {
+            throw geoRejected(null);
+        } else if (inRange) {
+            geoStatus = "VERIFIED";
+        } else if (appealApproved) {
+            geoStatus = "APPEAL_APPROVED";
+        } else {
+            throw geoRejected(Math.round(distance));
+        }
+        // 签到时间以服务端时间为准：上报监管平台的 startTime 必须是服务端可举证时间。
+        // 客户端 collectedAt 不可信，仅留存作离线补传对账（docs/04 A.2 collectedAt 语义修订）。
+        LocalDateTime receivedAt = TimeUtil.now();
         o.status = "PROCESSING";
-        o.checkinTime = collectedAt != null && !collectedAt.isEmpty()
-                ? TimeUtil.parse(collectedAt) : TimeUtil.now();
+        o.checkinTime = receivedAt;
         Map<String, Object> extra = new LinkedHashMap<>();
         extra.put("latitude", body.get("latitude"));
         extra.put("longitude", body.get("longitude"));
@@ -257,14 +285,46 @@ public class WorkOrderService {
         extra.put("role", body.get("role") == null ? "PRINCIPAL" : body.get("role"));
         extra.put("dynamicCode", strOrEmpty(body.get("dynamicCode")));
         extra.put("selfPhotoFileId", strOrEmpty(body.get("photoFileId")));
+        extra.put("collectedAtClaimed", strOrEmpty(body.get("collectedAt")));
+        extra.put("receivedAt", TimeUtil.format(receivedAt));
+        extra.put("distance", distance < 0 ? "" : String.valueOf(Math.round(distance)));
+        extra.put("threshold", CHECKIN_DISTANCE_LIMIT_M);
+        extra.put("geoStatus", geoStatus);
+        extra.put("locationAppealApproved", appealApproved);
         o.checkinExtraJson = JsonUtil.write(extra);
         orderMapper.updateById(o);
         return JsonUtil.map(
                 "checkinId", Ids.next("chk"),
-                "distance", 35.6,
-                "threshold", 200,
-                "passed", true,
-                "geoStatus", "PROVIDED");
+                "distance", distance < 0 ? "" : String.valueOf(Math.round(distance)),
+                "threshold", CHECKIN_DISTANCE_LIMIT_M,
+                "passed", "VERIFIED".equals(geoStatus) || "APPEAL_APPROVED".equals(geoStatus),
+                "geoStatus", geoStatus);
+    }
+
+    /** 1001 地理围栏拒绝：回显实测距离与阈值，前端据此引导申诉（docs/04 A.0.1） */
+    private static BizException geoRejected(Long meters) {
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("distance", meters == null ? "" : meters);
+        data.put("threshold", CHECKIN_DISTANCE_LIMIT_M);
+        data.put("appealable", true);
+        String msg = meters == null
+                ? "未获取到定位，无法验证作业地点，请开启定位后重试"
+                : "签到位置超出允许范围（" + meters + " 米 > " + CHECKIN_DISTANCE_LIMIT_M + " 米），请提交申诉";
+        return new BizException(1001, msg, data);
+    }
+
+    /** Haversine 球面距离（米）；坐标缺失返回 -1 表示不可判定 */
+    private static double distanceMeters(Double lat1, Double lng1, Double lat2, Double lng2) {
+        if (lat1 == null || lng1 == null || lat2 == null || lng2 == null) {
+            return -1;
+        }
+        double r = 6371000d;
+        double dLat = Math.toRadians(lat2 - lat1);
+        double dLng = Math.toRadians(lng2 - lng1);
+        double a = Math.sin(dLat / 2) * Math.sin(dLat / 2)
+                + Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2))
+                * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+        return 2 * r * Math.asin(Math.min(1, Math.sqrt(a)));
     }
 
     public Map<String, Object> verifyDynamicCode(Map<String, Object> body) {
@@ -593,6 +653,20 @@ public class WorkOrderService {
 
     static boolean isBlank(String s) {
         return s == null || s.isEmpty();
+    }
+
+    static Double dbl(Object o) {
+        if (o == null) {
+            return null;
+        }
+        if (o instanceof Number) {
+            return ((Number) o).doubleValue();
+        }
+        try {
+            return Double.valueOf(String.valueOf(o).trim());
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 
     static String nz(String s) {
