@@ -17,6 +17,7 @@
           <template #title><span class="group">上报管理</span></template>
           <el-menu-item index="/reports/failed"><el-icon><WarningFilled /></el-icon><span>上报异常清单</span></el-menu-item>
           <el-menu-item index="/reports/logs"><el-icon><Document /></el-icon><span>上报日志</span></el-menu-item>
+          <el-menu-item index="/approvals"><el-icon><Stamp /></el-icon><span>定位异常申述审核</span></el-menu-item>
         </el-menu-item-group>
         <el-menu-item index="/platform/sync">
           <el-icon><Refresh /></el-icon><span>平台同步</span>
@@ -44,6 +45,16 @@
         <el-menu-item index="/stats">
           <el-icon><DataAnalysis /></el-icon><span>统计报表</span>
         </el-menu-item>
+        <el-menu-item-group>
+          <template #title><span class="group">消息预警</span></template>
+          <el-menu-item index="/alerts"><el-icon><BellFilled /></el-icon><span>预警规则</span></el-menu-item>
+          <el-menu-item index="/notify"><el-icon><ChatDotSquare /></el-icon><span>发送记录</span></el-menu-item>
+        </el-menu-item-group>
+        <el-menu-item-group v-if="auth.isSysAdmin">
+          <template #title><span class="group">系统管理</span></template>
+          <el-menu-item index="/users"><el-icon><UserFilled /></el-icon><span>用户权限</span></el-menu-item>
+          <el-menu-item index="/op-logs"><el-icon><Notebook /></el-icon><span>审计日志</span></el-menu-item>
+        </el-menu-item-group>
       </el-menu>
     </el-aside>
 
@@ -71,7 +82,7 @@ import { useRoute } from 'vue-router'
 import {
   Odometer, Tickets, WarningFilled, Document, Refresh, OfficeBuilding,
   School, User, Files, Finished, AlarmClock, Bell, CircleCloseFilled, DataAnalysis,
-  Calendar, List
+  Calendar, List, Stamp, BellFilled, ChatDotSquare, UserFilled, Notebook
 } from '@element-plus/icons-vue'
 import { useAuthStore } from '../stores/auth'
 import { ROLE_TEXT } from '../constants'

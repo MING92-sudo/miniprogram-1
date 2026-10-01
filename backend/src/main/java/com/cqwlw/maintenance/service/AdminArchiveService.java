@@ -155,7 +155,33 @@ public class AdminArchiveService {
         e.workEndDate = str(body, "workEndDate");
         e.workStat = str(body, "workStat").isBlank() ? "normal" : str(body, "workStat");
         e.syncStatus = str(body, "syncStatus").isBlank() ? "NOT_SYNCED" : str(body, "syncStatus");
+        e.enabled = true;
         employeeMapper.insert(e);
+        return employeeRow(e);
+    }
+
+    /** 账号启停（SYS_ADMIN，docs/04 A.1 用户权限） */
+    public Map<String, Object> setEmployeeEnabled(String id, boolean enabled) {
+        Employee e = employeeMapper.selectById(id);
+        if (e == null) {
+            throw new BizException(1404, "人员不存在");
+        }
+        e.enabled = enabled;
+        employeeMapper.updateById(e);
+        return employeeRow(e);
+    }
+
+    /** 重置密码（SYS_ADMIN，docs/04 A.1 用户权限） */
+    public Map<String, Object> resetEmployeePassword(String id, String password) {
+        Employee e = employeeMapper.selectById(id);
+        if (e == null) {
+            throw new BizException(1404, "人员不存在");
+        }
+        if (password == null || password.length() < 6) {
+            throw new BizException(422, "新密码至少 6 位");
+        }
+        e.passwordHash = encoder.encode(password);
+        employeeMapper.updateById(e);
         return employeeRow(e);
     }
 
@@ -414,6 +440,7 @@ public class AdminArchiveService {
         m.put("workEndDate", nz(e.workEndDate));
         m.put("workStat", nz(e.workStat));
         m.put("syncStatus", nz(e.syncStatus));
+        m.put("enabled", !Boolean.FALSE.equals(e.enabled));
         return m;
     }
 

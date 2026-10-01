@@ -130,6 +130,8 @@ public class DemoDataSeeder implements ApplicationRunner {
         // ── 管理端演示账号（docs/09 §五：种子新增 ADMIN；账号/初始密码见 README）──
         employee("emp_admin", "郑浩", "13800000009", "ADMIN", "维保部管理员",
                 "", "", "", 0, enc);
+        employee("emp_sys", "系统管理员", "13800000010", "SYS_ADMIN", "系统管理员",
+                "", "", "", 0, enc);
 
         // ── 使用单位 ──
         useUnit("uu_1", "重庆世纪物业管理有限公司", "刘建国", "13910001001", "王芳", "13800000003", "023-67612345");

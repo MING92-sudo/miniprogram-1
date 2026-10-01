@@ -28,6 +28,7 @@ export const useAuthStore = defineStore('auth', {
   getters: {
     isLogin: (s) => Boolean(s.token),
     canWrite: (s) => ADMIN_WRITE_ROLES.includes(s.role),
+    isSysAdmin: (s) => s.role === 'SYS_ADMIN',
     canRead: (s) => ADMIN_READ_ROLES.includes(s.role),
     userName: (s) => (s.user && s.user.name) || s.role || ''
   },

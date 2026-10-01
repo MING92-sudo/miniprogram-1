@@ -113,6 +113,22 @@ public class AdminArchiveController {
         return ApiResponse.ok(result);
     }
 
+    // ── 用户权限（SYS_ADMIN 专属，docs/04 A.1）──
+
+    @PutMapping("/admin/employees/{id}/enabled")
+    public ApiResponse<Object> setEnabled(@PathVariable String id,
+                                          @RequestBody Map<String, Object> body) {
+        boolean enabled = Boolean.parseBoolean(String.valueOf(body.get("enabled")));
+        return ApiResponse.ok(archiveService.setEmployeeEnabled(id, enabled));
+    }
+
+    @PutMapping("/admin/employees/{id}/password")
+    public ApiResponse<Object> resetPassword(@PathVariable String id,
+                                             @RequestBody Map<String, Object> body) {
+        return ApiResponse.ok(archiveService.resetEmployeePassword(id,
+                body.get("password") == null ? "" : String.valueOf(body.get("password"))));
+    }
+
     // ── 电梯 ──
 
     @PostMapping("/elevators")

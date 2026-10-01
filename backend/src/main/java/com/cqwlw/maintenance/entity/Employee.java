@@ -25,6 +25,8 @@ public class Employee {
     public String workEndDate;
     public String workStat;
     public String syncStatus;
+    /** 账号启用（SYS_ADMIN 管理，停用后无法登录） */
+    public Boolean enabled;
 
     @TableField(exist = false)
     public String password;

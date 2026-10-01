@@ -20,12 +20,22 @@ public class AdminRoleInterceptor implements HandlerInterceptor {
     private static final java.util.regex.Pattern LEADER_WRITABLE =
             java.util.regex.Pattern.compile("^/admin/(plans/[^/]+/delay|orders/[^/]+/transfer)$");
 
+    /** 系统管理员专属（docs/04 A.1：SYS_ADMIN=用户权限/接口配置/日志审计） */
+    private static final java.util.regex.Pattern SYS_ONLY =
+            java.util.regex.Pattern.compile("^/admin/(op-logs|employees/[^/]+/(enabled|password))$");
+
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
         String role = String.valueOf(request.getAttribute(AuthInterceptor.ATTR_ROLE));
         String path = request.getRequestURI();
         boolean write = !"GET".equals(request.getMethod());
         boolean allowed;
+        if (SYS_ONLY.matcher(path).matches()) {
+            if (!AdminRoles.SYS_ADMIN.equals(role)) {
+                throw new BizException(403, "该操作需要系统管理员权限（SYS_ADMIN）");
+            }
+            return true;
+        }
         if (!write && path.startsWith("/elevators")) {
             return true; // 小程序共用电梯读接口
         } else if (write && LEADER_WRITABLE.matcher(path).matches()) {

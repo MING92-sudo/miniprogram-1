@@ -21,6 +21,11 @@ import FaultsView from '../views/FaultsView.vue'
 import StatsView from '../views/StatsView.vue'
 import ScheduleView from '../views/ScheduleView.vue'
 import TemplateManageView from '../views/TemplateManageView.vue'
+import AlertRulesView from '../views/AlertRulesView.vue'
+import NotifyRecordsView from '../views/NotifyRecordsView.vue'
+import UsersView from '../views/UsersView.vue'
+import OpLogsView from '../views/OpLogsView.vue'
+import ApprovalsView from '../views/ApprovalsView.vue'
 import ForbiddenView from '../views/ForbiddenView.vue'
 import NotFoundView from '../views/NotFoundView.vue'
 
@@ -37,6 +42,7 @@ export const routes = [
       { path: 'orders/:id', component: OrderDetailView, meta: { title: '工单详情' } },
       { path: 'reports/failed', component: FailedRecordsView, meta: { title: '上报异常清单' } },
       { path: 'reports/logs', component: UploadLogsView, meta: { title: '上报日志' } },
+      { path: 'approvals', component: ApprovalsView, meta: { title: '定位异常申述审核' } },
       { path: 'platform/sync', component: SyncStatusView, meta: { title: '平台同步' } },
       { path: 'schedule', component: ScheduleView, meta: { title: '计划调度' } },
       { path: 'templates', component: TemplateManageView, meta: { title: '检查项模板' } },
@@ -48,7 +54,11 @@ export const routes = [
       { path: 'ledger/drills', component: DrillsView, meta: { title: '应急演练台账' } },
       { path: 'ledger/rescues', component: RescuesView, meta: { title: '救援台账' } },
       { path: 'ledger/faults', component: FaultsView, meta: { title: '故障台账' } },
-      { path: 'stats', component: StatsView, meta: { title: '统计报表' } }
+      { path: 'stats', component: StatsView, meta: { title: '统计报表' } },
+      { path: 'alerts', component: AlertRulesView, meta: { title: '预警规则' } },
+      { path: 'notify', component: NotifyRecordsView, meta: { title: '发送记录' } },
+      { path: 'users', component: UsersView, meta: { title: '用户权限' } },
+      { path: 'op-logs', component: OpLogsView, meta: { title: '审计日志' } }
     ]
   },
   { path: '/403', component: ForbiddenView, meta: { public: true, title: '无权限' } },

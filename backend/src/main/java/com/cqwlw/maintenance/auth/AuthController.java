@@ -53,6 +53,9 @@ public class AuthController {
         if (!encoder.matches(password, user.passwordHash)) {
             throw new BizException(401, "账号或密码错误");
         }
+        if (Boolean.FALSE.equals(user.enabled)) {
+            throw new BizException(403, "账号已停用，请联系系统管理员");
+        }
         // 管理端会话白名单（docs/09 §3.2）：client=admin 时仅 LEADER/ADMIN/SYS_ADMIN 可登录；
         // 小程序端（不带 client）不受影响。
         if ("admin".equals(String.valueOf(body.get("client")))) {
@@ -90,6 +93,9 @@ public class AuthController {
                 .eq(Employee::getOpenid, openid).last("LIMIT 1"));
         if (user == null) {
             throw new BizException(401, "该微信尚未绑定账号，请先用账号密码登录并绑定微信");
+        }
+        if (Boolean.FALSE.equals(user.enabled)) {
+            throw new BizException(403, "账号已停用，请联系系统管理员");
         }
         return ApiResponse.ok(loginResult(user, openid));
     }
