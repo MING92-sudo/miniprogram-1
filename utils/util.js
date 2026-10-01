@@ -1,5 +1,10 @@
 // 通用工具函数
 
+// GMT+8 固定偏移（AGENTS §3：时间存取一律 yyyy-MM-dd HH:mm:ss GMT+8）。
+// 不依赖设备时区——维保工设备时区非 +08 时，按本地时区格式化会让签到/签退时间整体偏移，
+// 直接污染上报监管平台的时间字段。
+const TZ_OFFSET_MS = 8 * 60 * 60 * 1000
+
 // 简易 UUID（用于 X-Idempotency-Key）
 function uuid() {
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
@@ -12,28 +17,43 @@ function uuid() {
 // 时间格式化 yyyy-MM-dd HH:mm:ss（GMT+8，24小时制）
 function formatTime(date) {
   const d = date ? new Date(date) : new Date()
+  if (isNaN(d.getTime())) return ''
+  const t = new Date(d.getTime() + TZ_OFFSET_MS)
   const pad = function (n) {
     return (n < 10 ? '0' : '') + n
   }
   return (
-    d.getFullYear() +
+    t.getUTCFullYear() +
     '-' +
-    pad(d.getMonth() + 1) +
+    pad(t.getUTCMonth() + 1) +
     '-' +
-    pad(d.getDate()) +
+    pad(t.getUTCDate()) +
     ' ' +
-    pad(d.getHours()) +
+    pad(t.getUTCHours()) +
     ':' +
-    pad(d.getMinutes()) +
+    pad(t.getUTCMinutes()) +
     ':' +
-    pad(d.getSeconds())
+    pad(t.getUTCSeconds())
   )
 }
 
-// 解析 yyyy-MM-dd HH:mm:ss 为时间戳；iOS 不认 '-' 分隔的日期串，统一替换为 '/'
+// 解析 yyyy-MM-dd HH:mm:ss 为时间戳，按 GMT+8 解释（不依赖设备时区，iOS 亦安全）
 function parseTime(str) {
   if (!str) return 0
-  return new Date(String(str).replace(/-/g, '/')).getTime()
+  const m = String(str).trim().match(
+    /^(\d{4})-(\d{1,2})-(\d{1,2})[ T](\d{1,2}):(\d{1,2})(?::(\d{1,2}))?/
+  )
+  if (!m) return 0
+  return (
+    Date.UTC(
+      Number(m[1]),
+      Number(m[2]) - 1,
+      Number(m[3]),
+      Number(m[4]),
+      Number(m[5]),
+      Number(m[6] || 0)
+    ) - TZ_OFFSET_MS
+  )
 }
 
 // 时长格式化 HH:mm:ss（24小时制，如 02:35:00，对齐 docs/04 A.2 duration 格式）
