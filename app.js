@@ -12,7 +12,7 @@ App({
     this.watchNetwork()
   },
 
-  // 网络恢复时自动补传离线队列（docs/02 离线策略）
+  // 网络恢复时自动补传离线队列
   watchNetwork() {
     wx.onNetworkStatusChange((res) => {
       if (!res.isConnected) return

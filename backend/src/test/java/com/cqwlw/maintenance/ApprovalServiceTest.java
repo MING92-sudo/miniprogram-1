@@ -23,7 +23,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/** 定位异常申述审核（docs/04 A.2/A.6）：提交→审核通过补签到解锁；已处理不可重复审核 */
+    /** 定位异常申述审核：提交→审核通过补签到解锁；已处理不可重复审核 */
 class ApprovalServiceTest {
 
     private LocationAppealMapper appealMapper;

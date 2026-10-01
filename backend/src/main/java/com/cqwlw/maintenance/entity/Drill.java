@@ -9,7 +9,7 @@ import java.time.LocalDateTime;
 @Data
 
 
-/** 应急演练（每半年至少 1 轮，覆盖全部电梯品种，docs/01 §3.18） */
+/** 应急演练（每半年至少 1 轮，覆盖全部电梯品种） */
 @TableName("drill")
 public class Drill {
     @TableId

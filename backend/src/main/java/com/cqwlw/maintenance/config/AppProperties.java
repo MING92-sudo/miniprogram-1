@@ -3,7 +3,7 @@ package com.cqwlw.maintenance.config;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
- * 自建应用配置（环境变量注入，禁止真实凭证入库，AGENTS §2）。
+ * 自建应用配置（环境变量注入，禁止真实凭证入库）。
  */
 @ConfigurationProperties(prefix = "app")
 public class AppProperties {
@@ -11,7 +11,7 @@ public class AppProperties {
     private String jwtSecret;
     private int jwtExpireHours = 72;
     /**
-     * 微信小程序凭证：code 换 openid（jscode2session）用，只允许环境变量注入（AGENTS §2.1）。
+     * 微信小程序凭证：code 换 openid（jscode2session）用，只允许环境变量注入。
      * 生产必须配置，否则 /auth/bind-wechat、/auth/wx-login 直接报错。
      */
     private String wxAppid;

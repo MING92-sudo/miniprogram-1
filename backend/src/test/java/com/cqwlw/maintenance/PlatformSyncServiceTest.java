@@ -150,7 +150,7 @@ class PlatformSyncServiceTest {
         assertEquals("130421", el.elevatorCode);
         assertEquals("5633318206815862786", el.useUnitEntityId);
         assertEquals("张三", el.elevatorAdminister);
-        // docs/04 B.7：平台手机号为脱敏值，不得覆盖本地真实号码
+        // 平台手机号为脱敏值，不得覆盖本地真实号码
         assertEquals("13800000001", el.elevatorAdministerPhone);
     }
 }

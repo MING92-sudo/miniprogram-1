@@ -1,7 +1,7 @@
 import http from './client'
 
 /**
- * 档案维护（docs/09 §1.2-4）：
+ * 档案维护：
  * GET /company、PUT /company；GET/POST/PUT /use-units、/employees；POST/PUT /elevators、GET /admin/elevators。
  * 写接口幂等键由 client 统一附加；1002 互斥冲突以 err.data.conflicts[] 返回。
  */

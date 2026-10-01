@@ -1,7 +1,7 @@
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { PROBLEM_CODES } from '../constants'
 
-/** 统一错误提示；1002 手机号互斥时展示具体冲突角色对（docs/09 决策 #3） */
+/** 统一错误提示；1002 手机号互斥时展示具体冲突角色对 */
 export function showErr(e) {
   if (e && e.code === 1002 && e.data && Array.isArray(e.data.conflicts)) {
     const lines = e.data.conflicts.map((c) => {

@@ -17,7 +17,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
- * 检查清单双路径一致性（docs/09 二期）：checklist_template 播种后 DB 路径生成结果
+ * 检查清单双路径一致性：checklist_template 播种后 DB 路径生成结果
  * 必须与 JSON 路径逐字段一致；特殊类别（消防）追加启用中的 CUSTOM 自定义项。
  */
 class ChecklistServiceDbPathTest {

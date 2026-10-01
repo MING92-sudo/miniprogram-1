@@ -14,7 +14,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 管理端·预警（docs/04 A.6 GET /alerts、GET/PUT /alert-rules）。
+ * 管理端·预警（GET /alerts、GET/PUT /alert-rules）。
  * 规则读 LEADER+、改 ADMIN+；生成预警 ADMIN+（拦截器承担角色门禁）。
  */
 @RestController

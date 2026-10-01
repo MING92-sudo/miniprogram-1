@@ -29,8 +29,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * P3 平台上报服务（docs/07-full-test 实测口径沉淀）：
- * 2.6 报文直接取签退冻结快照；失败不自动重试（AGENTS §2.3）；
+ * 平台上报服务：
+ * 报文直接取签退冻结快照；失败不自动重试；
  * reupload 仅对 FAILED 放行；2.8 开关关闭时不推送；日志摘要脱敏。
  */
 class PlatformReportServiceTest {
@@ -92,7 +92,7 @@ class PlatformReportServiceTest {
 
         assertEquals("FAILED", service.attemptUpload(r));
         assertEquals("FAILED", r.reportStatus);
-        // AGENTS §2.3：失败不自动重试，只调用一次
+        // 失败不自动重试，只调用一次
         verify(platformClient, times(1)).uploadMaintenanceRecord(any());
         ArgumentCaptor<RegUploadLog> captor = ArgumentCaptor.forClass(RegUploadLog.class);
         verify(logMapper).insert(captor.capture());

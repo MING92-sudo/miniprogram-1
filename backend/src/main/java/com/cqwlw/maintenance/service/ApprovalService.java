@@ -22,8 +22,8 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 定位异常申述审核（docs/04 A.2 1001 → POST /workorders/{id}/location-appeal → 管理端 GET /approvals + POST /approvals/{id}/audit）。
- * 审核通过后工单 `checkin_extra` 写入 locationAppealApproved=true，供签到流程"补签到"放行（docs/02 §阈值三级配置 + 补签到）。
+ * 定位异常申述审核。审核通过后工单 checkin_extra 写入 locationAppealApproved=true，
+ * 供签到流程"补签到"放行。
  */
 @Service
 public class ApprovalService {
@@ -72,7 +72,7 @@ public class ApprovalService {
     }
 
     public Map<String, Object> listApprovals(Map<String, String> q) {
-        // bizType 一期仅 LOCATION_APPEAL；预留扩展（延期/解锁/确认撤销，docs/04 A.6）
+        // bizType 一期仅 LOCATION_APPEAL；预留扩展（延期/解锁/确认撤销）
         LambdaQueryWrapper<LocationAppeal> w = new LambdaQueryWrapper<>();
         if (notBlank(q.get("status"))) {
             w.eq(LocationAppeal::getStatus, q.get("status"));
@@ -110,7 +110,7 @@ public class ApprovalService {
         appealMapper.updateById(a);
 
         if (approved) {
-            // 补签到解锁：checkin_extra 合并 locationAppealApproved=true（docs/02 补签到）
+            // 补签到解锁：checkin_extra 合并 locationAppealApproved=true
             WorkOrder o = orderMapper.selectById(a.workOrderId);
             if (o != null) {
                 Map<String, Object> extra = JsonUtil.readMap(o.checkinExtraJson);

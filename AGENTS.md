@@ -46,7 +46,7 @@
 
 - **语言/风格**：小程序 CommonJS（`require`/`module.exports`），ES2018，2 空格缩进，单引号，分号按现有文件风格；提交前 `npm run lint`（eslint）须通过。
 - **命名**：services 方法动词开头（`getXxx/createXxx/submitXxx`）；常量 UPPER_SNAKE；页面 data 字段与 `docs/04` 字段名一致。
-- **注释**：每个文件顶部一行职责说明；涉及平台/合规的约定注明出处（如 `docs/01 §3.17`、平台 2.6）。
+- **注释**：每个文件顶部一行职责说明；注释只写代码在做什么，以及从代码看不出来的原因；不注明规则/文档出处（不写 `docs/0X §Y`、`TSG`、`平台 2.x`、`AGENTS §`、日期与优先级）；合规红线（凭证不入库、日志脱敏、禁止自动重试）保留一行提示。
 - **错误码**：统一用 `constants/index.js` 的 `ERROR_CODES`，禁止页面内硬编码文案。
 - **枚举**：维保类别 FM/HM/TM/SM/OY、隐患码 S0—S7、判定方式 NUMERIC/STANDARD/MANUFACTURER/QUALITATIVE 只从 `constants` 引用；隐患码按 S0—S7 连续编码（规范原文 S3 重复为笔误，待平台确认 docs/06 #9）。
 - **时间**：存取一律 `yyyy-MM-dd HH:mm:ss`（GMT+8），用 `utils/util.js` 的 formatTime/parseTime（iOS 兼容已处理）；时长 `HH:mm:ss`。
@@ -91,3 +91,4 @@
 |---|---|---|
 | V1.0 | 2026-09-30 | 首版：项目结构、分层、安全红线、编码约定、平台实测事实、Git/测试/文档同步规则 |
 | V1.1 | 2026-09-30 | 派单验收口径改为“同项目 6 台同日到期一次性全部当日 09:00 派单”；补充全量一致性核查与 TDesign 依赖移除后的 lint 要求 |
+| V1.2 | 2026-10-02 | 注释约定改为「只解释代码含义，不注明规则出处」；合规红线仍保留一行提示 |

@@ -35,7 +35,7 @@ import static org.springframework.test.web.client.match.MockRestRequestMatchers.
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
 /**
- * P0 串号修复的接口级回归（docs/04 A.1）：
+ * openid 串号修复的接口级回归：
  * ① openid 唯一来源是 code → jscode2session；X-WX-OPENID 头与 dev_openid 一律不被信任；
  * ② bind-wechat 必须带登录态，写入前先显式解绑同一 openid 上的其他账号（含历史重复行）；
  * ③ 无 code（即使带伪造请求头）→ 422 且不落库、不发微信请求；
@@ -215,7 +215,7 @@ class AuthControllerWeChatTest {
 
     @Test
     void twoEmployeesBindDistinctOpenidsAndEachLogsIntoOwnAccount() {
-        // P0 端到端回归：两人分别绑定 → openid 互不相同 → wx-login 各回各的档案
+        // 端到端回归：两人分别绑定 → openid 互不相同 → wx-login 各回各的档案
         Employee a = employee("emp_a", "13800000001");
         Employee b = employee("emp_b", "13800000002");
         rows.add(a);

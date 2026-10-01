@@ -26,7 +26,7 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 import org.springframework.http.HttpStatus;
 
 /**
- * 2.2/2.7 转发（docs/04 B.2/B.7 实测口径）：POST + 表单编码；Bearer 鉴权；
+ * 2.2/2.7 转发：POST + 表单编码；Bearer 鉴权；
  * HTTP 401 → 清缓存重登重试 1 次；业务码非 200 抛 2002。
  */
 class PlatformClientTest {

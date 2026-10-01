@@ -18,15 +18,10 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 手机号互斥预校验（docs/01 §3.2.4 + docs/04 B.7：校验前移至建档期，AGENTS §4.5）。
- *
- * 互斥范围严格按 2.6 备注——仅五个角色：
- * 使用单位负责人 / 使用单位安全管理员 / 维保经理 / 维保人员1 / 维保人员2；
- * emergencyPhone 与 recorderPhone 不参与（docs/01 §3.2.4 V2.5 复核结论）。
- *
- * 冲突判定：同一手机号出现在 ≥2 个**不同**互斥角色上（同人同角色不算冲突，
- * 如员工表中的安全管理员与使用单位档案的安全管理员为同一人）。
- * 冲突返回 code=1002 + data.conflicts[]（具体到角色对，docs/04 A.0.1）。
+ * 手机号互斥预校验，校验前移至建档期（平台不校验，由本系统承担）。互斥范围仅五个角色：
+ * 使用单位负责人 / 使用单位安全管理员 / 维保经理 / 维保人员1 / 维保人员2，
+ * emergencyPhone 与 recorderPhone 不参与。同一手机号出现在 ≥2 个不同互斥角色上即冲突
+ * （同人同角色不算），返回 1002 + conflicts[]。
  */
 @Service
 public class PhoneMutexService {

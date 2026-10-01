@@ -19,7 +19,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * 写接口幂等（docs/04 A.0.1）：同 key 重放返回首次响应；并发同 key 拒绝；
+ * 写接口幂等：同 key 重放返回首次响应；并发同 key 拒绝；
  * 上一次异常终止（未写响应）的键**必须能过期回收**，否则该键将永久 422，
  * 离线队列任务（固定复用任务 id 作幂等键）将再也无法补传。
  */

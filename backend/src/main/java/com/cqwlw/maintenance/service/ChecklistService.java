@@ -19,10 +19,9 @@ import java.util.Map;
 import static com.cqwlw.maintenance.util.JsonUtil.MAPPER;
 
 /**
- * 检查项清单生成：按维保频次累加式生成 TSG 附件 A—D 清单（docs/01 §3.7.3、docs/08 附件B/C/D 模板）。
- * 官方模板双路径：`checklist_template` 表已播种（OFFICIAL，payload 为 JSON 原文）时走 DB，否则回落
- * classpath checklist-template.json——两路径生成结果逐字段一致（docs/09 二期 / docs/05 §10.5）。
- * 特殊类别（elevator.special_type=消防/防爆）追加启用的 CUSTOM 自定义模板；未配置仅提示（1006 语义）不阻断。
+ * 检查项清单生成：按维保频次累加式生成清单。官方模板双路径——DB 已播种 OFFICIAL 时走 DB，
+ * 否则回落 classpath checklist-template.json，两路径结果须逐字段一致。
+ * 特殊类别（消防/防爆）追加启用的 CUSTOM 模板；未配置仅提示不阻断。
  */
 @Service
 public class ChecklistService {
@@ -78,7 +77,7 @@ public class ChecklistService {
         return items;
     }
 
-    /** 累加式生成工单检查清单（周期条目默认"本次无需执行"，docs/03 §6.1）；不涉及特殊类别 */
+    /** 累加式生成工单检查清单（周期条目默认"本次无需执行"）；不涉及特殊类别 */
     public List<Map<String, Object>> buildChecklist(String workTypeCode, String categoryCode) {
         return buildChecklist(workTypeCode, categoryCode, null);
     }
@@ -90,7 +89,7 @@ public class ChecklistService {
         List<Map<String, Object>> items = new ArrayList<>();
         for (String freq : chain(workTypeCode)) {
             for (Map<String, Object> tpl : tpls.get(freq)) {
-                // 与 mock 口径一致：空串视为未配置（JS falsy）
+                // 空串视为未配置（与 mock 一致，JS falsy）
                 boolean periodic = hasText(tpl.get("execCycleMonth"))
                         || hasText(tpl.get("ageCondition"))
                         || hasText(tpl.get("seasonWindow"));

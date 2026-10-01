@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { idempotencyKey, resolveEnvelope } from './client'
 
-/** API 信封解包回归（docs/09 §七.2）：code=0 取 data；业务码抛结构化错误；非信封原样返回 */
+/** API 信封解包回归：code=0 取 data；业务码抛结构化错误；非信封原样返回 */
 describe('resolveEnvelope', () => {
   it('code=0 时返回 data', () => {
     expect(resolveEnvelope({ code: 0, message: 'success', data: { a: 1 } })).toEqual({ a: 1 })

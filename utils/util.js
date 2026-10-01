@@ -1,6 +1,6 @@
 // 通用工具函数
 
-// GMT+8 固定偏移（AGENTS §3：时间存取一律 yyyy-MM-dd HH:mm:ss GMT+8）。
+// GMT+8 固定偏移（时间存取一律 yyyy-MM-dd HH:mm:ss GMT+8）。
 // 不依赖设备时区——维保工设备时区非 +08 时，按本地时区格式化会让签到/签退时间整体偏移，
 // 直接污染上报监管平台的时间字段。
 const TZ_OFFSET_MS = 8 * 60 * 60 * 1000
@@ -59,7 +59,7 @@ function parseTime(str) {
   )
 }
 
-// 时长格式化 HH:mm:ss（24小时制，如 02:35:00，对齐 docs/04 A.2 duration 格式）
+// 时长格式化 HH:mm:ss（24小时制，如 02:35:00）
 function formatDuration(ms) {
   if (!ms || ms < 0) ms = 0
   const s = Math.floor(ms / 1000)

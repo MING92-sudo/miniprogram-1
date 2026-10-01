@@ -45,7 +45,7 @@ import java.util.Map;
 public class FileStorageService {
 
     private static final Logger log = LoggerFactory.getLogger(FileStorageService.class);
-    /** 临时凭证提前 5 分钟刷新，避免临界过期（口径对齐 docs/04 B token 中控） */
+    /** 临时凭证提前 5 分钟刷新，避免临界过期 */
     private static final long EXPIRY_SLACK_SECONDS = 300;
 
     private final AppProperties props;
@@ -143,7 +143,7 @@ public class FileStorageService {
     }
 
     /**
-     * P4 直传元数据（docs/04 A.6 POST /files/sts）：返回存储模式与直传所需元数据
+     * 直传元数据（POST /files/sts）：返回存储模式与直传所需元数据
      * （bucket/region/授权目录/内网凭证地址）。真实 STS 临时凭证签发需云端 CAM 角色
      * + cos-sts SDK，属部署项——未接入前照片/签名统一走 /files/upload 代理上传。
      */

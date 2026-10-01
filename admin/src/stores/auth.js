@@ -3,7 +3,7 @@ import * as authApi from '../api/auth'
 import { onUnauthorized } from '../api/client'
 import router from '../router'
 
-/** 管理端角色口径（与后端 auth/AdminRoles.java 对齐，docs/09 §三） */
+/** 管理端角色口径（与后端 auth/AdminRoles.java 对齐） */
 export const ADMIN_READ_ROLES = ['LEADER', 'ADMIN', 'SYS_ADMIN']
 export const ADMIN_WRITE_ROLES = ['ADMIN', 'SYS_ADMIN']
 
@@ -59,7 +59,7 @@ export const useAuthStore = defineStore('auth', {
   }
 })
 
-// 401（登录过期/被顶下线）统一清会话跳登录（docs/09 §二：JWT 401 统一跳登录）
+// 401（登录过期/被顶下线）统一清会话跳登录
 onUnauthorized(() => {
   const auth = useAuthStore()
   auth.clearSession()

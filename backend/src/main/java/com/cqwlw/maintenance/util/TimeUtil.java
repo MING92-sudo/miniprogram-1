@@ -9,7 +9,7 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 
 /**
- * 时间统一口径：存取/展示一律 yyyy-MM-dd HH:mm:ss（GMT+8），时长 HH:mm:ss（AGENTS §3）。
+ * 时间统一口径：存取/展示一律 yyyy-MM-dd HH:mm:ss（GMT+8），时长 HH:mm:ss。
  * 与前端 utils/util.js 的 formatTime/parseTime 行为对齐。
  */
 public final class TimeUtil {

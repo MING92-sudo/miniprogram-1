@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 import java.util.Map;
 
-/** 电梯列表/档案（docs/04 A.2/A.4.1） */
+/** 电梯列表/档案 */
 @RestController
 public class ElevatorController {
 

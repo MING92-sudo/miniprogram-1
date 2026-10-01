@@ -1,9 +1,9 @@
 import axios from 'axios'
 
-// API 基址：开发默认走 Vite 代理（/api → localhost:8080）；生产同域反代（docs/09 §五）
+// API 基址：开发默认走 Vite 代理（/api → localhost:8080）；生产同域反代
 export const API_BASE = import.meta.env.VITE_API_BASE || '/api'
 
-/** 幂等键（AGENTS §3：所有写接口自动携带 X-Idempotency-Key） */
+/** 幂等键（所有写接口自动携带 X-Idempotency-Key） */
 export function idempotencyKey() {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
     return crypto.randomUUID()

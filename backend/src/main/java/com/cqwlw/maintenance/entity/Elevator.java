@@ -10,7 +10,7 @@ import java.time.LocalDateTime;
 @Data
 
 
-/** 电梯档案（平台 2.7 回填字段 + 本地维护字段 + 维保绑定配置） */
+/** 电梯档案（平台回填字段 + 本地维护字段 + 维保绑定配置） */
 @TableName("elevator")
 public class Elevator {
     @TableId
@@ -45,7 +45,7 @@ public class Elevator {
     public String stationsDoors;
     public String workTypeCode;
     public Integer intervalDays;
-    /** 特殊类别：消防/防爆/NULL（匹配自定义检查项模板 category_scope，缺失即 1006 提示，TSG 第二条） */
+    /** 特殊类别：消防/防爆/NULL（匹配自定义检查项模板 category_scope，缺失即提示） */
     public String specialType;
     public String workerName;
     public String workerPhone;

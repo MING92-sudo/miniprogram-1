@@ -8,7 +8,7 @@ import java.time.LocalDate;
 @Data
 
 
-/** 自行检查（每台每年至少 1 次，须在下次定期检验前完成，docs/01 §3.17） */
+/** 自行检查（每台每年至少 1 次，须在下次定期检验前完成） */
 @TableName("inspect_record")
 public class InspectRecord {
     @TableId

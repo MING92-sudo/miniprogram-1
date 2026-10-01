@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.Map;
 
 /**
- * 管理端·检查项模板管理（docs/04 A.4.2，docs/09 二期）：
+ * 管理端·检查项模板管理：
  * GET 列表（OFFICIAL 257 行只读 + CUSTOM）；POST/PUT/启停仅 CUSTOM。
  */
 @RestController

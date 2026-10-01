@@ -1,4 +1,4 @@
-// 自行检查执行（docs/01 §3.17：复用年度维保检查项，独立记录类型，不上报平台）
+// 自行检查执行（复用年度维保检查项，独立记录类型，不上报平台）
 const { getInspectTemplate, createInspect } = require('../../services/compliance')
 
 Page({

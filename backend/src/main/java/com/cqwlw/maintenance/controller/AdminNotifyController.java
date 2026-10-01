@@ -8,7 +8,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Map;
 
-/** 管理端·订阅消息发送记录（docs/04 A.7；真实推送云端后置，本地落记录） */
+/** 管理端·订阅消息发送记录（真实推送后置，本地落记录） */
 @RestController
 public class AdminNotifyController {
 

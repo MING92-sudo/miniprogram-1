@@ -1,4 +1,4 @@
-// 困人救援登记（TSG T5002 第五条(四)：直辖市抵达时限 30 分钟，docs/01 §3.9.3）
+// 困人救援登记（直辖市抵达时限 30 分钟）
 const { createRescue } = require('../../services/rescue')
 const { formatTime } = require('../../utils/util')
 
@@ -25,7 +25,7 @@ Page({
     this.setData({ elevatorCode: e.detail.value })
   },
 
-  // 扫电梯二维码自动填入编号（二维码内容 = 纯 elevatorCode，docs/04 约定）
+  // 扫电梯二维码自动填入编号（二维码内容 = 纯 elevatorCode）
   onScan() {
     wx.scanCode({
       onlyFromCamera: true,
@@ -67,7 +67,7 @@ Page({
         elevatorCode: this.data.elevatorCode,
         trappedCount: Number(this.data.trappedCount) || 0,
         desc: this.data.desc,
-        // 救援四节点（docs/01 §3.9.3.1 强制记录项，系统自动计算各节点耗时并留痕）
+        // 救援四节点（强制记录项，系统自动计算各节点耗时并留痕）
         alarmAt: today + ' ' + this.data.alarmTime + ':00',
         departAt: this.data.departTime ? today + ' ' + this.data.departTime + ':00' : '',
         arriveAt: today + ' ' + this.data.arriveTime + ':00',

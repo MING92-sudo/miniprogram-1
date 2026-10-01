@@ -14,7 +14,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 救援/故障/演练/自检/消息/知识库（docs/04 A.3/A.6/A.7）。
+ * 救援/故障/演练/自检/消息/知识库。
  */
 @RestController
 public class DirectoryController {

@@ -20,7 +20,7 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
 /**
- * 微信 code → openid（jscode2session，P0 串号修复 docs/04 A.1）：
+ * 微信 code → openid（jscode2session，防串号）：
  * ① 必须用 code 换取真实 openid（不同 code → 不同 openid，回归"全员同一 openid"）；
  * ② 未配置 WX_APPID/WX_APPSECRET 直接失败，绝不回退 dev_openid；
  * ③ errcode 映射为可区分的错误码：code 类问题=422（业务校验失败，前端不会清登录态；
@@ -63,7 +63,7 @@ class WxAuthServiceTest {
 
     @Test
     void distinctCodesYieldDistinctOpenids() {
-        // P0 回归点：两个员工的 code 必须换到两个不同 openid
+        // 回归点：两个员工的 code 必须换到两个不同 openid
         expectSuccess("{\"openid\":\"openid_A\"}");
         expectSuccess("{\"openid\":\"openid_B\"}");
         assertEquals("openid_A", service.openidFromCode("code_A"));

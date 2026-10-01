@@ -1,4 +1,4 @@
-// 自行检查台账（TSG T5002 第五条(九)：每台每年至少 1 次，须在下次定期检验前完成）
+// 自行检查台账（每台每年至少 1 次，须在下次定期检验前完成）
 const { getInspects } = require('../../services/compliance')
 
 Page({

@@ -10,7 +10,7 @@ import org.apache.ibatis.annotations.Update;
 public interface EmployeeMapper extends BaseMapper<Employee> {
 
     /**
-     * 解绑同一 openid 上的其他账号（P0 串号修复，docs/04 A.1）。
+     * 解绑同一 openid 上的其他账号（防串号）。
      *
      * <p>必须是显式 SQL 的 {@code SET openid = NULL}：MyBatis-Plus {@code updateById} 默认
      * 跳过 null 字段（FieldStrategy.NOT_NULL），用实体写 null 是空操作，会导致

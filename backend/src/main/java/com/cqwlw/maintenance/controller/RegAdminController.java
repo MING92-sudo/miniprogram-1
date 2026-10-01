@@ -9,9 +9,9 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.Map;
 
 /**
- * 管理端·平台同步与上报日志（docs/09 §4.1）：
- * GET /reg/upload-logs —— reg_upload_log 分页查询，digest 只读脱敏展示（docs/09 决策 #2，AGENTS §2.4）；
- * GET /reg/sync-status —— docs/04 A.3 看板口径（待同步人员/位置待补电梯/最近同步时间）。
+ * 管理端·平台同步与上报日志：
+ * GET /reg/upload-logs —— reg_upload_log 分页查询，digest 只读脱敏展示；
+ * GET /reg/sync-status —— 待同步人员/位置待补电梯/最近同步时间。
  */
 @RestController
 public class RegAdminController {

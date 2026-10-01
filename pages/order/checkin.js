@@ -1,11 +1,11 @@
 // 签到流程：定位 → 水印自拍 → 提交
-// 错误码约定：1001 定位超阈（申诉）、1003 工单锁定；1006/1007 为配置类拦截（docs/04 A.0）
+// 错误码约定：1001 定位超阈（申诉）、1003 工单锁定；1006/1007 为配置类拦截
 const { checkin, getOrderDetail, requestEvidence } = require('../../services/order')
 const { uploadImage } = require('../../services/upload')
 const { reverseGeocode } = require('../../services/location')
 const { formatTime } = require('../../utils/util')
 
-// 角色（docs/04 A.2）：主维保 PRINCIPAL / 配合人员 ASSISTANT
+// 角色：主维保 PRINCIPAL / 配合人员 ASSISTANT
 const ROLES = [
   { value: 'PRINCIPAL', label: '主维保人' },
   { value: 'ASSISTANT', label: '配合人员' }
@@ -63,7 +63,7 @@ Page({
     this.setData({ locateFailed: false, locationText: '定位获取中...' })
     // 防卡死兜底：wx.getLocation 在隐私协议未配置/权限异常等场景可能回调不触发，
     // 超时 8s 未返回则按定位失败处理（回调只处理一次）。
-    // 合规约定（docs/08 P1）：定位失败必须如实提示并重试，严禁伪造坐标兜底。
+    // 合规约定：定位失败必须如实提示并重试，严禁伪造坐标兜底。
     let settled = false
     const settle = (res) => {
       if (settled) return
@@ -164,7 +164,7 @@ Page({
         role: this.data.role,
         collectedAt: formatTime()
       }
-      // docs/04 A.2：role=ASSISTANT 时 dynamicCode 必传，服务端校验有效期/工单匹配
+      // role=ASSISTANT 时 dynamicCode 必传，服务端校验有效期/工单匹配
       if (this.data.role === 'ASSISTANT') payload.dynamicCode = this.data.dynamicCode
       const res = await checkin(this.data.orderId, payload)
       if (res && res.waitingForPartner) {

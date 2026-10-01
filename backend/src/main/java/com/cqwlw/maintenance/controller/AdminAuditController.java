@@ -17,7 +17,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-/** 管理端·操作审计日志（docs/02 op_log 全量留痕，SYS_ADMIN 只读） */
+/** 管理端·操作审计日志（op_log 全量留痕，SYS_ADMIN 只读） */
 @RestController
 public class AdminAuditController {
 

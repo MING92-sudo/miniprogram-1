@@ -37,8 +37,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * 计划调度与延期审批（docs/04 A.5，docs/09 二期）：
- * 指派校验矩阵 1004/1007（platform_id、证件有效期、排班互斥 docs/01 §3.2.4 ④、一梯一单）；
+ * 计划调度与延期审批：
+ * 指派校验矩阵 1004/1007（platform_id、证件有效期、排班互斥、一梯一单）；
  * 延期审批改期并回写工单；platformDateSynced 固化提示；转派仅 PENDING。
  */
 class AdminScheduleServiceTest {

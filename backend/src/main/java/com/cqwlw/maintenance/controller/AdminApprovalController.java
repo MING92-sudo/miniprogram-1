@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.Map;
 
 /**
- * 管理端·定位异常申述审核（docs/04 A.6 GET /approvals + POST /approvals/{id}/audit）。
+ * 管理端·定位异常申述审核（GET /approvals + POST /approvals/{id}/audit）。
  * 读 LEADER+、审核 ADMIN+（拦截器承担）。
  */
 @RestController

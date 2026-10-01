@@ -21,7 +21,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 
 /**
- * 维保记录 PDF 导出（docs/09 一期）：
+ * 维保记录 PDF 导出：
  * 中文渲染（STSong-Light）、检查项明细、照片/签字占位降级不抛错。
  */
 class RecordPdfServiceTest {

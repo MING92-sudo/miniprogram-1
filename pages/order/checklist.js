@@ -101,7 +101,7 @@ Page({
     wx.navigateTo({ url: `/pages/order/checkout?orderId=${this.data.orderId}` })
   },
 
-  // 周期性条目：本次仍要执行（docs/03 §6.1）
+  // 周期性条目：本次仍要执行
   async onRunThisTime(e) {
     const itemId = e.currentTarget.dataset.id
     try {

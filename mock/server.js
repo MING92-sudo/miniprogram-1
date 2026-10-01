@@ -4,7 +4,7 @@ const d = require('./data')
 const { formatTime, parseTime } = require('../utils/util')
 const config = require('../config/index')
 
-// 自动排期触发点：真实后端为定时任务（docs/04 A.10.9），读接口一律不触发派单；
+// 自动排期触发点：真实后端为定时任务，读接口一律不触发派单；
 // mock 无调度器，仅在模块加载时执行一次，读接口不得再调用 ensureDueOrders
 d.ensureDueOrders()
 
@@ -155,7 +155,7 @@ const routes = [
   ['POST', '/work-orders/:id/checkin', ({ params, body }) => {
     const o = findOr404(d.db.orders, params.id, '工单')
     if (o.status !== 'PENDING') throw { code: 1003, message: '当前状态不允许签到' }
-    // 双人作业：配合人员签到必须携带主维保动态码（docs/04 A.2）
+    // 双人作业：配合人员签到必须携带主维保动态码
     if (body.role === 'ASSISTANT') {
       if (!body.dynamicCode) throw { code: 422, message: '配合人员签到必须携带双人动态码' }
       if (body.dynamicCode !== '888888') throw { code: 1003, message: '动态码错误（演示环境固定为 888888）' }
@@ -186,7 +186,7 @@ const routes = [
     const o = findOr404(d.db.orders, params.id, '工单')
     const item = o.checklist.find((i) => i.id === params.itemId)
     if (!item) throw { code: 1404, message: '检查项不存在' }
-    // 服务端校验（docs/04 A.2）
+    // 服务端校验
     if (body.result === 'NA' && !body.skipReason) {
       throw { code: 422, message: '「' + item.name + '」标记不适用时必须填写跳过原因（TSG 注 A-1）' }
     }
@@ -206,8 +206,8 @@ const routes = [
         throw { code: 422, message: '「' + item.name + '」隐患码非法：' + pc + '（取值范围 S0—S7）' }
       }
     }
-    // 关键项（试验/测试/校验/检测类，TSG 注A-2）执行时须照片留证；
-    // 结果为"不适用"（NA，如该电梯无此部件）时豁免——部件不存在无从拍照（docs/08 BUG 修复）
+    // 关键项（试验/测试/校验/检测类）执行时须照片留证；
+    // 结果为"不适用"（NA，如该电梯无此部件）时豁免——部件不存在无从拍照
     // ⚠ 必须用 body.result（本次选择），item.result 是旧状态：新填项为空串，恒 !== 'NA'，导致 BUG 复现
     if (item.isKey && item.photoRequired && body.result !== 'NA' &&
         !(body.photoFileIds || []).length && !(body.photoUrls || []).length) {
@@ -251,7 +251,7 @@ const routes = [
     if (!updated) throw { code: 1404, message: '检查项不存在' }
     return { ok: true, itemId: params.itemId }
   }],
-  // 周期性条目"本次仍要执行"（docs/03 §6.1：灰显不阻断，允许人工点选执行）
+  // 周期性条目"本次仍要执行"（灰显不阻断，允许人工点选执行）
   ['POST', '/work-orders/:id/checklist/:itemId/run-this-time', ({ params }) => {
     const o = findOr404(d.db.orders, params.id, '工单')
     const item = o.checklist.find((i) => i.id === params.itemId)
@@ -262,12 +262,12 @@ const routes = [
   ['POST', '/work-orders/:id/checkout', ({ params, body }) => {
     const o = findOr404(d.db.orders, params.id, '工单')
     if (o.status !== 'PROCESSING') throw { code: 1003, message: '请先完成签到' }
-    // 周期性"本次无需执行"条目不计入未完成项（docs/03 §7 验收）
+    // 周期性"本次无需执行"条目不计入未完成项
     const mustRun = o.checklist.filter((i) => !i.notInThisRun)
     const unfinished = mustRun.filter((i) => !i.result).length
     if (unfinished > 0) throw { code: 1003, message: '还有 ' + unfinished + ' 项检查未填写' }
-    // 关键项照片留证校验（TSG 注A-2）
-    // "不适用"（NA）豁免：部件不存在的关键项无须照片（docs/08 BUG 修复）
+    // 关键项照片留证校验
+    // "不适用"（NA）豁免：部件不存在的关键项无须照片
     const keyNoPhoto = mustRun.filter(
       (i) => i.isKey && i.photoRequired && i.result && i.result !== 'NA' &&
         !((i.photoFileIds || []).length || (i.photos || []).length)
@@ -313,7 +313,7 @@ const routes = [
       signatureUrl: 'mock://' + body.signatureFileId,
       assistantSignatureUrl
     }))
-    // 响应对齐 docs/04 A.2 checkout
+    // 响应对齐 checkout
     return {
       workOrderId: o.id,
       duration: r.duration,
@@ -325,7 +325,7 @@ const routes = [
     }
   }],
 
-  // ── 平台写链路（P3）：手动重报 2.6，仅 FAILED 记录（AGENTS §2.3 不自动重试）──
+  // ── 平台写链路：手动重报，仅 FAILED 记录（不自动重试）──
   ['POST', '/platform/records/:id/reupload', ({ params }) => {
     const rec = d.reuploadRecord(params.id)
     if (!rec) throw { code: 1404, message: '维保记录不存在' }
@@ -353,12 +353,12 @@ const routes = [
     return { ok: true }
   }],
 
-  // ── 合规台账（TSG 法定项，数据暂存本地不上报平台）──
+  // ── 合规台账（数据暂存本地不上报平台）──
   ['GET', '/drills', () => d.listDrills()],
   ['POST', '/drills', ({ body }) => d.createDrill(body)],
   ['GET', '/inspects', () => d.listInspects()],
   ['GET', '/inspects/template', ({ query }) => {
-    // 自行检查项 = 该电梯品种对应附件的年度维保项并集；不同品种分别取 A/B/C/D（docs/01 §3.17）
+    // 自行检查项 = 该电梯品种对应附件的年度维保项并集；不同品种分别取 A/B/C/D
     const el = query && query.elevatorId ? d.getElevator(query.elevatorId) : null
     const appendix = d.CATEGORY_APPENDIX[el && el.category] || 'A'
     const items = []

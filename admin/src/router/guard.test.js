@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { resolveRoute } from './guard'
 
-/** 路由守卫回归（docs/09 §七.2）：未登录跳 /login；已登录访问 /login 跳 /dashboard */
+/** 路由守卫回归：未登录跳 /login；已登录访问 /login 跳 /dashboard */
 describe('resolveRoute', () => {
   const protectedRoute = { path: '/dashboard', meta: { title: '监控看板' }, fullPath: '/dashboard' }
   const publicRoute = { path: '/login', meta: { public: true }, fullPath: '/login' }

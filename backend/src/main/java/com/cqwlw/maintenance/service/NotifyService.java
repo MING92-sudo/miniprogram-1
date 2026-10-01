@@ -13,9 +13,8 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 订阅消息/站内消息发送记录（docs/04 A.7）。
- * 真实微信订阅消息需云端 access_token（stable_token）与模板配额，本地开发只落发送记录（status=SENT 表示"已入队/模拟"）；
- * 困人救援不走订阅消息（电话+短信+弹窗，docs/01 §3.11）。
+ * 订阅消息/站内消息发送记录。本地开发只落发送记录（status=SENT 表示已入队/模拟）；
+ * 困人救援不走订阅消息（电话+短信+弹窗）。
  */
 @Service
 public class NotifyService {

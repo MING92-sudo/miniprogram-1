@@ -19,7 +19,7 @@ import static org.springframework.test.web.client.match.MockRestRequestMatchers.
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
 /**
- * token 中控（docs/04 B.1 实测口径）：GET + 查询串；code 兼容数字/字符串 "200"；
+ * token 中控：GET + 查询串；code 兼容数字/字符串 "200"；
  * TTL = expires_in − 60s；401 失效清缓存重登重试 1 次由 PlatformClient 触发。
  */
 class PlatformTokenServiceTest {

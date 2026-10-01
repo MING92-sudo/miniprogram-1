@@ -1,6 +1,6 @@
 import http from './client'
 
-/** 预警（docs/04 A.6）：规则配置 / 记录 / 生成 */
+/** 预警：规则配置 / 记录 / 生成 */
 export function alertRules() {
   return http.get('/admin/alert-rules')
 }

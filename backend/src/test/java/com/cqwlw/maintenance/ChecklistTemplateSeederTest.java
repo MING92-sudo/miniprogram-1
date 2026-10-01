@@ -16,8 +16,8 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
- * 模板落库（docs/09 二期 / docs/08 P4）：257 行官方模板扁平化播种
- * （A76/B66/C52/D63，docs/05 §10.5 口径不变）；表非空时幂等跳过。
+ * 模板落库：257 行官方模板扁平化播种
+ * （A76/B66/C52/D63）；表非空时幂等跳过。
  */
 class ChecklistTemplateSeederTest {
 
@@ -63,7 +63,7 @@ class ChecklistTemplateSeederTest {
 
     @Test
     void spotCheckRepresentativeRow() throws Exception {
-        // A-1-29 层门锁紧元件啮合长度（docs/04 A.4.2 示例字段）
+        // A-1-29 层门锁紧元件啮合长度
         List<ChecklistTemplate> rows = seeder.parseOfficialRows();
         ChecklistTemplate row = rows.stream()
                 .filter(r -> "A".equals(r.appendix) && "A-1-29".equals(r.itemCode))

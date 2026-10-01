@@ -28,8 +28,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * 档案维护（docs/09 一期）：1002 互斥冲突必须携带 data.conflicts[] 且不落库；
- * 角色白名单与账号唯一性在服务端校验（docs/09 决策 #3）。
+ * 档案维护：1002 互斥冲突必须携带 data.conflicts[] 且不落库；
+ * 角色白名单与账号唯一性在服务端校验。
  */
 class AdminArchiveServiceTest {
 

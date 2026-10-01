@@ -29,7 +29,7 @@ import ApprovalsView from '../views/ApprovalsView.vue'
 import ForbiddenView from '../views/ForbiddenView.vue'
 import NotFoundView from '../views/NotFoundView.vue'
 
-// 路由表（docs/09 §四 页面清单）；hash 模式便于静态托管部署
+// 路由表；hash 模式便于静态托管部署
 export const routes = [
   { path: '/login', component: LoginView, meta: { public: true, title: '登录' } },
   {

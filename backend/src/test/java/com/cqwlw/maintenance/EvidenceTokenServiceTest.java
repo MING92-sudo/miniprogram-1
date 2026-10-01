@@ -20,7 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * 签到取证令牌（docs/04 A.2）：HMAC 签名绑定工单/检查项/坐标/服务端时间/一次性随机数；
+ * 签到取证令牌：HMAC 签名绑定工单/检查项/坐标/服务端时间/一次性随机数；
  * 篡改、过期、跨工单、跨检查项均拒绝。签到令牌一次性核销，检查项拍照令牌只验签
  * （一次性由检查项绑定保证），以支持"提交后超时重试"。
  */

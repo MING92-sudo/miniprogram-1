@@ -6,7 +6,7 @@ import lombok.Data;
 
 import java.time.LocalDateTime;
 
-/** 订阅消息/站内消息发送记录（docs/04 A.7；真实微信推送云端后置，本地落记录） */
+/** 订阅消息/站内消息发送记录（真实微信推送后置，本地落记录） */
 @Data
 @TableName("notify_record")
 public class NotifyRecord {

@@ -1,4 +1,4 @@
-// 合规台账（TSG 法定项：自行检查 / 应急演练；数据暂存本地，不上报平台）
+// 合规台账（自行检查 / 应急演练；数据暂存本地，不上报平台）
 const { get, post } = require('../utils/request')
 
 // 应急演练列表（含半年品种覆盖检查结果）
@@ -16,7 +16,7 @@ function getInspects() {
   return get('/inspects')
 }
 
-// 自行检查项模板（年度维保项，docs/01 §3.17"不少于年度维保项"）
+// 自行检查项模板（年度维保项）
 function getInspectTemplate(elevatorId) {
   return get('/inspects/template', { elevatorId: elevatorId || '' })
 }

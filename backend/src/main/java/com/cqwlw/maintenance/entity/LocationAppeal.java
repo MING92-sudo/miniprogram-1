@@ -7,7 +7,7 @@ import lombok.Data;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-/** 定位异常申述（docs/04 A.2 1001 → POST /workorders/{id}/location-appeal → 管理端审核） */
+/** 定位异常申述（1001 → POST /workorders/{id}/location-appeal → 管理端审核） */
 @Data
 @TableName("location_appeal")
 public class LocationAppeal {

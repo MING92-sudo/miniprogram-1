@@ -1,4 +1,4 @@
-// 离线缓存与补传（docs/02 架构约定）
+// 离线缓存与补传
 // - em_order_<id>：按工单缓存本地快照（检查项填写等），弱网时先保本地
 // - offline_queue：待补传请求队列，网络恢复时自动逐条重放（复用任务 id 作幂等键）
 const { request } = require('./request')
@@ -75,7 +75,7 @@ async function flushQueue() {
     try {
       // 离线期间拍摄的照片：补传时先补传图片文件，再把 fileId 填回业务数据。
       // 断点续传：已成功照片的 fileId 记入 task.uploadedFileIds 并即时持久化，
-      // 单张失败不重传整批（docs/08 审查 #6）
+      // 单张失败不重传整批
       if (Array.isArray(task.photoPaths) && task.photoPaths.length > 0) {
         const fileIds = task.uploadedFileIds || []
         while (fileIds.length < task.photoPaths.length) {

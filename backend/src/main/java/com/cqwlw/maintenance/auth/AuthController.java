@@ -21,10 +21,10 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * 认证（docs/04 A.1 契约）：账号密码登录（BCrypt）→ 自建 JWT；
+ * 认证：账号密码登录（BCrypt）→ 自建 JWT；
  * 微信侧一律由 wx.login 的 code 经 jscode2session 换真实 openid（bind-wechat 落库 / wx-login 查账号）。
  *
- * <p><b>P0 修复：openid 只有一个来源——后端 jscode2session（WxAuthService）。</b>
+ * <p>openid 只有一个来源——后端 jscode2session（WxAuthService）。
  * <ol>
  *   <li>不再回退 {@code app.dev-openid}。历史缺陷：两个接口只读 X-WX-OPENID，缺失时写 dev_openid，
  *       全员同一 openid，/auth/wx-login 按 openid LIMIT 1 查员工 → 互相登入对方账号（串号）。</li>
@@ -66,7 +66,7 @@ public class AuthController {
         if (Boolean.FALSE.equals(user.enabled)) {
             throw new BizException(403, "账号已停用，请联系系统管理员");
         }
-        // 管理端会话白名单（docs/09 §3.2）：client=admin 时仅 LEADER/ADMIN/SYS_ADMIN 可登录；
+        // 管理端会话白名单：client=admin 时仅 LEADER/ADMIN/SYS_ADMIN 可登录；
         // 小程序端（不带 client）不受影响。
         if ("admin".equals(String.valueOf(body.get("client")))) {
             if (!AdminRoles.canUseAdminConsole(user.role)) {

@@ -7,7 +7,7 @@ import lombok.Data;
 
 import java.time.LocalDateTime;
 
-/** 检查项模板（docs/09 二期：TSG 附件 A—D 257 行 OFFICIAL + 消防/防爆等 CUSTOM 自定义模板） */
+/** 检查项模板：257 行 OFFICIAL + 消防/防爆等 CUSTOM 自定义模板 */
 @Data
 @TableName("checklist_template")
 public class ChecklistTemplate {

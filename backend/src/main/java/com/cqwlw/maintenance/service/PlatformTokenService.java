@@ -16,8 +16,7 @@ import java.util.Map;
 import static com.cqwlw.maintenance.util.JsonUtil.MAPPER;
 
 /**
- * 平台 token 中控（docs/04 B.1 实测口径）：
- * 2.1 为 GET + 查询串；缓存 TTL = expires_in − 60s；被动获取不提前刷新；
+ * 平台 token 中控：登录为 GET + 查询串；缓存 TTL = expires_in − 60s，被动获取不提前刷新；
  * 401 清缓存重登重试 1 次由 PlatformClient 触发。日志脱敏：不打印完整 token/凭证。
  */
 @Service
@@ -69,7 +68,7 @@ public class PlatformTokenService {
         if (!configured()) {
             throw new BizException(2001, "监管平台凭证未配置（REG_* 环境变量）");
         }
-        // 凭证仅拼入请求 URL（平台 2.1 实测要求）；UriComponentsBuilder 负责编码，日志不得输出完整 URL
+        // 凭证仅拼入请求 URL；UriComponentsBuilder 负责编码，日志不得输出完整 URL
         String url = UriComponentsBuilder.fromHttpUrl(props.getAuthLoginUrl())
                 .queryParam("username", props.getUsername())
                 .queryParam("key", props.getKey())
@@ -80,7 +79,7 @@ public class PlatformTokenService {
             ResponseEntity<String> resp = restTemplate.getForEntity(url, String.class);
             Map<String, Object> body = MAPPER.readValue(resp.getBody(), new TypeReference<Map<String, Object>>() {
             });
-            // code 兼容数字/字符串 "200"（docs/04 B.1）
+            // code 兼容数字/字符串 "200"
             if (!"200".equals(String.valueOf(body.get("code")).trim())) {
                 log.warn("平台登录失败: code={}, message={}", body.get("code"), body.get("message"));
                 throw new BizException(2001, "监管平台 token 获取失败");

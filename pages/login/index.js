@@ -66,7 +66,7 @@ Page({
         })
         if (code) await auth.bindWeChat(code)
       } catch (e2) {
-        // 微信绑定失败不阻断登录，可稍后重试（当前无「重新绑定」入口，见 docs/08 V2.9）；
+        // 微信绑定失败不阻断登录，可稍后重试（当前无「重新绑定」入口）；
         // 留痕便于排查：后端把 code 类失败映射为 422，不会清登录态
         console.warn('[login] 微信绑定失败:', e2 && e2.message)
       }

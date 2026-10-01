@@ -1,9 +1,9 @@
-// 鉴权与登录（docs/04 接口文档 B）
+// 鉴权与登录
 const { post } = require('../utils/request')
 const { saveAuth } = require('../utils/auth')
 
 // 微信授权登录：code + 手机号授权码 → JWT + 角色
-// code 由后端 jscode2session 换真实 openid 后按 openid 查账号（P0 修复：不再依赖 X-WX-OPENID 请求头）
+// code 由后端 jscode2session 换真实 openid 后按 openid 查账号（不再依赖 X-WX-OPENID 请求头）
 // 第三参 role 仅 Mock 模式用于选择演示账号，真实后端忽略
 function wxLogin(code, phoneCode, role) {
   return post('/auth/wx-login', { code, phoneCode, role }, { needAuth: false })

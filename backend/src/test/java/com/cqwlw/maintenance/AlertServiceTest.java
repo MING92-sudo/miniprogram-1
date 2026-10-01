@@ -34,7 +34,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * 预警生成与规则（docs/01 §3.11 / docs/04 A.6）：
+ * 预警生成与规则：
  * 年检/证件/维保超期/确认超时/自检五类可生成，幂等去重，规则可编辑启停。
  */
 class AlertServiceTest {

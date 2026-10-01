@@ -1,7 +1,7 @@
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 
-// docs/09 §二：开发期 Vite 代理规避 CORS（后端不开放跨域）；生产走同域反代/静态托管
+// 开发期 Vite 代理规避 CORS（后端不开放跨域）；生产走同域反代/静态托管
 export default defineConfig({
   plugins: [vue()],
   server: {

@@ -20,7 +20,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
- * 手机号互斥预校验（docs/01 §3.2.4 + docs/05 §2.3）：
+ * 手机号互斥预校验：
  * 互斥范围仅五个角色，emergencyPhone/recorderPhone 不参与；
  * 同一手机号跨 ≥2 个不同角色 → 1002 + conflicts[]；同角色同人不算冲突。
  */
@@ -112,7 +112,7 @@ class PhoneMutexServiceTest {
 
     @Test
     void emergencyPhoneDoesNotParticipate() {
-        // 应急电话与维保人员同号：按 docs/01 §3.2.4 不参与互斥 → 通过
+        // 应急电话与维保人员同号：不参与互斥 → 通过
         UseUnit u = new UseUnit();
         u.id = "uu_new";
         u.unitName = "新物业";

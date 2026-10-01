@@ -116,7 +116,7 @@ class EmployeeMapperDbTest {
     private static void createSchema(DriverManagerDataSource dataSource) throws SQLException {
         try (Connection connection = dataSource.getConnection(); Statement st = connection.createStatement()) {
             st.execute("DROP TABLE IF EXISTS sys_employee");
-            // 先建 P0 之前的状态（普通索引、允许重复 openid），以便造出"串号"存量数据；
+            // 先建修复前的状态（普通索引、允许重复 openid），以便造出"串号"存量数据；
             // 唯一键在绑定流程验证后再加（等价 V6：先清理、再加约束）
             st.execute("CREATE TABLE sys_employee ("
                     + "id VARCHAR(32) NOT NULL PRIMARY KEY,"

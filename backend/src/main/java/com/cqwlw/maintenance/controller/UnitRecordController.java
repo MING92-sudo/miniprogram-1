@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.Map;
 
 /**
- * 使用单位确认（docs/04 A.3）：sign-view / confirm-by-token 凭分享 token 免登录访问。
+ * 使用单位确认：sign-view / confirm-by-token 凭分享 token 免登录访问。
  */
 @RestController
 public class UnitRecordController {

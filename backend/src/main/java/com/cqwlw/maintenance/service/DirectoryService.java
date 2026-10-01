@@ -30,9 +30,8 @@ import java.util.Map;
 import static com.cqwlw.maintenance.util.JsonUtil.map;
 
 /**
- * 台账与目录类业务（docs/04 A.3/A.6/A.7）：
- * 困人救援（节点耗时自动计算，超 30 分钟标记超时且不可删除）、故障闭环、
- * 应急演练（半年覆盖检查）、自行检查（年检预警）、消息、知识库。
+ * 台账与目录类业务：困人救援（节点耗时自动计算，超 30 分钟标记超时且不可删除）、
+ * 故障闭环、应急演练（半年覆盖检查）、自行检查（年检预警）、消息、知识库。
  */
 @Service
 public class DirectoryService {

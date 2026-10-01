@@ -1,5 +1,5 @@
-// 电梯详细档案（docs/01 §3.4.1）
-// 数据来源分两组：platform = 监管平台 2.7 自动获取（docs/04 B.7）；local = 本地维护
+// 电梯详细档案
+// 数据来源分两组：platform = 平台自动获取；local = 本地维护
 const { getElevatorProfile } = require('../../services/elevator')
 
 Page({

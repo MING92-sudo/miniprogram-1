@@ -15,7 +15,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * 回归闸门：`@Scheduled` 的 cron 表达式必须能被 Spring 解析。
+ * `@Scheduled` 的 cron 表达式必须能被 Spring 解析。
  *
  * <p>背景：`18d68a6` 引入的 `cron = "17 4* * * ?"` 只有 5 段，Spring {@code CronExpression}
  * 要求 6 段（秒 分 时 日 月 周），该 Bean 解析失败会抛 {@code UnsatisfiedDependencyException}

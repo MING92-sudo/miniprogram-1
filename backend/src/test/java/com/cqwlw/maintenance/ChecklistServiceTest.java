@@ -12,7 +12,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * 检查项模板（docs/08 附件 A—D，257 行）：累加式频次链、周期项默认"本次无需执行"、
+ * 检查项模板（257 行）：累加式频次链、周期项默认"本次无需执行"、
  * 关键项照片留证、异常项隐患码。
  */
 class ChecklistServiceTest {

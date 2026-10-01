@@ -13,9 +13,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-/**
- * 使用单位确认（docs/04 A.3）：待确认列表/详情/本机确认/分享链接视图/凭 token 签字。
- */
+/** 使用单位确认：待确认列表/详情/本机确认/分享链接视图/凭 token 签字。 */
 @Service
 public class UnitRecordService {
 
@@ -165,7 +163,7 @@ public class UnitRecordService {
         return m;
     }
 
-    /** 上报状态归一（docs/04 A.3 P3 修订）：REPORTED→SUCCESS，FAILED→FAILED，其余 PENDING */
+    /** 上报状态归一：REPORTED→SUCCESS，FAILED→FAILED，其余 PENDING */
     static String uploadStatus(String reportStatus) {
         if ("REPORTED".equals(reportStatus)) {
             return "SUCCESS";

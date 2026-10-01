@@ -16,8 +16,8 @@ import org.springframework.web.multipart.MultipartFile;
 import java.util.Map;
 
 /**
- * 平台档案同步与写链路（P3，docs/07 实测口径沉淀）：
- * 2.2/2.7/2.5 拉回落库；2.3/2.4 登记转发（multipart）；2.6 手动重报仅限 FAILED（AGENTS §2.3）。
+ * 平台档案同步与写链路：
+ * 2.2/2.7/2.5 拉回落库；2.3/2.4 登记转发（multipart）；2.6 手动重报仅限 FAILED。
  */
 @RestController
 public class PlatformController {
@@ -38,7 +38,7 @@ public class PlatformController {
         return ApiResponse.ok(platformSyncService.syncAll());
     }
 
-    /** 手动重报平台 2.6（仅 reportStatus=FAILED；不自动重试红线不变，AGENTS §2.3） */
+    /** 手动重报平台（仅 reportStatus=FAILED；不自动重试红线不变） */
     @PostMapping("/platform/records/{id}/reupload")
     public ApiResponse<Object> reupload(@PathVariable String id) {
         MaintainRecord r = reportService.reupload(id);
@@ -48,7 +48,7 @@ public class PlatformController {
                 "reportStatus", r.reportStatus == null ? "" : r.reportStatus));
     }
 
-    /** 2.3 建立维保服务关系（multipart + contractFile，参数名按实测 useUnitName，docs/07） */
+    /** 建立维保服务关系（multipart + contractFile；参数名为 useUnitName，勿按规范原文改名） */
     @PostMapping("/platform/register/service")
     public ApiResponse<Object> registerService(
             @RequestParam String useUnitName,
@@ -69,7 +69,7 @@ public class PlatformController {
         return ApiResponse.ok(resp.get("data") == null ? Map.of("ok", true) : resp.get("data"));
     }
 
-    /** 2.4 登记维保人员（multipart + certificateFile，docs/07 实测口径） */
+    /** 登记维保人员（multipart + certificateFile） */
     @PostMapping("/platform/register/worker")
     public ApiResponse<Object> registerWorker(
             @RequestParam String workManName,

@@ -6,7 +6,7 @@ import lombok.Data;
 
 import java.time.LocalDateTime;
 
-/** 操作审计日志（docs/02 §5：op_log 全量留痕 ≥3 年，管理端只读） */
+/** 操作审计日志（全量留痕 ≥3 年，管理端只读） */
 @Data
 @TableName("op_log")
 public class OpLog {

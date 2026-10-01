@@ -13,8 +13,8 @@ import java.util.Map;
 import static com.cqwlw.maintenance.util.JsonUtil.MAPPER;
 
 /**
- * LBS 逆地址解析代理（docs/08 审查 #5 收口）：key 只在后端环境变量，前端不接触 key。
- * auto：有高德 key 优先高德，否则腾讯；任何失败回退坐标文本（与前端原兜底行为一致）。
+ * LBS 逆地址解析代理：key 只在后端环境变量，前端不接触 key。auto 模式下有高德 key
+ * 优先高德，否则腾讯；任何失败回退坐标文本。
  */
 @Service
 public class LocationService {

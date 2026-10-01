@@ -20,7 +20,7 @@ import java.nio.file.Files;
 import java.util.Map;
 
 /**
- * 文件上传（wx.uploadFile 兜底端点，docs/04 A.0.1）：照片/签名代理上传 COS（Q6=A）。
+ * 文件上传（wx.uploadFile 兜底端点）：照片/签名代理上传 COS。
  */
 @RestController
 public class FileController {
@@ -62,7 +62,7 @@ public class FileController {
                 .body(new FileSystemResource(path));
     }
 
-    /** P4 直传元数据（docs/04 A.6 POST /files/sts）：返回存储模式与直传元数据，真实 STS 签发为云端 CAM 部署项 */
+    /** 直传元数据（POST /files/sts）：返回存储模式与直传元数据，真实 STS 签发为云端 CAM 部署项 */
     @PostMapping("/files/sts")
     public ApiResponse<Map<String, Object>> sts(@org.springframework.web.bind.annotation.RequestBody(required = false)
                                                 Map<String, Object> body,

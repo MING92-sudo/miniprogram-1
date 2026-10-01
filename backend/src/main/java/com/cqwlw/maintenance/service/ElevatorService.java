@@ -13,9 +13,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * 电梯档案视图（docs/01 §3.4.1 + 平台 2.7 回填字段，字段名与前端契约一致）。
- */
+/** 电梯档案视图：字段名与前端契约一致。 */
 @Service
 public class ElevatorService {
 

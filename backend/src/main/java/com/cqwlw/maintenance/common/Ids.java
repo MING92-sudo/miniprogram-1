@@ -6,7 +6,7 @@ import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * ID 生成：与 mock 前缀风格一致（wo_/ur_/msg_...）；
- * originalRecordId 为 19 位纯数字（平台 2.6 要求），基于时间戳 + 随机数。
+ * originalRecordId 为 19 位纯数字（平台要求），基于时间戳 + 随机数。
  */
 public final class Ids {
 

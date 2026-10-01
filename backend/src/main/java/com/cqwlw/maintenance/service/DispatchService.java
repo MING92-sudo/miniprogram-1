@@ -23,11 +23,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 自动派单（用户确认口径 2026-09-30）：
- * 到期前一天自动把名下全部到期电梯一次性派给对应维保人员（同项目同日到期 → 当日一次性全部 09:00 派单）；
- * 保养类型按时间自动升级（TSG 附件累加式：OY 365 / SM 180 / TM 90 / HM 15）；
- * 派单同时写入消息中心。真实后端仅由定时任务驱动（每日 09:00 + 每 13 分钟兜底），
- * 读接口一律不触发派单（docs/04 A.10.9）。
+ * 自动派单：到期前一天把名下全部到期电梯一次性派给对应维保人员，保养类型按时间自动升级
+ * （OY 365 / SM 180 / TM 90 / HM 15），并写入消息中心。仅由定时任务驱动（每日 09:00 +
+ * 每 13 分钟兜底），读接口一律不触发派单。
  */
 @Service
 public class DispatchService {
@@ -50,8 +48,7 @@ public class DispatchService {
         this.checklistService = checklistService;
     }
 
-    /** 每日 09:00 定时派单（scripts/verify-dispatch.js 验收口径）；zone 必须显式指定，
-     *  否则容器（JVM 默认 UTC）会在北京时间 17:00 才触发，违反 AGENTS §5 V1.1 验收口径 */
+    /** 每日 09:00 定时派单；zone 必须显式指定，否则容器（JVM 默认 UTC）会在北京时间 17:00 才触发 */
     @Scheduled(cron = "0 0 9 * * ?", zone = "Asia/Shanghai")
     @Transactional(rollbackFor = Exception.class)
     public void scheduledDispatch() {
@@ -61,9 +58,8 @@ public class DispatchService {
 
     /**
      * 派单兜底自愈：容器在 09:00 未运行（重启/发布/休眠）导致漏派时，每 13 分钟补一次。
-     * 派单判定本身幂等（该电梯已有未完成工单即跳过），故可安全重复执行。
-     * 刻意**不**挂在 GET 读接口上：读请求不应产生写副作用，否则并发打开首页即可
-     * 触发重复派单与"接口偶发 500"（B6/B7）。
+     * 判定本身幂等（已有未完成工单即跳过）故可重复执行；刻意不挂在 GET 读接口上，
+     * 读请求不应产生写副作用，否则并发打开首页会触发重复派单。
      */
     @Scheduled(cron = "0 */13 * * * ?", zone = "Asia/Shanghai")
     @Transactional(rollbackFor = Exception.class)
@@ -74,8 +70,7 @@ public class DispatchService {
         }
     }
 
-    /** 调度入口以自调用方式调用本方法，不经过 Spring 代理，故两个 @Scheduled 方法上
-     *  必须各自声明 @Transactional，否则此处注解失效、行锁在自动提交下立即释放 */
+    // 调度入口自调用不经过 Spring 代理，故 @Scheduled 方法须各自声明 @Transactional，否则行锁立即释放
     @Transactional(rollbackFor = Exception.class)
     public List<WorkOrder> ensureDueOrders() {
         List<WorkOrder> created = new ArrayList<>();
@@ -124,8 +119,8 @@ public class DispatchService {
         }
         LocalDateTime last = baseline(el);
         if (last == null) {
-            // 无基准 → 放行首单。平台不提供上次维保时间（docs/06 #1 仍在索要），
-            // 按既定口径「以我们第一次派单的维保时间为准」，故不能因缺基准而永久不派单。
+            // 无基准 → 放行首单：平台不提供上次维保时间，故以第一次派单的维保时间为准，
+            // 不能因缺基准而永久不派单。
             return true;
         }
         long dueMs = TimeUtil.toMillis(last) + intervalDays(el) * 86400000L;
@@ -141,9 +136,8 @@ public class DispatchService {
     }
 
     /**
-     * 校验电梯上的人员绑定确实对应一名**已备案的真实员工**：姓名与 platform_id 必须同时匹配。
+     * 校验电梯上的人员绑定确实对应一名已备案的真实员工：姓名与 platform_id 必须同时匹配，
      * 任一为空、查无此人、或姓名与该 platform_id 登记的姓名不符，均视为未备案。
-     * 严禁退化为只按姓名匹配（docs/04 B.4：姓名会重名）。
      */
     private boolean identityOnFile(String name, String platformId) {
         if (isBlank(name) || isBlank(platformId)) {
@@ -166,15 +160,13 @@ public class DispatchService {
         LocalDateTime last = baseline(el);
         boolean firstRun = last == null;
         if (firstRun) {
-            // 首单：无基准则以本次派单时刻起算，并作为后续周期的基准（用户口径：
-            // 平台不提供上次维保时间时，以我们第一次派单的维保时间为准）
+            // 首单：无基准则以本次派单时刻起算，并作为后续周期的基准
             last = TimeUtil.fromMillis(now);
         }
-        // 派单门禁：**姓名与 platform_id 必须同时匹配上已备案的真实员工**才允许派单。
-        // 只校验 platform_id 非空是不够的——电梯上若残留他人的 ID 配他人的姓名，会把他人
-        // 的作业派到自己名下，2.6 的 workMan1Id 也会带上错人。配合人员同理（平台 2.6 必填
-        // workMan2Id）。与手动派工 requirePlatformId(1004) 同一口径，但**跳过而不抛异常**：
-        // 跑批是批量作业，为单台电梯的配置问题抛出会回滚同批其它电梯的派单。
+        // 派单门禁：姓名与 platform_id 必须同时匹配上已备案的真实员工才允许派单。只校验
+        // platform_id 非空是不够的——电梯上若残留他人的 ID 配他人的姓名，会把他人的作业派到
+        // 自己名下，上报时也会带上错人。配合人员同理（workMan2Id 必填）。与手动派工同一口径，
+        // 但跳过而不抛异常：跑批是批量作业，为单台电梯抛出会回滚同批其它电梯的派单。
         if (!identityOnFile(el.workerName, el.workerPlatformId)) {
             log.warn("自动派单跳过：维保人员姓名与 platform_id 未匹配上已备案员工, elevatorId={}, worker={}, platformId={}",
                     el.id, el.workerName, el.workerPlatformId);

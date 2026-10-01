@@ -8,7 +8,7 @@ import java.time.LocalDateTime;
 @Data
 
 
-/** 幂等键（X-Idempotency-Key，AGENTS §3）：存响应，重放直接返回原结果 */
+/** 幂等键（X-Idempotency-Key）：存响应，重放直接返回原结果 */
 @TableName("idempotency_key")
 public class IdempotencyKey {
     @TableId

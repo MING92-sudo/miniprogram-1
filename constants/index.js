@@ -1,4 +1,4 @@
-// 全局常量与枚举（详见 docs/01 需求文档、docs/04 接口文档）
+// 全局常量与枚举
 
 // 角色
 const ROLE = {
@@ -24,19 +24,18 @@ const STATUS_TEXT = {
   DONE: '已完成'
 }
 
-// 检查项结果枚举（docs/04 A.2：NORMAL/ABNORMAL/NA）
+// 检查项结果枚举：NORMAL/ABNORMAL/NA
 const CHECK_RESULT_TEXT = {
   NORMAL: '正常',
   ABNORMAL: '异常',
   NA: '不适用'
 }
 
-// 检查项判定方式（docs/04 A.4.2 judgeType）
+// 检查项判定方式（judgeType）
 // NUMERIC 读数型 / STANDARD 标准型 / MANUFACTURER 按本机说明书判定 / QUALITATIVE 定性判定
 const JUDGE_TYPES = ['NUMERIC', 'STANDARD', 'MANUFACTURER', 'QUALITATIVE']
 
-// 严重事故隐患码（需求文档 §6.2 / 平台 V1.5 规范 3.2；规范原文 S3 重复且缺 S4，
-// 已按连续编码勘误实现，待平台确认 docs/06 #9）
+// 严重事故隐患码（规范原文 S3 重复且缺 S4，此处按连续编码实现）
 const PROBLEM_CODES = {
   S0: '未发现严重事故隐患',
   S1: '使用非法生产的特种设备',
@@ -48,7 +47,7 @@ const PROBLEM_CODES = {
   S7: '其它严重事故隐患'
 }
 
-// 维保类别码（平台 V1.5 规范 3.1：FM按需/HM半月/TM季度/SM半年/OY年度）
+// 维保类别码：FM按需/HM半月/TM季度/SM半年/OY年度
 const WORK_TYPE_CODES = {
   FM: '按需维保',
   HM: '半月维保',
@@ -57,7 +56,7 @@ const WORK_TYPE_CODES = {
   OY: '年度维保'
 }
 
-// 记录上报状态（技术架构文档 §5.2 状态机；CONFIRMED 为本地终态，不上报平台）
+// 记录上报状态（CONFIRMED 为本地终态，不上报平台）
 const REPORT_STATUS_TEXT = {
   DRAFT: '草稿',
   SUBMITTED: '已提交待上报',
@@ -69,13 +68,12 @@ const REPORT_STATUS_TEXT = {
   CONFIRMED: '已确认（本地归档）'
 }
 
-// 业务规则：签到—签退最小作业时长（分钟），前端与后端双重校验。
-// 注：需求/接口文档中的「30 分钟」原指 ①双人签到间隔上限（01 §3.7.2）
-// ②困人救援抵达时限（TSG 第五条(四)）；作业时长下限为业主 2026-09-30
-// 补充的业务规则，上线前须与平台/监管确认口径。
+// 签到—签退最小作业时长（分钟），前端与后端双重校验。
+// 注：「30 分钟」原指双人签到间隔上限与困人救援抵达时限；
+// 作业时长下限为业主补充的业务规则。
 const MIN_WORK_DURATION_MINUTES = 30
 
-// 业务错误码 → 文案（docs/04 A.0）
+// 业务错误码 → 文案
 const ERROR_CODES = {
   401: '登录已过期，请重新登录',
   1001: '签到位置超出允许范围，请提交申诉',
@@ -90,7 +88,7 @@ const ERROR_CODES = {
   2003: '监管平台上报超时'
 }
 
-// 照片压缩约定（docs/04）
+// 照片压缩约定
 const IMAGE_LIMIT = {
   MAX_EDGE: 1200, // 压缩后长边上限 px
   MAX_SIZE: 500 * 1024 // 500KB

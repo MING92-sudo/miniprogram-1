@@ -76,7 +76,7 @@ Page({
     wx.scanCode({
       onlyFromCamera: true,
       success: (res) => {
-        // 二维码内容 = 纯 elevatorCode（docs/04 约定）
+        // 二维码内容 = 纯 elevatorCode
         this.resolveElevator(res.result)
       }
     })

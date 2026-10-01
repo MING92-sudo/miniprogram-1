@@ -90,7 +90,7 @@ class ReportPayloadRecorderTest {
 
     @Test
     void rejectsWhenPlatformIdAbsentInsteadOfMatchingByName() {
-        // 严禁只按姓名匹配（docs/04 B.4：姓名会重名）：工单无 platform_id 时直接 422，
+        // 严禁只按姓名匹配（姓名会重名）：工单无 platform_id 时直接 422，
         // 不得退化到姓名匹配把某个号码写进 2.6 合规上报
         when(employeeMapper.selectOne(any())).thenReturn(employee("张伟", null, "13911111111"));
 

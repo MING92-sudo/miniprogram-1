@@ -13,7 +13,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 
 /**
- * 生产同域反代兼容（docs/11 步骤 D）：管理端 SPA 以 `/api` 前缀调用（开发期 Vite 代理 strip /api），
+ * 生产同域反代兼容：管理端 SPA 以 `/api` 前缀调用（开发期 Vite 代理 strip /api），
  * 小程序直连后端走根路径（无前缀）。云端路径路由若不 strip 前缀，则后端在此统一把 `/api/**` 改写为 `/**`，
  * 使小程序与管理端可共享同一域名；本地直连根路径不受影响。
  */

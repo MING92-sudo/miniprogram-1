@@ -34,27 +34,22 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-/**
- * 工单与现场作业（docs/04 A.2 契约）：
- * 列表筛选/详情/扫码识单/签到（双人动态码）/检查项校验（TSG 注A-1/A-2）/签退
- * （时长下限 30 分钟、关键项照片留证、无隐患填 S0）→ 冻结维保记录 + 2.6 报文快照。
- */
+/** 工单与现场作业：列表、详情、扫码识单、签到、检查项校验、签退。 */
 @Service
 public class WorkOrderService {
 
-    /** 业务规则：签到—签退间隔不少于 N 分钟（app.work-duration-minutes 默认 30，业主补充规则，上线前待确认） */
+    // 签到至签退的最短作业时长（分钟），可由 app.work-duration-minutes 配置
     private static final int DEFAULT_MIN_WORK_DURATION_MINUTES = 30;
     private static final Map<String, Integer> WORK_TYPE_INTERVAL_DAYS =
             Map.of("FM", 30, "HM", 15, "TM", 90, "SM", 180, "OY", 365);
-    /** 演示约定：双人动态码固定 888888（与 mock 行为一致） */
+    // 双人动态码（演示固定值）
     private static final String DYNAMIC_CODE = "888888";
-    /** 签到地理围栏阈值（米）；与 mock 契约 threshold=200 一致，1001 码见 docs/04 A.0.1 */
+    // 签到地理围栏阈值（米）
     private static final int CHECKIN_DISTANCE_LIMIT_M = 200;
     /**
-     * 严重事故隐患码 S0—S7（平台 V1.5 规范 3.2，与前端 constants PROBLEM_CODES 同源）。
-     * S0「未发现严重事故隐患」是合法取值：检查项异常但不构成严重隐患时填 S0；
-     * 只有**没有任何异常检查项**时签退才自动补 S0。异常项一律要求显式记录判定，
-     * 杜绝"有异常却报未发现隐患"的假数据上报监管平台。
+     * 严重事故隐患码 S0—S7。S0「未发现严重事故隐患」是合法取值：检查项异常但不构成
+     * 严重隐患时填 S0；只有没有任何异常检查项时签退才自动补 S0，异常项必须显式记录判定，
+     * 杜绝「有异常却报未发现隐患」的假数据上报监管平台。
      */
     private static final java.util.Set<String> PROBLEM_CODES = new java.util.HashSet<>(
             java.util.Arrays.asList("S0", "S1", "S2", "S3", "S4", "S5", "S6", "S7"));
@@ -147,9 +142,8 @@ public class WorkOrderService {
     }
 
     /**
-     * 人员身份比对：**姓名与 platform_id 必须同时匹配**，任一为空即拒绝。
-     * 严禁退化为姓名单独匹配（docs/04 B.4：平台内证书号唯一、姓名会重名，
-     * 规范明文「严禁用姓名匹配」），也严禁只凭 ID 匹配——两者必须指向同一个人。
+     * 人员身份比对：姓名与 platform_id 必须同时匹配，任一为空即拒绝。
+     * 严禁退化为只按姓名或只按 ID 匹配——姓名会重名，两者必须指向同一个人。
      */
     private static boolean identityMatches(String myPlatformId, String myName,
                                            String orderPlatformId, String orderName) {
@@ -225,7 +219,7 @@ public class WorkOrderService {
                 .eq(MaintainRecord::getConfirmStatus, "PENDING"));
         long openFaults = faultMapper.selectCount(new LambdaQueryWrapper<Fault>()
                 .eq(Fault::getStatus, "OPEN"));
-        // 年检预警：自行检查逾期未检台数（须在下次定期检验前完成，docs/01 §3.17）
+        // 年检预警：自行检查逾期未检台数（须在下次定期检验前完成）
         int overdueInspects = 0;
         for (Elevator el : elevatorMapper.selectList(null)) {
             Long done = inspectMapper.selectCount(new LambdaQueryWrapper<InspectRecord>()
@@ -388,8 +382,8 @@ public class WorkOrderService {
         Double lng = EvidenceTokenService.lngOf(evidence);
         boolean appealApproved = approvalService.hasApproved(orderId);
         String geoStatus = "EVIDENCE_VERIFIED";
-        // 签到时间以服务端时间为准：上报监管平台的 startTime 必须是服务端可举证时间。
-        // 客户端 collectedAt 不可信，仅留存作离线补传对账（docs/04 A.2 collectedAt 语义修订）。
+        // 签到时间以服务端时间为准：上报平台的 startTime 必须是服务端可举证时间，
+        // 客户端 collectedAt 不可信，仅留存作离线补传对账。
         LocalDateTime receivedAt = TimeUtil.now();
         Map<String, Object> mine = new LinkedHashMap<>();
         mine.put("at", TimeUtil.format(receivedAt));
@@ -525,7 +519,7 @@ public class WorkOrderService {
     }
 
     /**
-     * 地理围栏校验：电梯已登记坐标且客户端越界、且无已通过申诉时抛 1001（docs/04 A.0.1）。
+     * 地理围栏校验：电梯已登记坐标且客户端越界、且无已通过申诉时抛 1001。
      * 电梯未登记坐标则降级放行（1005），但不得伪装成已核验。
      */
     private Fence checkFence(String orderId, Elevator el, Double lat, Double lng) {
@@ -556,7 +550,7 @@ public class WorkOrderService {
         }
     }
 
-    /** 1001 地理围栏拒绝：回显实测距离与阈值，前端据此引导申诉（docs/04 A.0.1） */
+    /** 1001 地理围栏拒绝：回显实测距离与阈值，前端据此引导申诉 */
     private static BizException geoRejected(Long meters) {
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("distance", meters == null ? "" : meters);
@@ -742,8 +736,8 @@ public class WorkOrderService {
 
     // ── 签退 ──
     /**
-     * 签退落库（**事务内**）：校验 → 工单置 DONE → 冻结检查项/签名/2.6 报文快照 → 插入维保记录。
-     * 不含任何对外调用；平台 2.6 转发见 {@link #reportAfterCheckout}，必须在事务提交后进行。
+     * 签退落库（事务内）：校验 → 工单置 DONE → 冻结检查项/签名/上报报文快照 → 插入维保记录。
+     * 不含任何对外调用；平台上报转发见 {@link #reportAfterCheckout}，必须在事务提交后进行。
      */
     @Transactional(rollbackFor = Exception.class)
     public MaintainRecord checkout(String orderId, Map<String, Object> body) {
@@ -859,8 +853,8 @@ public class WorkOrderService {
         r.reportStatus = o.reportStatus;
         r.retryCount = 0;
         r.nextMaintenanceDate = LocalDate.now(TimeUtil.ZONE).plusDays(interval);
-        // 落维保基准时间：平台不提供上次维保时间（docs/06 #1 仍在索要），本地以最近一次
-        // 实际完成作业的签退时间为准。派单按此计算下一周期，管理端电梯档案也会显示。
+        // 落维保基准时间：平台不提供上次维保时间，本地以最近一次实际完成作业的签退时间为准。
+        // 派单按此计算下一周期，管理端电梯档案也会显示。
         if (el != null) {
             el.lastMaintenanceAt = checkoutTime;
             elevatorMapper.updateById(el);
@@ -875,12 +869,9 @@ public class WorkOrderService {
     }
 
     /**
-     * 签退后上报平台 2.6 —— **必须在 {@link #checkout} 的事务提交之后**调用。
-     *
-     * <p>平台转发是对外 HTTPS 调用（最长 30s 超时）：若放在签退事务内，一旦它异常/超时，
-     * 事务回滚会把已写入的维保记录一起撤销，而工单状态可能已被外部观察到，
-     * 形成"工单已签退但维保记录不存在"的数据空洞。故签退只负责落库（事务内），
-     * 上报在本方法中单独进行；上报失败按 AGENTS §2.3 不自动重试，只标记 FAILED 待人工处理。
+     * 签退后上报平台 —— 必须在 {@link #checkout} 的事务提交之后调用。转发是最长 30s 的外部分调用，
+     * 放在事务内会因异常回滚掉维保记录，形成「工单已签退但记录不存在」的空洞；
+     * 上报失败不自动重试，只标记 FAILED 待人工处理。
      */
     public Map<String, Object> reportAfterCheckout(String orderId, MaintainRecord r) {
         r.reportStatus = reportService.attemptUpload(r);
@@ -899,13 +890,12 @@ public class WorkOrderService {
                 "shareToken", r.shareToken);
     }
 
-    /** 平台 2.6 报文快照（20 字段冻结；workMeneger 拼写按规范原文，docs/04 B.6） */
+    /** 上报报文快照（20 字段冻结；workMeneger 拼写按平台原文，勿"修正"） */
     Map<String, Object> buildReportPayload(MaintainRecord r, Elevator el, UseUnit uu) {
         Company c = companyMapper.selectList(null).stream().findFirst().orElse(new Company());
-        // recorder / recorderPhone 属**维保人员1**（平台 2.6 必填）。姓名与 platform_id 必须
-        // **同时**匹配上已备案员工——严禁退化为只按姓名匹配（docs/04 B.4：姓名会重名）。
-        // 匹配不到即失败，绝不取「随便一个 WORKER 的号码」：那等于把不相干者的号码写进
-        // 合规上报，而 2.6 记录的是实际作业人，号码对不上即为记录失真。
+        // recorder / recorderPhone 属维保人员1（必填）。姓名与 platform_id 必须同时匹配上
+        // 已备案员工，严禁退化为只按姓名匹配；匹配不到即失败，绝不取其他人员的号码，
+        // 那等于把不相干者的号码写进合规上报。
         Employee principal = null;
         if (!isBlank(r.workerPlatformId) && !isBlank(r.workerName)) {
             Employee byId = employeeMapper.selectOne(new LambdaQueryWrapper<Employee>()

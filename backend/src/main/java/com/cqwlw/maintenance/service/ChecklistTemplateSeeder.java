@@ -19,11 +19,10 @@ import java.util.Map;
 import static com.cqwlw.maintenance.util.JsonUtil.MAPPER;
 
 /**
- * 检查项模板落库（docs/09 二期 / docs/08 P4 本地部分）：
- * 把 classpath checklist-template.json 的 257 行官方模板（附件 A—D）扁平化播种进
+ * 检查项模板落库：把 classpath checklist-template.json 的 257 行官方模板扁平化播种进
  * `checklist_template`（template_type=OFFICIAL），payload 存条目 JSON 原文，
- * ChecklistService DB 路径据此生成清单，与 JSON 路径逐字段一致（docs/05 §10.5 口径不变）。
- * 表为空时播种，重复启动幂等；CUSTOM 自定义模板由管理端维护。
+ * ChecklistService 据此生成清单，与 JSON 路径须逐字段一致。
+ * 表为空时播种，重复启动幂等；CUSTOM 模板由管理端维护。
  */
 @Service
 public class ChecklistTemplateSeeder implements ApplicationRunner {

@@ -1,12 +1,12 @@
 // 离线缓存管理
-// 约定（docs/02）：按工单分 key 存储 + offline_queue 补传队列；网络恢复时自动补传
+// 按工单分 key 存储 + offline_queue 补传队列；网络恢复时自动补传
 const config = require('../../config/index')
 const offline = require('../../utils/offline')
 const { formatTime } = require('../../utils/util')
 
 Page({
   data: {
-    // 演示辅助入口仅 mock 模式渲染（docs/08 P1 收口）
+    // 演示辅助入口仅 mock 模式渲染
     useMock: config.useMock,
     cacheList: [],
     queueCount: 0,

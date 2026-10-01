@@ -7,7 +7,7 @@ import lombok.Data;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
-/** 维保计划（docs/04 A.5：到期电梯的排班池；指派后生成工单） */
+/** 维保计划（到期电梯的排班池；指派后生成工单） */
 @Data
 @TableName("maintain_plan")
 public class MaintainPlan {

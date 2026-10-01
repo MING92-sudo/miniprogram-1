@@ -15,8 +15,8 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * 自建 JWT：签发与校验（云托管免鉴权 openid → 本服务 JWT，AGENTS/README 部署约定）。
- * 日志严禁打印完整 token（AGENTS §2.4）。
+ * 自建 JWT：签发与校验（云托管免鉴权 openid → 本服务 JWT）。
+ * 日志严禁打印完整 token。
  */
 @Service
 public class JwtService {
@@ -27,7 +27,7 @@ public class JwtService {
     public JwtService(AppProperties props) {
         String secret = props.getJwtSecret();
         // 签名密钥无默认值（application.yml 已移除 dev 默认串）：缺失即启动失败，
-        // 否则会以公开密钥签发 token，任何人可伪造 role=SYS_ADMIN（AGENTS §2.1）
+        // 否则会以公开密钥签发 token，任何人可伪造 role=SYS_ADMIN
         if (secret == null || secret.isBlank()) {
             throw new IllegalStateException(
                     "JWT 签名密钥未配置：请注入环境变量 JWT_SECRET（建议 32 字节以上强随机串），"

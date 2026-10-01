@@ -7,7 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * 管理端角色矩阵（docs/09 §三）：LEADER 只读；ADMIN/SYS_ADMIN 可写；
+ * 管理端角色矩阵：LEADER 只读；ADMIN/SYS_ADMIN 可写；
  * WORKER/UNIT_ADMIN 不使用管理端。
  */
 class AdminRolesTest {

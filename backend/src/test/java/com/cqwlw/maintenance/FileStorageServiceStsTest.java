@@ -9,7 +9,7 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** P4 直传元数据（docs/04 A.6 POST /files/sts）：模式探测 + 上传目录消毒（真实 STS 签发放置云端 CAM 部署） */
+    /** 直传元数据：模式探测 + 上传目录消毒（真实 STS 签发放置云端 CAM 部署） */
 class FileStorageServiceStsTest {
 
     private FileStorageService service(AppProperties props) {

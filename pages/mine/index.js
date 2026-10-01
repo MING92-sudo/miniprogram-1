@@ -18,7 +18,7 @@ const STAFF_ROLES = [ROLE.WORKER, ROLE.ASSISTANT, ROLE.LEADER]
 function buildMenus(role) {
   const menus = []
   if (STAFF_ROLES.indexOf(role) > -1) {
-    // 合规台账（TSG 法定项，docs/01 §3.17/3.18）
+    // 合规台账（自行检查 / 应急演练）
     menus.push({ title: '自行检查', url: '/pages/compliance/inspect', desc: '年度法定检查，定期检验前完成' })
     menus.push({ title: '应急演练', url: '/pages/compliance/drill', desc: '每半年至少 1 轮，覆盖全部在保品种' })
     menus.push({ title: '故障上报', url: '/pages/fault/report', desc: '现场故障登记' })

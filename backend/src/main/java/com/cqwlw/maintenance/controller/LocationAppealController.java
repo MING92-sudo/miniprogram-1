@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Map;
 
-/** 小程序端·定位异常申述（docs/04 A.2：1001 定位超阈 → POST /workorders/{id}/location-appeal） */
+/** 小程序端·定位异常申述（1001 定位超阈 → POST /workorders/{id}/location-appeal） */
 @RestController
 public class LocationAppealController {
 

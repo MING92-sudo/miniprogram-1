@@ -155,7 +155,7 @@ class WorkOrderOwnershipTest {
 
     @Test
     void missingPlatformIdGrantsNoAccess() {
-        // 严禁退化到姓名单独匹配（docs/04 B.4：姓名会重名）：登录人 platform_id 缺失时
+        // 严禁退化到姓名单独匹配（姓名会重名）：登录人 platform_id 缺失时
         // 看不到任何工单、也打不开任何工单，必须先完成 2.5 同步
         loginAs("WORKER", "e_me", "张伟", null);
         WorkOrder mine = order("wo_mine", "张伟", null, null, null);

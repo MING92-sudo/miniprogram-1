@@ -30,10 +30,9 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 维保记录 PDF 导出（docs/09 管理端一期·记录归档）：
- * 内容含基本信息（签到/签退时间、维保人员）、检查项明细、现场照片、
+ * 维保记录 PDF 导出：含基本信息（签到/签退时间、维保人员）、检查项明细、现场照片、
  * 维保人员与使用单位安全管理员签字。照片/签字经 URL 拉取，失败降级为文字占位。
- * 中文字体用 OpenPDF CID 字体 STSong-Light（UniGB-UCS2-H），不向仓库提交字体文件。
+ * 中文字体用 OpenPDF CID 字体 STSong-Light，不向仓库提交字体文件。
  */
 @Service
 public class RecordPdfService {

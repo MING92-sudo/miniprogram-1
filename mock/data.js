@@ -12,10 +12,10 @@ const {
 const DEMO_PHOTO = 'https://picsum.photos/seed/em-elev/600/450'
 const DEMO_SIGNATURE = 'https://picsum.photos/seed/em-sig/480/180'
 
-// 按维保频次生成 TSG 附件A 累加式检查清单（docs/01 §3.7.3）：
+// 按维保频次生成附件A 累加式检查清单：
 // HM=表A-1(31项)；TM=+表A-2(44)；SM=+表A-3(59)；OY=+表A-4(76)；FM 按需取半月基础表
 // 周期性/季节性条目（execCycleMonth/ageCondition/seasonWindow）默认"本次无需执行"，
-// 灰显不计入未完成项，允许人工点选"本次仍要执行"（docs/03 §6.1）
+// 灰显不计入未完成项，允许人工点选"本次仍要执行"
 function buildChecklist(workTypeCode, categoryCode) {
   const chain = FREQ_CHAIN[workTypeCode] || FREQ_CHAIN.HM
   const appendix = CATEGORY_APPENDIX[categoryCode] || 'A'
@@ -73,7 +73,7 @@ function makeDoneItems(workTypeCode, withAbnormal, categoryCode) {
       it.result = 'NORMAL'
     }
     if (it.isKey && it.photoRequired) {
-      // 关键项（试验/测试/校验/检测类）强制照片留证（TSG 注A-2）
+      // 关键项（试验/测试/校验/检测类）强制照片留证
       it.photos = [DEMO_PHOTO + '?k=' + it.itemCode]
       it.photoFileIds = ['mock_file_' + it.itemCode]
     }
@@ -205,7 +205,7 @@ function addDays(n) {
 }
 
 const db = {
-  // 维保单位档案（平台 2.6 冻结字段来源：workMenegerName/workMenegerPhone，拼写与规范 2.6 原文一致）
+  // 维保单位档案（上报冻结字段来源：workMenegerName/workMenegerPhone，拼写按平台原文）
   company: {
     organizationCode: '91500106MAABU3795M',
     name: '重庆博威电梯有限公司',
@@ -213,7 +213,7 @@ const db = {
     workMenegerPhone: '13723220001'
   },
 
-  // 使用单位档案（平台 2.6 冻结字段来源：unitPrincipal/elevatorAdminister/emergencyPhone）
+  // 使用单位档案（上报冻结字段来源：unitPrincipal/elevatorAdminister/emergencyPhone）
   useUnits: [
     { id: 'uu_1', unitName: '重庆世纪物业管理有限公司', unitPrincipal: '刘建国', unitPrincipalPhone: '13910001001', elevatorAdminister: '王芳', elevatorAdministerPhone: '13800000003', emergencyPhone: '023-67612345' },
     { id: 'uu_2', unitName: '重庆蓝湾物业服务有限公司', unitPrincipal: '周涛', unitPrincipalPhone: '13930003002', elevatorAdminister: '吴静', elevatorAdministerPhone: '13800003005', emergencyPhone: '023-67991234' }
@@ -236,7 +236,7 @@ const db = {
 
   elevators: [
     { id: 'el_1', elevatorCode: 'EM-2024-001', elevatorName: '世纪大厦 1# 客梯', location: '渝北区龙山一路 88 号世纪大厦', regCode: 'TSCQ5001120001', deviceCode: 'DT-CQ-2024-001', insideNumber: 'KT-01', model: 'OTIS 300VF', useUnitId: 'uu_1', category: '曳引驱动电梯', nextCheckDate: addDays(45),
-      // ── 平台 2.7 自动获取字段（8 个，电话未脱敏，可直接回填用于 2.6 上报）──
+      // ── 平台自动获取字段（8 个，电话未脱敏，可直接回填用于上报）──
       factoryNumber: 'SGL20131212-1', useUnitEntityId: '5633318206815862786',
       elevatorAdminister: '王芳', elevatorAdministerPhone: '13800000003', emergencyPhone: '023-67612345',
       platformSyncedAt: '2026-09-29 14:20:00',
@@ -330,7 +330,7 @@ const db = {
     { id: 'ft_2', elevatorCode: 'EM-2024-001', faultType: '平层异常', desc: '平层偏差明显，已调整', status: 'CLOSED', createdAt: today('08:20:00'), handleDesc: '调整平层感应器后恢复正常' }
   ],
 
-  // ── 合规台账（TSG 法定项，docs/01 §3.17/3.18；数据暂存本地，不上报平台）──
+  // ── 合规台账（数据暂存本地，不上报平台）──
   // 应急演练：每半年至少 1 轮，覆盖本单位在保的全部电梯品种
   drills: [
     {
@@ -425,13 +425,13 @@ function nextRecordId() {
   return '1948' + String(Date.now()) + '01'
 }
 
-// ── 自动排期引擎（mock 演示：对齐 docs/04 设计的 /plans/generate + /plans/assign）─────
+// ── 自动排期引擎（mock 演示：/plans/generate + /plans/assign）─────
 // 规则：
 //   1) 电梯维护配置（maintenance）绑定：维保频次周期 + 主维保/配合人员（含平台ID）；
 //   2) 上次签退时间（无历史时取 lastMaintenanceAt）+ 周期天数 = 下次维保到期日；
 //   3) **到期前一天**自动把名下全部到期电梯派给对应维保人员（一次性全部派单，不限时段/台数——
-//      作业时长由签退时 30 分钟校验把关，即"只验证作业时间"，用户确认 2026-09-30）；
-//   4) 保养类型按时间自动升级（TSG 累加式：年365/半年180/季90/半月15）；
+//      作业时长由签退时 30 分钟校验把关，即"只验证作业时间"）；
+//   4) 保养类型按时间自动升级（累加式：年365/半年180/季90/半月15）；
 //   5) 派单同时写入消息中心通知。
 // 真实后端实现为：plans 计划表 + 定时任务（到期前一天触发）+ 派单通知。
 const WORK_TYPE_LABEL = { HM: '半月维保', TM: '季度维保', SM: '半年维保', OY: '年度维保', FM: '按需维保' }
@@ -461,7 +461,7 @@ function ensureDueOrders() {
     const intervalMs = (cfg.intervalDays || WORK_TYPE_INTERVAL_DAYS[cfg.workTypeCode] || 15) * 86400000
     const dueMs = last + intervalMs
     if (now < dueMs - 86400000) return // 未到"到期前一天"，暂不派单
-    // ★ 保养类型按时间自动升级（TSG 附件A 累加式：季度=半月+季度项，半年=+半年项，年度=+年度项）：
+    // ★ 保养类型按时间自动升级（累加式：季度=半月+季度项，半年=+半年项，年度=+年度项）：
     //   距上次年度维保 ≥365 天 → 本次派年度单（76 项清单）
     //   距上次半年维保 ≥180 天 → 半年单（59 项）；距上次季度维保 ≥90 天 → 季度单（44 项）；否则半月单（31 项）
     //   某类型从未执行时以其基线日期（lastMaintenanceAt/上次任意维保）起算
@@ -547,7 +547,7 @@ function getHomeSummary() {
     openFaults: db.faults.filter(function (f) {
       return f.status === 'OPEN'
     }).length,
-    // 年检预警：自行检查逾期未检台数（须在定期检验前完成，docs/01 §3.17）
+    // 年检预警：自行检查逾期未检台数（须在定期检验前完成）
     overdueInspects: listInspects().filter(function (i) {
       return i.status === '逾期未检'
     }).length,
@@ -567,9 +567,9 @@ function getUseUnit(id) {
   return db.useUnits.find((u) => u.id === id) || null
 }
 
-// ── 电梯详细档案（docs/01 §3.4.1 + 平台 2.7 回填，docs/04 B.7）──
+// ── 电梯详细档案（平台回填 + 本地维护）──
 // 字段分两组标注来源：
-//   platform: 平台 2.7 自动获取（8 字段；电话未脱敏，可直接回填用于 2.6 上报）
+//   platform: 平台自动获取（8 字段；电话未脱敏，可直接回填用于上报）
 //   local:    平台不提供、本地维护（安装地址/经纬度/型号品牌/制造单位/下次检验日期等）
 function getElevatorProfile(id) {
   const el = getElevator(id)
@@ -581,7 +581,7 @@ function getElevatorProfile(id) {
     category: el.category || '',
     insideNumber: el.insideNumber || '',
     model: el.model || '',
-    // 平台 2.7 自动获取
+    // 平台自动获取
     platform: {
       syncedAt: el.platformSyncedAt || '',
       elevatorCode: el.elevatorCode || '',
@@ -593,7 +593,7 @@ function getElevatorProfile(id) {
       elevatorAdministerPhone: el.elevatorAdministerPhone || '',
       emergencyPhone: el.emergencyPhone || ''
     },
-    // 本地维护（平台 2.7 不返回：使用单位名称/安装地址/经纬度/型号品牌/制造单位/下次检验日期）
+    // 本地维护（平台不返回：使用单位名称/安装地址/经纬度/型号品牌/制造单位/下次检验日期）
     local: {
       projectName: unit.unitName || '',
       unitPrincipal: unit.unitPrincipal || '',
@@ -633,7 +633,7 @@ function getOrder(id) {
   const o = db.orders.find((x) => x.id === id)
   if (!o) return null
   const view = Object.assign({}, o, { elevator: getElevator(o.elevatorId) })
-  // 已完成工单附带完整维保记录视图数据（签字/确认状态，docs/01 §3.12.5 归档留痕）
+  // 已完成工单附带完整维保记录视图数据（签字/确认状态）
   if (o.status === 'DONE' && o.originalRecordId) {
     const rec = db.unitRecords.find(function (r) { return r.originalRecordId === o.originalRecordId })
     if (rec) {
@@ -652,7 +652,7 @@ function getOrder(id) {
   return view
 }
 
-// 手动重报平台 2.6（mock：仅 FAILED 记录可重报，与真实后端拦截行为一致）
+// 手动重报（mock：仅 FAILED 记录可重报，与真实后端拦截行为一致）
 function reuploadRecord(id) {
   const rec = db.unitRecords.find(function (r) { return r.id === id })
   if (!rec) return null
@@ -708,7 +708,7 @@ function listOrders(query) {
   }))
 }
 
-// 签到（body 对齐 docs/04 A.2：lng/lat/locationAccuracy/photoFileId/role/dynamicCode/collectedAt）
+// 签到（body：lng/lat/locationAccuracy/photoFileId/role/dynamicCode/collectedAt）
 // 签到时间以服务端时间为准，客户端 collectedAt 仅留存作离线补传对账（与后端一致）
 function markCheckin(orderId, body, geo) {
   const o = db.orders.find((x) => x.id === orderId)
@@ -731,7 +731,7 @@ function markCheckin(orderId, body, geo) {
   return o
 }
 
-// 签退：生成维保记录 + 平台 2.6 上报快照（冻结档案字段，后续档案变更不回溯）
+// 签退：生成维保记录 + 上报快照（冻结档案字段，后续档案变更不回溯）
 function markCheckout(orderId, body) {
   const o = db.orders.find((x) => x.id === orderId)
   if (!o) return null
@@ -741,7 +741,7 @@ function markCheckout(orderId, body) {
   o.status = 'DONE'
   o.checkoutTime = formatTime()
   o.originalRecordId = nextRecordId()
-  // mock 平台 2.6 转发即时成功（真实后端签退后自动转发，失败不自动重试，AGENTS §2.3）
+  // mock 转发即时成功（真实后端签退后自动转发，失败不自动重试）
   o.reportStatus = 'REPORTED'
   o.duration = formatDuration(parseTime(o.checkoutTime) - parseTime(o.checkinTime))
 
@@ -790,7 +790,7 @@ const problemCodes = abnormalItems.length
   return record
 }
 
-// 平台 2.6 报文快照（20 字段冻结，docs/04 B.6；含 workMeneger 拼写按规范原文）
+// 上报报文快照（20 字段冻结；含 workMeneger 拼写按平台原文）
 function buildReportPayload(r, el, uu) {
   el = el || getElevatorByCode(r.elevatorCode) || {}
   uu = uu || getUseUnit(el.useUnitId) || {}
@@ -807,7 +807,7 @@ function buildReportPayload(r, el, uu) {
     insideNumber: el.insideNumber || '',
     unitPrincipal: uu.unitPrincipal || '',
     unitPrincipalPhone: uu.unitPrincipalPhone || '',
-    // 安全管理员/紧急电话：优先取平台 2.7 回填值（实测未脱敏，可直接回填 2.6 上报）
+    // 安全管理员/紧急电话：优先取平台回填值（未脱敏，可直接回填上报）
     elevatorAdminister: el.elevatorAdminister || uu.elevatorAdminister || '',
     elevatorAdministerPhone: el.elevatorAdministerPhone || uu.elevatorAdministerPhone || '',
     emergencyPhone: el.emergencyPhone || uu.emergencyPhone || '',
@@ -836,7 +836,7 @@ function updateChecklistItem(orderId, itemId, patch) {
 }
 
 function createRescue(body) {
-  // 救援节点耗时自动计算（docs/01 §3.9.3.1：系统自动计算并留痕各节点耗时，
+  // 救援节点耗时自动计算（系统自动计算并留痕各节点耗时，
   // 抵达超 30 分钟自动标记超时且记录不可删除；重庆为直辖市，法定时限 30 分钟）
   const arriveMin = body.arriveAt && body.alarmAt
     ? Math.round((parseTime(body.arriveAt) - parseTime(body.alarmAt)) / 60000)
@@ -888,7 +888,7 @@ function closeFault(id, body) {
   return f
 }
 
-// ── 应急演练（docs/01 §3.18）──
+// ── 应急演练 ──
 function listDrills() {
   // 覆盖检查：近半年内，本单位在保的每个电梯品种均须有演练记录
   const halfYearAgo = Date.now() - 182 * 86400000
@@ -925,7 +925,7 @@ function createDrill(body) {
   return r
 }
 
-// ── 自行检查（docs/01 §3.17，独立记录类型 inspect_record，不触发 2.6 上报）──
+// ── 自行检查（独立记录类型 inspect_record，不触发上报）──
 function listInspects() {
   const now = Date.now()
   return db.elevators.map(function (el) {
@@ -983,7 +983,7 @@ function createInspect(body) {
   return r
 }
 
-// 初始演示记录补挂平台 2.6 报文快照
+// 初始演示记录补挂上报报文快照
 db.unitRecords.forEach((r) => {
   const el = getElevatorByCode(r.elevatorCode) || {}
   r.reportPayload = buildReportPayload(r, el, getUseUnit(el.useUnitId))

@@ -6,7 +6,7 @@ import com.baomidou.mybatisplus.annotation.TableName;
 @Data
 
 
-/** 维保单位档案（平台 2.6 冻结字段来源，workMeneger 拼写按规范原文） */
+/** 维保单位档案（上报冻结字段来源，workMeneger 拼写按平台原文） */
 @TableName("company")
 public class Company {
     @TableId

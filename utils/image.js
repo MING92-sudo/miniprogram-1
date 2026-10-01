@@ -1,4 +1,4 @@
-// 图片压缩（docs/04 约定：压缩后长边 ≤1200px、文件 ≤500KB，见 constants/IMAGE_LIMIT）
+// 图片压缩（长边 ≤1200px、文件 ≤500KB，见 constants/IMAGE_LIMIT）
 // 任何一步失败均回退原图，不阻断业务流程
 const { IMAGE_LIMIT } = require('../constants/index')
 

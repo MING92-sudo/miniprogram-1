@@ -6,7 +6,7 @@ import lombok.Data;
 
 import java.time.LocalDateTime;
 
-/** 预警记录（docs/04 A.6 GET /alerts；OPEN/RESOLVED） */
+/** 预警记录（GET /alerts；OPEN/RESOLVED） */
 @Data
 @TableName("alert_record")
 public class AlertRecord {

@@ -7,11 +7,11 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
 
 /**
- * 管理端角色门禁（docs/09 §三）：在 AuthInterceptor 之后执行（此时 role 已写入 attribute）。
+ * 管理端角色门禁：在 AuthInterceptor 之后执行（此时 role 已写入 attribute）。
  * 覆盖 /admin/**、/reg/**、/platform/**、/company、/use-units/**、/employees/**、/elevators/**。
  * 规则：写操作（POST/PUT/DELETE）需 ADMIN/SYS_ADMIN；读操作需 LEADER/ADMIN/SYS_ADMIN；
  * 例外：GET /elevators* 为小程序共用读接口，任何已登录角色放行；
- *       二期例外（docs/04 A.2/A.5）：发起延期（POST /admin/plans/{id}/delay）与
+ *       例外：发起延期（POST /admin/plans/{id}/delay）与
  *       转派（POST /admin/orders/{id}/transfer）为"班组长及以上"，LEADER 可写。
  */
 @Component
@@ -20,7 +20,7 @@ public class AdminRoleInterceptor implements HandlerInterceptor {
     private static final java.util.regex.Pattern LEADER_WRITABLE =
             java.util.regex.Pattern.compile("^/admin/(plans/[^/]+/delay|orders/[^/]+/transfer)$");
 
-    /** 系统管理员专属（docs/04 A.1：SYS_ADMIN=用户权限/接口配置/日志审计） */
+    /** 系统管理员专属（用户权限/接口配置/日志审计） */
     private static final java.util.regex.Pattern SYS_ONLY =
             java.util.regex.Pattern.compile("^/admin/(op-logs|employees/[^/]+/(enabled|password))$");
 

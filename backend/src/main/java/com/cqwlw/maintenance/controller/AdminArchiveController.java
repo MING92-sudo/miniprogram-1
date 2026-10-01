@@ -15,8 +15,8 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 管理端·档案维护（docs/09 §4.1：维保单位/使用单位/人员/电梯）。
- * 写接口携带 X-Idempotency-Key（AGENTS §3）；手机号互斥预校验在服务层（1002+conflicts[]，docs/04 B.7）。
+ * 管理端·档案维护：维保单位/使用单位/人员/电梯。
+ * 写接口携带 X-Idempotency-Key；手机号互斥预校验在服务层（1002+conflicts[]）。
  * 写角色门禁（ADMIN/SYS_ADMIN）由 AdminRoleInterceptor 承担。
  */
 @RestController
@@ -113,7 +113,7 @@ public class AdminArchiveController {
         return ApiResponse.ok(result);
     }
 
-    // ── 用户权限（SYS_ADMIN 专属，docs/04 A.1）──
+    // ── 用户权限（SYS_ADMIN 专属）──
 
     @PutMapping("/admin/employees/{id}/enabled")
     public ApiResponse<Object> setEnabled(@PathVariable String id,

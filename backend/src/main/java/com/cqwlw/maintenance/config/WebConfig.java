@@ -9,8 +9,8 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 /**
  * 路由鉴权范围：与 mock 契约一致——除登录/绑定/分享签字/健康检查外均需 Bearer JWT；
- * 管理端路由（/admin /reg /platform /company /use-units /employees /elevators）叠加角色门禁（docs/09 §三）；
- * 管理端写操作叠加审计留痕（docs/02 op_log）。
+ * 管理端路由（/admin /reg /platform /company /use-units /employees /elevators）叠加角色门禁；
+ * 管理端写操作叠加审计留痕。
  */
 @Configuration
 public class WebConfig implements WebMvcConfigurer {

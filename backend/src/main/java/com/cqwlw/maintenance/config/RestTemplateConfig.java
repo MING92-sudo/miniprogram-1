@@ -9,7 +9,7 @@ import java.time.Duration;
 
 /**
  * 调用监管平台/LBS 的 HTTP 客户端。
- * 超时按 docs/08 P2：连接 3s / 读 30s（文件接口 120s，P2 无文件转发）。
+ * 超时：连接 3s / 读 30s（文件接口 120s）。
  */
 @Configuration
 public class RestTemplateConfig {

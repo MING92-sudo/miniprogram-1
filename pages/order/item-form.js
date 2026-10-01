@@ -1,5 +1,5 @@
 // 检查项填写：结果 + 读数/说明书判定 + 异常描述/隐患码 + 跳过原因 + 现场照片
-// 枚举与字段对齐 docs/04 A.2：result=NORMAL/ABNORMAL/NA；NA 必填 skipReason；
+// 枚举与字段：result=NORMAL/ABNORMAL/NA；NA 必填 skipReason；
 // NUMERIC 填 value；MANUFACTURER 填 valueText；ABNORMAL 必填 abnormalDesc + problemCode(S1-S7)
 const { getChecklist, submitChecklistItem, requestShotEvidence } = require('../../services/order')
 const { uploadImage } = require('../../services/upload')
@@ -154,7 +154,7 @@ Page({
     })
   },
 
-  // 构造提交 payload（docs/04 A.2，clientItemId 为幂等键）
+  // 构造提交 payload（clientItemId 为幂等键）
   buildPayload(fileIds) {
     const item = this.data.item || {}
     return {
@@ -180,7 +180,7 @@ Page({
       return '读数型检查项请填写测量读数'
     }
     // 照片校验与后端 mock/server.js 完全对齐（避免前端放行、后端 422 打回的体验割裂）：
-    // ① 任何异常项必须附照片；② 关键项（试验/测试/校验/检测，TSG 注A-2）执行（非NA）必须附照片
+    // ① 任何异常项必须附照片；② 关键项（试验/测试/校验/检测）执行（非NA）必须附照片
     if (this.data.result === 'ABNORMAL') {
       if (!this.data.abnormalDesc) return '异常项请填写异常描述'
       if (!this.data.problemCode) return '异常项请选择隐患代码（S1-S7，随维保记录上报平台）'
@@ -249,7 +249,7 @@ Page({
       url: `/work-orders/${orderId}/checklist/${itemId}`,
       method: 'POST',
       data: payload,
-      // 本地照片路径随任务入队，补传时先上传文件再回填 photoFileIds（docs/08 P1）
+      // 本地照片路径随任务入队，补传时先上传文件再回填 photoFileIds
       // 顺序与 data.photoEvidence 一致，服务端按下标验签
       photoPaths: this.data.photos.map((p) => p.path),
       desc: item.name || '检查项填写'

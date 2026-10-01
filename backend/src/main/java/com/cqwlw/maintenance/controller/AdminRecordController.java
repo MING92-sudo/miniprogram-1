@@ -20,7 +20,7 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 
 /**
- * 管理端·维保记录导出（docs/09 一期）：
+ * 管理端·维保记录导出：
  * GET /admin/records/{id}/export-pdf → 维保记录 PDF（含照片/签字/签到签退时间）。
  * JWT 鉴权（/admin/* 不在白名单，默认拦截）。
  */

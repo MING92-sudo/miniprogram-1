@@ -31,7 +31,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * 派单验收口径（AGENTS §6 / scripts/verify-dispatch.js）：
+ * 派单验收：
  * 同项目 6 台同日到期 → 当日一次性全部 09:00 派单；保养类型按时间自动升级；
  * 创建前必须先对电梯行加锁（并发跑批不得为同一台电梯重复派单）。
  */
@@ -147,7 +147,7 @@ class DispatchServiceTest {
 
     @Test
     void firstOrderIsDispatchedWhenNoBaselineExists() {
-        // 平台不提供上次维保时间（docs/06 #1 仍在索要），口径为「以第一次派单的维保时间为准」。
+        // 平台不提供上次维保时间，故以第一次派单的维保时间为准。
         // 若无基准就判为不派单，新建电梯将永远进不了工单流程
         Elevator el = new Elevator();
         el.id = "el_new";
@@ -213,7 +213,7 @@ class DispatchServiceTest {
 
     @Test
     void skipsDispatchWhenAssistantNameDoesNotMatch() {
-        // 平台 2.6 的 workMan2Id 必填，配合人员同样须姓名与 ID 匹配
+        // workMan2Id 必填，配合人员同样须姓名与 ID 匹配
         Elevator el = dueElevator("el_asym");
         el.assistantName = "李强";
         el.assistantPlatformId = "990003";

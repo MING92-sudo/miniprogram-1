@@ -6,7 +6,7 @@ import lombok.Data;
 
 import java.time.LocalDateTime;
 
-/** 预警规则（docs/01 §3.11：9 类预警，提前天数与启停可配，docs/04 A.6 GET/PUT /alert-rules） */
+/** 预警规则：9 类预警，提前天数与启停可配 */
 @Data
 @TableName("alert_rule")
 public class AlertRule {

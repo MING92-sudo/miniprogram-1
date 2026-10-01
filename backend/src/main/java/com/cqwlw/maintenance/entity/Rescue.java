@@ -8,7 +8,7 @@ import java.time.LocalDateTime;
 @Data
 
 
-/** 困人救援（超时记录不可删除，TSG 第五条(四)） */
+/** 困人救援（超时记录不可删除） */
 @TableName("rescue")
 public class Rescue {
     @TableId

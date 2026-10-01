@@ -24,8 +24,8 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 管理端档案维护（docs/09 一期：维保单位/使用单位/人员/电梯四类档案）。
- * 写接口一律：管理端写角色门禁（拦截器）+ X-Idempotency-Key（控制器）+ 手机号互斥预校验（1002+conflicts[]）。
+ * 管理端档案维护：维保单位/使用单位/人员/电梯四类档案。写接口一律经写角色门禁 +
+ * X-Idempotency-Key + 手机号互斥预校验（1002+conflicts[]）。
  * 电梯读接口沿用 GET /elevators（小程序共用），管理端用 GET /admin/elevators 富视图（含 geoStatus）。
  */
 @Service
@@ -160,7 +160,7 @@ public class AdminArchiveService {
         return employeeRow(e);
     }
 
-    /** 账号启停（SYS_ADMIN，docs/04 A.1 用户权限） */
+    /** 账号启停（SYS_ADMIN） */
     public Map<String, Object> setEmployeeEnabled(String id, boolean enabled) {
         Employee e = employeeMapper.selectById(id);
         if (e == null) {
@@ -171,7 +171,7 @@ public class AdminArchiveService {
         return employeeRow(e);
     }
 
-    /** 重置密码（SYS_ADMIN，docs/04 A.1 用户权限） */
+    /** 重置密码（SYS_ADMIN） */
     public Map<String, Object> resetEmployeePassword(String id, String password) {
         Employee e = employeeMapper.selectById(id);
         if (e == null) {
@@ -462,7 +462,7 @@ public class AdminArchiveService {
         m.put("platformSyncedAt", TimeUtil.format(el.platformSyncedAt));
         m.put("lng", el.lng == null ? "" : String.valueOf(el.lng));
         m.put("lat", el.lat == null ? "" : String.valueOf(el.lat));
-        // 位置待补高亮数据源（docs/09 决策 #4，docs/01 §3.4.1 降级策略）
+        // 位置待补高亮数据源（位置缺失时的降级提示）
         m.put("geoStatus", el.lng == null || el.lat == null ? "MISSING" : "OK");
         m.put("workerName", nz(el.workerName));
         m.put("workerPhone", nz(el.workerPhone));

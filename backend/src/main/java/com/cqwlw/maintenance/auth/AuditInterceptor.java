@@ -10,7 +10,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
 
 /**
- * 操作审计（docs/02 §5：op_log 全量留痕 ≥3 年）：在管理端写操作（POST/PUT/DELETE）响应后落一条记录。
+ * 操作审计：在管理端写操作（POST/PUT/DELETE）响应后落一条 op_log 记录（全量留痕 ≥3 年）。
  * 依赖 AuthInterceptor 写入的 ATTR_EMP_ID（未登录路径不在此拦截器范围）。不做失败拦截，异常由全局处理器兜底。
  */
 @Component

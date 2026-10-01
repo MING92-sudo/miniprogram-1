@@ -24,14 +24,13 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 管理端聚合查询（docs/09 一期：看板 / 上报异常闭环 / 同步看板 / 统计）。
- * 工单到期口径与 WorkOrderService.homeSummary 一致；隐患分布按 problemCodesJson 聚合（docs/09 §4.1）；
- * 上报日志仅返回脱敏摘要（request_digest 落库时已脱敏，AGENTS §2.4），本服务不做明文还原。
+ * 管理端聚合查询：看板、上报异常闭环、同步看板、统计。工单到期口径与
+ * WorkOrderService.homeSummary 一致；上报日志仅返回脱敏摘要，本服务不做明文还原。
  */
 @Service
 public class AdminService {
 
-    /** 隐患码固定范围 S0—S7（docs/01：S3 重复为规范笔误，连续编码待平台确认 docs/06 #9） */
+    // 隐患码固定范围 S0—S7（规范原文 S3 重复为笔误，此处连续编码）
     private static final List<String> HAZARD_CODES =
             List.of("S0", "S1", "S2", "S3", "S4", "S5", "S6", "S7");
 
@@ -262,7 +261,7 @@ public class AdminService {
         return out;
     }
 
-    // ── 平台同步看板（GET /reg/sync-status，docs/04 A.3 口径）──
+        // ── 平台同步看板（GET /reg/sync-status）──
 
     public Map<String, Object> syncStatus() {
         List<Employee> employees = employeeMapper.selectList(new LambdaQueryWrapper<>());
@@ -305,7 +304,7 @@ public class AdminService {
         out.put("elevatorGeoMissingList", geoMissing);
         out.put("lastSyncAt", lastSyncAt);
 
-        // 1006 语义（docs/04 A.0）：特殊类别（消防/防爆）电梯缺少启用中的自定义模板数（TSG 第二条）
+        // 特殊类别（消防/防爆）电梯缺少启用中的自定义模板数
         java.util.List<String> specialTypes = java.util.List.of("消防电梯", "防爆电梯");
         java.util.Map<String, Long> customByScope = new java.util.LinkedHashMap<>();
         for (String scope : specialTypes) {
@@ -331,7 +330,7 @@ public class AdminService {
         return out;
     }
 
-    // ── 统计（GET /admin/stats，聚合在后端完成，docs/09 决策 #6）──
+        // ── 统计（GET /admin/stats，聚合在后端完成）──
 
     public Map<String, Object> stats(String rangeDays) {
         int days = Math.max(1, Math.min(365, intOf(rangeDays, 30)));

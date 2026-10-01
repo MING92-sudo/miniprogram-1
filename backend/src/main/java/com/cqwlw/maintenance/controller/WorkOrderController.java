@@ -18,7 +18,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 工单与现场作业（docs/04 A.2）：签到/双人动态码/清单/签退均带幂等键去重（AGENTS §3）。
+ * 工单与现场作业：签到/双人动态码/清单/签退均带幂等键去重。
  */
 @RestController
 public class WorkOrderController {
@@ -129,7 +129,7 @@ public class WorkOrderController {
         if (guard.replayed()) {
             return ApiResponse.ok(guard.replayedResult());
         }
-        // 先在事务内落库（工单 DONE + 维保记录），事务提交后再转发平台 2.6——
+        // 先在事务内落库（工单 DONE + 维保记录），事务提交后再转发平台——
 // 对外 HTTPS 调用不放进事务，避免其超时/异常导致维保记录被回滚（见 WorkOrderService.reportAfterCheckout）
     MaintainRecord rec = workOrderService.checkout(id, body == null ? Map.of() : body);
         Map<String, Object> result = workOrderService.reportAfterCheckout(id, rec);

@@ -14,8 +14,7 @@ import org.slf4j.LoggerFactory;
 import java.util.Map;
 
 /**
- * 写接口幂等：所有写接口携带 X-Idempotency-Key（AGENTS §3）。
- * 同 key 重放直接返回首次响应（离线队列补传/网络重试语义）。
+ * 写接口幂等：同 key 重放直接返回首次响应（离线队列补传/网络重试语义）。
  */
 @Service
 public class IdempotencyService {

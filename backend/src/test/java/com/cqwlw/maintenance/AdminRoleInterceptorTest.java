@@ -13,7 +13,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
- * 管理端门禁（docs/09 二期）：发起延期与转派为"班组长及以上"（LEADER 可写），
+ * 管理端门禁：发起延期与转派为"班组长及以上"（LEADER 可写），
  * 其余写操作仍需 ADMIN/SYS_ADMIN。
  */
 class AdminRoleInterceptorTest {

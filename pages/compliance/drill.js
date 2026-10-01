@@ -1,4 +1,4 @@
-// 应急演练台账（TSG T5002 第五条(三)：每半年至少 1 轮，覆盖本单位在保的全部电梯品种）
+// 应急演练台账（每半年至少 1 轮，覆盖本单位在保的全部电梯品种）
 const { getDrills, createDrill } = require('../../services/compliance')
 
 const CATEGORY_OPTIONS = ['曳引驱动电梯', '液压驱动电梯', '杂物电梯', '自动扶梯与自动人行道']

@@ -19,10 +19,9 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 平台上报服务（P3，docs/07-full-test 实测口径沉淀）：
- * 签退后自动转发 2.6（失败不自动重试，AGENTS §2.3 红线），
- * FAILED 记录允许手动重报；2.8 存量推送仅在 legacy-upload-enabled 开关打开时执行。
- * 上报日志 request_digest 脱敏：手机号打码、不含 token（AGENTS §2.4）。
+ * 平台上报服务：签退后自动转发，失败不自动重试（幂等性未获平台书面确认）；
+ * FAILED 记录允许手动重报，存量推送仅在 legacy-upload-enabled 开关打开时执行。
+ * 上报日志 request_digest 脱敏：手机号打码、不含 token。
  */
 @Service
 public class PlatformReportService {

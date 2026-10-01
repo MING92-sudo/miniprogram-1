@@ -1,5 +1,5 @@
 /**
- * 路由守卫纯函数（docs/09 §七.2：Vitest 覆盖 auth 守卫）：
+ * 路由守卫纯函数（Vitest 覆盖 auth 守卫）：
  * 未登录访问受保护页 → /login（携带 redirect）；已登录访问 /login → /dashboard；其余放行。
  */
 export function resolveRoute(to, authState) {

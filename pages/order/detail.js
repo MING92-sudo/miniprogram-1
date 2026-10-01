@@ -108,7 +108,7 @@ Page({
     wx.navigateTo({ url: `/pages/order/dynamic-code?orderId=${this.data.order.id}` })
   },
 
-  // 手动重报平台 2.6（仅 FAILED；后端拦截非 FAILED 记录）
+  // 手动重报（仅 FAILED；后端拦截非 FAILED 记录）
   async retryReport() {
     const info = this.data.order.recordInfo || {}
     const recordId = info.id

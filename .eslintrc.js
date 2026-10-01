@@ -26,7 +26,7 @@ module.exports = {
     requirePlugin: 'readonly',
     requireMiniProgram: 'readonly',
   },
-  // admin/ 为独立 SPA（Vue3 + 浏览器 ES2022），使用 admin/.eslintrc.cjs 单独 lint（docs/09 §七.2）
+  // admin/ 为独立 SPA（Vue3 + 浏览器 ES2022），使用 admin/.eslintrc.cjs 单独 lint
   ignorePatterns: ['miniprogram_npm/**', 'tmp/**', 'admin/**'],
   extends: 'eslint:recommended',
 }

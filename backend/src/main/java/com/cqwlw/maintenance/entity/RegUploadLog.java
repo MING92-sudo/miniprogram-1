@@ -8,7 +8,7 @@ import java.time.LocalDateTime;
 
 /**
  * 平台上报日志（reg_upload_log）：每次 2.6/2.8 转发落一条，
- * request_digest 脱敏（AGENTS §2.4：不打印完整 token、手机号、密钥）。
+ * request_digest 脱敏：不打印完整 token、手机号、密钥。
  */
 @Data
 @TableName("reg_upload_log")

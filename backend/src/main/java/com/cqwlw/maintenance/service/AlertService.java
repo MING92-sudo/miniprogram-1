@@ -27,9 +27,8 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 预警规则与记录（docs/01 §3.11 / docs/04 A.6 GET /alerts、GET/PUT /alert-rules）。
- * 本机可生成的预警（依赖现有数据模型）：年检到期 / 人员证件到期 / 维保超期 / 使用单位确认超时 / 自行检查未完成。
- * 合同/库存/演练超期等缺数据模型，规则可配置但生成留待对应模块。
+ * 预警规则与记录。可生成的预警：年检到期 / 人员证件到期 / 维保超期 / 使用单位确认超时 /
+ * 自行检查未完成；合同、库存、演练超期缺数据模型，规则可配置但不生成。
  */
 @Service
 public class AlertService {

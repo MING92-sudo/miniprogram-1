@@ -30,7 +30,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
- * 管理端聚合口径（docs/09 §4.1）：看板复用 home 统计口径 + 上报异常计数；
+ * 管理端聚合口径：看板复用 home 统计口径 + 上报异常计数；
  * 上报日志分页只返回脱敏摘要字段；隐患分布按 problemCodesJson 聚合。
  */
 class AdminServiceTest {
@@ -176,7 +176,7 @@ class AdminServiceTest {
         @SuppressWarnings("unchecked")
         List<Map<String, Object>> list = (List<Map<String, Object>>) out.get("list");
         assertEquals(2, list.size());
-        // 脱敏红线：只暴露摘要字段，不含任何原始报文字段（docs/09 决策 #2，AGENTS §2.4）
+        // 脱敏红线：只暴露摘要字段，不含任何原始报文字段
         for (Map<String, Object> row : list) {
             assertTrue(row.containsKey("requestDigest"));
             for (String banned : List.of("requestBody", "responseBody", "token", "phone")) {

@@ -163,7 +163,7 @@ Page({
           uploadedFields[upload.field] = r.fileId
         }
       }
-      // 响应：{ duration, originalRecordId, reportStatus, recordId, shareToken }（docs/04 A.2）
+      // 响应：{ duration, originalRecordId, reportStatus, recordId, shareToken }
       const resp = await checkout(this.data.orderId, {
         ...signatureData,
         ...uploadedFields

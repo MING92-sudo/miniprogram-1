@@ -7,7 +7,7 @@ import lombok.Data;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
-/** 延期申请与审批（docs/04 A.5：POST /plans/{id}/delay；审批 ADMIN） */
+/** 延期申请与审批（POST /plans/{id}/delay；审批 ADMIN） */
 @Data
 @TableName("plan_delay")
 public class PlanDelay {

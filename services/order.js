@@ -22,7 +22,7 @@ function requestSignEvidence(orderId, role) {
 }
 
 // 签到取证令牌（拍照前调用）：服务端做地理围栏校验并签发绑定坐标与服务端时间的签名令牌，
-// 水印与最终维保记录均以令牌内值为准（docs/04 A.2）
+    // 水印与最终维保记录均以令牌内值为准
 function requestEvidence(orderId, data) {
   return post(`/work-orders/${orderId}/evidence`, data)
 }
@@ -52,17 +52,17 @@ function submitChecklistItem(orderId, itemId, data) {
   return post(`/work-orders/${orderId}/checklist/${itemId}`, data)
 }
 
-// 周期性条目"本次仍要执行"（TSG 附件A 周期性/季节性条目，docs/03 §6.1）
+    // 周期性条目"本次仍要执行"
 function runItemThisTime(orderId, itemId) {
   return post(`/work-orders/${orderId}/checklist/${itemId}/run-this-time`, {})
 }
 
-// 签退提交（后端自动转发平台 2.6，失败不自动重试）
+  // 签退提交（后端自动转发平台，失败不自动重试）
 function checkout(orderId, data) {
   return post(`/work-orders/${orderId}/checkout`, data)
 }
 
-// 手动重报平台 2.6（仅 uploadStatus=FAILED 的记录，docs/04 A.7 P3 修订）
+  // 手动重报（仅 uploadStatus=FAILED 的记录）
 function retryRecordUpload(recordId) {
   return post(`/platform/records/${recordId}/reupload`, {})
 }

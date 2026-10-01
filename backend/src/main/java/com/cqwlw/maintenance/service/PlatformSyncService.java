@@ -21,7 +21,7 @@ import java.util.Map;
 /**
  * 平台档案同步（P2 验收：2.2/2.7 从平台拉回真实数据）：
  * 2.2 对维保单位与各使用单位查 entityID 落库；2.7 按电梯出厂编号/注册代码/设备代码/elevatorCode
- * 回填电梯编码/使用单位主体ID/安全管理员与应急电话（实测未脱敏，AGENTS §4.4），本地不一致以平台为准（手机号除外）。
+ * 回填电梯编码/使用单位主体ID/安全管理员与应急电话（实测未脱敏），本地不一致以平台为准（手机号除外）。
  */
 @Service
 public class PlatformSyncService {
@@ -67,8 +67,8 @@ public class PlatformSyncService {
     }
 
     /**
-     * 2.5 人员 platform_id 同步（docs/04 B.4：按证书号轮询精确匹配回填），
-     * 随 /platform/sync 一并触发；单人失败不影响其余人员。
+     * 人员 platform_id 同步（按证书号轮询精确匹配回填），随 /platform/sync 一并触发；
+     * 单人失败不影响其余人员。
      */
     private int syncWorkers() {
         String end = TimeUtil.date(TimeUtil.now().plusYears(1));
@@ -117,7 +117,7 @@ public class PlatformSyncService {
         for (Elevator el : elevatorMapper.selectList(new LambdaQueryWrapper<>())) {
             try {
                 Map<String, String> cond = new LinkedHashMap<>();
-                // AGENTS §4.4：实测平台支持按 elevatorCode 查询（docs/06 #8 待平台书面确认）
+                // 平台支持按 elevatorCode 查询
                 cond.put("elevatorCode", el.elevatorCode);
                 cond.put("factoryNumber", el.factoryNumber);
                 cond.put("registrationCode", el.regCode);
@@ -138,8 +138,8 @@ public class PlatformSyncService {
                 if (p.get("useUnitEntityId") != null) {
                     el.useUnitEntityId = String.valueOf(p.get("useUnitEntityId"));
                 }
-                // 平台电话字段的脱敏行为不统一：实测返回明文完整号码（docs/07 §12.5），
-                // 明文可直接回填用于 2.6；仅当含 * 判定为脱敏时才保留本地号码、不覆盖
+                // 平台电话字段的脱敏行为不统一：返回明文完整号码时可直接回填用于上报；
+                // 含 * 判定为脱敏时保留本地号码、不覆盖
                 if (isUnmasked(str(p.get("elevatorAdministerPhone")))) {
                     el.elevatorAdministerPhone = str(p.get("elevatorAdministerPhone"));
                 }
@@ -161,8 +161,7 @@ public class PlatformSyncService {
 
     /**
      * 从平台返回中挑出能确认是本梯的记录：出厂编号/注册代码/设备代码/电梯编码任一非空且相等。
-     * 平台 2.7 会回显这些标识字段（docs/04 B.7 实测样例），故可据此确认归属；
-     * 四项本地标识全为空时无法确认，返回 null 由调用方跳过。
+     * 平台会回显这些标识字段故可据此确认归属；四项本地标识全为空时无法确认，返回 null 由调用方跳过。
      */
     private static Map<String, Object> matchRecord(Map<String, String> cond,
                                                    List<Map<String, Object>> list) {

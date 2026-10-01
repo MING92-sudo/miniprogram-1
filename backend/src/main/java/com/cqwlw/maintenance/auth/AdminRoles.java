@@ -3,7 +3,7 @@ package com.cqwlw.maintenance.auth;
 import java.util.Set;
 
 /**
- * 管理端角色口径（docs/09 §三 角色矩阵）：
+ * 管理端角色口径：
  * READ  = LEADER/ADMIN/SYS_ADMIN（只读看板/工单/台账/统计/档案查看）；
  * WRITE = ADMIN/SYS_ADMIN（档案维护、手动重报、触发平台同步）。
  * WORKER/UNIT_ADMIN 不使用管理端（小程序端角色不受影响）。
