@@ -79,8 +79,10 @@ public class IdempotencyService {
         return row.createdAt.plusMinutes(STALE_MINUTES).isBefore(TimeUtil.now());
     }
 
-    /** 清理超过保留期的幂等记录（含已完成的历史响应），避免表无限增长 */
-    @Scheduled(cron = "17 4* * * ?", zone = "Asia/Shanghai")
+    /** 清理超过保留期的幂等记录（含已完成的历史响应），避免表无限增长。
+     *  cron 必须是 6 段（秒 分 时 日 月 周）：Spring 的 CronExpression 拒绝 5 段表达式，
+     *  而本 Bean 一旦解析失败会导致整个 Spring 上下文起不来，故不可图省事省略秒位。 */
+    @Scheduled(cron = "0 17 4 * * ?", zone = "Asia/Shanghai")
     public void purgeExpired() {
         int removed = mapper.delete(new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<IdempotencyKey>()
                 .lt(IdempotencyKey::getCreatedAt, TimeUtil.now().minusHours(RETAIN_HOURS)));
