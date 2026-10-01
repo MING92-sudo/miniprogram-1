@@ -146,12 +146,19 @@ public class WorkOrderService {
                 || identityMatches(me.platformId, me.name, o.assistantPlatformId, o.assistantName);
     }
 
+    /**
+     * 人员身份比对：**姓名与 platform_id 必须同时匹配**，任一为空即拒绝。
+     * 严禁退化为姓名单独匹配（docs/04 B.4：平台内证书号唯一、姓名会重名，
+     * 规范明文「严禁用姓名匹配」），也严禁只凭 ID 匹配——两者必须指向同一个人。
+     */
     private static boolean identityMatches(String myPlatformId, String myName,
                                            String orderPlatformId, String orderName) {
-        if (isBlank(myPlatformId) || isBlank(orderPlatformId)) {
-            return !isBlank(myName) && !isBlank(orderName) && myName.trim().equals(orderName.trim());
+        if (isBlank(myPlatformId) || isBlank(orderPlatformId)
+                || isBlank(myName) || isBlank(orderName)) {
+            return false;
         }
-        return myPlatformId.trim().equals(orderPlatformId.trim());
+        return myPlatformId.trim().equals(orderPlatformId.trim())
+                && myName.trim().equals(orderName.trim());
     }
 
     /**

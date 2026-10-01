@@ -1,9 +1,11 @@
 package com.cqwlw.maintenance;
 
 import com.cqwlw.maintenance.entity.Elevator;
+import com.cqwlw.maintenance.entity.Employee;
 import com.cqwlw.maintenance.entity.Message;
 import com.cqwlw.maintenance.entity.WorkOrder;
 import com.cqwlw.maintenance.mapper.ElevatorMapper;
+import com.cqwlw.maintenance.mapper.EmployeeMapper;
 import com.cqwlw.maintenance.mapper.MessageMapper;
 import com.cqwlw.maintenance.mapper.WorkOrderMapper;
 import com.cqwlw.maintenance.service.ChecklistService;
@@ -38,6 +40,7 @@ class DispatchServiceTest {
     private ElevatorMapper elevatorMapper;
     private WorkOrderMapper orderMapper;
     private MessageMapper messageMapper;
+    private EmployeeMapper employeeMapper;
     private DispatchService service;
     private final AtomicInteger lockCursor = new AtomicInteger();
 
@@ -46,11 +49,23 @@ class DispatchServiceTest {
         elevatorMapper = mock(ElevatorMapper.class);
         orderMapper = mock(WorkOrderMapper.class);
         messageMapper = mock(MessageMapper.class);
+        employeeMapper = mock(EmployeeMapper.class);
         ChecklistService checklistService = new ChecklistService();
         checklistService.load();
-        service = new DispatchService(elevatorMapper, orderMapper, messageMapper, checklistService);
+        service = new DispatchService(elevatorMapper, orderMapper, messageMapper,
+                employeeMapper, checklistService);
         when(orderMapper.selectCount(any())).thenReturn(0L);
         when(orderMapper.selectList(any())).thenReturn(List.of());
+        // 派单门禁要求电梯绑定的 (姓名, platform_id) 能匹配上已备案员工
+        when(employeeMapper.selectOne(any())).thenReturn(employee("张伟", "990001"));
+    }
+
+    private Employee employee(String name, String platformId) {
+        Employee e = new Employee();
+        e.id = "e_" + platformId;
+        e.name = name;
+        e.platformId = platformId;
+        return e;
     }
 
     private void givenElevators(List<Elevator> list) {
@@ -163,7 +178,7 @@ class DispatchServiceTest {
         when(mockChecklist.buildChecklist(anyString(), anyString(), any()))
                 .thenReturn(List.of(Map.of("id", "i1")));
         DispatchService withMock = new DispatchService(
-                elevatorMapper, orderMapper, messageMapper, mockChecklist);
+                elevatorMapper, orderMapper, messageMapper, employeeMapper, mockChecklist);
         Elevator el = dueElevator("el_sp");
         el.specialType = "防爆";
         givenElevators(List.of(el));
@@ -179,6 +194,30 @@ class DispatchServiceTest {
         // 必填字段会是空串。与手动派工 requirePlatformId(1004) 同一口径。
         Elevator el = dueElevator("el_nosync");
         el.workerPlatformId = "";
+        givenElevators(List.of(el));
+
+        assertEquals(0, service.ensureDueOrders().size());
+        verify(orderMapper, never()).insert(any(WorkOrder.class));
+    }
+
+    @Test
+    void skipsDispatchWhenWorkerNameDoesNotMatchPlatformId() {
+        // 电梯上残留他人 ID：platform_id 查得到人，但姓名与该 ID 登记的姓名对不上 → 不得派单
+        Elevator el = dueElevator("el_mismatch");
+        when(employeeMapper.selectOne(any())).thenReturn(employee("李强", "990001"));
+        givenElevators(List.of(el));
+
+        assertEquals(0, service.ensureDueOrders().size());
+        verify(orderMapper, never()).insert(any(WorkOrder.class));
+    }
+
+    @Test
+    void skipsDispatchWhenAssistantNameDoesNotMatch() {
+        // 平台 2.6 的 workMan2Id 必填，配合人员同样须姓名与 ID 匹配
+        Elevator el = dueElevator("el_asym");
+        el.assistantName = "李强";
+        el.assistantPlatformId = "990003";
+        when(employeeMapper.selectOne(any())).thenReturn(employee("张伟", "990001"));
         givenElevators(List.of(el));
 
         assertEquals(0, service.ensureDueOrders().size());

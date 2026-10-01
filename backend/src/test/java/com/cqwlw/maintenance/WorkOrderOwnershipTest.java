@@ -154,17 +154,16 @@ class WorkOrderOwnershipTest {
     }
 
     @Test
-    void fallsBackToNameBeforePlatformSync() {
-        // 尚未 2.5 同步（双方 platform_id 均缺失）时按姓名兜底，保证功能可用
+    void missingPlatformIdGrantsNoAccess() {
+        // 严禁退化到姓名单独匹配（docs/04 B.4：姓名会重名）：登录人 platform_id 缺失时
+        // 看不到任何工单、也打不开任何工单，必须先完成 2.5 同步
         loginAs("WORKER", "e_me", "张伟", null);
         WorkOrder mine = order("wo_mine", "张伟", null, null, null);
-        WorkOrder others = order("wo_other", "李强", null, null, null);
-        when(orderMapper.selectList(any())).thenReturn(List.of(mine, others));
+        when(orderMapper.selectList(any())).thenReturn(List.of(mine));
+        when(orderMapper.selectById("wo_mine")).thenReturn(mine);
 
-        List<Map<String, Object>> list = listedIds(service.listOrders(Map.of()));
-
-        assertEquals(1, list.size());
-        assertEquals("wo_mine", list.get(0).get("id"));
+        assertEquals(0, listedIds(service.listOrders(Map.of())).size());
+        assertEquals(403, assertThrows(BizException.class, () -> service.findOr404("wo_mine")).getCode());
     }
 
     @Test

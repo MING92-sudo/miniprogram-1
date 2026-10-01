@@ -3,9 +3,11 @@ package com.cqwlw.maintenance.service;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.cqwlw.maintenance.common.Ids;
 import com.cqwlw.maintenance.entity.Elevator;
+import com.cqwlw.maintenance.entity.Employee;
 import com.cqwlw.maintenance.entity.Message;
 import com.cqwlw.maintenance.entity.WorkOrder;
 import com.cqwlw.maintenance.mapper.ElevatorMapper;
+import com.cqwlw.maintenance.mapper.EmployeeMapper;
 import com.cqwlw.maintenance.mapper.MessageMapper;
 import com.cqwlw.maintenance.mapper.WorkOrderMapper;
 import com.cqwlw.maintenance.util.TimeUtil;
@@ -35,13 +37,16 @@ public class DispatchService {
     private final ElevatorMapper elevatorMapper;
     private final WorkOrderMapper orderMapper;
     private final MessageMapper messageMapper;
+    private final EmployeeMapper employeeMapper;
     private final ChecklistService checklistService;
 
     public DispatchService(ElevatorMapper elevatorMapper, WorkOrderMapper orderMapper,
-                           MessageMapper messageMapper, ChecklistService checklistService) {
+                           MessageMapper messageMapper, EmployeeMapper employeeMapper,
+                           ChecklistService checklistService) {
         this.elevatorMapper = elevatorMapper;
         this.orderMapper = orderMapper;
         this.messageMapper = messageMapper;
+        this.employeeMapper = employeeMapper;
         this.checklistService = checklistService;
     }
 
@@ -135,6 +140,20 @@ public class DispatchService {
         return s == null || s.trim().isEmpty();
     }
 
+    /**
+     * 校验电梯上的人员绑定确实对应一名**已备案的真实员工**：姓名与 platform_id 必须同时匹配。
+     * 任一为空、查无此人、或姓名与该 platform_id 登记的姓名不符，均视为未备案。
+     * 严禁退化为只按姓名匹配（docs/04 B.4：姓名会重名）。
+     */
+    private boolean identityOnFile(String name, String platformId) {
+        if (isBlank(name) || isBlank(platformId)) {
+            return false;
+        }
+        Employee e = employeeMapper.selectOne(new LambdaQueryWrapper<Employee>()
+                .eq(Employee::getPlatformId, platformId.trim()).last("LIMIT 1"));
+        return e != null && name.trim().equals(e.name == null ? "" : e.name.trim());
+    }
+
     /** 在锁内重新判定并创建工单；不满足条件返回 null */
     private WorkOrder createOrderIfDue(Elevator el, long now) {
         // 必须在锁内重查未完成工单：maybeDue 的判断发生在加锁之前，并发跑批时两个线程
@@ -151,13 +170,19 @@ public class DispatchService {
             // 平台不提供上次维保时间时，以我们第一次派单的维保时间为准）
             last = TimeUtil.fromMillis(now);
         }
-        // 与手动派工同一门禁（AdminScheduleService.requirePlatformId / 1004）：
-        // 账号须已在平台完成实名备案并同步到 platform_id，否则 2.6 的 workMan1Id 必填字段
-        // 会是空串。这里**跳过而不抛异常**——跑批是为批量作业，为单台电梯的配置问题抛出会
-        // 回滚同批其它电梯的派单。
-        if (isBlank(el.workerPlatformId)) {
-            log.warn("自动派单跳过：维保人员 platform_id 未同步（2.5 同步后方可派工）, elevatorId={}, worker={}",
-                    el.id, el.workerName);
+        // 派单门禁：**姓名与 platform_id 必须同时匹配上已备案的真实员工**才允许派单。
+        // 只校验 platform_id 非空是不够的——电梯上若残留他人的 ID 配他人的姓名，会把他人
+        // 的作业派到自己名下，2.6 的 workMan1Id 也会带上错人。配合人员同理（平台 2.6 必填
+        // workMan2Id）。与手动派工 requirePlatformId(1004) 同一口径，但**跳过而不抛异常**：
+        // 跑批是批量作业，为单台电梯的配置问题抛出会回滚同批其它电梯的派单。
+        if (!identityOnFile(el.workerName, el.workerPlatformId)) {
+            log.warn("自动派单跳过：维保人员姓名与 platform_id 未匹配上已备案员工, elevatorId={}, worker={}, platformId={}",
+                    el.id, el.workerName, el.workerPlatformId);
+            return null;
+        }
+        if (!isBlank(el.assistantName) && !identityOnFile(el.assistantName, el.assistantPlatformId)) {
+            log.warn("自动派单跳过：配合人员姓名与 platform_id 未匹配上已备案员工, elevatorId={}, assistant={}, platformId={}",
+                    el.id, el.assistantName, el.assistantPlatformId);
             return null;
         }
         long dueMs = TimeUtil.toMillis(last) + intervalDays(el) * 86400000L;
