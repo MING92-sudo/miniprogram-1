@@ -23,6 +23,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -170,6 +171,18 @@ class DispatchServiceTest {
         withMock.ensureDueOrders();
 
         verify(mockChecklist).buildChecklist("HM", "曳引驱动电梯", "防爆");
+    }
+
+    @Test
+    void skipsDispatchWhenWorkerPlatformIdNotSynced() {
+        // 门禁：账号须已在平台完成实名备案并同步 platform_id，否则 2.6 的 workMan1Id
+        // 必填字段会是空串。与手动派工 requirePlatformId(1004) 同一口径。
+        Elevator el = dueElevator("el_nosync");
+        el.workerPlatformId = "";
+        givenElevators(List.of(el));
+
+        assertEquals(0, service.ensureDueOrders().size());
+        verify(orderMapper, never()).insert(any(WorkOrder.class));
     }
 
     @Test

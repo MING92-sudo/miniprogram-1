@@ -131,6 +131,10 @@ public class DispatchService {
         return el.intervalDays != null ? el.intervalDays : 15;
     }
 
+    private static boolean isBlank(String s) {
+        return s == null || s.trim().isEmpty();
+    }
+
     /** 在锁内重新判定并创建工单；不满足条件返回 null */
     private WorkOrder createOrderIfDue(Elevator el, long now) {
         // 必须在锁内重查未完成工单：maybeDue 的判断发生在加锁之前，并发跑批时两个线程
@@ -146,6 +150,15 @@ public class DispatchService {
             // 首单：无基准则以本次派单时刻起算，并作为后续周期的基准（用户口径：
             // 平台不提供上次维保时间时，以我们第一次派单的维保时间为准）
             last = TimeUtil.fromMillis(now);
+        }
+        // 与手动派工同一门禁（AdminScheduleService.requirePlatformId / 1004）：
+        // 账号须已在平台完成实名备案并同步到 platform_id，否则 2.6 的 workMan1Id 必填字段
+        // 会是空串。这里**跳过而不抛异常**——跑批是为批量作业，为单台电梯的配置问题抛出会
+        // 回滚同批其它电梯的派单。
+        if (isBlank(el.workerPlatformId)) {
+            log.warn("自动派单跳过：维保人员 platform_id 未同步（2.5 同步后方可派工）, elevatorId={}, worker={}",
+                    el.id, el.workerName);
+            return null;
         }
         long dueMs = TimeUtil.toMillis(last) + intervalDays(el) * 86400000L;
         if (!firstRun && now < dueMs - 86400000L) {
