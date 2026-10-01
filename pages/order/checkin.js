@@ -166,7 +166,13 @@ Page({
       }
       // docs/04 A.2：role=ASSISTANT 时 dynamicCode 必传，服务端校验有效期/工单匹配
       if (this.data.role === 'ASSISTANT') payload.dynamicCode = this.data.dynamicCode
-      await checkin(this.data.orderId, payload)
+      const res = await checkin(this.data.orderId, payload)
+      if (res && res.waitingForPartner) {
+        // 双人单：须主维保人员与配合人员均签到才允许开始作业，未齐时服务端不放行作业页
+        wx.showToast({ title: '已签到，等待配合人员到场后开始作业', icon: 'none' })
+        wx.redirectTo({ url: `/pages/order/detail?orderId=${this.data.orderId}` })
+        return
+      }
       wx.showToast({ title: '签到成功', icon: 'success' })
       wx.redirectTo({ url: `/pages/order/checklist?orderId=${this.data.orderId}` })
     } catch (e) {

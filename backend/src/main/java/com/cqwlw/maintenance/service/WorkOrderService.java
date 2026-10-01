@@ -154,6 +154,31 @@ public class WorkOrderService {
         return myPlatformId.trim().equals(orderPlatformId.trim());
     }
 
+    /**
+     * 登录人在该工单中的角色：PRINCIPAL（维保人员1）/ ASSISTANT（配合人员）；不在名单内返回 null。
+     * 管理角色同样返回 null——2.6 记录的是**实际作业人**，他人代签到会让记录失真，
+     * 应先经 AdminScheduleService 转派再作业。
+     */
+    private String myOrderRole(WorkOrder o) {
+        Employee me = employeeMapper.selectById(currentUser.requireEmployeeId());
+        if (me == null) {
+            return null;
+        }
+        if (identityMatches(me.platformId, me.name, o.workerPlatformId, o.workerName)) {
+            return "PRINCIPAL";
+        }
+        if (identityMatches(me.platformId, me.name, o.assistantPlatformId, o.assistantName)) {
+            return "ASSISTANT";
+        }
+        return null;
+    }
+
+    private void requirePrincipal(WorkOrder o) {
+        if (!"PRINCIPAL".equals(myOrderRole(o))) {
+            throw new BizException(403, "配合人员的维保记录为锁定状态，不可编辑");
+        }
+    }
+
     private void requireOwnership(WorkOrder o) {
         if (!canAccess(scopeEmployee(), o)) {
             throw new BizException(403, "该工单未指派给你，无法查看或操作");
@@ -316,10 +341,29 @@ public class WorkOrderService {
     // ── 签到 ──
     public Map<String, Object> checkin(String orderId, Map<String, Object> body) {
         WorkOrder o = findOr404(orderId);
-        if (!"PENDING".equals(o.status)) {
+        boolean hasAssistant = !isBlank(o.assistantName);
+        // 角色一律由服务端按登录人判定，**不采信客户端 body.role**：否则配合人员自称
+        // PRINCIPAL 即可占掉主维保人员的签到槽，"两人同时签到才开闸"的门禁形同虚设。
+        String role = myOrderRole(o);
+        if (role == null) {
+            throw new BizException(403, "你不在该工单的维保人员名单内，无法签到");
+        }
+        // 双人单在两人到齐前保持 PENDING，允许第二人继续签到
+        if (!"PENDING".equals(o.status) && !(hasAssistant && "PROCESSING".equals(o.status))) {
             throw new BizException(1003, "当前状态不允许签到");
         }
-        if ("ASSISTANT".equals(body.get("role"))) {
+        Map<String, Object> extra = JsonUtil.readMap(o.checkinExtraJson);
+        if (extra == null) {
+            extra = new LinkedHashMap<>();
+        }
+        Map<String, Object> checkins = asMap(extra.get("checkins"));
+        if (checkins == null) {
+            checkins = new LinkedHashMap<>();
+        }
+        if (checkins.containsKey(role)) {
+            throw new BizException(1003, "你已签到，无需重复签到");
+        }
+        if ("ASSISTANT".equals(role)) {
             String code = str(body.get("dynamicCode"));
             if (code == null || code.isEmpty()) {
                 throw new BizException(422, "配合人员签到必须携带双人动态码");
@@ -340,13 +384,16 @@ public class WorkOrderService {
         // 签到时间以服务端时间为准：上报监管平台的 startTime 必须是服务端可举证时间。
         // 客户端 collectedAt 不可信，仅留存作离线补传对账（docs/04 A.2 collectedAt 语义修订）。
         LocalDateTime receivedAt = TimeUtil.now();
-        o.status = "PROCESSING";
-        o.checkinTime = receivedAt;
-        Map<String, Object> extra = new LinkedHashMap<>();
+        Map<String, Object> mine = new LinkedHashMap<>();
+        mine.put("at", TimeUtil.format(receivedAt));
+        mine.put("latitude", lat);
+        mine.put("longitude", lng);
+        checkins.put(role, mine);
+        extra.put("checkins", checkins);
         extra.put("latitude", lat);
         extra.put("longitude", lng);
         extra.put("locationAccuracy", body.get("locationAccuracy") == null ? 0 : body.get("locationAccuracy"));
-        extra.put("role", body.get("role") == null ? "PRINCIPAL" : body.get("role"));
+        extra.put("role", role);
         extra.put("dynamicCode", strOrEmpty(body.get("dynamicCode")));
         extra.put("selfPhotoFileId", strOrEmpty(body.get("photoFileId")));
         extra.put("collectedAtClaimed", strOrEmpty(body.get("collectedAt")));
@@ -355,13 +402,22 @@ public class WorkOrderService {
         extra.put("threshold", CHECKIN_DISTANCE_LIMIT_M);
         extra.put("geoStatus", geoStatus);
         extra.put("locationAppealApproved", appealApproved);
+        // 门禁：单人单签到即开工；双人单须两人都签到才转 PROCESSING（未齐则严格阻断开始作业）
+        boolean allPresent = !hasAssistant || checkins.size() >= 2;
+        if (allPresent) {
+            o.status = "PROCESSING";
+            // startTime 取"作业得以开始"的时刻（两人到齐），而非先到者的到场时刻，
+            // 否则 2.6 startTime 会早于实际开工、时长被虚增
+            o.checkinTime = receivedAt;
+        }
         o.checkinExtraJson = JsonUtil.write(extra);
         orderMapper.updateById(o);
         return JsonUtil.map(
                 "checkinId", Ids.next("chk"),
                 "threshold", CHECKIN_DISTANCE_LIMIT_M,
                 "passed", true,
-                "geoStatus", geoStatus);
+                "geoStatus", geoStatus,
+                "waitingForPartner", !allPresent);
     }
 
     /**
@@ -546,6 +602,10 @@ public class WorkOrderService {
     @SuppressWarnings("unchecked")
     public Map<String, Object> submitItem(String orderId, String itemId, Map<String, Object> body) {
         WorkOrder o = findOr404(orderId);
+        requirePrincipal(o);
+        if (!"PROCESSING".equals(o.status)) {
+            throw new BizException(1003, "需主维保人员与配合人员均已签到后才能开始作业");
+        }
         List<Map<String, Object>> items = items(o);
         Map<String, Object> item = items.stream()
                 .filter(i -> itemId.equals(i.get("id"))).findFirst()
@@ -659,6 +719,10 @@ public class WorkOrderService {
 
     public Map<String, Object> runThisTime(String orderId, String itemId) {
         WorkOrder o = findOr404(orderId);
+        requirePrincipal(o);
+        if (!"PROCESSING".equals(o.status)) {
+            throw new BizException(1003, "需主维保人员与配合人员均已签到后才能开始作业");
+        }
         List<Map<String, Object>> items = items(o);
         Map<String, Object> item = items.stream()
                 .filter(i -> itemId.equals(i.get("id"))).findFirst()
@@ -677,6 +741,7 @@ public class WorkOrderService {
     @Transactional(rollbackFor = Exception.class)
     public MaintainRecord checkout(String orderId, Map<String, Object> body) {
         WorkOrder o = findOr404(orderId);
+        requirePrincipal(o);
         if (!"PROCESSING".equals(o.status)) {
             throw new BizException(1003, "请先完成签到");
         }
@@ -824,14 +889,24 @@ public class WorkOrderService {
     /** 平台 2.6 报文快照（20 字段冻结；workMeneger 拼写按规范原文，docs/04 B.6） */
     Map<String, Object> buildReportPayload(MaintainRecord r, Elevator el, UseUnit uu) {
         Company c = companyMapper.selectList(null).stream().findFirst().orElse(new Company());
-        String recorderPhone = employeeMapper.selectList(new LambdaQueryWrapper<Employee>()
-                .eq(Employee::getName, r.workerName)).stream().findFirst()
-                .map(e -> e.phone).orElse("");
-        if (recorderPhone.isEmpty()) {
-            recorderPhone = employeeMapper.selectList(new LambdaQueryWrapper<Employee>()
-                    .eq(Employee::getRole, "WORKER")).stream().findFirst()
-                    .map(e -> e.phone).orElse("");
+        // recorder / recorderPhone 属**维保人员1**（平台 2.6 必填）。先按平台人员标识匹配——
+        // 它不受姓名变更与同名影响；再退回姓名。两者都匹配不到时直接失败，绝不退化为
+        // 「随便取一个 WORKER 的号码」：那等于把不相干者的号码写进合规上报，
+        // 而 2.6 记录的是实际作业人，号码对不上即为记录失真。
+        Employee principal = null;
+        if (!isBlank(r.workerPlatformId)) {
+            principal = employeeMapper.selectOne(new LambdaQueryWrapper<Employee>()
+                    .eq(Employee::getPlatformId, r.workerPlatformId).last("LIMIT 1"));
         }
+        if (principal == null) {
+            principal = employeeMapper.selectOne(new LambdaQueryWrapper<Employee>()
+                    .eq(Employee::getName, r.workerName).last("LIMIT 1"));
+        }
+        if (principal == null || isBlank(principal.phone)) {
+            throw new BizException(422, "维保人员1「" + nz(r.workerName)
+                    + "」在员工档案中查不到有效手机号，无法生成 2.6 上报（recorderPhone 为必填字段）");
+        }
+        String recorderPhone = principal.phone;
         Map<String, Object> p = new LinkedHashMap<>();
         p.put("elevatorCode", nz(r.elevatorCode));
         p.put("deviceCode", el == null ? "" : nz(el.deviceCode));
