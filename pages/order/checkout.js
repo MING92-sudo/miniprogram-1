@@ -1,7 +1,7 @@
 // 签退自检：自检项确认 + 签名 + 提交
 // 业务规则：签到—签退间隔不少于 N 分钟（config.minWorkDurationMinutes，前后端双重校验）
 // 提交后触发记录生成与监管平台上报（后端）
-const { getOrderDetail, checkout } = require('../../services/order')
+const { getOrderDetail, checkout, requestSignEvidence } = require('../../services/order')
 const { uploadImage } = require('../../services/upload')
 const { formatTime, formatDuration, parseTime } = require('../../utils/util')
 const config = require('../../config/index')
@@ -25,6 +25,7 @@ Page({
     signature: '',
     assistantSignature: '',
     hasAssistant: false, // 工单配有配合人员时需双人签字（docs/04 A.2 签退自检）
+    signFetching: false,
     submitting: false
   },
 
@@ -86,19 +87,33 @@ Page({
     })
   },
 
-  // 跳转签名板（主维保/配合人员两个签字位）
-  goSignature(e) {
+  // 打开签名板前先向服务端换取证令牌（绑定工单 + 签名角色 + 服务端时间）。
+  // 令牌按角色保存，与签名图一同提交；服务端验签后用 fileId 反查签名图 URL，不采信客户端地址。
+  async goSignature(e) {
     // 签退成功后的 Toast 等待期内页面即将 reLaunch，禁止再发起新路由（避免路由竞态）
     if (this._leaving) return
-    this._sigTarget = e.currentTarget.dataset.field
-    wx.navigateTo({
-      url: `/pages/common/signature?from=checkout&orderId=${this.data.orderId}`
-    })
+    if (this.data.signFetching) return
+    const field = e.currentTarget.dataset.field
+    const role = field === 'assistantSignature' ? 'ASSISTANT' : 'PRINCIPAL'
+    this.setData({ signFetching: true })
+    try {
+      const ev = await requestSignEvidence(this.data.orderId, role)
+      this._signEvidence = this._signEvidence || {}
+      this._signEvidence[role] = ev.token
+      this._sigTarget = field
+      wx.navigateTo({
+        url: `/pages/common/signature?from=checkout&orderId=${this.data.orderId}`
+      })
+    } catch (err) {
+      wx.showToast({ title: (err && err.message) || '签名取证失败，请重试', icon: 'none' })
+    }
+    this.setData({ signFetching: false })
   },
 
   // 签名页直接方法回传（EventChannel 降级通道）
   onSignatureReady(data) {
-    if (this._sigTarget) this.setData({ [this._sigTarget]: data.path })
+    if (!this._sigTarget || !data) return
+    this.setData({ [this._sigTarget]: data.path })
   },
 
   async onSubmit() {
@@ -107,6 +122,14 @@ Page({
     if (!this.data.signature) return wx.showToast({ title: '请完成主维保人员签名', icon: 'none' })
     if (this.data.hasAssistant && !this.data.assistantSignature) {
       return wx.showToast({ title: '请完成配合人员签名（双人签字）', icon: 'none' })
+    }
+    // 每个签名位都必须有服务端取证令牌，否则服务端拒绝签退（fail closed）
+    const sigEvidence = this._signEvidence || {}
+    if (!sigEvidence.PRINCIPAL) {
+      return wx.showToast({ title: '主维保人员签名缺少取证令牌，请重新签署', icon: 'none' })
+    }
+    if (this.data.hasAssistant && !sigEvidence.ASSISTANT) {
+      return wx.showToast({ title: '配合人员签名缺少取证令牌，请重新签署', icon: 'none' })
     }
     // 时长下限前端校验（后端 422 双保险）
     if (!this.data.durationOk) {
@@ -124,9 +147,13 @@ Page({
     if (this.data.assistantSignature) {
       signatureUploads.push({ field: 'assistantSignatureFileId', path: this.data.assistantSignature })
     }
+    // 只提交签名图的 fileId 与取证令牌；签名图 URL 由服务端按 fileId 反查，
+    // 不再上报本地临时路径（否则合规记录里存的是取不到图的设备路径）
     const signatureData = {
-      signatureUrl: this.data.signature, // mock 演示回显；真实后端忽略
-      assistantSignatureUrl: this.data.assistantSignature || '',
+      signatureEvidence: {
+        principal: sigEvidence.PRINCIPAL,
+        assistant: sigEvidence.ASSISTANT || ''
+      },
       collectedAt: formatTime()
     }
     try {

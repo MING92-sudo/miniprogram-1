@@ -120,6 +120,22 @@ public class FileStorageService {
         return f;
     }
 
+    /**
+     * 按 fileId 反查本系统内生成的可访问 URL（COS 直链或本地回退 /files/{id}）。
+     * 客户端上报的任何 URL 一律不采信——只有经本服务 store() 落库的记录才返回非空，
+     * 从而阻断"把任意 http(s) 地址写进维保记录、PDF 导出时代服务器去拉取"的 SSRF 链。
+     */
+    public String resolveUrl(String fileId) {
+        if (fileId == null || fileId.isBlank()) {
+            return "";
+        }
+        AppFile f = fileMapper.selectById(fileId);
+        if (f == null || f.url == null) {
+            return "";
+        }
+        return f.url;
+    }
+
     /** 本地回退：按 fileId 读回字节（COS 模式前端直接用 url） */
     public Path localPath(AppFile f) {
         return Paths.get(props.getFileStorageDir(), f.objectKey.replace('/', '_'))

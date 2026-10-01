@@ -149,6 +149,13 @@ const routes = [
     return d.issueEvidence(params.id, elLocated ? lat : 0, elLocated ? lng : 0, distanceText,
       d.CHECKIN_DISTANCE_LIMIT_M, itemId, d.EVIDENCE_TTL_SHOT_MS)
   }],
+  // 签名取证令牌（签署前调用）：绑定工单 + 签名角色 + 服务端时间
+  ['POST', '/work-orders/:id/evidence/sign', ({ params, body }) => {
+    const o = findOr404(d.db.orders, params.id, '工单')
+    if (o.status !== 'PROCESSING') throw { code: 1003, message: '请先完成签到后再签署' }
+    const role = body.role === 'ASSISTANT' ? 'ASSISTANT' : 'PRINCIPAL'
+    return d.issueEvidence(params.id, 0, 0, '', 0, null, d.EVIDENCE_TTL_SHOT_MS, 'sign', role)
+  }],
   ['POST', '/work-orders/:id/checkin', ({ params, body }) => {
     const o = findOr404(d.db.orders, params.id, '工单')
     if (o.status !== 'PENDING') throw { code: 1003, message: '当前状态不允许签到' }
@@ -287,7 +294,29 @@ const routes = [
         message: '作业时长不足 ' + config.minWorkDurationMinutes + ' 分钟（当前 ' + Math.floor(minutes) + ' 分钟），请继续作业后再签退'
       }
     }
-    const r = d.markCheckout(o.id, body)
+    // 签名取证：令牌必填且角色绑定；签名图只接受 fileId（URL 由服务端按 fileId 反查）
+    const sigEv = body.signatureEvidence || {}
+    if (!sigEv.principal) {
+      throw { code: 422, message: '缺少主维保人员签名取证令牌，请重新签署' }
+    }
+    d.verifyEvidence(sigEv.principal, params.id, null, false, 'sign', 'PRINCIPAL')
+    const hasAssistant = !!(o.assistantName && o.assistantName !== '')
+    if (hasAssistant) {
+      if (!sigEv.assistant) {
+        throw { code: 422, message: '缺少配合人员签名取证令牌，请重新签署' }
+      }
+      d.verifyEvidence(sigEv.assistant, params.id, null, false, 'sign', 'ASSISTANT')
+    }
+    if (!body.signatureFileId) throw { code: 422, message: '缺少主维保人员签名图' }
+    let assistantSignatureUrl = ''
+    if (hasAssistant) {
+      if (!body.assistantSignatureFileId) throw { code: 422, message: '缺少配合人员签名图' }
+      assistantSignatureUrl = 'mock://' + body.assistantSignatureFileId
+    }
+    const r = d.markCheckout(o.id, Object.assign({}, body, {
+      signatureUrl: 'mock://' + body.signatureFileId,
+      assistantSignatureUrl
+    }))
     // 响应对齐 docs/04 A.2 checkout
     return {
       workOrderId: o.id,
@@ -372,10 +401,12 @@ const routes = [
   ['GET', '/unit/records/:id', ({ params }) => findOr404(d.db.unitRecords, params.id, '维保记录')],
   ['POST', '/unit/records/:id/confirm', ({ params, body }) => {
     const r = findOr404(d.db.unitRecords, params.id, '维保记录')
+    if (r.confirmStatus === 'CONFIRMED') return { ok: true, already: true }
+    if (!body.signatureFileId) throw { code: 422, message: '请先完成签名并上传' }
     r.confirmStatus = 'CONFIRMED'
-    r.satisfaction = body.satisfaction || 0
-    r.signatureFileId = body.signatureFileId || ''
-    r.signatureUrl = body.signatureUrl || '' // mock 演示回显
+    r.satisfaction = Number(body.satisfaction) || 0
+    r.signatureFileId = body.signatureFileId
+    r.signatureUrl = 'mock://' + body.signatureFileId
     return { ok: true }
   }],
   // 签名链接确认（用户需求：无需登录，凭一次性令牌远程签字或本机代签）
@@ -408,13 +439,13 @@ const routes = [
     if (r.confirmStatus === 'CONFIRMED') {
       return { ok: true, already: true }
     }
-    if (!body.signatureUrl && !body.signatureFileId) {
-      throw { code: 422, message: '请先完成签名' }
+    if (!body.signatureFileId) {
+      throw { code: 422, message: '请先完成签名并上传' }
     }
     r.confirmStatus = 'CONFIRMED'
     r.satisfaction = Number(body.satisfaction) || 0
-    r.signatureFileId = body.signatureFileId || ''
-    r.signatureUrl = body.signatureUrl || ''
+    r.signatureFileId = body.signatureFileId
+    r.signatureUrl = 'mock://' + body.signatureFileId
     return { ok: true }
   }],
 

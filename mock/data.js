@@ -116,7 +116,7 @@ function evidenceHmac(body) {
     .digest('base64url')
 }
 
-function issueEvidence(orderId, lat, lng, distanceText, threshold, itemId, ttlMs) {
+function issueEvidence(orderId, lat, lng, distanceText, threshold, itemId, ttlMs, kind, role) {
   const issuedMs = Date.now()
   const payload = {
     oid: orderId,
@@ -127,12 +127,16 @@ function issueEvidence(orderId, lat, lng, distanceText, threshold, itemId, ttlMs
     n: 'mock-' + issuedMs.toString(36) + Math.floor(Math.random() * 1e6).toString(36)
   }
   if (itemId) payload.iid = itemId
+  if (kind) payload.kind = kind
+  if (role) payload.role = role
   const body = JSON.stringify(payload)
   const token = Buffer.from(body, 'utf8').toString('base64url') + '.' + evidenceHmac(body)
   return {
     token,
     orderId,
     itemId: itemId || '',
+    kind: kind || '',
+    role: role || '',
     issuedAt: formatTime(),
     issuedAtText: formatTime(),
     latitude: payload.lat,
@@ -145,7 +149,7 @@ function issueEvidence(orderId, lat, lng, distanceText, threshold, itemId, ttlMs
   }
 }
 
-function verifyEvidence(token, expectOrderId, expectItemId, consumeNonce) {
+function verifyEvidence(token, expectOrderId, expectItemId, consumeNonce, expectKind, expectRole) {
   if (!token) throw { code: 422, message: '缺少取证令牌，请重新获取定位后再签到' }
   const dot = token.indexOf('.')
   if (dot < 0) throw { code: 422, message: '取证令牌格式无效' }
@@ -166,6 +170,12 @@ function verifyEvidence(token, expectOrderId, expectItemId, consumeNonce) {
   }
   if (expectItemId && payload.iid !== expectItemId) {
     throw { code: 422, message: '取证令牌与检查项不匹配' }
+  }
+  if (expectKind && payload.kind !== expectKind) {
+    throw { code: 422, message: '取证令牌用途不匹配' }
+  }
+  if (expectRole && payload.role !== expectRole) {
+    throw { code: 422, message: '取证令牌签名角色不匹配' }
   }
   // consumeNonce=false 时仅验签：检查项拍照取证靠 iid 绑定保证一次性，
   // 使"提交后超时重试"可幂等重放（与后端 EvidenceTokenService.verifyOnly 同口径）

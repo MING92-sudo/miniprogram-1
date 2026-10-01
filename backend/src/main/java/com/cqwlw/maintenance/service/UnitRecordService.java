@@ -21,10 +21,13 @@ public class UnitRecordService {
 
     private final MaintainRecordMapper recordMapper;
     private final WorkOrderService workOrderService;
+    private final FileStorageService fileStorageService;
 
-    public UnitRecordService(MaintainRecordMapper recordMapper, WorkOrderService workOrderService) {
+    public UnitRecordService(MaintainRecordMapper recordMapper, WorkOrderService workOrderService,
+                             FileStorageService fileStorageService) {
         this.recordMapper = recordMapper;
         this.workOrderService = workOrderService;
+        this.fileStorageService = fileStorageService;
     }
 
     public MaintainRecord findOr404(String id) {
@@ -49,10 +52,15 @@ public class UnitRecordService {
 
     public Map<String, Object> confirm(String id, Map<String, Object> body) {
         MaintainRecord r = findOr404(id);
+        if ("CONFIRMED".equals(r.confirmStatus)) {
+            return JsonUtil.map("ok", true, "already", true);
+        }
+        String fileId = WorkOrderService.strOrEmpty(body.get("signatureFileId"));
+        String url = requireSignatureUrl(fileId);
         r.confirmStatus = "CONFIRMED";
-        r.satisfaction = body.get("satisfaction") == null ? 0 : ((Number) body.get("satisfaction")).intValue();
-        r.signatureFileId = WorkOrderService.strOrEmpty(body.get("signatureFileId"));
-        r.signatureUrl = WorkOrderService.strOrEmpty(body.get("signatureUrl"));
+        r.satisfaction = intOf(body.get("satisfaction"));
+        r.signatureFileId = fileId;
+        r.signatureUrl = url;
         recordMapper.updateById(r);
         return JsonUtil.map("ok", true);
     }
@@ -89,17 +97,39 @@ public class UnitRecordService {
         if ("CONFIRMED".equals(r.confirmStatus)) {
             return JsonUtil.map("ok", true, "already", true);
         }
-        String signatureUrl = WorkOrderService.strOrEmpty(body.get("signatureUrl"));
-        String signatureFileId = WorkOrderService.strOrEmpty(body.get("signatureFileId"));
-        if (signatureUrl.isEmpty() && signatureFileId.isEmpty()) {
-            throw new BizException(422, "请先完成签名");
-        }
+        // 必须有真实签名图：仅凭任意 URL 字符串即可把记录置为"使用单位已确认签字"，
+        // 会使合规记录出现无签名却已确认的状态。URL 由服务端按 fileId 反查，客户端地址不采信。
+        String fileId = WorkOrderService.strOrEmpty(body.get("signatureFileId"));
+        String url = requireSignatureUrl(fileId);
         r.confirmStatus = "CONFIRMED";
-        r.satisfaction = body.get("satisfaction") == null ? 0 : ((Number) body.get("satisfaction")).intValue();
-        r.signatureFileId = signatureFileId;
-        r.signatureUrl = signatureUrl;
+        r.satisfaction = intOf(body.get("satisfaction"));
+        r.signatureFileId = fileId;
+        r.signatureUrl = url;
         recordMapper.updateById(r);
         return JsonUtil.map("ok", true);
+    }
+
+    /** 签名图必须上传成功且在本系统落库；返回服务端反查到的可访问 URL */
+    private String requireSignatureUrl(String fileId) {
+        if (fileId == null || fileId.isBlank()) {
+            throw new BizException(422, "请先完成签名并上传");
+        }
+        String url = fileStorageService.resolveUrl(fileId);
+        if (url == null || url.isBlank()) {
+            throw new BizException(422, "签名图上传记录不存在，请重新上传");
+        }
+        return url;
+    }
+
+    private static int intOf(Object o) {
+        if (o instanceof Number) {
+            return ((Number) o).intValue();
+        }
+        try {
+            return o == null ? 0 : Integer.parseInt(String.valueOf(o).trim());
+        } catch (NumberFormatException e) {
+            return 0;
+        }
     }
 
     public Map<String, Object> toMap(MaintainRecord r) {

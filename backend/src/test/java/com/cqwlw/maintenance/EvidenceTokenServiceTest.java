@@ -117,6 +117,30 @@ class EvidenceTokenServiceTest {
     }
 
     @Test
+    void signTokenBindsKindAndRole() {
+        Map<String, Object> issued = service.issueSign("wo_1", "PRINCIPAL",
+                EvidenceTokenService.TTL_SHOT_SECONDS);
+        String token = (String) issued.get("token");
+        Map<String, Object> payload = service.verifyOnly(token, "wo_1", null,
+                EvidenceTokenService.KIND_SIGN, "PRINCIPAL");
+        assertEquals("sign", payload.get("kind"));
+        assertEquals("PRINCIPAL", payload.get("role"));
+    }
+
+    @Test
+    void signTokenRejectsWrongRoleAndWrongKind() {
+        String principal = (String) service.issueSign("wo_1", "PRINCIPAL",
+                EvidenceTokenService.TTL_SHOT_SECONDS).get("token");
+        BizException wrongRole = assertThrows(BizException.class,
+                () -> service.verifyOnly(principal, "wo_1", null,
+                        EvidenceTokenService.KIND_SIGN, "ASSISTANT"));
+        assertEquals(422, wrongRole.getCode());
+        BizException wrongKind = assertThrows(BizException.class,
+                () -> service.verifyOnly(principal, "wo_1", null, "shot", "PRINCIPAL"));
+        assertEquals(422, wrongKind.getCode());
+    }
+
+    @Test
     void shotTokenStillRejectsTampering() {
         String token = (String) service.issue("wo_1", "ci_A-1-06", 29.71921, 106.63352,
                 0L, 200, EvidenceTokenService.TTL_SHOT_SECONDS).get("token");

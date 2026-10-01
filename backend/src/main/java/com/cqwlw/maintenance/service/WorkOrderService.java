@@ -69,6 +69,7 @@ public class WorkOrderService {
     private final DispatchService dispatchService;
     private final ApprovalService approvalService;
     private final EvidenceTokenService evidenceTokenService;
+    private final FileStorageService fileStorageService;
     private final PlatformReportService reportService;
     private final com.cqwlw.maintenance.config.AppProperties props;
 
@@ -78,6 +79,7 @@ public class WorkOrderService {
                             FaultMapper faultMapper, InspectRecordMapper inspectMapper,
                             ChecklistService checklistService, DispatchService dispatchService,
                             ApprovalService approvalService, EvidenceTokenService evidenceTokenService,
+                            FileStorageService fileStorageService,
                             PlatformReportService reportService,
                             com.cqwlw.maintenance.config.AppProperties props) {
         this.orderMapper = orderMapper;
@@ -92,6 +94,7 @@ public class WorkOrderService {
         this.dispatchService = dispatchService;
         this.approvalService = approvalService;
         this.evidenceTokenService = evidenceTokenService;
+        this.fileStorageService = fileStorageService;
         this.reportService = reportService;
         this.props = props;
     }
@@ -343,6 +346,41 @@ public class WorkOrderService {
         return evidenceTokenService.issue(orderId, itemId,
                 lat == null ? 0d : lat, lng == null ? 0d : lng, dist,
                 CHECKIN_DISTANCE_LIMIT_M, EvidenceTokenService.TTL_SHOT_SECONDS);
+    }
+
+    /**
+     * 签名取证令牌（签署前调用）：绑定 {工单, kind=sign, 角色, 服务端时间}。
+     * 签名可发生在电梯之外（使用单位远程签字），故不做地理围栏，改以"角色 + 服务端时间"取证。
+     */
+    public Map<String, Object> issueSignEvidence(String orderId, Map<String, Object> body) {
+        WorkOrder o = findOr404(orderId);
+        if (!"PROCESSING".equals(o.status)) {
+            throw new BizException(1003, "请先完成签到后再签署");
+        }
+        String role = "ASSISTANT".equals(str(body.get("role"))) ? "ASSISTANT" : "PRINCIPAL";
+        return evidenceTokenService.issueSign(orderId, role, EvidenceTokenService.TTL_SHOT_SECONDS);
+    }
+
+    /**
+     * 校验签名取证令牌并返回签名存证；角色必须与令牌一致。
+     * 幂等验签（不核销），使"签退提交超时 → 重试"可成功。
+     */
+    private Map<String, Object> verifySignEvidence(String orderId, String role, Object tokenObj) {
+        String token = str(tokenObj);
+        if (isBlank(token)) {
+            throw new BizException(422, "缺少" + signRoleText(role) + "签名取证令牌，请重新签署");
+        }
+        Map<String, Object> payload = evidenceTokenService.verifyOnly(token, orderId, null,
+                EvidenceTokenService.KIND_SIGN, role);
+        Map<String, Object> rec = new LinkedHashMap<>();
+        rec.put("role", role);
+        rec.put("signedAt", TimeUtil.format(TimeUtil.fromMillis(numOf(payload.get("st")) * 1000L)));
+        rec.put("evidenceNonce", str(payload.get("n")));
+        return rec;
+    }
+
+    private static String signRoleText(String role) {
+        return "ASSISTANT".equals(role) ? "配合人员" : "主维保人员";
     }
 
     private static final class Fence {
@@ -630,8 +668,36 @@ public class WorkOrderService {
         r.duration = o.duration;
         r.itemsJson = JsonUtil.write(frozen);
         r.photosJson = JsonUtil.write(photos);
-        r.workerSignatureUrl = strOrEmpty(body.get("signatureUrl"));
-        r.assistantSignatureUrl = strOrEmpty(body.get("assistantSignatureUrl"));
+        // 签名取证：令牌绑定角色与服务端时间；签名图 URL 一律由服务端按 fileId 反查，
+        // 客户端上报的 signatureUrl 一律不采信（否则可把任意地址写入合规记录，
+        // 并在 PDF 导出时由服务器去拉取，形成 SSRF）
+        boolean hasAssistant = o.assistantName != null && !o.assistantName.isEmpty();
+        Map<String, Object> sigEvidence = asMap(body.get("signatureEvidence"));
+        verifySignEvidence(orderId, "PRINCIPAL", sigEvidence == null ? null : sigEvidence.get("principal"));
+        if (hasAssistant) {
+            verifySignEvidence(orderId, "ASSISTANT", sigEvidence == null ? null : sigEvidence.get("assistant"));
+        }
+        String principalFileId = strOrEmpty(body.get("signatureFileId"));
+        if (isBlank(principalFileId)) {
+            throw new BizException(422, "缺少主维保人员签名图");
+        }
+        String principalUrl = fileStorageService.resolveUrl(principalFileId);
+        if (isBlank(principalUrl)) {
+            throw new BizException(422, "主维保人员签名图上传记录不存在，请重新上传");
+        }
+        String assistantUrl = "";
+        if (hasAssistant) {
+            String assistantFileId = strOrEmpty(body.get("assistantSignatureFileId"));
+            if (isBlank(assistantFileId)) {
+                throw new BizException(422, "缺少配合人员签名图");
+            }
+            assistantUrl = fileStorageService.resolveUrl(assistantFileId);
+            if (isBlank(assistantUrl)) {
+                throw new BizException(422, "配合人员签名图上传记录不存在，请重新上传");
+            }
+        }
+        r.workerSignatureUrl = principalUrl;
+        r.assistantSignatureUrl = assistantUrl;
         r.problemCodesJson = JsonUtil.write(problemCodes);
         r.originalRecordId = o.originalRecordId;
         r.reportStatus = o.reportStatus;
@@ -833,5 +899,10 @@ public class WorkOrderService {
     @SuppressWarnings("unchecked")
     static List<Object> asList(Object o) {
         return o instanceof List ? (List<Object>) o : List.of();
+    }
+
+    @SuppressWarnings("unchecked")
+    static Map<String, Object> asMap(Object o) {
+        return o instanceof Map ? (Map<String, Object>) o : null;
     }
 }

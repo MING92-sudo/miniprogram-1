@@ -74,6 +74,12 @@ public class WorkOrderController {
         return ApiResponse.ok(workOrderService.issueShotEvidence(id, body == null ? Map.of() : body));
     }
 
+    @PostMapping("/work-orders/{id}/evidence/sign")
+    public ApiResponse<Map<String, Object>> signEvidence(@PathVariable String id,
+                                                        @RequestBody(required = false) Map<String, Object> body) {
+        return ApiResponse.ok(workOrderService.issueSignEvidence(id, body == null ? Map.of() : body));
+    }
+
     @PostMapping("/work-orders/{id}/checkin")
     public ApiResponse<Object> checkin(@PathVariable String id, @RequestBody Map<String, Object> body,
                                        @RequestHeader(value = "X-Idempotency-Key", required = false) String idemKey) {

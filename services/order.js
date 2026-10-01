@@ -16,6 +16,11 @@ function resolveByElevatorCode(elevatorCode) {
   return post('/work-orders/resolve-by-elevator', { elevatorCode })
 }
 
+// 签名取证令牌（签署前调用）：绑定工单+签名角色+服务端时间
+function requestSignEvidence(orderId, role) {
+  return post(`/work-orders/${orderId}/evidence/sign`, { role })
+}
+
 // 签到取证令牌（拍照前调用）：服务端做地理围栏校验并签发绑定坐标与服务端时间的签名令牌，
 // 水印与最终维保记录均以令牌内值为准（docs/04 A.2）
 function requestEvidence(orderId, data) {

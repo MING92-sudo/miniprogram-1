@@ -1,6 +1,7 @@
 // 维保记录签名确认页（免登录）：安全管理员可远程打开（微信分享链接）签字，
 // 或由维保人员把手机交给安全管理员本机代签
 const unit = require('../../services/unit')
+const { uploadImage } = require('../../services/upload')
 
 Page({
   data: {
@@ -76,28 +77,27 @@ Page({
     if (this.data.submitting) return
     if (!this.data.hasDrawn) return wx.showToast({ title: '请在本页签名', icon: 'none' })
     this.setData({ submitting: true })
-    const self = this
-    wx.canvasToTempFilePath({
-      canvas: this.canvas,
-      success: (res) => {
-        // 签名图按 mock 约定以路径回填（真实后端为 COS fileId）
-        unit.confirmByToken(self.data.rid, self.data.token, {
-          signatureUrl: res.tempFilePath
+    try {
+      const tempPath = await new Promise((resolve, reject) => {
+        wx.canvasToTempFilePath({
+          canvas: this.canvas,
+          success: (res) => resolve(res.tempFilePath),
+          fail: () => reject(new Error('签名导出失败'))
         })
-          .then(function () {
-            wx.showToast({ title: '已确认', icon: 'success' })
-            self.fetchView()
-          })
-          .catch(function (e) {
-            wx.showToast({ title: e.message || '确认失败', icon: 'none' })
-          })
-          .then(function () { self.setData({ submitting: false }) })
-      },
-      fail: () => {
-        self.setData({ submitting: false })
-        wx.showToast({ title: '签名导出失败', icon: 'none' })
-      }
-    })
+      })
+      // 签名图先上传换 fileId，再提交 fileId；签名图 URL 由服务端按 fileId 反查。
+      // 此前直接提交本地临时路径，导致合规记录里存的是设备路径、PDF 导出取不到图，
+      // 且任意 URL 字符串即可把记录置为"已确认签字"。
+      const uploaded = await uploadImage(tempPath)
+      await unit.confirmByToken(this.data.rid, this.data.token, {
+        signatureFileId: uploaded.fileId
+      })
+      wx.showToast({ title: '已确认', icon: 'success' })
+      this.fetchView()
+    } catch (e) {
+      wx.showToast({ title: (e && e.message) || '确认失败', icon: 'none' })
+    }
+    this.setData({ submitting: false })
   },
 
   // 分享给安全管理员远程签字（微信卡片打开本页）
