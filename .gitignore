@@ -51,3 +51,6 @@ reg-capture/
 /.omo/
 /opencode.json
 AGENTS.md.backup.*
+
+# admin 本地构建缓存
+admin/.tmp-build/
