@@ -24,4 +24,10 @@ describe('resolveRoute', () => {
   it('未登录访问 /login 放行', () => {
     expect(resolveRoute(publicRoute, { token: '' })).toBe(true)
   })
+
+  it('角色不符访问 SYS_ADMIN 专属页 → /403，匹配则放行', () => {
+    const sysOnly = { path: '/users', meta: { title: '用户权限', role: 'SYS_ADMIN' }, fullPath: '/users' }
+    expect(resolveRoute(sysOnly, { token: 'jwt', role: 'LEADER' }).path).toBe('/403')
+    expect(resolveRoute(sysOnly, { token: 'jwt', role: 'SYS_ADMIN' })).toBe(true)
+  })
 })

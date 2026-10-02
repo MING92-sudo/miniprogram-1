@@ -57,8 +57,8 @@ export const routes = [
       { path: 'stats', component: StatsView, meta: { title: '统计报表' } },
       { path: 'alerts', component: AlertRulesView, meta: { title: '预警规则' } },
       { path: 'notify', component: NotifyRecordsView, meta: { title: '发送记录' } },
-      { path: 'users', component: UsersView, meta: { title: '用户权限' } },
-      { path: 'op-logs', component: OpLogsView, meta: { title: '审计日志' } }
+      { path: 'users', component: UsersView, meta: { title: '用户权限', role: 'SYS_ADMIN' } },
+      { path: 'op-logs', component: OpLogsView, meta: { title: '审计日志', role: 'SYS_ADMIN' } }
     ]
   },
   { path: '/403', component: ForbiddenView, meta: { public: true, title: '无权限' } },
@@ -72,7 +72,7 @@ const router = createRouter({
 
 router.beforeEach((to) => {
   const auth = useAuthStore()
-  return resolveRoute(to, { token: auth.token })
+  return resolveRoute(to, { token: auth.token, role: auth.role })
 })
 
 router.afterEach((to) => {

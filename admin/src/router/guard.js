@@ -10,5 +10,10 @@ export function resolveRoute(to, authState) {
   if (to.path === '/login' && authState.token) {
     return { path: '/dashboard' }
   }
+  // 角色门禁：路由声明 meta.role 时，角色不符跳 /403（真实门禁在后端，这里仅 UX 兜底）
+  const required = to.meta && to.meta.role
+  if (required && required !== authState.role) {
+    return { path: '/403' }
+  }
   return true
 }
