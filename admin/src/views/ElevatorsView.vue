@@ -25,6 +25,7 @@
       <el-table-column label="操作" width="80" fixed="right">
         <template #default="{ row }">
           <el-button link type="primary" :disabled="!auth.canWrite" @click="openEdit(row)">编辑</el-button>
+          <el-button link type="warning" :disabled="!auth.canWrite" @click="onDispatch(row)">立即派单</el-button>
           <el-button link type="danger" :disabled="!auth.canWrite" @click="onDelete(row)">删除</el-button>
         </template>
       </el-table-column>
@@ -72,7 +73,16 @@
           <el-input v-model="form.lat" placeholder="纬度 lat" style="width: 48%; margin-left: 4%" />
         </el-form-item>
         <el-form-item label="维保人员手机">
-          <el-input v-model="form.workerPhone" />
+          <el-select v-model="form.workerId" filterable clearable placeholder="选择维保人员1（自动带出平台ID）"
+                     style="width: 100%" @change="onWorkerChange">
+            <el-option v-for="e in staff" :key="e.id" :value="e.id"
+                       :label="e.name + '（' + (e.platformId || '未同步平台ID') + '）'" />
+          </el-select>
+          <el-select v-model="form.assistantEmployeeId" filterable clearable placeholder="选择维保人员2（可选）"
+                     style="width: 100%; margin-top: 6px" @change="onAssistantChange">
+            <el-option v-for="e in staff" :key="e.id" :value="e.id"
+                       :label="e.name + '（' + (e.platformId || '未同步平台ID') + '）'" />
+          </el-select>
         </el-form-item>
       </el-form>
       <template #footer>
@@ -99,6 +109,9 @@ const dialog = ref(false)
 const saving = ref(false)
 const syncing = ref(false)
 const querying = ref(false)
+const staff = ref([])
+const workerEmployeeId = ref('')
+const assistantEmployeeId = ref('')
 const platformHint = ref('')
 const categories = ['曳引与强制驱动电梯', '液压驱动电梯', '杂物电梯', '自动扶梯与自动人行道']
 
@@ -110,7 +123,10 @@ const form = reactive({ ...empty })
 async function load() {
   loading.value = true
   try {
-    const [elevators, unitList] = await Promise.all([archiveApi.elevatorsAdmin(), archiveApi.useUnits()])
+    const [elevators, unitList, employeeList] = await Promise.all([archiveApi.elevatorsAdmin(), archiveApi.useUnits(), archiveApi.employees()])
+    rows.value = elevators
+    units.value = unitList
+    staff.value = (employeeList || []).filter((e) => e.role === 'WORKER' || e.role === 'LEADER')
     rows.value = elevators
     units.value = unitList
   } catch (e) {
@@ -138,10 +154,17 @@ function openCreate() {
   }
 function openEdit(row) {
   Object.assign(form, empty, row)
+  syncEmployeeIds()
   dialog.value = true
 }
 
 async function save() {
+  if (!form.id && form.workerId) {
+    const e = staff.value.find((x) => x.id === form.workerId)
+    if (e) { form.workerName = e.name; form.workerPhone = e.phone; form.workerPlatformId = e.platformId }
+    const a = staff.value.find((x) => x.id === form.assistantEmployeeId)
+    if (a) { form.assistantName = a.name; form.assistantPlatformId = a.platformId }
+  }
   saving.value = true
   try {
     const body = { ...form }
@@ -178,6 +201,35 @@ async function onSync() {
 }
 
 /** 2.7 单梯查询回填：设备代码/注册代码/应急电话/安全管理员/使用单位主体（docs/07 实测口径） */
+function onWorkerChange(id) {
+  const e = staff.value.find((x) => x.id === id)
+  form.workerName = e ? e.name : ''
+  form.workerPhone = e ? e.phone : ''
+  form.workerPlatformId = e ? e.platformId : ''
+}
+function onAssistantChange(id) {
+  const e = staff.value.find((x) => x.id === id)
+  form.assistantName = e ? e.name : ''
+  form.assistantPlatformId = e ? e.platformId : ''
+}
+function syncEmployeeIds() {
+  workerEmployeeId.value = (staff.value.find((x) => x.name === form.workerName) || {}).id || ''
+  assistantEmployeeId.value = (staff.value.find((x) => x.name === form.assistantName) || {}).id || ''
+  form.workerId = workerEmployeeId.value
+  form.assistantEmployeeId = assistantEmployeeId.value
+}
+async function onDispatch(row) {
+  try {
+    await ElMessageBox.confirm(
+      `确认为「${row.elevatorName}（${row.elevatorCode}）」立即生成维保工单？（用于首保/补单，跳过到期检查）`,
+      '立即派单', { type: 'warning' })
+    const o = await archiveApi.dispatchElevator(row.id)
+    ok('已派单：' + ((o && o.orderNo) || ''))
+    await load()
+  } catch (e) {
+    if (e !== 'cancel') showErr(e)
+  }
+}
 async function queryFromPlatform() {
   querying.value = true
   platformHint.value = ''

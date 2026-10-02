@@ -25,9 +25,6 @@
           <el-menu-item index="/orders"><span>工单监控</span></el-menu-item>
           <el-menu-item index="/schedule"><span>计划调度</span></el-menu-item>
           <el-menu-item index="/templates"><span>检查项模板</span></el-menu-item>
-          <el-menu-item index="/ledger/inspects"><span>自行检查</span></el-menu-item>
-          <el-menu-item index="/ledger/drills"><span>应急演练</span></el-menu-item>
-          <el-menu-item index="/ledger/rescues"><span>困人救援</span></el-menu-item>
           <el-menu-item index="/ledger/faults"><span>故障记录</span></el-menu-item>
           <el-menu-item index="/approvals"><span>定位异常申述审核</span></el-menu-item>
           <el-menu-item index="/stats"><span>统计报表</span></el-menu-item>

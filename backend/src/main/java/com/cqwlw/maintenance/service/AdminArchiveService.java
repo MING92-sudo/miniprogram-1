@@ -456,6 +456,9 @@ public class AdminArchiveService {
         if (body.get("workerPhone") != null) {
             el.workerPhone = str(body, "workerPhone");
         }
+        if (body.get("workerPlatformId") != null) {
+            el.workerPlatformId = str(body, "workerPlatformId");
+        }
         if (body.get("assistantName") != null) {
             el.assistantName = str(body, "assistantName");
         }

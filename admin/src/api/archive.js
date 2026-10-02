@@ -61,3 +61,8 @@ export function deleteUseUnit(id) {
 export function deleteElevator(id) {
   return http.delete(`/elevators/${id}`)
 }
+
+/** 手动派单（首保/补单：无首次维保时间的电梯由管理员触发） */
+export function dispatchElevator(id) {
+  return http.post(`/elevators/${id}/dispatch`, {})
+}

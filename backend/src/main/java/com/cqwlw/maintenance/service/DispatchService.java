@@ -85,34 +85,65 @@ public class DispatchService {
             String dueDay = TimeUtil.date(TimeUtil.fromMillis(dueMs));
             String todayStr = TimeUtil.date(TimeUtil.now());
             String planDay = dueDay.compareTo(todayStr) >= 0 ? dueDay : todayStr;
-            WorkOrder o = new WorkOrder();
-            o.id = Ids.next("wo");
-            o.orderNo = "WO" + todayStr.replace("-", "") + "-" + String.format("%03d", count() + 1);
-            o.elevatorId = el.id;
-            o.workType = checklistService.label(code);
-            o.workTypeCode = code;
-            o.planTime = TimeUtil.parse(planDay + " 09:00:00");
-            o.status = "PENDING";
-            o.workerName = el.workerName;
-            o.assistantName = el.assistantName == null ? "" : el.assistantName;
-            o.workerPlatformId = el.workerPlatformId;
-            o.assistantPlatformId = el.assistantPlatformId;
-            o.autoDispatched = true;
-            o.checklistJson = com.cqwlw.maintenance.util.JsonUtil.write(
-                    checklistService.buildChecklist(code, el.category));
-            orderMapper.insert(o);
-            Message msg = new Message();
-            msg.id = Ids.next("msg");
-            msg.title = "自动派单通知";
-            msg.content = el.elevatorName + " " + o.workType + "已到维保周期（上次维保 "
-                    + TimeUtil.format(last).substring(0, 10) + "），按绑定关系自动派给 "
-                    + el.workerName + "，请及时扫码签到。";
-            msg.createdAt = TimeUtil.now();
-            msg.readFlag = false;
-            messageMapper.insert(msg);
-            created.add(o);
+            created.add(createOrder(el, code, TimeUtil.parse(planDay + " 09:00:00"),
+                    "自动派单通知", "已到维保周期（上次维保 "
+                    + TimeUtil.format(last).substring(0, 10) + "）", true));
         }
         return created;
+    }
+
+    /** 生成工单 + 消息中心通知（自动/手动派单共用） */
+    private WorkOrder createOrder(Elevator el, String code, LocalDateTime planTime,
+                                  String msgTitle, String msgReason, boolean auto) {
+        WorkOrder o = new WorkOrder();
+        o.id = Ids.next("wo");
+        o.orderNo = "WO" + TimeUtil.date(TimeUtil.now()).replace("-", "") + "-"
+                + String.format("%03d", count() + 1);
+        o.elevatorId = el.id;
+        o.workType = checklistService.label(code);
+        o.workTypeCode = code;
+        o.planTime = planTime;
+        o.status = "PENDING";
+        o.workerName = el.workerName;
+        o.assistantName = el.assistantName == null ? "" : el.assistantName;
+        o.workerPlatformId = el.workerPlatformId;
+        o.assistantPlatformId = el.assistantPlatformId;
+        o.autoDispatched = auto;
+        o.checklistJson = com.cqwlw.maintenance.util.JsonUtil.write(
+                checklistService.buildChecklist(code, el.category));
+        orderMapper.insert(o);
+        Message msg = new Message();
+        msg.id = Ids.next("msg");
+        msg.title = msgTitle;
+        msg.content = el.elevatorName + " " + o.workType + msgReason + "，按绑定关系派给 "
+                + el.workerName + "，请及时扫码签到。";
+        msg.createdAt = TimeUtil.now();
+        msg.readFlag = false;
+        messageMapper.insert(msg);
+        return o;
+    }
+
+    /** 手动派单（首保/补单）：跳过到期检查，按电梯当前绑定的维保人员立即生成工单（用户需求：无首次维保时间的电梯需手动派单） */
+    public WorkOrder dispatchNow(String elevatorId) {
+        Elevator el = elevatorMapper.selectById(elevatorId);
+        if (el == null) {
+            throw new com.cqwlw.maintenance.common.BizException(1404, "电梯不存在");
+        }
+        if (el.workTypeCode == null || el.workTypeCode.isEmpty()) {
+            throw new com.cqwlw.maintenance.common.BizException(422, "请先设置维保周期码");
+        }
+        if (el.workerName == null || el.workerName.isEmpty() || el.workerPlatformId == null
+                || el.workerPlatformId.isEmpty()) {
+            throw new com.cqwlw.maintenance.common.BizException(422,
+                    "请先在电梯档案中分配维保人员（含平台ID）");
+        }
+        Long active = orderMapper.selectCount(new LambdaQueryWrapper<WorkOrder>()
+                .eq(WorkOrder::getElevatorId, el.id).ne(WorkOrder::getStatus, "DONE"));
+        if (active != null && active > 0) {
+            throw new com.cqwlw.maintenance.common.BizException(422, "该电梯已有进行中的工单，不可重复派单");
+        }
+        return createOrder(el, el.workTypeCode, TimeUtil.parse(TimeUtil.date(TimeUtil.now()) + " 09:00:00"),
+                "手动派单通知", "首保/手动派单", false);
     }
 
     private long count() {

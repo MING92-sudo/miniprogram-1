@@ -14,9 +14,6 @@ import CompanyView from '../views/CompanyView.vue'
 import UseUnitsView from '../views/UseUnitsView.vue'
 import EmployeesView from '../views/EmployeesView.vue'
 import ElevatorsView from '../views/ElevatorsView.vue'
-import InspectsView from '../views/InspectsView.vue'
-import DrillsView from '../views/DrillsView.vue'
-import RescuesView from '../views/RescuesView.vue'
 import FaultsView from '../views/FaultsView.vue'
 import StatsView from '../views/StatsView.vue'
 import ScheduleView from '../views/ScheduleView.vue'
@@ -50,9 +47,6 @@ export const routes = [
       { path: 'archive/use-units', component: UseUnitsView, meta: { title: '使用单位档案' } },
       { path: 'archive/employees', component: EmployeesView, meta: { title: '人员档案' } },
       { path: 'archive/elevators', component: ElevatorsView, meta: { title: '电梯档案' } },
-      { path: 'ledger/inspects', component: InspectsView, meta: { title: '自行检查台账' } },
-      { path: 'ledger/drills', component: DrillsView, meta: { title: '应急演练台账' } },
-      { path: 'ledger/rescues', component: RescuesView, meta: { title: '救援台账' } },
       { path: 'ledger/faults', component: FaultsView, meta: { title: '故障台账' } },
       { path: 'stats', component: StatsView, meta: { title: '统计报表' } },
       { path: 'alerts', component: AlertRulesView, meta: { title: '预警规则' } },
