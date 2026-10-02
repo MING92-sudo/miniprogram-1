@@ -236,9 +236,10 @@ async function queryFromPlatform() {
   try {
     const cond = {}
     if (form.deviceCode && form.deviceCode.trim()) cond.deviceCode = form.deviceCode.trim()
+    else if (form.factoryNumber && form.factoryNumber.trim()) cond.factoryNumber = form.factoryNumber.trim()
     else if (form.regCode && form.regCode.trim()) cond.registrationCode = form.regCode.trim()
     if (!Object.keys(cond).length) {
-      platformHint.value = '请先填写 设备代码（或注册代码）——实测平台不支持按电梯编号查询'
+      platformHint.value = '请先填写 设备代码/出厂编号/注册代码 之一（来自登记证或铭牌）——实测平台不支持按电梯编号查询'
       return
     }
     const res = await platformApi.queryElevator(cond)
