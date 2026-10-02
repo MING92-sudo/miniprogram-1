@@ -52,7 +52,6 @@ DB_PASSWORD=xxx
 | 变量 | 说明 |
 |---|---|
 | `REG_*`（auth-login-url/api-base-url/username/key/appcode/secret） | 平台凭证，P2 转发必需 |
-| `REG_RETRY_AUTO` | **必须保持 false**（幂等性未获平台书面确认，AGENTS §2.3） |
 | `REG_LEGACY_UPLOAD_ENABLED` | 2.8 存量推送开关，默认 false（平台关闭存量接口后置 false） |
 | `DB_HOST/DB_PORT/DB_NAME/DB_USER/DB_PASSWORD` | MySQL 连接 |
 | `JWT_SECRET` | 自建 JWT 签名密钥（生产必须强随机） |

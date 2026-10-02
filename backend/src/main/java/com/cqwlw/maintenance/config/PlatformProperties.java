@@ -21,9 +21,6 @@ public class PlatformProperties {
     private String appcode;
     private String secret;
 
-    /** 失败自动重试开关：平台未书面确认幂等前必须保持 false */
-    private boolean retryAuto = false;
-
     /** 存量记录接口（2.8）临时启用开关 */
     private boolean legacyUploadEnabled = false;
 
@@ -73,14 +70,6 @@ public class PlatformProperties {
 
     public void setSecret(String secret) {
         this.secret = secret;
-    }
-
-    public boolean isRetryAuto() {
-        return retryAuto;
-    }
-
-    public void setRetryAuto(boolean retryAuto) {
-        this.retryAuto = retryAuto;
     }
 
     public boolean isLegacyUploadEnabled() {

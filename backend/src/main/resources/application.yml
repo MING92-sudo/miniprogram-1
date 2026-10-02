@@ -37,7 +37,6 @@ platform:
   key: ${REG_KEY:}
   appcode: ${REG_APPCODE:}
   secret: ${REG_SECRET:}
-  retry-auto: ${REG_RETRY_AUTO:false}
   legacy-upload-enabled: ${REG_LEGACY_UPLOAD_ENABLED:false}
 
 logging:

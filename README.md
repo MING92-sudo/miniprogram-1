@@ -38,7 +38,7 @@ mvn spring-boot:run        # 默认 8080；容器内由 Dockerfile 设 SERVER_PO
 - 业务根路径：`https://tzsb.scjgj.cq.gov.cn:1443/api/wlw/maintenance/`（= 网关 `/api/wlw` + 模块 `/maintenance`）。
 - **2.1 登录实际为 GET + 查询串**（规范写的 POST + Body 是错的）；业务接口 2.2—2.8 为 **POST + `x-www-form-urlencoded` 表单**，2.3/2.4 为 multipart（带合同/证书 PDF）。
 - 2026-09-30 全链路实测：2.2 主体查询 → 2.3 服务关系 → 2.4 人员登记 → 2.5 取 platform_id → 2.6 记录上报 → 2.8 存量上报 **全部成功**。详见 `docs/07-full-test-20260930.md` 与 `docs/07-平台联调实测记录.md`。
-- **`originalRecordId` 幂等性仍未书面确认**：重复提交返回成功，是否产生重复记录需平台管理端核对；确认前自动重试开关 `REG_RETRY_AUTO` 必须保持 `false`。
+- **`originalRecordId` 幂等性仍未书面确认**：重复提交返回成功，是否产生重复记录需平台管理端核对；确认前自动重试保持关闭（代码硬编码，无开关）。
 
 ## 凭证与安全
 
