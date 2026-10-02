@@ -12,7 +12,6 @@ import com.cqwlw.maintenance.mapper.MaintainRecordMapper;
 import com.cqwlw.maintenance.mapper.RegUploadLogMapper;
 import com.cqwlw.maintenance.mapper.WorkOrderMapper;
 import com.cqwlw.maintenance.service.AdminService;
-import com.cqwlw.maintenance.service.DispatchService;
 import com.cqwlw.maintenance.service.PlatformTokenService;
 import com.cqwlw.maintenance.util.JsonUtil;
 import com.cqwlw.maintenance.util.TimeUtil;
@@ -51,7 +50,6 @@ class AdminServiceTest {
         elevatorMapper = mock(ElevatorMapper.class);
         employeeMapper = mock(EmployeeMapper.class);
         faultMapper = mock(FaultMapper.class);
-        DispatchService dispatchService = mock(DispatchService.class);
         PlatformTokenService tokenService = mock(PlatformTokenService.class);
         when(tokenService.configured()).thenReturn(true);
         when(faultMapper.selectCount(any())).thenReturn(1L);
@@ -60,7 +58,7 @@ class AdminServiceTest {
                 mock(com.cqwlw.maintenance.mapper.ChecklistTemplateMapper.class);
         when(templateMapper.selectCount(any())).thenReturn(0L);
         service = new AdminService(orderMapper, recordMapper, logMapper,
-                elevatorMapper, employeeMapper, faultMapper, dispatchService, tokenService, templateMapper);
+                elevatorMapper, employeeMapper, faultMapper, tokenService, templateMapper);
     }
 
     private WorkOrder order(String status, String planDayOffset, String checkoutDayOffset) {

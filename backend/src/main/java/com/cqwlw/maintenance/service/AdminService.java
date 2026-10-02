@@ -40,14 +40,13 @@ public class AdminService {
     private final ElevatorMapper elevatorMapper;
     private final EmployeeMapper employeeMapper;
     private final FaultMapper faultMapper;
-    private final DispatchService dispatchService;
     private final PlatformTokenService tokenService;
     private final com.cqwlw.maintenance.mapper.ChecklistTemplateMapper templateMapper;
 
     public AdminService(WorkOrderMapper orderMapper, MaintainRecordMapper recordMapper,
                         RegUploadLogMapper logMapper, ElevatorMapper elevatorMapper,
                         EmployeeMapper employeeMapper, FaultMapper faultMapper,
-                        DispatchService dispatchService, PlatformTokenService tokenService,
+                        PlatformTokenService tokenService,
                         com.cqwlw.maintenance.mapper.ChecklistTemplateMapper templateMapper) {
         this.orderMapper = orderMapper;
         this.recordMapper = recordMapper;
@@ -55,7 +54,6 @@ public class AdminService {
         this.elevatorMapper = elevatorMapper;
         this.employeeMapper = employeeMapper;
         this.faultMapper = faultMapper;
-        this.dispatchService = dispatchService;
         this.tokenService = tokenService;
         this.templateMapper = templateMapper;
     }
@@ -63,7 +61,6 @@ public class AdminService {
     // ── 看板（GET /admin/dashboard）──
 
     public Map<String, Object> dashboard() {
-        dispatchService.ensureDueOrders();
         String today = TimeUtil.date(TimeUtil.now());
         String soonEnd = TimeUtil.date(TimeUtil.now().plusDays(3));
         int dueToday = 0;
