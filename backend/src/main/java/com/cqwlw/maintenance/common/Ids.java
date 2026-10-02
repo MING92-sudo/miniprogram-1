@@ -6,7 +6,7 @@ import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * ID 生成：与 mock 前缀风格一致（wo_/ur_/msg_...）；
- * originalRecordId 为 19 位纯数字（平台要求），基于时间戳 + 随机数。
+ * originalRecordId 为 19 位纯数字（平台实测为 19 位雪花 ID），基于 13 位毫秒时间戳 + 6 位随机数。
  */
 public final class Ids {
 
@@ -24,6 +24,6 @@ public final class Ids {
     public static String nextRecordId() {
         long now = System.currentTimeMillis();
         int rnd = ThreadLocalRandom.current().nextInt(100000, 999999);
-        return "1948" + now + rnd;
+        return String.valueOf(now) + rnd;
     }
 }
