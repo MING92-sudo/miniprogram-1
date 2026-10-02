@@ -11,6 +11,7 @@
 | 平台接口怎么调 | `docs/07-平台联调实测记录.md` + `docs/07-full-test-20260930.md`（**实测优先于规范**） |
 | 内部 API 契约 | `docs/04-接口文档.md` A 部分（= `mock/server.js` 路由） |
 | 当前进展 | `docs/08-项目审查与开发计划.md` |
+| 管理端设计与验收 | `docs/09-管理端设计.md` + `docs/10-管理端验收清单.md` |
 
 ## 1. 项目结构与分层
 
@@ -23,9 +24,10 @@
 ├─ config/index.js               环境配置（useMock 开关、apiBaseUrl、LBS key 留空）
 ├─ constants/index.js            枚举/错误码/业务常量（文案统一从这里取）
 ├─ mock/                         mock 契约层（server.js 路由 = docs/04 A 部分）
-├─ backend/                      Spring Boot 3.3.4 骨架（平台 token 中控 + 转发层）
+├─ backend/                      Spring Boot 3.3.4 后端（Flyway 迁移 + JWT + 平台转发 + 97 单测）
+├─ admin/                        Vue3 + Vite + Element Plus 管理端（lint/vitest/build）
 ├─ scripts/                      平台联调 PowerShell/Node 脚本
-└─ docs/                         01—08 编号文档（见 §7 文档规则）
+└─ docs/                         01—11 编号文档（见 §7 文档规则）
 ```
 
 **分层规则**：
@@ -53,6 +55,7 @@
 - **幂等**：所有写接口自动携带 `X-Idempotency-Key`（`request.js` 已实现），新写接口不得绕过。
 - **微信小程序规范**：新页面四件套齐全并注册进 `app.json`；`requiredPrivateInfos` 变更须同步说明用途；不得引入新 UI 框架（TDesign 已移除，如重新引入须按 docs/08 重新评估并同步文档）。
 - **后端**：Java 17 / Spring Boot 3.3.4；统一 `ApiResponse` 返回；配置经 `PlatformProperties`（前缀 `platform.`）从环境变量注入；容器端口 80（`SERVER_PORT`）。
+- **目录级检查**：管理端改动在 `admin/` 内跑 `npm run lint && npm test && npm run build`；后端改动在 `backend/` 内跑 `mvn test`。
 
 ## 4. 平台对接事实（实测为准，勿按规范臆测）
 
@@ -91,3 +94,4 @@
 |---|---|---|
 | V1.0 | 2026-09-30 | 首版：项目结构、分层、安全红线、编码约定、平台实测事实、Git/测试/文档同步规则 |
 | V1.1 | 2026-09-30 | 派单验收口径改为“同项目 6 台同日到期一次性全部当日 09:00 派单”；补充全量一致性核查与 TDesign 依赖移除后的 lint 要求 |
+| V1.2 | 2026-10-02 | 同步实际架构：后端落地状态（97 单测）、admin 目录与目录级 lint/test 命令、docs 范围 01—11；gitignore 补本地 AI 工具缓存与备份文件 |

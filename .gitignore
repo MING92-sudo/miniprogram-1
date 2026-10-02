@@ -45,3 +45,9 @@ reg-capture/
 
 # 说明：.env.example 只放变量名与占位说明，绝不放真实值
 !.env.example
+
+# 本地 AI 工具缓存与配置（机器相关，不入库）
+/.aoci/
+/.omo/
+/opencode.json
+AGENTS.md.backup.*
