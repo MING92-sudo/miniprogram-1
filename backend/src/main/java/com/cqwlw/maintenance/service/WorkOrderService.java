@@ -259,6 +259,18 @@ public class WorkOrderService {
         extra.put("selfPhotoFileId", strOrEmpty(body.get("photoFileId")));
         o.checkinExtraJson = JsonUtil.write(extra);
         orderMapper.updateById(o);
+        // 用户需求③：电梯无坐标时，以签到定位自动回填电梯坐标档案
+        Elevator el = elevatorMapper.selectById(o.elevatorId);
+        if (el != null && (el.lng == null || el.lat == null)
+                && body.get("latitude") != null && body.get("longitude") != null) {
+            try {
+                el.lng = new java.math.BigDecimal(String.valueOf(body.get("longitude")));
+                el.lat = new java.math.BigDecimal(String.valueOf(body.get("latitude")));
+                elevatorMapper.updateById(el);
+            } catch (NumberFormatException ignored) {
+                // 定位异常值不回填
+            }
+        }
         return JsonUtil.map(
                 "checkinId", Ids.next("chk"),
                 "distance", 35.6,

@@ -28,12 +28,15 @@ public class PlatformController {
     private final PlatformSyncService platformSyncService;
     private final PlatformReportService reportService;
     private final PlatformClient platformClient;
+    private final com.cqwlw.maintenance.service.AdminArchiveService archiveService;
 
     public PlatformController(PlatformSyncService platformSyncService,
-                              PlatformReportService reportService, PlatformClient platformClient) {
+                              PlatformReportService reportService, PlatformClient platformClient,
+                              com.cqwlw.maintenance.service.AdminArchiveService archiveService) {
         this.platformSyncService = platformSyncService;
         this.reportService = reportService;
         this.platformClient = platformClient;
+        this.archiveService = archiveService;
     }
 
     @PostMapping("/platform/sync")
@@ -121,7 +124,35 @@ public class PlatformController {
         fields.put("changState", changState);
         Map<String, Object> resp = platformClient.registerWorkerState(fields,
                 bytes(certificateFile), filename(certificateFile));
-        return ApiResponse.ok(resp.get("data") == null ? Map.of("ok", true) : resp.get("data"));
+        // 用户需求①：2.4 平台登记成功 → 本地人员档案自动建档（按证书号去重；随机初始密码走账号流程）
+        String employeeId = "";
+        String account = workManPhone;
+        String initialPassword = "";
+        try {
+            Long dup = archiveService.employeeCertificateExists(workManCertificate);
+            if (dup == null || dup == 0) {
+                Map<String, Object> created = archiveService.createEmployee(java.util.Map.of(
+                        "name", workManName,
+                        "phone", workManPhone,
+                        "role", "WORKER",
+                        "certificate", workManCertificate,
+                        "workStartDate", workStartDate,
+                        "workEndDate", workEndDate));
+                employeeId = String.valueOf(created.get("id"));
+                account = String.valueOf(created.get("account"));
+                initialPassword = String.valueOf(created.get("initialPassword"));
+            }
+        } catch (Exception ignored) {
+            // 建档失败不影响登记结果（可用同步兜底）
+        }
+        Map<String, Object> out = new java.util.LinkedHashMap<>();
+        out.put("ok", true);
+        out.put("employeeId", employeeId);
+        out.put("account", account);
+        if (!initialPassword.isEmpty()) {
+            out.put("initialPassword", initialPassword);
+        }
+        return ApiResponse.ok(resp.get("data") == null ? out : resp.get("data"));
     }
 
     private static void requireFile(MultipartFile file, String name) {

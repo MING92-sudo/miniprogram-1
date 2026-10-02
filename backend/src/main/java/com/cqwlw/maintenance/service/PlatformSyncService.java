@@ -1,6 +1,7 @@
 package com.cqwlw.maintenance.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.cqwlw.maintenance.common.Ids;
 import com.cqwlw.maintenance.entity.Company;
 import com.cqwlw.maintenance.entity.Elevator;
 import com.cqwlw.maintenance.entity.Employee;
@@ -12,6 +13,7 @@ import com.cqwlw.maintenance.mapper.UseUnitMapper;
 import com.cqwlw.maintenance.util.TimeUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.LinkedHashMap;
@@ -35,6 +37,7 @@ public class PlatformSyncService {
     private final PlatformTokenService tokenService;
     private final EmployeeMapper employeeMapper;
     private final PlatformReportService reportService;
+    private final BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
 
     public PlatformSyncService(CompanyMapper companyMapper, UseUnitMapper useUnitMapper,
                                ElevatorMapper elevatorMapper, PlatformClient platformClient,
@@ -55,12 +58,15 @@ public class PlatformSyncService {
         }
         int entitySynced = syncEntities();
         int elevatorsSynced = syncElevators();
-        int workersSynced = syncWorkers();
+        List<Map<String, Object>> platformWorkers = platformClient.queryWorkList("0", TimeUtil.date(TimeUtil.now().plusYears(1)));
+        int workersSynced = syncWorkers(platformWorkers);
+        int workersCreated = autoCreateWorkers(platformWorkers);
         int legacyUploaded = reportService.syncLegacy();
         Map<String, Object> summary = new LinkedHashMap<>();
         summary.put("entitySynced", entitySynced);
         summary.put("elevatorSynced", elevatorsSynced);
         summary.put("workerSynced", workersSynced);
+        summary.put("workerCreated", workersCreated);
         summary.put("legacyUploaded", legacyUploaded);
         summary.put("syncedAt", TimeUtil.format(TimeUtil.now()));
         return summary;
@@ -70,9 +76,7 @@ public class PlatformSyncService {
      * 2.5 人员 platform_id 同步（docs/04 B.4：按证书号轮询精确匹配回填），
      * 随 /platform/sync 一并触发；单人失败不影响其余人员。
      */
-    private int syncWorkers() {
-        String end = TimeUtil.date(TimeUtil.now().plusYears(1));
-        List<Map<String, Object>> workers = platformClient.queryWorkList("0", end);
+    private int syncWorkers(List<Map<String, Object>> workers) {
         if (workers.isEmpty()) {
             return 0;
         }
@@ -94,6 +98,61 @@ public class PlatformSyncService {
         return n;
     }
 
+
+    /** 用户需求①：2.4/平台侧登记后自动建档——2.5 名单中本地不存在（按证书号）的人员自动创建档案（随机初始密码） */
+    private int autoCreateWorkers(List<Map<String, Object>> workers) {
+        int created = 0;
+        for (Map<String, Object> w : workers) {
+            String cert = str(w.get("workManCertificate"));
+            String pid = str(w.get("id"));
+            if (cert == null || cert.isEmpty() || pid == null || pid.isEmpty()) {
+                continue;
+            }
+            Long dup = employeeMapper.selectCount(new LambdaQueryWrapper<Employee>()
+                    .eq(Employee::getCertificate, cert));
+            if (dup != null && dup > 0) {
+                continue;
+            }
+            Employee e = new Employee();
+            e.id = Ids.next("emp");
+            e.name = str(w.get("workManName"));
+            e.phone = str(w.get("workManPhone"));
+            e.account = e.phone;
+            e.role = "WORKER";
+            e.roleText = "维保人员";
+            e.passwordHash = encoder.encode(randomPassword());
+            e.platformId = pid;
+            e.certificate = cert;
+            e.workStartDate = millisToDate(w.get("workStartDate"));
+            e.workEndDate = millisToDate(w.get("workEndDate"));
+            e.workStat = str(w.get("workStat")).isEmpty() ? "normal" : str(w.get("workStat"));
+            e.syncStatus = "SYNCED";
+            e.enabled = true;
+            employeeMapper.insert(e);
+            created++;
+        }
+        return created;
+    }
+
+    private String millisToDate(Object millis) {
+        try {
+            return java.time.LocalDate.ofInstant(
+                    java.time.Instant.ofEpochMilli(Long.parseLong(String.valueOf(millis))),
+                    com.cqwlw.maintenance.util.TimeUtil.ZONE).toString();
+        } catch (Exception e) {
+            return "";
+        }
+    }
+
+    private String randomPassword() {
+        String alphabet = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789";
+        java.security.SecureRandom rnd = new java.security.SecureRandom();
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < 12; i++) {
+            sb.append(alphabet.charAt(rnd.nextInt(alphabet.length())));
+        }
+        return sb.toString();
+    }
     private int syncEntities() {
         int n = 0;
         Company c = companyMapper.selectList(null).stream().findFirst().orElse(null);

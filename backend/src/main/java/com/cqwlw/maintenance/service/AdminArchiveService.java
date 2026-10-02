@@ -129,6 +129,15 @@ public class AdminArchiveService {
         return list;
     }
 
+    /** 2.4 自动建档用：按证书号判重 */
+    public Long employeeCertificateExists(String certificate) {
+        if (certificate == null || certificate.isBlank()) {
+            return 1L;
+        }
+        return employeeMapper.selectCount(new LambdaQueryWrapper<Employee>()
+                .eq(Employee::getCertificate, certificate));
+    }
+
     public Map<String, Object> createEmployee(Map<String, Object> body) {
         String name = str(body, "name");
         String phone = str(body, "phone");
