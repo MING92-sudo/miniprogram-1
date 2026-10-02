@@ -10,7 +10,7 @@
 
     <el-table :data="rows" v-loading="loading" stripe>
       <el-table-column prop="elevatorName" label="电梯名称" min-width="150" show-overflow-tooltip />
-      <el-table-column prop="elevatorCode" label="电梯编号" width="130" />
+      <el-table-column prop="elevatorCode" label="平台电梯编码" width="130">      </el-table-column>
       <el-table-column prop="useUnitName" label="使用单位" min-width="150" show-overflow-tooltip />
       <el-table-column label="位置待补" width="100">
         <template #default="{ row }">
@@ -33,8 +33,8 @@
 
     <el-dialog v-model="dialog" :title="form.id ? '编辑电梯' : '新建电梯'" width="640px">
       <el-form :model="form" label-width="130px">
-<el-form-item label="电梯编号" required><el-input v-model="form.elevatorCode"
-  placeholder="不参与平台查询；填设备代码后点右侧按钮自动回填" /></el-form-item>
+<el-form-item label="平台电梯编码" required><el-input v-model="form.elevatorCode"
+  placeholder="由平台分配（2.7 查询后自动回填）；自编编号无法上报 2.6" /></el-form-item>
 <el-form-item v-if="platformHint" label=" ">
   <el-text size="small" type="success">{{ platformHint }}</el-text>
 </el-form-item>
