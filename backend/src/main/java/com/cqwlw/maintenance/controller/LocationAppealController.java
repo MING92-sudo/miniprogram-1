@@ -25,7 +25,7 @@ public class LocationAppealController {
     public ApiResponse<Map<String, Object>> submit(@PathVariable String id,
                                                    @RequestBody Map<String, Object> body,
                                                    HttpServletRequest request) {
-        return ApiResponse.ok(approvalService.submit(id, body,
-                String.valueOf(request.getAttribute(AuthInterceptor.ATTR_EMP_ID))));
+        Object attr = request.getAttribute(AuthInterceptor.ATTR_EMP_ID);
+        return ApiResponse.ok(approvalService.submit(id, body, attr == null ? null : String.valueOf(attr)));
     }
 }

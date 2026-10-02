@@ -72,7 +72,7 @@ class TwoPersonWorkRuleTest {
                 new AppProperties(),
                 currentUser);
         when(currentUser.roleOrNull()).thenReturn("WORKER");
-        when(approvalService.hasApproved(anyString())).thenReturn(false);
+        when(approvalService.hasApproved(anyString(), anyString())).thenReturn(false);
         Map<String, Object> ev = new HashMap<>();
         ev.put("lat", 29.5);
         ev.put("lng", 106.5);

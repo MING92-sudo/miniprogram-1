@@ -11,6 +11,7 @@ import com.cqwlw.maintenance.mapper.ElevatorMapper;
 import com.cqwlw.maintenance.mapper.EmployeeMapper;
 import com.cqwlw.maintenance.mapper.LocationAppealMapper;
 import com.cqwlw.maintenance.mapper.WorkOrderMapper;
+import com.cqwlw.maintenance.util.IdentityRules;
 import com.cqwlw.maintenance.util.JsonUtil;
 import com.cqwlw.maintenance.util.TimeUtil;
 import org.springframework.stereotype.Service;
@@ -46,6 +47,7 @@ public class ApprovalService {
         if (o == null) {
             throw new BizException(1404, "工单不存在");
         }
+        requireAssignee(o, employeeId);
         LocationAppeal a = new LocationAppeal();
         a.id = Ids.next("ap");
         a.workOrderId = workOrderId;
@@ -63,10 +65,33 @@ public class ApprovalService {
         return out;
     }
 
-    /** 1001 申诉闭环：存在已通过申述即视为地理围栏放行依据（WorkOrderService.checkin 调用） */
-    public boolean hasApproved(String workOrderId) {
+    /**
+     * 只有本单主维保或配合人员可提交申诉。申诉是"对本人签到超阈的说明"，
+     * 他人代提会让管理员看到不相干的姓名与距离，批准后等于替真正的作业人放行围栏。
+     */
+    private void requireAssignee(WorkOrder o, String employeeId) {
+        Employee me = IdentityRules.isBlank(employeeId) ? null : employeeMapper.selectById(employeeId);
+        if (me == null) {
+            throw new BizException(401, "登录已过期，请重新登录");
+        }
+        boolean assigned = IdentityRules.matches(me.platformId, me.name, o.workerPlatformId, o.workerName)
+                || IdentityRules.matches(me.platformId, me.name, o.assistantPlatformId, o.assistantName);
+        if (!assigned) {
+            throw new BizException(403, "该工单未指派给你，无法提交定位申诉");
+        }
+    }
+
+    /**
+     * 围栏放行只认**本人**的已通过申诉。若只按工单判定，任何一张通过的申诉
+     * 都会对该工单上的所有人生效，包括从未申述过的那个人。
+     */
+    public boolean hasApproved(String workOrderId, String employeeId) {
+        if (IdentityRules.isBlank(workOrderId) || IdentityRules.isBlank(employeeId)) {
+            return false;
+        }
         Long n = appealMapper.selectCount(new LambdaQueryWrapper<LocationAppeal>()
                 .eq(LocationAppeal::getWorkOrderId, workOrderId)
+                .eq(LocationAppeal::getEmployeeId, employeeId)
                 .eq(LocationAppeal::getStatus, "APPROVED"));
         return n != null && n > 0;
     }
@@ -118,6 +143,7 @@ public class ApprovalService {
                     extra = new LinkedHashMap<>();
                 }
                 extra.put("locationAppealApproved", true);
+                extra.put("locationAppealApprovedFor", a.employeeId == null ? "" : a.employeeId);
                 extra.put("appealId", appealId);
                 o.checkinExtraJson = JsonUtil.write(extra);
                 orderMapper.updateById(o);

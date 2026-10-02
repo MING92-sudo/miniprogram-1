@@ -20,6 +20,7 @@ import com.cqwlw.maintenance.mapper.InspectRecordMapper;
 import com.cqwlw.maintenance.mapper.MaintainRecordMapper;
 import com.cqwlw.maintenance.mapper.UseUnitMapper;
 import com.cqwlw.maintenance.mapper.WorkOrderMapper;
+import com.cqwlw.maintenance.util.IdentityRules;
 import com.cqwlw.maintenance.util.JsonUtil;
 import com.cqwlw.maintenance.util.TimeUtil;
 import org.springframework.stereotype.Service;
@@ -137,22 +138,8 @@ public class WorkOrderService {
         if (me == null) {
             return false;
         }
-        return identityMatches(me.platformId, me.name, o.workerPlatformId, o.workerName)
-                || identityMatches(me.platformId, me.name, o.assistantPlatformId, o.assistantName);
-    }
-
-    /**
-     * 人员身份比对：姓名与 platform_id 必须同时匹配，任一为空即拒绝。
-     * 严禁退化为只按姓名或只按 ID 匹配——姓名会重名，两者必须指向同一个人。
-     */
-    private static boolean identityMatches(String myPlatformId, String myName,
-                                           String orderPlatformId, String orderName) {
-        if (isBlank(myPlatformId) || isBlank(orderPlatformId)
-                || isBlank(myName) || isBlank(orderName)) {
-            return false;
-        }
-        return myPlatformId.trim().equals(orderPlatformId.trim())
-                && myName.trim().equals(orderName.trim());
+        return IdentityRules.matches(me.platformId, me.name, o.workerPlatformId, o.workerName)
+                || IdentityRules.matches(me.platformId, me.name, o.assistantPlatformId, o.assistantName);
     }
 
     /**
@@ -165,10 +152,10 @@ public class WorkOrderService {
         if (me == null) {
             return null;
         }
-        if (identityMatches(me.platformId, me.name, o.workerPlatformId, o.workerName)) {
+        if (IdentityRules.matches(me.platformId, me.name, o.workerPlatformId, o.workerName)) {
             return "PRINCIPAL";
         }
-        if (identityMatches(me.platformId, me.name, o.assistantPlatformId, o.assistantName)) {
+        if (IdentityRules.matches(me.platformId, me.name, o.assistantPlatformId, o.assistantName)) {
             return "ASSISTANT";
         }
         return null;
@@ -392,7 +379,7 @@ public class WorkOrderService {
                 str(body.get("evidenceToken")), orderId);
         Double lat = EvidenceTokenService.latOf(evidence);
         Double lng = EvidenceTokenService.lngOf(evidence);
-        boolean appealApproved = approvalService.hasApproved(orderId);
+        boolean appealApproved = approvalService.hasApproved(orderId, currentUser.requireEmployeeId());
         String geoStatus = "EVIDENCE_VERIFIED";
         // 签到时间以服务端时间为准：上报平台的 startTime 必须是服务端可举证时间，
         // 客户端 collectedAt 不可信，仅留存作离线补传对账。
@@ -445,7 +432,7 @@ public class WorkOrderService {
         Elevator el = elevatorMapper.selectById(o.elevatorId);
         Double lat = dbl(body.get("latitude"));
         Double lng = dbl(body.get("longitude"));
-        Fence fence = checkFence(orderId, el, lat, lng);
+        Fence fence = checkFence(orderId, currentUser.requireEmployeeId(), el, lat, lng);
         if (!fence.elevatorLocated) {
             // 1005 降级放行：电梯未登记坐标时无法判定围栏
             return evidenceTokenService.issue(orderId, 0d, 0d, -1, CHECKIN_DISTANCE_LIMIT_M);
@@ -474,7 +461,7 @@ public class WorkOrderService {
         Elevator el = elevatorMapper.selectById(o.elevatorId);
         Double lat = dbl(body.get("latitude"));
         Double lng = dbl(body.get("longitude"));
-        Fence fence = checkFence(orderId, el, lat, lng);
+        Fence fence = checkFence(orderId, currentUser.requireEmployeeId(), el, lat, lng);
         long dist = fence.elevatorLocated ? Math.round(fence.distance) : -1;
         return evidenceTokenService.issue(orderId, itemId,
                 lat == null ? 0d : lat, lng == null ? 0d : lng, dist,
@@ -531,17 +518,17 @@ public class WorkOrderService {
     }
 
     /**
-     * 地理围栏校验：电梯已登记坐标且客户端越界、且无已通过申诉时抛 1001。
+     * 地理围栏校验：电梯已登记坐标且客户端越界、且无**本人**已通过申诉时抛 1001。
      * 电梯未登记坐标则降级放行（1005），但不得伪装成已核验。
      */
-    private Fence checkFence(String orderId, Elevator el, Double lat, Double lng) {
+    private Fence checkFence(String orderId, String employeeId, Elevator el, Double lat, Double lng) {
         Double elLat = el == null || el.lat == null ? null : el.lat.doubleValue();
         Double elLng = el == null || el.lng == null ? null : el.lng.doubleValue();
         boolean elLocated = elLat != null && elLng != null;
         boolean clientLocated = lat != null && lng != null;
         double distance = (elLocated && clientLocated) ? distanceMeters(lat, lng, elLat, elLng) : -1;
         boolean inRange = distance >= 0 && distance <= CHECKIN_DISTANCE_LIMIT_M;
-        boolean appealApproved = approvalService.hasApproved(orderId);
+        boolean appealApproved = approvalService.hasApproved(orderId, employeeId);
         if (elLocated && !clientLocated) {
             throw geoRejected(null);
         }
@@ -913,7 +900,7 @@ public class WorkOrderService {
             Employee byId = employeeMapper.selectOne(new LambdaQueryWrapper<Employee>()
                     .eq(Employee::getPlatformId, r.workerPlatformId.trim()).last("LIMIT 1"));
             if (byId != null
-                    && identityMatches(byId.platformId, byId.name, r.workerPlatformId, r.workerName)) {
+                    && IdentityRules.matches(byId.platformId, byId.name, r.workerPlatformId, r.workerName)) {
                 principal = byId;
             }
         }
