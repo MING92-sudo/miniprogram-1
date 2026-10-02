@@ -76,4 +76,29 @@ class FileAccessTokenServiceTest {
         // 密钥缺失不得降级为默认密钥，否则签名可被伪造
         assertThrows(IllegalStateException.class, () -> new FileAccessTokenService(blank));
     }
+
+    @Test
+    void rejectsSignatureMadeWithTheBareSecret() {
+        // 密钥必须带域隔离串派生：若直接用 jwtSecret 签名，则同一密钥下签出的
+        // 取证令牌之类签名可能被当成本服务的签名使用
+        long exp = System.currentTimeMillis() / 1000 + 3600;
+        String bare = exp + "." + hmacHex("unit-test-secret-0123456789abcdef", "file_1:" + exp);
+        assertFalse(token.verify("file_1", bare));
+    }
+
+    private static String hmacHex(String secret, String payload) {
+        try {
+            javax.crypto.Mac mac = javax.crypto.Mac.getInstance("HmacSHA256");
+            mac.init(new javax.crypto.spec.SecretKeySpec(
+                    secret.getBytes(java.nio.charset.StandardCharsets.UTF_8), "HmacSHA256"));
+            byte[] out = mac.doFinal(payload.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            StringBuilder sb = new StringBuilder(out.length * 2);
+            for (byte b : out) {
+                sb.append(Character.forDigit((b >> 4) & 0xF, 16)).append(Character.forDigit(b & 0xF, 16));
+            }
+            return sb.toString();
+        } catch (Exception e) {
+            throw new IllegalStateException(e);
+        }
+    }
 }

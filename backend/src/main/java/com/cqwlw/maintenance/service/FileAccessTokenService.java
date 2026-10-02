@@ -28,6 +28,12 @@ public class FileAccessTokenService {
     /** 签名有效期（秒）；读时重签，故可取较短值 */
     static final long TTL_SECONDS = 3600;
 
+    /**
+     * 密钥域隔离串。与取证令牌各自从 jwtSecret 派生独立密钥，
+     * 否则同一密钥下的签名可跨用途互相伪造。
+     */
+    private static final String CONTEXT = "|file-access-v1";
+
     private final byte[] key;
 
     public FileAccessTokenService(AppProperties props) {
@@ -36,7 +42,7 @@ public class FileAccessTokenService {
             // 与 JwtService 同口径：密钥缺失宁可启动失败，也不用默认值让签名可被伪造
             throw new IllegalStateException("文件访问签名密钥缺失：请配置 JWT_SECRET");
         }
-        this.key = secret.getBytes(StandardCharsets.UTF_8);
+        this.key = (secret + CONTEXT).getBytes(StandardCharsets.UTF_8);
     }
 
     public String sign(String fileId) {
