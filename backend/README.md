@@ -7,7 +7,7 @@ P3（V1.8）：签退后自动转发 2.6（失败不自动重试）+ `reg_upload
 2.3/2.4 登记端点、2.5 人员同步、2.8 存量推送（开关默认关）。
 **不含**：Vue3 管理端 / STS 直传 / Redis（后置）。
 
-## 当前状态（2026-10-01 与代码核对）
+## 当前状态（2026-10-02 与代码核对）
 
 | 组件 | 状态 |
 |---|---|
@@ -41,7 +41,7 @@ mvn spring-boot:run               # 默认 8080；首次启动 Flyway 建表 + �
 DB_HOST=你的云端MySQL地址
 DB_PORT=3306
 DB_NAME=maintenance
-DB_USER=xxx
+DB_USERNAME=xxx
 DB_PASSWORD=xxx
 ```
 
@@ -53,7 +53,7 @@ DB_PASSWORD=xxx
 |---|---|
 | `REG_*`（auth-login-url/api-base-url/username/key/appcode/secret） | 平台凭证，P2 转发必需 |
 | `REG_LEGACY_UPLOAD_ENABLED` | 2.8 存量推送开关，默认 false（平台关闭存量接口后置 false） |
-| `DB_HOST/DB_PORT/DB_NAME/DB_USER/DB_PASSWORD` | MySQL 连接 |
+| `DB_HOST/DB_PORT/DB_NAME/DB_USERNAME/DB_PASSWORD` | MySQL 连接（`DB_USER` 为兼容旧名的回落，新部署一律用 `DB_USERNAME`） |
 | `JWT_SECRET` | 自建 JWT 签名密钥（生产必须强随机） |
 | `WX_APPID` / `WX_APPSECRET` | 微信小程序凭证（**生产必填**）：`/auth/bind-wechat`、`/auth/wx-login` 用 `wx.login` 的 code 调 `jscode2session` 换真实 openid。openid 无其他来源（`DEV_OPENID` / `X-WX-OPENID` 兜底已按 P0 修复移除） |
 | `COS_REGION/COS_BUCKET` | 对象存储桶名/地域（application.yml 已带云托管托管桶默认值，不配则本地磁盘回退） |
@@ -67,6 +67,8 @@ DB_PASSWORD=xxx
 ```bash
 mvn test   # token 中控 / 401 重试 / 表单编码 / 派单 6 台同日一次性 09:00 / 检查项模板 / 2.6 上报与重报 / 2.8 开关 / PDF 导出 / 微信 code→openid 与绑定防串号
 ```
+
+`ApplicationBootDbTest`（Spring 上下文 + Flyway V1—V7 + `@Transactional` 代理）由环境变量 `P0_TEST_MYSQL_URL/USER/PASSWORD` 门控，**缺任一项整类静默跳过**（表现为"测试全绿"但上下文从未加载过）。本地验证迁移时须显式提供，CI 已在 `.github/workflows/backend-build.yml` 配好这三个变量。
 
 ## 微信云托管部署
 
