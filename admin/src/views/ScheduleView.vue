@@ -104,7 +104,7 @@
                        :disabled="!c.assignable" />
           </el-select>
         </el-form-item>
-        <el-form-item label="配合人员">
+        <el-form-item label="维保人员2">
           <el-select v-model="assignForm.assistantId" filterable clearable style="width: 100%">
             <el-option v-for="c in candidates" :key="'a' + c.id" :value="c.id"
                        :label="`${c.name}（在办 ${c.openOrders}，${c.assignable ? '可派' : '不可派'}）`"

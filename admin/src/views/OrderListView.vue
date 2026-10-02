@@ -25,8 +25,8 @@
           <el-tag :type="statusType(row.status)" size="small">{{ statusText(row.status) }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="workerName" label="维保人员" width="100" />
-      <el-table-column prop="assistantName" label="配合人员" width="100" />
+      <el-table-column prop="workerName" label="维保人员1" width="100" />
+      <el-table-column prop="assistantName" label="维保人员2" width="100" />
       <el-table-column label="上报" width="100">
         <template #default="{ row }">
           <span v-if="row.originalRecordId">{{ row.reportStatus === 'FAILED' ? '失败' : row.reportStatus === 'REPORTED' ? '已上报' : '待上报' }}</span>

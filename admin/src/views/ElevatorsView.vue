@@ -3,12 +3,15 @@
     <div class="head">
       <span>电梯档案（{{ rows.length }}）</span>
       <div>
+        <el-button size="small" type="warning" :disabled="!auth.canWrite || !selection.length"
+                   @click="openBatch">批量分配维保人员</el-button>
         <el-button size="small" :loading="syncing" :disabled="!auth.canWrite" @click="onSync">平台回填（2.7）</el-button>
         <el-button type="primary" size="small" :disabled="!auth.canWrite" @click="openCreate">新建电梯</el-button>
       </div>
     </div>
 
-    <el-table :data="rows" v-loading="loading" stripe>
+    <el-table :data="rows" v-loading="loading" stripe @selection-change="onSelect">
+      <el-table-column type="selection" width="42" />
       <el-table-column prop="elevatorName" label="电梯名称" min-width="150" show-overflow-tooltip />
       <el-table-column prop="elevatorCode" label="平台电梯编码" width="130">      </el-table-column>
       <el-table-column prop="useUnitName" label="使用单位" min-width="150" show-overflow-tooltip />
@@ -31,6 +34,44 @@
       </el-table-column>
     </el-table>
 
+    <el-dialog v-model="batchDialog" title="批量分配维保人员" width="480px">
+      <el-form label-width="110px">
+        <el-form-item label="已选电梯"><span>{{ selection.length }} 台</span></el-form-item>
+        <el-form-item label="维保人员1">
+          <el-select v-model="batch.workerEmployeeId" filterable style="width: 100%">
+            <el-option v-for="e in staff" :key="e.id" :value="e.id" :label="e.name + '（' + e.phone + '）'" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="维保人员2">
+          <el-select v-model="batch.assistantEmployeeId" filterable clearable style="width: 100%">
+            <el-option v-for="e in staff" :key="e.id" :value="e.id" :label="e.name + '（' + e.phone + '）'" />
+          </el-select>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="batchDialog = false">取消</el-button>
+        <el-button type="primary" :loading="saving" @click="saveBatch">确认分配</el-button>
+      </template>
+    </el-dialog>
+    <el-dialog v-model="batchDialog" title="批量分配维保人员" width="480px">
+      <el-form label-width="110px">
+        <el-form-item label="已选电梯"><span>{{ selection.length }} 台</span></el-form-item>
+        <el-form-item label="维保人员1">
+          <el-select v-model="batch.workerEmployeeId" filterable style="width: 100%">
+            <el-option v-for="e in staff" :key="e.id" :value="e.id" :label="e.name + '（' + e.phone + '）'" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="维保人员2">
+          <el-select v-model="batch.assistantEmployeeId" filterable clearable style="width: 100%">
+            <el-option v-for="e in staff" :key="e.id" :value="e.id" :label="e.name + '（' + e.phone + '）'" />
+          </el-select>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="batchDialog = false">取消</el-button>
+        <el-button type="primary" :loading="saving" @click="saveBatch">确认分配</el-button>
+      </template>
+    </el-dialog>
     <el-dialog v-model="dialog" :title="form.id ? '编辑电梯' : '新建电梯'" width="640px">
       <el-form :model="form" label-width="130px">
 <el-form-item label="平台电梯编码" required><el-input v-model="form.elevatorCode"
@@ -125,6 +166,9 @@ const querying = ref(false)
 const staff = ref([])
 const workerEmployeeId = ref('')
 const assistantEmployeeId = ref('')
+const selection = ref([])
+const batchDialog = ref(false)
+const batch = ref({ workerEmployeeId: '', assistantEmployeeId: '' })
 const platformHint = ref('')
 const categories = ['曳引与强制驱动电梯', '液压驱动电梯', '杂物电梯', '自动扶梯与自动人行道']
 
@@ -224,6 +268,28 @@ function onAssistantChange(id) {
   const e = staff.value.find((x) => x.id === id)
   form.assistantName = e ? e.name : ''
   form.assistantPlatformId = e ? e.platformId : ''
+}
+function onSelect(rows) { selection.value = rows }
+function openBatch() {
+  batch.value = { workerEmployeeId: '', assistantEmployeeId: '' }
+  batchDialog.value = true
+}
+async function saveBatch() {
+  if (!batch.value.workerEmployeeId) { ok('请选择维保人员1'); return }
+  const w = staff.value.find((x) => x.id === batch.value.workerEmployeeId)
+  const a = staff.value.find((x) => x.id === batch.value.assistantEmployeeId)
+  saving.value = true
+  try {
+    for (const row of selection.value) {
+      await archiveApi.updateElevator(row.id, {
+        workerName: w ? w.name : '', workerPhone: w ? w.phone : '', workerPlatformId: w ? w.platformId : '',
+        assistantName: a ? a.name : '', assistantPlatformId: a ? a.platformId : ''
+      })
+    }
+    batchDialog.value = false
+    ok(`已为 ${selection.value.length} 台电梯批量分配维保人员`)
+    await load()
+  } catch (e) { showErr(e) } finally { saving.value = false }
 }
 function syncEmployeeIds() {
   workerEmployeeId.value = (staff.value.find((x) => x.name === form.workerName) || {}).id || ''

@@ -10,8 +10,14 @@
       <el-table-column prop="phone" label="手机号" width="130" />
       <el-table-column prop="account" label="账号" width="130" />
       <el-table-column prop="roleText" label="角色" width="140" />
-      <el-table-column label="班组" width="120">
-        <template #default="{ row }">{{ row.groupName || '—' }}</template>
+      <el-table-column label="班组（可直接调度）" width="170">
+        <template #default="{ row }">
+          <el-select v-model="row.groupName" size="small" filterable allow-create default-first-option
+                     :disabled="!auth.canWrite" placeholder="—" @change="saveGroup(row)"
+                     style="width: 100%">
+            <el-option v-for="g in groupOptions" :key="g" :label="g" :value="g" />
+          </el-select>
+        </template>
       </el-table-column>
       <el-table-column prop="certificate" label="证书编号" width="140">
         <template #default="{ row }">{{ row.certificate || '—' }}</template>
@@ -92,6 +98,20 @@ const ROLE_PERM = {
   SYS_ADMIN: '账号启停/重置密码/审计日志（系统级）'
 }
 const rolePerm = computed(() => ROLE_PERM[form.role] || '')
+const groupOptions = computed(() => {
+  const set = new Set(['维保一组', '维保二组'])
+  rows.value.forEach((r) => { if (r.groupName) set.add(r.groupName) })
+  return [...set]
+})
+async function saveGroup(row) {
+  try {
+    await archiveApi.updateEmployee(row.id, { groupName: row.groupName || '' })
+    ok('班组已更新：' + (row.groupName || '（清空）'))
+  } catch (e) {
+    showErr(e)
+    await load()
+  }
+}
 
 const empty = { id: '', name: '', phone: '', account: '', role: 'WORKER', certificate: '', groupName: '',
   workStartDate: '', workEndDate: '', password: '', platformId: '', syncStatus: '' }

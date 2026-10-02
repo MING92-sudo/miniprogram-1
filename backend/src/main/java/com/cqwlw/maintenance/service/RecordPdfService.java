@@ -92,9 +92,9 @@ public class RecordPdfService {
             info.addCell(cell(fmt(r.checkinTime), value));
             info.addCell(cell("签退时间", label));
             info.addCell(cell(fmt(r.checkoutTime), value));
-            info.addCell(cell("维保人员", label));
+            info.addCell(cell("维保人员1", label));
             info.addCell(cell(nz(r.workerName), value));
-            info.addCell(cell("配合人员", label));
+            info.addCell(cell("维保人员2", label));
             info.addCell(cell(nz(r.assistantName), value));
             info.addCell(cell("使用单位负责人", label));
             info.addCell(cell(uu == null ? "" : nz(uu.unitPrincipal), value));
@@ -150,7 +150,7 @@ public class RecordPdfService {
             signs.setWidthPercentage(100);
             signs.addCell(signCell("维保人员签字（" + nz(r.workerName) + "）",
                     r.workerSignatureUrl, small));
-            signs.addCell(signCell("配合人员签字（" + nz(r.assistantName) + "）",
+            signs.addCell(signCell("维保人员2签字（" + nz(r.assistantName) + "）",
                     r.assistantSignatureUrl, small));
             signs.addCell(signCell("使用单位安全管理员签字", r.signatureUrl, small));
             doc.add(signs);

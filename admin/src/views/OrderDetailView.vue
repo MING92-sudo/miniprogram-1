@@ -18,8 +18,8 @@
       <el-descriptions-item label="类别">{{ order.workType || '-' }}</el-descriptions-item>
       <el-descriptions-item label="计划时间">{{ order.planTime || '-' }}</el-descriptions-item>
       <el-descriptions-item label="状态">{{ order.status || '-' }}</el-descriptions-item>
-      <el-descriptions-item label="维保人员">{{ order.workerName || '-' }}</el-descriptions-item>
-      <el-descriptions-item label="配合人员">{{ order.assistantName || '单人作业' }}</el-descriptions-item>
+      <el-descriptions-item label="维保人员1">{{ order.workerName || '-' }}</el-descriptions-item>
+      <el-descriptions-item label="维保人员2">{{ order.assistantName || '单人作业' }}</el-descriptions-item>
       <el-descriptions-item label="签到时间">{{ order.checkinTime || '未签到' }}</el-descriptions-item>
       <el-descriptions-item label="签退时间">{{ order.checkoutTime || '未签退' }}</el-descriptions-item>
       <el-descriptions-item label="作业时长">{{ order.duration || '-' }}</el-descriptions-item>
