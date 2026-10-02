@@ -4,7 +4,7 @@
 .env.example[FC8T]: F:平台凭证与运行参数模板，只列变量名与格式说明，不含真实值 | R:- | A:复制为 .env 后由后端 Spring 绑定，凭证类留空即视为未配置 | S:REG_SECRET 在平台通知中可能拼作 scret，绑定前须核对；云托管托管桶走内网临时凭证，缺 COS_SECRET_ID/KEY 属正常配置
 .eslintrc.js[XQ6T]: F:小程序侧 ESLint 根配置，ES2018 加 CommonJS | R:- | A:npm run lint 入口，admin/** 被 ignorePatterns 排除，改由 admin/.eslintrc.cjs 单独 lint | S:sourceType 必须为 script，改成 module 会让全部 require/module.exports 报错
 .gitattributes[OV6T]: F:强制所有文本以 LF 检出，统一跨平台字节 | R:- | A:* text=auto eol=lf | S:缺此文件时 Windows autocrlf 会把整棵树判为字节变更，令内容哈希与认知基线全量失效
-.gitignore[OS8T]: F:排除依赖、构建产物、联调 trace 与全部凭证类文件 | R:- | A:唯一白名单 !.env.example，保证模板入库而 .env 不入库 | S:credential/secret/token/reg-*.json 与 *.har 一律排除，平台联调报文含未脱敏手机号；opencode.json 为本机 agent 绑定配置也不入库
+.gitignore[OS8T]: F:排除依赖、构建产物、联调 trace、测试 PDF、会话续跑产物与全部凭证类文件 | R:- | A:唯一白名单 !.env.example，保证模板入库而 .env 不入库 | S:credential/secret/token/reg-*.json 与 *.har 一律排除，平台联调报文含未脱敏手机号；scripts/tmp/ 曾把证书与合同测试 PDF 误入库，须排除；opencode.json 与 AGENTS.md.backup.* 是本机 agent 产物
 AGENTS.md[SG9S]: F:AI 与人工共用的项目规则：分层、编码约定、安全红线、平台实测事实、Git 与文档同步 | R:code:mock/server.js,code:docs/04-接口文档.md,code:docs/07-平台联调实测记录.md | A:约束页面只能经 services/ 调 utils/request，接口变更须三处同步，提交前过 npm run lint | S:实测记录与 V1.5 规范冲突时以 docs/07 为准；2.1 登录实为 GET 加查询串，2.6 的 workMan2Id 必填；originalRecordId 幂等性未获平台书面确认前禁止开启自动重试
 Dockerfile[OV7T]: F:云托管流水线构建入口，多阶段产出后端镜像并监听 80 | R:code:backend/pom.xml,code:backend/settings.xml | A:云托管以仓库根为构建上下文，实际后端源码在 backend/ | S:只 COPY backend/src 与 pom/settings.xml，容器内固定 SERVER_PORT=80 并装 tzdata 锁 Asia/Shanghai
 LICENSE[FG3T]: F:MIT 许可证文本，版权归 Tencent | R:- | A:- | S:-
@@ -19,7 +19,7 @@ project.config.json[FV5T]: F:开发者工具工程配置：编译类型、基础
 sitemap.json[FC2T]: F:小程序搜索索引规则：允许全部页面被微信收录 | R:- | A:- | S:-
 
 ===C:/Users/18223/Desktop/新建文件夹/.github/workflows/===
-backend-build.yml[OQ7T]: F:PR 与 master 推送时跑后端单测，MySQL 8.0 服务容器加 JDK 17 | R:code:backend/pom.xml,code:backend/settings.xml | A:仅覆盖 backend/，小程序与管理端不在此流水线 | S:CI 用 APP_JWT_SECRET/APP_FILE_ROOT/DB_SEED_DEMO，与 .env 的 JWT_SECRET/FILE_STORAGE_DIR/SEED_DEMO 不同名，改配置勿混用
+backend-build.yml[OQ7T]: F:PR 与 master 推送时跑后端单测，MySQL 8.0 服务容器加 JDK 17 | R:code:backend/pom.xml,code:backend/settings.xml,code:backend/src/test/java/com/cqwlw/maintenance/ApplicationBootDbTest.java | A:仅覆盖 backend/，小程序与管理端不在此流水线；env 变量名与 application.yml 读取名逐一对齐 | S:jwt-secret 无回落占位，APP_JWT_SECRET 这类旧名会使密钥为空而启动失败；P0_TEST_MYSQL_URL/USER/PASSWORD 是 ApplicationBootDbTest 的唯一开关，删掉它们 CI 退化为纯单测且仍然全绿
 
 ===C:/Users/18223/Desktop/新建文件夹/admin/===
 .env.example[FC5T]: F:管理端唯一环境变量模板，只含 VITE_API_BASE | R:- | A:开发默认 /api 走 Vite 代理到 localhost:8080，生产改同域反代 | S:平台凭证 REG_* 严禁进入管理端配置，管理端不提供凭证配置界面
@@ -99,7 +99,7 @@ UsersView.vue[EI6S]: F:SYS_ADMIN 专属的账号启停与密码重置 | R:code:a
 .dockerignore[OC2T]: F:排除构建产物与 IDE 文件，缩小 Docker 构建上下文 | R:- | A:target/、.git/、.idea/、*.iml、README.md、mvnw.cmd | S:只 COPY src 与 pom 及 settings.xml，文档与 mvnw 派不上用场
 .gitignore[OC2T]: F:排除编译产物、日志、IDE 配置与本地文件存储回退目录 | R:- | A:target/、*.class、*.log、.idea/、*.iml、.vscode/、data/ | S:data/ 是未配 COS 时的本地照片与签名回退目录，只用于开发不可入库
 Dockerfile[OV6T]: F:backend 独立多阶段镜像，Maven 构建加 JRE 17 alpine 运行 | R:code:backend/pom.xml,code:backend/settings.xml | A:容器内 SERVER_PORT=80，EXPOSE 80，CMD 单行 java -jar | S:与根 Dockerfile 并存，云托管以 backend/ 为构建目录时用这份；CMD 多行只有最后一行有效故写成 exec 形式单行
-README.md[SG7T]: F:后端组件现状表、本地运行与环境变量清单、测试与云托管部署说明 | R:code:backend/pom.xml,code:AGENTS.md | A:面向后端维护者的独立说明，含 41 条业务路由与平台链路落地状态 | S:Redis 与 STS 直传明确后置；2.6 失败不自动重试；WX_APPSECRET 是 openid 唯一来源，DEV_OPENID 与 X-WX-OPENID 兜底已移除
+README.md[SG7T]: F:后端组件现状表、本地运行与环境变量清单、测试与云托管部署说明 | R:code:backend/pom.xml,code:AGENTS.md | A:面向后端维护者的独立说明，含 41 条业务路由与平台链路落地状态；数据库用户名正式名为 DB_USERNAME，DB_USER 仅作兼容回落 | S:Redis 与 STS 直传后置；2.6 失败不自动重试；openid 只来自 code，DEV_OPENID 与 X-WX-OPENID 兜底已移除；ApplicationBootDbTest 由 P0_TEST_MYSQL_* 门控，缺失即整类静默跳过
 container.config.json[FO4T]: F:微信云托管服务创建的初始参数模板，含端口、弹性伸缩与资源规格 | R:code:backend/Dockerfile | A:containerPort 80，minNum 0 maxNum 5，cpu 1 mem 2，日志走 stdout | S:envParams 刻意留空，REG_* 凭证只能在控制台环境变量配置；服务创建后以控制台为准
 docker-compose.yml[OC3T]: F:本地开发用 MySQL 8 单容器编排，字符集与云托管版本对齐 | R:code:backend/pom.xml | A:mysql:8.0，端口 3306，库名 maintenance，root 口令 root | S:强制 utf8mb4 与 unicode_ci，与云托管一致否则迁移后 collation 不符
 pom.xml[FP7S]: F:Maven 构建描述，Spring Boot 3.3.4 父 POM 加 MyBatis-Plus、Flyway、jjwt、COS、OpenPDF 等依赖 | R:code:backend/settings.xml | A:Java 17，产出 maintenance-backend 可执行 jar，打包插件为 spring-boot-maven-plugin | S:只引入 spring-security-crypto 做 BCrypt，不引入完整 Security 过滤器链；OpenPDF 需配 openpdf-fonts-extra 才有中文 CID 字体
@@ -299,7 +299,7 @@ index.js[FC6S]: F:全局枚举与错误码字典，页面文案统一从此取 |
 01-需求文档.md[SB8L]: F:需求基准文档，V2.10 已与 V1.5 规范和 TSG T5002 原件逐字复核 | R:code:docs/07-平台联调实测记录.md,code:constants/index.js | A:含 12 条待平台确认清单与实现状态对照 | S:originalRecordId 幂等性是唯一最高风险，未书面确认前 2.6 按不自动重试实现；文档明示 V1.5 与实测冲突时以 07 实测记录为准
 02-技术架构文档.md[SB8L]: F:技术架构蓝图与当前实际形态对照 | R:code:docs/04-接口文档.md,code:backend/src/main/resources/application.yml | A:第一期为模块化单体，监管适配层以独立包隔离 | S:V1.3 起追加 P2 落地栈章节，蓝图不变而实现已换成 MyBatis-Plus 加 Flyway；Redis 与 STS 直传为后置项
 03-UI设计文档.md[SB7M]: F:小程序与管理端 UI 设计规范、页面清单与角色矩阵 | R:code:app.json,code:pages/order/checkin.js | A:小程序 27 页，tabBar 四个 | S:V1.3 与双人作业规则同步：签到页新增等待配合人员态且未齐不跳作业页，否则必然撞服务端 1003；使用单位确认端由三页收敛为单页凭 token 免登录
-04-接口文档.md[SB9L]: F:接口契约权威文档，A 部分为内部 API、B 部分为平台 V1.5 对接实测结论 | R:code:mock/server.js,code:backend/src/main/java/com/cqwlw/maintenance/service/PlatformClient.java | A:A.0.1 的 41 条路由无 api/v1 前缀且与后端实现完全一致 | S:修订记录逐条登记破坏性变更即取证令牌、派单触发时机、归属校验、姓名匹配禁令与文件访问签名，A.10.x 小节是缺陷修复的权威落点；B 部分以实测覆盖规范原文
+04-接口文档.md[SB9L]: F:接口契约权威文档，A 部分为内部 API、B 部分为平台 V1.5 对接实测结论 | R:code:mock/server.js,code:backend/src/main/java/com/cqwlw/maintenance/service/PlatformClient.java | A:A.0.1 的 41 条路由无 api/v1 前缀且与后端实现完全一致 | S:修订记录逐条登记破坏性变更即取证令牌、派单触发时机、归属校验、姓名匹配禁令与文件访问签名，A.10.x 小节是缺陷修复的权威落点；B 部分以实测覆盖规范原文；末尾「实现要点」的免鉴权白名单须与 A.0.1 同步，已删除的骨架示例接口不得再列入
 05-测试与验收方案.md[SB7M]: F:分层测试策略、单测重点清单与验收口径 | R:code:docs/08-项目审查与开发计划.md | A:五层测试，上报适配层覆盖率要求高于常规业务代码 | S:明确要求断言确认终态不得有任何 HTTP 调用，防止日后顺手加一次上报；消防防爆电梯缺模板须抛 1006 而禁止用标准附件
 06-平台接口确认清单.md[SB8L]: F:致平台方的 12 项阻塞问题清单与历轮实测答复记录 | R:code:docs/07-平台联调实测记录.md,code:docs/01-需求文档.md | A:每项含原文依据、我方现状风险与期望答复 | S:实测结论以第五至第七轮更新块追加而不删改原条目；幂等性未获书面确认期间自动重试开关保持关闭
 06b-平台对接沟通话术.md[SB6M]: F:与平台对接人的可直接复制话术，含紧急短消息版与完整版 | R:code:docs/06-平台接口确认清单.md | A:纯文本符号不用 markdown 表格因微信不渲染 | S:本文为 2026-09-28 与 29 阻塞期的历史存档，所述登录 500 与业务接口 404 均已实测解决，当前唯一待答复项是幂等性书面确认
@@ -308,7 +308,7 @@ index.js[FC6S]: F:全局枚举与错误码字典，页面文案统一从此取 |
 08-项目审查与开发计划.md[SB8S]: F:项目现状审查与分阶段开发计划，含 P0 至 P5 与逐版本修订记录 | R:code:docs/04-接口文档.md,code:AGENTS.md | A:修订记录是当前状态的唯一权威来源 | S:第一章正文为 V1.0 快照已过时，其中后端为空壳的结论不再成立，改代码前须以修订记录与 docs/04 为准
 09-管理端设计.md[SB7S]: F:Web 管理端设计与分期落地记录，含角色矩阵与不做清单 | R:code:admin/src/router/index.js,code:docs/10-管理端验收清单.md | A:一期六模块与二期七模块已全量落地 | S:不做清单为红线：不提供平台凭证配置界面、不提供批量自动重试入口、重报只能逐条人工触发
 10-管理端验收清单.md[SB7M]: F:管理端人工验收清单，角色矩阵回归、九大模块逐项与红线自查 | R:code:docs/05-测试与验收方案.md,code:docs/09-管理端设计.md | A:角色矩阵七项为先验项，任一不过即阻塞后续 | S:任何可能导致监管平台出现错误或虚假数据的缺陷一律定为 Blocker，含重报误触发与日志明文泄露
-11-云托管部署手册.md[SB7S]: F:微信云托管部署手册，后端容器、管理端静态托管与云 MySQL 三单元 | R:code:backend/src/main/resources/application.example.env,code:backend/src/main/resources/application.yml | A:表结构由 Flyway 自动执行 V1 至 V6 迁移 | S:云端为云开发 MySQL 5.7 不可自助升级，故 V2 的 JSON 列已改 LONGTEXT；删库排障后必须重建同名空库否则容器启动失败；凭证只允许进控制台环境变量
+11-云托管部署手册.md[SB7S]: F:微信云托管部署手册，后端容器、管理端静态托管与云 MySQL 三单元 | R:code:backend/src/main/resources/application.example.env,code:backend/src/main/resources/application.yml | A:表结构由 Flyway 自动执行 V1 至 V7 迁移，部署后须逐条核对 flyway_schema_history；数据库用户名填 DB_USERNAME | S:云端为云开发 MySQL 5.7 不可自助升级，故 V2 的 JSON 列已改 LONGTEXT；删库排障后必须重建同名空库否则容器启动失败；凭证只允许进控制台环境变量
 
 ===C:/Users/18223/Desktop/新建文件夹/mock/===
 checklist-template.js[RB7L]: F:TSG T5002 附件 A 至 D 共 257 行检查项种子，mock 侧模板数据源 | R:code:backend/src/main/resources/checklist-template.json,code:mock/data.js | A:行结构为序号、名称、要求、判定方式四元组，名称与要求为原文逐字 | S:关键项由 autoKey 依注 A-2 从名称与要求两列同时扫描试验测试校验检测四关键词自动判定；累加式约定为 A-1 半月 31 项、年度累计 76 项

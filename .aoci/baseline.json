@@ -1,7 +1,7 @@
 {
   "version": 1,
   "created_at": "2026-10-01T20:04:19Z",
-  "updated_at": "2026-10-01T21:47:19Z",
+  "updated_at": "2026-10-02T05:44:51Z",
   "files": {
     ".env.example": {
       "role": "index",
@@ -23,15 +23,15 @@
     },
     ".github/workflows/backend-build.yml": {
       "role": "index",
-      "sha256": "e77cb481fb8e7645c75eaf53353826ecbd060e7c88306e8af935e3ed7b9ec906",
-      "size": 1048,
-      "normalized_sha256": "853e5507bb3c2a22043820b4773d69553d455d6ef603e89f48bc47f17997700d"
+      "sha256": "aa171e1660c04a0df444b6510e269bf9860970a737a84bd068880ea22e519e80",
+      "size": 1492,
+      "normalized_sha256": "e69bb53633b486676d79ffb651e8cc3aab1bfb62a1e77b33a29f7c5f261acac5"
     },
     ".gitignore": {
       "role": "index",
-      "sha256": "86aa926be9107315b273ab332b9287f8c8f355177380dc8a74469e9c95dd763c",
-      "size": 1152,
-      "normalized_sha256": "e86f8e6fa3a16ff45a04bf519465abfbb8b51e18069c8855b7b39ce43d8c5d63"
+      "sha256": "e59b949ee9cc43eeb9a81a4f72d0dedbb0c4cd7ad80d4aaf7b9a8bf35dd539f6",
+      "size": 1255,
+      "normalized_sha256": "8cb7fc9a0c304097cd9017f41774616321b61e92aa58ad61c3a8f64f3c58620c"
     },
     "AGENTS.md": {
       "role": "index",
@@ -407,9 +407,9 @@
     },
     "aoci.code.txt": {
       "role": "index",
-      "sha256": "13e7cde488b4b982ec5ba409b274b70a27195385ee5a98e23669879cbb9ea2e7",
-      "size": 134400,
-      "normalized_sha256": "13e7cde488b4b982ec5ba409b274b70a27195385ee5a98e23669879cbb9ea2e7"
+      "sha256": "e8fee681a9698f6561bc0be272929b2a0d16bdd6064545a284714409c75e80cc",
+      "size": 135059,
+      "normalized_sha256": "e8fee681a9698f6561bc0be272929b2a0d16bdd6064545a284714409c75e80cc"
     },
     "aoci.meta.txt": {
       "role": "index",
@@ -461,9 +461,9 @@
     },
     "backend/README.md": {
       "role": "index",
-      "sha256": "44d733be0734359545372030653219efa68834be22909151b0bce8a0c23792dc",
-      "size": 4719,
-      "normalized_sha256": "6825b48432602442fc1ff8a5c3f9347ef848178285d81702f3a331c45c044b3e"
+      "sha256": "af6bebc4d09254e19adf031abcb9afcefd18d1c3c413d589e6bf7a070026a057",
+      "size": 5157,
+      "normalized_sha256": "41935baa0999c94f58c7e485fba8b4a6f3b78f645cf0f5bf31e9cebd3161c160"
     },
     "backend/container.config.json": {
       "role": "index",
@@ -1481,9 +1481,9 @@
     },
     "docs/04-接口文档.md": {
       "role": "index",
-      "sha256": "2f530a28961cdd2285a0d4d5a029436879c30f0fa5da2946f7c268f7380567e5",
-      "size": 120975,
-      "normalized_sha256": "2f530a28961cdd2285a0d4d5a029436879c30f0fa5da2946f7c268f7380567e5"
+      "sha256": "412770332cbfabae42e19012860081a72eb09938ce6f1c52ad3ce6ab5052f6fa",
+      "size": 121394,
+      "normalized_sha256": "412770332cbfabae42e19012860081a72eb09938ce6f1c52ad3ce6ab5052f6fa"
     },
     "docs/05-测试与验收方案.md": {
       "role": "index",
@@ -1535,9 +1535,9 @@
     },
     "docs/11-云托管部署手册.md": {
       "role": "index",
-      "sha256": "c1d5cb1f54c0c2c7400d30109d189d0797e6baa34e57dfe7f256a45c5653144f",
-      "size": 8092,
-      "normalized_sha256": "c1d5cb1f54c0c2c7400d30109d189d0797e6baa34e57dfe7f256a45c5653144f"
+      "sha256": "7aa5d1091b51b56f3c091abf1aed1bd6d4b06e80e1d9cd31f0e6d01a843dae9a",
+      "size": 8800,
+      "normalized_sha256": "7aa5d1091b51b56f3c091abf1aed1bd6d4b06e80e1d9cd31f0e6d01a843dae9a"
     },
     "mock/checklist-template.js": {
       "role": "index",
