@@ -83,7 +83,7 @@ public class UnitRecordService {
         m.put("itemTotal", items == null ? 0 : items.size());
         m.put("photoCount", photos.size());
         m.put("satisfaction", r.satisfaction);
-        m.put("signatureUrl", WorkOrderService.nz(r.signatureUrl));
+        m.put("signatureUrl", fileStorageService.resolveStoredUrl(r.signatureUrl));
         return m;
     }
 
@@ -119,6 +119,14 @@ public class UnitRecordService {
         return url;
     }
 
+    /** 历史落库 URL 读时补签（改动前记录的照片/签名 URL 未带 ?s= 会 403） */
+    private List<String> resolveStoredUrls(List<String> urls) {
+        if (urls == null) {
+            return List.of();
+        }
+        return urls.stream().map(fileStorageService::resolveStoredUrl).collect(Collectors.toList());
+    }
+
     private static int intOf(Object o) {
         if (o instanceof Number) {
             return ((Number) o).intValue();
@@ -145,9 +153,9 @@ public class UnitRecordService {
         m.put("checkoutTime", TimeUtil.format(r.checkoutTime));
         m.put("duration", r.duration);
         m.put("items", r.itemsJson == null ? List.of() : JsonUtil.readList(r.itemsJson));
-        m.put("photos", JsonUtil.readStringList(r.photosJson));
-        m.put("workerSignatureUrl", r.workerSignatureUrl);
-        m.put("assistantSignatureUrl", r.assistantSignatureUrl);
+        m.put("photos", resolveStoredUrls(JsonUtil.readStringList(r.photosJson)));
+        m.put("workerSignatureUrl", fileStorageService.resolveStoredUrl(r.workerSignatureUrl));
+        m.put("assistantSignatureUrl", fileStorageService.resolveStoredUrl(r.assistantSignatureUrl));
         m.put("problemCodes", JsonUtil.readStringList(r.problemCodesJson));
         m.put("originalRecordId", r.originalRecordId);
         m.put("reportStatus", r.reportStatus);
@@ -157,7 +165,7 @@ public class UnitRecordService {
         m.put("confirmStatus", r.confirmStatus);
         m.put("satisfaction", r.satisfaction);
         m.put("signatureFileId", r.signatureFileId);
-        m.put("signatureUrl", r.signatureUrl);
+        m.put("signatureUrl", fileStorageService.resolveStoredUrl(r.signatureUrl));
         m.put("shareToken", r.shareToken);
         m.put("reportPayload", r.reportPayloadJson == null ? null : JsonUtil.readMap(r.reportPayloadJson));
         return m;

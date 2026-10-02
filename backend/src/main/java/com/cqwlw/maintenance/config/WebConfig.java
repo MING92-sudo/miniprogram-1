@@ -31,11 +31,11 @@ public class WebConfig implements WebMvcConfigurer {
         registry.addInterceptor(authInterceptor)
                 .addPathPatterns("/**")
                 .excludePathPatterns(
-                        "/health", "/api/count",
+                        "/health",
                         "/auth/login", "/auth/wx-login", "/auth/bind-wechat",
                         "/auth/bind-employee", "/auth/bind-use-unit", "/auth/logout",
                         "/unit/records/*/sign-view", "/unit/records/*/confirm-by-token",
-                        "/files/upload", "/files/*", "/location/reverse"
+                        "/location/reverse"
                 );
         // 顺序在鉴权之后：依赖 AuthInterceptor 写入的 role attribute
         registry.addInterceptor(adminRoleInterceptor)
