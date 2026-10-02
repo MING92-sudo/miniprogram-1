@@ -34,7 +34,7 @@
     <el-dialog v-model="dialog" :title="form.id ? '编辑电梯' : '新建电梯'" width="640px">
       <el-form :model="form" label-width="130px">
 <el-form-item label="平台电梯编码" required><el-input v-model="form.elevatorCode"
-  placeholder="由平台分配（2.7 查询后自动回填）；自编编号无法上报 2.6" /></el-form-item>
+  placeholder="由平台分配；新梯从设备铭牌/登记证获取设备代码后点查询即可回填" /></el-form-item>
 <el-form-item v-if="platformHint" label=" ">
   <el-text size="small" type="success">{{ platformHint }}</el-text>
 </el-form-item>
