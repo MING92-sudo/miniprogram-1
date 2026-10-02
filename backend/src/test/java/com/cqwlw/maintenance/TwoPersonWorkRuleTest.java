@@ -104,6 +104,7 @@ class TwoPersonWorkRuleTest {
         o.assistantPlatformId = "P_ASSISTANT";
         o.checklistJson = "[{\"id\":\"i1\",\"name\":\"项一\"}]";
         when(orderMapper.selectById("wo_1")).thenReturn(o);
+        when(orderMapper.selectOne(any())).thenReturn(o);
         return o;
     }
 
@@ -119,6 +120,7 @@ class TwoPersonWorkRuleTest {
         o.assistantName = "";
         o.checklistJson = "[{\"id\":\"i1\",\"name\":\"项一\"}]";
         when(orderMapper.selectById("wo_2")).thenReturn(o);
+        when(orderMapper.selectOne(any())).thenReturn(o);
         return o;
     }
 

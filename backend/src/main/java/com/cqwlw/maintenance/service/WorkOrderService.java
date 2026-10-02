@@ -318,6 +318,17 @@ public class WorkOrderService {
         return o;
     }
 
+    /** 加行锁读取（签到/清单提交等读-改-写场景），避免并发下各自读到空 checkins/checklistJson 互相覆盖 */
+    private WorkOrder findOr404ForUpdate(String id) {
+        WorkOrder o = orderMapper.selectOne(new LambdaQueryWrapper<WorkOrder>()
+                .eq(WorkOrder::getId, id).last("FOR UPDATE"));
+        if (o == null) {
+            throw new BizException(1404, "工单不存在");
+        }
+        requireOwnership(o);
+        return o;
+    }
+
     public Map<String, Object> getOrderView(String id) {
         WorkOrder o = findOr404(id);
         return toMap(o, true);
@@ -340,8 +351,9 @@ public class WorkOrderService {
     }
 
     // ── 签到 ──
+    @Transactional(rollbackFor = Exception.class)
     public Map<String, Object> checkin(String orderId, Map<String, Object> body) {
-        WorkOrder o = findOr404(orderId);
+        WorkOrder o = findOr404ForUpdate(orderId);
         boolean hasAssistant = !isBlank(o.assistantName);
         // 角色一律由服务端按登录人判定，**不采信客户端 body.role**：否则配合人员自称
         // PRINCIPAL 即可占掉主维保人员的签到槽，"两人同时签到才开闸"的门禁形同虚设。
@@ -601,8 +613,9 @@ public class WorkOrderService {
     }
 
     @SuppressWarnings("unchecked")
+    @Transactional(rollbackFor = Exception.class)
     public Map<String, Object> submitItem(String orderId, String itemId, Map<String, Object> body) {
-        WorkOrder o = findOr404(orderId);
+        WorkOrder o = findOr404ForUpdate(orderId);
         requirePrincipal(o);
         if (!"PROCESSING".equals(o.status)) {
             throw new BizException(1003, "需主维保人员与配合人员均已签到后才能开始作业");
@@ -860,8 +873,7 @@ public class WorkOrderService {
             elevatorMapper.updateById(el);
         }
         r.confirmStatus = "PENDING";
-        r.shareToken = "sg" + Long.toString(System.currentTimeMillis(), 36)
-                + Long.toString((long) (Math.random() * 1e8), 36);
+        r.shareToken = "sg" + java.util.UUID.randomUUID().toString().replace("-", "");
         r.createdAt = TimeUtil.now();
         r.reportPayloadJson = JsonUtil.write(buildReportPayload(r, el, uu));
         recordMapper.insert(r);
@@ -925,7 +937,12 @@ public class WorkOrderService {
         p.put("workMenegerName", c.workMenegerName == null ? "" : c.workMenegerName);
         p.put("workMenegerPhone", c.workMenegerPhone == null ? "" : c.workMenegerPhone);
         p.put("workMan1Id", nz(r.workerPlatformId));
-        p.put("workMan2Id", nz(r.assistantPlatformId)); // 单人作业填法待平台确认（docs/06 #3）
+        String workMan2Id = nz(r.assistantPlatformId);
+        if (isBlank(workMan2Id)) {
+            // 单人作业不传空：2.6 的 workMan2Id 实测必填，回退主维保人 ID
+            workMan2Id = nz(r.workerPlatformId);
+        }
+        p.put("workMan2Id", workMan2Id);
         p.put("startTime", TimeUtil.format(r.checkinTime));
         p.put("endTime", TimeUtil.format(r.checkoutTime));
         p.put("workType", r.workTypeCode);
@@ -973,8 +990,8 @@ public class WorkOrderService {
                     Map<String, Object> info = new LinkedHashMap<>();
                     info.put("id", rec.id);
                     info.put("shareToken", nz(rec.shareToken));
-                    info.put("workerSignatureUrl", nz(rec.workerSignatureUrl));
-                    info.put("assistantSignatureUrl", nz(rec.assistantSignatureUrl));
+                    info.put("workerSignatureUrl", fileStorageService.resolveStoredUrl(rec.workerSignatureUrl));
+                    info.put("assistantSignatureUrl", fileStorageService.resolveStoredUrl(rec.assistantSignatureUrl));
                     info.put("confirmStatus", nz(rec.confirmStatus));
                     info.put("uploadStatus", UnitRecordService.uploadStatus(rec.reportStatus));
                     info.put("satisfaction", rec.satisfaction);
