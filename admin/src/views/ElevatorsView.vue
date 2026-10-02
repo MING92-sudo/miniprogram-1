@@ -31,13 +31,8 @@
 
     <el-dialog v-model="dialog" :title="form.id ? '编辑电梯' : '新建电梯'" width="640px">
       <el-form :model="form" label-width="130px">
-<el-form-item label="电梯编号" required>
-  <el-input v-model="form.elevatorCode">
-    <template #append v-if="!form.id">
-      <el-button :loading="querying" @click="queryFromPlatform">平台查询(2.7)</el-button>
-    </template>
-  </el-input>
-</el-form-item>
+<el-form-item label="电梯编号" required><el-input v-model="form.elevatorCode"
+  placeholder="不参与平台查询；填设备代码后点右侧按钮自动回填" /></el-form-item>
 <el-form-item v-if="platformHint" label=" ">
   <el-text size="small" type="success">{{ platformHint }}</el-text>
 </el-form-item>
@@ -49,7 +44,13 @@
           </el-select>
         </el-form-item>
         <el-form-item label="注册代码"><el-input v-model="form.regCode" /></el-form-item>
-        <el-form-item label="设备代码"><el-input v-model="form.deviceCode" /></el-form-item>
+<el-form-item label="设备代码">
+  <el-input v-model="form.deviceCode">
+    <template #append v-if="!form.id">
+      <el-button :loading="querying" @click="queryFromPlatform">平台查询(2.7)</el-button>
+    </template>
+  </el-input>
+</el-form-item>
         <el-form-item label="品种">
           <el-select v-model="form.category" style="width: 100%">
             <el-option v-for="c in categories" :key="c" :label="c" :value="c" />
@@ -167,20 +168,27 @@ async function onSync() {
 
 /** 2.7 单梯查询回填：设备代码/注册代码/应急电话/安全管理员/使用单位主体（docs/07 实测口径） */
 async function queryFromPlatform() {
-  if (!form.elevatorCode || !form.elevatorCode.trim()) {
-    ok('请先输入电梯编号')
-    return
-  }
   querying.value = true
   platformHint.value = ''
   try {
-    const res = await platformApi.queryElevator(form.elevatorCode.trim())
+    const cond = {}
+    if (form.deviceCode && form.deviceCode.trim()) cond.deviceCode = form.deviceCode.trim()
+    else if (form.regCode && form.regCode.trim()) cond.registrationCode = form.regCode.trim()
+    if (!Object.keys(cond).length) {
+      platformHint.value = '请先填写 设备代码（或注册代码）——实测平台不支持按电梯编号查询'
+      return
+    }
+    const res = await platformApi.queryElevator(cond)
     if (!res.found) {
       platformHint.value = '平台未回填：' + (res.reason || '未查询到')
       return
     }
     const p = res.elevator || {}
     const picked = []
+    if (p.elevatorCode !== undefined && p.elevatorCode !== null && String(p.elevatorCode) !== '') {
+      form.elevatorCode = String(p.elevatorCode)
+      picked.push('电梯编号')
+    }
     const put = (src, key, label) => {
       const v = p[src]
       if (v !== undefined && v !== null && String(v) !== '') {

@@ -40,18 +40,23 @@ public class PlatformController {
         return ApiResponse.ok(platformSyncService.syncAll());
     }
 
-    /** 2.7 单梯查询（管理端新建电梯按 elevatorCode 回填，docs/06 #8 实测平台支持） */
+    /** 2.7 单梯查询（管理端新建电梯回填用）。实测平台不支持按 elevatorCode 查询（docs/06 #8 已修正结论），
+     * 仅接受 deviceCode / factoryNumber / registrationCode 之一 */
     @PostMapping("/platform/query/elevator")
     public ApiResponse<Object> queryElevator(@RequestBody Map<String, Object> body) {
-        String code = body.get("elevatorCode") == null ? "" : String.valueOf(body.get("elevatorCode")).trim();
-        if (code.isEmpty()) {
-            throw new BizException(422, "elevatorCode 必填");
-        }
         if (!platformClient.configured()) {
             return ApiResponse.ok(Map.of("found", false, "reason", "监管平台凭证未配置"));
         }
         Map<String, String> cond = new java.util.LinkedHashMap<>();
-        cond.put("elevatorCode", code);
+        for (String key : List.of("deviceCode", "factoryNumber", "registrationCode")) {
+            String v = body.get(key) == null ? "" : String.valueOf(body.get(key)).trim();
+            if (!v.isEmpty()) {
+                cond.put(key, v);
+            }
+        }
+        if (cond.isEmpty()) {
+            throw new BizException(422, "至少填写 设备代码/出厂编号/注册代码 之一（平台不支持按电梯编号查询）");
+        }
         List<Map<String, Object>> list = platformClient.queryElevatorInfo(cond);
         return ApiResponse.ok(list.isEmpty()
                 ? Map.of("found", false, "reason", "平台未查询到该电梯")
