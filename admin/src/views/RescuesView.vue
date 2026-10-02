@@ -23,30 +23,39 @@
       <el-table-column prop="descr" label="情况描述" min-width="200" show-overflow-tooltip />
       <el-table-column prop="status" label="状态" width="90" />
     </el-table>
+    <el-pagination class="pager" layout="total, prev, pager, next" :total="total"
+                   :page-size="query.size" :current-page="query.page" @current-change="load" />
   </el-card>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { reactive, ref, onMounted } from 'vue'
 import * as ledgerApi from '../api/ledger'
 import { showErr } from '../utils/ui'
 
 const rows = ref([])
+const total = ref(0)
 const loading = ref(false)
+const query = reactive({ page: 1, size: 20 })
 
-onMounted(async () => {
+async function load(p) {
+  if (p) query.page = p
   loading.value = true
   try {
-    const data = await ledgerApi.rescues({ page: 1, size: 100 })
+    const data = await ledgerApi.rescues({ page: query.page, size: query.size })
     rows.value = data.list || []
+    total.value = data.total || 0
   } catch (e) {
     showErr(e)
   } finally {
     loading.value = false
   }
-})
+}
+
+onMounted(load)
 </script>
 
 <style scoped>
 .danger { color: #f53f3f; font-weight: 600; }
+.pager { margin-top: 12px; justify-content: flex-end; }
 </style>

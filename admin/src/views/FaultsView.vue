@@ -6,7 +6,7 @@
         <el-option label="未闭环" value="OPEN" />
         <el-option label="已闭环" value="CLOSED" />
       </el-select>
-      <el-button type="primary" @click="load">查询</el-button>
+      <el-button type="primary" @click="search">查询</el-button>
     </div>
     <el-table :data="rows" v-loading="loading" stripe>
       <el-table-column prop="elevatorCode" label="电梯编号" width="130" />
@@ -22,23 +22,29 @@
       <el-table-column prop="handleDesc" label="处理记录" min-width="180" show-overflow-tooltip />
       <el-table-column prop="createdAt" label="上报时间" width="160" />
     </el-table>
+    <el-pagination class="pager" layout="total, prev, pager, next" :total="total"
+                   :page-size="query.size" :current-page="query.page" @current-change="load" />
   </el-card>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { reactive, ref, onMounted } from 'vue'
 import * as ledgerApi from '../api/ledger'
 import { showErr } from '../utils/ui'
 
 const rows = ref([])
+const total = ref(0)
 const loading = ref(false)
 const status = ref('')
+const query = reactive({ page: 1, size: 20 })
 
-async function load() {
+async function load(p) {
+  if (p) query.page = p
   loading.value = true
   try {
-    const data = await ledgerApi.faults({ page: 1, size: 100, status: status.value || undefined })
+    const data = await ledgerApi.faults({ page: query.page, size: query.size, status: status.value || undefined })
     rows.value = data.list || []
+    total.value = data.total || 0
   } catch (e) {
     showErr(e)
   } finally {
@@ -46,9 +52,15 @@ async function load() {
   }
 }
 
+function search() {
+  query.page = 1
+  load()
+}
+
 onMounted(load)
 </script>
 
 <style scoped>
 .filter-bar { display: flex; gap: 10px; margin-bottom: 12px; }
+.pager { margin-top: 12px; justify-content: flex-end; }
 </style>
