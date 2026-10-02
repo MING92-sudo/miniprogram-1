@@ -16,7 +16,7 @@ public class AppProperties {
      */
     private String wxAppid;
     private String wxAppsecret;
-    private boolean seedDemoData = true;
+    private boolean seedDemoData = false;
     /** 作业时长下限（分钟，签到→签退）；默认 30，测试可临时调小（APP_WORK_DURATION_MINUTES） */
     private int workDurationMinutes = 30;
     private String cosSecretId;
