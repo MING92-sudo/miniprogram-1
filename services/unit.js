@@ -3,7 +3,7 @@ const { get, post } = require('../utils/request')
 
 // 打开签名链接：校验令牌，返回记录摘要与确认状态（无需登录）
 function getSignView(id, token) {
-  return get('/unit/records/' + id + '/sign-view?token=' + token, { needAuth: false })
+  return get('/unit/records/' + id + '/sign-view?token=' + token, undefined, { needAuth: false })
 }
 
 // 安全管理员签字确认（签名图 + 满意度）
