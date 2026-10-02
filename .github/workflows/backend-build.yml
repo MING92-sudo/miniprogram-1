@@ -27,9 +27,14 @@ jobs:
       DB_NAME: maintenance
       DB_USERNAME: root
       DB_PASSWORD: root
-      APP_JWT_SECRET: ci-only-secret-key-with-32-characters-min
-      APP_FILE_ROOT: /tmp/maintenance-files
-      DB_SEED_DEMO: true
+      JWT_SECRET: ci-only-secret-key-with-32-characters-min
+      FILE_STORAGE_DIR: /tmp/maintenance-files
+      SEED_DEMO_DATA: false
+      # 打开 Flyway 与 Spring 上下文的集成测试：该测试自带 jwt/wx/seed 覆盖，
+      # 只认这三个 P0_TEST_MYSQL_* 变量。缺它们则整类静默跳过，CI 变成纯单测跑。
+      P0_TEST_MYSQL_URL: jdbc:mysql://127.0.0.1:3306/maintenance?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai&createDatabaseIfNotExist=true
+      P0_TEST_MYSQL_USER: root
+      P0_TEST_MYSQL_PASSWORD: root
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
