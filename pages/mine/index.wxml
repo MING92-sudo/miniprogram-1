@@ -10,9 +10,10 @@
   <view class="em-card">
     <view
       wx:for="{{menus}}"
-      wx:key="url"
+      wx:key="title"
       class="menu-item"
       data-url="{{item.url}}"
+      data-action="{{item.action}}"
       bindtap="onMenuTap"
     >
       <view class="menu-main">

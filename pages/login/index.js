@@ -2,6 +2,7 @@
 // 登录成功后绑定微信（wx.login → /auth/bind-wechat），下次可微信一键登录（P2）
 const auth = require('../../services/auth')
 const { isLoggedIn } = require('../../utils/auth')
+const { bindWeChat } = require('../../utils/bind-wechat')
 
 Page({
   data: {
@@ -59,15 +60,10 @@ Page({
       const data = await auth.accountLogin(phone, this.data.password)
       auth.applyLoginResult(data)
       getApp().setAuth(data)
-      // 登录成功后绑定微信：wx.login 取 code 与账号关联（下次可微信一键登录，P2）
+      // 登录成功后绑定微信，下次可微信一键登录；失败可在「我的」重新绑定
       try {
-        const code = await new Promise((resolve, reject) => {
-          wx.login({ success: (r) => resolve(r.code || ''), fail: reject })
-        })
-        if (code) await auth.bindWeChat(code)
+        await bindWeChat()
       } catch (e2) {
-        // 微信绑定失败不阻断登录，可稍后重试（当前无「重新绑定」入口）；
-        // 留痕便于排查：后端把 code 类失败映射为 422，不会清登录态
         console.warn('[login] 微信绑定失败:', e2 && e2.message)
       }
       wx.showToast({ title: '登录成功', icon: 'success' })

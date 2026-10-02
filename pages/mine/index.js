@@ -2,6 +2,7 @@
 const { ROLE } = require('../../constants/index')
 const auth = require('../../services/auth')
 const { ensureLogin } = require('../../utils/guard')
+const { bindWeChat } = require('../../utils/bind-wechat')
 
 const ROLE_TEXT = {
   WORKER: '维保人员',
@@ -26,6 +27,7 @@ function buildMenus(role) {
     menus.push({ title: '救援记录', url: '/pages/rescue/list', desc: '困人救援登记与跟踪' })
   }
   menus.push({ title: '知识库', url: '/pages/knowledge/index', desc: '作业手册与流程规范' })
+  menus.push({ title: '重新绑定微信', action: 'rebindWeChat', desc: '账号关联当前微信后可一键登录' })
   menus.push({ title: '离线缓存管理', url: '/pages/mine/offline', desc: '弱网数据补传' })
   return menus
 }
@@ -34,7 +36,8 @@ Page({
   data: {
     userInfo: null,
     roleText: '',
-    menus: []
+    menus: [],
+    rebinding: false
   },
 
   onShow() {
@@ -62,7 +65,22 @@ Page({
   },
 
   onMenuTap(e) {
-    wx.navigateTo({ url: e.currentTarget.dataset.url })
+    const ds = e.currentTarget.dataset
+    if (ds.action === 'rebindWeChat') return this.onRebindWeChat()
+    wx.navigateTo({ url: ds.url })
+  },
+
+  // 登录时的自动绑定可能失败（未授权、code 过期等），这里提供手动重试入口
+  async onRebindWeChat() {
+    if (this.data.rebinding) return
+    this.setData({ rebinding: true })
+    try {
+      await bindWeChat()
+      wx.showToast({ title: '微信已绑定', icon: 'success' })
+    } catch (err) {
+      wx.showToast({ title: err.message || '绑定失败，请重试', icon: 'none' })
+    }
+    this.setData({ rebinding: false })
   },
 
   async onLogout() {
