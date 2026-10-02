@@ -153,7 +153,8 @@ public class AdminArchiveService {
         e.account = account;
         e.role = role;
         e.roleText = str(body, "roleText").isBlank() ? defaultRoleText(role) : str(body, "roleText");
-        e.passwordHash = encoder.encode(str(body, "password").isBlank() ? "123456" : str(body, "password"));
+        String initialPassword = str(body, "password").isBlank() ? randomPassword() : str(body, "password");
+        e.passwordHash = encoder.encode(initialPassword);
         e.platformId = str(body, "platformId");
         e.certificate = str(body, "certificate");
         e.workStartDate = str(body, "workStartDate");
@@ -162,7 +163,20 @@ public class AdminArchiveService {
         e.syncStatus = str(body, "syncStatus").isBlank() ? "NOT_SYNCED" : str(body, "syncStatus");
         e.enabled = true;
         employeeMapper.insert(e);
-        return employeeRow(e);
+        Map<String, Object> out = employeeRow(e);
+        out.put("initialPassword", initialPassword);
+        return out;
+    }
+
+    /** 用户需求④：初始/重置密码为 12 位无易混字符随机串，一次性展示，人员自助改密 */
+    private String randomPassword() {
+        String alphabet = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789";
+        java.security.SecureRandom rnd = new java.security.SecureRandom();
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < 12; i++) {
+            sb.append(alphabet.charAt(rnd.nextInt(alphabet.length())));
+        }
+        return sb.toString();
     }
 
     /** 档案删除（①增删改查补全）：有在途工单或系统管理员账号禁止删除，其余允许 */
@@ -230,12 +244,16 @@ public class AdminArchiveService {
         if (e == null) {
             throw new BizException(1404, "人员不存在");
         }
-        if (password == null || password.length() < 6) {
+        boolean random = password == null || password.isBlank();
+        if (!random && password.length() < 6) {
             throw new BizException(422, "新密码至少 6 位");
         }
-        e.passwordHash = encoder.encode(password);
+        String initial = random ? randomPassword() : password;
+        e.passwordHash = encoder.encode(initial);
         employeeMapper.updateById(e);
-        return employeeRow(e);
+        Map<String, Object> out = employeeRow(e);
+        out.put("initialPassword", initial);
+        return out;
     }
 
     public Map<String, Object> updateEmployee(String id, Map<String, Object> body) {
