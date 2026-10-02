@@ -18,6 +18,7 @@ import com.cqwlw.maintenance.mapper.UseUnitMapper;
 import com.cqwlw.maintenance.mapper.WorkOrderMapper;
 import com.cqwlw.maintenance.service.AdminScheduleService;
 import com.cqwlw.maintenance.service.ChecklistService;
+import com.cqwlw.maintenance.service.OrderNoIssuer;
 import com.cqwlw.maintenance.util.TimeUtil;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -66,7 +67,8 @@ class AdminScheduleServiceTest {
         ChecklistService checklistService = new ChecklistService();
         checklistService.load();
         service = new AdminScheduleService(planMapper, delayMapper, orderMapper, elevatorMapper,
-                employeeMapper, useUnitMapper, companyMapper, recordMapper, messageMapper, checklistService);
+                employeeMapper, useUnitMapper, companyMapper, recordMapper, messageMapper,
+                checklistService, new OrderNoIssuer(orderMapper));
 
         Company c = new Company();
         c.id = "co_1";

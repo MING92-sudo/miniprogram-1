@@ -13,7 +13,6 @@ import com.cqwlw.maintenance.mapper.WorkOrderMapper;
 import com.cqwlw.maintenance.util.TimeUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.dao.DuplicateKeyException;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -37,15 +36,17 @@ public class DispatchService {
     private final MessageMapper messageMapper;
     private final EmployeeMapper employeeMapper;
     private final ChecklistService checklistService;
+    private final OrderNoIssuer orderNoIssuer;
 
     public DispatchService(ElevatorMapper elevatorMapper, WorkOrderMapper orderMapper,
                            MessageMapper messageMapper, EmployeeMapper employeeMapper,
-                           ChecklistService checklistService) {
+                           ChecklistService checklistService, OrderNoIssuer orderNoIssuer) {
         this.elevatorMapper = elevatorMapper;
         this.orderMapper = orderMapper;
         this.messageMapper = messageMapper;
         this.employeeMapper = employeeMapper;
         this.checklistService = checklistService;
+        this.orderNoIssuer = orderNoIssuer;
     }
 
     /** 每日 09:00 定时派单；zone 必须显式指定，否则容器（JVM 默认 UTC）会在北京时间 17:00 才触发 */
@@ -193,7 +194,6 @@ public class DispatchService {
         String dueDay = TimeUtil.date(TimeUtil.fromMillis(dueMs));
         String todayStr = TimeUtil.date(TimeUtil.now());
         String planDay = dueDay.compareTo(todayStr) >= 0 ? dueDay : todayStr;
-        String todayCompact = todayStr.replace("-", "");
 
         WorkOrder o = new WorkOrder();
         o.id = Ids.next("wo");
@@ -212,20 +212,7 @@ public class DispatchService {
         o.checklistJson = com.cqwlw.maintenance.util.JsonUtil.write(
                 checklistService.buildChecklist(code, el.category, el.specialType));
 
-        // order_no 有唯一索引，而序号按当日已有工单数推算：多台电梯同时到期时两个线程
-        // 可能算出同一序号。撞唯一键时递增序号重试，避免整个派单循环被中断。
-        for (int attempt = 1; attempt <= 5; attempt++) {
-            o.orderNo = "WO" + todayCompact + "-" + String.format("%03d", todayOrderCount(todayCompact) + attempt);
-            try {
-                orderMapper.insert(o);
-                break;
-            } catch (DuplicateKeyException e) {
-                if (attempt == 5) {
-                    log.error("派单失败：工单序号连续 5 次冲突, elevatorId={}", el.id);
-                    throw e;
-                }
-            }
-        }
+        orderNoIssuer.insert(o);
         Message msg = new Message();
         msg.id = Ids.next("msg");
         msg.title = "自动派单通知";
@@ -237,12 +224,6 @@ public class DispatchService {
         msg.readFlag = false;
         messageMapper.insert(msg);
         return o;
-    }
-
-    private long todayOrderCount(String todayCompact) {
-        Long c = orderMapper.selectCount(new LambdaQueryWrapper<WorkOrder>()
-                .likeRight(WorkOrder::getOrderNo, "WO" + todayCompact));
-        return c == null ? 0 : c;
     }
 
     private LocalDateTime lastMaintenance(String elevatorId, String workTypeCode) {

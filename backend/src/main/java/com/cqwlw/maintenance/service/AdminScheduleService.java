@@ -41,6 +41,7 @@ public class AdminScheduleService {
     private final MaintainPlanMapper planMapper;
     private final PlanDelayMapper delayMapper;
     private final WorkOrderMapper orderMapper;
+    private final OrderNoIssuer orderNoIssuer;
     private final ElevatorMapper elevatorMapper;
     private final EmployeeMapper employeeMapper;
     private final UseUnitMapper useUnitMapper;
@@ -55,7 +56,7 @@ public class AdminScheduleService {
                                 com.cqwlw.maintenance.mapper.CompanyMapper companyMapper,
                                 com.cqwlw.maintenance.mapper.MaintainRecordMapper recordMapper,
                                 com.cqwlw.maintenance.mapper.MessageMapper messageMapper,
-                                ChecklistService checklistService) {
+                                ChecklistService checklistService, OrderNoIssuer orderNoIssuer) {
         this.planMapper = planMapper;
         this.delayMapper = delayMapper;
         this.orderMapper = orderMapper;
@@ -66,6 +67,7 @@ public class AdminScheduleService {
         this.recordMapper = recordMapper;
         this.messageMapper = messageMapper;
         this.checklistService = checklistService;
+        this.orderNoIssuer = orderNoIssuer;
     }
 
     // ── 生成排班池（POST /admin/plans/generate）──
@@ -212,8 +214,6 @@ public class AdminScheduleService {
 
         WorkOrder o = new WorkOrder();
         o.id = Ids.next("wo");
-        o.orderNo = "WO" + TimeUtil.date(TimeUtil.now()).replace("-", "")
-                + "-" + String.format("%03d", (int) (orderCount() % 1000) + 1);
         o.elevatorId = el.id;
         o.workType = checklistService.label(p.workTypeCode);
         o.workTypeCode = p.workTypeCode;
@@ -226,7 +226,7 @@ public class AdminScheduleService {
         o.autoDispatched = false;
         o.checklistJson = JsonUtil.write(checklistService.buildChecklist(
                 p.workTypeCode, el.category, el.specialType));
-        orderMapper.insert(o);
+        orderNoIssuer.insert(o);
         p.orderId = o.id;
         planMapper.updateById(p);
 
@@ -536,11 +536,6 @@ public class AdminScheduleService {
         msg.createdAt = TimeUtil.now();
         msg.readFlag = false;
         messageMapper.insert(msg);
-    }
-
-    private long orderCount() {
-        Long c = orderMapper.selectCount(null);
-        return c == null ? 0 : c;
     }
 
     private MaintainPlan requirePlan(String id) {

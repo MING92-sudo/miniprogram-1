@@ -10,6 +10,7 @@ import com.cqwlw.maintenance.mapper.MessageMapper;
 import com.cqwlw.maintenance.mapper.WorkOrderMapper;
 import com.cqwlw.maintenance.service.ChecklistService;
 import com.cqwlw.maintenance.service.DispatchService;
+import com.cqwlw.maintenance.service.OrderNoIssuer;
 import com.cqwlw.maintenance.util.TimeUtil;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -53,7 +54,7 @@ class DispatchServiceTest {
         ChecklistService checklistService = new ChecklistService();
         checklistService.load();
         service = new DispatchService(elevatorMapper, orderMapper, messageMapper,
-                employeeMapper, checklistService);
+                employeeMapper, checklistService, new OrderNoIssuer(orderMapper));
         when(orderMapper.selectCount(any())).thenReturn(0L);
         when(orderMapper.selectList(any())).thenReturn(List.of());
         // 派单门禁要求电梯绑定的 (姓名, platform_id) 能匹配上已备案员工
@@ -178,7 +179,8 @@ class DispatchServiceTest {
         when(mockChecklist.buildChecklist(anyString(), anyString(), any()))
                 .thenReturn(List.of(Map.of("id", "i1")));
         DispatchService withMock = new DispatchService(
-                elevatorMapper, orderMapper, messageMapper, employeeMapper, mockChecklist);
+                elevatorMapper, orderMapper, messageMapper, employeeMapper, mockChecklist,
+                new OrderNoIssuer(orderMapper));
         Elevator el = dueElevator("el_sp");
         el.specialType = "防爆";
         givenElevators(List.of(el));
