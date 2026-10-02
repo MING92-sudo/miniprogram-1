@@ -143,16 +143,18 @@ public class AuthController {
         return ApiResponse.ok(Map.of("userInfo", userInfo(user), "role", role));
     }
 
-    private Map<String, Object> roleLogin(HttpServletRequest request, String role, boolean forceUnitAdmin) {
+    private Map<String, Object> roleLogin(HttpServletRequest request, String requestedRole, boolean forceUnitAdmin) {
         Employee current = currentUser(request);
         if (current == null) {
             throw new BizException(401, "请先登录后再切换角色");
         }
-        String effectiveRole = forceUnitAdmin ? "UNIT_ADMIN" : (role.equals(current.role) ? current.role : role);
-        Map<String, Object> out = loginResult(current);
-        out.put("role", effectiveRole);
-        out.put("token", jwtService.issue(current.id, effectiveRole, null));
-        return out;
+        // 防越权：角色只能取员工在库中的真实角色，禁止采信客户端 body 指定的角色
+        //（否则任意 WORKER 可自铸 LEADER/UNIT_ADMIN 令牌读取整个管理端）
+        String targetRole = forceUnitAdmin ? "UNIT_ADMIN" : requestedRole;
+        if (!targetRole.equals(current.role)) {
+            throw new BizException(403, "无权使用该角色");
+        }
+        return loginResult(current);
     }
 
     private static String text(Object v) {
