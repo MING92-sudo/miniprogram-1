@@ -12,6 +12,8 @@ import com.cqwlw.maintenance.mapper.CompanyMapper;
 import com.cqwlw.maintenance.mapper.EmployeeMapper;
 import com.cqwlw.maintenance.mapper.ElevatorMapper;
 import com.cqwlw.maintenance.mapper.UseUnitMapper;
+import com.cqwlw.maintenance.entity.WorkOrder;
+import com.cqwlw.maintenance.mapper.WorkOrderMapper;
 import com.cqwlw.maintenance.util.TimeUtil;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -36,16 +38,19 @@ public class AdminArchiveService {
     private final EmployeeMapper employeeMapper;
     private final ElevatorMapper elevatorMapper;
     private final PhoneMutexService phoneMutexService;
+    private final WorkOrderMapper workOrderMapper;
     private final BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
 
     public AdminArchiveService(CompanyMapper companyMapper, UseUnitMapper useUnitMapper,
                                EmployeeMapper employeeMapper, ElevatorMapper elevatorMapper,
-                               PhoneMutexService phoneMutexService) {
+                               PhoneMutexService phoneMutexService,
+                               WorkOrderMapper workOrderMapper) {
         this.companyMapper = companyMapper;
         this.useUnitMapper = useUnitMapper;
         this.employeeMapper = employeeMapper;
         this.elevatorMapper = elevatorMapper;
         this.phoneMutexService = phoneMutexService;
+        this.workOrderMapper = workOrderMapper;
     }
 
     // ── 维保单位（GET/PUT /company）──
@@ -158,6 +163,54 @@ public class AdminArchiveService {
         e.enabled = true;
         employeeMapper.insert(e);
         return employeeRow(e);
+    }
+
+    /** 档案删除（①增删改查补全）：有在途工单或系统管理员账号禁止删除，其余允许 */
+    public Map<String, Object> deleteEmployee(String id) {
+        Employee e = employeeMapper.selectById(id);
+        if (e == null) {
+            throw new BizException(1404, "人员不存在");
+        }
+        if ("SYS_ADMIN".equals(e.role)) {
+            throw new BizException(422, "系统管理员账号不可删除（可停用）");
+        }
+        Long inflight = workOrderMapper.selectCount(new LambdaQueryWrapper<WorkOrder>()
+                .in(WorkOrder::getStatus, List.of("PENDING", "PROCESSING"))
+                .and(w -> w.eq(WorkOrder::getWorkerName, e.name).or().eq(WorkOrder::getAssistantName, e.name)));
+        if (inflight != null && inflight > 0) {
+            throw new BizException(422, "该人员名下有在途工单（待执行/进行中），暂不能删除");
+        }
+        employeeMapper.deleteById(id);
+        return Map.of("ok", true);
+    }
+
+    public Map<String, Object> deleteUseUnit(String id) {
+        UseUnit u = useUnitMapper.selectById(id);
+        if (u == null) {
+            throw new BizException(1404, "使用单位不存在");
+        }
+        Long elevators = elevatorMapper.selectCount(new LambdaQueryWrapper<Elevator>()
+                .eq(Elevator::getUseUnitId, id));
+        if (elevators != null && elevators > 0) {
+            throw new BizException(422, "该单位名下有 " + elevators + " 台电梯，请先移除关联后再删除");
+        }
+        useUnitMapper.deleteById(id);
+        return Map.of("ok", true);
+    }
+
+    public Map<String, Object> deleteElevator(String id) {
+        Elevator el = elevatorMapper.selectById(id);
+        if (el == null) {
+            throw new BizException(1404, "电梯不存在");
+        }
+        Long inflight = workOrderMapper.selectCount(new LambdaQueryWrapper<WorkOrder>()
+                .eq(WorkOrder::getElevatorId, id)
+                .in(WorkOrder::getStatus, List.of("PENDING", "PROCESSING")));
+        if (inflight != null && inflight > 0) {
+            throw new BizException(422, "该电梯有在途工单（待执行/进行中），暂不能删除");
+        }
+        elevatorMapper.deleteById(id);
+        return Map.of("ok", true);
     }
 
     /** 账号启停（SYS_ADMIN，docs/04 A.1 用户权限） */

@@ -25,6 +25,7 @@
       <el-table-column label="操作" width="80" fixed="right">
         <template #default="{ row }">
           <el-button link type="primary" :disabled="!auth.canWrite" @click="openEdit(row)">编辑</el-button>
+          <el-button link type="danger" :disabled="!auth.canWrite" @click="onDelete(row)">删除</el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -71,8 +72,7 @@
           <el-input v-model="form.lat" placeholder="纬度 lat" style="width: 48%; margin-left: 4%" />
         </el-form-item>
         <el-form-item label="维保人员手机">
-          <el-input v-model="form.workerPhone" />
-          <div class="tip">参与五类手机号互斥（docs/01 §3.2.4）</div>
+          <el-input v-model="form.workerPhone" />
         </el-form-item>
       </el-form>
       <template #footer>
@@ -89,6 +89,7 @@ import { useAuthStore } from '../stores/auth'
 import * as archiveApi from '../api/archive'
 import * as platformApi from '../api/platform'
 import { showErr, ok } from '../utils/ui'
+import { ElMessageBox } from 'element-plus'
 
 const auth = useAuthStore()
 const rows = ref([])
@@ -125,6 +126,16 @@ function openCreate() {
   dialog.value = true
 }
 
+  async function onDelete(row) {
+    try {
+      await ElMessageBox.confirm(`确认删除电梯「${row.elevatorName}（${row.elevatorCode}）」？有在途工单时将被拒绝`, '删除电梯', { type: 'warning' })
+      await archiveApi.deleteElevator(row.id)
+      ok('已删除')
+      await load()
+    } catch (e) {
+      if (e !== 'cancel') showErr(e)
+    }
+  }
 function openEdit(row) {
   Object.assign(form, empty, row)
   dialog.value = true

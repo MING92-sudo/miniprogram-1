@@ -8,6 +8,10 @@ function wxLogin(code, phoneCode, role) {
   return post('/auth/wx-login', { code, phoneCode, role }, { needAuth: false })
 }
 
+// 用户需求④：登录用户自助改密（随机初始密码首次登录后修改）
+function changePassword(oldPassword, newPassword) {
+  return post('/auth/change-password', { oldPassword: oldPassword, newPassword: newPassword })
+}
 // 账号密码登录（用户需求：账号由维保单位系统分配，手机号为账号）
 function accountLogin(phone, password) {
   return post('/auth/login', { phone: phone, password: password }, { needAuth: false })
@@ -44,6 +48,7 @@ function applyLoginResult(data) {
 }
 
 module.exports = {
+  changePassword: changePassword,
   accountLogin,
   bindWeChat,
   wxLogin,

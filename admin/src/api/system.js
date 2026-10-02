@@ -8,3 +8,8 @@ export function setEmployeeEnabled(id, enabled) {
 export function resetEmployeePassword(id, password) {
   return http.put(`/admin/employees/${id}/password`, { password })
 }
+
+/** 重置为随机密码（服务端生成，initialPassword 一次性返回） */
+export function resetEmployeePasswordRandom(id) {
+  return http.put(`/admin/employees/${id}/password`, { password: '' })
+}

@@ -48,3 +48,16 @@ export function createElevator(body) {
 export function updateElevator(id, body) {
   return http.put(`/elevators/${id}`, body)
 }
+
+/** ①档案增删改查：删除（在途工单/系统管理员/关联电梯时后端 422 拒绝） */
+export function deleteEmployee(id) {
+  return http.delete(`/employees/${id}`)
+}
+
+export function deleteUseUnit(id) {
+  return http.delete(`/use-units/${id}`)
+}
+
+export function deleteElevator(id) {
+  return http.delete(`/elevators/${id}`)
+}

@@ -19,6 +19,7 @@
       <el-table-column label="操作" width="80" fixed="right">
         <template #default="{ row }">
           <el-button link type="primary" :disabled="!auth.canWrite" @click="openEdit(row)">编辑</el-button>
+          <el-button link type="danger" :disabled="!auth.canWrite" @click="onDelete(row)">删除</el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -50,6 +51,7 @@ import { reactive, ref, onMounted } from 'vue'
 import { useAuthStore } from '../stores/auth'
 import * as archiveApi from '../api/archive'
 import { showErr, ok } from '../utils/ui'
+import { ElMessageBox } from 'element-plus'
 
 const auth = useAuthStore()
 const rows = ref([])
@@ -76,6 +78,16 @@ function openCreate() {
   dialog.value = true
 }
 
+  async function onDelete(row) {
+    try {
+      await ElMessageBox.confirm(`确认删除使用单位「${row.unitName}」？名下有电梯时将被拒绝`, '删除使用单位', { type: 'warning' })
+      await archiveApi.deleteUseUnit(row.id)
+      ok('已删除')
+      await load()
+    } catch (e) {
+      if (e !== 'cancel') showErr(e)
+    }
+  }
 function openEdit(row) {
   Object.assign(form, row)
   dialog.value = true

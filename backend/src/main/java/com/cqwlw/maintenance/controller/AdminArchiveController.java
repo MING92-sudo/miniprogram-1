@@ -3,6 +3,7 @@ package com.cqwlw.maintenance.controller;
 import com.cqwlw.maintenance.common.ApiResponse;
 import com.cqwlw.maintenance.service.AdminArchiveService;
 import com.cqwlw.maintenance.service.IdempotencyService;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -100,6 +101,21 @@ public class AdminArchiveController {
         return ApiResponse.ok(result);
     }
 
+    /** ①档案增删改查：删除（有在途工单/系统管理员/有关联电梯时 422 拒绝） */
+    @DeleteMapping("/employees/{id}")
+    public ApiResponse<Object> deleteEmployee(@PathVariable String id) {
+        return ApiResponse.ok(archiveService.deleteEmployee(id));
+    }
+
+    @DeleteMapping("/use-units/{id}")
+    public ApiResponse<Object> deleteUseUnit(@PathVariable String id) {
+        return ApiResponse.ok(archiveService.deleteUseUnit(id));
+    }
+
+    @DeleteMapping("/elevators/{id}")
+    public ApiResponse<Object> deleteElevator(@PathVariable String id) {
+        return ApiResponse.ok(archiveService.deleteElevator(id));
+    }
     @PutMapping("/employees/{id}")
     public ApiResponse<Object> updateEmployee(@PathVariable String id,
                                               @RequestBody Map<String, Object> body,

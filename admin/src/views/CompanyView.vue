@@ -14,12 +14,10 @@
       <el-form-item label="统一社会信用代码"><el-input v-model="form.organizationCode" /></el-form-item>
       <el-form-item label="维保经理"><el-input v-model="form.workMenegerName" /></el-form-item>
       <el-form-item label="维保经理手机号">
-        <el-input v-model="form.workMenegerPhone" />
-        <div class="tip">参与五类手机号互斥（docs/01 §3.2.4），保存时服务端预校验（1002）</div>
+        <el-input v-model="form.workMenegerPhone" />
       </el-form-item>
-      <el-form-item label="平台主体ID（entityId）"><el-input v-model="form.entityId" disabled /></el-form-item>
-    </el-form>
-    <div class="note">entityId 由平台 2.2 查询回填（平台同步页触发），此处只读</div>
+      <el-form-item label="平台主体ID"><el-input v-model="form.entityId" disabled /></el-form-item>
+    </el-form>
   </el-card>
 </template>
 

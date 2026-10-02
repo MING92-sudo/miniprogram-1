@@ -26,7 +26,8 @@
     "pages/mine/offline",
     "pages/knowledge/index",
     "pages/unit/sign",
-    "pages/login/index"
+    "pages/login/index",
+    "pages/mine/password"
   ],
   "window": {
     "navigationBarBackgroundColor": "#ffffff",

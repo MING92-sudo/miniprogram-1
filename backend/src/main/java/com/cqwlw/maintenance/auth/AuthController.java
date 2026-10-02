@@ -114,6 +114,28 @@ public class AuthController {
         return ApiResponse.ok(roleLogin(request, openidHeader, "UNIT_ADMIN", true));
     }
 
+    /** 用户需求④：登录用户自助改密（新密码 ≥6 位；既有 JWT 不失效，重新登录用新密码） */
+    @PostMapping("/auth/change-password")
+    public ApiResponse<Map<String, Object>> changePassword(HttpServletRequest request, @RequestBody Map<String, Object> body) {
+        Employee user = currentUser(request);
+        if (user == null) {
+            throw new BizException(401, "登录已过期，请重新登录");
+        }
+        String oldPassword = body.get("oldPassword") == null ? "" : String.valueOf(body.get("oldPassword"));
+        String newPassword = body.get("newPassword") == null ? "" : String.valueOf(body.get("newPassword"));
+        if (!encoder.matches(oldPassword, user.passwordHash)) {
+            throw new BizException(422, "原密码不正确");
+        }
+        if (newPassword.length() < 6) {
+            throw new BizException(422, "新密码至少 6 位");
+        }
+        if (newPassword.equals(oldPassword)) {
+            throw new BizException(422, "新密码不能与原密码相同");
+        }
+        user.passwordHash = encoder.encode(newPassword);
+        employeeMapper.updateById(user);
+        return ApiResponse.ok(Map.of("ok", true));
+    }
     @PostMapping("/auth/logout")
     public ApiResponse<Map<String, Object>> logout() {
         return ApiResponse.ok(Map.of("ok", true));

@@ -8,6 +8,7 @@ import com.cqwlw.maintenance.mapper.CompanyMapper;
 import com.cqwlw.maintenance.mapper.EmployeeMapper;
 import com.cqwlw.maintenance.mapper.ElevatorMapper;
 import com.cqwlw.maintenance.mapper.UseUnitMapper;
+import com.cqwlw.maintenance.mapper.WorkOrderMapper;
 import com.cqwlw.maintenance.service.AdminArchiveService;
 import com.cqwlw.maintenance.service.PhoneMutexService;
 import org.junit.jupiter.api.BeforeEach;
@@ -69,7 +70,8 @@ class AdminArchiveServiceTest {
 
         service = new AdminArchiveService(companyMapper, useUnitMapper,
                 employeeMapper, elevatorMapper,
-                new PhoneMutexService(companyMapper, useUnitMapper, employeeMapper));
+                new PhoneMutexService(companyMapper, useUnitMapper, employeeMapper),
+                mock(WorkOrderMapper.class));
     }
 
     @Test

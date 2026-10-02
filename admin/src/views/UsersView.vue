@@ -28,16 +28,26 @@
       </el-table-column>
     </el-table>
 
+    <el-alert type="info" :closable="false" class="mt12"
+              title="角色权限矩阵：WORKER/LEADER=小程序作业+只读；ADMIN=全部业务写操作；SYS_ADMIN=账号启停/重置密码/审计日志。账号生成：平台 2.4 登记后经人员档案建档，随机初始密码一次性发放，人员用手机号登录并自助修改。" />
+
     <el-dialog v-model="resetDialog" title="重置密码" width="420px">
       <el-form label-width="100px">
         <el-form-item label="账号">{{ resetForm.name }}（{{ resetForm.account }}）</el-form-item>
-        <el-form-item label="新密码" required>
-          <el-input v-model="resetForm.password" type="password" show-password placeholder="至少 6 位" />
+        <el-form-item label="重置方式">
+          <span>点击"确认重置"生成 12 位随机新密码（一次性展示）</span>
+        </el-form-item>
+      </el-form>
+      <el-form v-if="newPassword" label-width="100px">
+        <el-form-item label="新密码">
+          <el-input :model-value="newPassword" readonly />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="resetDialog = false">取消</el-button>
-        <el-button type="primary" :loading="saving" @click="doReset">确认重置</el-button>
+        <el-button @click="closeReset">取消</el-button>
+        <el-button type="primary" :loading="saving" @click="doReset">
+          {{ newPassword ? '完成' : '确认重置' }}
+        </el-button>
       </template>
     </el-dialog>
   </el-card>
@@ -52,8 +62,9 @@ import { showErr, ok } from '../utils/ui'
 const rows = ref([])
 const loading = ref(false)
 const resetDialog = ref(false)
+const newPassword = ref('')
 const saving = ref(false)
-const resetForm = reactive({ id: '', name: '', account: '', password: '' })
+const resetForm = reactive({ id: '', name: '', account: '' })
 
 async function load() {
   loading.value = true
@@ -76,21 +87,26 @@ async function toggle(row) {
   }
 }
 
+function closeReset() {
+  resetDialog.value = false
+  newPassword.value = ''
+}
+
 function openReset(row) {
-  Object.assign(resetForm, { id: row.id, name: row.name, account: row.account, password: '' })
+  Object.assign(resetForm, { id: row.id, name: row.name, account: row.account })
   resetDialog.value = true
 }
 
 async function doReset() {
-  if ((resetForm.password || '').length < 6) {
-    ok('新密码至少 6 位')
+  if (newPassword.value) {
+    closeReset()
     return
   }
   saving.value = true
   try {
-    await systemApi.resetEmployeePassword(resetForm.id, resetForm.password)
-    resetDialog.value = false
-    ok('密码已重置')
+    const res = await systemApi.resetEmployeePasswordRandom(resetForm.id)
+    newPassword.value = (res && res.initialPassword) || ''
+    ok('已生成随机新密码，请复制转发给本人')
   } catch (e) {
     showErr(e)
   } finally {
@@ -104,4 +120,5 @@ onMounted(load)
 <style scoped>
 .head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
 .inline-tip { width: auto; }
+.mt12 { margin-top: 12px; }
 </style>
