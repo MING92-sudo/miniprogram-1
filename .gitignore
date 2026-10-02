@@ -2,6 +2,7 @@
 node_modules/
 miniprogram_npm/
 tmp/
+scripts/tmp/
 backend/data/
 data/
 
@@ -19,6 +20,12 @@ Thumbs.db
 
 # 编辑器
 .idea/
+
+# 规则文件备份（工具改写 AGENTS.md 等时留下，非项目代码）
+AGENTS.md.backup.*
+
+# 会话续跑文件（DSH harness，非项目代码）
+.omo/
 
 # 微信开发者工具个人配置（官方建议不入库）
 project.private.config.json
@@ -45,3 +52,7 @@ reg-capture/
 
 # 说明：.env.example 只放变量名与占位说明，绝不放真实值
 !.env.example
+
+# AOCI agent host integration (machine-bound; do not commit)
+opencode.json
+opencode.json.backup.*
