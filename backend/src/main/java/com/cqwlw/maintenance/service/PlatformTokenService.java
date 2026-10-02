@@ -93,7 +93,7 @@ public class PlatformTokenService {
         } catch (BizException e) {
             throw e;
         } catch (Exception e) {
-            log.warn("平台登录请求异常: {}", e.getMessage());
+            log.warn("平台登录请求异常: {}", e.getClass().getSimpleName());
             throw new BizException(2001, "监管平台 token 获取失败");
         }
     }

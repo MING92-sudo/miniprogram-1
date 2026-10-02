@@ -221,7 +221,7 @@ public class PlatformClient {
         } catch (HttpClientErrorException.Unauthorized e) {
             throw new TokenExpired();
         } catch (Exception e) {
-            log.warn("平台接口调用异常: path={}, {}", path, e.getMessage());
+            log.warn("平台接口调用异常: path={}, err={}", path, e.getClass().getSimpleName());
             throw new BizException(2002, "平台接口调用失败");
         }
     }
@@ -265,8 +265,8 @@ public class PlatformClient {
         } catch (BizException e) {
             throw e;
         } catch (Exception e) {
-            log.warn("平台接口请求异常: path={}, {}", path, e.getMessage());
-            throw new BizException(2002, "平台接口调用失败: " + e.getMessage());
+            log.warn("平台接口请求异常: path={}, err={}", path, e.getClass().getSimpleName());
+            throw new BizException(2002, "平台接口调用失败");
         }
     }
 
