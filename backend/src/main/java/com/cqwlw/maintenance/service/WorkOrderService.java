@@ -638,8 +638,11 @@ public class WorkOrderService {
             throw new BizException(422, "关键项「" + name + "」为试验/测试/校验/检测类，必须至少附 1 张照片留证（TSG 注A-2）");
         }
         // 现场照片取证：照片与令牌按下标一一对应，缺令牌即拒绝（fail closed）——
-        // 水印的权威值以服务端记录为准，无令牌的 photoUrls 只是本地路径
-        List<Map<String, Object>> verifiedPhotos = verifyPhotoEvidence(orderId, itemId, body);
+        // 水印的权威值以服务端记录为准，无令牌的 photoUrls 只是本地路径。
+        // 已保存项再次提交时，历史照片已无令牌（令牌不外发），此时回落到本项服务端
+        // 已落库的存证按 fileId 复用，避免逼作业人为改一个结论而重新拍照。
+        List<Map<String, Object>> verifiedPhotos = verifyPhotoEvidence(
+                orderId, itemId, body, asMapList(item.get("photoEvidence")));
         List<Object> fileIds = asList(body.get("photoFileIds"));
         if (!fileIds.isEmpty() && verifiedPhotos.size() < fileIds.size()) {
             throw new BizException(422, "「" + name + "」现场照片缺少取证令牌（"
@@ -689,8 +692,9 @@ public class WorkOrderService {
      * 无需回填 fileId 即可通过校验。令牌必须绑定本工单与本检查项，篡改/过期/跨项一律拒绝。
      * 缺令牌的项不写入结果，由调用方按数量校验后fail closed 拒绝。
      */
-    private List<Map<String, Object>> verifyPhotoEvidence(String orderId, String itemId,
-                                                          Map<String, Object> body) {
+private List<Map<String, Object>> verifyPhotoEvidence(String orderId, String itemId,
+                                                           Map<String, Object> body,
+                                                           List<Map<String, Object>> storedEvidence) {
         List<Object> fileIds = asList(body.get("photoFileIds"));
         List<Map<String, Object>> tokens = new ArrayList<>();
         for (Object raw : asList(body.get("photoEvidence"))) {
@@ -702,18 +706,53 @@ public class WorkOrderService {
         }
         List<Map<String, Object>> out = new ArrayList<>();
         for (int i = 0; i < fileIds.size(); i++) {
+            String fileId = String.valueOf(fileIds.get(i));
             String token = i < tokens.size() ? str(tokens.get(i).get("evidenceToken")) : null;
             if (isBlank(token)) {
+                Map<String, Object> reused = findStoredEvidence(storedEvidence, fileId);
+                if (reused != null) {
+                    out.add(new LinkedHashMap<>(reused));
+                }
                 continue;
             }
             Map<String, Object> payload = evidenceTokenService.verifyOnly(token, orderId, itemId);
             Map<String, Object> rec = new LinkedHashMap<>();
-            rec.put("fileId", String.valueOf(fileIds.get(i)));
+            rec.put("fileId", fileId);
             rec.put("shotAt", TimeUtil.format(TimeUtil.fromMillis(numOf(payload.get("st")) * 1000L)));
             rec.put("latitude", EvidenceTokenService.latOf(payload));
             rec.put("longitude", EvidenceTokenService.lngOf(payload));
             rec.put("evidenceNonce", str(payload.get("n")));
             out.add(rec);
+        }
+        return out;
+    }
+
+    /**
+     * 复用本项已存证的照片记录，按 fileId 精确匹配。
+     * 只用服务端自己落库的存证：坐标、拍摄时间与随机数一律取自库中记录而非客户端回传，
+     * 且本项从未验过签的 fileId 在库里没有记录，故客户端既不能伪造存证、
+     * 也挂不上未取证照片——不构成绕过取证。
+     */
+    private static Map<String, Object> findStoredEvidence(List<Map<String, Object>> stored, String fileId) {
+        if (stored == null || isBlank(fileId)) {
+            return null;
+        }
+        for (Map<String, Object> rec : stored) {
+            if (rec != null && fileId.equals(str(rec.get("fileId")))) {
+                return rec;
+            }
+        }
+        return null;
+    }
+
+    private static List<Map<String, Object>> asMapList(Object raw) {
+        List<Map<String, Object>> out = new ArrayList<>();
+        for (Object o : asList(raw)) {
+            if (o instanceof Map) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> m = (Map<String, Object>) o;
+                out.add(m);
+            }
         }
         return out;
     }
