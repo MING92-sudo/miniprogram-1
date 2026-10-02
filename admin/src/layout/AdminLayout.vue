@@ -5,42 +5,40 @@
         <div class="brand-title">电梯维保管理端</div>
         <div class="brand-sub">智慧特种设备维保系统</div>
       </div>
-      <el-menu :default-active="active" router background-color="#001529" text-color="#a6adb4"
-               active-text-color="#ffffff" class="admin-menu">
+      <el-menu :default-active="active" :default-openeds="openMenus" router background-color="#001529"
+               text-color="#a6adb4" active-text-color="#ffffff" class="admin-menu">
         <el-menu-item index="/dashboard">
           <el-icon><Odometer /></el-icon><span>监控看板</span>
         </el-menu-item>
-        <el-menu-item-group>
-          <template #title><span class="group">平台对接（监管平台 2.1—2.8）</span></template>
-          <el-menu-item index="/platform/sync">
-            <el-icon><Refresh /></el-icon><span>平台同步（2.2/2.5/2.7）</span>
-          </el-menu-item>
-          <el-menu-item index="/reports/failed"><el-icon><WarningFilled /></el-icon><span>上报异常清单（2.6 重报）</span></el-menu-item>
-          <el-menu-item index="/reports/logs"><el-icon><Document /></el-icon><span>上报日志（2.6）</span></el-menu-item>
-          <el-menu-item index="/archive/company"><el-icon><OfficeBuilding /></el-icon><span>维保单位（2.2/2.3）</span></el-menu-item>
-          <el-menu-item index="/archive/use-units"><el-icon><School /></el-icon><span>使用单位（2.3/2.6）</span></el-menu-item>
-          <el-menu-item index="/archive/employees"><el-icon><User /></el-icon><span>人员（2.4/2.5）</span></el-menu-item>
-          <el-menu-item index="/archive/elevators"><el-icon><Files /></el-icon><span>电梯（2.6/2.7）</span></el-menu-item>
-        </el-menu-item-group>
-        <el-menu-item-group>
-          <template #title><span class="group">系统功能（我方业务闭环）</span></template>
-          <el-menu-item index="/orders"><el-icon><Tickets /></el-icon><span>工单监控</span></el-menu-item>
-          <el-menu-item index="/schedule"><el-icon><Calendar /></el-icon><span>计划调度</span></el-menu-item>
-          <el-menu-item index="/templates"><el-icon><List /></el-icon><span>检查项模板</span></el-menu-item>
-          <el-menu-item index="/ledger/inspects"><el-icon><Finished /></el-icon><span>自行检查</span></el-menu-item>
-          <el-menu-item index="/ledger/drills"><el-icon><AlarmClock /></el-icon><span>应急演练</span></el-menu-item>
-          <el-menu-item index="/ledger/rescues"><el-icon><Bell /></el-icon><span>困人救援</span></el-menu-item>
-          <el-menu-item index="/ledger/faults"><el-icon><CircleCloseFilled /></el-icon><span>故障记录</span></el-menu-item>
-          <el-menu-item index="/approvals"><el-icon><Stamp /></el-icon><span>定位异常申述审核</span></el-menu-item>
-          <el-menu-item index="/stats"><el-icon><DataAnalysis /></el-icon><span>统计报表</span></el-menu-item>
-          <el-menu-item index="/alerts"><el-icon><BellFilled /></el-icon><span>预警规则</span></el-menu-item>
-          <el-menu-item index="/notify"><el-icon><ChatDotSquare /></el-icon><span>发送记录</span></el-menu-item>
-        </el-menu-item-group>
-        <el-menu-item-group v-if="auth.isSysAdmin">
-          <template #title><span class="group">系统管理（SYS_ADMIN）</span></template>
-          <el-menu-item index="/users"><el-icon><UserFilled /></el-icon><span>用户权限</span></el-menu-item>
-          <el-menu-item index="/op-logs"><el-icon><Notebook /></el-icon><span>审计日志</span></el-menu-item>
-        </el-menu-item-group>      </el-menu>
+        <el-sub-menu index="platform">
+          <template #title><el-icon><Refresh /></el-icon><span>平台对接</span></template>
+          <el-menu-item index="/platform/sync"><span>平台同步</span></el-menu-item>
+          <el-menu-item index="/reports/failed"><span>上报异常清单</span></el-menu-item>
+          <el-menu-item index="/reports/logs"><span>上报日志</span></el-menu-item>
+          <el-menu-item index="/archive/company"><span>维保单位</span></el-menu-item>
+          <el-menu-item index="/archive/use-units"><span>使用单位</span></el-menu-item>
+          <el-menu-item index="/archive/employees"><span>人员</span></el-menu-item>
+          <el-menu-item index="/archive/elevators"><span>电梯档案</span></el-menu-item>
+        </el-sub-menu>
+        <el-sub-menu index="system">
+          <template #title><el-icon><Tickets /></el-icon><span>系统功能</span></template>
+          <el-menu-item index="/orders"><span>工单监控</span></el-menu-item>
+          <el-menu-item index="/schedule"><span>计划调度</span></el-menu-item>
+          <el-menu-item index="/templates"><span>检查项模板</span></el-menu-item>
+          <el-menu-item index="/ledger/inspects"><span>自行检查</span></el-menu-item>
+          <el-menu-item index="/ledger/drills"><span>应急演练</span></el-menu-item>
+          <el-menu-item index="/ledger/rescues"><span>困人救援</span></el-menu-item>
+          <el-menu-item index="/ledger/faults"><span>故障记录</span></el-menu-item>
+          <el-menu-item index="/approvals"><span>定位异常申述审核</span></el-menu-item>
+          <el-menu-item index="/stats"><span>统计报表</span></el-menu-item>
+          <el-menu-item index="/alerts"><span>预警规则</span></el-menu-item>
+          <el-menu-item index="/notify"><span>发送记录</span></el-menu-item>
+        </el-sub-menu>
+        <el-sub-menu v-if="auth.isSysAdmin" index="sysadmin">
+          <template #title><el-icon><Notebook /></el-icon><span>系统管理</span></template>
+          <el-menu-item index="/users"><span>用户权限</span></el-menu-item>
+          <el-menu-item index="/op-logs"><span>审计日志</span></el-menu-item>
+        </el-sub-menu>      </el-menu>
     </el-aside>
 
     <el-container>
@@ -65,14 +63,19 @@
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import {
-  Odometer, Tickets, WarningFilled, Document, Refresh, OfficeBuilding,
-  School, User, Files, Finished, AlarmClock, Bell, CircleCloseFilled, DataAnalysis,
-  Calendar, List, Stamp, BellFilled, ChatDotSquare, UserFilled, Notebook
+  Odometer, Tickets, Refresh, Notebook
 } from '@element-plus/icons-vue'
 import { useAuthStore } from '../stores/auth'
 import { ROLE_TEXT } from '../constants'
 
 const route = useRoute()
+/** 当前路由所在模块默认展开，其余折叠 */
+const openMenus = computed(() => {
+  const p = route.path
+  if (p.startsWith('/platform') || p.startsWith('/reports') || p.startsWith('/archive')) return ['platform']
+  if (p.startsWith('/users') || p.startsWith('/op-logs')) return ['sysadmin']
+  return ['system']
+})
 const auth = useAuthStore()
 
 const active = computed(() => '/' + route.path.split('/').filter(Boolean).slice(0, 2).join('/'))
