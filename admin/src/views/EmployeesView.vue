@@ -10,6 +10,9 @@
       <el-table-column prop="phone" label="手机号" width="130" />
       <el-table-column prop="account" label="账号" width="130" />
       <el-table-column prop="roleText" label="角色" width="140" />
+      <el-table-column label="班组" width="120">
+        <template #default="{ row }">{{ row.groupName || '—' }}</template>
+      </el-table-column>
       <el-table-column prop="certificate" label="证书编号" width="140">
         <template #default="{ row }">{{ row.certificate || '—' }}</template>
       </el-table-column>
@@ -44,8 +47,10 @@
             <el-option label="维保部管理员（ADMIN）" value="ADMIN" />
             <el-option label="系统管理员（SYS_ADMIN）" value="SYS_ADMIN" />
           </el-select>
+          <div class="tip" v-if="rolePerm">{{ rolePerm }}</div>
         </el-form-item>
         <el-form-item label="证书编号"><el-input v-model="form.certificate" /></el-form-item>
+        <el-form-item label="班组"><el-input v-model="form.groupName" placeholder="如：维保一班；组长按班组查看组员单据" /></el-form-item>
         <el-form-item label="作业开始日期"><el-input v-model="form.workStartDate" placeholder="yyyy-MM-dd" /></el-form-item>
         <el-form-item label="证件有效期至"><el-input v-model="form.workEndDate" placeholder="yyyy-MM-dd" /></el-form-item>
         <div class="tip">维保人员/班组长手机参与五类互斥（docs/01 §3.2.4）；使用单位账号经小程序绑定产生，不在建档范围。</div>
@@ -65,7 +70,7 @@
 </template>
 
 <script setup>
-import { reactive, ref, onMounted } from 'vue'
+import { reactive, ref, computed, onMounted } from 'vue'
 import { useAuthStore } from '../stores/auth'
 import * as archiveApi from '../api/archive'
 import { showErr, ok } from '../utils/ui'
@@ -79,7 +84,16 @@ const saving = ref(false)
 const pwdDialog = ref(false)
 const initialPassword = ref('')
 
-const empty = { id: '', name: '', phone: '', account: '', role: 'WORKER', certificate: '',
+/** 权限矩阵（用户需求：角色对应系统权限说明） */
+const ROLE_PERM = {
+  WORKER: '小程序作业（签到/清单/签退/台账）＋管理端只读',
+  LEADER: '同维保人员＋管理端全部数据只读',
+  ADMIN: '管理端全部业务写操作（档案/重报/登记/派单）',
+  SYS_ADMIN: '账号启停/重置密码/审计日志（系统级）'
+}
+const rolePerm = computed(() => ROLE_PERM[form.role] || '')
+
+const empty = { id: '', name: '', phone: '', account: '', role: 'WORKER', certificate: '', groupName: '',
   workStartDate: '', workEndDate: '', password: '', platformId: '', syncStatus: '' }
 const form = reactive({ ...empty })
 

@@ -89,12 +89,12 @@
           <el-select v-model="form.workerId" filterable clearable placeholder="选择维保人员1（自动带出平台ID）"
                      style="width: 100%" @change="onWorkerChange">
             <el-option v-for="e in staff" :key="e.id" :value="e.id"
-                       :label="e.name + '（' + (e.platformId || '未同步平台ID') + '）'" />
+                       :label="e.name + '（' + e.phone + '）'" />
           </el-select>
           <el-select v-model="form.assistantEmployeeId" filterable clearable placeholder="选择维保人员2（可选）"
                      style="width: 100%; margin-top: 6px" @change="onAssistantChange">
             <el-option v-for="e in staff" :key="e.id" :value="e.id"
-                       :label="e.name + '（' + (e.platformId || '未同步平台ID') + '）'" />
+                       :label="e.name + '（' + e.phone + '）'" />
           </el-select>
         </el-form-item>
       </el-form>
