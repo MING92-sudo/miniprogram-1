@@ -58,22 +58,6 @@
       </view>
     </view>
 
-    <!-- 辅助功能 -->
-    <view class="section-title">辅助功能</view>
-    <view class="icon-grid">
-      <view
-        wx:for="{{quickMenus}}"
-        wx:key="title"
-        class="icon-item"
-        data-url="{{item.url}}"
-        bindtap="onGridTap"
-      >
-        <view wx:if="{{item.badge > 0}}" class="icon-badge">{{item.badge}}</view>
-        <view class="icon-box bg-{{item.color}}">{{item.icon}}</view>
-        <view class="icon-label">{{item.title}}</view>
-      </view>
-    </view>
-
     <!-- 综合查询 -->
     <view class="section-title">综合查询</view>
     <view class="icon-grid">

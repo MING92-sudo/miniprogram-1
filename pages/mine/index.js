@@ -18,11 +18,7 @@ const STAFF_ROLES = [ROLE.WORKER, ROLE.ASSISTANT, ROLE.LEADER]
 function buildMenus(role) {
   const menus = []
   if (STAFF_ROLES.indexOf(role) > -1) {
-    // 合规台账（TSG 法定项，docs/01 §3.17/3.18）
-    menus.push({ title: '自行检查', url: '/pages/compliance/inspect', desc: '年度法定检查，定期检验前完成' })
-    menus.push({ title: '应急演练', url: '/pages/compliance/drill', desc: '每半年至少 1 轮，覆盖全部在保品种' })
-    menus.push({ title: '故障上报', url: '/pages/fault/report', desc: '现场故障登记' })
-    menus.push({ title: '故障记录', url: '/pages/fault/list', desc: '上报记录与闭环跟踪' })
+    menus.push({ title: '急修单', url: '/pages/fault/list', desc: '现场登记、闭环跟踪' })
     menus.push({ title: '救援记录', url: '/pages/rescue/list', desc: '困人救援登记与跟踪' })
   }
   menus.push({ title: '知识库', url: '/pages/knowledge/index', desc: '作业手册与流程规范' })
@@ -35,6 +31,7 @@ Page({
   data: {
     userInfo: null,
     roleText: '',
+    versionText: '',
     menus: []
   },
 
@@ -55,9 +52,17 @@ Page({
   refresh() {
     const app = getApp()
     const role = app.globalData.role
+    let versionText = ''
+    try {
+      const mp = wx.getAccountInfoSync().miniProgram
+      versionText = mp.version ? '版本 ' + mp.version : mp.envVersion === 'trial' ? '体验版' : '开发版'
+    } catch (e) {
+      versionText = ''
+    }
     this.setData({
       userInfo: app.globalData.userInfo,
       roleText: ROLE_TEXT[role] || ROLE[role] || '未登录',
+      versionText,
       menus: buildMenus(role)
     })
   },

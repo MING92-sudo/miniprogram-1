@@ -25,7 +25,25 @@
       {
         "type": "folder",
         "value": "node_modules"
-      }
+      },
+      { "type": "folder", "value": "backend" },
+      { "type": "folder", "value": "admin" },
+      { "type": "folder", "value": "docs" },
+      { "type": "folder", "value": "scripts" },
+      { "type": "folder", "value": "data" },
+      { "type": "folder", "value": "libs" },
+      { "type": "folder", "value": ".aoci" },
+      { "type": "folder", "value": ".github" },
+      { "type": "folder", "value": ".omo" },
+      { "type": "file", "value": ".env" },
+      { "type": "file", "value": ".env.example" },
+      { "type": "file", "value": "package.json" },
+      { "type": "file", "value": "package-lock.json" },
+      { "type": "file", "value": "README.md" },
+      { "type": "file", "value": "AGENTS.md" },
+      { "type": "file", "value": "Dockerfile" },
+      { "type": "file", "value": "doc_text.txt" },
+      { "type": "file", "value": "opencode.json" }
     ],
     "include": []
   },

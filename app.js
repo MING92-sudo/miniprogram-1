@@ -10,6 +10,25 @@ App({
   onLaunch() {
     this.restoreAuth()
     this.watchNetwork()
+    this.watchUpdate()
+  },
+
+  // 新版本自动更新：下载完成后提示重启（体验版/正式版生效）
+  watchUpdate() {
+    try {
+      const um = wx.getUpdateManager()
+      um.onUpdateReady(() => {
+        wx.showModal({
+          title: '更新提示',
+          content: '新版本已就绪，是否重启应用？',
+          success: (res) => {
+            if (res.confirm) um.applyUpdate()
+          }
+        })
+      })
+    } catch (e) {
+      // 低版本基础库无 UpdateManager，忽略
+    }
   },
 
   // 网络恢复时自动补传离线队列（docs/02 离线策略）

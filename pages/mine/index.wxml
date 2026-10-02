@@ -26,4 +26,6 @@
   <view class="em-card">
     <view class="menu-item logout" bindtap="onLogout">退出登录</view>
   </view>
+
+  <view wx:if="{{versionText}}" class="em-text-secondary version-line">{{versionText}}</view>
 </view>

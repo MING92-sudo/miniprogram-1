@@ -21,8 +21,8 @@ Page({
       inProgress: 0, unconfirmed: 0, platformTotal: 0,
       openFaults: 0, overdueInspects: 0, warnCount: 0
     },
-    quickMenus: [],
     queryMenus: [
+      { title: '急修单', icon: '🛠️', color: 'blue', url: '/pages/fault/list' },
       { title: '维保记录', icon: '📋', color: 'orange', url: '/pages/order/list', tab: true },
       { title: '消息通知', icon: '💬', color: 'blue', url: '/pages/message/index', tab: true },
       { title: '知识库', icon: '📚', color: 'purple', url: '/pages/knowledge/index' }
@@ -56,15 +56,11 @@ Page({
   async fetchSummary() {
     try {
       const s = await getHomeSummary()
-      // 辅助功能宫格：角标 = 待办数量（急修单=未闭环故障、年检预警=自行检查逾期台数）
+      // 综合查询宫格：急修单角标 = 未闭环故障数
+      const qi = this.data.queryMenus.findIndex(m => m.title === '急修单')
       this.setData({
         summary: s,
-        quickMenus: [
-          { title: '急修单', icon: '🛠️', color: 'blue', url: '/pages/fault/report', badge: s.openFaults },
-          { title: '救援登记', icon: '🚨', color: 'red', url: '/pages/rescue/create', badge: 0 },
-          { title: '自行检查', icon: '📁', color: 'purple', url: '/pages/compliance/inspect', badge: s.overdueInspects },
-          { title: '应急演练', icon: '📢', color: 'orange', url: '/pages/compliance/drill', badge: 0 }
-        ]
+        ...(qi > -1 ? { [`queryMenus[${qi}].badge`]: s.openFaults } : {})
       })
     } catch (e) {
       // 汇总失败不阻断首页，看板显示 0 值
