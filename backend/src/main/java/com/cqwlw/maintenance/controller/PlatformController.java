@@ -8,12 +8,14 @@ import com.cqwlw.maintenance.service.PlatformReportService;
 import com.cqwlw.maintenance.service.PlatformSyncService;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.Map;
+import java.util.List;
 
 /**
  * 平台档案同步与写链路（P3，docs/07 实测口径沉淀）：
@@ -36,6 +38,24 @@ public class PlatformController {
     @PostMapping("/platform/sync")
     public ApiResponse<Map<String, Object>> sync() {
         return ApiResponse.ok(platformSyncService.syncAll());
+    }
+
+    /** 2.7 单梯查询（管理端新建电梯按 elevatorCode 回填，docs/06 #8 实测平台支持） */
+    @PostMapping("/platform/query/elevator")
+    public ApiResponse<Object> queryElevator(@RequestBody Map<String, Object> body) {
+        String code = body.get("elevatorCode") == null ? "" : String.valueOf(body.get("elevatorCode")).trim();
+        if (code.isEmpty()) {
+            throw new BizException(422, "elevatorCode 必填");
+        }
+        if (!platformClient.configured()) {
+            return ApiResponse.ok(Map.of("found", false, "reason", "监管平台凭证未配置"));
+        }
+        Map<String, String> cond = new java.util.LinkedHashMap<>();
+        cond.put("elevatorCode", code);
+        List<Map<String, Object>> list = platformClient.queryElevatorInfo(cond);
+        return ApiResponse.ok(list.isEmpty()
+                ? Map.of("found", false, "reason", "平台未查询到该电梯")
+                : Map.of("found", true, "elevator", list.get(0)));
     }
 
     /** 手动重报平台 2.6（仅 reportStatus=FAILED；不自动重试红线不变，AGENTS §2.3） */

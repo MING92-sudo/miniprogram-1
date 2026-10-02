@@ -399,6 +399,9 @@ public class AdminArchiveService {
         if (body.get("emergencyPhone") != null) {
             el.emergencyPhone = str(body, "emergencyPhone");
         }
+        if (body.get("useUnitEntityId") != null) {
+            el.useUnitEntityId = str(body, "useUnitEntityId");
+        }
     }
 
     private Map<String, Object> companyRow(Company c) {

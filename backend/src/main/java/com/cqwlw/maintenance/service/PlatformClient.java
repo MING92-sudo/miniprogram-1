@@ -41,6 +41,11 @@ public class PlatformClient {
         this.tokenService = tokenService;
     }
 
+    /** 供管理端在未配凭证时给出友好提示（不触发真实调用） */
+    public boolean configured() {
+        return tokenService.configured();
+    }
+
     /** 2.2 通用主体查询：返回 data[0].entityID（实测业务数据在 data 数组中） */
     public String queryEntityId(String organizationCode, String unitName) {
         MultiValueMap<String, String> form = new org.springframework.util.LinkedMultiValueMap<>();

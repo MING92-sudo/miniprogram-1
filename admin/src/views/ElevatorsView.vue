@@ -31,7 +31,16 @@
 
     <el-dialog v-model="dialog" :title="form.id ? '编辑电梯' : '新建电梯'" width="640px">
       <el-form :model="form" label-width="130px">
-        <el-form-item label="电梯编号" required><el-input v-model="form.elevatorCode" /></el-form-item>
+<el-form-item label="电梯编号" required>
+  <el-input v-model="form.elevatorCode">
+    <template #append v-if="!form.id">
+      <el-button :loading="querying" @click="queryFromPlatform">平台查询(2.7)</el-button>
+    </template>
+  </el-input>
+</el-form-item>
+<el-form-item v-if="platformHint" label=" ">
+  <el-text size="small" type="success">{{ platformHint }}</el-text>
+</el-form-item>
         <el-form-item label="电梯名称" required><el-input v-model="form.elevatorName" /></el-form-item>
         <el-form-item label="安装地点"><el-input v-model="form.location" /></el-form-item>
         <el-form-item label="使用单位">
@@ -87,6 +96,8 @@ const loading = ref(false)
 const dialog = ref(false)
 const saving = ref(false)
 const syncing = ref(false)
+const querying = ref(false)
+const platformHint = ref('')
 const categories = ['曳引与强制驱动电梯', '液压驱动电梯', '杂物电梯', '自动扶梯与自动人行道']
 
 const empty = { id: '', elevatorCode: '', elevatorName: '', location: '', useUnitId: '', regCode: '',
@@ -109,6 +120,7 @@ async function load() {
 
 function openCreate() {
   Object.assign(form, empty)
+  platformHint.value = ''
   dialog.value = true
 }
 
@@ -150,6 +162,52 @@ async function onSync() {
     showErr(e)
   } finally {
     syncing.value = false
+  }
+}
+
+/** 2.7 单梯查询回填：设备代码/注册代码/应急电话/安全管理员/使用单位主体（docs/07 实测口径） */
+async function queryFromPlatform() {
+  if (!form.elevatorCode || !form.elevatorCode.trim()) {
+    ok('请先输入电梯编号')
+    return
+  }
+  querying.value = true
+  platformHint.value = ''
+  try {
+    const res = await platformApi.queryElevator(form.elevatorCode.trim())
+    if (!res.found) {
+      platformHint.value = '平台未回填：' + (res.reason || '未查询到')
+      return
+    }
+    const p = res.elevator || {}
+    const picked = []
+    const put = (src, key, label) => {
+      const v = p[src]
+      if (v !== undefined && v !== null && String(v) !== '') {
+        form[key] = String(v)
+        picked.push(label)
+      }
+    }
+    put('deviceCode', 'deviceCode', '设备代码')
+    put('regCode', 'regCode', '注册代码')
+    put('registrationCode', 'regCode', '注册代码')
+    put('emergencyPhone', 'emergencyPhone', '应急电话')
+    put('elevatorAdminister', 'elevatorAdminister', '安全管理员')
+    put('elevatorAdministerPhone', 'elevatorAdministerPhone', '管理员电话')
+    put('useUnitEntityId', 'useUnitEntityId', '使用单位主体')
+    if (!form.elevatorName && p.elevatorName) {
+      form.elevatorName = String(p.elevatorName)
+      picked.push('电梯名称')
+    }
+    if (p.useUnitEntityId) {
+      const hit = units.value.find((u) => u.entityId === String(p.useUnitEntityId))
+      if (hit && !form.useUnitId) form.useUnitId = hit.id
+    }
+    platformHint.value = picked.length ? '已从平台回填：' + picked.join('、') : '平台已查询到该电梯，但无可回填字段'
+  } catch (e) {
+    showErr(e)
+  } finally {
+    querying.value = false
   }
 }
 

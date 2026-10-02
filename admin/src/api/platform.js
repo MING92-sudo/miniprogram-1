@@ -9,6 +9,11 @@ export function syncStatus() {
   return http.get('/reg/sync-status')
 }
 
+/** 2.7 单梯查询（新建/编辑电梯时按 elevatorCode 回填平台字段） */
+export function queryElevator(elevatorCode) {
+  return http.post('/platform/query/elevator', { elevatorCode }, { timeout: 60000 })
+}
+
 export function uploadLogs(params) {
   return http.get('/reg/upload-logs', { params })
 }
