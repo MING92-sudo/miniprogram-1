@@ -31,14 +31,30 @@ function issueToken(roleKey) {
 }
 
 function currentEmployee() {
+  let auth = null
   let token = ''
   try {
-    token = require('../utils/auth').getToken() || ''
+    auth = require('../utils/auth')
+    token = auth.getToken() || ''
   } catch (e) {
     return null
   }
-  const roleKey = sessions[token]
+  const roleKey = sessions[token] || readStoredRole(auth)
   return roleKey ? d.db.employees[roleKey] : null
+}
+
+/**
+ * 回落到本地存的 role：本文件改成带会话的 token 之前签发的是旧格式，
+ * 升级后旧 token 不在会话表里，若只认会话表则已登录用户会被全部 403，
+ * 看起来像演示坏了。回落后仅在 mock 内生效，且角色仍要与工单姓名+platform_id 双条件匹配。
+ */
+function readStoredRole(auth) {
+  try {
+    const role = auth.getRole()
+    return d.db.employees[role] ? role : null
+  } catch (e) {
+    return null
+  }
 }
 
 /**
