@@ -109,11 +109,133 @@ const EVIDENCE_TTL_SHOT_MS = 86400 * 1000
 const EVIDENCE_SECRET = 'mock-evidence-secret-not-for-production'
 const usedEvidenceNonces = Object.create(null)
 
+// 纯 JS 实现 SHA-256/HMAC/base64url，替代 Node-only 的 crypto/Buffer：
+// 微信小程序运行时既无 require('crypto') 也无全局 Buffer，用 Node API 会导致
+// /evidence、/evidence/shot、/evidence/sign 在 useMock 下抛 "Buffer is not defined"。
+function sha256Bytes(bytes) {
+  const K = [
+    0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
+    0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
+    0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
+    0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967,
+    0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85,
+    0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
+    0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
+    0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2
+  ]
+  const rotr = (x, n) => (x >>> n) | (x << (32 - n))
+  const l = bytes.length
+  const padded = bytes.slice()
+  padded.push(0x80)
+  while ((padded.length % 64) !== 56) padded.push(0)
+  for (let i = 0; i < 8; i++) padded.push(0)
+  const bitLen = (l * 8) >>> 0
+  // 64-bit 长度字段（大端）；消息远小于 512MB，高 4 字节恒为 0
+  padded[padded.length - 8] = 0
+  padded[padded.length - 7] = 0
+  padded[padded.length - 6] = 0
+  padded[padded.length - 5] = 0
+  padded[padded.length - 4] = (bitLen >>> 24) & 0xff
+  padded[padded.length - 3] = (bitLen >>> 16) & 0xff
+  padded[padded.length - 2] = (bitLen >>> 8) & 0xff
+  padded[padded.length - 1] = bitLen & 0xff
+  let H0 = 0x6a09e667, H1 = 0xbb67ae85, H2 = 0x3c6ef372, H3 = 0xa54ff53a
+  let H4 = 0x510e527f, H5 = 0x9b05688c, H6 = 0x1f83d9ab, H7 = 0x5be0cd19
+  for (let i = 0; i < padded.length; i += 64) {
+    const w = new Array(64)
+    for (let t = 0; t < 16; t++) {
+      w[t] = ((padded[i + t * 4] << 24) | (padded[i + t * 4 + 1] << 16) | (padded[i + t * 4 + 2] << 8) | padded[i + t * 4 + 3]) >>> 0
+    }
+    for (let t = 16; t < 64; t++) {
+      const s0 = rotr(w[t - 15], 7) ^ rotr(w[t - 15], 18) ^ (w[t - 15] >>> 3)
+      const s1 = rotr(w[t - 2], 17) ^ rotr(w[t - 2], 19) ^ (w[t - 2] >>> 10)
+      w[t] = (w[t - 16] + s0 + w[t - 7] + s1) >>> 0
+    }
+    let a = H0, b = H1, c = H2, d = H3, e = H4, f = H5, g = H6, h = H7
+    for (let t = 0; t < 64; t++) {
+      const S1 = rotr(e, 6) ^ rotr(e, 11) ^ rotr(e, 25)
+      const ch = (e & f) ^ (~e & g)
+      const temp1 = (h + S1 + ch + K[t] + w[t]) >>> 0
+      const S0 = rotr(a, 2) ^ rotr(a, 13) ^ rotr(a, 22)
+      const maj = (a & b) ^ (a & c) ^ (b & c)
+      const temp2 = (S0 + maj) >>> 0
+      h = g; g = f; f = e; e = (d + temp1) >>> 0; d = c; c = b; b = a; a = (temp1 + temp2) >>> 0
+    }
+    H0 = (H0 + a) >>> 0; H1 = (H1 + b) >>> 0; H2 = (H2 + c) >>> 0; H3 = (H3 + d) >>> 0
+    H4 = (H4 + e) >>> 0; H5 = (H5 + f) >>> 0; H6 = (H6 + g) >>> 0; H7 = (H7 + h) >>> 0
+  }
+  const out = []
+  const H = [H0, H1, H2, H3, H4, H5, H6, H7]
+  for (let i = 0; i < 8; i++) {
+    out.push((H[i] >>> 24) & 0xff, (H[i] >>> 16) & 0xff, (H[i] >>> 8) & 0xff, H[i] & 0xff)
+  }
+  return out
+}
+
+function utf8Bytes(str) {
+  const out = []
+  for (let i = 0; i < str.length; i++) {
+    let c = str.charCodeAt(i)
+    if (c < 0x80) out.push(c)
+    else if (c < 0x800) out.push(0xc0 | (c >> 6), 0x80 | (c & 0x3f))
+    else if (c < 0xd800 || c >= 0xe000) out.push(0xe0 | (c >> 12), 0x80 | ((c >> 6) & 0x3f), 0x80 | (c & 0x3f))
+    else { i++; c = 0x10000 + (((c & 0x3ff) << 10) | (str.charCodeAt(i) & 0x3ff)); out.push(0xf0 | (c >> 18), 0x80 | ((c >> 12) & 0x3f), 0x80 | ((c >> 6) & 0x3f), 0x80 | (c & 0x3f)) }
+  }
+  return out
+}
+
+function utf8String(bytes) {
+  let str = ''
+  for (let i = 0; i < bytes.length; i++) {
+    const b = bytes[i]
+    if (b < 0x80) str += String.fromCharCode(b)
+    else if (b < 0xe0) str += String.fromCharCode(((b & 0x1f) << 6) | (bytes[++i] & 0x3f))
+    else if (b < 0xf0) str += String.fromCharCode(((b & 0x0f) << 12) | ((bytes[++i] & 0x3f) << 6) | (bytes[++i] & 0x3f))
+    else { const cp = ((b & 0x07) << 18) | ((bytes[++i] & 0x3f) << 12) | ((bytes[++i] & 0x3f) << 6) | (bytes[++i] & 0x3f); const cp2 = cp - 0x10000; str += String.fromCharCode(0xd800 + (cp2 >> 10), 0xdc00 + (cp2 & 0x3ff)) }
+  }
+  return str
+}
+
+function base64urlEncode(bytes) {
+  const map = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
+  let s = ''
+  for (let i = 0; i < bytes.length; i += 3) {
+    const b0 = bytes[i], b1 = bytes[i + 1], b2 = bytes[i + 2]
+    s += map[b0 >> 2]
+    s += map[((b0 & 3) << 4) | (b1 === undefined ? 0 : (b1 >> 4))]
+    s += b1 === undefined ? '=' : map[((b1 & 15) << 2) | (b2 === undefined ? 0 : (b2 >> 6))]
+    s += b2 === undefined ? '=' : map[b2 & 63]
+  }
+  return s.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+}
+
+function base64urlDecode(str) {
+  let s = str.replace(/-/g, '+').replace(/_/g, '/')
+  while (s.length % 4) s += '='
+  const map = {}
+  'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'.split('').forEach((c, i) => { map[c] = i })
+  const bytes = []
+  for (let i = 0; i < s.length; i += 4) {
+    const a = map[s[i]], b = map[s[i + 1]]
+    const c = s[i + 2] === '=' ? 0 : map[s[i + 2]]
+    const d = s[i + 3] === '=' ? 0 : map[s[i + 3]]
+    bytes.push((a << 2) | (b >> 4))
+    if (s[i + 2] !== '=') bytes.push(((b & 15) << 4) | (c >> 2))
+    if (s[i + 3] !== '=') bytes.push(((c & 3) << 6) | d)
+  }
+  return bytes
+}
+
 function evidenceHmac(body) {
-  return require('crypto')
-    .createHmac('sha256', EVIDENCE_SECRET + EVIDENCE_CONTEXT)
-    .update(body)
-    .digest('base64url')
+  const key = EVIDENCE_SECRET + EVIDENCE_CONTEXT
+  let keyBytes = utf8Bytes(key)
+  if (keyBytes.length > 64) keyBytes = sha256Bytes(keyBytes)
+  const ipad = new Array(64).fill(0x36)
+  const opad = new Array(64).fill(0x5c)
+  for (let i = 0; i < keyBytes.length; i++) { ipad[i] ^= keyBytes[i]; opad[i] ^= keyBytes[i] }
+  const inner = sha256Bytes(ipad.concat(utf8Bytes(body)))
+  const outer = sha256Bytes(opad.concat(inner))
+  return base64urlEncode(outer)
 }
 
 function issueEvidence(orderId, lat, lng, distanceText, threshold, itemId, ttlMs, kind, role) {
@@ -130,7 +252,7 @@ function issueEvidence(orderId, lat, lng, distanceText, threshold, itemId, ttlMs
   if (kind) payload.kind = kind
   if (role) payload.role = role
   const body = JSON.stringify(payload)
-  const token = Buffer.from(body, 'utf8').toString('base64url') + '.' + evidenceHmac(body)
+  const token = base64urlEncode(utf8Bytes(body)) + '.' + evidenceHmac(body)
   return {
     token,
     orderId,
@@ -155,7 +277,7 @@ function verifyEvidence(token, expectOrderId, expectItemId, consumeNonce, expect
   if (dot < 0) throw { code: 422, message: '取证令牌格式无效' }
   let payload
   try {
-    payload = JSON.parse(Buffer.from(token.slice(0, dot), 'base64url').toString('utf8'))
+    payload = JSON.parse(utf8String(base64urlDecode(token.slice(0, dot))))
   } catch (e) {
     throw { code: 422, message: '取证令牌解析失败' }
   }
@@ -409,7 +531,7 @@ const db = {
       id: 'kb_4',
       title: 'V1.5 平台上报字段对照表',
       tag: '平台对接',
-      content: '一、维保记录（2.4）：originalRecordId 为平台侧记录唯一标识，幂等性未确认前失败不自动重试（REG_RETRY_AUTO=false）。\n\n二、人员同步（2.2）：维保人员需先同步获取 platform_id 才可上报（错误码 1004）。\n\n三、存量记录（2.8）：临时接口，平台关闭后停止推送。\n\n四、签到定位（2.4）：坐标系为 WGS84，位置超阈由后端判定（错误码 1001）。\n\n五、上报重试：平台侧自动重试保持关闭，失败转人工处理。'
+      content: '一、维保记录（2.4）：originalRecordId 为平台侧记录唯一标识，幂等性未确认前失败不自动重试。\n\n二、人员同步（2.2）：维保人员需先同步获取 platform_id 才可上报（错误码 1004）。\n\n三、存量记录（2.8）：临时接口，平台关闭后停止推送。\n\n四、签到定位（2.4）：坐标系为 WGS84，位置超阈由后端判定（错误码 1001）。\n\n五、上报重试：平台侧自动重试保持关闭，失败转人工处理。'
     }
   ]
 }
