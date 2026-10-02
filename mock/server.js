@@ -18,6 +18,70 @@ function paginate(list, query) {
   }
 }
 
+// ── 演示态会话与归属判定 ──
+// mock 没有真实鉴权，但作业归属与双人门禁必须与后端同口径：否则演示会展示线上
+// 不可能出现的路径（单人作业、代他人作业、见全部工单），验收时误判为已修复。
+// 这里保存 token → 员工键，由 getToken() 反查当前登录人。
+const sessions = {}
+
+function issueToken(roleKey) {
+  const token = 'mock-token-' + roleKey + '-' + Date.now()
+  sessions[token] = roleKey
+  return token
+}
+
+function currentEmployee() {
+  let token = ''
+  try {
+    token = require('../utils/auth').getToken() || ''
+  } catch (e) {
+    return null
+  }
+  const roleKey = sessions[token]
+  return roleKey ? d.db.employees[roleKey] : null
+}
+
+/**
+ * 姓名与 platform_id 必须同时匹配，任一为空即拒绝。
+ * 严禁退化为只按姓名匹配——姓名会重名，两者必须指向同一个人。
+ */
+function identityMatches(me, platformId, name) {
+  if (!me || !me.platformId || !platformId || !me.name || !name) return false
+  return me.platformId === platformId && me.name === name
+}
+
+/** 登录人在该工单中的角色：PRINCIPAL / ASSISTANT；不在名单内返回 null */
+function orderRole(order) {
+  const me = currentEmployee()
+  if (identityMatches(me, order.workerPlatformId, order.workerName)) return 'PRINCIPAL'
+  if (identityMatches(me, order.assistantPlatformId, order.assistantName)) return 'ASSISTANT'
+  return null
+}
+
+function requireOwnership(order) {
+  if (!order) throw { code: 1404, message: '工单不存在' }
+  if (!orderRole(order)) {
+    throw { code: 403, message: '该工单未指派给你，无法查看或操作' }
+  }
+  return order
+}
+
+/**
+ * 维保记录只由主维保人员填写；配合人员的记录为锁定状态、只读。
+ * 与后端 requirePrincipal 同一口径，否则演示会让配合人员改写主维保记录。
+ */
+function requirePrincipal(order) {
+  if (orderRole(order) !== 'PRINCIPAL') {
+    throw { code: 403, message: '配合人员的维保记录为锁定状态，不可编辑' }
+  }
+  return order
+}
+
+/** 是否本人可见：与 requireOwnership 同口径，供列表过滤复用 */
+function canAccessOrder(order) {
+  return !!orderRole(order)
+}
+
 function findOr404(list, id, name) {
   const item = list.find((x) => x.id === id)
   if (!item) throw { code: 1404, message: (name || '记录') + '不存在' }
@@ -37,7 +101,7 @@ const routes = [
     })
     if (!user) throw { code: 401, message: '账号不存在，请联系维保单位管理员分配' }
     if (user.password !== password) throw { code: 401, message: '账号或密码错误' }
-    return { token: 'mock-token-' + Date.now(), userInfo: user, role: roleKey }
+    return { token: issueToken(roleKey), userInfo: user, role: roleKey }
   }],
   // 登录后绑定微信：wx.login code → 服务端换 openid 并与账号关联（mock 直接返回成功）
   ['POST', '/auth/bind-wechat', ({ body }) => {
@@ -47,26 +111,22 @@ const routes = [
   ['POST', '/auth/wx-login', ({ body }) => {
     const role = d.db.employees[body.role] ? body.role : 'WORKER'
     const user = d.db.employees[role]
-    return { token: 'mock-token-' + Date.now(), userInfo: user, role }
+    return { token: issueToken(role), userInfo: user, role }
   }],
   ['POST', '/auth/bind-employee', ({ body }) => {
     const role = body.role === 'LEADER' ? 'LEADER' : 'WORKER'
-    return { token: 'mock-token-' + Date.now(), userInfo: d.db.employees[role], role }
+    return { token: issueToken(role), userInfo: d.db.employees[role], role }
   }],
   ['POST', '/auth/bind-use-unit', () => (
-    { token: 'mock-token-' + Date.now(), userInfo: d.db.employees.UNIT_ADMIN, role: 'UNIT_ADMIN' }
+    { token: issueToken('UNIT_ADMIN'), userInfo: d.db.employees.UNIT_ADMIN, role: 'UNIT_ADMIN' }
   )],
   ['POST', '/auth/logout', () => ({ ok: true })],
 
   // ── 工单 ──
   ['GET', '/home/summary', () => d.getHomeSummary()],
   ['GET', '/elevators', () => d.listElevators()],
-  ['GET', '/work-orders', ({ query }) => paginate(d.listOrders(query), query)],
-  ['GET', '/work-orders/:id', ({ params }) => {
-    const order = d.getOrder(params.id)
-    if (!order) throw { code: 1404, message: '工单不存在' }
-    return order
-  }],
+  ['GET', '/work-orders', ({ query }) => paginate(d.listOrders(query).filter(canAccessOrder), query)],
+  ['GET', '/work-orders/:id', ({ params }) => requireOwnership(d.getOrder(params.id))],
   ['GET', '/elevators/:id/profile', ({ params }) => {
     const p = d.getElevatorProfile(params.id)
     if (!p) throw { code: 1404, message: '电梯不存在' }
@@ -77,11 +137,11 @@ const routes = [
     if (!el) throw { code: 1404, message: '未识别的电梯二维码' }
     const order = d.db.orders.find((o) => o.elevatorId === el.id && o.status !== 'DONE')
     if (!order) throw { code: 1404, message: '该电梯暂无进行中的工单' }
-    return d.getOrder(order.id)
+    return requireOwnership(d.getOrder(order.id))
   }],
   // 签到取证令牌（拍照前调用）：服务端做地理围栏校验并签发令牌
   ['POST', '/work-orders/:id/evidence', ({ params, body }) => {
-    const o = findOr404(d.db.orders, params.id, '工单')
+    const o = requireOwnership(findOr404(d.db.orders, params.id, '工单'))
     if (o.status !== 'PENDING') throw { code: 1003, message: '当前状态不允许签到' }
     const el = d.getElevator(o.elevatorId)
     const elLocated = !!(el && typeof el.lat === 'number' && typeof el.lng === 'number')
@@ -111,7 +171,7 @@ const routes = [
   }],
   // 检查项拍照取证令牌（拍照前调用）：绑定工单+检查项，工单须已签到
   ['POST', '/work-orders/:id/evidence/shot', ({ params, body }) => {
-    const o = findOr404(d.db.orders, params.id, '工单')
+    const o = requireOwnership(findOr404(d.db.orders, params.id, '工单'))
     if (o.status !== 'PROCESSING') throw { code: 1003, message: '请先完成签到后再拍摄检查项照片' }
     const itemId = String(body.itemId == null ? '' : body.itemId)
     if (!itemId) throw { code: 422, message: '缺少检查项 id' }
@@ -146,31 +206,36 @@ const routes = [
       d.CHECKIN_DISTANCE_LIMIT_M, itemId, d.EVIDENCE_TTL_SHOT_MS)
   }],
   // 签名取证令牌（签署前调用）：绑定工单 + 签名角色 + 服务端时间
-  ['POST', '/work-orders/:id/evidence/sign', ({ params, body }) => {
-    const o = findOr404(d.db.orders, params.id, '工单')
+  ['POST', '/work-orders/:id/evidence/sign', ({ params }) => {
+    const o = requireOwnership(findOr404(d.db.orders, params.id, '工单'))
     if (o.status !== 'PROCESSING') throw { code: 1003, message: '请先完成签到后再签署' }
-    const role = body.role === 'ASSISTANT' ? 'ASSISTANT' : 'PRINCIPAL'
+    // 角色一律由服务端按登录人判定，不采信客户端 body.role
+    const role = orderRole(o)
     return d.issueEvidence(params.id, 0, 0, '', 0, null, d.EVIDENCE_TTL_SHOT_MS, 'sign', role)
   }],
   ['POST', '/work-orders/:id/checkin', ({ params, body }) => {
-    const o = findOr404(d.db.orders, params.id, '工单')
-    if (o.status !== 'PENDING') throw { code: 1003, message: '当前状态不允许签到' }
+    const o = requireOwnership(findOr404(d.db.orders, params.id, '工单'))
+    const role = orderRole(o)
+    if (o.status !== 'PENDING' && !(o.assistantName && o.status === 'PROCESSING')) {
+      throw { code: 1003, message: '当前状态不允许签到' }
+    }
     // 双人作业：配合人员签到必须携带主维保动态码
-    if (body.role === 'ASSISTANT') {
+    if (role === 'ASSISTANT') {
       if (!body.dynamicCode) throw { code: 422, message: '配合人员签到必须携带双人动态码' }
       if (body.dynamicCode !== '888888') throw { code: 1003, message: '动态码错误（演示环境固定为 888888）' }
     }
     // 取证令牌：验签 + 一次性核销，坐标与时间一律取令牌内值
     const evidence = d.verifyEvidence(body.evidenceToken, params.id, null, true)
-    d.markCheckin(o.id, body, {
+    const marked = d.markCheckin(o.id, body, {
       distance: evidence.distance,
       geoStatus: 'EVIDENCE_VERIFIED'
-    })
+    }, role)
     return {
       checkinId: 'chk_' + Date.now(),
       threshold: d.CHECKIN_DISTANCE_LIMIT_M,
       passed: true,
-      geoStatus: 'EVIDENCE_VERIFIED'
+      geoStatus: 'EVIDENCE_VERIFIED',
+      waitingForPartner: !marked.allPresent
     }
   }],
   ['POST', '/work-orders/:id/dynamic-code/verify', ({ body }) => {
@@ -179,11 +244,12 @@ const routes = [
     return { ok: true }
   }],
   ['GET', '/work-orders/:id/checklist', ({ params }) => {
-    const o = findOr404(d.db.orders, params.id, '工单')
+    const o = requireOwnership(findOr404(d.db.orders, params.id, '工单'))
     return { checklistId: o.id, items: o.checklist }
   }],
   ['POST', '/work-orders/:id/checklist/:itemId', ({ params, body }) => {
     const o = findOr404(d.db.orders, params.id, '工单')
+    requirePrincipal(o)
     const item = o.checklist.find((i) => i.id === params.itemId)
     if (!item) throw { code: 1404, message: '检查项不存在' }
     // 服务端校验
@@ -253,7 +319,8 @@ const routes = [
   }],
   // 周期性条目"本次仍要执行"（灰显不阻断，允许人工点选执行）
   ['POST', '/work-orders/:id/checklist/:itemId/run-this-time', ({ params }) => {
-    const o = findOr404(d.db.orders, params.id, '工单')
+    const o = requireOwnership(findOr404(d.db.orders, params.id, '工单'))
+    requirePrincipal(o)
     const item = o.checklist.find((i) => i.id === params.itemId)
     if (!item) throw { code: 1404, message: '检查项不存在' }
     item.notInThisRun = false
@@ -261,6 +328,7 @@ const routes = [
   }],
   ['POST', '/work-orders/:id/checkout', ({ params, body }) => {
     const o = findOr404(d.db.orders, params.id, '工单')
+    requirePrincipal(o)
     if (o.status !== 'PROCESSING') throw { code: 1003, message: '请先完成签到' }
     // 周期性"本次无需执行"条目不计入未完成项
     const mustRun = o.checklist.filter((i) => !i.notInThisRun)
