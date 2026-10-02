@@ -2,17 +2,55 @@
   <view wx:if="{{loading}}" class="em-card em-text-secondary">加载中...</view>
 
   <block wx:if="{{fault}}">
+    <!-- 单据头 -->
     <view class="em-card">
+      <view class="info-row"><text>急修单号</text><text>{{fault.id}}</text></view>
+      <view class="info-row"><text>状态</text><text class="tag tag-{{fault.status}}">{{statusText}}</text></view>
       <view class="info-row"><text>电梯编号</text><text>{{fault.elevatorCode}}</text></view>
-      <view class="info-row"><text>故障类型</text><text>{{fault.faultType}}</text></view>
-      <view class="info-row"><text>状态</text><text>{{fault.status}}</text></view>
-      <view class="info-row"><text>描述</text><text>{{fault.desc}}</text></view>
+      <view class="info-row"><text>上报时间</text><text>{{fault.createdAt}}</text></view>
     </view>
 
+    <!-- 故障内容 -->
+    <view class="em-card">
+      <view class="sec-label">故障描述</view>
+      <view>{{fault.desc || '-'}}</view>
+      <block wx:if="{{fault.photos && fault.photos.length > 0}}">
+        <view class="sec-label">故障位置照片</view>
+        <view class="photo-grid">
+          <image
+            wx:for="{{fault.photos}}"
+            wx:key="*this"
+            src="{{item}}"
+            mode="aspectFill"
+            class="photo-thumb"
+            data-url="{{item}}"
+            bindtap="onPreviewPhoto"
+          />
+        </view>
+      </block>
+    </view>
+
+    <!-- 已闭环：处理结果 + 单位签字 -->
+    <view class="em-card" wx:if="{{fault.status === 'CLOSED'}}">
+      <view class="sec-label">处理结果</view>
+      <view>{{fault.result || '-'}}</view>
+      <view class="sec-label">使用单位安全管理员签字</view>
+      <image
+        wx:if="{{fault.signature}}"
+        src="{{fault.signature}}"
+        mode="aspectFit"
+        class="sign-img"
+        bindtap="onPreviewSign"
+      />
+      <view class="em-text-secondary">确认时间：{{fault.confirmedAt || '-'}}</view>
+    </view>
+
+    <!-- 处理中：维修闭环操作 -->
     <view class="em-card" wx:if="{{fault.status !== 'CLOSED'}}">
-      <view class="form-label">处理结果</view>
-      <textarea class="form-textarea" value="{{handleDesc}}" bindinput="onHandleInput" maxlength="500" placeholder="处理结果描述" />
-      <button class="em-btn-primary" disabled="{{submitting}}" bindtap="onClose">确认闭环</button>
+      <view class="sec-label">处理结果</view>
+      <textarea class="form-textarea" value="{{result}}" bindinput="onResultInput" maxlength="500" placeholder="维修措施与处理结果" />
+      <view wx:if="{{signaturePath}}" class="em-text-secondary">已获取签字，提交后生效</view>
+      <button class="em-btn-primary" disabled="{{submitting}}" bindtap="onSign">使用单位安全管理员签字确认</button>
     </view>
   </block>
 </view>

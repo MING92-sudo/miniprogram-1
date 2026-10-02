@@ -123,11 +123,11 @@ const db = {
   // 合同期（到期从平台列表消失→不可派工）、workStat=normal 才可派工、syncStatus=本地同步状态
   // 登录方式（用户需求）：账号由维保单位系统分配，手机号为账号（account），演示密码统一 123456
   employees: {
-    WORKER: { id: 'emp_1', name: '张伟', phone: '13800000001', account: '13800000001', password: '123456', role: 'WORKER', roleText: '维保人员', platformId: '6901282369105174537',
+    WORKER: { id: 'emp_1', name: '张伟', phone: '13800000001', account: '13800000001', password: '123456', role: 'WORKER', roleText: '维保人员', groupName: '维保一班', platformId: '6901282369105174537',
       certificate: 'CQ3601030001', workStartDate: '2024-03-01', workEndDate: addDays(400), workStat: 'normal', syncStatus: 'ACTIVE' },
-    LEADER: { id: 'emp_2', name: '陈刚', phone: '13800000002', account: '13800000002', password: '123456', role: 'LEADER', roleText: '班组长', platformId: '990002',
+    LEADER: { id: 'emp_2', name: '陈刚', phone: '13800000002', account: '13800000002', password: '123456', role: 'LEADER', roleText: '班组长', groupName: '维保一班', platformId: '990002',
       certificate: 'CQ3601030002', workStartDate: '2023-06-01', workEndDate: addDays(250), workStat: 'normal', syncStatus: 'ACTIVE' },
-    WORKER2: { id: 'emp_3', name: '李强', phone: '13800000004', account: '13800000004', password: '123456', role: 'WORKER', roleText: '维保人员', platformId: '6901284774286860288',
+    WORKER2: { id: 'emp_3', name: '李强', phone: '13800000004', account: '13800000004', password: '123456', role: 'WORKER', roleText: '维保人员', groupName: '维保一班', platformId: '6901284774286860288',
       certificate: 'CQ3601030003', workStartDate: '2024-08-01', workEndDate: addDays(500), workStat: 'normal', syncStatus: 'ACTIVE' },
     UNIT_ADMIN: { id: 'unit_1', name: '王芳', phone: '13800000003', account: '13800000003', password: '123456', role: 'UNIT_ADMIN', roleText: '使用单位安全管理员', platformId: '',
       certificate: '', workStartDate: '', workEndDate: '', workStat: '', syncStatus: 'NOT_SYNCED' }
@@ -225,8 +225,8 @@ const db = {
   ],
 
   faults: [
-    { id: 'ft_1', elevatorCode: 'EM-2024-002', faultType: '门系统', desc: '1 层厅门关门异响', status: 'OPEN', createdAt: today('10:15:00'), handleDesc: '' },
-    { id: 'ft_2', elevatorCode: 'EM-2024-001', faultType: '平层异常', desc: '平层偏差明显，已调整', status: 'CLOSED', createdAt: today('08:20:00'), handleDesc: '调整平层感应器后恢复正常' }
+    { id: 'ft_1', elevatorCode: 'EM-2024-002', desc: '1 层厅门关门异响', photos: [], status: 'OPEN', createdAt: today('10:15:00'), result: '', signature: '', confirmedAt: '' },
+    { id: 'ft_2', elevatorCode: 'EM-2024-001', desc: '平层偏差明显，已调整', photos: [], status: 'CLOSED', createdAt: today('08:20:00'), result: '调整平层感应器后恢复正常', signature: 'mock_sign_1', confirmedAt: today('09:00:00') }
   ],
 
   // ── 合规台账（TSG 法定项，docs/01 §3.17/3.18；数据暂存本地，不上报平台）──
@@ -763,13 +763,17 @@ function createRescue(body) {
 }
 
 function createFault(body) {
+  if (!body.elevatorCode) throw { code: 422, message: '请选择电梯' }
+  if (!body.desc) throw { code: 422, message: '请填写故障描述' }
   const f = {
     id: nextId('ft'),
     elevatorCode: body.elevatorCode,
-    faultType: body.faultType || '',
     desc: body.desc || '',
+    photos: Array.isArray(body.photos) ? body.photos : [],
     status: 'OPEN',
-    handleDesc: '',
+    result: '',
+    signature: '',
+    confirmedAt: '',
     createdAt: formatTime()
   }
   db.faults.unshift(f)
@@ -779,8 +783,14 @@ function createFault(body) {
 function closeFault(id, body) {
   const f = db.faults.find((x) => x.id === id)
   if (!f) return null
+  if (f.status === 'CLOSED') return f
+  body = body || {}
+  if (!body.result) throw { code: 422, message: '请填写处理结果' }
+  if (!body.signature) throw { code: 422, message: '请先由使用单位安全管理员签字确认' }
   f.status = 'CLOSED'
-  f.handleDesc = (body && body.handleDesc) || ''
+  f.result = body.result
+  f.signature = body.signature
+  f.confirmedAt = formatTime()
   return f
 }
 

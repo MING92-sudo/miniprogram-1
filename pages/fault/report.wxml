@@ -1,18 +1,30 @@
 <view class="em-page">
   <view class="em-card">
     <view class="form-label">电梯编号</view>
-    <input class="form-input" value="{{elevatorCode}}" bindinput="onCodeInput" placeholder="电梯编号" />
-
-    <view class="form-label">故障类型</view>
-    <picker mode="selector" range="{{faultTypes}}" bindchange="onTypeChange">
-      <view class="form-input picker">{{faultType || '请选择故障类型'}}</view>
-    </picker>
+    <view class="code-row">
+      <input class="form-input code-input" value="{{elevatorCode}}" bindinput="onCodeInput" placeholder="扫码或手动输入电梯编号" />
+      <button class="scan-btn" bindtap="onScan">扫码</button>
+    </view>
+    <view wx:if="{{elevator}}" class="elevator-info">
+      <view class="info-line">{{elevator.elevatorName}}</view>
+      <view class="info-line info-sub">{{elevator.location}}</view>
+      <view class="info-line info-sub">注册代码 {{elevator.regCode || '-'}} · 设备代码 {{elevator.deviceCode || '-'}}</view>
+    </view>
 
     <view class="form-label">故障描述</view>
     <textarea class="form-textarea" value="{{desc}}" bindinput="onDescInput" maxlength="500" placeholder="故障现象描述" />
+
+    <view class="form-label">故障位置照片（最多 3 张）</view>
+    <view class="photo-grid">
+      <view wx:for="{{photos}}" wx:key="*this" class="photo-item">
+        <image src="{{item}}" mode="aspectFill" data-url="{{item}}" bindtap="onPreviewPhoto" />
+        <view class="photo-del" data-index="{{index}}" bindtap="onRemovePhoto">×</view>
+      </view>
+      <view wx:if="{{photos.length < 3}}" class="photo-item photo-add" bindtap="onAddPhoto">＋</view>
+    </view>
   </view>
 
   <view class="em-card">
-    <button class="em-btn-primary" disabled="{{submitting}}" bindtap="onSubmit">提交上报</button>
+    <button class="em-btn-primary" disabled="{{submitting}}" bindtap="onSubmit">提交急修单</button>
   </view>
 </view>

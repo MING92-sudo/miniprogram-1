@@ -10,7 +10,7 @@
   </view>
 
   <view wx:if="{{!loading && list.length === 0}}" class="em-card em-text-secondary empty">
-    暂无故障记录
+    暂无急修单
   </view>
 
   <view
@@ -24,7 +24,7 @@
       <view class="fault-title">{{item.elevatorCode || '电梯'}}</view>
       <view class="tag tag-{{item.status}}">{{item.statusText}}</view>
     </view>
-    <view class="em-text-secondary">{{item.faultType || '-'}}</view>
+    <view class="em-text-secondary">单号 {{item.id}}</view>
     <view class="em-text-secondary">{{item.desc || ''}}</view>
     <view class="em-text-secondary fault-time">{{item.createdAt || ''}}</view>
   </view>
@@ -32,6 +32,6 @@
   <view wx:if="{{loading}}" class="loading-tip em-text-secondary">加载中...</view>
 
   <view class="em-card">
-    <button class="em-btn-primary" bindtap="goReport">新增故障上报</button>
+    <button class="em-btn-primary" bindtap="goReport">新建急修单</button>
   </view>
 </view>

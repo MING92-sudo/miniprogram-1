@@ -1,4 +1,4 @@
-// 故障记录列表：状态筛选 + 详情闭环跟踪
+// 急修单列表：状态筛选 + 详情闭环跟踪
 const { getFaultList } = require('../../services/fault')
 const { ensureLogin } = require('../../utils/guard')
 

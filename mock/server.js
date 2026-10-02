@@ -61,6 +61,21 @@ const routes = [
   // ── 工单 ──
   ['GET', '/home/summary', () => d.getHomeSummary()],
   ['GET', '/elevators', () => d.listElevators()],
+  // 扫码回填电梯信息（急修单用，docs/04 A.6）
+  ['GET', '/elevators/by-code', ({ query }) => {
+    const el = d.getElevatorByCode(String((query && query.code) || '').trim())
+    if (!el) throw { code: 1404, message: '电梯不存在，请核对编号' }
+    return {
+      id: el.id,
+      elevatorCode: el.elevatorCode,
+      elevatorName: el.elevatorName,
+      location: el.location,
+      regCode: el.regCode,
+      deviceCode: el.deviceCode,
+      model: el.model,
+      category: el.category
+    }
+  }],
   ['GET', '/work-orders', ({ query }) => {
     d.ensureDueOrders()
     return paginate(d.listOrders(query), query)

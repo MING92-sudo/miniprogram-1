@@ -16,9 +16,12 @@ function getFaultDetail(id) {
   return get(`/faults/${id}`)
 }
 
-// 故障闭环处理
+// 急修单闭环：处理结果 + 使用单位安全管理员签字（docs/01 §3.9.2）
 function closeFault(id, data) {
-  return post(`/faults/${id}/close`, data)
+  return post(`/faults/${id}/close`, {
+    result: data.result,
+    signature: data.signature
+  })
 }
 
 module.exports = {

@@ -13,6 +13,51 @@
   margin-bottom: 12rpx;
 }
 
+.sec-label {
+  font-weight: 600;
+  margin: 16rpx 0 12rpx;
+}
+
+.sec-label:first-child {
+  margin-top: 0;
+}
+
+.tag {
+  padding: 4rpx 16rpx;
+  border-radius: 8rpx;
+  font-size: 24rpx;
+}
+
+.tag-OPEN {
+  background: var(--em-warning);
+  color: #fff;
+}
+
+.tag-CLOSED {
+  background: var(--em-success);
+  color: #fff;
+}
+
+.photo-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16rpx;
+}
+
+.photo-thumb {
+  width: 200rpx;
+  height: 200rpx;
+  border-radius: var(--em-radius);
+}
+
+.sign-img {
+  width: 100%;
+  height: 240rpx;
+  background: var(--em-bg-page);
+  border-radius: var(--em-radius);
+  margin-bottom: 12rpx;
+}
+
 .form-textarea {
   background: var(--em-bg-page);
   border-radius: var(--em-radius);
