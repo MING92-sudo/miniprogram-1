@@ -7,6 +7,7 @@ import com.cqwlw.maintenance.service.PlatformClient;
 import com.cqwlw.maintenance.service.PlatformReportService;
 import com.cqwlw.maintenance.service.PlatformSyncService;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -38,6 +39,12 @@ public class PlatformController {
     @PostMapping("/platform/sync")
     public ApiResponse<Map<String, Object>> sync() {
         return ApiResponse.ok(platformSyncService.syncAll());
+    }
+
+    /** 2.5 单位维保人员查询（原始列表，管理端"平台人员"视图用；只读） */
+    @GetMapping("/platform/workers")
+    public ApiResponse<List<Map<String, Object>>> workers(@RequestParam(defaultValue = "0") String changState) {
+        return ApiResponse.ok(platformClient.queryWorkList(changState, null));
     }
 
     /** 2.7 单梯查询（管理端新建电梯回填用）。实测平台不支持按 elevatorCode 查询（docs/06 #8 已修正结论），

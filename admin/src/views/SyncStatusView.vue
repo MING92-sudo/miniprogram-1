@@ -57,6 +57,21 @@
       </el-col>
     </el-row>
 
+    <el-card shadow="never" class="mt12">
+      <template #header>
+        <div class="head">
+          <span>平台人员列表（2.5 · 单位维保人员查询，只读）</span>
+          <el-button size="small" :loading="workersLoading" :disabled="!auth.canRead"
+                     @click="loadPlatformWorkers">查询平台人员</el-button>
+        </div>
+      </template>
+      <el-alert v-if="workersErr" type="error" :closable="false" :title="workersErr" class="mb12" />
+      <el-table v-if="pwColumns.length" :data="platformWorkers" size="small" stripe max-height="360">
+        <el-table-column v-for="c in pwColumns" :key="c" :prop="c" :label="c" min-width="140" show-overflow-tooltip />
+      </el-table>
+      <el-empty v-else-if="!workersLoading && workersLoaded" description="点击右上角按钮查询平台返回的单位维保人员名单" />
+    </el-card>
+
     <el-row :gutter="12" class="mt12">
       <el-col :span="12">
         <el-card shadow="never">
@@ -150,6 +165,11 @@ const useUnits = ref([])
 const workers = ref([])
 const svc = ref({ unitId: '', useUnitName: '', useUnitEntityID: '', dates: null, file: null, submitting: false })
 const wk = ref({ empId: '', workManName: '', workManCertificate: '', workManPhone: '', dates: null, file: null, submitting: false })
+const platformWorkers = ref([])
+const pwColumns = ref([])
+const workersLoading = ref(false)
+const workersLoaded = ref(false)
+const workersErr = ref('')
 const svcReady = computed(() => svc.value.useUnitName && svc.value.useUnitEntityID
   && svc.value.dates && svc.value.dates[0] && svc.value.file)
 const wkReady = computed(() => wk.value.workManName && wk.value.workManCertificate && wk.value.workManPhone
@@ -218,6 +238,25 @@ async function loadArchives() {
     workers.value = (em || []).filter((e) => e.role === 'WORKER' || e.role === 'LEADER')
   } catch (e) {
     showErr(e)
+  }
+}
+
+/** 2.5 平台原始人员列表（列名随平台返回自适应） */
+async function loadPlatformWorkers() {
+  workersLoading.value = true
+  workersErr.value = ''
+  try {
+    const list = await platformApi.platformWorkers(0)
+    platformWorkers.value = list || []
+    workersLoaded.value = true
+    const keys = new Set()
+    ;(list || []).forEach((row) => Object.keys(row || {}).forEach((k) => keys.add(k)))
+    pwColumns.value = [...keys]
+    if (!platformWorkers.value.length) ok('平台返回空名单')
+  } catch (e) {
+    workersErr.value = (e && e.message) || '查询失败'
+  } finally {
+    workersLoading.value = false
   }
 }
 

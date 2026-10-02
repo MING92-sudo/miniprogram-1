@@ -9,6 +9,11 @@ export function syncStatus() {
   return http.get('/reg/sync-status')
 }
 
+/** 2.5 单位维保人员查询（平台原始列表，只读） */
+export function platformWorkers(changState) {
+  return http.get('/platform/workers', { params: { changState: changState || 0 }, timeout: 60000 })
+}
+
 /** 2.7 单梯查询（新建/编辑电梯时按 设备代码/出厂编号/注册代码 回填平台字段；平台不支持按电梯编号查询） */
 export function queryElevator(cond) {
   return http.post('/platform/query/elevator', cond, { timeout: 60000 })
