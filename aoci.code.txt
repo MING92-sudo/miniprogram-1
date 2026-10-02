@@ -1,0 +1,479 @@
+#AOCI-CODE-VOLUME: 1
+
+===C:/Users/18223/Desktop/新建文件夹 (2)/repo/===
+.env.example[FC8T]: F:平台凭证与运行参数模板，只列变量名与格式说明，不含真实值 | R:- | A:复制为 .env 后由后端 Spring 绑定，凭证类留空即视为未配置 | S:REG_SECRET 在平台通知中可能拼作 scret，绑定前须核对；云托管托管桶走内网临时凭证，缺 COS_SECRET_ID/KEY 属正常配置
+.eslintrc.js[XQ6T]: F:小程序侧 ESLint 根配置，ES2018 加 CommonJS | R:- | A:npm run lint 入口，admin/** 被 ignorePatterns 排除，改由 admin/.eslintrc.cjs 单独 lint | S:sourceType 必须为 script，改成 module 会让全部 require/module.exports 报错
+.gitattributes[OV6T]: F:强制所有文本以 LF 检出，统一跨平台字节 | R:- | A:* text=auto eol=lf | S:缺此文件时 Windows autocrlf 会把整棵树判为字节变更，令内容哈希与认知基线全量失效
+.gitignore[OS8T]: F:排除依赖、构建产物、联调 trace 与全部凭证类文件 | R:- | A:唯一白名单 !.env.example，保证模板入库而 .env 不入库 | S:credential/secret/token/reg-*.json 与 *.har 一律排除，平台联调报文含未脱敏手机号；opencode.json 为本机 agent 绑定配置也不入库
+AGENTS.md[SG9S]: F:AI 与人工共用的项目规则：分层、编码约定、安全红线、平台实测事实、Git 与文档同步 | R:code:mock/server.js,code:docs/04-接口文档.md,code:docs/07-平台联调实测记录.md | A:约束页面只能经 services/ 调 utils/request，接口变更须三处同步，提交前过 npm run lint | S:实测记录与 V1.5 规范冲突时以 docs/07 为准；2.1 登录实为 GET 加查询串，2.6 的 workMan2Id 必填；originalRecordId 幂等性未获平台书面确认前禁止开启自动重试
+Dockerfile[OV7T]: F:云托管流水线构建入口，多阶段产出后端镜像并监听 80 | R:code:backend/pom.xml,code:backend/settings.xml | A:云托管以仓库根为构建上下文，实际后端源码在 backend/ | S:只 COPY backend/src 与 pom/settings.xml，容器内固定 SERVER_PORT=80 并装 tzdata 锁 Asia/Shanghai
+LICENSE[FG3T]: F:MIT 许可证文本，版权归 Tencent | R:- | A:- | S:-
+README.md[SG7T]: F:仓库总览：四部分组成、启动方式、平台对接实测结论、凭证红线与文档索引 | R:code:AGENTS.md,code:docs/09-管理端设计.md | A:面向新成员与 AI 的入口文档，各子项目 README 另有分工 | S:2.1 登录实际为 GET 加查询串（规范原文 POST 加 Body 有误）；REG_RETRY_AUTO 在幂等性书面确认前必须保持 false
+app.js[ER7T]: F:小程序 App 实例，全局登录态、onLaunch 恢复、监听网络恢复自动补传离线队列 | R:code:utils/auth.js,code:utils/offline.js | A:提供 globalData 与 setAuth 与 logout，网络恢复且已登录时调 flushQueue | S:未登录不触发补传，避免无 token 请求引发 401 连锁跳转；flushQueue 用惰性 require 避免启动期循环依赖
+app.json[FG8T]: F:小程序全局配置，27 个页面注册顺序、窗口样式、4 个 tabBar、定位权限与网络超时 | R:- | A:首页为 pages/home/index，tabBar 为工单台与工单与消息与我的 | S:requiredPrivateInfos 只声明 getLocation；uploadFile 超时 120 秒而 request 15 秒，照片必须走 uploadFile
+app.wxss[FU5T]: F:全局样式与 CSS 变量主题，含品牌色、语义色、文本层级、圆角与 em-card 等通用类 | R:- | A:page 上以 --em-* 变量定义主题，页面 wxss 引用变量即可换肤 | S:注释写明对齐 TDesign 但该组件库已移除，这些只是自建样式变量，勿误认为仍依赖它
+doc_text.txt[SB4M]: F:平台 V1.5 接口规范原文的纯文本提取件 | R:code:docs/06-平台接口确认清单.md | A:由 docx 的 word/document.xml 提取，无格式标记 | S:文中写统一 POST 与 JSON，而实测为 GET 登录加表单编码，不可作实现依据
+package-lock.json[FV3L]: F:npm 依赖锁定文件，lockfileVersion 3 | R:code:package.json | A:仅 eslint 与 miniprogram-ci 两个 devDependencies 的传递依赖 | S:机器生成文件，改动须与 package.json 同步
+package.json[FV3T]: F:小程序工程包定义，仅含 lint 脚本 | R:- | A:devDependencies 只有 eslint 与 miniprogram-ci，无运行时依赖 | S:TDesign 已移除，工程不再依赖任何小程序 UI 框架
+project.config.json[FV5T]: F:开发者工具工程配置：编译类型、基础库版本、appid与打包忽略规则 | R:code:app.json | A:packOptions.ignore排除node_modules、admin、backend、docs、scripts与env系列，避免非小程序代码入包 | S:env文件按file类型排除，凭证不进入上传包
+sitemap.json[FC2T]: F:小程序搜索索引规则：允许全部页面被微信收录 | R:- | A:- | S:-
+
+===C:/Users/18223/Desktop/新建文件夹/.github/workflows/===
+backend-build.yml[OQ7T]: F:PR 与 master 推送时跑后端单测，MySQL 8.0 服务容器加 JDK 17 | R:code:backend/pom.xml,code:backend/settings.xml | A:仅覆盖 backend/，小程序与管理端不在此流水线 | S:CI 用 APP_JWT_SECRET/APP_FILE_ROOT/DB_SEED_DEMO，与 .env 的 JWT_SECRET/FILE_STORAGE_DIR/SEED_DEMO 不同名，改配置勿混用
+
+===C:/Users/18223/Desktop/新建文件夹/admin/===
+.env.example[FC5T]: F:管理端唯一环境变量模板，只含 VITE_API_BASE | R:- | A:开发默认 /api 走 Vite 代理到 localhost:8080，生产改同域反代 | S:平台凭证 REG_* 严禁进入管理端配置，管理端不提供凭证配置界面
+.eslintrc.cjs[XQ5T]: F:管理端独立 ESLint 配置，浏览器 ES2022 加 Vue3 essential | R:- | A:admin 目录纳入 eslint，与小程序根配置分离 | S:vue/multi-word-component-names 已关闭故单文件组件名合法；no-unused-vars 忽略下划线前缀参数
+.gitignore[OC3T]: F:排除管理端依赖、构建产物与本地临时文件 | R:- | A:node_modules/、dist/、.tmp/、*.local | S:-
+README.md[SG5T]: F:管理端运行构建说明、演示账号角色矩阵与两条红线 | R:code:docs/09-管理端设计.md | A:提供 dev/build/lint/test 四条命令，npm test 覆盖 auth 守卫与 api 信封解包 | S:管理端不提供 REG_* 凭证配置界面，也不提供批量自动重试入口，重报仅逐条人工触发
+index.html[EU4T]: F:Vite SPA 宿主页，声明中文语言与 #app 挂载点 | R:code:admin/src/main.js | A:以 module 脚本加载 /src/main.js，页面标题为电梯维保管理端 | S:-
+package-lock.json[FV5L]: F:管理端 npm 依赖锁定，lockfileVersion 3 记录完整 resolved 与 integrity | R:code:admin/package.json | A:npm ci 的唯一输入，保证 16 项直接依赖版本可复现 | S:勿手工编辑；依赖增删必须走 npm install 让锁文件同步重算
+package.json[FV6T]: F:管理端依赖与脚本声明，Vue3 加 Vite 加 Element Plus 加 Pinia 加 axios | R:code:admin/package-lock.json | A:type 为 module；dev/build/preview/lint/test 五条脚本，lint 覆盖 .js 与 .vue | S:ExcelJS 与 ECharts 是 docs/09 选型结果，替换需按 docs/08 重新评估
+vite.config.js[FV5T]: F:Vite 构建与开发代理配置，并内嵌 vitest 的 happy-dom 测试环境 | R:code:admin/package.json | A:dev 端口 5173，/api 代理到 localhost:8080 并剥离前缀以规避 CORS | S:test.include 只收 src 下的 .test.js，故 admin/src/router/guard.test.js 才会被跑到
+
+===C:/Users/18223/Desktop/新建文件夹/admin/src/===
+App.vue[EU3T]: F:SPA 根组件，只承载 router-view 与全局背景样式 | R:- | A:路由出口所在，自身不持有状态 | S:html/body/#app 需 height 100% 才能让 Element Plus 布局撑满
+main.js[EG5T]: F:SPA 装配入口，Vue3 app 挂载 Pinia、Router 与 Element Plus 中文语言包 | R:code:admin/src/App.vue,code:admin/src/router/index.js | A:挂载到 index.html 的 #app 节点 | S:Element Plus 必须在 app.use(router) 之后注册并显式传 locale 为 zhCn，否则内置文案回落英文
+
+===C:/Users/18223/Desktop/新建文件夹/admin/src/api/===
+admin.js[IB5T]: F:看板、记录、统计与档案列表的聚合查询接口 | R:code:admin/src/api/client.js | A:GET /admin/dashboard、/admin/records、/admin/stats、/admin/elevators | S:elevatorsAdmin 与 archive.js 中同名导出重复存在，两处并存不报错但会混淆调用来源
+alert.js[IB5T]: F:预警规则查询更新、预警记录查询与手动生成 | R:code:admin/src/api/client.js | A:GET /admin/alert-rules、PUT /admin/alert-rules/{id}、GET /admin/alerts、POST /admin/alerts/generate | S:generateAlerts 是写操作，幂等键由 client 拦截器统一附加，调用方不要自带
+approval.js[IW5T]: F:定位异常申述的列表查询与审核裁决 | R:code:admin/src/api/client.js | A:GET /admin/approvals、POST /admin/approvals/{id}/audit，body 含 approved 与 comment | S:审核走 POST 而非 PUT，与 archive.js 的档案更新用 PUT 不同，新增接口时勿照抄
+archive.js[IB7T]: F:档案维护接口集：维保单位、使用单位、维保人员、电梯的增改查 | R:code:admin/src/api/client.js | A:GET 与 PUT /company，GET/POST/PUT /use-units 与 /employees，POST/PUT /elevators | S:五类手机号互斥由后端以 1002 返回并携带 err.data.conflicts[]，平台本身不校验；前端须按该字段提示而非通用错误
+audit.js[IO4T]: F:操作审计日志只读查询 | R:code:admin/src/api/client.js | A:GET /admin/op-logs | S:后端限 SYS_ADMIN 访问，前端隐藏菜单不构成权限控制
+auth.js[II7T]: F:管理端登录与登出接口 | R:code:admin/src/api/client.js | A:POST /auth/login 固定带 client=admin，触发后端管理端角色白名单校验 | S:client=admin 是后端判定管理端身份的依据，漏传会走小程序角色分支致 WORKER 可登录
+client.js[MN9T]: F:axios 实例与统一信封解包、Bearer 注入、写接口幂等键附加、401 回调 | R:code:utils/request.js | A:导出 http 默认实例、API_BASE、idempotencyKey、resolveEnvelope、isAuthError、onUnauthorized；code=0 返回 data，否则抛带 code 与 data 的错 | S:code 判定用严格等于 0，与小程序 utils/request.js 同口径；401 跳登录必须由 auth store 经 onUnauthorized 注册，直接在 api 层引 router 会成循环依赖；PDF blob 等非信封响应原样返回
+ledger.js[IQ5T]: F:合规台账只读查询：自行检查、演练、困人救援与故障 | R:code:admin/src/api/client.js | A:GET /inspects、/drills、/rescues、/faults | S:直接复用小程序既有路由而非 /admin/ 前缀，管理端在此层只读，不提供台账写入口
+notify.js[IM4T]: F:订阅消息发送记录只读查询 | R:code:admin/src/api/client.js | A:GET /admin/notify-records | S:真实推送尚未接入，当前仅落库记录可查
+order.js[IB6T]: F:工单列表与详情查询 | R:code:admin/src/api/client.js | A:GET /work-orders、GET /work-orders/{id} | S:复用小程序契约且无 /admin/ 前缀，管理端为只读监控，不经此层派单或签退
+platform.js[IN7T]: F:平台同步的手动触发、同步状态与上传日志查询 | R:code:admin/src/api/client.js | A:POST /platform/sync、GET /reg/sync-status、GET /reg/upload-logs | S:只提供单次手动触发，不提供批量自动重试入口；2.6 幂等性未获平台书面确认前不得改为自动重试
+report.js[IB8T]: F:上报异常闭环：失败清单、逐条手动重报、PDF 导出与记录详情 | R:code:admin/src/api/client.js | A:GET /admin/records、POST /platform/records/{id}/reupload、GET /admin/records/{id}/export-pdf、GET /unit/records/{id} | S:reupload 仅逐条人工触发不得批量化；exportPdf 用 responseType blob 且超时放宽到 120s，信封解包对其透明不可改
+schedule.js[IW7T]: F:计划调度与延期审批全流程接口，含指派、延期、裁决、冲突与排班建议 | R:code:admin/src/api/client.js | A:/admin/plans 系列 GET 与 POST，PUT /admin/plans/{id}/assign 与 /delay 与 /delays/{id}/decide，GET /conflicts 与 /schedule-suggestion，POST /admin/orders/{id}/transfer | S:延期裁决用 PUT /admin/plans/delays/{id}/decide 而申述审核用 POST，两种裁决接口形态不统一
+system.js[II7T]: F:SYS_ADMIN 专属的账号启停与密码重置 | R:code:admin/src/api/client.js | A:PUT /admin/employees/{id}/enabled、PUT /admin/employees/{id}/password | S:后端强校验角色，LEADER 调用返回 403；WORKER 在登录阶段即被拒
+template.js[IB6T]: F:检查项模板管理接口，OFFICIAL 只读列表与 CUSTOM 增改启停 | R:code:admin/src/api/client.js | A:GET 与 POST /admin/templates，PUT /admin/templates/{id} 与 /{id}/enabled | S:OFFICIAL 的 257 行模板只读，只有 CUSTOM 可增改；启停走独立 enabled 接口而非整体 PUT
+
+===C:/Users/18223/Desktop/新建文件夹/admin/src/constants/===
+index.js[FG7T]: F:管理端枚举与文案口径，含角色、隐患码、上报与确认状态、手机号互斥角色 | R:- | A:导出 ROLE_TEXT、PROBLEM_CODES、REPORT_STATUS、CONFIRM_STATUS、MUTEX_ROLES | S:隐患码按 S0 至 S7 连续编码且 S0 含义是未发现隐患；MUTEX_ROLES 只含四类，emergencyPhone 与 recorderPhone 不参与互斥；文案须与小程序 constants/index.js 保持一致
+
+===C:/Users/18223/Desktop/新建文件夹/admin/src/layout/===
+AdminLayout.vue[AU7S]: F:管理端主框架，左侧分组菜单、顶栏角色标签与退出、router-view 出口 | R:code:admin/src/router/index.js,code:admin/src/stores/auth.js,code:admin/src/constants/index.js | A:所有受保护页面的父路由，active 取路径前两段 | S:系统管理菜单组仅在 auth.isSysAdmin 时渲染，但这只是 UX 兜底，真实门禁在后端；active 截取路径前两段，故 /orders/:id 会高亮 /orders
+
+===C:/Users/18223/Desktop/新建文件夹/admin/src/router/===
+guard.js[DI8T]: F:路由守卫纯函数，未登录跳登录并携带 redirect，已登录访问登录页跳看板，角色不符跳 403 | R:code:admin/src/router/index.js | A:resolveRoute(to, authState) 返回 true 或目标路由位置对象 | S:本函数是纯函数，不读 localStorage 也不引 router，真实鉴权在后端；角色门禁取 meta.role 单值，路由表只给 /users 与 /op-logs 声明了 SYS_ADMIN
+index.js[EU8T]: F:路由表与 hash 历史模式装配，含登录前后与 403/404 分支，标题与守卫挂钩 | R:code:admin/src/router/guard.js,code:admin/src/stores/auth.js,code:admin/src/layout/AdminLayout.vue | A:导出 routes 数组与 router 默认实例，子路由挂在 AdminLayout 下并 redirect 到 /dashboard | S:用 createWebHashHistory 而非 HTML5 history，静态托管无需服务端改写；catch-all 的 NotFound 路由必须留在表末
+
+===C:/Users/18223/Desktop/新建文件夹/admin/src/stores/===
+auth.js[DI9T]: F:管理端会话状态，token 与 user 与 role 的 Pinia store，localStorage 持久化与角色派生 getter | R:code:admin/src/api/auth.js,code:admin/src/api/client.js,code:admin/src/router/index.js | A:ADMIN_READ_ROLES 为 LEADER/ADMIN/SYS_ADMIN，ADMIN_WRITE_ROLES 为 ADMIN/SYS_ADMIN；导出 isLogin/canWrite/isSysAdmin/canRead/userName | S:模块末尾注册 onUnauthorized 清会话并跳登录，401 统一处理只此一处；两个角色数组需与后端 auth/AdminRoles.java 同步；logout 的后端调用用 catch 吞掉失败以保证本地一定清干净
+
+===C:/Users/18223/Desktop/新建文件夹/admin/src/utils/===
+ui.js[CU7T]: F:统一错误提示、成功提示、隐患码短文案与 blob 下载 | R:code:admin/src/constants/index.js | A:导出 showErr、ok、hazardShort、downloadBlob | S:showErr 对 code 为 1002 且带 err.data.conflicts[] 的手机号互斥错误改用 ElMessageBox 逐行列出冲突角色对，不可退化为通用错误提示
+
+===C:/Users/18223/Desktop/新建文件夹/admin/src/views/===
+AlertRulesView.vue[EW6S]: F:预警规则与预警记录双卡片，可配提前天数与启停，手动按启用规则生成预警 | R:code:admin/src/api/alert.js,code:admin/src/stores/auth.js,code:admin/src/utils/ui.js | A:读写动作均按 auth.canWrite 禁用，saveRule 失败后回查列表以还原服务端值 | S:当前只有年检到期、人员证件到期、维保超期、使用单位确认超时、自行检查未完成五类可生成，合同/库存/演练超期待对应模块落地
+ApprovalsView.vue[EW6T]: F:定位异常申述列表与通过驳回裁决 | R:code:admin/src/api/approval.js,code:admin/src/stores/auth.js | A:默认筛选 PENDING，audit 提交后重查列表 | S:审核通过使工单进入补签到状态即 checkin_extra.locationAppealApproved 为 true，定位超阈才可继续签到；驳回 comment 是前端写死的未达申诉条件
+CompanyView.vue[ED5T]: F:维保单位档案查看与编辑，保存后回填服务端返回值 | R:code:admin/src/api/archive.js,code:admin/src/stores/auth.js | A:GET 与 PUT /company，entityId 字段禁用只读 | S:entityId 由平台 2.2 查询回填，管理端不可编辑；workMenegerPhone 参与五类手机号互斥，服务端以 1002 预校验；字段名 workMeneger 是仓库既有拼写，勿当笔误顺手改名
+DashboardView.vue[EA7S]: F:监控看板，工单到期与超期卡、平台同步卡、上报状态清单与近 7 日完成趋势折线图 | R:code:admin/src/api/admin.js,code:admin/src/utils/ui.js | A:单次 GET /admin/dashboard 供全部区块，ECharts 实例在 onBeforeUnmount 时 dispose | S:窗口 resize 需手动 chart.resize()，ECharts 不会随容器自适应；缺字段一律回落短横线而非 0，避免把无数据误读为零
+DrillsView.vue[EQ3T]: F:应急演练台账只读表格 | R:code:admin/src/api/ledger.js | A:GET /drills，无分页与筛选 | S:-
+ElevatorsView.vue[EB7S]: F:电梯档案列表、新建编辑弹窗与平台 2.7 回填触发 | R:code:admin/src/api/archive.js,code:admin/src/api/platform.js,code:admin/src/stores/auth.js | A:列表并行取 GET /admin/elevators 与 GET /use-units，写操作 POST 与 PUT /elevators，同步 POST /platform/sync | S:保存前必须剔除 id、useUnitName、geoStatus、platformSyncedAt 四个只读字段否则后端拒收；维保周期码枚举只列出 FM/HM/TM/SM/OY；写操作按 auth.canWrite 禁用
+EmployeesView.vue[EB7S]: F:人员档案列表与新建编辑，含角色、证书、证件有效期与 platform_id 同步状态展示 | R:code:admin/src/api/archive.js,code:admin/src/stores/auth.js | A:GET /employees，POST 与 PUT /employees | S:编辑态 account 字段禁用且账号默认等于手机号，密码留空表示不修改；openEdit 显式清空 form.password 否则会把列表回显值提交上去；使用单位账号由小程序绑定产生，不在此建档
+FailedRecordsView.vue[EW8S]: F:上报异常闭环主界面，状态与日期筛选、隐患码、逐条重报、PDF 导出与记录详情弹窗 | R:code:admin/src/api/report.js,code:admin/src/constants/index.js,code:admin/src/utils/ui.js | A:默认 reportStatus 为 FAILED，重报 POST /platform/records/{id}/reupload，导出 GET /admin/records/{id}/export-pdf | S:重报按钮仅在 auth.canWrite 且上报失败时可用，必须逐条触发，界面顶部常驻禁止批量自动重试的告警；重报结果以平台返回的 reportStatus 为准而非本地假定成功
+FaultsView.vue[EQ3T]: F:故障记录台账只读表格，可按未闭环与已闭环筛选 | R:code:admin/src/api/ledger.js | A:GET /faults，固定 page 为 1 且 size 为 100 | S:页大小硬编码 100 又无分页控件，超过 100 条故障会静默截断
+ForbiddenView.vue[EU2T]: F:403 无权限结果页，仅一个返回看板按钮 | R:code:admin/src/router/index.js | A:路由 /403，meta.public 为 true 故未登录也可访问 | S:由前端守卫跳转，不构成真实鉴权；写操作需 ADMIN 角色，后端才是真门禁
+InspectsView.vue[EQ3T]: F:年度自行检查台账只读表格，含检查项数、异常数与检查人及复核签字 | R:code:admin/src/api/ledger.js | A:GET /inspects，无分页 | S:-
+LoginView.vue[EI7T]: F:管理端登录表单，账号密码提交后按 redirect 或默认跳看板 | R:code:admin/src/stores/auth.js | A:提交前本地校验账号与密码非空，错误信息展示在表单内而非全局 toast | S:跳转目标取自 route.query.redirect 且直接 String() 转换，该参数由 guard.js 在未登录访问受保护页时写入，登录后须沿此路径回跳
+NotFoundView.vue[EU2T]: F:404 页面不存在结果页 | R:code:admin/src/router/index.js | A:通配路由 /:pathMatch(.*)*，meta.public 为 true | S:作为 catch-all 必须是路由表最后一项，新增路由时只能插在它前面
+NotifyRecordsView.vue[EM4T]: F:订阅消息与站内消息发送记录只读查询，按渠道、状态、类型筛选 | R:code:admin/src/api/notify.js | A:GET /admin/notify-records，分页 size 为 20 | S:SENT 仅表示已入队或模拟；真实推送需云端凭证与模板配额，未接入；救援不走订阅消息
+OpLogsView.vue[EO5T]: F:操作审计日志只读查询，按路径关键字与操作人 ID 过滤 | R:code:admin/src/api/audit.js,code:admin/src/stores/auth.js | A:GET /admin/op-logs，分页 size 为 20 | S:仅记录管理端操作，GET 也在表内用于对照；op_log 全量留痕三年以上属合规要求，不可按需裁剪
+OrderDetailView.vue[EW7S]: F:工单详情，工单与电梯字段、检查项结果表、使用单位确认信息，以及班组长以上的转派弹窗 | R:code:admin/src/api/order.js,code:admin/src/api/schedule.js,code:admin/src/stores/auth.js | A:GET /work-orders/{id} 一次取回 order、checklist、elevator 与 recordInfo，转派 POST /admin/orders/{id}/transfer | S:转派按钮显隐用 auth.canRead 故班组长可见，但是否放行由后端裁决；转派候选只保留 WORKER 与 LEADER，候选名展示 platformId 与证件有效期；上报状态仅在 originalRecordId 存在时才有意义
+OrderListView.vue[EB5T]: F:工单列表只读监控，按到期、状态与关键字筛选 | R:code:admin/src/api/order.js | A:GET /work-orders，due 取 today、soon 或 overdue | S:上报列在 originalRecordId 为空时显示破折号，因未完成签到签退不会生成维保记录
+RescuesView.vue[EQ3T]: F:困人救援台账只读表格，到场与解救耗时超 30 分钟标红 | R:code:admin/src/api/ledger.js | A:GET /rescues，固定 page 为 1 且 size 为 100 | S:30 分钟达标线在前端硬编码，后端另有 overtime 字段，二者可能不一致
+ScheduleView.vue[EW9M]: F:计划调度主界面，排班池生成、指派弹窗含排班建议与冲突提示、延期申请与审批区 | R:code:admin/src/api/schedule.js,code:admin/src/stores/auth.js,code:admin/src/utils/ui.js | A:GET /admin/plans 与 /admin/plans/delays，指派 PUT /admin/plans/{id}/assign 生成工单，延期 POST /admin/plans/{id}/delay，审批 PUT /admin/plans/delays/{id}/decide | S:审批通过若返回 platformDateSynced 为 false 说明该电梯平台侧下次维保日期已固化，前端以错误样式提示 platformFixedNote；generatePlans 无日期范围时直接返回；不可派候选仍列出但置灰，assignable 由后端给定
+StatsView.vue[EA7S]: F:统计报表，工单总数与完成率、隐患分布柱状图、人员与电梯维保量 Top10，并支持导出 Excel | R:code:admin/src/api/admin.js,code:admin/src/constants/index.js | A:GET /admin/stats?days 取 7 或 30 或 90，导出用 ExcelJS 在浏览器侧生成 xlsx | S:柱色判定依据是 code 等于 S0 则绿否则红，与隐患码语义无关；导出文件名含 days 变量，切换区间后须先重查再导出
+SyncStatusView.vue[EN7S]: F:平台同步状态页，凭证缺失告警、待同步人员与位置待补电梯两张清单、手动触发 2.2 与 2.5 与 2.7 | R:code:admin/src/api/platform.js,code:admin/src/stores/auth.js | A:GET /reg/sync-status 读取统计与清单，POST /platform/sync 触发同步 | S:platformConfigured 为 false 时提示凭证只在云托管服务设置中配置，管理端无凭证界面；同步是全量触发且按 auth.canWrite 禁用，没有批量自动重试入口
+TemplateManageView.vue[EB6S]: F:检查项模板管理，官方 257 行只读，自定义模板增改与启停 | R:code:admin/src/api/template.js,code:admin/src/stores/auth.js | A:列表 GET /admin/templates，附件筛选仅 OFFICIAL 生效 | S:只有 CUSTOM 可编辑与启停；消防与防爆电梯缺自定义模板时在平台同步页以 1006 提示
+UploadLogsView.vue[EO5T]: F:上报日志只读查询，按结果、动作与记录标识过滤 | R:code:admin/src/api/platform.js | A:GET /reg/upload-logs，action 取 UPLOAD、REUPLOAD 或 LEGACY | S:requestDigest 是脱敏快照，不含 token 与明文手机号，仅作排障参考不可当报文原文
+UseUnitsView.vue[EB6S]: F:使用单位档案列表与新建编辑，含负责人、安全管理员与应急电话 | R:code:admin/src/api/archive.js,code:admin/src/stores/auth.js | A:GET /use-units，POST 与 PUT /use-units | S:负责人与安全管理员手机参与五类互斥，应急电话不参与；保存前剔除 id 与 elevatorCount 两个只读字段
+UsersView.vue[EI6S]: F:SYS_ADMIN 专属的账号启停与密码重置 | R:code:admin/src/api/system.js,code:admin/src/api/schedule.js | A:PUT /admin/employees/{id}/enabled 与 /password，列表复用 GET /employees | S:页面无 canWrite 判据因为路由已限定 meta.role 为 SYS_ADMIN；新密码前端只校验至少 6 位，强度由后定
+
+===C:/Users/18223/Desktop/新建文件夹/backend/===
+.dockerignore[OC2T]: F:排除构建产物与 IDE 文件，缩小 Docker 构建上下文 | R:- | A:target/、.git/、.idea/、*.iml、README.md、mvnw.cmd | S:只 COPY src 与 pom 及 settings.xml，文档与 mvnw 派不上用场
+.gitignore[OC2T]: F:排除编译产物、日志、IDE 配置与本地文件存储回退目录 | R:- | A:target/、*.class、*.log、.idea/、*.iml、.vscode/、data/ | S:data/ 是未配 COS 时的本地照片与签名回退目录，只用于开发不可入库
+Dockerfile[OV6T]: F:backend 独立多阶段镜像，Maven 构建加 JRE 17 alpine 运行 | R:code:backend/pom.xml,code:backend/settings.xml | A:容器内 SERVER_PORT=80，EXPOSE 80，CMD 单行 java -jar | S:与根 Dockerfile 并存，云托管以 backend/ 为构建目录时用这份；CMD 多行只有最后一行有效故写成 exec 形式单行
+README.md[SG7T]: F:后端组件现状表、本地运行与环境变量清单、测试与云托管部署说明 | R:code:backend/pom.xml,code:AGENTS.md | A:面向后端维护者的独立说明，含 41 条业务路由与平台链路落地状态 | S:Redis 与 STS 直传明确后置；2.6 失败不自动重试；WX_APPSECRET 是 openid 唯一来源，DEV_OPENID 与 X-WX-OPENID 兜底已移除
+container.config.json[FO4T]: F:微信云托管服务创建的初始参数模板，含端口、弹性伸缩与资源规格 | R:code:backend/Dockerfile | A:containerPort 80，minNum 0 maxNum 5，cpu 1 mem 2，日志走 stdout | S:envParams 刻意留空，REG_* 凭证只能在控制台环境变量配置；服务创建后以控制台为准
+docker-compose.yml[OC3T]: F:本地开发用 MySQL 8 单容器编排，字符集与云托管版本对齐 | R:code:backend/pom.xml | A:mysql:8.0，端口 3306，库名 maintenance，root 口令 root | S:强制 utf8mb4 与 unicode_ci，与云托管一致否则迁移后 collation 不符
+pom.xml[FP7S]: F:Maven 构建描述，Spring Boot 3.3.4 父 POM 加 MyBatis-Plus、Flyway、jjwt、COS、OpenPDF 等依赖 | R:code:backend/settings.xml | A:Java 17，产出 maintenance-backend 可执行 jar，打包插件为 spring-boot-maven-plugin | S:只引入 spring-security-crypto 做 BCrypt，不引入完整 Security 过滤器链；OpenPDF 需配 openpdf-fonts-extra 才有中文 CID 字体
+settings.xml[OV2T]: F:云托管 Docker 构建专用的 Maven 配置，把全部仓库指向腾讯云镜像 | R:code:backend/pom.xml | A:mirrorOf 为通配星号，url 指向 mirrors.tencent.com 的 maven-public | S:仅在 Dockerfile 与 CI 里以 mvn -s 指定，不会自动生效
+
+===C:/Users/18223/Desktop/新建文件夹/backend/src/main/java/com/cqwlw/maintenance/===
+MaintenanceBackendApplication.java[EG7T]: F:Spring Boot 启动类，扫描根包并启用配置属性绑定与定时任务 | R:code:backend/pom.xml | A:com.cqwlw.maintenance 根包下的所有组件被扫描 | S:EnableScheduling 开启每日派单等定时任务，@EnableConfigurationProperties 显式注册 AppProperties 与 PlatformProperties 两组环境变量绑定
+
+===C:/Users/18223/Desktop/新建文件夹/backend/src/main/java/com/cqwlw/maintenance/auth/===
+AdminRoleInterceptor.java[MI9T]: F:管理端角色门禁拦截器，按路径与 HTTP 方法判定放行或抛 403 | R:code:backend/src/main/java/com/cqwlw/maintenance/auth/AdminRoles.java,code:backend/src/main/java/com/cqwlw/maintenance/auth/AuthInterceptor.java | A:必须在 AuthInterceptor 之后执行，role 从 request attribute 读 | S:GET /elevators 开头是小程序共用读接口，任何已登录角色放行；延期与转派两条路由放宽到班组长；op-logs 与 employees 的 enabled 及 password 限 SYS_ADMIN
+AdminRoles.java[DI8T]: F:管理端角色口径的唯一真源，定义角色常量与读、写、登录、建档四类判定 | R:code:backend/src/main/java/com/cqwlw/maintenance/auth/AdminRoleInterceptor.java,code:backend/src/main/java/com/cqwlw/maintenance/auth/AuthController.java | A:READ 为 LEADER/ADMIN/SYS_ADMIN，WRITE 为 ADMIN/SYS_ADMIN；导出 canWrite/canRead/canUseAdminConsole/assignable/known | S:assignable 不含 UNIT_ADMIN，因使用单位账号走小程序微信绑定而非管理端建档；WORKER 与 UNIT_ADMIN 不使用管理端
+AuditInterceptor.java[MO8T]: F:操作审计拦截器，管理端写操作响应后落一条 op_log 记录 | R:code:backend/src/main/java/com/cqwlw/maintenance/auth/AuthInterceptor.java,code:backend/src/main/java/com/cqwlw/maintenance/entity/OpLog.java | A:只记录 POST/PUT/DELETE，result 按有无异常取 SUCCESS 或 FAILED | S:落库失败被 catch 后忽略，不影响主流程；operatorName 留空由列表侧按 id 反查，避免拦截器额外查库
+AuthController.java[EI9S]: F:认证端点集合，账号密码登录、微信绑定与一键登录、角色切换、登出与当前用户 | R:code:backend/src/main/java/com/cqwlw/maintenance/auth/JwtService.java,code:backend/src/main/java/com/cqwlw/maintenance/service/WxAuthService.java,code:backend/src/main/java/com/cqwlw/maintenance/auth/AdminRoles.java | A:POST /auth/login、/auth/bind-wechat、/auth/wx-login、/auth/bind-employee、/auth/bind-use-unit、/auth/logout，GET /auth/me | S:openid 只来自 code 换 jscode2session，不读 X-WX-OPENID 也不回退 dev-openid；角色切换只认库中真实角色否则 403；wx-login 未绑定返 422 而非 401 以免前端清登录态
+AuthInterceptor.java[MI9T]: F:鉴权拦截器，校验 Authorization Bearer JWT 并把身份写入 request 属性 | R:code:backend/src/main/java/com/cqwlw/maintenance/auth/JwtService.java,code:backend/src/main/java/com/cqwlw/maintenance/auth/AdminRoleInterceptor.java | A:导出 ATTR_EMP_ID、ATTR_ROLE、ATTR_OPENID 三个属性名供后续拦截器与 CurrentUser 读取 | S:GET 访问 /files/ 开头走 URL 签名而跳过 JWT，因小程序 image 标签不带 Authorization 头且签字页需匿名渲染签名图；仅放行读，写路径仍需鉴权
+CurrentUser.java[CD7T]: F:当前登录人读取入口，从 request 属性取已校验身份供业务服务使用 | R:code:backend/src/main/java/com/cqwlw/maintenance/auth/AuthInterceptor.java,code:backend/src/main/java/com/cqwlw/maintenance/common/BizException.java | A:导出 employeeIdOrNull、roleOrNull 与 requireEmployeeId | S:requireEmployeeId 在属性缺失时按 401 处理而非放行，因为属性缺失说明鉴权链路异常，继续等于无鉴权访问；抽成组件是为让业务服务不依赖 Servlet API
+JwtService.java[DI9T]: F:自建 JWT 签发与校验，HMAC 签名，载荷含 role 与可选 openid | R:code:backend/src/main/java/com/cqwlw/maintenance/config/AppProperties.java,code:backend/src/main/java/com/cqwlw/maintenance/auth/AuthInterceptor.java | A:issue(employeeId, role, openid) 与 verify(token)，校验失败统一抛 401 | S:签名密钥无默认值，缺失即启动失败，否则会用公开密钥签发 token 导致任何人可伪造 role=SYS_ADMIN；日志严禁打印完整 token
+
+===C:/Users/18223/Desktop/新建文件夹/backend/src/main/java/com/cqwlw/maintenance/common/===
+ApiResponse.java[CC8T]: F:统一响应信封包装，全后端返回体都走 code 与 message 与 data 三字段 | R:code:backend/src/main/java/com/cqwlw/maintenance/common/GlobalExceptionHandler.java | A:ok(data) 产出 code 为 0 与 message 为 success；error(code, message) 产出业务错误 | S:成功判定是 code 严格等于 0，admin/src/api/client.js 与小程序 utils/request.js 都按此解包，改判定口径会同时破两端
+BizException.java[CD8T]: F:业务异常载体，携带业务码与可选附带数据 | R:code:backend/src/main/java/com/cqwlw/maintenance/common/GlobalExceptionHandler.java,code:constants/index.js | A:继承 RuntimeException，构造参数为 code、message 与可选 data | S:code 与小程序 constants/index.js 的 ERROR_CODES 对齐；data 专供 1002 手机号互斥携带 conflicts[]，全局处理器会把它挂到响应 data 上
+GlobalExceptionHandler.java[MR8T]: F:全局异常处理，把四类异常统一转成 ApiResponse 信封 | R:code:backend/src/main/java/com/cqwlw/maintenance/common/BizException.java,code:backend/src/main/java/com/cqwlw/maintenance/common/ApiResponse.java | A:BizException 返 HTTP 200 加业务码，参数校验与请求体格式错误返 400，未知异常返 500 | S:BizException 刻意用 HTTP 200 而非 4xx，因为前端以 body.code 判定业务结果；未知异常只记服务端日志并统一回服务内部错误，不回显堆栈
+Ids.java[CG6T]: F:ID 生成器，产出带业务前缀的单号与 19 位纯数字记录标识 | R:- | A:next(prefix) 供工单与救援与消息等单号；nextRecordId 供上报用 | S:记录标识是 13 位毫秒时间戳拼 6 位随机数，因平台侧为 19 位雪花 ID，长度不符会被平台拒收
+
+===C:/Users/18223/Desktop/新建文件夹/backend/src/main/java/com/cqwlw/maintenance/config/===
+ApiPrefixFilter.java[MN6T]: F:请求过滤器，把 /api 前缀改写掉，使管理端与小程序共用同一域名 | R:code:backend/src/main/java/com/cqwlw/maintenance/config/WebConfig.java | A:只改写 getRequestURI 与 getServletPath，命中 /api 或 /api/ 开头时 | S:必须跑在拦截器之前故用最高优先级；开发期 Vite 代理已 strip 前缀，本过滤器只服务生产同域反代
+AppProperties.java[FC8S]: F:自建应用配置绑定，JWT、微信、COS、LBS 与作业时长全部经 app 前缀环境变量注入 | R:code:backend/src/main/java/com/cqwlw/maintenance/auth/JwtService.java,code:backend/src/main/java/com/cqwlw/maintenance/service/WxAuthService.java | A:导出 cosConfigured 与 cosStaticCredentialConfigured 与 wxConfigured 三个就绪判定 | S:jwtSecret 无默认值，缺失由 JwtService 在构造时判定为启动失败；云托管托管桶只需桶名与地域，静态密钥仅自建桶需要
+JacksonConfig.java[MC6T]: F:Jackson 定制，统一 LocalDateTime 的序列化与反序列化格式 | R:- | A:格式固定为 yyyy-MM-dd HH:mm:ss | S:输入输出共用同一 formatter，只改序列化不改反序列化会导致时间解析失败
+MybatisPlusConfig.java[MP4T]: F:注册 MyBatis-Plus 拦截器并挂载 MySQL 分页插件 | R:- | A:导出 MybatisPlusInterceptor bean | S:分页必须显式指定 DbType 为 MYSQL，否则多方言下分页 SQL 生成错误
+PlatformProperties.java[FN8T]: F:监管平台接入配置绑定，登录地址、业务根路径、登录四参数与存量推送开关 | R:code:backend/src/main/java/com/cqwlw/maintenance/service/PlatformTokenService.java | A:platform 前缀，凭证全部来自环境变量或 .env | S:secret 对应平台通知里的 scret 拼写笔误，不可擅自改名；存量推送开关默认 false，平台关闭 2.8 后须保持 false
+RestTemplateConfig.java[MN5T]: F:定义调用监管平台与 LBS 的 RestTemplate 及超时 | R:- | A:bean 名为 platformRestTemplate，连接 3 秒读 30 秒 | S:读超时 30 秒是平台表单上报的上限，文件类接口需另设更长超时
+WebConfig.java[MS9T]: F:注册三个拦截器并声明各自路径范围与鉴权白名单 | R:code:backend/src/main/java/com/cqwlw/maintenance/auth/AuthInterceptor.java,code:backend/src/main/java/com/cqwlw/maintenance/auth/AdminRoleInterceptor.java,code:backend/src/main/java/com/cqwlw/maintenance/auth/AuditInterceptor.java | A:鉴权覆盖全部路径并排除登录绑定签字确认与健康检查与逆地址解析 | S:角色拦截器必须排在鉴权之后，因为依赖它写入的 role 属性；白名单里的签字确认与 sign-view 是使用单位匿名入口，放开即匿名可读记录详情
+
+===C:/Users/18223/Desktop/新建文件夹/backend/src/main/java/com/cqwlw/maintenance/controller/===
+AdminAlertController.java[EM5T]: F:管理端预警端点，规则查询与更新、预警记录查询与按启用规则生成 | R:code:backend/src/main/java/com/cqwlw/maintenance/controller/AdminRoleInterceptor.java | A:GET /admin/alert-rules、PUT /admin/alert-rules/{id}、GET /admin/alerts、POST /admin/alerts/generate | S:控制器不判角色，规则读班组长以上与改管理员以上的门禁全由拦截器承担
+AdminApprovalController.java[EW5T]: F:定位异常申述审核端点，列表与通过驳回 | R:code:backend/src/main/java/com/cqwlw/maintenance/service/ApprovalService.java | A:GET /admin/approvals、POST /admin/approvals/{id}/audit，审核人取自鉴权拦截器的 empId 属性 | S:bizType 参数被接收但不参与查询，一期仅定位异常生效，别误以为已按类型过滤
+AdminArchiveController.java[ED8S]: F:管理端档案维护端点，维保单位、使用单位、人员、电梯的增改查与账号启停改密 | R:code:backend/src/main/java/com/cqwlw/maintenance/service/IdempotencyService.java | A:GET 与 PUT /company，GET/POST/PUT /use-units 与 /employees，POST/PUT /elevators，PUT /admin/employees/{id}/enabled 与 /password | S:八处写接口各以路径字符串作幂等作用域，PUT 走 update 后缀而 POST 走裸路径，重放命中首次响应；手机号互斥 1002 预校验在服务层
+AdminAuditController.java[EO5T]: F:审计日志查询端点，按操作人与路径过滤并分页 | R:code:backend/src/main/java/com/cqwlw/maintenance/auth/AuditInterceptor.java | A:GET /admin/op-logs，按创建时间倒序，默认每页 20 | S:先全量 selectList 再内存分页并反查全部员工姓名，开销随表增长；留痕不可裁剪故只能接受
+AdminController.java[EA6T]: F:管理端看板、电梯富视图、维保记录查询与统计四个只读端点 | R:code:backend/src/main/java/com/cqwlw/maintenance/service/AdminService.java,code:backend/src/main/java/com/cqwlw/maintenance/service/AdminArchiveService.java | A:GET /admin/dashboard、/admin/elevators、/admin/records、/admin/stats | S:管理端电梯走 /admin/elevators 富视图而小程序列表走 /elevators，两者刻意并存不要合并
+AdminNotifyController.java[EM3T]: F:订阅消息发送记录查询端点 | R:code:backend/src/main/java/com/cqwlw/maintenance/service/NotifyService.java | A:GET /admin/notify-records，支持类型与渠道与状态过滤 | S:真实微信推送后置，当前只落库记录，已发送不代表已送达
+AdminRecordController.java[ES5T]: F:维保记录 PDF 导出端点 | R:code:backend/src/main/java/com/cqwlw/maintenance/service/RecordPdfService.java | A:GET /admin/records/{id}/export-pdf，返回 application/pdf 字节流 | S:记录不存在返业务码 1404 而非 HTTP 404，因全局处理器把业务异常转成 200 信封；文件名须 URLEncode 且用 filename* 语法，漏编码会中文乱码
+AdminScheduleController.java[EW8S]: F:计划调度与延期审批端点，含排班池生成、指派、排班建议、冲突、延期申请与裁决、工单转派 | R:code:backend/src/main/java/com/cqwlw/maintenance/service/AdminScheduleService.java | A:GET /admin/plans 系列与 PUT /admin/plans/{id}/assign，POST /admin/plans/{id}/delay，PUT /admin/plans/delays/{id}/decide，POST /admin/orders/{id}/transfer | S:延期与转派两条路由在拦截器放宽到班组长可写，其余写操作需管理员以上；delayDays 解析失败返 null，与其他字段默认空串的兜底不同
+AdminTemplateController.java[EB5T]: F:检查项模板管理端点，列表、新建、更新与启停 | R:code:backend/src/main/java/com/cqwlw/maintenance/service/AdminTemplateService.java | A:GET 与 POST /admin/templates，PUT /admin/templates/{id} 与 /{id}/enabled | S:启停是独立端点而非整体更新，官方 257 行只读约束在服务层判定
+DirectoryController.java[EG7S]: F:救援、故障、演练、自检、消息与知识库六类台账端点 | R:code:backend/src/main/java/com/cqwlw/maintenance/service/DirectoryService.java,code:backend/src/main/java/com/cqwlw/maintenance/service/IdempotencyService.java | A:各资源 GET 列表与详情、POST 新建，另有故障闭环与消息已读 | S:五处 POST 各自经幂等服务做重放去重；rescues 列表是唯一在控制器里做内存分页的，其余列表下推服务层
+ElevatorController.java[EB4T]: F:电梯列表与档案详情端点，供小程序端使用 | R:code:backend/src/main/java/com/cqwlw/maintenance/service/ElevatorService.java | A:GET /elevators 与 GET /elevators/{id}/profile | S:此路径被角色拦截器显式放行给任何已登录角色，因为与管理端电梯富视图共用同一前缀
+FileController.java[ES8T]: F:文件上传与读取端点，含小程序上传兜底、本地回退读取与直传元数据 | R:code:backend/src/main/java/com/cqwlw/maintenance/service/FileStorageService.java,code:backend/src/main/java/com/cqwlw/maintenance/service/FileAccessTokenService.java | A:POST /files/upload 与 /files/sts 需登录态，GET /files/{id} 走 URL 签名允许匿名 | S:上传与直传凭证都必须先校验登录人，否则可匿名上传任意文件占满存储；读取端点跳过 JWT 是因小程序 image 标签不带 Authorization 头，改动前须确认签字页仍可匿名渲染
+HealthController.java[EO3T]: F:健康检查端点 | R:- | A:GET /health 返回 status 为 UP | S:该路径在鉴权白名单里，未登录可访问，供云托管探活
+HomeController.java[EB3T]: F:首页工作台汇总端点 | R:code:backend/src/main/java/com/cqwlw/maintenance/service/WorkOrderService.java | A:GET /home/summary | S:控制器只做转发，字段口径以 WorkOrderService 的汇总实现为准
+LocationAppealController.java[EW5T]: F:小程序端定位异常申述提交端点 | R:code:backend/src/main/java/com/cqwlw/maintenance/service/ApprovalService.java | A:POST /work-orders/{id}/location-appeal，申述人取自鉴权拦截器的 empId 属性 | S:定位超阈才允许申述，提交后进入管理端审核队列，解锁补签到不在本端点
+LocationController.java[EN4T]: F:LBS 逆地址解析代理端点 | R:code:backend/src/main/java/com/cqwlw/maintenance/service/LocationService.java | A:GET /location/reverse 接经纬度返回可读地址 | S:key 只在后端环境变量前端不接触；该路径在鉴权白名单内故可未登录调用
+PlatformController.java[IN8S]: F:平台档案同步与写链路端点，含同步触发、逐条重报与 2.3/2.4 登记转发 | R:code:backend/src/main/java/com/cqwlw/maintenance/service/PlatformSyncService.java,code:backend/src/main/java/com/cqwlw/maintenance/service/PlatformReportService.java,code:backend/src/main/java/com/cqwlw/maintenance/service/PlatformClient.java | A:POST /platform/sync、/platform/records/{id}/reupload、/platform/register/service 与 /worker | S:重报仅接受上报失败的记录且不自动重试；2.3 参数名是 useUnitName 而非规范原文，changState 平台侧即此拼写
+RegAdminController.java[EO5T]: F:管理端平台同步状态与上报日志查询端点 | R:code:backend/src/main/java/com/cqwlw/maintenance/service/AdminService.java | A:GET /reg/upload-logs 与 /reg/sync-status | S:上传日志的 digest 是脱敏快照，不可当报文原文排查
+UnitRecordController.java[EW7T]: F:使用单位维保记录确认端点，含登录态与免登录分享两条确认路径 | R:code:backend/src/main/java/com/cqwlw/maintenance/service/UnitRecordService.java,code:backend/src/main/java/com/cqwlw/maintenance/service/IdempotencyService.java | A:GET /unit/records/pending 与 /{id}，POST /{id}/confirm 与 /{id}/sign-view 与 /{id}/confirm-by-token | S:sign-view 与 confirm-by-token 在鉴权白名单内凭 shareToken 匿名访问，是使用单位签字页唯一入口；两条确认路径各用不同幂等作用域
+WorkOrderController.java[EW9S]: F:工单与现场作业主端点，覆盖签到、动态码核验、清单填报、签退与三类存证签发 | R:code:backend/src/main/java/com/cqwlw/maintenance/service/WorkOrderService.java,code:backend/src/main/java/com/cqwlw/maintenance/service/IdempotencyService.java | A:GET /work-orders 与 /{id} 与 /{id}/checklist，POST checkin 与 dynamic-code/verify 与 checklist/{itemId} 与 checkout | S:签退刻意分两步且平台转发在事务外，先落库再转发，避免外网超时导致维保记录被回滚；六处写操作各带独立幂等作用域
+
+===C:/Users/18223/Desktop/新建文件夹/backend/src/main/java/com/cqwlw/maintenance/entity/===
+AlertRecord.java[PD5T]: F:预警记录实体，映射 alert_record 表 | R:code:backend/src/main/java/com/cqwlw/maintenance/service/AlertService.java | A:字段含 ruleType 与 title 与 content 与 target 与 status 与 readFlag | S:content 是生成时的正文快照，之后改规则不影响已落库的记录
+AlertRule.java[PD5T]: F:预警规则实体，映射 alert_rule 表，九类预警的提前天数与启停 | R:code:backend/src/main/java/com/cqwlw/maintenance/service/AlertService.java | A:advanceDays 正值是到期前天数 | S:advanceDays 为负值表示逾期后提醒，语义与直觉相反，填反会让预警在到期后才触发
+AppFile.java[PD5T]: F:文件元数据实体，映射 app_file 表 | R:code:backend/src/main/java/com/cqwlw/maintenance/service/FileStorageService.java | A:字段含 objectKey 与 url 与 contentType 与 sizeBytes | S:url 为空表示文件只落本地磁盘，非空且以 http 开头则前端直连而不经后端回源
+ChecklistTemplate.java[PD6T]: F:检查项模板实体，映射 checklist_template 表，官方 257 行与自定义模板同表 | R:code:backend/src/main/java/com/cqwlw/maintenance/service/AdminTemplateService.java | A:主键用 IdType.AUTO 自增，templateType 区分 OFFICIAL 与 CUSTOM | S:categoryScope 在 OFFICIAL 时是品种主名而在 CUSTOM 时是消防或防爆电梯，匹配 elevator.special_type 用
+Company.java[PD6T]: F:维保单位档案实体，映射 company 表 | R:code:backend/src/main/java/com/cqwlw/maintenance/service/AdminArchiveService.java | A:entityId 与 orgId 为平台侧主体标识，由 2.2 查询回填 | S:workMenegerName 与 workMenegerPhone 的拼写按平台原文，平台报文即如此，勿当笔误改名
+Drill.java[PD4T]: F:应急演练记录实体，映射 drill 表 | R:code:backend/src/main/java/com/cqwlw/maintenance/service/DirectoryService.java | A:drillDate 用 LocalDate 而 createdAt 用 LocalDateTime | S:-
+Elevator.java[PD8T]: F:电梯档案实体，映射 elevator 表，聚合平台回填与本地维护与维保绑定三类字段 | R:code:backend/src/main/java/com/cqwlw/maintenance/service/ElevatorService.java | A:平台回填含 platformSyncedAt 与 nextCheckDate，本地维护含经纬度与维保绑定 | S:specialType 匹配自定义检查项模板的 category_scope，消防与防爆电梯缺该值会导致模板匹配不上
+Employee.java[PD8T]: F:员工与演示账号实体，映射 sys_employee 表 | R:code:backend/src/main/java/com/cqwlw/maintenance/auth/AuthController.java | A:passwordHash 存 BCrypt 哈希，password 标注为非表字段 | S:明文 password 用 @TableField(exist=false) 排除入库，误删该注解会让建表多出一列并可能落库明文
+Fault.java[PD4T]: F:故障记录实体，映射 fault 表 | R:code:backend/src/main/java/com/cqwlw/maintenance/service/DirectoryService.java | A:status 区分未闭环与已闭环，handleDesc 存处理记录 | S:-
+IdempotencyKey.java[PD7T]: F:幂等键实体，映射 idempotency_key 表，存首次响应供重放返回 | R:code:backend/src/main/java/com/cqwlw/maintenance/service/IdempotencyService.java | A:主键即 idemKey 本身，另有 path 作用域与 responseJson | S:主键就是客户端传来的 key 不另生成 id；path 参与作用域判定，故同一 key 打到不同接口互不干扰
+InspectRecord.java[PD5T]: F:自行检查记录实体，映射 inspect_record 表 | R:code:backend/src/main/java/com/cqwlw/maintenance/service/DirectoryService.java | A:itemTotal 与 abnormalCount 冗余存储以便列表页免聚合 | S:每台每年至少一次且须在下次定期检验前完成，problems 与检查人及复核人双签字为合规留痕
+Knowledge.java[PD3T]: F:知识库条目实体，映射 knowledge 表 | R:code:backend/src/main/java/com/cqwlw/maintenance/service/DirectoryService.java | A:字段含 title 与 tag 与 content | S:-
+LocationAppeal.java[PD6T]: F:定位异常申述实体，映射 location_appeal 表 | R:code:backend/src/main/java/com/cqwlw/maintenance/service/ApprovalService.java | A:distance 与 threshold 同时落库供审核时对照 | S:审核通过只写 reviewerId 与 reviewComment，是否解锁补签到由工单侧决定，不在本表
+MaintainPlan.java[PD7T]: F:维保计划实体，映射 maintain_plan 表，是到期电梯的排班池 | R:code:backend/src/main/java/com/cqwlw/maintenance/service/DispatchService.java | A:status 五态 UNASSIGNED/ASSIGNED/POSTPONE_PENDING/DISPATCHED/CANCELLED | S:orderId 在指派后回填，指派与生成工单是一次操作两面，延期通过只改 planDate 不动 orderId
+MaintainRecord.java[PD8T]: F:维保记录实体，映射 maintain_record 表，是签退冻结快照与上报来源 | R:code:backend/src/main/java/com/cqwlw/maintenance/service/UnitRecordService.java,code:backend/src/main/java/com/cqwlw/maintenance/service/PlatformReportService.java | A:originalRecordId 关联平台，reportStatus 与 retryCount 记录上报结果 | S:shareToken 是使用单位免登录确认的凭据；reportPayloadJson 冻结上报报文原文，重报复用而非重算
+Message.java[PD3T]: F:站内消息实体，映射 message 表 | R:code:backend/src/main/java/com/cqwlw/maintenance/service/NotifyService.java | A:字段含 title 与 content 与 readFlag | S:-
+NotifyRecord.java[PM5T]: F:消息发送记录实体，映射 notify_record 表 | R:code:backend/src/main/java/com/cqwlw/maintenance/service/NotifyService.java | A:channel 取 SUBSCRIBE 或 INBOX，status 取 SENT/FAILED/PENDING | S:SENT 仅表示已入队或本地模拟，真实微信推送需云端 access_token 与模板配额且未接入
+OpLog.java[PO7T]: F:操作审计日志实体，映射 op_log 表 | R:code:backend/src/main/java/com/cqwlw/maintenance/auth/AuditInterceptor.java | A:字段含 operatorId 与 method 与 path 与 action 与 result 与 ip | S:operatorName 允许为空由列表侧按 id 反查；全量留痕三年以上属合规要求不可裁剪
+PlanDelay.java[PW7T]: F:延期申请与审批实体，映射 plan_delay 表 | R:code:backend/src/main/java/com/cqwlw/maintenance/service/AdminScheduleService.java | A:status 三态 PENDING/APPROVED/REJECTED，含 applicantId 与 approverId | S:platformDateSynced 为 0 表示平台侧下次维保日期已固化不可改，审批通过后只能提示人工核对
+RegUploadLog.java[PN7T]: F:平台上报日志实体，映射 reg_upload_log 表，每次 2.6 或 2.8 转发落一条 | R:code:backend/src/main/java/com/cqwlw/maintenance/service/PlatformReportService.java | A:action 区分 UPLOAD 签退自动、REUPLOAD 手动重报、LEGACY 存量 | S:requestDigest 是脱敏快照，不打印完整 token 与明文手机号与密钥，不可当报文原文回溯
+Rescue.java[PB6T]: F:困人救援记录实体，映射 rescue 表 | R:code:backend/src/main/java/com/cqwlw/maintenance/service/DirectoryService.java | A:四个时间戳 alarmAt/departAt/arriveAt/rescuedAt 与两个耗时字段 | S:耗时字段冗余落库且超时记录不可删除，前端 30 分钟达标线与 overtime 字段是两套判定
+UseUnit.java[PD5T]: F:使用单位档案实体，映射 use_unit 表 | R:code:backend/src/main/java/com/cqwlw/maintenance/service/AdminArchiveService.java | A:含负责人与安全管理员及应急电话三组字段与 entityId | S:负责人与安全管理员手机参与五类互斥校验而应急电话不参与，改这三个字段的校验范围会直接影响 1002 判定
+WorkOrder.java[PB8T]: F:维保工单实体，映射 work_order 表 | R:code:backend/src/main/java/com/cqwlw/maintenance/service/WorkOrderService.java,code:backend/src/main/java/com/cqwlw/maintenance/service/ChecklistService.java | A:checklist 以 JSON 列存储并按模板懒加载生成 | S:checkinExtraJson 用 TableField 显式映射到 checkin_extra 列，因建表列名无法由驼峰推导；定位申述审核结果就落在这里
+
+===C:/Users/18223/Desktop/新建文件夹/backend/src/main/java/com/cqwlw/maintenance/mapper/===
+AlertRecordMapper.java[PD3T]: F:预警记录实体的 MyBatis-Plus Mapper 接口，继承 BaseMapper 且无自定义方法 | R:- | A:CRUD 与条件查询全部由 BaseMapper 提供 | S:-
+AlertRuleMapper.java[PD3T]: F:预警规则实体的 MyBatis-Plus Mapper 接口，继承 BaseMapper 且无自定义方法 | R:- | A:CRUD 与条件查询全部由 BaseMapper 提供 | S:-
+AppFileMapper.java[PD3T]: F:文件元数据实体的 MyBatis-Plus Mapper 接口，继承 BaseMapper 且无自定义方法 | R:- | A:CRUD 与条件查询全部由 BaseMapper 提供 | S:-
+ChecklistTemplateMapper.java[PD3T]: F:检查项模板实体的 MyBatis-Plus Mapper 接口，继承 BaseMapper 且无自定义方法 | R:- | A:CRUD 与条件查询全部由 BaseMapper 提供 | S:-
+CompanyMapper.java[PD3T]: F:维保单位实体的 MyBatis-Plus Mapper 接口，继承 BaseMapper 且无自定义方法 | R:- | A:CRUD 与条件查询全部由 BaseMapper 提供 | S:-
+DrillMapper.java[PD3T]: F:应急演练实体的 MyBatis-Plus Mapper 接口，继承 BaseMapper 且无自定义方法 | R:- | A:CRUD 与条件查询全部由 BaseMapper 提供 | S:-
+ElevatorMapper.java[PD3T]: F:电梯档案实体的 MyBatis-Plus Mapper 接口，继承 BaseMapper 且无自定义方法 | R:- | A:CRUD 与条件查询全部由 BaseMapper 提供 | S:-
+EmployeeMapper.java[PD7T]: F:员工 Mapper，含全仓唯一的自定义 SQL 方法 unbindOpenidExcept | R:code:backend/src/main/java/com/cqwlw/maintenance/auth/AuthController.java,code:backend/src/main/java/com/cqwlw/maintenance/entity/Employee.java | A:解绑同一 openid 上的其他账号并返回被解绑行数 | S:必须用显式 SET openid=NULL，MyBatis-Plus 的 updateById 默认跳过 null 字段，用实体写 null 是空操作，会撞唯一约束或让两账号共享 openid 致串号复现
+FaultMapper.java[PD3T]: F:故障记录实体的 MyBatis-Plus Mapper 接口，继承 BaseMapper 且无自定义方法 | R:- | A:CRUD 与条件查询全部由 BaseMapper 提供 | S:-
+IdempotencyKeyMapper.java[PD3T]: F:幂等键实体的 MyBatis-Plus Mapper 接口，继承 BaseMapper 且无自定义方法 | R:- | A:CRUD 与条件查询全部由 BaseMapper 提供 | S:-
+InspectRecordMapper.java[PD3T]: F:自行检查实体的 MyBatis-Plus Mapper 接口，继承 BaseMapper 且无自定义方法 | R:- | A:CRUD 与条件查询全部由 BaseMapper 提供 | S:-
+KnowledgeMapper.java[PD3T]: F:知识库实体的 MyBatis-Plus Mapper 接口，继承 BaseMapper 且无自定义方法 | R:- | A:CRUD 与条件查询全部由 BaseMapper 提供 | S:-
+LocationAppealMapper.java[PD3T]: F:定位异常申述实体的 MyBatis-Plus Mapper 接口，继承 BaseMapper 且无自定义方法 | R:- | A:CRUD 与条件查询全部由 BaseMapper 提供 | S:-
+MaintainPlanMapper.java[PD3T]: F:维保计划实体的 MyBatis-Plus Mapper 接口，继承 BaseMapper 且无自定义方法 | R:- | A:CRUD 与条件查询全部由 BaseMapper 提供 | S:-
+MaintainRecordMapper.java[PD3T]: F:维保记录实体的 MyBatis-Plus Mapper 接口，继承 BaseMapper 且无自定义方法 | R:- | A:CRUD 与条件查询全部由 BaseMapper 提供 | S:-
+MessageMapper.java[PD3T]: F:消息实体的 MyBatis-Plus Mapper 接口，继承 BaseMapper 且无自定义方法 | R:- | A:CRUD 与条件查询全部由 BaseMapper 提供 | S:-
+NotifyRecordMapper.java[PD3T]: F:消息发送记录实体的 MyBatis-Plus Mapper 接口，继承 BaseMapper 且无自定义方法 | R:- | A:CRUD 与条件查询全部由 BaseMapper 提供 | S:-
+OpLogMapper.java[PD3T]: F:操作审计日志实体的 MyBatis-Plus Mapper 接口，继承 BaseMapper 且无自定义方法 | R:- | A:CRUD 与条件查询全部由 BaseMapper 提供 | S:-
+PlanDelayMapper.java[PD3T]: F:延期申请实体的 MyBatis-Plus Mapper 接口，继承 BaseMapper 且无自定义方法 | R:- | A:CRUD 与条件查询全部由 BaseMapper 提供 | S:-
+RegUploadLogMapper.java[PD3T]: F:平台上报日志实体的 MyBatis-Plus Mapper 接口，继承 BaseMapper 且无自定义方法 | R:- | A:CRUD 与条件查询全部由 BaseMapper 提供 | S:-
+RescueMapper.java[PD3T]: F:困人救援记录实体的 MyBatis-Plus Mapper 接口，继承 BaseMapper 且无自定义方法 | R:- | A:CRUD 与条件查询全部由 BaseMapper 提供 | S:-
+UseUnitMapper.java[PD3T]: F:使用单位档案实体的 MyBatis-Plus Mapper 接口，继承 BaseMapper 且无自定义方法 | R:- | A:CRUD 与条件查询全部由 BaseMapper 提供 | S:-
+WorkOrderMapper.java[PD3T]: F:维保工单实体的 MyBatis-Plus Mapper 接口，继承 BaseMapper 且无自定义方法 | R:- | A:CRUD 与条件查询全部由 BaseMapper 提供 | S:-
+
+===C:/Users/18223/Desktop/新建文件夹/backend/src/main/java/com/cqwlw/maintenance/service/===
+AdminArchiveService.java[DB7L]: F:管理端维保单位、使用单位、人员、电梯四类档案的读写与视图组装 | R:code:backend/src/main/java/com/cqwlw/maintenance/service/PhoneMutexService.java,code:backend/src/main/java/com/cqwlw/maintenance/controller/AdminArchiveController.java | A:每次写入后调用 PhoneMutexService 预校验，冲突抛 1002 并附 conflicts[] | S:company 档案取 selectList 首行而非 selectById（库内约定单行）；新建人员初始密码要求 8 位而重置 6 位，口令只存 BCrypt 哈希
+AdminScheduleService.java[DW9L]: F:管理端排班池生成、指派、转派、延期审批、冲突检测与候选人建议 | R:code:backend/src/main/java/com/cqwlw/maintenance/service/DispatchService.java,code:backend/src/main/java/com/cqwlw/maintenance/auth/AdminRoles.java | A:派工门禁含 1004 platform_id 未同步、1007 证件过期与主配合互斥及非维保经理、一次只派一单 | S:人工指派用全表工单总数取模推算 orderNo，与 DispatchService 的当日序号重试是不同实现故序号可重复；延期审批查 maintain_record 存在 REPORTED 即判定平台侧维保日期已固化，只提示人工复核
+AdminService.java[DO7L]: F:管理端看板、维保记录查询、上报日志、同步看板与统计的聚合查询 | R:code:backend/src/main/java/com/cqwlw/maintenance/service/PlatformTokenService.java,code:backend/src/main/java/com/cqwlw/maintenance/service/UnitRecordService.java | A:统计在后端内存聚合后用 subList 分页，隐患码固定 S0—S7 连续编码 | S:上传日志只返回脱敏 requestDigest 不做明文还原；dashboard 与 stats 走全表 selectList 无 SQL 聚合，数据量增长后是主要性能瓶颈
+AdminTemplateService.java[DC6S]: F:检查项模板管理，OFFICIAL 只读而 CUSTOM 可建改与启停 | R:code:backend/src/main/java/com/cqwlw/maintenance/service/ChecklistTemplateSeeder.java,code:backend/src/main/java/com/cqwlw/maintenance/service/ChecklistService.java | A:requireCustom 拦下所有非 CUSTOM 行的改写；category_scope 仅允许消防电梯与防爆电梯 | S:OFFICIAL 行来自 TSG 附件 A—D 播种结果，写接口一律 422 拒绝，改模板须走规范修订流程；CUSTOM 模板 freq 固定为 CUSTOM，不参与官方频次累加链
+AlertService.java[DW6M]: F:预警规则维护与按启用规则扫描生成预警记录 | R:code:backend/src/main/java/com/cqwlw/maintenance/entity/AlertRule.java,code:backend/src/main/java/com/cqwlw/maintenance/controller/AlertController.java | A:可生成五类 YEAR_CHECK/CERT_EXPIRE/MAINT_OVERDUE/CONFIRM_TIMEOUT/SELF_INSPECT | S:幂等以 ruleType+content+status=OPEN 去重，content 内嵌剩余天数故每天生成新记录；CONFIRM_TIMEOUT 的 24 小时阈值硬编码不读规则；合同库存演练超期规则可配但不生成
+ApprovalService.java[DW6S]: F:定位异常申述的提交、列表与审核，通过后回写工单补签到标记 | R:code:backend/src/main/java/com/cqwlw/maintenance/entity/WorkOrder.java,code:backend/src/main/java/com/cqwlw/maintenance/service/WorkOrderService.java | A:audit 通过把 locationAppealApproved 与 appealId 合并进工单 checkin_extra，落库列名 checkin_extra | S:hasApproved 只要存在 APPROVED 申述即视为围栏放行依据，不校验申述人是否为本单执行人；审核仅允许 PENDING 转态，重复审核抛 422
+ChecklistService.java[DB8M]: F:按维保频次累加式生成工单检查清单与自行检查模板项 | R:code:backend/src/main/java/com/cqwlw/maintenance/service/ChecklistTemplateSeeder.java,code:backend/src/main/java/com/cqwlw/maintenance/service/AdminTemplateService.java | A:官方模板双路径 DB 优先回落 classpath JSON 且两路径须逐字段一致；special_type 匹配的启用 CUSTOM 追加在官方项之后 | S:带 execCycleMonth/ageCondition/seasonWindow 任一条件的条目标 notInThisRun=true 即本次不执行而非丢弃；templateMapper 用 @Autowired(required=false) 可选注入，单测为 null 走 JSON 路径；未匹配到 CUSTOM 模板只提示不阻断
+ChecklistTemplateSeeder.java[RC5S]: F:启动时把 classpath checklist-template.json 官方模板扁平化播种进 checklist_template 表 | R:code:backend/src/main/java/com/cqwlw/maintenance/service/ChecklistService.java,code:backend/src/main/resources/checklist-template.json | A:表内已有 OFFICIAL 行则跳过播种，重复启动幂等；payload 存条目 JSON 原文 | S:播种按 JSON 结构把同一模板按频次拆成多行，seq 在每个频次内从 1 重新计数而非跨频次连续；CUSTOM 模板不由本 Seeder 产生
+DemoDataSeeder.java[RQ5L]: F:SEED_DEMO_DATA=true 且员工表为空时向空库写入单位、人员、电梯、工单、台账与知识库演示数据 | R:code:mock/data.js,code:backend/src/main/java/com/cqwlw/maintenance/service/ChecklistService.java | A:口令统一 123456 并只存 BCrypt 哈希，openid 显式置 null | S:四个演示账号含 SYS_ADMIN 13800000010，启动时打 WARN 提示生产置 false；判定条件是员工表非空即整体跳过，中途失败会留半套数据且下次不再补种
+DirectoryService.java[DB7L]: F:台账与目录类业务，含救援、故障、应急演练、自行检查、消息与知识库 | R:code:backend/src/main/java/com/cqwlw/maintenance/service/WorkOrderService.java,code:backend/src/main/java/com/cqwlw/maintenance/service/ChecklistService.java | A:救援按 alarmAt 到 arriveAt 算到达耗时，演练按半年内覆盖品种算 covered 与 missing | S:overtime 是落库冗余字段，30 分钟法定判定在写入时固化，改阈值须改代码；自行检查用 nextCheckDate 减 30 天判逾期，与年检预警 advanceDays 规则独立
+DispatchService.java[DW9M]: F:定时自动派单，到期前一天把名下全部到期电梯一次性派给绑定人员并写消息 | R:code:backend/src/main/java/com/cqwlw/maintenance/service/ChecklistService.java,code:scripts/verify-dispatch.js | A:09:00 定时加每 13 分钟兜底两个调度；保养类型按距上次维保 365/180/90 天升级为 OY/SM/TM | S:ensureDueOrders 自调用不过 Spring 代理，故两个 @Scheduled 入口各自声明 @Transactional 否则行锁立即释放；每台电梯用 FOR UPDATE 串行化并在锁内重查未完成工单；identityOnFile 要求姓名与 platform_id 同时匹配已备案员工才派单，不符只跳过不抛异常以免回滚同批；buildChecklist 必须传 specialType 否则漏生成特种设备专项项；order_no 撞唯一键递增序号重试 5 次
+ElevatorService.java[DB4S]: F:电梯档案列表视图与详情视图，字段名对齐前端契约 | R:code:backend/src/main/java/com/cqwlw/maintenance/entity/Elevator.java | A:profile 把字段拆为 platform 与 local 两组 | S:ratedLoad 与 ratedSpeed 数值和单位分开存，视图层拼接时缺省回落 kg 与 m/s
+EvidenceTokenService.java[MS8M]: F:签到与拍照取证令牌的签发、验签与绑定校验，载荷含服务端时间与已过围栏校验的坐标 | R:code:backend/src/main/java/com/cqwlw/maintenance/service/IdempotencyService.java,code:backend/src/main/java/com/cqwlw/maintenance/config/AppProperties.java | A:签到走 verifyAndConsume 核销 nonce，检查项与签名取证走 verifyOnly 不核销；落库坐标与服务端时间取自载荷 | S:一次性核销不新建表而复用 IdempotencyService.begin 的插入即占用语义；检查项与签名取证若也核销 nonce，网络超时后的重试会被已消费 nonce 永久 422；密钥复用 jwtSecret 并追加 |evidence-token-v1 上下文串做域隔离；签到 TTL 900s 而检查项 86400s 因其需经离线队列补传
+FileAccessTokenService.java[MS7T]: F:文件访问签名签发与校验，格式为 expiry.hmac(fileId:expiry) | R:code:backend/src/main/java/com/cqwlw/maintenance/service/FileStorageService.java | A:构造时校验 jwtSecret 缺失即启动失败；verify 用 MessageDigest.isEqual 常量时间比较 | S:密钥直接复用 jwtSecret 未加域隔离串，与 EvidenceTokenService 做法不同；TTL 固定 3600s 且每次读由 FileStorageService 重签，故泄露的旧链接不会永久有效
+FileStorageService.java[IP7M]: F:文件上传与访问 URL 解析，COS 代理上传优先、未配置回退本地磁盘 | R:code:backend/src/main/java/com/cqwlw/maintenance/service/FileAccessTokenService.java,code:backend/src/main/java/com/cqwlw/maintenance/entity/AppFile.java | A:resolveUrl 只对本服务 store 落库的记录返回非空，/files/{id} 每次读重签 | S:客户端 URL 一律不采信只反查本服务落库记录，防 PDF 导出代抓任意地址形成 SSRF；sanitizeDir 先判穿越再过滤字符，颠倒顺序会漏判；托管桶走内网临时凭证
+IdempotencyService.java[PR8S]: F:写接口幂等键的占用、重放响应返回与过期清理 | R:code:backend/src/main/java/com/cqwlw/maintenance/entity/IdempotencyKey.java,code:backend/src/main/java/com/cqwlw/maintenance/service/EvidenceTokenService.java | A:begin 返回 Guard，业务成功后 Guard.commit 写入首次响应，同 key 重放直接返回该响应 | S:STALE_MINUTES=10 的处理中存活上限是必需兜底，缺它则任一次失败都让该键永久 422、离线队列再也无法补传；commit 落库失败不阻断主流程，该键退化为未完成并由 begin 回收；purgeExpired 的 cron 必须 6 段，省略秒位会让 Spring 上下文起不来；本服务同时被取证令牌复用为 nonce 占用表
+LocationService.java[IN5T]: F:LBS 逆地址解析代理，高德优先、腾讯兜底、失败回退坐标文本 | R:code:backend/src/main/java/com/cqwlw/maintenance/config/AppProperties.java | A:key 只从环境变量读，前端不接触 | S:高德与腾讯的 location 参数顺序相反，前者 lng,lat 后者 lat,lng，填反会解析到错误地点
+NotifyService.java[DM4S]: F:订阅消息与站内消息的发送记录落库与查询 | R:code:backend/src/main/java/com/cqwlw/maintenance/entity/NotifyRecord.java | A:send 一律置 status=SENT 表示已入队或模拟，channel 默认 SUBSCRIBE | S:SENT 不代表微信已送达，真实推送需云端 access_token 与模板配额且未接入
+PhoneMutexService.java[DS8S]: F:五类角色手机号互斥预校验，冲突返回 1002 与 conflicts[] | R:code:backend/src/main/java/com/cqwlw/maintenance/service/AdminArchiveService.java,code:backend/src/main/java/com/cqwlw/maintenance/auth/AdminRoles.java | A:互斥范围仅使用单位负责人/安全管理员/维保经理/维保人员1/维保人员2，emergencyPhone 与 recorderPhone 不参与 | S:同一手机号落在两个及以上不同互斥角色才算冲突，同人同角色不算；电梯表不参与收集因 workerPhone 均源自员工档案否则同角色同人误报；roleOf 对 ADMIN/SYS_ADMIN 返回 null 故不能用 switch(null)；平台侧不校验此规则，由本系统在建档期承担
+PlatformClient.java[IN9M]: F:平台业务接口转发，2.2/2.5/2.6/2.7/2.8 表单与 2.3/2.4 multipart | R:code:backend/src/main/java/com/cqwlw/maintenance/service/PlatformTokenService.java,code:backend/src/main/java/com/cqwlw/maintenance/config/PlatformProperties.java | A:业务接口全部 POST，2.1 登录不在此文件；code 兼容数字与字符串 200；HTTP 401 清缓存重登重试 1 次 | S:2.3 参数名实为 useUnitName 而非规范原文；2.6 的 workMan2Id 实测必填；2.8 存量接口去掉 workMan1Id/2Id 改传姓名；problemCode 需序列化为 JSON 数组字符串而非逐元素展开
+PlatformReportService.java[IN9S]: F:2.6 维保记录上报与 2.8 存量推送，签退后自动转发、失败落 FAILED | R:code:backend/src/main/java/com/cqwlw/maintenance/service/WorkOrderService.java,code:backend/src/main/java/com/cqwlw/maintenance/entity/RegUploadLog.java | A:reportPayloadJson 是签退时冻结的快照，上报直接取用不重新组装 | S:失败绝不自动重试，因 originalRecordId 幂等性未获平台书面确认；手动重报仅允许 FAILED 记录，REPORTED 再报会重复上报；平台未配置时 attemptUpload 返回 SUBMITTED 而非 FAILED；digest 对手机号打码且截断 1000 字符，不含 token
+PlatformSyncService.java[IN8S]: F:2.2/2.7 档案同步与 2.5 人员 platform_id 回填 | R:code:backend/src/main/java/com/cqwlw/maintenance/service/PlatformClient.java,code:backend/src/main/java/com/cqwlw/maintenance/service/PlatformReportService.java | A:syncAll 依次跑主体、电梯、人员、存量四步并返回计数 | S:2.7 匹配采用 fail-closed，四个标识字段全无法确认归属时一律不回写，曾盲取 list 首条把他人 elevatorCode 写成本梯的，而该字段是 2.7 查询与派单的身份键；平台电话含星号判定为脱敏时保留本地号码不覆盖；syncWorkers 按证书号精确匹配回填，无证书号者跳过
+PlatformTokenService.java[IS8S]: F:平台 token 中控，登录取 token 并按 expires_in 缓存 | R:code:backend/src/main/java/com/cqwlw/maintenance/service/PlatformClient.java,code:backend/src/main/java/com/cqwlw/maintenance/config/PlatformProperties.java | A:getToken 双重检查锁，invalidate 供 401 重登，configured 五项 REG_ 齐全才为真 | S:登录是 GET 加查询串而非规范写的 POST 加 Body；缓存 TTL 取 expires_in 减 60s 且下限 60s，被动获取不提前刷新；凭证只拼进 URL 且日志不得输出完整 URL；code 兼容数字与字符串 200
+RecordPdfService.java[OU7M]: F:维保记录 PDF 导出，含基本信息、检查项明细、签字区与现场照片 | R:code:backend/src/main/java/com/cqwlw/maintenance/service/FileStorageService.java,code:backend/src/main/java/com/cqwlw/maintenance/entity/MaintainRecord.java | A:中文字体用 OpenPDF CID STSong-Light 不入库字体文件，照片或签字拉取失败降级为文字占位 | S:allowedHost 只放行本系统自有 COS 桶域名，为维保记录里的 URL 再做一次白名单兜底以堵住服务器代抓任意地址的 SSRF；URL 入 PDF 前剥掉查询串签名再截断 60 字符
+UnitRecordService.java[DB7S]: F:使用单位维保记录确认、分享链接视图与凭 token 签字 | R:code:backend/src/main/java/com/cqwlw/maintenance/service/WorkOrderService.java,code:backend/src/main/java/com/cqwlw/maintenance/service/FileStorageService.java | A:confirm 与 confirmByToken 都要求签名图先上传落库，URL 由服务端按 fileId 反查 | S:客户端 signatureUrl 一律不采信，仅凭任意 URL 即可置为已确认签字，会使合规记录出现无签名却已确认；分享链接凭 shareToken 明文相等校验；uploadStatus 把 REPORTED 归一为 SUCCESS 其余 PENDING
+WorkOrderService.java[DB9L]: F:工单全链路，含列表、扫码识单、签到取证、检查项校验、签退落库与 2.6 报文组装 | R:code:backend/src/main/java/com/cqwlw/maintenance/service/EvidenceTokenService.java,code:backend/src/main/java/com/cqwlw/maintenance/service/PlatformReportService.java,code:backend/src/main/java/com/cqwlw/maintenance/service/ChecklistService.java | A:归属判定用姓名与 platform_id 同时匹配，签到角色由服务端按登录人判定 | S:checkout 事务内不做对外调用，reportAfterCheckout 须在提交后调，否则转发异常会回滚记录形成签退而记录不存在的空洞；工单表无 employeeId 列，归属只靠 platform_id 比对，仅双方都缺失才退回姓名；checkin 不采信客户端 body.role，否则配合人员可自称 PRINCIPAL 占掉主维保槽；双人单 startTime 取两人到齐时刻否则 2.6 时长虚增；照片与签名 URL 一律按 fileId 反查；S0 仅无异常项时自动补；2.6 workMan2Id 必填单人回退主维保 ID；workMeneger 拼写按平台原文
+WxAuthService.java[IS7S]: F:微信 code 换 openid，调用 jscode2session | R:code:backend/src/main/java/com/cqwlw/maintenance/config/AppProperties.java | A:errcode 的 -1/40013/40125 归 2001 服务端配置问题，其余归 422 业务校验失败 | S:openid 只由微信签发的 code 换取，禁用 dev_openid 兜底否则全员同 openid 串号；code 类失败须抛 422 不用 401，前端对 401 会清登录态；异常日志只记类型因 URL 含 secret
+
+===C:/Users/18223/Desktop/新建文件夹/backend/src/main/java/com/cqwlw/maintenance/util/===
+JsonUtil.java[CG4T]: F:JSON 帮助器，在 JSON 列与 Map/List 间转换 | R:- | A:MAPPER 为共享 ObjectMapper 静态实例 | S:隐患码与照片 URL 列存字符串数组，须用 readStringList，误用 readList 会失败
+TimeUtil.java[CG4T]: F:时间统一口径的格式化、解析与时长换算 | R:code:backend/src/main/java/com/cqwlw/maintenance/service/WorkOrderService.java | A:ZONE 固定 Asia/Shanghai，存取格式 yyyy-MM-dd HH:mm:ss，时长 HH:mm:ss | S:parse 解析失败返回 null 而非抛异常，调用方须判空；toMillis 对 null 返回 0
+
+===C:/Users/18223/Desktop/新建文件夹/backend/src/main/resources/===
+application.example.env[FC3T]: F:环境变量模板，列出平台凭证、数据库、JWT、对象存储与微信凭证的变量名 | R:code:backend/src/main/resources/application.yml | A:只给变量名与格式说明 | S:凭证值一律留空，REG_ 与 JWT_SECRET、微信 AppSecret 严禁填真实值入库
+application.yml[FC6T]: F:后端全部配置，凭证经环境变量注入 | R:code:backend/src/main/java/com/cqwlw/maintenance/config/AppProperties.java,code:backend/src/main/java/com/cqwlw/maintenance/config/PlatformProperties.java | A:自动 import 根目录与 backend 目录的 .env，Flyway baseline-on-migrate 开启 | S:jwt-secret 无默认值缺失即启动失败，曾用 dev-only-secret 入库会签发可伪造 SYS_ADMIN 的 token；seed-demo-data 默认 false，曾默认 true 会植入演示账号；datasource 带 createDatabaseIfNotExist
+checklist-template.json[FB8L]: F:官方检查项模板数据源，附录 A 到 D 四品种各四个维保频次的条目集合 | R:code:backend/src/main/java/com/cqwlw/maintenance/service/ChecklistService.java,code:backend/src/main/java/com/cqwlw/maintenance/service/ChecklistTemplateSeeder.java | A:顶层含 APPENDIX_TPLS、FREQ_CHAIN、FREQ_LABELS、CATEGORY_APPENDIX；条目字段含 itemCode、judgeType、isKey、photoRequired 与三个周期条件 | S:文件条目与 checklist_template 的 OFFICIAL 行必须逐字段一致，双路径生成结果需相同；execCycleMonth、ageCondition、seasonWindow 任一非空即把条目标为本次不执行，改这三个字段会直接改变哪些检查项要求现场填写
+
+===C:/Users/18223/Desktop/新建文件夹/backend/src/main/resources/db/migration/===
+V1__backend_mvp.sql[PB4S]: F:Backend MVP 初始 schema，建 10 张业务表 | R:code:backend/src/main/resources/db/migration/V2__p2_rebuild.sql | A:后续迁移须 append-only | S:schema 已被 V2 取代并 DROP 重建；employee/file_record/biz_record/message_record 已无实体
+V2__p2_rebuild.sql[PB9M]: F:P2 全量重建 schema，18 张表对齐前端契约 camelCase | R:code:backend/src/main/java/com/cqwlw/maintenance/entity/WorkOrder.java,code:backend/src/main/resources/db/migration/V1__backend_mvp.sql | A:主键统一改 VARCHAR(32) 业务 id，复杂嵌套结构以 JSON 列存储由服务层组装 | S:开头 DROP V1 同名表是必需，否则全新库上 Flyway 先跑 V1 建表后本迁移报 already exists 中断；work_order 的列名是 checkin_extra 而非驼峰 checkin_extra_json，故实体须显式 TableField 映射；company 的列名是 work_meneger 而实体字段为 workMeneger，依赖 MP 驼峰映射，改列名会静默断映射；openid 初始只有普通索引，唯一约束由 V6 补；maintain_record 的 original_record_id 唯一键在本次重建中丢失，由 V7 补回
+V3__p3_platform_report.sql[PB5T]: F:P3 平台上报日志表 reg_upload_log | R:code:backend/src/main/java/com/cqwlw/maintenance/entity/RegUploadLog.java,code:backend/src/main/java/com/cqwlw/maintenance/service/PlatformReportService.java | A:action 取 UPLOAD/REUPLOAD/LEGACY，status 取 SUCCESS/FAILED | S:request_digest 只存脱敏摘要即手机号打码且不含 token，不可当报文原文回溯
+V4__admin_phase2.sql[PB7T]: F:管理端二期 schema，含检查项模板、维保计划与延期审批，并给电梯加 special_type | R:code:backend/src/main/java/com/cqwlw/maintenance/service/AdminScheduleService.java,code:backend/src/main/java/com/cqwlw/maintenance/service/ChecklistTemplateSeeder.java | A:checklist_template 的 payload 存条目 JSON 原文以保证与源文件逐字段一致 | S:special_type 匹配 CUSTOM 模板的 category_scope，缺失只提示 1006 不阻断；plan_delay.platform_date_synced 语义反向，0 表示平台侧维保日期已固化无法修改而非未同步
+V5__admin_phase2_rest.sql[PD5T]: F:管理端二期其余 schema，含预警规则与记录、发送记录、审计日志、定位申诉，并给人员加 enabled | R:code:backend/src/main/java/com/cqwlw/maintenance/service/AlertService.java,code:backend/src/main/java/com/cqwlw/maintenance/service/NotifyService.java | A:alert_rule 播种 9 类预警；location_appeal 支撑定位异常申述审核 | S:9 条种子行的 advance_days 就是预警阈值本体，改动即改变提醒口径；enabled 列由本迁移追加到 sys_employee，历史行统一置 1
+V6__p0_openid_unique.sql[PD7T]: F:openid 串号修复迁移，清理被污染的存量 openid 并加唯一约束 | R:code:backend/src/main/java/com/cqwlw/maintenance/service/WxAuthService.java,code:backend/src/main/java/com/cqwlw/maintenance/mapper/EmployeeMapper.java | A:先清 dev_openid 兜底值，再把被多账号共用的 openid 置空，最后加 uk_openid | S:被多账号共用的 openid 一律置空而不猜归属，避免把工单给错人；MySQL 5.7 无 DROP INDEX IF EXISTS，故索引操作走 information_schema 条件化 PREPARE 以保证可重复执行
+V7__maintain_record_unique.sql[PD7T]: F:补回 maintain_record.original_record_id 的唯一约束 | R:code:backend/src/main/resources/db/migration/V2__p2_rebuild.sql,code:backend/src/main/java/com/cqwlw/maintenance/service/WorkOrderService.java | A:以 information_schema 条件化判断后 ADD UNIQUE KEY，可重复执行 | S:V2 重建该表时丢掉了 V1 的唯一键只剩普通索引，本迁移补回；重复数据不自动清理而是让迁移失败暴露，维保记录属合规数据宁可不删
+
+===C:/Users/18223/Desktop/新建文件夹/backend/src/test/java/com/cqwlw/maintenance/===
+AdminArchiveServiceTest.java[TD5S]: F:档案维护单测，覆盖手机号互斥、角色白名单与账号唯一性 | R:code:backend/src/main/java/com/cqwlw/maintenance/service/AdminArchiveService.java,code:backend/src/main/java/com/cqwlw/maintenance/service/PhoneMutexService.java | A:互斥冲突抛 1002 并携带 conflicts[]，冲突时不得落库 | S:emergency_phone 不参与互斥故可与维保人员同号；负责人与其他单位负责人同号属同角色不算冲突
+AdminRoleInterceptorTest.java[TI5T]: F:管理端门禁单测，验证 LEADER 与 WORKER 的端点级放行范围 | R:code:backend/src/main/java/com/cqwlw/maintenance/auth/AdminRoleInterceptor.java | A:按 method 加 URI 判定而非仅看角色 | S:LEADER 只放行发起延期与转派两个端点，assign、generate、delays/decide 仍需 ADMIN 以上，WORKER 一律拒绝
+AdminRolesTest.java[TI5T]: F:管理端角色矩阵单测 | R:code:backend/src/main/java/com/cqwlw/maintenance/auth/AdminRoles.java | A:覆盖 canRead、canWrite、canUseAdminConsole 与 assignable 四组判定 | S:assignable 不含 UNIT_ADMIN，使用单位安全管理员账号只能走小程序绑定，不允许管理端直接建档
+AdminScheduleServiceTest.java[TW6M]: F:计划调度与延期审批单测，含指派校验矩阵 1004/1007 与转派 | R:code:backend/src/main/java/com/cqwlw/maintenance/service/AdminScheduleService.java | A:延期通过后同步改期计划与关联工单到 09:00 | S:platformDateSynced 断言反直觉：recordMapper 返回 0 条时该字段为 true（平台未固化），返回 1 条时为 false 并带 platformFixedNote；审批后计划状态由 POSTPONE_PENDING 回落到 ASSIGNED
+AdminServiceTest.java[TO5M]: F:管理端聚合查询单测，覆盖看板、记录分页、上报日志与统计 | R:code:backend/src/main/java/com/cqwlw/maintenance/service/AdminService.java | A:统计完成后端聚合，隐患分布固定 8 桶 | S:uploadLogs 测试显式断言结果不含 requestBody、responseBody、token、phone 四个字段，是脱敏红线的可执行护栏
+AlertServiceTest.java[TW5S]: F:预警生成与规则维护单测 | R:code:backend/src/main/java/com/cqwlw/maintenance/service/AlertService.java | A:五类可生成预警，规则 advanceDays 与 enabled 可编辑 | S:幂等去重靠 selectCount 返回 1 模拟已存在 OPEN，故每日重跑不重复插入；CONFIRM_TIMEOUT 的 24 小时阈值硬编码不读规则
+ApiPrefixFilterTest.java[TG4T]: F:/api 前缀兼容过滤器单测 | R:code:backend/src/main/java/com/cqwlw/maintenance/config/ApiPrefixFilter.java | A:管理端 SPA 带 /api 而小程序直连无前缀，二者同域共存 | S:只剥一层前缀，/api 本身映射为根 /，非 /api 路径原样透传
+ApplicationBootDbTest.java[TV6T]: F:应用上下文与 Flyway 集成测试，验证迁移在真实库可执行 | R:code:backend/src/main/java/com/cqwlw/maintenance/auth/AuthController.java,code:backend/src/main/resources/db/migration/V6__p0_openid_unique.sql | A:断言 flyway_schema_history 中 V6 success=1 且 uk_openid 唯一 | S:由环境变量 P0_TEST_MYSQL_URL 门控，未提供即跳过；此处注入测试用 jwt-secret 属允许，真实配置仍无默认；断言 AopUtils.isAopProxy 是为确认 Transactional 代理生效
+ApprovalServiceTest.java[TW4S]: F:定位异常申述审核单测 | R:code:backend/src/main/java/com/cqwlw/maintenance/service/ApprovalService.java | A:通过时回写工单补签到标记，驳回不动工单 | S:audit 通过时改 checkin_extra 须保留原有字段，测试断言 foo=1 仍在，直接覆盖会丢签到留痕
+AuditInterceptorTest.java[TO4T]: F:操作审计留痕单测 | R:code:backend/src/main/java/com/cqwlw/maintenance/auth/AuditInterceptor.java,code:backend/src/main/java/com/cqwlw/maintenance/entity/OpLog.java | A:afterCompletion 落库，异常记 FAILED | S:只记录写方法，GET 不留痕；operator_name 故意写 null 由列表侧按 id 反查
+AuthControllerWeChatTest.java[TI7M]: F:openid 串号修复的接口级回归，含 bind-wechat 与 wx-login | R:code:backend/src/main/java/com/cqwlw/maintenance/auth/AuthController.java,code:backend/src/main/java/com/cqwlw/maintenance/service/WxAuthService.java | A:绑定前先解绑同一 openid 上的其他账号含历史重复行 | S:护栏：扫 AuthController.class 常量池断言不含 X-WX-OPENID，反射断言 AppProperties 无 devOpenid 访问器；沙箱内 Mockito 不能自附加故用 JDK 代理假 Mapper，真实 SQL 由 EmployeeMapperDbTest 覆盖
+ChecklistServiceDbPathTest.java[TB6S]: F:检查清单双路径一致性单测，DB 播种路径须与 classpath JSON 路径一致 | R:code:backend/src/main/java/com/cqwlw/maintenance/service/ChecklistService.java,code:backend/src/main/java/com/cqwlw/maintenance/service/ChecklistTemplateSeeder.java | A:特殊类别追加启用的 CUSTOM 项 | S:一致性用两个 List 整体相等断言，任何字段增删改都会失败；CUSTOM 行 freq 不进官方周期链，只经 customItems 追加在末尾
+ChecklistServiceTest.java[TB5T]: F:检查项清单生成单测，覆盖频次累加、周期项标记与演示数据填充 | R:code:backend/src/main/java/com/cqwlw/maintenance/service/ChecklistService.java | A:直接构造 service 并调 load 走 JSON 路径 | S:HM 31 项与 OY 76 项是累加式频次链的断言基线，改模板条目数会直接失败；makeDoneItems 的异常项固定取 A-1-18 或名称含报警者
+ChecklistTemplateSeederTest.java[TB5T]: F:官方模板播种单测 | R:code:backend/src/main/java/com/cqwlw/maintenance/service/ChecklistTemplateSeeder.java,code:backend/src/main/resources/checklist-template.json | A:表非空时跳过播种，重复启动幂等 | S:257 行总数与 A76、B66、C52、D63 的分品种计数是模板基线，改 checklist-template.json 任何条目都会破坏该断言
+DirectoryServiceTest.java[TB4T]: F:台账写接口必填校验单测 | R:code:backend/src/main/java/com/cqwlw/maintenance/service/DirectoryService.java | A:故障、救援、自检缺必填一律 422 且不落库 | S:救援必填含 arriveAt 而非 rescuedAt，因 30 分钟法定时限按抵达计算
+DispatchServiceTest.java[TW7M]: F:自动派单验收单测，6 台同日到期须一次性全部 09:00 派单 | R:code:backend/src/main/java/com/cqwlw/maintenance/service/DispatchService.java | A:保养类型按距上次维保天数升级 | S:用反射读 LambdaQueryWrapper.lastSql 断言含 FOR UPDATE，是并发重复派单的回归护栏；只取 lastSql 而不解析 lambda 是为避免触发未初始化的 MP 实体缓存
+EmployeeMapperDbTest.java[TI7S]: F:真实 MySQL 集成测试，验证解绑与绑定的真实 SQL 行为 | R:code:backend/src/main/java/com/cqwlw/maintenance/mapper/EmployeeMapper.java,code:backend/src/main/java/com/cqwlw/maintenance/auth/AuthController.java | A:自建 MybatisSqlSessionFactory 而非走 Spring 上下文 | S:存在理由是 updateById 默认 NOT_NULL 策略跳过 null，假 Mapper 抓不到该 SQL 生成缺陷，故跑真实库断言旧持有者被置空；schema 先建无唯一键的修复前状态以造串号数据，验证后再加唯一键
+EvidenceTokenServiceTest.java[TS6S]: F:取证令牌签发与验签单测，覆盖篡改、过期、跨单与跨项 | R:code:backend/src/main/java/com/cqwlw/maintenance/service/EvidenceTokenService.java,code:backend/src/main/java/com/cqwlw/maintenance/service/IdempotencyService.java | A:签到令牌一次性核销，检查项与签名令牌只验签 | S:核心回归是检查项令牌走不核销路径，连续验签三次须全通过，若改成核销则重试被已消费 nonce 永久 422；假 Mapper 返回的 createdAt 不能留空否则会被判遗留行回收
+FileAccessTokenServiceTest.java[TS5T]: F:文件访问签名单测 | R:code:backend/src/main/java/com/cqwlw/maintenance/service/FileAccessTokenService.java | A:签名格式为 expiry.hmac(fileId:expiry)，读时重签 | S:rejectsSignatureOfAnotherFile 是防枚举核心：A 的签名不能读 B；refusesToStartWithoutSecret 锁定密钥缺失即启动失败，不得降级为默认密钥
+FileStorageServiceStsTest.java[TP5T]: F:直传元数据与上传目录消毒单测 | R:code:backend/src/main/java/com/cqwlw/maintenance/service/FileStorageService.java | A:LOCAL 与 COS 托管桶、自建桶三态探测 | S:穿越判定先于字符过滤，测试同时锁定 ../etc/passwd、.. 与 /../x 三种输入；maxAge 被夹到 60 至 7200 秒
+IdempotencyServiceTest.java[TP6S]: F:写接口幂等单测，含重放、并发拒绝与过期回收 | R:code:backend/src/main/java/com/cqwlw/maintenance/service/IdempotencyService.java | A:以 Map 模拟 idempotency_key 表 | S:回收与不回收是一对：只有未写响应且超 10 分钟的键才回收，已完成的老记录必须仍按重放返回，否则真实重放变成重复执行
+JsonUtilTest.java[TG4T]: F:JSON 帮助器回归单测 | R:code:backend/src/main/java/com/cqwlw/maintenance/util/JsonUtil.java | A:覆盖 readStringList、readList 与 readMap | S:隐患码与照片 URL 列存字符串数组，误用 readList 会抛异常，本测试锁定该护栏
+JwtServiceTest.java[TI5T]: F:JWT 签发验签与密钥强度单测 | R:code:backend/src/main/java/com/cqwlw/maintenance/auth/JwtService.java,code:backend/src/main/resources/application.yml | A:subject 为 employeeId，另带 role 与 openid 声明 | S:签名密钥无默认值，缺失或空白即启动失败；注入但不足 32 字节时 jjwt 抛 WeakKeyException 同属启动失败
+PhoneMutexServiceTest.java[TS6S]: F:五类角色手机号互斥纯函数单测 | R:code:backend/src/main/java/com/cqwlw/maintenance/service/PhoneMutexService.java | A:findConflicts 静态纯函数可直接断言 | S:同一手机号落在两个及以上不同互斥角色才算冲突，同人同角色不算；ADMIN 与 SYS_ADMIN 不对应 2.6 角色故完全不参与
+PlatformClientTest.java[TN6S]: F:2.2 与 2.7 转发单测，含表单编码与 401 重登 | R:code:backend/src/main/java/com/cqwlw/maintenance/service/PlatformClient.java,code:backend/src/main/java/com/cqwlw/maintenance/service/PlatformTokenService.java | A:用 MockRestServiceServer 断言请求方法、Header 与 body | S:unauthorizedTriggersReloginRetryOnce 断言 401 只重试一次；空值查询条件不参与表单编码
+PlatformReportServiceTest.java[TN7S]: F:2.6 上报与 2.8 存量推送单测 | R:code:backend/src/main/java/com/cqwlw/maintenance/service/PlatformReportService.java | A:平台未配置时 attemptUpload 返回 SUBMITTED 而非 FAILED | S:用 times(1) 锁定失败不自动重试；digest 断言手机号打码而电梯编码与隐患码原样保留
+PlatformSyncServiceTest.java[TN6S]: F:2.7 档案同步归属校验单测 | R:code:backend/src/main/java/com/cqwlw/maintenance/service/PlatformSyncService.java | A:五例覆盖外梯记录、不匹配记录在前与标识全空 | S:四项本地标识全空即无从确认归属，即便平台返回记录也不得写入；平台返回含星号的脱敏号时不得覆盖本地真实号码
+PlatformTokenServiceTest.java[TN6T]: F:平台 token 中控单测 | R:code:backend/src/main/java/com/cqwlw/maintenance/service/PlatformTokenService.java | A:覆盖缓存命中、字符串 code 与凭证缺失 | S:断言登录方法为 GET 且带 username 与 appcode 查询串，这锁定了规范所写 POST 加 Body 是笔误
+RecordPdfServiceTest.java[TB5S]: F:维保记录 PDF 导出单测 | R:code:backend/src/main/java/com/cqwlw/maintenance/service/RecordPdfService.java | A:重写 loadImage 返回 1x1 PNG 以避开真实网络 | S:allowedHost 逐条否定元数据端点、内网地址、file 协议、同桶后缀伪造域名与非 URL 串，是 SSRF 白名单的可执行护栏
+ScheduledCronExpressionTest.java[TQ7T]: F:全包 @Scheduled cron 可解析性扫描测试 | R:code:backend/src/main/java/com/cqwlw/maintenance/service/IdempotencyService.java,code:backend/src/main/java/com/cqwlw/maintenance/service/DispatchService.java | A:不依赖数据库，默认 mvn test 即执行 | S:要求至少命中一处 cron，否则扫描包路径变更会静默失效；本测试拦截的是编译期与单测都看不出、只有启动时才炸的缺陷
+TwoPersonWorkRuleTest.java[TB7M]: F:双人作业规则单测，含签到门禁与配合人员只读 | R:code:backend/src/main/java/com/cqwlw/maintenance/service/WorkOrderService.java | A:两人都签到才转 PROCESSING，未齐返回 waitingForPartner | S:两人未齐时不得置 PROCESSING 也不得记 startTime；clientCannotClaimPrincipalSlot 断言角色由服务端按登录人判定而非采信 body.role
+WorkOrderOwnershipTest.java[TI7S]: F:工单归属校验单测，覆盖九个读写入口的可见范围 | R:code:backend/src/main/java/com/cqwlw/maintenance/service/WorkOrderService.java,code:backend/src/main/java/com/cqwlw/maintenance/auth/CurrentUser.java | A:平台强制双人的第二人同样有权处理该工单 | S:同名不授权与 platform_id 缺失即零可见两项断言锁定姓名兜底已作废；账号记录缺失按 401 而非放行
+WxAuthServiceTest.java[TI6S]: F:微信 code 换 openid 单测，含 errcode 到业务码的映射 | R:code:backend/src/main/java/com/cqwlw/maintenance/service/WxAuthService.java | A:十一例覆盖成功、各类 errcode 与 HTTP 错误 | S:errcode 映射逐个锁定：40029、40163、45011 与未知码归 422，而 -1 与 40125 归 2001；用 422 是因前端对 401 会清登录态
+
+===C:/Users/18223/Desktop/新建文件夹/backend/src/test/java/com/cqwlw/maintenance/service/===
+ReportPayloadRecorderTest.java[TB6S]: F:2.6 报文 recorder 与 recorderPhone 取数归属单测 | R:code:backend/src/main/java/com/cqwlw/maintenance/service/WorkOrderService.java | A:五个用例均断言 422 fail-closed | S:严禁退化为只按姓名匹配或任取一个 WORKER 的号码，否则把不相干者号码写进合规上报
+
+===C:/Users/18223/Desktop/新建文件夹/config/===
+index.js[FC5T]: F:小程序全局配置，含 mock 开关、网关地址与超时 | R:- | A:useMock 为 true 时全部接口走本地数据，联调改 false 而 services 层签名不变 | S:minWorkDurationMinutes 与后端同名配置对齐，测试时可临时调小但回归验收后必须恢复 30；平台凭证严禁出现在本文件
+
+===C:/Users/18223/Desktop/新建文件夹/constants/===
+index.js[FC6S]: F:全局枚举与错误码字典，页面文案统一从此取 | R:code:constants/index.js | A:角色、工单状态、检查结果、判定方式与维保类别五组枚举 | S:PROBLEM_CODES 按 S0 至 S7 连续编码，因规范原文 S3 重复且缺 S4；REPORT_STATUS_TEXT 含 CONFIRMED 终态且该状态不上报平台；30 分钟作业时长下限是业主补充规则，与双人签到间隔和救援时限无关
+
+===C:/Users/18223/Desktop/新建文件夹/docs/===
+01-需求文档.md[SB8L]: F:需求基准文档，V2.10 已与 V1.5 规范和 TSG T5002 原件逐字复核 | R:code:docs/07-平台联调实测记录.md,code:constants/index.js | A:含 12 条待平台确认清单与实现状态对照 | S:originalRecordId 幂等性是唯一最高风险，未书面确认前 2.6 按不自动重试实现；文档明示 V1.5 与实测冲突时以 07 实测记录为准
+02-技术架构文档.md[SB8L]: F:技术架构蓝图与当前实际形态对照 | R:code:docs/04-接口文档.md,code:backend/src/main/resources/application.yml | A:第一期为模块化单体，监管适配层以独立包隔离 | S:V1.3 起追加 P2 落地栈章节，蓝图不变而实现已换成 MyBatis-Plus 加 Flyway；Redis 与 STS 直传为后置项
+03-UI设计文档.md[SB7M]: F:小程序与管理端 UI 设计规范、页面清单与角色矩阵 | R:code:app.json,code:pages/order/checkin.js | A:小程序 27 页，tabBar 四个 | S:V1.3 与双人作业规则同步：签到页新增等待配合人员态且未齐不跳作业页，否则必然撞服务端 1003；使用单位确认端由三页收敛为单页凭 token 免登录
+04-接口文档.md[SB9L]: F:接口契约权威文档，A 部分为内部 API、B 部分为平台 V1.5 对接实测结论 | R:code:mock/server.js,code:backend/src/main/java/com/cqwlw/maintenance/service/PlatformClient.java | A:A.0.1 的 41 条路由无 api/v1 前缀且与后端实现完全一致 | S:修订记录逐条登记破坏性变更即取证令牌、派单触发时机、归属校验、姓名匹配禁令与文件访问签名，A.10.x 小节是缺陷修复的权威落点；B 部分以实测覆盖规范原文
+05-测试与验收方案.md[SB7M]: F:分层测试策略、单测重点清单与验收口径 | R:code:docs/08-项目审查与开发计划.md | A:五层测试，上报适配层覆盖率要求高于常规业务代码 | S:明确要求断言确认终态不得有任何 HTTP 调用，防止日后顺手加一次上报；消防防爆电梯缺模板须抛 1006 而禁止用标准附件
+06-平台接口确认清单.md[SB8L]: F:致平台方的 12 项阻塞问题清单与历轮实测答复记录 | R:code:docs/07-平台联调实测记录.md,code:docs/01-需求文档.md | A:每项含原文依据、我方现状风险与期望答复 | S:实测结论以第五至第七轮更新块追加而不删改原条目；幂等性未获书面确认期间自动重试开关保持关闭
+06b-平台对接沟通话术.md[SB6M]: F:与平台对接人的可直接复制话术，含紧急短消息版与完整版 | R:code:docs/06-平台接口确认清单.md | A:纯文本符号不用 markdown 表格因微信不渲染 | S:本文为 2026-09-28 与 29 阻塞期的历史存档，所述登录 500 与业务接口 404 均已实测解决，当前唯一待答复项是幂等性书面确认
+07-full-test-20260930.md[SB9T]: F:2026-09-30 全链路真实环境联调记录与 2.6 二十字段对照表 | R:code:docs/07-平台联调实测记录.md,code:scripts/test-full.ps1 | A:结论已同步至 07 第十二章 | S:平台已产生真实数据需管理端核对，212520 电梯按 originalRecordId 计 1 条即幂等、2 条即不幂等，此判定直接决定重试策略
+07-平台联调实测记录.md[SB9L]: F:平台接口实测结论与踩坑记录，本文优先级高于 V1.5 规范 | R:code:docs/06-平台接口确认清单.md,code:backend/src/main/java/com/cqwlw/maintenance/service/PlatformTokenService.java | A:第一章给出可直接复制的正确调用方式 | S:规范说 A 而实测是 B 时一律以本文为准；登录为 GET 加查询串而规范写 POST 加 Body；业务接口在 /api/wlw/ 下且参数为表单编码而非 JSON
+08-项目审查与开发计划.md[SB8S]: F:项目现状审查与分阶段开发计划，含 P0 至 P5 与逐版本修订记录 | R:code:docs/04-接口文档.md,code:AGENTS.md | A:修订记录是当前状态的唯一权威来源 | S:第一章正文为 V1.0 快照已过时，其中后端为空壳的结论不再成立，改代码前须以修订记录与 docs/04 为准
+09-管理端设计.md[SB7S]: F:Web 管理端设计与分期落地记录，含角色矩阵与不做清单 | R:code:admin/src/router/index.js,code:docs/10-管理端验收清单.md | A:一期六模块与二期七模块已全量落地 | S:不做清单为红线：不提供平台凭证配置界面、不提供批量自动重试入口、重报只能逐条人工触发
+10-管理端验收清单.md[SB7M]: F:管理端人工验收清单，角色矩阵回归、九大模块逐项与红线自查 | R:code:docs/05-测试与验收方案.md,code:docs/09-管理端设计.md | A:角色矩阵七项为先验项，任一不过即阻塞后续 | S:任何可能导致监管平台出现错误或虚假数据的缺陷一律定为 Blocker，含重报误触发与日志明文泄露
+11-云托管部署手册.md[SB7S]: F:微信云托管部署手册，后端容器、管理端静态托管与云 MySQL 三单元 | R:code:backend/src/main/resources/application.example.env,code:backend/src/main/resources/application.yml | A:表结构由 Flyway 自动执行 V1 至 V6 迁移 | S:云端为云开发 MySQL 5.7 不可自助升级，故 V2 的 JSON 列已改 LONGTEXT；删库排障后必须重建同名空库否则容器启动失败；凭证只允许进控制台环境变量
+
+===C:/Users/18223/Desktop/新建文件夹/mock/===
+checklist-template.js[RB7L]: F:TSG T5002 附件 A 至 D 共 257 行检查项种子，mock 侧模板数据源 | R:code:backend/src/main/resources/checklist-template.json,code:mock/data.js | A:行结构为序号、名称、要求、判定方式四元组，名称与要求为原文逐字 | S:关键项由 autoKey 依注 A-2 从名称与要求两列同时扫描试验测试校验检测四关键词自动判定；累加式约定为 A-1 半月 31 项、年度累计 76 项
+data.js[RD8L]: F:mock 内存数据仓库，含工单、电梯、档案、台账与派单模拟 | R:code:mock/server.js,code:mock/checklist-template.js,code:utils/util.js | A:仅在 config.useMock 为 true 时生效，数据为内存态冷启动即重置 | S:模块加载时调用一次 ensureDueOrders 模拟定时派单，读接口不得再触发，否则并发打开首页会重复派单；lastMaintenanceAt 为日期-only 串，parseTime 必须接受无时分秒格式否则每台梯都被判无基准而永不派单
+server.js[EN8L]: F:mock 请求拦截器，41 条路由即后端契约 | R:code:mock/data.js,code:docs/04-接口文档.md,code:utils/request.js | A:按 method 加路径模板匹配，handler 返回即成功、抛 code 与 message 即业务失败 | S:模块加载时执行一次 ensureDueOrders，读接口不得再调用；分页 page 从 1 起且 size 默认 20；mock token 为时间戳拼串，不具真实鉴权语义
+
+===C:/Users/18223/Desktop/新建文件夹/pages/common/===
+signature.js[EU6T]: F:手写签名板，canvas 采集笔迹并导出图片回传上一页 | R:code:pages/common/signature.wxml,code:pages/compliance/inspect-run.js | A:双通道回传 EventChannel 与直接调用上一页方法 | S:必须在 onLoad 而非 onConfirm 捕获 EventChannel，拖到确认时取可能为 undefined；onReady 才初始化画布，onLoad 阶段 select 拿到的是 null 或零尺寸
+signature.json[FC2T]: F:签名板页面配置 | R:- | A:标题手写签名 | S:disableScroll 为 true，因手写区域需占满整屏且自定义手势会与页面滚动冲突
+signature.wxml[EU3T]: F:签名板视图，canvas 与清除确认两按钮 | R:code:pages/common/signature.js | A:canvas type 为 2d 并禁用自身滚动 | S:仅绑定 touchstart 与 touchmove 两个手势事件，清除与确认走 tap
+signature.wxss[EU2T]: F:签名板样式，画布 flex 撑满剩余高度 | R:code:pages/common/signature.wxml | A:页面 100vh 纵向 flex 布局 | S:画布高度依赖 flex 撑开，改布局会使 canvas 拿到零尺寸
+watermark-camera.js[EU8M]: F:水印相机，取证令牌解码、拍照、canvas 合成水印与压缩导出 | R:code:backend/src/main/java/com/cqwlw/maintenance/service/EvidenceTokenService.java,code:utils/image.js | A:水印四行文本全部取自令牌载荷的 oid、iid、st 与 lat/lng | S:严禁从 query 接受坐标时间地址，早期版本照此可构造 URL 伪造水印；无令牌即 fail closed 不拍；必须先 getImageInfo 取真实宽高，真机偶发返回零值会导出黑图；签到自拍用前置摄像头而检查项现场照用后置
+watermark-camera.json[FC2T]: F:水印相机页面配置 | R:- | A:标题水印相机 | S:无自定义组件，全部为原生 view 与 canvas
+watermark-camera.wxml[EU4T]: F:水印相机视图，含缺令牌提示态、预览层与确认重拍 | R:code:pages/common/watermark-camera.js | A:evidenceMissing 时整页只渲染提示卡 | S:预览层是 canvas 之上的绝对定位覆盖层，未出图时才显示点击拍照
+watermark-camera.wxss[EU3T]: F:水印相机样式 | R:code:pages/common/watermark-camera.wxml | A:画布高 600rpx 黑色底，预览层绝对定位居中 | S:该高度与 js 中画布不可见时的兜底换算值一致，改一处须同步另一处
+
+===C:/Users/18223/Desktop/新建文件夹/pages/compliance/===
+drill.js[EU6T]: F:应急演练台账页，含半年品种覆盖检查与登记表单 | R:code:services/compliance.js,code:mock/data.js | A:品种与场景均为固定枚举 picker | S:覆盖检查依赖后端返回的 coverage.missing，页面不自行计算，故 mock 与真实后端须同口径
+drill.json[FC2T]: F:演练台账页面配置 | R:- | A:标题应急演练台账 | S:无
+drill.wxml[EU4T]: F:演练台账视图，含覆盖结论、记录列表与登记表单 | R:code:pages/compliance/drill.js | A:覆盖齐全与缺失用不同颜色区分 | S:提交按钮 disabled 依赖 submitting，防重复登记
+drill.wxss[EU2T]: F:演练台账样式 | R:code:pages/compliance/drill.wxml | A:仅四个类，覆盖态两色与间距 | S:颜色用 var 兜底值双写，改主题需同步
+inspect-run.js[EU6S]: F:自行检查执行页，复用年度维保检查项并独立留档 | R:code:services/compliance.js,code:pages/common/signature.js,code:backend/src/main/java/com/cqwlw/maintenance/service/DirectoryService.java | A:只提供合格与不合格两态，无读数输入与不适用态 | S:提交前校验全部已填且检查与审核双签字齐备；记录不触发平台上报，仅归入本地安全技术档案
+inspect-run.json[FC2T]: F:自行检查执行页面配置 | R:- | A:标题执行自行检查 | S:无
+inspect-run.wxml[EU4T]: F:自行检查执行视图，含双签字、逐项判定与提交 | R:code:pages/compliance/inspect-run.js | A:不合格时才展开描述输入框 | S:页脚明示记录留存不少于四年且不触发平台上报，改动前须确认合规口径
+inspect-run.wxss[EU3T]: F:自行检查执行样式 | R:code:pages/compliance/inspect-run.wxml | A:判定按钮为胶囊形，合格绿不合格红 | S:两个状态类由 wxml 三元表达式切换，与 js 无关
+inspect.js[EU4T]: F:自行检查台账页，按电梯列出本年度检查状态 | R:code:services/compliance.js | A:已完成项点击只提示不跳转执行页 | S:逾期判定在服务端，页面只读 status 字段不自行计算
+inspect.json[FC2T]: F:自行检查台账页面配置 | R:- | A:标题自行检查台账 | S:无
+inspect.wxml[EU4T]: F:自行检查台账视图，含法定说明与逐梯状态 | R:code:pages/compliance/inspect.js | A:三态用三元嵌套切到三个状态类 | S:首卡固定声明每年至少一次且须在下次定期检验前完成，改文案前须确认 TSG 口径
+inspect.wxss[EU2T]: F:自行检查台账样式 | R:code:pages/compliance/inspect.wxml | A:状态徽标绝对定位在卡片右上 | S:三个状态色分别对应已完成、逾期未检与未检
+
+===C:/Users/18223/Desktop/新建文件夹/pages/elevator/===
+list.js[EU4T]: F:已对接电梯列表页 | R:code:services/elevator.js | A:用 promise 链而非 async 语法 | S:本页未挂 ensureLogin 守卫，与故障列表不同，故未登录时也会发请求
+list.json[FC2T]: F:电梯列表页面配置 | R:- | A:标题已对接电梯 | S:无
+list.wxml[EU4T]: F:电梯列表视图，含加载中与空态 | R:code:pages/elevator/list.js | A:整卡可点并带右箭头 | S:空态条件依赖 loading 为假，故首次渲染完成前会短暂显示暂无电梯
+list.wxss[EU2T]: F:电梯列表样式 | R:code:pages/elevator/list.wxml | A:左右分栏与右箭头 | S:无
+profile.js[EU4T]: F:电梯档案详情页 | R:code:services/elevator.js,code:backend/src/main/java/com/cqwlw/maintenance/service/ElevatorService.java | A:平台回填与本地维护两组字段 | S:copyEntityId 直接取 profile.platform.useUnitEntityId，字段缺失时静默不响应且不提示
+profile.json[FC2T]: F:电梯档案页面配置 | R:- | A:标题电梯档案 | S:无
+profile.wxml[EU5T]: F:电梯档案视图，注册信息与本地维护分卡片并带来源徽标 | R:code:pages/elevator/profile.js | A:平台自动获取与本地维护用不同颜色徽标区分 | S:使用单位负责人与电话是 2.6 必填但平台不提供，故归入本地维护组
+profile.wxss[EU3T]: F:电梯档案样式，含字段行与来源徽标 | R:code:pages/elevator/profile.wxml | A:字段名灰、内容深，主体 ID 限宽省略 | S:entity-id 单行省略但点击复制全值，两者不可同时去掉
+
+===C:/Users/18223/Desktop/新建文件夹/pages/fault/===
+detail.js[EU5T]: F:故障详情与闭环处理页 | R:code:services/fault.js | A:闭环成功后重新拉取详情 | S:handleDesc 必填才允许闭环，防止用空处理结果关闭故障
+detail.json[FC2T]: F:故障详情页面配置 | R:- | A:标题故障详情 | S:无
+detail.wxml[EU4T]: F:故障详情视图，含闭环表单 | R:code:pages/fault/detail.js | A:仅未闭环时渲染处理结果与按钮 | S:闭环区块条件是 status 不等于 CLOSED，故已闭环记录不可再改
+detail.wxss[EU2T]: F:故障详情样式 | R:code:pages/fault/detail.wxml | A:字段行左右分栏 | S:无
+list.js[EU6T]: F:故障记录列表页，状态筛选加分页追加 | R:code:services/fault.js,code:utils/guard.js | A:下拉刷新与触底加载 | S:首次守卫延迟到 onReady，因首次 onShow 在路由进行中时 reLaunch 会竞态；状态文案在页侧映射而不依赖后端
+list.json[FC2T]: F:故障列表页面配置 | R:- | A:标题故障记录 | S:enablePullDownRefresh 为 true 才触发 onPullDownRefresh
+list.wxml[EU4T]: F:故障列表视图，含状态标签页与状态标签 | R:code:pages/fault/list.js | A:标签类名由 status 直接拼成 tag-OPEN 或 tag-CLOSED | S:类名拼接依赖后端状态字面量，改枚举会使标签样式失效
+list.wxss[EU3T]: F:故障列表样式，含标签页与状态标签两色 | R:code:pages/fault/list.wxml | A:未闭环橙、已闭环绿 | S:两个状态色与 detail 页的状态色不同源，改主题需同时改两处
+report.js[EU5T]: F:故障上报页 | R:code:services/fault.js,code:backend/src/main/java/com/cqwlw/maintenance/service/DirectoryService.java | A:编号与类型必填，描述可空 | S:上报后用 redirectTo 而非 navigateTo，避免返回重复提交；后端已补 elevatorCode 与 desc 必填校验
+report.json[FC2T]: F:故障上报页面配置 | R:- | A:标题故障上报 | S:无
+report.wxml[EU4T]: F:故障上报视图 | R:code:pages/fault/report.js | A:故障类型为固定五项选择器 | S:无
+report.wxss[EU2T]: F:故障上报样式 | R:code:pages/fault/report.wxml | A:首个标签去掉上边距 | S:无
+
+===C:/Users/18223/Desktop/新建文件夹/pages/home/===
+index.js[EU7S]: F:工单台首页，扫码签到入口、到期统计、记录情况与功能宫格 | R:code:services/order.js,code:services/home.js,code:utils/guard.js | A:宫格角标取未闭环故障与自行检查逾期台数 | S:首次守卫延迟到 onReady，因冷启动首次 onShow 时路由未完成，reLaunch 会丢导航；tabBar 页只能用 switchTab，过滤条件经 setStorageSync 传递；汇总失败不阻断首页只显示零值
+index.json[FC2T]: F:工单台首页配置 | R:- | A:标题工单台 | S:无
+index.wxml[EU5T]: F:工单台首页视图，含渐变 Banner、到期统计卡与两组宫格 | R:code:pages/home/index.js | A:预警条仅在 warnCount 大于零时出现 | S:辅助功能与综合查询复用同一 icon-grid 样式，靠 data-tab 区分是否走 switchTab
+index.wxss[EU4M]: F:工单台首页样式，渐变 Banner 与多色卡片体系 | R:code:pages/home/index.wxml | A:卡片底色用渐变并按用途命名 | S:bg- 前缀类在不同上下文复用不同视觉，record-emoji 变体靠双类名覆盖渐变
+
+===C:/Users/18223/Desktop/新建文件夹/pages/knowledge/===
+index.js[EU5T]: F:知识库条目检索与展开查看 | R:code:services/knowledge.js,code:utils/guard.js | A:展开项用 expandedId 单值控制 | S:首次守卫延迟到 onReady，否则 reLaunch 与进行中的路由竞态
+index.json[FC2T]: F:知识库页面配置 | R:- | A:标题知识库 | S:无
+index.wxml[EU4T]: F:知识库视图，含搜索框与可展开条目 | R:code:pages/knowledge/index.js | A:内容仅在展开时渲染 | S:搜索绑定 confirm 而非 input，即需键盘确认才触发
+index.wxss[AU2T]: F:知识库页样式：搜索框、条目行、分类标签与展开正文 | R:code:pages/knowledge/index.wxml | A:复用全局CSS变量，不定义本地色值 | S:-
+
+===C:/Users/18223/Desktop/新建文件夹/pages/login/===
+index.js[EI8T]: F:登录页逻辑：手机号密码校验、协议勾选、账号登录后绑定微信 | R:code:services/auth.js,code:utils/auth.js | A:switchTab延迟到onReady避免初始路由竞态 | S:微信绑定失败不阻断登录，后端将code类失败映射为422且不清登录态
+index.json[FC2T]: F:登录页配置：标题「登录」，无自定义组件 | R:code:pages/login/index.wxml | A:- | S:-
+index.wxml[AU3T]: F:登录页模板：账号密码输入、密码显隐、忘记密码、协议勾选 | R:code:pages/login/index.js | A:账号输入限number 11位，密码显隐由password属性随showPassword切换 | S:-
+index.wxss[AU2S]: F:登录页样式：渐变装饰色块、下划线输入行、渐变登录按钮与协议勾选框 | R:code:pages/login/index.wxml | A:硬编码品牌蓝渐变，未走app.wxss的CSS变量 | S:-
+
+===C:/Users/18223/Desktop/新建文件夹/pages/message/===
+index.js[AM6T]: F:消息中心逻辑：分页拉取、下拉刷新、触底加载、单条与全部已读、未读角标同步 | R:code:services/message.js,code:utils/badge.js | A:首次守卫由onShow延到onReady避免与tab路由竞态 | S:-
+index.json[FC2T]: F:消息中心配置：标题「消息中心」，开启下拉刷新 | R:code:pages/message/index.js | A:- | S:-
+index.wxml[AU2T]: F:消息中心模板：全部已读入口、未读红点卡片列表与空态 | R:code:pages/message/index.js | A:已读消息整卡降透明度 | S:-
+index.wxss[AU2T]: F:消息中心样式：全部已读右对齐、未读圆点、已读半透明 | R:code:pages/message/index.wxml | A:复用--em-brand与--em-error变量 | S:-
+
+===C:/Users/18223/Desktop/新建文件夹/pages/mine/===
+index.js[AU6T]: F:我的页逻辑：用户信息与角色文案、按角色构建菜单、退出登录 | R:code:services/auth.js,code:utils/guard.js,code:constants/index.js | A:菜单按STAFF_ROLES显隐，其他角色只显示知识库与离线缓存 | S:首次守卫延到onReady；本地清理不依赖logout接口成功
+index.json[FC2T]: F:我的页配置：标题「我的」，无自定义组件 | R:code:pages/mine/index.wxml | A:- | S:-
+index.wxml[AU2T]: F:我的页模板：头像首字卡片、角色徽标、菜单列表与退出项 | R:code:pages/mine/index.js | A:头像用用户名首字兜底 | S:-
+index.wxss[AU2T]: F:我的页样式：圆形头像、角色徽标、菜单分隔线与红色退出项 | R:code:pages/mine/index.wxml | A:复用--em-brand与--em-error与--em-border变量 | S:-
+offline.js[AR6S]: F:离线缓存管理页逻辑：列出缓存与补传队列、手动补传、按工单清缓存、mock演示写入 | R:code:utils/offline.js,code:config/index.js | A:演示入口仅在useMock时由模板渲染 | S:补传依赖utils/offline的幂等重放，失败项保留在队列等下次
+offline.json[FC2T]: F:离线缓存管理页配置：标题「离线缓存管理」 | R:code:pages/mine/offline.wxml | A:- | S:-
+offline.wxml[AU2T]: F:离线缓存管理页模板：队列计数与补传按钮、缓存列表、mock演示入口 | R:code:pages/mine/offline.js | A:清缓存确认后不影响待补传队列 | S:-
+offline.wxss[AU2T]: F:离线缓存管理页样式：区块标题、缓存行分隔、补传按钮间距 | R:code:pages/mine/offline.wxml | A:复用--em-border变量 | S:-
+
+===C:/Users/18223/Desktop/新建文件夹/pages/order/===
+checkin.js[AW9S]: F:现场签到页逻辑：定位、服务端取证、水印自拍、提交，支持主维保与配合人员双角色 | R:code:services/order.js,code:pages/common/watermark-camera.js,code:services/location.js | A:坐标与时间由服务端从取证令牌取，签到不回传经纬度 | S:定位失败只提示重试严禁伪造坐标兜底；getLocation 8s超时按失败处理且只结算一次；code 1001引导申诉
+checkin.json[FC2T]: F:现场签到页配置：标题「现场签到」 | R:code:pages/order/checkin.wxml | A:- | S:-
+checkin.wxml[AU5T]: F:现场签到页模板：定位、身份与动态码、水印自拍与提交 | R:code:pages/order/checkin.js | A:仅配合人员渲染6位动态码输入 | S:-
+checkin.wxss[AU2T]: F:现场签到页样式：步骤编号、定位成败着色、角色选择、动态码与拍照占位 | R:code:pages/order/checkin.wxml | A:复用--em-brand与--em-success变量 | S:-
+checklist.js[AW8S]: F:作业清单页逻辑：表格化检查项、备注拼装、进度统计、照片汇总预览、去签退拦截 | R:code:services/order.js,code:pages/order/item-form.js,code:constants/index.js | A:备注按异常描述、结论、读数、跳过原因、照片数优先级拼装 | S:结单口径与后端checkout一致：周期性条目notInThisRun不计入必填也不拦截
+checklist.json[FC2T]: F:作业清单页配置：标题「作业清单」 | R:code:pages/order/checklist.wxml | A:- | S:-
+checklist.wxml[AU5T]: F:作业清单页模板：页头进度条、四列表格、签退按钮、照片汇总与悬浮锚点 | R:code:pages/order/checklist.js | A:周期性条目行内用catchtap提供本次执行入口避免触发行跳转 | S:-
+checklist.wxss[AU2M]: F:作业清单页样式：渐变页头表头、四列定宽、结果配色、照片网格与悬浮锚点 | R:code:pages/order/checklist.wxml | A:列宽按26/30/20/24百分比硬分配保证表格对齐 | S:-
+checkout.js[AW9M]: F:签退自检页逻辑：自检全选、时长计时、双人签名取证与提交、离线补传兜底 | R:code:services/order.js,code:pages/common/signature.js,code:utils/offline.js,code:config/index.js | A:每个签名位须先取服务端取证令牌才可提交；只上报fileId由服务端反查URL | S:时长下限前后端双重校验；code -1时已上传字段入data、剩余图交离线队列续传
+checkout.json[FC2T]: F:签退自检页配置：标题「签退自检」 | R:code:pages/order/checkout.wxml | A:- | S:-
+checkout.wxml[AU5T]: F:签退自检页模板：作业时长、自检勾选、主维保与配合人员签名区、提交 | R:code:pages/order/checkout.js | A:时长不足时禁用提交并提示剩余分钟；配合人员签名区仅hasAssistant渲染 | S:-
+checkout.wxss[AU2T]: F:签退自检页样式：头部、自检勾选圈、签名预览区与时长状态配色 | R:code:pages/order/checkout.wxml | A:复用--em-success与--em-warning区分时长达标与不足 | S:-
+detail.js[AB7S]: F:工单详情页逻辑：按orderId或扫码elevatorCode加载、状态文案、维保记录视图、失败记录重报 | R:code:services/order.js,code:constants/index.js,code:pages/order/checkin.js | A:onShow复用已加载order.id刷新以回填签到后状态 | S:手动重报仅对reportStatus为FAILED开放，后端拦截非FAILED记录
+detail.json[FC2T]: F:工单详情页配置：标题「工单详情」 | R:code:pages/order/detail.wxml | A:- | S:-
+detail.wxml[AU5T]: F:工单详情页模板：状态标签、电梯与作业信息、按状态渲染操作入口、维保记录与双签字确认 | R:code:pages/order/detail.js | A:三种状态分别渲染去签到、继续作业加动态码入口、只读记录与手动重报 | S:-
+detail.wxss[AU2S]: F:工单详情页样式：状态标签配色、信息行、结果徽标、照片网格与双签字并排 | R:code:pages/order/detail.wxml | A:三种状态标签与三种检查结果各用一套硬编码配色 | S:-
+dynamic-code.js[AI8T]: F:双人动态码校验页逻辑：输入6位码调verifyDynamicCode，通过后以配合人员身份跳转签到 | R:code:services/order.js,code:pages/order/checkin.js | A:动态码随签到一并提交由服务端复核 | S:-
+dynamic-code.json[FC2T]: F:双人动态码页配置：标题「双人动态码」 | R:code:pages/order/dynamic-code.wxml | A:- | S:-
+dynamic-code.wxml[AU3T]: F:双人动态码页模板：提示文案、6位数字输入与确认校验按钮 | R:code:pages/order/dynamic-code.js | A:输入限number且最长6位 | S:-
+dynamic-code.wxss[AU2T]: F:双人动态码页样式：居中大字距动态码输入框 | R:code:pages/order/dynamic-code.wxml | A:复用--em-bg-page与--em-radius变量，字距12rpx便于逐位核对 | S:-
+item-form.js[AD9M]: F:检查项填写页逻辑：结果选择、按judgeType采集读数或说明书结论、异常描述与隐患码、跳过原因、水印取证拍照、提交与离线暂存 | R:code:services/order.js,code:pages/common/watermark-camera.js,code:utils/offline.js,code:constants/index.js | A:照片与photoEvidence按下标一一对应，提交时随photoFileIds一并回传由服务端按下标验签 | S:回显的历史照片无取证令牌，改本项须重拍否则服务端拒绝；recordedAt仅离线对账留痕，服务端以取证令牌时间为准；code -1时入离线队列靠幂等clientItemId重放
+item-form.json[FC2T]: F:检查项填写页配置：标题「检查项填写」 | R:code:pages/order/item-form.wxml | A:- | S:-
+item-form.wxml[AU5T]: F:检查项填写页模板：关键项徽标、结果三选、按judgeType条件渲染读数与说明书结论、异常描述与隐患码选择、跳过原因、照片列表与保存 | R:code:pages/order/item-form.js | A:卡片按result与judgeType条件渲染，非NA才要求读数与照片 | S:-
+item-form.wxss[AU2S]: F:检查项填写页样式：关键项红徽标、结果三态配色、表单标签、照片网格与删除角标 | R:code:pages/order/item-form.wxml | A:结果三态分别用绿红灰三套硬编码配色 | S:-
+list.js[AU7S]: F:工单列表页逻辑：状态与到期维度筛选、关键字搜索、扫码定位工单、分页刷新与状态驱动的操作按钮 | R:code:services/order.js,code:utils/guard.js,code:constants/index.js | A:switchTab不能带参，首页下钻过滤经storage一次性传递后立即清除 | S:首次守卫由onShow延到onReady避免与tab路由竞态
+list.json[FC2T]: F:工单列表页配置：标题「工单列表」，开启下拉刷新 | R:code:pages/order/list.js | A:- | S:-
+list.wxml[AU5T]: F:工单列表页模板：蓝色页头搜索与扫码、到期筛选横幅、状态tabs、电梯信息卡与状态驱动按钮 | R:code:pages/order/list.js | A:DONE显示查看记录，其余显示开始或继续作业 | S:-
+list.wxss[AU2S]: F:工单列表页样式：渐变页头、搜索胶囊、筛选横幅、状态tabs与带阴影的工单卡 | R:code:pages/order/list.wxml | A:页头与主按钮用硬编码品牌蓝渐变，信息区浅蓝底 | S:-
+
+===C:/Users/18223/Desktop/新建文件夹/pages/rescue/===
+create.js[AW7T]: F:困人救援登记页逻辑：扫码填编号、被困人数、四节点时间选择、原因与处置，提交登记 | R:code:services/rescue.js,code:utils/util.js | A:接警时间默认当前时刻，四个节点按今日日期拼成完整时间串 | S:抵达时间为法定时限节点必填，各节点耗时由服务端计算留痕
+create.json[FC2T]: F:困人救援登记页配置：标题「困人救援登记」 | R:code:pages/rescue/create.wxml | A:- | S:-
+create.wxml[AU5T]: F:困人救援登记页模板：编号与扫码、被困人数、情况描述、接警至解救四节点时间选择、原因与处置、提交 | R:code:pages/rescue/create.js | A:四节点用两行两列time picker布局 | S:-
+create.wxss[AU2T]: F:困人救援登记页样式：表单标签、编号行与扫码按钮、时间两列布局 | R:code:pages/rescue/create.wxml | A:form-label被声明两次，后者覆盖前者只保留上边距设置 | S:-
+detail.js[AU4T]: F:救援详情页逻辑：按id加载记录并展示 | R:code:services/rescue.js | A:加载失败仅提示不阻断 | S:-
+detail.json[FC2T]: F:救援详情页配置：标题「救援详情」 | R:code:pages/rescue/detail.wxml | A:- | S:-
+detail.wxml[AU5T]: F:救援详情页模板：状态标签、超时或达标提示、救援信息、四节点留痕与故障处置 | R:code:pages/rescue/detail.js | A:抵达超30分钟显示不可删除警示，达标则显示实际耗时 | S:-
+detail.wxss[AU2T]: F:救援详情页样式：标题行、超时红标、达标绿标与超时代数节点着色 | R:code:pages/rescue/detail.wxml | A:超时用红达标用绿区分法定时限结果 | S:-
+list.js[AU4T]: F:救援记录列表页逻辑：分页拉取、下拉刷新与触底加载、跳转登记与详情 | R:code:services/rescue.js | A:- | S:-
+list.json[FC2T]: F:救援记录列表页配置：标题「救援记录」，开启下拉刷新 | R:code:pages/rescue/list.js | A:- | S:-
+list.wxml[AU3T]: F:救援记录列表页模板：记录卡列表、空态与新增登记按钮 | R:code:pages/rescue/list.js | A:整卡可点进详情 | S:-
+list.wxss[AU2T]: F:救援记录列表页样式：卡片标题行 | R:code:pages/rescue/list.wxml | A:仅覆盖全局row-title的下边距 | S:-
+
+===C:/Users/18223/Desktop/新建文件夹/pages/unit/===
+sign.js[AU8S]: F:维保记录签名确认页逻辑：按rid与token免登录拉取记录视图、canvas手写签名、导出上传后按fileId确认归档、分享远程签字 | R:code:services/unit.js,code:services/upload.js | A:canvas按dpr缩放避免导出模糊 | S:签名图先上传换fileId再提交，URL由服务端反查；此前直接提交本地临时路径会让合规记录存设备路径且任意URL即可置为已确认
+sign.json[FC2T]: F:维保记录确认页配置：标题「维保记录确认」 | R:code:pages/unit/sign.wxml | A:- | S:-
+sign.wxml[AU5T]: F:维保记录确认页模板：记录摘要、已确认态与签名图、canvas签名板与清除、确认归档按钮 | R:code:pages/unit/sign.js | A:已确认时隐藏签名区只展示归档签名图，canvas禁用页面滚动 | S:-
+sign.wxss[AU3T]: F:维保记录确认页样式：记录摘要行、已确认提示、签名画布与操作行 | R:code:pages/unit/sign.wxml | A:画布浅蓝底加浅灰边框与已归档签名图区分 | S:-
+
+===C:/Users/18223/Desktop/新建文件夹/scripts/===
+probe-reg-api.ps1[ON6M]: F:平台接口一次性探测：解析可达基址、登录取token、逐个探测2.2至2.8并输出可用性判定表 | R:code:docs/07-平台联调实测记录.md | A:自动从.env载入REG凭证且不打印，缺失时只跑免鉴权探测；判定只用ASCII标记以避编码问题 | S:写接口一律用空body探测，返回参数校验错误即证明路由存在而不产生真实平台数据
+test-23-27.ps1[ON6T]: F:实测2.3建立维保服务关系后复查2.5人员列表并试探2.7三种查询条件 | R:code:docs/07-平台联调实测记录.md | A:2.3先试form-urlencoded，遇415再回退multipart | S:2.3为写操作会在平台产生真实记录需用changState=1终止；服务期与单位entityID由参数显式给出
+test-25-worklist.ps1[ON6T]: F:实测2.2主体查询与2.5单位维保人员查询并解析人员列表 | R:code:docs/07-平台联调实测记录.md | A:先按organizationCode查主体确认单位身份再拉人员；2.5查询范围由token所属单位决定 | S:登录用GET加查询串（规范写POST有误），凭证从.env载入不打印
+test-full.ps1[ON6T]: F:全链路联调脚本：2.2主体确认、2.3建关系、2.5查人员、2.4登记人员、再2.5取platform_id | R:code:docs/07-平台联调实测记录.md | A:2.3用useUnitName加multipart合同文件，2.4用multipart证书文件 | S:写操作已在平台产生真实记录不可回滚；合同与证书PDF取自scripts/tmp需本地自备
+verify-dispatch.js[TB7T]: F:派单引擎验收脚本：造同项目6台同日到期电梯，断言全部当日09:00派单且无顺延 | R:code:mock/data.js,code:utils/util.js | A:直接操作mock db造数，验证后清理elevators/orders/messages | S:断言不成立置process.exitCode=1；lastMaintenanceAt用日期-only串以匹配parseTime行为
+verify-templates.js[TQ7T]: F:检查项模板验收脚本：校验附件A至D各频率行数、编码连续性、关键项与拍照要求一致、品种路由 | R:code:mock/checklist-template.js,code:mock/data.js | A:期望行数硬编码为验收基线，总计257行 | S:isKey必须与photoRequired相等，任一不符即exit 1
+
+===C:/Users/18223/Desktop/新建文件夹/services/===
+auth.js[II7T]: F:鉴权接口层：微信登录、账号密码登录、绑定微信与维保档案及使用单位、退出、登录结果落库 | R:code:utils/request.js,code:utils/auth.js,code:pages/login/index.js | A:wx-login的role参仅mock模式选演示账号，真实后端忽略 | S:bindWeChat必须带Bearer JWT，缺Authorization时后端返回401且绑定不落库
+compliance.js[IB5T]: F:合规台账接口层：应急演练与自行检查的列表、模板与登记 | R:code:utils/request.js,code:pages/compliance/inspect.js | A:数据仅本地台账不上报平台 | S:-
+elevator.js[IB4T]: F:电梯档案接口层：档案详情与已对接平台电梯列表 | R:code:utils/request.js,code:pages/elevator/profile.js | A:- | S:-
+fault.js[IB5T]: F:故障接口层：上报、列表、详情与闭环处理 | R:code:utils/request.js,code:pages/fault/report.js | A:- | S:-
+home.js[IB4T]: F:首页看板汇总接口 | R:code:utils/request.js,code:pages/home/index.js | A:- | S:-
+knowledge.js[IA4T]: F:知识库检索接口，按关键字模糊匹配标题 | R:code:utils/request.js,code:pages/knowledge/index.js | A:- | S:-
+location.js[IL6T]: F:逆地址解析接口层：经纬度转位置文字，经后端代理以隔离地图key | R:code:utils/request.js,code:config/index.js | A:mock模式返回固定演示地址 | S:函数永不reject，失败或10s超时一律回退为坐标串，避免签到流程卡死
+message.js[IM5T]: F:消息中心接口层：分页列表、未读数、单条与全部已读 | R:code:utils/request.js,code:utils/badge.js | A:- | S:-
+order.js[IB8T]: F:工单接口层：列表、详情、扫码解析、签到与拍照与签名三类取证令牌、签到、动态码校验、清单与检查项提交、签退、平台重报 | R:code:utils/request.js,code:pages/order/checkin.js,code:pages/order/checkout.js | A:取证令牌按用途分三个端点，签到与检查项拍照前先换令牌 | S:重报仅针对上报状态为FAILED的记录，后端拦截其他状态
+rescue.js[IB5T]: F:困人救援接口层：登记、列表与详情 | R:code:utils/request.js,code:pages/rescue/create.js | A:- | S:-
+unit.js[IB6T]: F:维保记录签名确认接口层：按令牌免登录取记录视图与提交确认 | R:code:utils/request.js,code:pages/unit/sign.js | A:两接口均needAuth=false供微信分享链接直接打开 | S:token走查询串传参，是免登录授权凭据
+upload.js[IL6T]: F:文件上传接口层：wx.uploadFile上传水印照片与签名图并返回fileId与url | R:code:utils/auth.js,code:config/index.js | A:mock模式不真实上传，直接返回本地路径作url | S:凭证由后端签发临时token，小程序不接触长期密钥
+
+===C:/Users/18223/Desktop/新建文件夹/utils/===
+auth.js[CS7T]: F:登录态本地存储：token、用户信息与角色的读写与清除 | R:code:utils/request.js,code:services/auth.js,code:utils/guard.js | A:三个storage key常量集中在此，其它模块不直接读写storage | S:isLoggedIn只判断token是否存在不校验有效期，过期token靠服务端401触发清除
+badge.js[CM5T]: F:tabBar消息未读角标：拉取未读数并设置或移除角标 | R:code:services/message.js | A:消息tab固定index 2，未读数超99显示99+ | S:-
+guard.js[CE7T]: F:登录守卫：未登录统一reLaunch到登录页，401清态后复用同一跳转 | R:code:utils/auth.js,code:utils/request.js | A:redirecting模块级标志做防抖，栈顶已是登录页时直接返回 | S:跳转延迟300ms等首屏routeDone，立即reLaunch会触发路由竞态导致真机白屏
+image.js[CP6T]: F:图片压缩：长边超限时等比缩放，再按质量阶梯重压至体积达标 | R:code:constants/index.js,code:services/upload.js | A:目标尺寸与体积上限取自constants的IMAGE_LIMIT | S:任一步失败均回退原图不阻断业务；compressedWidth/Height需基础库2.25.0+低版本自动忽略
+offline.js[CR9S]: F:离线缓存与补传：按工单缓存本地快照、待补传队列入队与逐条断点续传重放 | R:code:utils/request.js,code:services/upload.js,code:pages/order/item-form.js | A:flushQueue在每张图片与每个上传字段成功后立即持久化断点 | S:同url加method重复入队替换旧任务；重放复用任务id作幂等键；失败任务保留在队列等待下次
+request.js[CN9T]: F:wx.request统一封装：mock分流、Bearer注入、写接口幂等键、401清态与业务错误归一 | R:code:services/order.js,code:utils/auth.js,code:utils/guard.js | A:get/post/put/del统一透传options，mock与真实只在此处分流 | S:成功判定同时要求HTTP 2xx且body.code为0；网络失败统一reject code -1供离线队列识别；401复用guard.redirectToLogin
+util.js[CG7T]: F:通用工具：幂等键uuid、GMT+8时间格式化与解析、时长格式化 | R:code:utils/request.js,code:utils/offline.js,code:pages/order/checkout.js | A:formatTime与parseTime用固定+8偏移而非设备时区 | S:parseTime对日期-only串按00:00:00处理，否则该梯会被永久判为无维保基准而不再派单
