@@ -52,14 +52,17 @@ public class FileStorageService {
     private final AppFileMapper fileMapper;
     private final RestTemplate restTemplate;
     private final ObjectMapper objectMapper;
+    private final FileAccessTokenService fileToken;
     private volatile COSClient cosClient;
 
     public FileStorageService(AppProperties props, AppFileMapper fileMapper,
-                              RestTemplate restTemplate, ObjectMapper objectMapper) {
+                              RestTemplate restTemplate, ObjectMapper objectMapper,
+                              FileAccessTokenService fileToken) {
         this.props = props;
         this.fileMapper = fileMapper;
         this.restTemplate = restTemplate;
         this.objectMapper = objectMapper;
+        this.fileToken = fileToken;
     }
 
     @PostConstruct
@@ -117,6 +120,8 @@ public class FileStorageService {
         f.sizeBytes = file.getSize();
         f.createdAt = TimeUtil.now();
         fileMapper.insert(f);
+        // 落库存不带签名的 base URL；返回给客户端的 url 带新鲜签名，便于 <image> 即时预览
+        f.url = signedUrl(url, id);
         return f;
     }
 
@@ -133,7 +138,41 @@ public class FileStorageService {
         if (f == null || f.url == null) {
             return "";
         }
-        return f.url;
+        return signedUrl(f.url, fileId);
+    }
+
+    /**
+     * 给本系统自建的 /files/{id} 链接签发新鲜访问签名（剥离旧签名重签）；COS 直链原样返回。
+     * 签名带时效，故每次读都必须重签——客户端拿到的始终是未过期链接。
+     */
+    private String signedUrl(String url, String fileId) {
+        if (url == null || url.isEmpty()) {
+            return "";
+        }
+        if (!url.contains("/files/")) {
+            return url; // COS 直链，无需签名
+        }
+        String base = url.contains("?") ? url.substring(0, url.indexOf('?')) : url;
+        return base + "?s=" + fileToken.sign(fileId);
+    }
+
+    /**
+     * 仅凭 URL（无 fileId 入参）补签：从 /files/{fileId} 提取 fileId 重签。
+     * 用于改动前落库、URL 未带签名（或已过期）的历史记录读时补签。
+     */
+    public String resolveStoredUrl(String url) {
+        if (url == null || url.isEmpty()) {
+            return "";
+        }
+        if (!url.contains("/files/")) {
+            return url;
+        }
+        String base = url.contains("?") ? url.substring(0, url.indexOf('?')) : url;
+        String fileId = base.substring(base.indexOf("/files/") + "/files/".length());
+        if (fileId.isEmpty()) {
+            return url;
+        }
+        return base + "?s=" + fileToken.sign(fileId);
     }
 
     /** 本地回退：按 fileId 读回字节（COS 模式前端直接用 url） */

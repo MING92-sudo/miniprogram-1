@@ -1,9 +1,11 @@
 package com.cqwlw.maintenance.controller;
 
+import com.cqwlw.maintenance.auth.CurrentUser;
 import com.cqwlw.maintenance.common.ApiResponse;
 import com.cqwlw.maintenance.common.BizException;
 import com.cqwlw.maintenance.entity.AppFile;
 import com.cqwlw.maintenance.mapper.AppFileMapper;
+import com.cqwlw.maintenance.service.FileAccessTokenService;
 import com.cqwlw.maintenance.service.FileStorageService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.core.io.FileSystemResource;
@@ -27,15 +29,22 @@ public class FileController {
 
     private final FileStorageService fileStorageService;
     private final AppFileMapper fileMapper;
+    private final CurrentUser currentUser;
+    private final FileAccessTokenService fileToken;
 
-    public FileController(FileStorageService fileStorageService, AppFileMapper fileMapper) {
+    public FileController(FileStorageService fileStorageService, AppFileMapper fileMapper,
+                          CurrentUser currentUser, FileAccessTokenService fileToken) {
         this.fileStorageService = fileStorageService;
         this.fileMapper = fileMapper;
+        this.currentUser = currentUser;
+        this.fileToken = fileToken;
     }
 
     @PostMapping("/files/upload")
     public ApiResponse<Map<String, Object>> upload(@RequestParam("file") MultipartFile file,
                                                    HttpServletRequest request) throws Exception {
+        // 写侧必须登录态：否则任何人可匿名上传任意文件（占满存储、并把攻击者内容留在本系统域名下）
+        currentUser.requireEmployeeId();
         if (file == null || file.isEmpty()) {
             throw new BizException(422, "缺少上传文件");
         }
@@ -45,9 +54,14 @@ public class FileController {
         return ApiResponse.ok(Map.of("fileId", f.id, "url", f.url == null ? "" : f.url));
     }
 
-    /** 本地回退读取（COS 模式前端直接用 url，不会走到这里） */
+    /** 本地回退读取（COS 模式前端直接用 url，不会走到这里）；需带签名，允许匿名以便使用单位签字页渲染 */
     @GetMapping("/files/{id}")
-    public ResponseEntity<FileSystemResource> serve(@PathVariable String id) throws Exception {
+    public ResponseEntity<FileSystemResource> serve(@PathVariable String id,
+                                                    @RequestParam(name = "s", required = false) String signature)
+            throws Exception {
+        if (!fileToken.verify(id, signature)) {
+            throw new BizException(403, "文件访问签名无效");
+        }
         AppFile f = fileMapper.selectById(id);
         if (f == null || f.url != null && f.url.startsWith("http")) {
             throw new BizException(1404, "文件不存在");
@@ -67,6 +81,8 @@ public class FileController {
     public ApiResponse<Map<String, Object>> sts(@org.springframework.web.bind.annotation.RequestBody(required = false)
                                                 Map<String, Object> body,
                                                 HttpServletRequest request) {
+        // 直传凭证等同于写权限，必须登录态
+        currentUser.requireEmployeeId();
         String dir = body == null || body.get("dir") == null ? "" : String.valueOf(body.get("dir"));
         int maxAge = body == null || body.get("maxAge") == null ? 1800
                 : Integer.parseInt(String.valueOf(body.get("maxAge")));

@@ -1,6 +1,7 @@
 package com.cqwlw.maintenance;
 
 import com.cqwlw.maintenance.config.AppProperties;
+import com.cqwlw.maintenance.service.FileAccessTokenService;
 import com.cqwlw.maintenance.service.FileStorageService;
 import org.junit.jupiter.api.Test;
 
@@ -13,7 +14,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class FileStorageServiceStsTest {
 
     private FileStorageService service(AppProperties props) {
-        return new FileStorageService(props, null, null, null);
+        if (props.getJwtSecret() == null || props.getJwtSecret().isBlank()) {
+            props.setJwtSecret("unit-test-secret-0123456789abcdef");
+        }
+        return new FileStorageService(props, null, null, null, new FileAccessTokenService(props));
     }
 
     @Test
