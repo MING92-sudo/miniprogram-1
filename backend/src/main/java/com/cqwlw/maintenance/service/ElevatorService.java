@@ -52,6 +52,26 @@ public class ElevatorService {
                 }).toList();
     }
 
+    /** 扫码回填电梯信息（急修单用，docs/04 A.6） */
+    public Map<String, Object> viewByCode(String code) {
+        Elevator el = getByCode(code == null ? "" : code.trim());
+        if (el == null) {
+            throw new BizException(1404, "电梯不存在，请核对编号");
+        }
+        UseUnit uu = el.useUnitId == null ? null : useUnitMapper.selectById(el.useUnitId);
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("id", el.id);
+        m.put("elevatorCode", el.elevatorCode);
+        m.put("elevatorName", el.elevatorName);
+        m.put("location", nz(el.location));
+        m.put("regCode", nz(el.regCode));
+        m.put("deviceCode", nz(el.deviceCode));
+        m.put("model", nz(el.model));
+        m.put("category", nz(el.category));
+        m.put("useUnitName", uu == null ? "" : nz(uu.unitName));
+        return m;
+    }
+
     public Map<String, Object> profile(String id) {
         Elevator el = get(id);
         if (el == null) {

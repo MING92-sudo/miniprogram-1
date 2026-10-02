@@ -18,6 +18,8 @@ public class Employee {
     public String passwordHash;
     public String role;
     public String roleText;
+    /** 所属班组（组长按班组查看组员工单/急修单，V7） */
+    public String groupName;
     public String openid;
     public String platformId;
     public String certificate;

@@ -162,6 +162,7 @@ public class AdminArchiveService {
         e.account = account;
         e.role = role;
         e.roleText = str(body, "roleText").isBlank() ? defaultRoleText(role) : str(body, "roleText");
+        e.groupName = str(body, "groupName");
         String initialPassword = str(body, "password").isBlank() ? randomPassword() : str(body, "password");
         e.passwordHash = encoder.encode(initialPassword);
         e.platformId = str(body, "platformId");
@@ -302,6 +303,9 @@ public class AdminArchiveService {
         }
         if (body.get("platformId") != null) {
             e.platformId = str(body, "platformId");
+        }
+        if (body.get("groupName") != null) {
+            e.groupName = str(body, "groupName");
         }
         if (!str(body, "password").isBlank()) {
             e.passwordHash = encoder.encode(str(body, "password"));
@@ -520,6 +524,7 @@ public class AdminArchiveService {
         m.put("account", nz(e.account));
         m.put("role", nz(e.role));
         m.put("roleText", nz(e.roleText));
+        m.put("groupName", nz(e.groupName));
         m.put("platformId", nz(e.platformId));
         m.put("certificate", nz(e.certificate));
         m.put("workStartDate", nz(e.workStartDate));

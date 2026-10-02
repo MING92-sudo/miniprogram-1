@@ -7,6 +7,7 @@ import com.cqwlw.maintenance.service.ElevatorService;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -27,6 +28,12 @@ public class ElevatorController {
     @GetMapping("/elevators")
     public ApiResponse<List<Map<String, Object>>> list() {
         return ApiResponse.ok(elevatorService.listView());
+    }
+
+    /** 扫码回填电梯信息（急修单用，docs/04 A.6） */
+    @GetMapping("/elevators/by-code")
+    public ApiResponse<Map<String, Object>> byCode(@RequestParam String code) {
+        return ApiResponse.ok(elevatorService.viewByCode(code));
     }
 
     @GetMapping("/elevators/{id}/profile")

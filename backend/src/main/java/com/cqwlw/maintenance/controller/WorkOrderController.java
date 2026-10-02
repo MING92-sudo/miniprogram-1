@@ -35,19 +35,24 @@ public class WorkOrderController {
                                                  @RequestParam(required = false) String size,
                                                  @RequestParam(required = false) String due,
                                                  @RequestParam(required = false) String status,
-                                                 @RequestParam(required = false) String keyword) {
+                                                 @RequestParam(required = false) String keyword,
+                                                 HttpServletRequest request) {
         Map<String, String> query = Map.of(
                 "page", page == null ? "" : page,
                 "size", size == null ? "" : size,
                 "due", due == null ? "" : due,
                 "status", status == null ? "" : status,
                 "keyword", keyword == null ? "" : keyword);
-        return ApiResponse.ok(workOrderService.listOrders(query));
+        return ApiResponse.ok(workOrderService.listOrders(query, empId(request)));
     }
 
     @GetMapping("/work-orders/{id}")
-    public ApiResponse<Map<String, Object>> detail(@PathVariable String id) {
-        return ApiResponse.ok(workOrderService.getOrderView(id));
+    public ApiResponse<Map<String, Object>> detail(@PathVariable String id, HttpServletRequest request) {
+        return ApiResponse.ok(workOrderService.getOrderView(id, empId(request)));
+    }
+
+    private String empId(HttpServletRequest request) {
+        return String.valueOf(request.getAttribute(com.cqwlw.maintenance.auth.AuthInterceptor.ATTR_EMP_ID));
     }
 
     @PostMapping("/work-orders/resolve-by-elevator")

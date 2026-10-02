@@ -26,6 +26,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static com.cqwlw.maintenance.util.JsonUtil.map;
 
@@ -46,12 +47,13 @@ public class DirectoryService {
     private final ElevatorMapper elevatorMapper;
     private final ChecklistService checklistService;
     private final WorkOrderService workOrderService;
+    private final EmployeeScopeService scopeService;
 
     public DirectoryService(RescueMapper rescueMapper, FaultMapper faultMapper,
                             DrillMapper drillMapper, InspectRecordMapper inspectMapper,
                             MessageMapper messageMapper, KnowledgeMapper knowledgeMapper,
                             ElevatorMapper elevatorMapper, ChecklistService checklistService,
-                            WorkOrderService workOrderService) {
+                            WorkOrderService workOrderService, EmployeeScopeService scopeService) {
         this.rescueMapper = rescueMapper;
         this.faultMapper = faultMapper;
         this.drillMapper = drillMapper;
@@ -61,6 +63,7 @@ public class DirectoryService {
         this.elevatorMapper = elevatorMapper;
         this.checklistService = checklistService;
         this.workOrderService = workOrderService;
+        this.scopeService = scopeService;
     }
 
     // ── 救援 ──
@@ -136,7 +139,7 @@ public class DirectoryService {
     }
 
     // ── 故障 ──
-    public Map<String, Object> createFault(Map<String, Object> body) {
+    public Map<String, Object> createFault(Map<String, Object> body, String empId) {
         if (WorkOrderService.isBlank(strOrEmpty(body.get("elevatorCode")))) {
             throw new BizException(422, "请选择电梯");
         }
@@ -145,9 +148,11 @@ public class DirectoryService {
         }
         Fault f = new Fault();
         f.id = Ids.next("ft");
+        f.createdBy = empId;
         f.elevatorCode = strOrEmpty(body.get("elevatorCode"));
         f.faultType = strOrEmpty(body.get("faultType"));
         f.descr = strOrEmpty(body.get("desc"));
+        f.photos = JsonUtil.write(body.get("photos") == null ? List.of() : body.get("photos"));
         f.status = "OPEN";
         f.handleDesc = "";
         f.createdAt = TimeUtil.now();
@@ -158,18 +163,27 @@ public class DirectoryService {
     public Map<String, Object> faultView(Fault f) {
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("id", f.id);
+        m.put("createdBy", f.createdBy == null ? "" : f.createdBy);
         m.put("elevatorCode", f.elevatorCode);
         m.put("faultType", f.faultType);
         m.put("desc", f.descr);
+        m.put("photos", JsonUtil.readStringList(f.photos));
         m.put("status", f.status);
-        m.put("handleDesc", f.handleDesc);
+        m.put("result", f.handleDesc);
+        m.put("signature", f.signature == null ? "" : f.signature);
+        m.put("confirmedAt", f.confirmedAt == null ? "" : TimeUtil.format(f.confirmedAt));
         m.put("createdAt", TimeUtil.format(f.createdAt));
         return m;
     }
 
-    public Map<String, Object> listFaults(Map<String, String> query) {
+    public Map<String, Object> listFaults(Map<String, String> query, String empId) {
         List<Fault> list = faultMapper.selectList(new LambdaQueryWrapper<Fault>()
                 .orderByDesc(Fault::getCreatedAt));
+        Set<String> creatorIds = scopeService.visibleCreatorIds(scopeService.require(empId));
+        if (creatorIds != null) {
+            // 历史数据 createdBy 为 NULL：对全员可见（V7 前-only 数据）
+            list = list.stream().filter(f -> f.createdBy == null || creatorIds.contains(f.createdBy)).toList();
+        }
         String status = query.get("status");
         if (status != null && !status.isEmpty()) {
             list = list.stream().filter(f -> status.equals(f.status)).toList();
@@ -178,10 +192,14 @@ public class DirectoryService {
         return workOrderService.paginate(views, query);
     }
 
-    public Map<String, Object> getFault(String id) {
+    public Map<String, Object> getFault(String id, String empId) {
         Fault f = faultMapper.selectById(id);
         if (f == null) {
             throw new BizException(1404, "故障记录不存在");
+        }
+        Set<String> creatorIds = scopeService.visibleCreatorIds(scopeService.require(empId));
+        if (f.createdBy != null && creatorIds != null && !creatorIds.contains(f.createdBy)) {
+            throw new BizException(1403, "仅可查看本人或本班组急修单");
         }
         return faultView(f);
     }
@@ -191,8 +209,21 @@ public class DirectoryService {
         if (f == null) {
             throw new BizException(1404, "故障记录不存在");
         }
+        if ("CLOSED".equals(f.status)) {
+            return faultView(f);
+        }
+        String result = strOrEmpty(body == null ? null : body.get("result"));
+        String signature = strOrEmpty(body == null ? null : body.get("signature"));
+        if (WorkOrderService.isBlank(result)) {
+            throw new BizException(422, "请填写处理结果");
+        }
+        if (WorkOrderService.isBlank(signature)) {
+            throw new BizException(422, "请先由使用单位安全管理员签字确认");
+        }
         f.status = "CLOSED";
-        f.handleDesc = strOrEmpty(body == null ? null : body.get("handleDesc"));
+        f.handleDesc = result;
+        f.signature = signature;
+        f.confirmedAt = TimeUtil.now();
         faultMapper.updateById(f);
         return map("ok", true);
     }

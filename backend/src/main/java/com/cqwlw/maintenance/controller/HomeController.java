@@ -1,7 +1,9 @@
 package com.cqwlw.maintenance.controller;
 
 import com.cqwlw.maintenance.common.ApiResponse;
+import com.cqwlw.maintenance.auth.AuthInterceptor;
 import com.cqwlw.maintenance.service.WorkOrderService;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -18,7 +20,8 @@ public class HomeController {
     }
 
     @GetMapping("/home/summary")
-    public ApiResponse<Map<String, Object>> summary() {
-        return ApiResponse.ok(workOrderService.homeSummary());
+    public ApiResponse<Map<String, Object>> summary(HttpServletRequest request) {
+        return ApiResponse.ok(workOrderService.homeSummary(
+                String.valueOf(request.getAttribute(AuthInterceptor.ATTR_EMP_ID))));
     }
 }

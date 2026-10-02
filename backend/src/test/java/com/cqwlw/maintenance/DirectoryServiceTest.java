@@ -12,6 +12,7 @@ import com.cqwlw.maintenance.mapper.MessageMapper;
 import com.cqwlw.maintenance.mapper.RescueMapper;
 import com.cqwlw.maintenance.service.ChecklistService;
 import com.cqwlw.maintenance.service.DirectoryService;
+import com.cqwlw.maintenance.service.EmployeeScopeService;
 import com.cqwlw.maintenance.service.WorkOrderService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -42,20 +43,21 @@ class DirectoryServiceTest {
         inspectMapper = mock(InspectRecordMapper.class);
         service = new DirectoryService(rescueMapper, faultMapper, mock(DrillMapper.class), inspectMapper,
                 mock(MessageMapper.class), mock(KnowledgeMapper.class), mock(ElevatorMapper.class),
-                mock(ChecklistService.class), mock(WorkOrderService.class));
+                mock(ChecklistService.class), mock(WorkOrderService.class), mock(EmployeeScopeService.class));
     }
 
     @Test
     void createFaultRequiresElevatorCodeAndDesc() {
-        assertThrows(BizException.class, () -> service.createFault(Map.of()));
-        assertEquals(422, code(() -> service.createFault(Map.of("desc", "x"))));
-        assertEquals(422, code(() -> service.createFault(Map.of("elevatorCode", "EM-1"))));
+        assertThrows(BizException.class, () -> service.createFault(Map.of(), "emp_1"));
+        assertEquals(422, code(() -> service.createFault(Map.of("desc", "x"), "emp_1")));
+        assertEquals(422, code(() -> service.createFault(Map.of("elevatorCode", "EM-1"), "emp_1")));
 
-        Map<String, Object> ok = service.createFault(Map.of("elevatorCode", "EM-2024-002", "desc", "厅门异响"));
+        Map<String, Object> ok = service.createFault(Map.of("elevatorCode", "EM-2024-002", "desc", "厅门异响"), "emp_1");
         ArgumentCaptor<Fault> c = ArgumentCaptor.forClass(Fault.class);
         verify(faultMapper).insert(c.capture());
         assertEquals("EM-2024-002", c.getValue().elevatorCode);
         assertEquals("厅门异响", c.getValue().descr);
+        assertEquals("emp_1", c.getValue().createdBy);
         assertEquals("OPEN", ok.get("status"));
     }
 

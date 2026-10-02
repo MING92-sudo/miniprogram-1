@@ -1,8 +1,10 @@
 package com.cqwlw.maintenance.controller;
 
 import com.cqwlw.maintenance.common.ApiResponse;
+import com.cqwlw.maintenance.auth.AuthInterceptor;
 import com.cqwlw.maintenance.service.DirectoryService;
 import com.cqwlw.maintenance.service.IdempotencyService;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -62,13 +64,14 @@ public class DirectoryController {
 
     @PostMapping("/faults")
     public ApiResponse<Object> createFault(@RequestBody Map<String, Object> body,
+                                           HttpServletRequest request,
                                            @org.springframework.web.bind.annotation.RequestHeader(
                                                    value = "X-Idempotency-Key", required = false) String idemKey) {
         IdempotencyService.Guard guard = idempotencyService.begin(idemKey, "/faults");
         if (guard.replayed()) {
             return ApiResponse.ok(guard.replayedResult());
         }
-        Map<String, Object> result = directoryService.createFault(body);
+        Map<String, Object> result = directoryService.createFault(body, empId(request));
         guard.commit(result);
         return ApiResponse.ok(result);
     }
@@ -76,23 +79,29 @@ public class DirectoryController {
     @GetMapping("/faults")
     public ApiResponse<Map<String, Object>> listFaults(@RequestParam(required = false) String page,
                                                        @RequestParam(required = false) String size,
-                                                       @RequestParam(required = false) String status) {
+                                                       @RequestParam(required = false) String status,
+                                                       HttpServletRequest request) {
         Map<String, String> query = Map.of(
                 "page", page == null ? "" : page,
                 "size", size == null ? "" : size,
                 "status", status == null ? "" : status);
-        return ApiResponse.ok(directoryService.listFaults(query));
+        return ApiResponse.ok(directoryService.listFaults(query, empId(request)));
     }
 
     @GetMapping("/faults/{id}")
-    public ApiResponse<Map<String, Object>> getFault(@PathVariable String id) {
-        return ApiResponse.ok(directoryService.getFault(id));
+    public ApiResponse<Map<String, Object>> getFault(@PathVariable String id, HttpServletRequest request) {
+        return ApiResponse.ok(directoryService.getFault(id, empId(request)));
     }
 
     @PostMapping("/faults/{id}/close")
     public ApiResponse<Map<String, Object>> closeFault(@PathVariable String id,
-                                                       @RequestBody(required = false) Map<String, Object> body) {
+                                                       @RequestBody(required = false) Map<String, Object> body,
+                                                       HttpServletRequest request) {
         return ApiResponse.ok(directoryService.closeFault(id, body));
+    }
+
+    private String empId(HttpServletRequest request) {
+        return String.valueOf(request.getAttribute(AuthInterceptor.ATTR_EMP_ID));
     }
 
     @GetMapping("/drills")

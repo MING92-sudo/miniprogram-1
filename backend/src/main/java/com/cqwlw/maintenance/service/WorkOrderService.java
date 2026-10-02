@@ -30,6 +30,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -58,6 +59,7 @@ public class WorkOrderService {
     private final ChecklistService checklistService;
     private final DispatchService dispatchService;
     private final PlatformReportService reportService;
+    private final EmployeeScopeService scopeService;
     private final com.cqwlw.maintenance.config.AppProperties props;
 
     public WorkOrderService(WorkOrderMapper orderMapper, ElevatorMapper elevatorMapper,
@@ -66,6 +68,7 @@ public class WorkOrderService {
                             FaultMapper faultMapper, InspectRecordMapper inspectMapper,
                             ChecklistService checklistService, DispatchService dispatchService,
                             PlatformReportService reportService,
+                            EmployeeScopeService scopeService,
                             com.cqwlw.maintenance.config.AppProperties props) {
         this.orderMapper = orderMapper;
         this.elevatorMapper = elevatorMapper;
@@ -78,6 +81,7 @@ public class WorkOrderService {
         this.checklistService = checklistService;
         this.dispatchService = dispatchService;
         this.reportService = reportService;
+        this.scopeService = scopeService;
         this.props = props;
     }
 
@@ -87,7 +91,7 @@ public class WorkOrderService {
     }
 
     // ── 首页汇总 ──
-    public Map<String, Object> homeSummary() {
+    public Map<String, Object> homeSummary(String empId) {
         dispatchService.ensureDueOrders();
         String today = TimeUtil.date(TimeUtil.now());
         String soonEnd = TimeUtil.date(TimeUtil.now().plusDays(3));
@@ -95,7 +99,7 @@ public class WorkOrderService {
         int dueSoon = 0;
         int overdue = 0;
         int inProgress = 0;
-        for (WorkOrder o : orderMapper.selectList(null)) {
+        for (WorkOrder o : scopeOrders(orderMapper.selectList(null), empId)) {
             String planDay = o.planTime == null ? "" : TimeUtil.date(o.planTime);
             if ("PROCESSING".equals(o.status)) {
                 inProgress++;
@@ -113,7 +117,13 @@ public class WorkOrderService {
         long unconfirmed = recordMapper.selectCount(new LambdaQueryWrapper<MaintainRecord>()
                 .eq(MaintainRecord::getConfirmStatus, "PENDING"));
         long openFaults = faultMapper.selectCount(new LambdaQueryWrapper<Fault>()
-                .eq(Fault::getStatus, "OPEN"));
+                .eq(Fault::getStatus, "OPEN")
+                .and(w -> {
+                    Set<String> creatorIds = scopeService.visibleCreatorIds(scopeService.require(empId));
+                    if (creatorIds != null) {
+                        w.in(Fault::getCreatedBy, creatorIds).or().isNull(Fault::getCreatedBy);
+                    }
+                }));
         // 年检预警：自行检查逾期未检台数（须在下次定期检验前完成，docs/01 §3.17）
         int overdueInspects = 0;
         for (Elevator el : elevatorMapper.selectList(null)) {
@@ -138,10 +148,11 @@ public class WorkOrderService {
     }
 
     // ── 列表 ──
-    public Map<String, Object> listOrders(Map<String, String> query) {
+    public Map<String, Object> listOrders(Map<String, String> query, String empId) {
         dispatchService.ensureDueOrders();
         List<WorkOrder> list = orderMapper.selectList(new LambdaQueryWrapper<WorkOrder>()
                 .orderByDesc(WorkOrder::getPlanTime));
+        list = scopeOrders(list, empId);
         String due = query.get("due");
         if (due != null && !due.isEmpty()) {
             String today = TimeUtil.date(TimeUtil.now());
@@ -210,9 +221,27 @@ public class WorkOrderService {
         return o;
     }
 
-    public Map<String, Object> getOrderView(String id) {
+    public Map<String, Object> getOrderView(String id, String empId) {
         WorkOrder o = findOr404(id);
+        requireOrderScope(o, empId);
         return toMap(o, true);
+    }
+
+    /** 班组数据权限（V7）：组长看本组，组员看本人，管理角色不限 */
+    public List<WorkOrder> scopeOrders(List<WorkOrder> list, String empId) {
+        Set<String> ids = scopeService.visibleWorkerPlatformIds(scopeService.require(empId));
+        if (ids == null) {
+            return list;
+        }
+        return list.stream().filter(o -> ids.contains(o.workerPlatformId)
+                || ids.contains(o.assistantPlatformId)).collect(Collectors.toList());
+    }
+
+    public void requireOrderScope(WorkOrder o, String empId) {
+        Set<String> ids = scopeService.visibleWorkerPlatformIds(scopeService.require(empId));
+        if (ids != null && !ids.contains(o.workerPlatformId) && !ids.contains(o.assistantPlatformId)) {
+            throw new BizException(1403, "仅可查看本人工单或本班组工单");
+        }
     }
 
     public Map<String, Object> resolveByElevator(String elevatorCode) {

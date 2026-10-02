@@ -53,6 +53,19 @@
     </template>
   </el-input>
 </el-form-item>
+        <el-form-item label="出厂编号"><el-input v-model="form.factoryNumber" placeholder="设备铭牌（选填，亦可作2.7查询条件）" /></el-form-item>
+        <el-form-item label="单位内编号" required>
+          <el-input v-model="form.insideNumber" placeholder="使用单位内自编号（2.6 上报必填）" />
+        </el-form-item>
+        <el-form-item label="安全管理员">
+          <el-input v-model="form.elevatorAdminister" placeholder="2.7 查询后自动回填，可修正" />
+        </el-form-item>
+        <el-form-item label="管理员手机">
+          <el-input v-model="form.elevatorAdministerPhone" placeholder="2.7 查询后自动回填，可修正" />
+        </el-form-item>
+        <el-form-item label="应急电话">
+          <el-input v-model="form.emergencyPhone" placeholder="2.7 查询后自动回填，可修正" />
+        </el-form-item>
         <el-form-item label="品种">
           <el-select v-model="form.category" style="width: 100%">
             <el-option v-for="c in categories" :key="c" :label="c" :value="c" />
@@ -115,7 +128,7 @@ const assistantEmployeeId = ref('')
 const platformHint = ref('')
 const categories = ['曳引与强制驱动电梯', '液压驱动电梯', '杂物电梯', '自动扶梯与自动人行道']
 
-const empty = { id: '', elevatorCode: '', elevatorName: '', location: '', useUnitId: '', regCode: '',
+const empty = { id: '', elevatorCode: '', elevatorName: '', location: '', useUnitId: '', regCode: '', factoryNumber: '', insideNumber: '', elevatorAdminister: '', elevatorAdministerPhone: '', emergencyPhone: '',
   deviceCode: '', category: '曳引与强制驱动电梯', workTypeCode: 'HM', nextCheckDate: '',
   lng: '', lat: '', workerPhone: '' }
 const form = reactive({ ...empty })
