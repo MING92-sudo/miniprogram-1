@@ -1,6 +1,7 @@
 package com.cqwlw.maintenance.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.cqwlw.maintenance.entity.Elevator;
 import com.cqwlw.maintenance.entity.Employee;
 import com.cqwlw.maintenance.entity.Fault;
@@ -178,20 +179,18 @@ public class AdminService {
             w.le(MaintainRecord::getCreatedAt, TimeUtil.parseDate(q.get("dateTo")).atTime(23, 59, 59));
         }
         w.orderByDesc(MaintainRecord::getCreatedAt);
-        List<MaintainRecord> all = recordMapper.selectList(w);
-
         int page = intOf(q.get("page"), 1);
         int size = intOf(q.get("size"), 20);
-        int from = Math.min((page - 1) * size, all.size());
-        int to = Math.min(from + size, all.size());
+        // SQL 分页（LIMIT 下推），避免全量载入 MEDIUMTEXT 大字段后内存切片
+        Page<MaintainRecord> p = recordMapper.selectPage(new Page<>(page, size), w);
 
         List<Map<String, Object>> list = new ArrayList<>();
-        for (MaintainRecord r : all.subList(from, to)) {
+        for (MaintainRecord r : p.getRecords()) {
             list.add(recordRow(r));
         }
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("list", list);
-        out.put("total", all.size());
+        out.put("total", (int) p.getTotal());
         out.put("page", page);
         out.put("size", size);
         return out;

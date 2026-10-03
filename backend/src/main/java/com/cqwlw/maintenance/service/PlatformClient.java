@@ -34,11 +34,21 @@ public class PlatformClient {
     private final PlatformProperties props;
     private final RestTemplate restTemplate;
     private final PlatformTokenService tokenService;
+    /** 2.3/2.4 文件转发专用：读超时 120s（docs/04 A.0 大文件口径），避免默认 30s 掐断大附件 */
+    private final RestTemplate uploadRestTemplate = newUploadRestTemplate(120_000);
 
     public PlatformClient(PlatformProperties props, RestTemplate restTemplate, PlatformTokenService tokenService) {
         this.props = props;
         this.restTemplate = restTemplate;
         this.tokenService = tokenService;
+    }
+
+    private static RestTemplate newUploadRestTemplate(int readTimeoutMillis) {
+        org.springframework.http.client.SimpleClientHttpRequestFactory f =
+                new org.springframework.http.client.SimpleClientHttpRequestFactory();
+        f.setConnectTimeout(3_000);
+        f.setReadTimeout(readTimeoutMillis);
+        return new RestTemplate(f);
     }
 
     /** 供管理端在未配凭证时给出友好提示（不触发真实调用） */
@@ -217,7 +227,7 @@ public class PlatformClient {
         }
         String url = props.getApiBaseUrl() + path;
         try {
-            ResponseEntity<String> resp = restTemplate.exchange(
+            ResponseEntity<String> resp = uploadRestTemplate.exchange(
                     url, HttpMethod.POST, new HttpEntity<>(body, headers), String.class);
             Map<String, Object> parsed = MAPPER.readValue(resp.getBody(),
                     new TypeReference<Map<String, Object>>() {

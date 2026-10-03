@@ -49,7 +49,8 @@ public class DispatchService {
         log.info("定时派单完成: 新建 {} 单", n);
     }
 
-    public List<WorkOrder> ensureDueOrders() {
+    /** 单实例内同步：列表触发与 09:00 定时并发时防止同一电梯重复建单 */
+    public synchronized List<WorkOrder> ensureDueOrders() {
         List<WorkOrder> created = new ArrayList<>();
         long now = TimeUtil.toMillis(TimeUtil.now());
         for (Elevator el : elevatorMapper.selectList(null)) {

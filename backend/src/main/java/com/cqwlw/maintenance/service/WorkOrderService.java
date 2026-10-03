@@ -187,9 +187,14 @@ public class WorkOrderService {
         }
         String keyword = query.get("keyword");
         if (keyword != null && !keyword.isEmpty()) {
+            // 一次载入电梯映射，避免逐单 selectById 的 N+1
+            Map<String, Elevator> elevatorMap = new java.util.HashMap<>();
+            for (Elevator el : elevatorMapper.selectList(null)) {
+                elevatorMap.put(el.id, el);
+            }
             String k = keyword.toLowerCase();
             list = list.stream().filter(o -> {
-                Elevator el = elevatorMapper.selectById(o.elevatorId);
+                Elevator el = elevatorMap.get(o.elevatorId);
                 return contains(o.orderNo, k) || (el != null && (contains(el.elevatorName, k)
                         || contains(el.elevatorCode, k) || contains(el.deviceCode, k)
                         || contains(el.regCode, k) || contains(el.insideNumber, k)));

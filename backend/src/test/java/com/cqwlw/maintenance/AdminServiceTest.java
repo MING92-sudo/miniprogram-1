@@ -1,5 +1,6 @@
 package com.cqwlw.maintenance;
 
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.cqwlw.maintenance.entity.Elevator;
 import com.cqwlw.maintenance.entity.Employee;
 import com.cqwlw.maintenance.entity.MaintainRecord;
@@ -147,7 +148,10 @@ class AdminServiceTest {
         ok.reportStatus = "REPORTED";
         ok.problemCodesJson = "[\"S0\"]";
         ok.createdAt = TimeUtil.now();
-        when(recordMapper.selectList(any())).thenReturn(List.of(failed, ok));
+        Page<MaintainRecord> mp = new Page<>(1, 1);
+        mp.setRecords(List.of(failed));
+        mp.setTotal(2);
+        when(recordMapper.selectPage(any(), any())).thenReturn(mp);
 
         Map<String, Object> page1 = service.records(Map.of("reportStatus", "FAILED", "page", "1", "size", "1"));
         assertEquals(2, page1.get("total"));

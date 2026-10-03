@@ -9,10 +9,3 @@ export function records(params) {
   return http.get('/admin/records', { params })
 }
 
-export function stats(days) {
-  return http.get('/admin/stats', { params: days ? { days } : {} })
-}
-
-export function elevatorsAdmin() {
-  return http.get('/admin/elevators')
-}

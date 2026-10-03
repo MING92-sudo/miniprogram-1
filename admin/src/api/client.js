@@ -40,7 +40,7 @@ export function onUnauthorized(fn) {
   unauthorizedHandler = fn
 }
 
-const http = axios.create({ baseURL: API_BASE, timeout: 15000 })
+const http = axios.create({ baseURL: API_BASE, timeout: 30000 })
 
 http.interceptors.request.use((cfg) => {
   const token = localStorage.getItem('admin_token')

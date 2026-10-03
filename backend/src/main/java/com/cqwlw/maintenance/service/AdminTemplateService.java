@@ -1,6 +1,7 @@
 package com.cqwlw.maintenance.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.cqwlw.maintenance.common.BizException;
 import com.cqwlw.maintenance.entity.ChecklistTemplate;
 import com.cqwlw.maintenance.mapper.ChecklistTemplateMapper;
@@ -50,20 +51,17 @@ public class AdminTemplateService {
         w.orderByAsc(ChecklistTemplate::getTemplateType)
                 .orderByAsc(ChecklistTemplate::getAppendix)
                 .orderByAsc(ChecklistTemplate::getSeq);
-        List<ChecklistTemplate> all = templateMapper.selectList(w);
-
         int page = intOf(q.get("page"), 1);
         int size = intOf(q.get("size"), 20);
-        int from = Math.min((page - 1) * size, all.size());
-        int to = Math.min(from + size, all.size());
+        Page<ChecklistTemplate> p = templateMapper.selectPage(new Page<>(page, size), w);
 
         List<Map<String, Object>> list = new ArrayList<>();
-        for (ChecklistTemplate t : all.subList(from, to)) {
+        for (ChecklistTemplate t : p.getRecords()) {
             list.add(row(t, true));
         }
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("list", list);
-        out.put("total", all.size());
+        out.put("total", (int) p.getTotal());
         out.put("page", page);
         out.put("size", size);
         return out;
