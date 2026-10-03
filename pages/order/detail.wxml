@@ -44,6 +44,7 @@
       <view class="info-row"><text>上报状态</text><text class="report-status">{{reportStatusText || '未上报'}}</text></view>
       <view class="em-text-secondary record-tip">维保记录已生成（含平台 2.6 上报快照），确认结果不上报平台</view>
       <button wx:if="{{canReupload}}" size="mini" class="em-btn-primary" bindtap="retryReport">手动重报平台</button>
+      <button wx:if="{{order.recordInfo && order.recordInfo.id}}" size="mini" class="em-btn-ghost" bindtap="goRecordPreview">查看完整记录单</button>
     </view>
 
     <!-- 完整维保记录（DONE） -->

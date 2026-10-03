@@ -24,8 +24,7 @@ Page({
     queryMenus: [
       { title: '急修单', icon: '🛠️', color: 'blue', url: '/pages/fault/list' },
       { title: '维保记录', icon: '📋', color: 'orange', url: '/pages/order/list', tab: true },
-      { title: '消息通知', icon: '💬', color: 'blue', url: '/pages/message/index', tab: true },
-      { title: '知识库', icon: '📚', color: 'purple', url: '/pages/knowledge/index' }
+      { title: '消息通知', icon: '💬', color: 'blue', url: '/pages/message/index', tab: true }
     ],
   },
 
@@ -98,9 +97,6 @@ Page({
   // 维保记录情况三卡下钻（switchTab 页经存储传参）
   goRecordCard(e) {
     const jump = e.currentTarget.dataset.jump
-    if (jump === 'platform') {
-      return wx.navigateTo({ url: '/pages/elevator/list' })
-    }
     wx.setStorageSync('order_status_filter', jump === 'unconfirmed' ? 'DONE' : 'PROCESSING')
     wx.switchTab({ url: '/pages/order/list' })
   },

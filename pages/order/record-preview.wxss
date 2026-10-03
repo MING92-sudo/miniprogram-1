@@ -1,0 +1,14 @@
+.page { padding: 20rpx; }
+.info-row { display: flex; justify-content: space-between; padding: 12rpx 0; font-size: 28rpx; }
+.info-row text:first-child { color: #86909c; }
+.item-row { padding: 12rpx 0; border-bottom: 1rpx solid #f2f3f5; font-size: 28rpx; }
+.item-result { color: #0052d9; }
+.item-desc { color: #e34d59; font-size: 26rpx; }
+.photo-grid { display: flex; flex-wrap: wrap; gap: 12rpx; }
+.photo { width: 200rpx; height: 200rpx; border-radius: 8rpx; }
+.sig-row { display: flex; justify-content: space-between; align-items: center; padding: 12rpx 0; font-size: 28rpx; }
+.sig { width: 240rpx; height: 120rpx; border: 1rpx dashed #dcdfe6; border-radius: 8rpx; }
+.confirm-text { padding: 12rpx 0; }
+.upload-SUCCESS { color: #00a870; }
+.upload-FAILED { color: #e34d59; }
+.upload-PENDING { color: #ed7b2f; }

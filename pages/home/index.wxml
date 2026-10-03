@@ -49,13 +49,6 @@
         </view>
         <view class="record-emoji bg-blue">📝</view>
       </view>
-      <view class="record-card" data-jump="platform" bindtap="goRecordCard">
-        <view class="record-info">
-          <view class="record-label">市监局对接(重庆)</view>
-          <view class="record-num num-orange">{{summary.platformTotal}} 台</view>
-        </view>
-        <view class="record-emoji bg-orange">☁️</view>
-      </view>
     </view>
 
     <!-- 综合查询 -->

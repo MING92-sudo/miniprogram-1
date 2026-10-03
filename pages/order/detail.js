@@ -108,6 +108,13 @@ Page({
     wx.navigateTo({ url: `/pages/order/dynamic-code?orderId=${this.data.order.id}` })
   },
 
+  // 维保记录预览页（docs/03 V2.0 §3.2 #12：与使用单位确认同源）
+  goRecordPreview() {
+    const info = this.data.order.recordInfo || {}
+    if (!info.id) return
+    wx.navigateTo({ url: '/pages/order/record-preview?recordId=' + info.id })
+  },
+
   // 手动重报平台 2.6（仅 FAILED；后端拦截非 FAILED 记录）
   async retryReport() {
     const info = this.data.order.recordInfo || {}

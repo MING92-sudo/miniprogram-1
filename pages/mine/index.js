@@ -19,9 +19,7 @@ function buildMenus(role) {
   const menus = []
   if (STAFF_ROLES.indexOf(role) > -1) {
     menus.push({ title: '急修单', url: '/pages/fault/list', desc: '现场登记、闭环跟踪' })
-    menus.push({ title: '救援记录', url: '/pages/rescue/list', desc: '困人救援登记与跟踪' })
   }
-  menus.push({ title: '知识库', url: '/pages/knowledge/index', desc: '作业手册与流程规范' })
   menus.push({ title: '离线缓存管理', url: '/pages/mine/offline', desc: '弱网数据补传' })
   menus.push({ title: '修改密码', url: '/pages/mine/password', desc: '随机初始密码首次登录后修改' })
   return menus

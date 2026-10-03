@@ -58,7 +58,6 @@
       </view>
 
       <view class="wo-btns">
-        <view class="wo-btn wo-btn-ghost" data-elevator-id="{{item.elevatorId}}" bindtap="goProfile">查看详情</view>
         <view
           wx:if="{{item.status !== 'DONE'}}"
           class="wo-btn wo-btn-primary"
