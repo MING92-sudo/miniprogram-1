@@ -38,7 +38,10 @@ public class ElevatorService {
 
     public List<Map<String, Object>> listView() {
         return elevatorMapper.selectList(new LambdaQueryWrapper<Elevator>().orderByAsc(Elevator::getId))
-                .stream().map(el -> {
+                .stream()
+                // 停用（INACTIVE）电梯小程序不可见（docs/09 §6.6 / V8 迁移注释）；status 多为 NULL，故在内存过滤
+                .filter(el -> !"INACTIVE".equals(el.status))
+                .map(el -> {
                     UseUnit uu = el.useUnitId == null ? null : useUnitMapper.selectById(el.useUnitId);
                     Map<String, Object> m = new LinkedHashMap<>();
                     m.put("id", el.id);
@@ -57,6 +60,9 @@ public class ElevatorService {
         Elevator el = getByCode(code == null ? "" : code.trim());
         if (el == null) {
             throw new BizException(1404, "电梯不存在，请核对编号");
+        }
+        if ("INACTIVE".equals(el.status)) {
+            throw new BizException(422, "该电梯已停用，贴梯二维码失效（docs/09 §6.6）");
         }
         UseUnit uu = el.useUnitId == null ? null : useUnitMapper.selectById(el.useUnitId);
         Map<String, Object> m = new LinkedHashMap<>();

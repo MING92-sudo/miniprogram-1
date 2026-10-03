@@ -137,6 +137,8 @@ public class UnitRecordService {
         m.put("signatureUrl", r.signatureUrl);
         m.put("shareToken", r.shareToken);
         m.put("reportPayload", r.reportPayloadJson == null ? null : JsonUtil.readMap(r.reportPayloadJson));
+        // 预览上下文（docs/03 §六）：地址/使用单位/维保单位/手机号/平台ID/签到经纬度/条目总数
+        m.put("context", r.previewContextJson == null ? Map.of() : JsonUtil.readMap(r.previewContextJson));
         return m;
     }
 

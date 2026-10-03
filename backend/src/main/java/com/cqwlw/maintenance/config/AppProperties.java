@@ -14,6 +14,8 @@ public class AppProperties {
     private boolean seedDemoData = true;
     /** 作业时长下限（分钟，签到→签退）；默认 30，测试可临时调小（APP_WORK_DURATION_MINUTES） */
     private int workDurationMinutes = 30;
+    /** 签到定位阈值全局默认（米）；电梯级 elevator.checkin_threshold 优先（docs/02 §5.4） */
+    private int checkinThresholdMeters = 200;
     private String cosSecretId;
     private String cosSecretKey;
     private String cosRegion;
@@ -68,6 +70,14 @@ public class AppProperties {
 
     public int getWorkDurationMinutes() {
         return workDurationMinutes;
+    }
+
+    public int getCheckinThresholdMeters() {
+        return checkinThresholdMeters;
+    }
+
+    public void setCheckinThresholdMeters(int checkinThresholdMeters) {
+        this.checkinThresholdMeters = checkinThresholdMeters;
     }
 
     public void setWorkDurationMinutes(int workDurationMinutes) {

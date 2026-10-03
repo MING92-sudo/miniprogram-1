@@ -81,10 +81,17 @@ public class WorkOrderController {
         return ApiResponse.ok(result);
     }
 
+    /** 主维保生成双人动态码（60 秒有效、绑定工单、一次性；docs/03 §3.2 项6） */
+    @PostMapping("/work-orders/{id}/dynamic-code")
+    public ApiResponse<Map<String, Object>> issueDynamicCode(@PathVariable String id, HttpServletRequest request) {
+        return ApiResponse.ok(workOrderService.issueDynamicCode(id, empId(request)));
+    }
+
     @PostMapping("/work-orders/{id}/dynamic-code/verify")
     public ApiResponse<Map<String, Object>> verifyDynamicCode(@PathVariable String id,
-                                                              @RequestBody Map<String, Object> body) {
-        return ApiResponse.ok(workOrderService.verifyDynamicCode(body));
+                                                              @RequestBody Map<String, Object> body,
+                                                              HttpServletRequest request) {
+        return ApiResponse.ok(workOrderService.verifyDynamicCode(id, body, empId(request)));
     }
 
     @GetMapping("/work-orders/{id}/checklist")

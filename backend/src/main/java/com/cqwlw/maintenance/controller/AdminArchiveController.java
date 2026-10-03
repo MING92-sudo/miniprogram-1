@@ -138,12 +138,8 @@ public class AdminArchiveController {
         return ApiResponse.ok(archiveService.setEmployeeEnabled(id, enabled));
     }
 
-    @PutMapping("/admin/employees/{id}/password")
-    public ApiResponse<Object> resetPassword(@PathVariable String id,
-                                             @RequestBody Map<String, Object> body) {
-        return ApiResponse.ok(archiveService.resetEmployeePassword(id,
-                body.get("password") == null ? "" : String.valueOf(body.get("password"))));
-    }
+    // 旧 SYS_ADMIN 专属端点 PUT /admin/employees/{id}/password 已删除（docs/01 §10.2：SYS_ADMIN 及其专属功能裁剪）：
+    // 重置密码统一走下方 POST /employees/{id}/reset-password（ADMIN+，12 位随机一次性返回）。
 
     /** 重置密码（docs/09 V2.2 忘记密码方案 A：ADMIN 操作，12 位随机一次性返回，V8 收敛新增） */
     @PostMapping("/employees/{id}/reset-password")

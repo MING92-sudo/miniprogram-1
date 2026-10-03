@@ -33,5 +33,11 @@ public class WorkOrder {
     /** 列名与实体字段不可由驼峰推导（V2 建的是 checkin_extra，不是 checkin_extra_json） */
     @TableField("checkin_extra")
     public String checkinExtraJson;
+    /** 配合人员签到留痕（与 checkin_extra 分开，双人各自一条，V10 迁移） */
+    @TableField("assistant_checkin_extra")
+    public String assistantCheckinExtraJson;
+    /** 双人动态码（主维保生成，60 秒有效、一次性；空串=已使用，V10 迁移） */
+    public String dynamicCode;
+    public LocalDateTime dynamicCodeExpiresAt;
     public String checklistJson;
 }

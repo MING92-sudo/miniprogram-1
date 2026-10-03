@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -54,6 +55,23 @@ class AdminRoleInterceptorTest {
                 request("POST", "/admin/plans/pl_1/delay", "WORKER"), response, handler));
         assertThrows(BizException.class, () -> interceptor.preHandle(
                 request("GET", "/admin/plans", "WORKER"), response, handler));
+    }
+
+    /** V2.15：SYS_ADMIN 专属门禁取消——账号启停改按写操作门禁（ADMIN+ 可用，LEADER/WORKER 拒绝） */
+    @Test
+    void employeeEnabledIsAdminWritable() {
+        assertTrue(interceptor.preHandle(
+                request("PUT", "/admin/employees/emp_1/enabled", "ADMIN"), response, handler));
+        assertThrows(BizException.class, () -> interceptor.preHandle(
+                request("PUT", "/admin/employees/emp_1/enabled", "LEADER"), response, handler));
+    }
+
+    /** V2.15：审计查询端点已删除 → 命中框架 404，不再由门禁放行/拒绝（此处仅断言不再要求 SYS_ADMIN） */
+    @Test
+    void opLogsEndpointRemovedFromGate() {
+        assertTrue(interceptor.preHandle(
+                request("GET", "/admin/op-logs", "ADMIN"), response, handler),
+                "门禁不再对 /admin/op-logs 做 SYS_ADMIN 专属校验（端点已删除，请求将由框架返回 404）");
     }
 
     @Test

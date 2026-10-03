@@ -13,6 +13,8 @@ import com.cqwlw.maintenance.mapper.InspectRecordMapper;
 import com.cqwlw.maintenance.mapper.MaintainRecordMapper;
 import com.cqwlw.maintenance.mapper.UseUnitMapper;
 import com.cqwlw.maintenance.mapper.WorkOrderMapper;
+import com.cqwlw.maintenance.mapper.SysParamMapper;
+import com.cqwlw.maintenance.service.CheckinThresholdService;
 import com.cqwlw.maintenance.service.ChecklistService;
 import com.cqwlw.maintenance.service.DispatchService;
 import com.cqwlw.maintenance.service.EmployeeScopeService;
@@ -69,7 +71,8 @@ class WorkOrderWriteScopeTest {
         service = new WorkOrderService(orderMapper, mock(ElevatorMapper.class), mock(UseUnitMapper.class),
                 employeeMapper, mock(CompanyMapper.class), recordMapper, mock(FaultMapper.class),
                 mock(InspectRecordMapper.class), mock(ChecklistService.class), mock(DispatchService.class),
-                reportService, new EmployeeScopeService(employeeMapper), new AppProperties());
+                reportService, new EmployeeScopeService(employeeMapper),
+                new CheckinThresholdService(mock(SysParamMapper.class), new AppProperties()), new AppProperties());
 
         when(orderMapper.selectById(FOREIGN_ORDER))
                 .thenReturn(order(FOREIGN_ORDER, PID_ZHANG, "PROCESSING", TimeUtil.now().minusHours(2)));
@@ -117,7 +120,8 @@ class WorkOrderWriteScopeTest {
 
     @Test
     void workerCanOperateOwnOrder() {
-        Map<String, Object> result = service.checkin(OWN_ORDER, Map.of("role", "PRINCIPAL"), EMP_LI);
+        Map<String, Object> result = service.checkin(OWN_ORDER,
+                Map.of("role", "PRINCIPAL", "latitude", "29.6000", "longitude", "106.5000"), EMP_LI);
         assertNotNull(result.get("checkinId"));
         assertNotNull(service.getChecklist(OWN_ORDER, EMP_LI).get("items"));
     }
@@ -125,7 +129,8 @@ class WorkOrderWriteScopeTest {
     /** 组长（同班组）仍可作业组员工单——校验不得把 V7 的组长视角一起锁死 */
     @Test
     void groupLeaderCanOperateGroupMemberOrder() {
-        Map<String, Object> result = service.checkin(GROUP_ORDER, Map.of("role", "PRINCIPAL"), EMP_CHEN);
+        Map<String, Object> result = service.checkin(GROUP_ORDER,
+                Map.of("role", "PRINCIPAL", "latitude", "29.6000", "longitude", "106.5000"), EMP_CHEN);
         assertNotNull(result.get("checkinId"));
         assertEquals(1, ((List<?>) service.getChecklist(GROUP_ORDER, EMP_CHEN).get("items")).size());
     }

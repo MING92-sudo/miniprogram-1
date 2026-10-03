@@ -49,6 +49,10 @@ public class Elevator {
     public String status;
     /** 特殊类别：消防/防爆/NULL（匹配自定义检查项模板 category_scope，缺失即 1006 提示，TSG 第二条） */
     public String specialType;
+    /** 电梯级签到阈值（米）；空=回退全局 app.checkin-threshold-meters（docs/02 §5.4，V9 迁移） */
+    public Integer checkinThreshold;
+    /** 坐标来源：UNKNOWN/PROVIDED/SELF_COLLECTED（docs/02 §5.4，V9 迁移） */
+    public String geoStatus;
     public String workerName;
     public String workerPhone;
     public String workerPlatformId;

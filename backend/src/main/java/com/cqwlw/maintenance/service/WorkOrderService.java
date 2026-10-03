@@ -19,6 +19,7 @@ import com.cqwlw.maintenance.mapper.InspectRecordMapper;
 import com.cqwlw.maintenance.mapper.MaintainRecordMapper;
 import com.cqwlw.maintenance.mapper.UseUnitMapper;
 import com.cqwlw.maintenance.mapper.WorkOrderMapper;
+import com.cqwlw.maintenance.util.GeoUtil;
 import com.cqwlw.maintenance.util.JsonUtil;
 import com.cqwlw.maintenance.util.TimeUtil;
 import org.springframework.stereotype.Service;
@@ -46,8 +47,10 @@ public class WorkOrderService {
     private static final int DEFAULT_MIN_WORK_DURATION_MINUTES = 30;
     private static final Map<String, Integer> WORK_TYPE_INTERVAL_DAYS =
             Map.of("FM", 30, "HM", 15, "TM", 90, "SM", 180, "OY", 365);
-    /** 演示约定：双人动态码固定 888888（与 mock 行为一致） */
-    private static final String DYNAMIC_CODE = "888888";
+    /** 双人动态码步长（秒）：docs/03 §3.2 项6「每 5 秒刷新」 */
+    private static final int DYNAMIC_CODE_STEP_SECONDS = 5;
+    /** 双人动态码有效期（秒）：60 秒内的码可校验；绑定工单、一次性使用（docs/05 §2.5） */
+    private static final int DYNAMIC_CODE_TTL_SECONDS = 60;
 
     private final WorkOrderMapper orderMapper;
     private final ElevatorMapper elevatorMapper;
@@ -61,6 +64,7 @@ public class WorkOrderService {
     private final DispatchService dispatchService;
     private final PlatformReportService reportService;
     private final EmployeeScopeService scopeService;
+    private final CheckinThresholdService thresholdService;
     private final com.cqwlw.maintenance.config.AppProperties props;
 
     public WorkOrderService(WorkOrderMapper orderMapper, ElevatorMapper elevatorMapper,
@@ -70,6 +74,7 @@ public class WorkOrderService {
                             ChecklistService checklistService, DispatchService dispatchService,
                             PlatformReportService reportService,
                             EmployeeScopeService scopeService,
+                            CheckinThresholdService thresholdService,
                             com.cqwlw.maintenance.config.AppProperties props) {
         this.orderMapper = orderMapper;
         this.elevatorMapper = elevatorMapper;
@@ -83,6 +88,7 @@ public class WorkOrderService {
         this.dispatchService = dispatchService;
         this.reportService = reportService;
         this.scopeService = scopeService;
+        this.thresholdService = thresholdService;
         this.props = props;
     }
 
@@ -267,59 +273,183 @@ public class WorkOrderService {
     }
 
     // ── 签到 ──
+
+    /**
+     * 签到（docs/01 §3.7.2「主维保人员和配合人员分别签到」+ docs/02 §5.4 定位阈值）：
+     * ①定位坐标必填（缺失 422；合规底线：定位失败如实提示，严禁伪造坐标兜底）；
+     * ②电梯已登记坐标 → Haversine 距离超阈值拦截 1001；坐标未登记 → geoStatus=UNKNOWN，只留痕不拦截（码表 1005 语义）；
+     * ③配合人员须携带主维保生成、未过期且未使用的动态码（1003）；
+     * ④主维保/配合人员各自留痕（checkin_extra / assistant_checkin_extra），第二人签到不覆盖第一人。
+     */
     public Map<String, Object> checkin(String orderId, Map<String, Object> body, String empId) {
         WorkOrder o = findOr404(orderId);
         requireOrderScope(o, empId);
-        if (!"PENDING".equals(o.status)) {
+        if (!"PENDING".equals(o.status) && !"PROCESSING".equals(o.status)) {
             throw new BizException(1003, "当前状态不允许签到");
         }
-        if ("ASSISTANT".equals(body.get("role"))) {
-            String code = str(body.get("dynamicCode"));
-            if (code == null || code.isEmpty()) {
-                throw new BizException(422, "配合人员签到必须携带双人动态码");
-            }
-            if (!DYNAMIC_CODE.equals(code)) {
-                throw new BizException(1003, "动态码错误（演示环境固定为 888888）");
+        boolean assistant = "ASSISTANT".equals(body.get("role"));
+        if (hasCheckin(assistant ? o.assistantCheckinExtraJson : o.checkinExtraJson)) {
+            throw new BizException(1003, (assistant ? "配合人员" : "主维保人员") + "已签到，不可重复签到");
+        }
+        Double lat = dbl(body.get("latitude"));
+        Double lng = dbl(body.get("longitude"));
+        if (lat == null || lng == null) {
+            throw new BizException(422, "签到必须携带定位坐标；定位失败请重试（严禁伪造坐标）");
+        }
+        Elevator el = elevatorMapper.selectById(o.elevatorId);
+        // 动态码校验与消费在任何写操作之前：校验失败不产生副作用（不落库、不改状态）
+        if (assistant) {
+            consumeDynamicCode(o, str(body.get("dynamicCode")));
+        }
+        // 定位校验（docs/02 §5.4）：电梯坐标缺失 → UNKNOWN，只留痕不拦截（docs/04 A.0.1 码表 1005）
+        String geoStatus = "UNKNOWN";
+        double distance = -1d;
+        // 阈值三级解析：电梯级 → 品种级（sys_param）→ 全局（sys_param → app 配置），docs/02 §5.4
+        int threshold = thresholdService.resolve(el);
+        if (el != null && el.lat != null && el.lng != null) {
+            geoStatus = el.geoStatus == null || el.geoStatus.isEmpty() ? "PROVIDED" : el.geoStatus;
+            distance = GeoUtil.distanceMeters(lat, lng, el.lat.doubleValue(), el.lng.doubleValue());
+            if (distance > threshold) {
+                throw new BizException(1001, "签到位置超出允许范围：距电梯 " + round1(distance)
+                        + " 米，阈值 " + threshold + " 米；请到现场后重试");
             }
         }
         String collectedAt = str(body.get("collectedAt"));
-        o.status = "PROCESSING";
-        o.checkinTime = collectedAt != null && !collectedAt.isEmpty()
+        LocalDateTime checkinTime = collectedAt != null && !collectedAt.isEmpty()
                 ? TimeUtil.parse(collectedAt) : TimeUtil.now();
         Map<String, Object> extra = new LinkedHashMap<>();
         extra.put("latitude", body.get("latitude"));
         extra.put("longitude", body.get("longitude"));
         extra.put("locationAccuracy", body.get("locationAccuracy") == null ? 0 : body.get("locationAccuracy"));
-        extra.put("role", body.get("role") == null ? "PRINCIPAL" : body.get("role"));
+        extra.put("role", assistant ? "ASSISTANT" : "PRINCIPAL");
         extra.put("dynamicCode", strOrEmpty(body.get("dynamicCode")));
         extra.put("selfPhotoFileId", strOrEmpty(body.get("photoFileId")));
-        o.checkinExtraJson = JsonUtil.write(extra);
-        orderMapper.updateById(o);
-        // 用户需求③：电梯无坐标时，以签到定位自动回填电梯坐标档案
-        Elevator el = elevatorMapper.selectById(o.elevatorId);
-        if (el != null && (el.lng == null || el.lat == null)
-                && body.get("latitude") != null && body.get("longitude") != null) {
-            try {
-                el.lng = new java.math.BigDecimal(String.valueOf(body.get("longitude")));
-                el.lat = new java.math.BigDecimal(String.valueOf(body.get("latitude")));
-                elevatorMapper.updateById(el);
-            } catch (NumberFormatException ignored) {
-                // 定位异常值不回填
-            }
+        extra.put("distance", distance < 0 ? "" : String.valueOf(round1(distance)));
+        extra.put("threshold", distance < 0 ? "" : String.valueOf(threshold));
+        extra.put("geoStatus", geoStatus);
+        extra.put("checkedAt", TimeUtil.format(checkinTime));
+        if (assistant) {
+            o.assistantCheckinExtraJson = JsonUtil.write(extra);
+        } else {
+            o.checkinExtraJson = JsonUtil.write(extra);
         }
-        return JsonUtil.map(
-                "checkinId", Ids.next("chk"),
-                "distance", 35.6,
-                "threshold", 200,
-                "passed", true,
-                "geoStatus", "PROVIDED");
+        if (o.checkinTime == null) {
+            o.checkinTime = checkinTime;
+        }
+        o.status = "PROCESSING";
+        orderMapper.updateById(o);
+        // 用户需求③：电梯无坐标时，以签到定位自动回填电梯坐标档案（坐标来源=现场采集，docs/02 §5.4）
+        boolean geoBackfilled = false;
+        if (el != null && (el.lng == null || el.lat == null)) {
+            el.lng = java.math.BigDecimal.valueOf(lng);
+            el.lat = java.math.BigDecimal.valueOf(lat);
+            el.geoStatus = "SELF_COLLECTED";
+            elevatorMapper.updateById(el);
+            geoBackfilled = true;
+        }
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("checkinId", Ids.next("chk"));
+        out.put("role", assistant ? "ASSISTANT" : "PRINCIPAL");
+        // geoStatus 表示本次校验使用的电梯坐标来源：UNKNOWN=未登记（本次未做超阈校验，只留痕）
+        out.put("distance", distance < 0 ? null : round1(distance));
+        out.put("threshold", distance < 0 ? null : threshold);
+        out.put("passed", true);
+        out.put("geoStatus", geoStatus);
+        out.put("geoBackfilled", geoBackfilled);
+        return out;
     }
 
-    public Map<String, Object> verifyDynamicCode(Map<String, Object> body) {
-        if (!DYNAMIC_CODE.equals(str(body.get("code")))) {
-            throw new BizException(1003, "动态码错误（演示环境固定为 888888）");
+    // ── 双人动态码（docs/03 §3.2 项6：60 秒有效、前端每 5 秒刷新倒计时；绑定工单、一次性使用） ──
+
+    /**
+     * 主维保生成/刷新动态码（docs/03 §3.2 项6：每 5 秒刷新、60 秒有效）。
+     * 码由 HMAC(密钥, 工单ID|时间步长) 派生：绑定工单、无需落库即可轮换，密钥取 app.jwt-secret（不打印）。
+     */
+    public Map<String, Object> issueDynamicCode(String orderId, String empId) {
+        WorkOrder o = findOr404(orderId);
+        requireOrderScope(o, empId);
+        if (!"PENDING".equals(o.status) && !"PROCESSING".equals(o.status)) {
+            throw new BizException(1003, "当前状态不允许生成动态码");
         }
+        long step = currentStep();
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("code", dynamicCode(o.id, step));
+        out.put("stepSeconds", DYNAMIC_CODE_STEP_SECONDS);
+        out.put("ttlSeconds", DYNAMIC_CODE_TTL_SECONDS);
+        out.put("expiresAt", TimeUtil.format(TimeUtil.fromMillis(
+                (step + 1 + DYNAMIC_CODE_TTL_SECONDS / DYNAMIC_CODE_STEP_SECONDS)
+                        * DYNAMIC_CODE_STEP_SECONDS * 1000L)));
+        return out;
+    }
+
+    /** 配合人员到场校验（不消费动态码；消费发生在配合人员签到成功时） */
+    public Map<String, Object> verifyDynamicCode(String orderId, Map<String, Object> body, String empId) {
+        WorkOrder o = findOr404(orderId);
+        requireOrderScope(o, empId);
+        requireDynamicCode(o, str(body.get("code")));
         return JsonUtil.map("ok", true);
+    }
+
+    private void requireDynamicCode(WorkOrder o, String code) {
+        if (code == null || code.isEmpty()) {
+            throw new BizException(422, "配合人员签到必须携带双人动态码");
+        }
+        if (code.equals(o.dynamicCode)) {
+            throw new BizException(1003, "动态码已使用，请主维保人员刷新后重新取码");
+        }
+        long step = currentStep();
+        for (long s = step; s > step - DYNAMIC_CODE_TTL_SECONDS / DYNAMIC_CODE_STEP_SECONDS; s--) {
+            if (dynamicCode(o.id, s).equals(code)) {
+                return;
+            }
+        }
+        throw new BizException(1003, "动态码不正确或已过期（有效期 " + DYNAMIC_CODE_TTL_SECONDS
+                + " 秒），请主维保人员刷新后重试");
+    }
+
+    /** 校验并消费（一次性）：记下已用码防重放；置空串而非 null（MyBatis-Plus 默认策略不更新 null 字段） */
+    private void consumeDynamicCode(WorkOrder o, String code) {
+        requireDynamicCode(o, code);
+        o.dynamicCode = code;
+        o.dynamicCodeExpiresAt = TimeUtil.now().plusSeconds(DYNAMIC_CODE_TTL_SECONDS);
+    }
+
+    long currentStep() {
+        return System.currentTimeMillis() / 1000L / DYNAMIC_CODE_STEP_SECONDS;
+    }
+
+    /** 6 位数字码 = HMAC-SHA256(app.jwt-secret, 工单ID|步长) 截断取模（包内可见供单测校验时效窗口） */
+    String dynamicCode(String orderId, long step) {
+        try {
+            javax.crypto.Mac mac = javax.crypto.Mac.getInstance("HmacSHA256");
+            mac.init(new javax.crypto.spec.SecretKeySpec(
+                    props.getJwtSecret().getBytes(java.nio.charset.StandardCharsets.UTF_8), "HmacSHA256"));
+            byte[] sig = mac.doFinal((orderId + "|" + step).getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            int n = (((sig[0] & 0xff) << 16) | ((sig[1] & 0xff) << 8) | (sig[2] & 0xff)) % 1000000;
+            return String.format("%06d", n);
+        } catch (java.security.GeneralSecurityException e) {
+            throw new BizException(500, "动态码生成失败，请重试");
+        }
+    }
+
+    private static boolean hasCheckin(String json) {
+        return json != null && !json.isEmpty();
+    }
+
+    private static Double dbl(Object v) {
+        if (v == null) {
+            return null;
+        }
+        try {
+            String s = String.valueOf(v).trim();
+            return s.isEmpty() ? null : Double.valueOf(s);
+        } catch (NumberFormatException ex) {
+            return null;
+        }
+    }
+
+    private static double round1(double v) {
+        return Math.round(v * 10) / 10.0;
     }
 
     // ── 检查项 ──
@@ -477,6 +607,7 @@ public class WorkOrderService {
                 + Long.toString((long) (Math.random() * 1e8), 36);
         r.createdAt = TimeUtil.now();
         r.reportPayloadJson = JsonUtil.write(buildReportPayload(r, el, uu));
+        r.previewContextJson = JsonUtil.write(buildPreviewContext(o, el, uu, items.size(), mustRun.size()));
         recordMapper.insert(r);
         // P3：签退成功后自动转发平台 2.6（失败不自动重试，AGENTS §2.3；
         // 平台凭证未配置时保持 SUBMITTED=待上报，本地/演示流程不受影响）
@@ -492,6 +623,50 @@ public class WorkOrderService {
                 "reportStatus", r.reportStatus,
                 "recordId", r.id,
                 "shareToken", r.shareToken);
+    }
+
+    /**
+     * 维保记录预览上下文（docs/03 §六 信息完整性清单）：与 2.6 报文分开冻结——
+     * 2.6 只收汇总字段，预览需要地址/单位/人员手机号/签到经纬度/条目总数等本地留痕信息。
+     */
+    Map<String, Object> buildPreviewContext(WorkOrder o, Elevator el, UseUnit uu, int itemTotal, int itemExecuted) {
+        Company c = companyMapper.selectList(null).stream().findFirst().orElse(new Company());
+        Map<String, Object> ctx = new LinkedHashMap<>();
+        ctx.put("address", el == null ? "" : nz(el.location));
+        ctx.put("useUnitName", uu == null ? "" : nz(uu.unitName));
+        ctx.put("companyName", nz(c.name));
+        ctx.put("workerPhone", phoneByName(o.workerName, el == null ? "" : nz(el.workerPhone)));
+        ctx.put("assistantPhone", phoneByName(o.assistantName, ""));
+        ctx.put("workerPlatformId", nz(o.workerPlatformId));
+        ctx.put("assistantPlatformId", nz(o.assistantPlatformId));
+        ctx.put("checkin", checkinGeo(o.checkinExtraJson));
+        ctx.put("assistantCheckin", checkinGeo(o.assistantCheckinExtraJson));
+        ctx.put("itemTotal", itemTotal);
+        ctx.put("itemExecuted", itemExecuted);
+        return ctx;
+    }
+
+    /** 按姓名查手机号（预览展示用；档案缺失时回退传入值） */
+    private String phoneByName(String name, String fallback) {
+        if (isBlank(name)) {
+            return nz(fallback);
+        }
+        return employeeMapper.selectList(new LambdaQueryWrapper<Employee>()
+                        .eq(Employee::getName, name)).stream().findFirst()
+                .map(e -> nz(e.phone)).filter(s -> !s.isEmpty()).orElse(nz(fallback));
+    }
+
+    /** 从签到留痕 JSON 取定位要素（无留痕返回空 map，预览页按"未签到"渲染） */
+    private static Map<String, Object> checkinGeo(String extraJson) {
+        Map<String, Object> out = new LinkedHashMap<>();
+        if (extraJson == null || extraJson.isEmpty()) {
+            return out;
+        }
+        Map<String, Object> extra = JsonUtil.readMap(extraJson);
+        for (String k : new String[]{"latitude", "longitude", "distance", "threshold", "geoStatus", "checkedAt"}) {
+            out.put(k, extra.get(k) == null ? "" : String.valueOf(extra.get(k)));
+        }
+        return out;
     }
 
     /** 平台 2.6 报文快照（20 字段冻结；workMeneger 拼写按规范原文，docs/04 B.6） */
@@ -549,6 +724,9 @@ public class WorkOrderService {
         m.put("workerPlatformId", o.workerPlatformId);
         m.put("assistantPlatformId", o.assistantPlatformId);
         m.put("checkinTime", TimeUtil.format(o.checkinTime));
+        // 双人分别签到（docs/01 §3.7.2）：前端据此决定"签到/已签到"入口与动态码模式
+        m.put("principalCheckedIn", hasCheckin(o.checkinExtraJson));
+        m.put("assistantCheckedIn", hasCheckin(o.assistantCheckinExtraJson));
         m.put("checkoutTime", TimeUtil.format(o.checkoutTime));
         m.put("duration", o.duration == null ? "" : o.duration);
         m.put("originalRecordId", o.originalRecordId == null ? "" : o.originalRecordId);
@@ -609,6 +787,8 @@ public class WorkOrderService {
         e.put("platformSyncedAt", TimeUtil.format(el.platformSyncedAt));
         e.put("lng", el.lng);
         e.put("lat", el.lat);
+        // 电梯级签到阈值（米）；空=前端按全局默认展示（docs/02 §5.4）
+        e.put("checkinThreshold", el.checkinThreshold == null ? props.getCheckinThresholdMeters() : el.checkinThreshold);
         e.put("brand", el.brand);
         e.put("manufacturer", el.manufacturer);
         e.put("productNo", el.productNo);

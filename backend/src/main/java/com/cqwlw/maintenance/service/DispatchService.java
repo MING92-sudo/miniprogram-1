@@ -56,6 +56,9 @@ public class DispatchService {
             if (el.workTypeCode == null || el.workTypeCode.isEmpty()) {
                 continue;
             }
+            if ("INACTIVE".equals(el.status)) {
+                continue; // 停用电梯不派单（docs/09 §6.6 / V8 迁移注释）
+            }
             Long active = orderMapper.selectCount(new LambdaQueryWrapper<WorkOrder>()
                     .eq(WorkOrder::getElevatorId, el.id).ne(WorkOrder::getStatus, "DONE"));
             if (active != null && active > 0) {
@@ -128,6 +131,9 @@ public class DispatchService {
         Elevator el = elevatorMapper.selectById(elevatorId);
         if (el == null) {
             throw new com.cqwlw.maintenance.common.BizException(1404, "电梯不存在");
+        }
+        if ("INACTIVE".equals(el.status)) {
+            throw new com.cqwlw.maintenance.common.BizException(422, "该电梯已停用，不可派单（docs/09 §6.6）");
         }
         if (el.workTypeCode == null || el.workTypeCode.isEmpty()) {
             throw new com.cqwlw.maintenance.common.BizException(422, "请先设置维保周期码");

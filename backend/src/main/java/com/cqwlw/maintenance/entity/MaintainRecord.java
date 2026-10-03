@@ -1,5 +1,6 @@
 package com.cqwlw.maintenance.entity;
 
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import lombok.Data;
 import com.baomidou.mybatisplus.annotation.TableName;
@@ -40,5 +41,8 @@ public class MaintainRecord {
     public String signatureUrl;
     public String shareToken;
     public String reportPayloadJson;
+    /** 预览上下文快照 JSON（地址/单位/手机号/签到经纬度/条目数，docs/03 §六，V11 迁移） */
+    @TableField("preview_context")
+    public String previewContextJson;
     public LocalDateTime createdAt;
 }
