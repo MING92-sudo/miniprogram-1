@@ -3,22 +3,25 @@ import { useAuthStore } from '../stores/auth'
 import { resolveRoute } from './guard'
 
 import AdminLayout from '../layout/AdminLayout.vue'
-import LoginView from '../views/LoginView.vue'
-import DashboardView from '../views/DashboardView.vue'
-import OrderListView from '../views/OrderListView.vue'
-import OrderDetailView from '../views/OrderDetailView.vue'
-import FailedRecordsView from '../views/FailedRecordsView.vue'
-import UploadLogsView from '../views/UploadLogsView.vue'
-import SyncStatusView from '../views/SyncStatusView.vue'
-import CompanyView from '../views/CompanyView.vue'
-import UseUnitsView from '../views/UseUnitsView.vue'
-import EmployeesView from '../views/EmployeesView.vue'
-import ElevatorsView from '../views/ElevatorsView.vue'
-import ScheduleView from '../views/ScheduleView.vue'
-import RegisterRelationsView from '../views/RegisterRelationsView.vue'
-import RegisterWorkersView from '../views/RegisterWorkersView.vue'
-import ForbiddenView from '../views/ForbiddenView.vue'
-import NotFoundView from '../views/NotFoundView.vue'
+
+// 路由级代码分包（docs/09 V3.6）：视图按需懒加载，首屏只下载壳 + 当前页，
+// 避免 13 个页面与 echarts 全量打进单个 entry chunk（原 2.25 MB / >500 kB 告警）
+const LoginView = () => import('../views/LoginView.vue')
+const DashboardView = () => import('../views/DashboardView.vue')
+const OrderListView = () => import('../views/OrderListView.vue')
+const OrderDetailView = () => import('../views/OrderDetailView.vue')
+const FailedRecordsView = () => import('../views/FailedRecordsView.vue')
+const UploadLogsView = () => import('../views/UploadLogsView.vue')
+const SyncStatusView = () => import('../views/SyncStatusView.vue')
+const CompanyView = () => import('../views/CompanyView.vue')
+const UseUnitsView = () => import('../views/UseUnitsView.vue')
+const EmployeesView = () => import('../views/EmployeesView.vue')
+const ElevatorsView = () => import('../views/ElevatorsView.vue')
+const ScheduleView = () => import('../views/ScheduleView.vue')
+const RegisterRelationsView = () => import('../views/RegisterRelationsView.vue')
+const RegisterWorkersView = () => import('../views/RegisterWorkersView.vue')
+const ForbiddenView = () => import('../views/ForbiddenView.vue')
+const NotFoundView = () => import('../views/NotFoundView.vue')
 
 // 路由表（docs/09 §四 页面清单）；hash 模式便于静态托管部署
 export const routes = [

@@ -81,7 +81,7 @@ export function batchGeo(items) {
 
 /** 电梯贴梯二维码 PNG（内容=电梯编码），blob 直传 */
 export function elevatorQrPng(id) {
-  return http.get(`/elevators/${id}/qrcode`, { responseType: 'blob', timeout: 60000 })
+  return http.post(`/elevators/${id}/qrcode`, {}, { responseType: 'blob', timeout: 60000 })
 }
 
 /** 重置密码（docs/09 V2.2 方案 A）：12 位随机一次性返回 */

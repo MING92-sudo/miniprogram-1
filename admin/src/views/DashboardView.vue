@@ -43,9 +43,16 @@
 
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
-import * as echarts from 'echarts'
+// echarts 按需引入（docs/09 V3.6 分包）：看板只用折线图 + 网格/提示，
+// 全量 'echarts' 会打进 1 MB 以上的 vendor 块；按需后仅含 LineChart/Grid/Tooltip/Canvas 渲染器。
+import * as echarts from 'echarts/core'
+import { LineChart } from 'echarts/charts'
+import { GridComponent, TooltipComponent } from 'echarts/components'
+import { CanvasRenderer } from 'echarts/renderers'
 import * as adminApi from '../api/admin'
 import { showErr } from '../utils/ui'
+
+echarts.use([LineChart, GridComponent, TooltipComponent, CanvasRenderer])
 
 const dash = ref(null)
 const trendEl = ref(null)
