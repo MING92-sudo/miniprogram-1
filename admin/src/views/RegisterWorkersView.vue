@@ -11,8 +11,13 @@
 
     <h4 class="sec">平台人员比对</h4>
     <el-table :data="platformList" v-loading="polling" stripe size="small">
+      <el-table-column prop="id" label="平台人员ID" min-width="160" show-overflow-tooltip />
       <el-table-column prop="workManName" label="姓名" width="100" />
       <el-table-column prop="workManCertificate" label="证书编号" min-width="180" show-overflow-tooltip />
+      <el-table-column prop="workManPhone" label="手机号" width="130" />
+      <el-table-column label="作业期限" width="200">
+        <template #default="{ row }">{{ row.workStartDate || '—' }} ~ {{ row.workEndDate || '—' }}</template>
+      </el-table-column>
       <el-table-column label="绑定状态" width="100">
         <template #default="{ row }">
           <el-tag size="small" :type="String(row.changState) === '1' ? 'danger' : 'success'">
