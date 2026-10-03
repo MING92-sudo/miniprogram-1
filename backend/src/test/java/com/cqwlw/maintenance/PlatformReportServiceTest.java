@@ -145,10 +145,10 @@ class PlatformReportServiceTest {
         MaintainRecord done = record("REPORTED");
         MaintainRecord failed = record("FAILED");
         when(recordMapper.selectList(any())).thenReturn(List.of(done, failed));
-        when(platformClient.uploadMaintenanceRecord(any())).thenReturn(Map.of("code", 200));
+        when(platformClient.uploadLegacyRecord(any(), any(), any())).thenReturn(Map.of("code", 200));
 
         assertEquals(2, service.syncLegacy());
-        verify(platformClient, times(2)).uploadMaintenanceRecord(any());
+        verify(platformClient, times(2)).uploadLegacyRecord(any(), any(), any());
     }
 
     @Test

@@ -109,7 +109,7 @@ public class PlatformClient {
     }
 
     /** 2.8 存量上报（POST /record/uploadMaintainRecord）：与 2.6 报文差异——不带 workMan1Id/2Id，
-     * 须传 workManName1/2 姓名（规范必填；当前存量推送走 2.6 通道，此为备用接线） */
+     * 须传 workManName1/2 姓名（规范必填） */
     public Map<String, Object> uploadLegacyRecord(Map<String, Object> payload,
                                                   String workManName1, String workManName2) {
         Map<String, Object> legacy = new java.util.LinkedHashMap<>(payload);

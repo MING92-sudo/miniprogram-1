@@ -79,7 +79,7 @@ public class PlatformReportService {
         return r;
     }
 
-    /** 2.8 存量推送：开关关闭时为 0；对未上报成功的历史记录逐条转发（手动触发，不做自动重试） */
+    /** 2.8 存量推送：开关关闭时为 0；对未上报成功的历史记录经 2.8 端点逐条提交（手动触发，不做自动重试） */
     public int syncLegacy() {
         if (!props.isLegacyUploadEnabled() || !configured()) {
             return 0;
@@ -90,7 +90,7 @@ public class PlatformReportService {
         int n = 0;
         for (MaintainRecord r : pending) {
             try {
-                if ("REPORTED".equals(upload(r, "LEGACY"))) {
+                if ("REPORTED".equals(uploadLegacy(r))) {
                     n++;
                 }
             } catch (Exception e) {
@@ -98,6 +98,22 @@ public class PlatformReportService {
             }
         }
         return n;
+    }
+
+    /** 2.8 存量提交（/record/uploadMaintainRecord）：与 2.6 不同接口——传姓名而非 ID；
+     * 无配合人员时回退主维保姓名（与 2.6 workMan2Id 必填同口径） */
+    private String uploadLegacy(MaintainRecord r) {
+        Map<String, Object> payload = JsonUtil.readMap(r.reportPayloadJson);
+        if (payload == null || payload.isEmpty()) {
+            throw new BizException(422, "签退报文快照缺失，无法上报");
+        }
+        String name2 = r.assistantName == null || r.assistantName.isBlank() ? r.workerName : r.assistantName;
+        Map<String, Object> body = platformClient.uploadLegacyRecord(payload, r.workerName, name2);
+        r.reportStatus = "REPORTED";
+        r.retryCount = (r.retryCount == null ? 0 : r.retryCount) + 1;
+        recordMapper.updateById(r);
+        log(r, "LEGACY", "200", str(body.get("message")), "SUCCESS", digest(payload));
+        return "REPORTED";
     }
 
     private String upload(MaintainRecord r, String action) {
