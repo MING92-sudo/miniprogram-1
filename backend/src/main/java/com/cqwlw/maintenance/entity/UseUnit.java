@@ -12,6 +12,7 @@ public class UseUnit {
     @TableId
     public String id;
     public String unitName;
+    public String organizationCode;
     public String unitPrincipal;
     public String unitPrincipalPhone;
     public String elevatorAdminister;

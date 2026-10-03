@@ -83,6 +83,7 @@ class AdminArchiveServiceTest {
         Map<String, Object> result = null;
         BizException e = assertThrows(BizException.class, () -> service.createUseUnit(Map.of(
                 "unitName", "新物业",
+                "organizationCode", "91500000TEST0001X",
                 "unitPrincipalPhone", "13930003002",   // 与既有使用单位负责人同号
                 "elevatorAdministerPhone", "13800000001" // 与维保人员同号
         )));
@@ -96,6 +97,7 @@ class AdminArchiveServiceTest {
     void createUseUnitHappyPathInserts() {
         Map<String, Object> row = service.createUseUnit(Map.of(
                 "unitName", "新物业",
+                "organizationCode", "91500000TEST0001X",
                 "unitPrincipal", "李雷",
                 "unitPrincipalPhone", "13900001111",
                 "elevatorAdministerPhone", "13900002222",

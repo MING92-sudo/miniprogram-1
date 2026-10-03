@@ -147,8 +147,8 @@ public class DemoDataSeeder implements ApplicationRunner {
                 "", "", "", 0, enc);
 
         // ── 使用单位 ──
-        useUnit("uu_1", "重庆世纪物业管理有限公司", "刘建国", "13910001001", "王芳", "13800000003", "02367612345");
-        useUnit("uu_2", "重庆蓝湾物业服务有限公司", "周涛", "13930003002", "吴静", "13800003005", "02367991234");
+        useUnit("uu_1", "重庆世纪物业管理有限公司", "91500106MAABU3796N", "刘建国", "13910001001", "王芳", "13800000003", "02367612345");
+        useUnit("uu_2", "重庆蓝湾物业服务有限公司", "91500106MAABU3797P", "周涛", "13930003002", "吴静", "13800003005", "02367991234");
 
         // ── 电梯（平台 2.7 回填字段 + 本地字段 + 维保绑定） ──
         elevator("el_1", "EM-2024-001", "世纪大厦 1# 客梯", "渝北区龙山一路 88 号世纪大厦",
@@ -306,11 +306,12 @@ public class DemoDataSeeder implements ApplicationRunner {
         return e;
     }
 
-    private void useUnit(String id, String unitName, String principal, String principalPhone,
+    private void useUnit(String id, String unitName, String organizationCode, String principal, String principalPhone,
                          String administer, String administerPhone, String emergencyPhone) {
         UseUnit u = new UseUnit();
         u.id = id;
         u.unitName = unitName;
+        u.organizationCode = organizationCode;
         u.unitPrincipal = principal;
         u.unitPrincipalPhone = principalPhone;
         u.elevatorAdminister = administer;

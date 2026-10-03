@@ -98,8 +98,8 @@ public class AdminArchiveService {
     }
 
     public Map<String, Object> createUseUnit(Map<String, Object> body) {
-        if (str(body, "unitName").isBlank()) {
-            throw new BizException(422, "使用单位名称必填");
+        if (str(body, "unitName").isBlank() || str(body, "organizationCode").isBlank()) {
+            throw new BizException(422, "使用单位名称与统一社会信用代码必填");
         }
         UseUnit u = new UseUnit();
         u.id = Ids.next("uu");
@@ -357,6 +357,9 @@ public class AdminArchiveService {
         if (body.get("unitName") != null) {
             u.unitName = str(body, "unitName");
         }
+        if (body.get("organizationCode") != null) {
+            u.organizationCode = str(body, "organizationCode");
+        }
         if (body.get("unitPrincipal") != null) {
             u.unitPrincipal = str(body, "unitPrincipal");
         }
@@ -514,6 +517,7 @@ public class AdminArchiveService {
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("id", u.id);
         m.put("unitName", nz(u.unitName));
+        m.put("organizationCode", nz(u.organizationCode));
         m.put("unitPrincipal", nz(u.unitPrincipal));
         m.put("unitPrincipalPhone", nz(u.unitPrincipalPhone));
         m.put("elevatorAdminister", nz(u.elevatorAdminister));
@@ -734,10 +738,11 @@ public class AdminArchiveService {
         if (u == null) {
             throw new BizException(1404, "使用单位不存在：" + id);
         }
-        Company c = companyMapper.selectList(null).stream().findFirst()
-                .orElseThrow(() -> new BizException(422, "请先维护维保单位档案（organizationCode 必填）"));
-        return syncEntityId(c.organizationCode, u.unitName, () -> {
-            u.entityId = platformClient.queryEntityId(c.organizationCode, u.unitName);
+        if (u.organizationCode == null || u.organizationCode.isBlank()) {
+            throw new BizException(422, "该使用单位未填统一社会信用代码，请先在档案中补填");
+        }
+        return syncEntityId(u.organizationCode, u.unitName, () -> {
+            u.entityId = platformClient.queryEntityId(u.organizationCode, u.unitName);
             useUnitMapper.updateById(u);
             return u.entityId;
         });

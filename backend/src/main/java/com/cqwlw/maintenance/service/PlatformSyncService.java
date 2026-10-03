@@ -162,8 +162,8 @@ public class PlatformSyncService {
             n++;
         }
         for (UseUnit u : useUnitMapper.selectList(null)) {
-            if (u.unitName != null && c != null && c.organizationCode != null) {
-                u.entityId = platformClient.queryEntityId(c.organizationCode, u.unitName);
+            if (u.unitName != null && u.organizationCode != null) {
+                u.entityId = platformClient.queryEntityId(u.organizationCode, u.unitName);
                 useUnitMapper.updateById(u);
                 n++;
             }

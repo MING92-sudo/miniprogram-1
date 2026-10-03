@@ -7,6 +7,7 @@
 
     <el-table :data="rows" v-loading="loading" stripe>
       <el-table-column prop="unitName" label="使用单位" min-width="180" show-overflow-tooltip />
+      <el-table-column prop="organizationCode" label="统一社会信用代码" min-width="180" show-overflow-tooltip />
       <el-table-column prop="unitPrincipal" label="负责人" width="100" />
       <el-table-column prop="unitPrincipalPhone" label="负责人手机" width="130" />
       <el-table-column prop="elevatorAdminister" label="安全管理员" width="110" />
@@ -28,6 +29,7 @@
     <el-dialog v-model="dialog" :title="form.id ? '编辑使用单位' : '新建使用单位'" width="520px">
       <el-form :model="form" label-width="130px">
         <el-form-item label="单位名称" required><el-input v-model="form.unitName" /></el-form-item>
+        <el-form-item label="统一社会信用代码" required><el-input v-model="form.organizationCode" placeholder="平台 2.2 主体查询必填" /></el-form-item>
         <el-form-item label="负责人"><el-input v-model="form.unitPrincipal" /></el-form-item>
         <el-form-item label="负责人手机">
           <el-input v-model="form.unitPrincipalPhone" />
@@ -58,7 +60,7 @@ const loading = ref(false)
 const dialog = ref(false)
 const saving = ref(false)
 const form = reactive({ id: '', unitName: '', unitPrincipal: '', unitPrincipalPhone: '',
-  elevatorAdminister: '', elevatorAdministerPhone: '', emergencyPhone: '' })
+  organizationCode: '', elevatorAdminister: '', elevatorAdministerPhone: '', emergencyPhone: '' })
 
 /** 2.2 单主体同步（docs/09 V3.1 ④） */
 async function onSyncEntity(row) {
@@ -88,7 +90,7 @@ async function load() {
 
 function openCreate() {
   Object.assign(form, { id: '', unitName: '', unitPrincipal: '', unitPrincipalPhone: '',
-    elevatorAdminister: '', elevatorAdministerPhone: '', emergencyPhone: '' })
+    organizationCode: '', elevatorAdminister: '', elevatorAdministerPhone: '', emergencyPhone: '' })
   dialog.value = true
 }
 
