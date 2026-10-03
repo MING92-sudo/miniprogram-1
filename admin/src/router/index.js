@@ -17,6 +17,7 @@ const UseUnitsView = () => import('../views/UseUnitsView.vue')
 const EmployeesView = () => import('../views/EmployeesView.vue')
 const ElevatorsView = () => import('../views/ElevatorsView.vue')
 const ScheduleView = () => import('../views/ScheduleView.vue')
+const TemplateManageView = () => import('../views/TemplateManageView.vue')
 const RegisterRelationsView = () => import('../views/RegisterRelationsView.vue')
 const RegisterWorkersView = () => import('../views/RegisterWorkersView.vue')
 const ForbiddenView = () => import('../views/ForbiddenView.vue')
@@ -35,7 +36,8 @@ export const routes = [
       { path: 'orders/:id', component: OrderDetailView, meta: { title: '工单详情' } },
       { path: 'reports/failed', component: FailedRecordsView, meta: { title: '上报异常清单' } },
       { path: 'reports/logs', component: UploadLogsView, meta: { title: '上报日志' } },
-      { path: 'schedule', component: ScheduleView, meta: { title: '计划调度' } },
+  { path: 'schedule', component: ScheduleView, meta: { title: '计划调度' } },
+  { path: 'templates', component: TemplateManageView, meta: { title: '模板管理' } },
       { path: 'archive/company', component: CompanyView, meta: { title: '维保单位档案' } },
       { path: 'archive/use-units', component: UseUnitsView, meta: { title: '使用单位档案' } },
       { path: 'archive/employees', component: EmployeesView, meta: { title: '人员档案' } },

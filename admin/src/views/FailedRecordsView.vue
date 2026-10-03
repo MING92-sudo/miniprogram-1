@@ -14,6 +14,7 @@
                       start-placeholder="开始日期" end-placeholder="结束日期" style="width: 240px" />
       <el-input v-model="query.keyword" placeholder="人员 / 电梯 / 记录号" clearable style="width: 200px" />
       <el-button type="primary" @click="load(1)">查询</el-button>
+      <el-button :loading="syncing" :disabled="!auth.canWrite" @click="onSync">同步本地档案</el-button>
     </div>
 
     <el-alert type="warning" :closable="false" class="tip"
@@ -98,10 +99,25 @@
 import { reactive, ref, onMounted } from 'vue'
 import { useAuthStore } from '../stores/auth'
 import * as reportApi from '../api/report'
+import * as platformApi from '../api/platform'
 import { REPORT_STATUS } from '../constants'
 import { showErr, ok, downloadBlob } from '../utils/ui'
 
 const auth = useAuthStore()
+const syncing = ref(false)
+
+async function onSync() {
+  syncing.value = true
+  try {
+    const res = await platformApi.sync()
+    ok(`本地档案已同步：回填 platform_id ${res.workerSynced ?? 0} 人`)
+    await load(1)
+  } catch (e) {
+    showErr(e)
+  } finally {
+    syncing.value = false
+  }
+}
 const query = reactive({ page: 1, size: 20, reportStatus: 'FAILED', confirmStatus: '', keyword: '' })
 const range = ref(null)
 const rows = ref([])

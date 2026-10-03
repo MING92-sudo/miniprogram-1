@@ -4,7 +4,6 @@
       <span>人员管理</span>
       <div>
         <el-button size="small" :loading="polling" @click="refreshPlatform">刷新平台名单</el-button>
-        <el-button size="small" :loading="syncing" :disabled="!auth.canWrite" @click="onSync">同步本地档案</el-button>
         <el-button type="primary" size="small" :disabled="!auth.canWrite" @click="openNew">登记维保人员</el-button>
       </div>
     </div>
@@ -78,7 +77,6 @@ import { useAuthStore } from '../stores/auth'
 const auth = useAuthStore()
 const saving = ref(false)
 const polling = ref(false)
-const syncing = ref(false)
 const dialog = ref(false)
 const terminateDialog = ref(false)
 const platformList = ref([])
@@ -104,17 +102,6 @@ async function refreshPlatform() {
   }
 }
 
-async function onSync() {
-  syncing.value = true
-  try {
-    const res = await platformApi.sync()
-    ok(`本地档案已同步：回填 platform_id ${res.workerSynced ?? 0} 人`)
-  } catch (e) {
-    showErr(e)
-  } finally {
-    syncing.value = false
-  }
-}
 
 function openTerminate(row) {
   terminateRow.value = row

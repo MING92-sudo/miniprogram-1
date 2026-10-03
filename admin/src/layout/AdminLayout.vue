@@ -13,6 +13,9 @@
         <el-menu-item index="/schedule">
           <el-icon><Tickets /></el-icon><span>计划调度</span>
         </el-menu-item>
+        <el-menu-item index="/templates">
+          <el-icon><List /></el-icon><span>模板管理</span>
+        </el-menu-item>
         <el-sub-menu index="monitor">
           <template #title><el-icon><Refresh /></el-icon><span>工单监控</span></template>
           <el-menu-item index="/orders"><span>工单列表</span></el-menu-item>
@@ -59,7 +62,7 @@
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import {
-  Odometer, Tickets, Refresh, Notebook
+Odometer, Tickets, Refresh, Notebook, List
 } from '@element-plus/icons-vue'
 import { useAuthStore } from '../stores/auth'
 import { ROLE_TEXT } from '../constants'
