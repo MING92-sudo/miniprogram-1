@@ -5,7 +5,13 @@
   </view>
 
   <view class="em-card">
-    <view class="section-title">作业时长</view>
+<view class="section-title">检查项完成度</view>
+<view class="self-check {{checkBlocked ? 'self-check-bad' : ''}}">
+  {{checkDone}}/{{checkTotal}} 项已填写（{{naCount}} 项无需执行）
+  <view wx:for="{{keyIssues}}" wx:key="*this" style="color:#e34d59">关键项「{{item}}」须至少附 1 张照片（TSG 注A-2）</view>
+</view>
+
+<view class="section-title">作业时长</view>
     <view class="info-row"><text>签到时间</text><text>{{checkinTime || '-'}}</text></view>
     <view class="info-row">
       <text>已作业时长</text>
@@ -45,8 +51,8 @@
   </view>
 
   <view class="em-card">
-    <button class="em-btn-primary" disabled="{{submitting || !durationOk}}" bindtap="onSubmit">
-      {{!durationOk ? '作业时长不足 ' + minMinutes + ' 分钟' : submitting ? '提交中...' : '提交签退'}}
+    <button class="em-btn-primary" disabled="{{submitting || !durationOk || checkBlocked}}" bindtap="onSubmit">
+    {{checkBlocked ? '检查项未全部完成，无法签退' : !durationOk ? '作业时长不足 ' + minMinutes + ' 分钟' : submitting ? '提交中...' : '提交签退'}}
     </button>
     <view class="em-text-secondary submit-tip">提交后生成维保记录（含 2.6 上报快照），并上报监管平台</view>
   </view>

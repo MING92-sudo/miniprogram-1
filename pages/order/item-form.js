@@ -154,6 +154,19 @@ Page({
     if (this.data.result !== 'NA' && item.judgeType === 'NUMERIC' && this.data.value === '') {
       return '读数型检查项请填写测量读数'
     }
+    // 数值型标准限值（模板 valueMin/valueMax，随品种变化）：超限不得按"正常"保存
+    if (this.data.result === 'NORMAL' && item.judgeType === 'NUMERIC' && this.data.value !== '') {
+      const v = Number(this.data.value)
+      if (!Number.isNaN(v)) {
+        const min = item.valueMin == null || item.valueMin === '' ? null : Number(item.valueMin)
+        const max = item.valueMax == null || item.valueMax === '' ? null : Number(item.valueMax)
+        if ((min != null && v < min) || (max != null && v > max)) {
+          return '读数 ' + this.data.value + ' 超出标准范围（' +
+            (min == null ? '—' : min) + ' ~ ' + (max == null ? '—' : max) +
+            (item.valueUnit || '') + '）：请核实读数，确属异常请选择"异常"并附照片'
+        }
+      }
+    }
     // 照片校验与后端 mock/server.js 完全对齐（避免前端放行、后端 422 打回的体验割裂）：
     // ① 任何异常项必须附照片；② 关键项（试验/测试/校验/检测，TSG 注A-2）执行（非NA）必须附照片
     if (this.data.result === 'ABNORMAL') {

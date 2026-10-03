@@ -91,3 +91,16 @@
 .duration-tip {
   margin-top: 8rpx;
 }
+
+.self-check {
+  font-size: 28rpx;
+  color: #1a1a1a;
+  background: #f5f6f7;
+  border-radius: 12rpx;
+  padding: 20rpx 24rpx;
+}
+
+.self-check-bad {
+  color: #e34d59;
+  background: #fdecec;
+}

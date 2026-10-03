@@ -1,7 +1,7 @@
 // 签退自检：自检项确认 + 签名 + 提交
 // 业务规则：签到—签退间隔不少于 N 分钟（config.minWorkDurationMinutes，前后端双重校验）
 // 提交后触发记录生成与监管平台上报（后端）
-const { getOrderDetail, checkout } = require('../../services/order')
+const { getOrderDetail, getChecklist, checkout } = require('../../services/order')
 const { uploadImage } = require('../../services/upload')
 const { formatTime, formatDuration, parseTime } = require('../../utils/util')
 const config = require('../../config/index')
@@ -25,12 +25,44 @@ Page({
     signature: '',
     assistantSignature: '',
     hasAssistant: false, // 工单配有配合人员时需双人签字（docs/04 A.2 签退自检）
+    checkDone: 0,
+    checkTotal: 0,
+    naCount: 0,
+    keyIssues: [], // 关键项执行/异常但未拍照（TSG 注A-2，签退拦截）
+    checkBlocked: true, // 检查项未全部填写时灰置提交（docs/03 §5.7）
     submitting: false
   },
 
   onLoad(query) {
     this.setData({ orderId: query.orderId || '' })
     this.fetchOrder()
+  },
+
+  onShow() {
+    // 从检查项页返回后刷新完成度预检（docs/03 §5.7：N/M 完成 + 关键项未拍照红色列出）
+    if (this.data.orderId) this.refreshCheckState()
+  },
+
+  async refreshCheckState() {
+    try {
+      const cl = await getChecklist(this.data.orderId)
+      const items = cl.items || []
+      const mustRun = items.filter((i) => !i.notInThisRun)
+      const done = mustRun.filter((i) => i.result).length
+      const keyIssues = mustRun
+        .filter((i) => i.isKey && i.photoRequired && i.result && i.result !== 'NA'
+          && !(i.photoFileIds || []).length && !(i.photos || []).length)
+        .map((i) => i.name)
+      this.setData({
+        checkDone: done,
+        checkTotal: mustRun.length,
+        naCount: items.length - mustRun.length,
+        keyIssues,
+        checkBlocked: done < mustRun.length || keyIssues.length > 0
+      })
+    } catch (e) {
+      // 预检失败不拦截签退（后端 1003/422 兜底）
+    }
   },
 
   onUnload() {

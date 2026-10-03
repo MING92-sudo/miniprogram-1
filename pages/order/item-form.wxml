@@ -33,6 +33,9 @@
     <view class="form-label">测量读数{{item.valueUnit ? '（' + item.valueUnit + '）' : ''}}</view>
     <input class="read-input" type="digit" value="{{value}}" bindinput="onValueInput" placeholder="填写本次测量值" />
     <view class="em-text-secondary read-tip">要求：{{item.requirement}}</view>
+    <view wx:if="{{item.valueMin || item.valueMax}}" class="em-text-secondary read-tip">
+      标准范围：{{item.valueMin || '—'}} ~ {{item.valueMax || '—'}}{{item.valueUnit || ''}}
+    </view>
   </view>
 
   <!-- 按本机说明书判定（judgeType=MANUFACTURER） -->
