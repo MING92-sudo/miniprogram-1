@@ -7,7 +7,7 @@
                    @click="openBatch">批量分配维保人员</el-button>
         <el-button size="small" type="warning" :disabled="!auth.canWrite || !selection.length"
                    @click="openBatchGeo">批量导入经纬度</el-button>
-        <el-button size="small" :loading="syncing" :disabled="!auth.canWrite" @click="onSync">平台回填（2.7）</el-button>
+      <el-button size="small" :loading="syncing" :disabled="!auth.canWrite" @click="onSync">平台回填</el-button>
         <el-button type="primary" size="small" :disabled="!auth.canWrite" @click="openCreate">新建电梯</el-button>
       </div>
     </div>
@@ -89,13 +89,13 @@
 <el-form-item label="设备代码">
   <el-input v-model="form.deviceCode">
     <template #append v-if="!form.id">
-      <el-button :loading="querying" @click="queryFromPlatform">平台查询(2.7)</el-button>
+      <el-button :loading="querying" @click="queryFromPlatform">平台查询</el-button>
     </template>
   </el-input>
 </el-form-item>
         <el-form-item label="出厂编号"><el-input v-model="form.factoryNumber" placeholder="设备铭牌（选填，亦可作2.7查询条件）" /></el-form-item>
         <el-form-item label="单位内编号" required>
-          <el-input v-model="form.insideNumber" placeholder="使用单位内自编号（2.6 上报必填）" />
+          <el-input v-model="form.insideNumber" placeholder="使用单位内自编号（上报必填）" />
         </el-form-item>
         <el-form-item label="安全管理员">
           <el-input v-model="form.elevatorAdminister" placeholder="2.7 查询后自动回填，可修正" />

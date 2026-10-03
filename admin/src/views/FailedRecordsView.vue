@@ -17,7 +17,7 @@
     </div>
 
     <el-alert type="warning" :closable="false" class="tip"
-              title="originalRecordId 幂等性未获平台书面确认：重报仅可逐条人工触发，禁止批量自动重试（AGENTS §2.3）" />
+              title="重报仅可逐条人工触发，暂不支持批量自动重试" />
 
     <el-table :data="rows" v-loading="loading" stripe>
       <el-table-column prop="elevatorName" label="电梯" min-width="140" show-overflow-tooltip />

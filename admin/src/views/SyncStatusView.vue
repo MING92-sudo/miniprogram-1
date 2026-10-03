@@ -5,11 +5,11 @@
         <div class="head">
           <span>平台同步状态</span>
           <el-button type="primary" size="small" :loading="syncing" :disabled="!auth.canWrite"
-                     @click="onSync">触发同步（2.2 / 2.5 / 2.7）</el-button>
+                     @click="onSync">触发同步</el-button>
         </div>
       </template>
       <el-alert v-if="status && !status.platformConfigured" type="error" :closable="false"
-                title="监管平台凭证未配置（REG_* 环境变量仅在云托管服务设置中配置，管理端不提供凭证界面，AGENTS §2.1）"
+                title="监管平台凭证未配置，需在云托管服务环境变量中设置 REG_*，管理端不提供凭证界面"
                 class="mb12" />
       <el-row :gutter="12">
         <el-col :span="6">
@@ -60,7 +60,7 @@
     <el-card shadow="never" class="mt12">
       <template #header>
         <div class="head">
-          <span>平台人员列表（2.5 · 单位维保人员查询，只读）</span>
+      <span>平台人员列表（只读）</span>
           <el-button size="small" :loading="workersLoading" :disabled="!auth.canRead"
                      @click="loadPlatformWorkers">查询平台人员</el-button>
         </div>
@@ -75,7 +75,7 @@
     <el-row :gutter="12" class="mt12">
       <el-col :span="12">
         <el-card shadow="never">
-          <template #header>服务关系登记（2.3 · contractFile 必填）</template>
+      <template #header>服务关系登记（合同文件必填）</template>
           <el-form label-width="110px" size="small">
             <el-form-item label="使用单位" required>
               <el-select v-model="svc.unitId" filterable placeholder="选择使用单位（自动带出 entityID）" style="width: 100%"
@@ -106,7 +106,7 @@
       </el-col>
       <el-col :span="12">
         <el-card shadow="never">
-          <template #header>维保人员登记（2.4 · certificateFile 必填）</template>
+      <template #header>维保人员登记（证书文件必填）</template>
           <el-form label-width="110px" size="small">
             <el-form-item label="人员" required>
               <el-select v-model="wk.empId" filterable placeholder="选择维保人员（自动带出证书/手机号/工期）"
@@ -202,7 +202,7 @@ async function submitService() {
       serviceEndDate: svc.value.dates[1],
       contractFile: svc.value.file,
     })
-    ok('服务关系登记成功（2.3）')
+          ok('服务关系登记成功')
   } catch (e) {
     showErr(e)
   } finally {
@@ -222,7 +222,7 @@ async function submitWorker() {
       changState: 0,
       certificateFile: wk.value.file,
     })
-    ok('维保人员登记成功（2.4），请触发同步回填 platform_id')
+          ok('维保人员登记成功，请触发同步回填 platform_id')
     await load()
   } catch (e) {
     showErr(e)

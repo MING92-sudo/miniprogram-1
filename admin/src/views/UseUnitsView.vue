@@ -35,9 +35,7 @@
         <el-form-item label="安全管理员"><el-input v-model="form.elevatorAdminister" /></el-form-item>
         <el-form-item label="安全员手机"><el-input v-model="form.elevatorAdministerPhone" /></el-form-item>
         <el-form-item label="应急电话"><el-input v-model="form.emergencyPhone" /></el-form-item>
-        <div class="tip">
-          负责人 / 安全管理员手机参与五类互斥（docs/01 §3.2.4）；冲突时返回 1002 与具体角色对；应急电话不参与。
-        </div>
+        <div class="tip">负责人 / 安全管理员手机参与五类互斥，应急电话不参与</div>
       </el-form>
       <template #footer>
         <el-button @click="dialog = false">取消</el-button>

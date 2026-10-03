@@ -33,7 +33,6 @@
 
     <el-pagination class="pager" layout="total, prev, pager, next" :total="total"
                    :page-size="query.size" :current-page="query.page" @current-change="load" />
-    <div class="note">摘要为脱敏快照（不含 token/明文手机号），仅作排障参考（AGENTS §2.4）</div>
   </el-card>
 </template>
 

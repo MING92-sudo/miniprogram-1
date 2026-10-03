@@ -1,7 +1,7 @@
 <template>
   <el-card shadow="never">
     <div class="head">
-      <span>服务关系维护（2.3：使用单位 ↔ 维保单位；multipart + contractFile，docs/07 实测口径）</span>
+      <span>服务关系维护</span>
       <el-button type="primary" size="small" :disabled="!auth.canWrite" @click="openNew(null)">新建服务关系</el-button>
     </div>
 
@@ -11,16 +11,13 @@
       <el-table-column prop="elevatorCount" label="在保电梯数" width="100" />
       <el-table-column label="操作" width="200" fixed="right">
         <template #default="{ row }">
-          <el-button link type="primary" :disabled="!auth.canWrite" @click="openNew(row)">登记 2.3</el-button>
-          <el-button link type="danger" :disabled="!auth.canWrite" @click="onTerminate(row)">终止（changState=1）</el-button>
+          <el-button link type="primary" :disabled="!auth.canWrite" @click="openNew(row)">登记</el-button>
+          <el-button link type="danger" :disabled="!auth.canWrite" @click="onTerminate(row)">终止</el-button>
         </template>
       </el-table-column>
     </el-table>
 
-    <el-alert type="info" :closable="false" class="tip"
-              title="平台 2.3 无查询接口：登记/终止记录以 reg_upload_log（action=REGISTER）为准，可在【上报日志】页查询；终止与新建同一端点，仅 changState 不同（docs/04 A.0.2）" />
-
-    <el-dialog v-model="dialog" :title="terminateMode ? '终止服务关系（2.3 changState=1）' : '新建服务关系（2.3）'" width="560px">
+    <el-dialog v-model="dialog" :title="terminateMode ? '终止服务关系' : '新建服务关系'" width="560px">
       <el-form label-width="140px">
         <el-form-item label="使用单位">
           <el-select v-if="!terminateMode" v-model="form.useUnitName" filterable style="width: 100%" @change="onUnitChange">
@@ -29,13 +26,12 @@
           <el-input v-else v-model="form.useUnitName" disabled />
         </el-form-item>
         <el-form-item label="使用单位主体ID" required>
-          <el-input v-model="form.useUnitEntityID" placeholder="为空请先到【使用单位档案】点“同步主体ID（2.2）”" />
+          <el-input v-model="form.useUnitEntityID" placeholder="为空请先到【使用单位档案】点“同步主体ID”" />
         </el-form-item>
         <el-form-item label="服务开始日期" required><el-date-picker v-model="form.serviceStartDate" type="date" value-format="YYYY-MM-DD" /></el-form-item>
         <el-form-item label="服务结束日期" required><el-date-picker v-model="form.serviceEndDate" type="date" value-format="YYYY-MM-DD" /></el-form-item>
         <el-form-item label="合同文件" required>
           <input type="file" @change="onFile" />
-          <div class="tip">contractFile 必填（平台 2.3 multipart 实测口径，建立/终止一致）</div>
         </el-form-item>
       </el-form>
       <template #footer>
@@ -113,7 +109,7 @@ async function save() {
       contractFile
     })
     dialog.value = false
-    ok(terminateMode.value ? '2.3 终止请求已提交（changState=1）' : '2.3 登记成功')
+          ok(terminateMode.value ? '终止请求已提交' : '登记成功')
   } catch (e) {
     showErr(e)
   } finally {

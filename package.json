@@ -7,7 +7,6 @@
     "lint": "eslint ."
   },
   "devDependencies": {
-    "eslint": "^8.57.1",
-    "miniprogram-ci": "^2.1.31"
+    "eslint": "^8.57.1"
   }
 }
