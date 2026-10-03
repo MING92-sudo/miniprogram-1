@@ -27,6 +27,7 @@ jobs:
       DB_NAME: maintenance
       DB_USERNAME: root
       DB_PASSWORD: root
+      # CI 专用占位值（仅用于让上下文启动/单测通过）：严禁在任何真实环境复用；生产走云托管环境变量（AGENTS §2.1）
       APP_JWT_SECRET: ci-only-secret-key-with-32-characters-min
       APP_FILE_ROOT: /tmp/maintenance-files
       DB_SEED_DEMO: true

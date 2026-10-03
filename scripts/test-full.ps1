@@ -52,7 +52,7 @@ $r23 = (& curl.exe -sS -k -m 30 -X POST `
     -F 'changState=0' `
     -F 'serviceStartDate=2026-09-30' `
     -F 'serviceEndDate=2027-12-31' `
-    -F ('contractFile=@' + (Join-Path $PSScriptRoot 'tmp\contract-test.pdf') + ';type=application/pdf') `
+    -F ('contractFile=@' + (Join-Path $PSScriptRoot 'fixtures\contract-test.pdf') + ';type=application/pdf') `
     -w '__HTTP__%{http_code}' ($mroot + '/entity/updateServiceState') 2>&1) -join "`n"
 Write-Host ('  resp=' + ($r23 -replace '\s+',' '))
 
@@ -73,7 +73,7 @@ $r24 = (& curl.exe -sS -k -m 30 -X POST `
     -F 'workEndDate=2027-11-04' `
     -F 'changState=0' `
     -F 'workManPhone=13800000001' `
-    -F ('certificateFile=@' + (Join-Path $PSScriptRoot 'tmp\cert-test.pdf') + ';type=application/pdf') `
+    -F ('certificateFile=@' + (Join-Path $PSScriptRoot 'fixtures\cert-test.pdf') + ';type=application/pdf') `
     -w '__HTTP__%{http_code}' ($mroot + '/entity/updateWorkState') 2>&1) -join "`n"
 Write-Host ('  resp=' + ($r24 -replace '\s+',' '))
 
