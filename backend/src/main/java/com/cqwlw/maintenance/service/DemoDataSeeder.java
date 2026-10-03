@@ -56,6 +56,11 @@ public class DemoDataSeeder implements ApplicationRunner {
     private static final String PID_ZHANGWEI = "6901282369105174537";
     private static final String PID_CHENGANG = "990002";
     private static final String PID_LIQIANG = "6901284774286860288";
+    /**
+     * 演示班组（与 mock/data.js 的 groupName 一致）。班组数据权限（V7）按 group_name 归组：
+     * 组长可见本组员工工单；缺失时 sameGroup() 只返回自己，陈刚(LEADER) 登录后工单列表恒为空。
+     */
+    private static final String DEMO_GROUP = "维保一班";
 
     private final AppProperties props;
     private final CompanyMapper companyMapper;
@@ -126,19 +131,19 @@ public class DemoDataSeeder implements ApplicationRunner {
         companyMapper.insert(c);
 
         // ── 演示账号 ──
-        employee("emp_1", "张伟", "13800000001", "WORKER", "维保人员",
+        employee("emp_1", "张伟", "13800000001", "WORKER", "维保人员", DEMO_GROUP,
                 PID_ZHANGWEI, "CQ3601030001", "2024-03-01", 400, enc);
-        employee("emp_2", "陈刚", "13800000002", "LEADER", "班组长",
+        employee("emp_2", "陈刚", "13800000002", "LEADER", "班组长", DEMO_GROUP,
                 PID_CHENGANG, "CQ3601030002", "2023-06-01", 250, enc);
-        employee("emp_3", "李强", "13800000004", "WORKER", "维保人员",
+        employee("emp_3", "李强", "13800000004", "WORKER", "维保人员", DEMO_GROUP,
                 PID_LIQIANG, "CQ3601030003", "2024-08-01", 500, enc);
-        employee("unit_1", "王芳", "13800000003", "UNIT_ADMIN", "使用单位安全管理员",
+        employee("unit_1", "王芳", "13800000003", "UNIT_ADMIN", "使用单位安全管理员", "",
                 "", "", "", 0, enc);
 
         // ── 管理端演示账号（docs/09 §五：种子新增 ADMIN；账号/初始密码见 README）──
-        employee("emp_admin", "郑浩", "13800000009", "ADMIN", "维保部管理员",
+        employee("emp_admin", "郑浩", "13800000009", "ADMIN", "维保部管理员", "",
                 "", "", "", 0, enc);
-        employee("emp_sys", "系统管理员", "13800000010", "SYS_ADMIN", "系统管理员",
+        employee("emp_sys", "系统管理员", "13800000010", "SYS_ADMIN", "系统管理员", "",
                 "", "", "", 0, enc);
 
         // ── 使用单位 ──
@@ -279,8 +284,8 @@ public class DemoDataSeeder implements ApplicationRunner {
     }
 
     private Employee employee(String id, String name, String phone, String role, String roleText,
-                              String platformId, String certificate, String workStartDate,
-                              int workEndInDays, BCryptPasswordEncoder enc) {
+                              String groupName, String platformId, String certificate,
+                              String workStartDate, int workEndInDays, BCryptPasswordEncoder enc) {
         Employee e = new Employee();
         e.id = id;
         e.name = name;
@@ -289,6 +294,7 @@ public class DemoDataSeeder implements ApplicationRunner {
         e.passwordHash = enc.encode("123456");
         e.role = role;
         e.roleText = roleText;
+        e.groupName = groupName;
         e.openid = null;
         e.platformId = platformId;
         e.certificate = certificate;

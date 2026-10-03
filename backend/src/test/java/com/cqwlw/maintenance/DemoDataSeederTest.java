@@ -42,6 +42,7 @@ import static org.mockito.Mockito.when;
  * 演示种子数据一致性：电梯绑定 / 工单 / 维保记录上的作业人员 platformId
  * 必须来自人员档案（employee 种子），否则班组数据权限（V7）按 platformId 过滤后
  * 作业人员登录看不到自己的工单，签到→清单→签退整条链路走不通。
+ * 同理，班组长 group_name 缺失会让 sameGroup() 只返回自己 → 组长视角工单恒为 0（V7 无法验收）。
  */
 class DemoDataSeederTest {
 
@@ -107,6 +108,39 @@ class DemoDataSeederTest {
         Set<String> unknown = new HashSet<>(used);
         unknown.removeAll(known);
         assertTrue(unknown.isEmpty(), "以下 platformId 不属于任何人员档案，作业人员将看不到对应工单：" + unknown);
+    }
+
+    /** 班组长（陈刚）可见范围 = 本班组全部人员的 platformId，必须覆盖种子里工单用到的作业人员 */
+    @Test
+    void seededLeaderGroupCoversAllSeededOrderWorkers() throws Exception {
+        seeder.run(null);
+
+        ArgumentCaptor<Employee> employees = ArgumentCaptor.forClass(Employee.class);
+        verify(employeeMapper, atLeastOnce()).insert(employees.capture());
+        Employee leader = employees.getAllValues().stream()
+                .filter(e -> "LEADER".equals(e.role)).findFirst().orElse(null);
+        assertTrue(leader != null, "种子应含班组长账号（LEADER）");
+        assertTrue(leader.groupName != null && !leader.groupName.isBlank(),
+                "班组长缺 group_name：sameGroup() 只返回自己，V7 组长视角看不到任何工单");
+
+        Set<String> groupPlatformIds = employees.getAllValues().stream()
+                .filter(e -> leader.groupName.equals(e.groupName))
+                .map(e -> e.platformId)
+                .filter(pid -> pid != null && !pid.isBlank())
+                .collect(Collectors.toSet());
+
+        ArgumentCaptor<WorkOrder> orders = ArgumentCaptor.forClass(WorkOrder.class);
+        verify(orderMapper, atLeastOnce()).insert(orders.capture());
+        List<String> used = new ArrayList<>();
+        orders.getAllValues().forEach(o -> {
+            collect(used, o.workerPlatformId);
+            collect(used, o.assistantPlatformId);
+        });
+        assertFalse(used.isEmpty(), "种子工单应带作业人员平台ID，否则用例形同虚设");
+
+        Set<String> invisible = new HashSet<>(used);
+        invisible.removeAll(groupPlatformIds);
+        assertTrue(invisible.isEmpty(), "班组长可见范围未覆盖以下工单作业人员：" + invisible);
     }
 
     private void collect(List<String> into, String platformId) {

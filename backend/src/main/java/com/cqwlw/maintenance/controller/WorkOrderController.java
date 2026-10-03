@@ -17,7 +17,8 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 工单与现场作业（docs/04 A.2）：签到/双人动态码/清单/签退均带幂等键去重（AGENTS §3）。
+ * 工单与现场作业（docs/04 A.2）：签到/双人动态码/清单/签退均带幂等键去重（AGENTS §3）；
+ * 详情与现场作业端点一律把登录人 empId 交给服务层校验工单归属（V7 班组数据权限，AGENTS §6）。
  */
 @RestController
 public class WorkOrderController {
@@ -69,12 +70,13 @@ public class WorkOrderController {
 
     @PostMapping("/work-orders/{id}/checkin")
     public ApiResponse<Object> checkin(@PathVariable String id, @RequestBody Map<String, Object> body,
-                                       @RequestHeader(value = "X-Idempotency-Key", required = false) String idemKey) {
+                                       @RequestHeader(value = "X-Idempotency-Key", required = false) String idemKey,
+                                       HttpServletRequest request) {
         IdempotencyService.Guard guard = idempotencyService.begin(idemKey, "/work-orders/checkin");
         if (guard.replayed()) {
             return ApiResponse.ok(guard.replayedResult());
         }
-        Map<String, Object> result = workOrderService.checkin(id, body);
+        Map<String, Object> result = workOrderService.checkin(id, body, empId(request));
         guard.commit(result);
         return ApiResponse.ok(result);
     }
@@ -86,36 +88,39 @@ public class WorkOrderController {
     }
 
     @GetMapping("/work-orders/{id}/checklist")
-    public ApiResponse<Map<String, Object>> checklist(@PathVariable String id) {
-        return ApiResponse.ok(workOrderService.getChecklist(id));
+    public ApiResponse<Map<String, Object>> checklist(@PathVariable String id, HttpServletRequest request) {
+        return ApiResponse.ok(workOrderService.getChecklist(id, empId(request)));
     }
 
     @PostMapping("/work-orders/{id}/checklist/{itemId}")
     public ApiResponse<Object> submitItem(@PathVariable String id, @PathVariable String itemId,
                                           @RequestBody Map<String, Object> body,
-                                          @RequestHeader(value = "X-Idempotency-Key", required = false) String idemKey) {
+                                          @RequestHeader(value = "X-Idempotency-Key", required = false) String idemKey,
+                                          HttpServletRequest request) {
         IdempotencyService.Guard guard = idempotencyService.begin(idemKey, "/work-orders/checklist-item");
         if (guard.replayed()) {
             return ApiResponse.ok(guard.replayedResult());
         }
-        Map<String, Object> result = workOrderService.submitItem(id, itemId, body);
+        Map<String, Object> result = workOrderService.submitItem(id, itemId, body, empId(request));
         guard.commit(result);
         return ApiResponse.ok(result);
     }
 
     @PostMapping("/work-orders/{id}/checklist/{itemId}/run-this-time")
-    public ApiResponse<Map<String, Object>> runThisTime(@PathVariable String id, @PathVariable String itemId) {
-        return ApiResponse.ok(workOrderService.runThisTime(id, itemId));
+    public ApiResponse<Map<String, Object>> runThisTime(@PathVariable String id, @PathVariable String itemId,
+                                                        HttpServletRequest request) {
+        return ApiResponse.ok(workOrderService.runThisTime(id, itemId, empId(request)));
     }
 
     @PostMapping("/work-orders/{id}/checkout")
     public ApiResponse<Object> checkout(@PathVariable String id, @RequestBody(required = false) Map<String, Object> body,
-                                        @RequestHeader(value = "X-Idempotency-Key", required = false) String idemKey) {
+                                        @RequestHeader(value = "X-Idempotency-Key", required = false) String idemKey,
+                                        HttpServletRequest request) {
         IdempotencyService.Guard guard = idempotencyService.begin(idemKey, "/work-orders/checkout");
         if (guard.replayed()) {
             return ApiResponse.ok(guard.replayedResult());
         }
-        Map<String, Object> result = workOrderService.checkout(id, body == null ? Map.of() : body);
+        Map<String, Object> result = workOrderService.checkout(id, body == null ? Map.of() : body, empId(request));
         guard.commit(result);
         return ApiResponse.ok(result);
     }

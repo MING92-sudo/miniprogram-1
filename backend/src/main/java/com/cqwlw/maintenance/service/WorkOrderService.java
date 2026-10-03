@@ -37,6 +37,7 @@ import java.util.stream.Collectors;
  * 工单与现场作业（docs/04 A.2 契约）：
  * 列表筛选/详情/扫码识单/签到（双人动态码）/检查项校验（TSG 注A-1/A-2）/签退
  * （时长下限 30 分钟、关键项照片留证、无隐患填 S0）→ 冻结维保记录 + 2.6 报文快照。
+ * 详情与全部现场作业写端点先过 requireOrderScope（V7 班组数据权限，见该方法注释）。
  */
 @Service
 public class WorkOrderService {
@@ -237,10 +238,15 @@ public class WorkOrderService {
                 || ids.contains(o.assistantPlatformId)).collect(Collectors.toList());
     }
 
+    /**
+     * 工单归属校验（V7 班组数据权限）：读（详情/清单）与写（签到/检查项/签退）共用同一谓词。
+     * 写端点若缺此校验，任一已登录作业人员凭他人工单 id 即可代签到、代填检查项、代签退；
+     * 签退会自动转发平台 2.6，等于向监管平台写入虚假维保数据（AGENTS §6 合规底线 → Blocker）。
+     */
     public void requireOrderScope(WorkOrder o, String empId) {
         Set<String> ids = scopeService.visibleWorkerPlatformIds(scopeService.require(empId));
         if (ids != null && !ids.contains(o.workerPlatformId) && !ids.contains(o.assistantPlatformId)) {
-            throw new BizException(1403, "仅可查看本人工单或本班组工单");
+            throw new BizException(1403, "仅可查看或操作本人工单或本班组工单");
         }
     }
 
@@ -261,8 +267,9 @@ public class WorkOrderService {
     }
 
     // ── 签到 ──
-    public Map<String, Object> checkin(String orderId, Map<String, Object> body) {
+    public Map<String, Object> checkin(String orderId, Map<String, Object> body, String empId) {
         WorkOrder o = findOr404(orderId);
+        requireOrderScope(o, empId);
         if (!"PENDING".equals(o.status)) {
             throw new BizException(1003, "当前状态不允许签到");
         }
@@ -327,14 +334,16 @@ public class WorkOrderService {
         return JsonUtil.readList(o.checklistJson);
     }
 
-    public Map<String, Object> getChecklist(String orderId) {
+    public Map<String, Object> getChecklist(String orderId, String empId) {
         WorkOrder o = findOr404(orderId);
+        requireOrderScope(o, empId);
         return JsonUtil.map("checklistId", o.id, "items", items(o));
     }
 
     @SuppressWarnings("unchecked")
-    public Map<String, Object> submitItem(String orderId, String itemId, Map<String, Object> body) {
+    public Map<String, Object> submitItem(String orderId, String itemId, Map<String, Object> body, String empId) {
         WorkOrder o = findOr404(orderId);
+        requireOrderScope(o, empId);
         List<Map<String, Object>> items = items(o);
         Map<String, Object> item = items.stream()
                 .filter(i -> itemId.equals(i.get("id"))).findFirst()
@@ -372,8 +381,9 @@ public class WorkOrderService {
         return JsonUtil.map("ok", true, "itemId", itemId);
     }
 
-    public Map<String, Object> runThisTime(String orderId, String itemId) {
+    public Map<String, Object> runThisTime(String orderId, String itemId, String empId) {
         WorkOrder o = findOr404(orderId);
+        requireOrderScope(o, empId);
         List<Map<String, Object>> items = items(o);
         Map<String, Object> item = items.stream()
                 .filter(i -> itemId.equals(i.get("id"))).findFirst()
@@ -386,8 +396,9 @@ public class WorkOrderService {
 
     // ── 签退 ──
     @SuppressWarnings("unchecked")
-    public Map<String, Object> checkout(String orderId, Map<String, Object> body) {
+    public Map<String, Object> checkout(String orderId, Map<String, Object> body, String empId) {
         WorkOrder o = findOr404(orderId);
+        requireOrderScope(o, empId);
         if (!"PROCESSING".equals(o.status)) {
             throw new BizException(1003, "请先完成签到");
         }
