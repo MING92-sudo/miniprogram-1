@@ -144,7 +144,7 @@ const db = {
       brand: '奥的斯', manufacturer: '奥的斯电梯（中国）有限公司', productNo: 'OTIS-2013-8817',
       driveMode: '曳引驱动', ratedLoad: 1000, ratedLoadUnit: 'kg', ratedSpeed: 1.75, ratedSpeedUnit: 'm/s', stationsDoors: '11/11',
       // 维保绑定配置：到期自动派单的人员与频次（正式版为维保合同 + 排班表）
-      maintenance: { workTypeCode: 'HM', intervalDays: 15, workerName: '张伟', workerPhone: '13800000001', workerPlatformId: '990001', assistantName: '李强', assistantPlatformId: '990003', lastMaintenanceAt: addDays(-3) } },
+      maintenance: { workTypeCode: 'HM', intervalDays: 15, workerName: '张伟', workerPhone: '13800000001', workerPlatformId: '6901282369105174537', assistantName: '李强', assistantPlatformId: '6901284774286860288', lastMaintenanceAt: addDays(-3) } },
     { id: 'el_2', elevatorCode: 'EM-2024-002', elevatorName: '世纪大厦 2# 客梯', location: '渝北区龙山一路 88 号世纪大厦', regCode: 'TSCQ5001120002', deviceCode: 'DT-CQ-2024-002', insideNumber: 'KT-02', model: 'OTIS 300VF', useUnitId: 'uu_1', category: '曳引驱动电梯', nextCheckDate: addDays(18),
       factoryNumber: 'SGL20131212-2', useUnitEntityId: '5633318206815862786',
       elevatorAdminister: '王芳', elevatorAdministerPhone: '13800000003', emergencyPhone: '023-67612345',
@@ -152,7 +152,7 @@ const db = {
       lng: 106.633520, lat: 29.719210,
       brand: '奥的斯', manufacturer: '奥的斯电梯（中国）有限公司', productNo: 'OTIS-2013-8818',
       driveMode: '曳引驱动', ratedLoad: 1000, ratedLoadUnit: 'kg', ratedSpeed: 1.75, ratedSpeedUnit: 'm/s', stationsDoors: '11/11',
-      maintenance: { workTypeCode: 'HM', intervalDays: 15, workerName: '张伟', workerPlatformId: '990001', assistantName: '李强', assistantPlatformId: '990003', lastMaintenanceAt: addDays(-3) } },
+      maintenance: { workTypeCode: 'HM', intervalDays: 15, workerName: '张伟', workerPlatformId: '6901282369105174537', assistantName: '李强', assistantPlatformId: '6901284774286860288', lastMaintenanceAt: addDays(-3) } },
     { id: 'el_3', elevatorCode: 'EM-2024-003', elevatorName: '蓝湾国际 A 座货梯', location: '江北区滨江路 6 号蓝湾国际', regCode: 'TSCQ5001120003', deviceCode: 'DT-CQ-2024-003', insideNumber: 'HT-01', model: '三菱 GPS-III', useUnitId: 'uu_2', category: '曳引驱动电梯', nextCheckDate: addDays(200),
       factoryNumber: 'MITS-2018-0331', useUnitEntityId: '5633318206815862790',
       elevatorAdminister: '吴静', elevatorAdministerPhone: '13800003005', emergencyPhone: '023-67991234',
@@ -160,7 +160,7 @@ const db = {
       lng: 106.574210, lat: 29.588660,
       brand: '三菱', manufacturer: '上海三菱电梯有限公司', productNo: 'MLS-2018-0331',
       driveMode: '曳引驱动', ratedLoad: 2000, ratedLoadUnit: 'kg', ratedSpeed: 1.0, ratedSpeedUnit: 'm/s', stationsDoors: '6/6',
-      maintenance: { workTypeCode: 'FM', intervalDays: 30, workerName: '张伟', workerPhone: '13800000001', workerPlatformId: '990001', assistantName: '', assistantPlatformId: '', lastMaintenanceAt: addDays(-10) } },
+      maintenance: { workTypeCode: 'FM', intervalDays: 30, workerName: '张伟', workerPhone: '13800000001', workerPlatformId: '6901282369105174537', assistantName: '', assistantPlatformId: '', lastMaintenanceAt: addDays(-10) } },
     { id: 'el_4', elevatorCode: 'EM-2024-004', elevatorName: '蓝湾国际 B 座客梯', location: '江北区滨江路 6 号蓝湾国际', regCode: 'TSCQ5001120004', deviceCode: 'DT-CQ-2024-004', insideNumber: 'KT-01', model: '日立 YK', useUnitId: 'uu_2', category: '曳引驱动电梯', nextCheckDate: addDays(240),
       factoryNumber: 'HIT-2021-1102', useUnitEntityId: '5633318206815862790',
       elevatorAdminister: '吴静', elevatorAdministerPhone: '13800003005', emergencyPhone: '023-67991234',
@@ -169,21 +169,21 @@ const db = {
       brand: '日立', manufacturer: '日立电梯（中国）有限公司', productNo: 'HIT-2021-1102',
       driveMode: '曳引驱动', ratedLoad: 1000, ratedLoadUnit: 'kg', ratedSpeed: 1.5, ratedSpeedUnit: 'm/s', stationsDoors: '8/8',
       // 演示到期自动派单：上次维保 16 天前，已超半月周期 → 进入工单台即自动生成并派给李强
-      maintenance: { workTypeCode: 'HM', intervalDays: 15, workerName: '李强', workerPhone: '13800000004', workerPlatformId: '990003', assistantName: '', assistantPlatformId: '', lastMaintenanceAt: addDays(-16) } }
+      maintenance: { workTypeCode: 'HM', intervalDays: 15, workerName: '李强', workerPhone: '13800000004', workerPlatformId: '6901284774286860288', assistantName: '', assistantPlatformId: '', lastMaintenanceAt: addDays(-16) } }
   ],
 
   orders: [
     {
       id: 'wo_1', orderNo: 'WO20260929-001', elevatorId: 'el_1',
       workType: '半月维保', workTypeCode: 'HM', planTime: today('09:00:00'), status: 'PENDING',
-      workerName: '张伟', assistantName: '李强', workerPlatformId: '990001', assistantPlatformId: '990003',
+      workerName: '张伟', assistantName: '李强', workerPlatformId: '6901282369105174537', assistantPlatformId: '6901284774286860288',
       checkinTime: '', checkoutTime: '', duration: '', originalRecordId: '', reportStatus: '',
       checklist: buildChecklist('HM', '曳引驱动电梯')
     },
     {
       id: 'wo_2', orderNo: 'WO20260929-002', elevatorId: 'el_3',
       workType: '救援后复查', workTypeCode: 'FM', planTime: today('08:30:00'), status: 'PROCESSING',
-      workerName: '张伟', assistantName: '', workerPlatformId: '990001', assistantPlatformId: '',
+      workerName: '张伟', assistantName: '', workerPlatformId: '6901282369105174537', assistantPlatformId: '',
       // 签到时间留足 30 分钟作业时长下限（constants MIN_WORK_DURATION_MINUTES），保证演示可直接签退
       checkinTime: today('08:00:00'), checkoutTime: '', duration: '', originalRecordId: '', reportStatus: '',
       checklist: buildChecklist('FM', '曳引驱动电梯')
@@ -191,7 +191,7 @@ const db = {
     {
       id: 'wo_3', orderNo: 'WO20260928-011', elevatorId: 'el_2',
       workType: '半月维保', workTypeCode: 'HM', planTime: today('09:00:00'), status: 'DONE',
-      workerName: '张伟', assistantName: '李强', workerPlatformId: '990001', assistantPlatformId: '990003',
+      workerName: '张伟', assistantName: '李强', workerPlatformId: '6901282369105174537', assistantPlatformId: '6901284774286860288',
       checkinTime: today('08:52:00'), checkoutTime: today('11:20:00'), duration: '02:28:00',
       originalRecordId: '19480012609000011', reportStatus: 'REPORTED',
       checklist: makeDoneItems('HM', true, '曳引驱动电梯')
@@ -199,7 +199,7 @@ const db = {
     {
       id: 'wo_4', orderNo: 'WO20260927-008', elevatorId: 'el_3',
       workType: '困人救援', workTypeCode: 'FM', planTime: today('16:30:00'), status: 'DONE',
-      workerName: '张伟', assistantName: '', workerPlatformId: '990001', assistantPlatformId: '',
+      workerName: '张伟', assistantName: '', workerPlatformId: '6901282369105174537', assistantPlatformId: '',
       checkinTime: today('16:28:00'), checkoutTime: today('18:05:00'), duration: '01:37:00',
       originalRecordId: '19480012609000008', reportStatus: 'REPORTED',
       checklist: makeDoneItems('FM', false, '曳引驱动电梯')
@@ -207,7 +207,7 @@ const db = {
     {
       id: 'wo_5', orderNo: 'WO20260926-005', elevatorId: 'el_1',
       workType: '年度维保', workTypeCode: 'OY', planTime: today('09:00:00'), status: 'DONE',
-      workerName: '张伟', assistantName: '李强', workerPlatformId: '990001', assistantPlatformId: '990003',
+      workerName: '张伟', assistantName: '李强', workerPlatformId: '6901282369105174537', assistantPlatformId: '6901284774286860288',
       checkinTime: today('09:02:00'), checkoutTime: today('15:40:00'), duration: '06:38:00',
       originalRecordId: '19480012609000005', reportStatus: 'REPORTED',
       checklist: makeDoneItems('OY', false, '曳引驱动电梯')
@@ -256,7 +256,7 @@ const db = {
     {
       id: 'ur_1', elevatorName: '世纪大厦 1# 客梯', elevatorCode: 'EM-2024-001',
       workType: '半月维保', workTypeCode: 'HM',
-      workerName: '张伟', assistantName: '李强', workerPlatformId: '990001', assistantPlatformId: '990003',
+      workerName: '张伟', assistantName: '李强', workerPlatformId: '6901282369105174537', assistantPlatformId: '6901284774286860288',
       checkinTime: today('08:52:00'), checkoutTime: today('11:20:00'), duration: '02:28:00',
       items: makeDoneItems('HM', true, '曳引驱动电梯'), photos: [DEMO_PHOTO],
       workerSignatureUrl: DEMO_SIGNATURE,
@@ -268,7 +268,7 @@ const db = {
     {
       id: 'ur_2', elevatorName: '蓝湾国际 A 座货梯', elevatorCode: 'EM-2024-003',
       workType: '困人救援', workTypeCode: 'FM',
-      workerName: '张伟', assistantName: '', workerPlatformId: '990001', assistantPlatformId: '',
+      workerName: '张伟', assistantName: '', workerPlatformId: '6901282369105174537', assistantPlatformId: '',
       checkinTime: today('16:28:00'), checkoutTime: today('18:05:00'), duration: '01:37:00',
       items: makeDoneItems('FM', false, '曳引驱动电梯'), photos: [],
       workerSignatureUrl: DEMO_SIGNATURE,

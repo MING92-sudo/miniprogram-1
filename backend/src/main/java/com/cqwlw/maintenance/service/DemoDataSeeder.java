@@ -48,6 +48,14 @@ public class DemoDataSeeder implements ApplicationRunner {
 
     private static final Logger log = LoggerFactory.getLogger(DemoDataSeeder.class);
     private static final String DEMO_SIGNATURE = "https://picsum.photos/seed/em-sig/480/180";
+    /**
+     * 演示人员平台ID（2.5 同步产物）。电梯绑定 / 工单 / 维保记录必须引用这里的常量：
+     * 班组数据权限（V7）按 platformId 过滤工单，一旦与 employee() 种子不一致，
+     * 作业人员登录后将看不到自己的工单（列表为空、签到链路走不通）。
+     */
+    private static final String PID_ZHANGWEI = "6901282369105174537";
+    private static final String PID_CHENGANG = "990002";
+    private static final String PID_LIQIANG = "6901284774286860288";
 
     private final AppProperties props;
     private final CompanyMapper companyMapper;
@@ -119,11 +127,11 @@ public class DemoDataSeeder implements ApplicationRunner {
 
         // ── 演示账号 ──
         employee("emp_1", "张伟", "13800000001", "WORKER", "维保人员",
-                "6901282369105174537", "CQ3601030001", "2024-03-01", 400, enc);
+                PID_ZHANGWEI, "CQ3601030001", "2024-03-01", 400, enc);
         employee("emp_2", "陈刚", "13800000002", "LEADER", "班组长",
-                "990002", "CQ3601030002", "2023-06-01", 250, enc);
+                PID_CHENGANG, "CQ3601030002", "2023-06-01", 250, enc);
         employee("emp_3", "李强", "13800000004", "WORKER", "维保人员",
-                "6901284774286860288", "CQ3601030003", "2024-08-01", 500, enc);
+                PID_LIQIANG, "CQ3601030003", "2024-08-01", 500, enc);
         employee("unit_1", "王芳", "13800000003", "UNIT_ADMIN", "使用单位安全管理员",
                 "", "", "", 0, enc);
 
@@ -142,38 +150,38 @@ public class DemoDataSeeder implements ApplicationRunner {
                 "TSCQ5001120001", "DT-CQ-2024-001", "KT-01", "OTIS 300VF", "uu_1", 45,
                 "SGL20131212-1", "5633318206815862786", "王芳", "13800000003", "02367612345",
                 "106.633520", "29.719210", "奥的斯", "奥的斯电梯（中国）有限公司", "OTIS-2013-8817",
-                1000, "1.75", "11/11", "HM", 15, "张伟", "13800000001", "990001", "李强", "990003", 3);
+                1000, "1.75", "11/11", "HM", 15, "张伟", "13800000001", PID_ZHANGWEI, "李强", PID_LIQIANG, 3);
         elevator("el_2", "EM-2024-002", "世纪大厦 2# 客梯", "渝北区龙山一路 88 号世纪大厦",
                 "TSCQ5001120002", "DT-CQ-2024-002", "KT-02", "OTIS 300VF", "uu_1", 18,
                 "SGL20131212-2", "5633318206815862786", "王芳", "13800000003", "02367612345",
                 "106.633520", "29.719210", "奥的斯", "奥的斯电梯（中国）有限公司", "OTIS-2013-8818",
-                1000, "1.75", "11/11", "HM", 15, "张伟", "13800000001", "990001", "李强", "990003", 3);
+                1000, "1.75", "11/11", "HM", 15, "张伟", "13800000001", PID_ZHANGWEI, "李强", PID_LIQIANG, 3);
         elevator("el_3", "EM-2024-003", "蓝湾国际 A 座货梯", "江北区滨江路 6 号蓝湾国际",
                 "TSCQ5001120003", "DT-CQ-2024-003", "HT-01", "三菱 GPS-III", "uu_2", 200,
                 "MITS-2018-0331", "5633318206815862790", "吴静", "13800003005", "02367991234",
                 "106.574210", "29.588660", "三菱", "上海三菱电梯有限公司", "MLS-2018-0331",
-                2000, "1.00", "6/6", "FM", 30, "张伟", "13800000001", "990001", "", "", 10);
+                2000, "1.00", "6/6", "FM", 30, "张伟", "13800000001", PID_ZHANGWEI, "", "", 10);
         elevator("el_4", "EM-2024-004", "蓝湾国际 B 座客梯", "江北区滨江路 6 号蓝湾国际",
                 "TSCQ5001120004", "DT-CQ-2024-004", "KT-01", "日立 YK", "uu_2", 240,
                 "HIT-2021-1102", "5633318206815862790", "吴静", "13800003005", "02367991234",
                 "106.574210", "29.588660", "日立", "日立电梯（中国）有限公司", "HIT-2021-1102",
-                1000, "1.50", "8/8", "HM", 15, "李强", "13800000004", "990003", "", "", 16);
+                1000, "1.50", "8/8", "HM", 15, "李强", "13800000004", PID_LIQIANG, "", "", 16);
 
         // ── 工单（checklist 为空 → 服务层按模板懒加载生成） ──
         order("wo_1", "WO" + today.replace("-", "") + "-001", "el_1", "半月维保", "HM",
-                today + " 09:00:00", "PENDING", "张伟", "李强", "990001", "990003",
+                today + " 09:00:00", "PENDING", "张伟", "李强", PID_ZHANGWEI, PID_LIQIANG,
                 null, null, null, null, null);
         order("wo_2", "WO" + today.replace("-", "") + "-002", "el_3", "救援后复查", "FM",
-                today + " 08:30:00", "PROCESSING", "张伟", "", "990001", "",
+                today + " 08:30:00", "PROCESSING", "张伟", "", PID_ZHANGWEI, "",
                 today + " 08:00:00", null, null, null, null);
         order("wo_3", "WO20260928-011", "el_2", "半月维保", "HM",
-                today + " 09:00:00", "DONE", "张伟", "李强", "990001", "990003",
+                today + " 09:00:00", "DONE", "张伟", "李强", PID_ZHANGWEI, PID_LIQIANG,
                 today + " 08:52:00", today + " 11:20:00", "02:28:00", "19480012609000011", "REPORTED");
         order("wo_4", "WO20260927-008", "el_3", "困人救援", "FM",
-                today + " 16:30:00", "DONE", "张伟", "", "990001", "",
+                today + " 16:30:00", "DONE", "张伟", "", PID_ZHANGWEI, "",
                 today + " 16:28:00", today + " 18:05:00", "01:37:00", "19480012609000008", "REPORTED");
         order("wo_5", "WO20260926-005", "el_1", "年度维保", "OY",
-                today + " 09:00:00", "DONE", "张伟", "李强", "990001", "990003",
+                today + " 09:00:00", "DONE", "张伟", "李强", PID_ZHANGWEI, PID_LIQIANG,
                 today + " 09:02:00", today + " 15:40:00", "06:38:00", "19480012609000005", "REPORTED");
 
         // ── 消息 ──
@@ -260,11 +268,11 @@ public class DemoDataSeeder implements ApplicationRunner {
 
         // ── 使用单位待确认记录（含 2.6 报文快照冻结） ──
         unitRecord("ur_1", "世纪大厦 1# 客梯", "EM-2024-001", "半月维保", "HM",
-                "张伟", "李强", "990001", "990003",
+                "张伟", "李强", PID_ZHANGWEI, PID_LIQIANG,
                 today + " 08:52:00", today + " 11:20:00", "02:28:00",
                 "HM", true, "19480012609000011", "REPORTED", 15, "PENDING", null, "", "");
         unitRecord("ur_2", "蓝湾国际 A 座货梯", "EM-2024-003", "困人救援", "FM",
-                "张伟", "", "990001", "",
+                "张伟", "", PID_ZHANGWEI, "",
                 today + " 16:28:00", today + " 18:05:00", "01:37:00",
                 "FM", false, "19480012609000008", "REPORTED", 30, "CONFIRMED", 5,
                 "mock_file_sig1", DEMO_SIGNATURE);
