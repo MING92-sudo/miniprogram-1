@@ -1,9 +1,10 @@
-// 签到流程：定位 → 水印自拍 → 提交
-// 错误码约定：1001 定位超阈（申诉）、1003 工单锁定；1006/1007 为配置类拦截（docs/04 A.0）
+// 签到流程：定位（实时距离三态）→ 水印自拍 → 提交
+// 错误码约定：1001 定位超阈（服务端拦截，定位申诉审核流已裁 docs/01 §10.2）、1003 状态/动态码类拦截；
+// 1006/1007 为配置类拦截（docs/04 A.0.1）
 const { checkin, getOrderDetail } = require('../../services/order')
 const { uploadImage } = require('../../services/upload')
 const { reverseGeocode } = require('../../services/location')
-const { formatTime } = require('../../utils/util')
+const { formatTime, distanceMeters } = require('../../utils/util')
 
 // 角色（docs/04 A.2）：主维保 PRINCIPAL / 配合人员 ASSISTANT
 const ROLES = [
@@ -22,6 +23,9 @@ Page({
     locationText: '',
     addressText: '',
     locateFailed: false, // 定位失败如实提示（合规：严禁伪造坐标兜底）
+    elevatorGeo: null,   // 电梯档案坐标与阈值（docs/02 §5.4）
+    geoState: '',        // OK / NEAR / OVER / UNKNOWN
+    geoText: '',
     photo: '',
     submitting: false
   },
@@ -41,11 +45,45 @@ Page({
   async fetchOrder() {
     try {
       const order = await getOrderDetail(this.data.orderId)
+      const el = order.elevator || {}
       this.setData({
-        elevatorName: (order.elevator && order.elevator.elevatorName) || ''
+        elevatorName: el.elevatorName || '',
+        elevatorGeo: {
+          lat: Number(el.lat) || null,
+          lng: Number(el.lng) || null,
+          // 电梯级阈值优先，缺省用全局默认 200 米（后端同口径，docs/02 §5.4）
+          threshold: Number(el.checkinThreshold) || 200
+        }
       })
+      this.updateGeoState()
     } catch (e) {
       // 详情加载失败不阻断签到流程
+    }
+  },
+
+  // 实时距离三态（docs/03 §3.2 项5）：范围内 / 接近阈值 / 超出阈值；
+  // 电梯坐标未登记 → UNKNOWN，只留痕不拦截（docs/04 A.0.1 码表 1005）。前端仅提示，拦截以服务端为准。
+  updateGeoState() {
+    const loc = this.data.location
+    if (!loc) return
+    const geo = this.data.elevatorGeo
+    if (!geo || !geo.lat || !geo.lng) {
+      this.setData({ geoState: 'UNKNOWN', geoText: '电梯坐标未登记：本次签到仅留痕，不做距离校验' })
+      return
+    }
+    const dist = distanceMeters(loc.latitude, loc.longitude, geo.lat, geo.lng)
+    if (dist < 0) {
+      this.setData({ geoState: 'UNKNOWN', geoText: '距离暂不可计算，签到以后端校验为准' })
+      return
+    }
+    const d = Math.round(dist * 10) / 10
+    const th = geo.threshold
+    if (d > th) {
+      this.setData({ geoState: 'OVER', geoText: '距电梯 ' + d + ' 米，超出阈值 ' + th + ' 米：请到现场后签到' })
+    } else if (d > th * 0.8) {
+      this.setData({ geoState: 'NEAR', geoText: '距电梯 ' + d + ' 米，接近阈值 ' + th + ' 米' })
+    } else {
+      this.setData({ geoState: 'OK', geoText: '距电梯 ' + d + ' 米（阈值 ' + th + ' 米），在允许范围内' })
     }
   },
 
@@ -98,6 +136,7 @@ Page({
     const address = await reverseGeocode(location.latitude, location.longitude)
     const isCoord = /^[\d.,\s]+$/.test(address)
     this.setData({ addressText: isCoord ? '' : address, locationText: address })
+    this.updateGeoState()
   },
 
   // 水印自拍：跳转水印相机页，回传临时文件路径（附带具体位置用于水印）
@@ -121,6 +160,15 @@ Page({
   async onSubmit() {
     if (!this.data.location) return wx.showToast({ title: '请先获取定位', icon: 'none' })
     if (!this.data.photo) return wx.showToast({ title: '请完成水印自拍', icon: 'none' })
+    // 超阈先在前端拦截（服务端仍会返回 1001）：定位失败如实提示，严禁伪造坐标兜底
+    if (this.data.geoState === 'OVER') {
+      return wx.showModal({
+        title: '签到位置超出允许范围',
+        content: this.data.geoText + '。请移动到电梯现场后重新定位；严禁伪造坐标（docs/01 §10.1 合规底线）。',
+        showCancel: false,
+        confirmText: '知道了'
+      })
+    }
     if (this.data.role === 'ASSISTANT' && !this.data.dynamicCode) {
       return wx.showToast({ title: '配合人员须输入主维保动态码', icon: 'none' })
     }
@@ -143,10 +191,10 @@ Page({
       wx.redirectTo({ url: `/pages/order/checklist?orderId=${this.data.orderId}` })
     } catch (e) {
       if (e.code === 1001) {
-        // 定位超阈 → 引导申诉
+        // 定位超阈（服务端 Haversine 校验）：定位申诉审核流已裁剪（docs/01 §10.2），如实提示并引导到现场重试
         wx.showModal({
           title: '签到被拦截',
-          content: '签到位置超出允许范围。' + (e.message || ''),
+          content: '服务端判定签到位置超出允许范围：' + (e.message || '') + '。请到现场后重新定位签到。',
           confirmText: '知道了',
           showCancel: false
         })

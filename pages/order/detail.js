@@ -1,8 +1,10 @@
 // 工单详情 / 扫码结果页
 // 入参：orderId 或 elevatorCode（扫码进入）
-// 按状态显示操作：PENDING→去签到；PROCESSING→继续作业/双人动态码；DONE→只读
+// 按状态与"本人是否已签到"显示操作：未签到→去签到（主维保/配合人员分别签到，docs/01 §3.7.2）；
+// 已签到→继续作业清单；双人工单提供动态码入口；DONE→只读
 const { getOrderDetail, resolveByElevatorCode, retryRecordUpload } = require('../../services/order')
 const { STATUS_TEXT, REPORT_STATUS_TEXT, CHECK_RESULT_TEXT } = require('../../constants/index')
+const { getUserInfo } = require('../../utils/auth')
 
 Page({
   data: {
@@ -11,7 +13,11 @@ Page({
     statusText: '',
     reportStatusText: '',
     canReupload: false,
-    loading: true
+    loading: true,
+    isDual: false,       // 双人工单（有配合人员）
+    isAssistant: false,  // 当前登录人是配合人员
+    myCheckedIn: false,  // 本人是否已签到（主维保/配合人员各自一条留痕）
+    canCheckin: false
   },
 
   onLoad(query) {
@@ -55,9 +61,19 @@ Page({
     recordItems.forEach(function (i) {
       (i.photos || []).forEach(function (p) { recordPhotos.push(p) })
     })
+    // 双人分别签到：按当前登录人比对主维保/配合人员，决定签到入口与动态码模式
+    const me = getUserInfo() || {}
+    const isAssistant = !!order.assistantName &&
+      (me.name === order.assistantName ||
+        (!!order.assistantPlatformId && me.platformId === order.assistantPlatformId))
+    const myCheckedIn = isAssistant ? !!order.assistantCheckedIn : !!order.principalCheckedIn
     this.setData({
       order,
       elevator: order.elevator || null,
+      isDual: !!order.assistantName,
+      isAssistant: isAssistant,
+      myCheckedIn: myCheckedIn,
+      canCheckin: order.status !== 'DONE' && !myCheckedIn,
       statusText: STATUS_TEXT[order.status] || order.status,
       reportStatusText: order.reportStatus
         ? REPORT_STATUS_TEXT[order.reportStatus] || order.reportStatus
@@ -89,7 +105,8 @@ Page({
   },
 
   goCheckin() {
-    wx.navigateTo({ url: `/pages/order/checkin?orderId=${this.data.order.id}` })
+    const role = this.data.isAssistant ? 'ASSISTANT' : 'PRINCIPAL'
+    wx.navigateTo({ url: `/pages/order/checkin?orderId=${this.data.order.id}&role=${role}` })
   },
 
   // 安全管理员签字确认页（本机代签或微信分享远程签字）
@@ -104,8 +121,10 @@ Page({
     wx.navigateTo({ url: `/pages/order/checklist?orderId=${this.data.order.id}` })
   },
 
+  // 主维保→生成动态码；配合人员→输入校验（docs/03 §3.2 项6）
   goDynamicCode() {
-    wx.navigateTo({ url: `/pages/order/dynamic-code?orderId=${this.data.order.id}` })
+    const mode = this.data.isAssistant ? 'INPUT' : 'ISSUE'
+    wx.navigateTo({ url: `/pages/order/dynamic-code?orderId=${this.data.order.id}&mode=${mode}` })
   },
 
   // 维保记录预览页（docs/03 V2.0 §3.2 #12：与使用单位确认同源）

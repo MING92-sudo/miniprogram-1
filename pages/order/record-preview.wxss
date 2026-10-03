@@ -9,6 +9,25 @@
 .sig-row { display: flex; justify-content: space-between; align-items: center; padding: 12rpx 0; font-size: 28rpx; }
 .sig { width: 240rpx; height: 120rpx; border: 1rpx dashed #dcdfe6; border-radius: 8rpx; }
 .confirm-text { padding: 12rpx 0; }
+.rec-title { font-size: 34rpx; font-weight: 700; text-align: center; padding: 12rpx 0 4rpx; }
+.rec-subtitle { font-size: 26rpx; color: #86909c; text-align: center; padding-bottom: 16rpx; }
+.item-summary { font-size: 26rpx; padding-bottom: 8rpx; }
+.item-remark { color: #4e5969; font-size: 26rpx; }
+.item-abnormal { color: #e34d59; font-weight: 600; }
+.photo-cell { position: relative; }
+.photo-abnormal .photo { border: 4rpx solid #e34d59; }
+.photo-tag {
+  position: absolute;
+  left: 8rpx;
+  top: 8rpx;
+  padding: 2rpx 10rpx;
+  border-radius: 6rpx;
+  background: #e34d59;
+  color: #fff;
+  font-size: 20rpx;
+}
+.rec-actions { display: flex; gap: 16rpx; justify-content: space-between; }
+.loading-tip { padding: 40rpx; text-align: center; }
 .upload-SUCCESS { color: #00a870; }
 .upload-FAILED { color: #e34d59; }
 .upload-PENDING { color: #ed7b2f; }

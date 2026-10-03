@@ -21,7 +21,12 @@ function checkin(orderId, data) {
   return post(`/work-orders/${orderId}/checkin`, data)
 }
 
-// 双人作业动态码校验
+// 主维保生成双人动态码（每 5 秒刷新、60 秒有效、绑定工单、一次性；docs/03 §3.2 项6）
+function issueDynamicCode(orderId) {
+  return post(`/work-orders/${orderId}/dynamic-code`, {})
+}
+
+// 双人作业动态码校验（配合人员到场确认；不消费码，消费发生在配合人员签到时）
 function verifyDynamicCode(orderId, data) {
   return post(`/work-orders/${orderId}/dynamic-code/verify`, data)
 }
@@ -56,6 +61,7 @@ module.exports = {
   getOrderDetail,
   resolveByElevatorCode,
   checkin,
+  issueDynamicCode,
   verifyDynamicCode,
   getChecklist,
   submitChecklistItem,

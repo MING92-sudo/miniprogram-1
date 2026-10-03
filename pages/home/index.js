@@ -3,6 +3,7 @@ const { resolveByElevatorCode } = require('../../services/order')
 const { getHomeSummary } = require('../../services/home')
 const { ensureLogin } = require('../../utils/guard')
 const { refreshUnreadBadge } = require('../../utils/badge')
+const { getQueue } = require('../../utils/offline')
 
 // tab 页不能用 navigateTo，宫格里命中 tab 时走 switchTab
 const TAB_PAGES = [
@@ -21,6 +22,7 @@ Page({
       inProgress: 0, unconfirmed: 0, platformTotal: 0,
       openFaults: 0, overdueInspects: 0, warnCount: 0
     },
+    offlineCount: 0, // 离线待补传条数（docs/03 §3.2 项2：离线补传提示条）
     queryMenus: [
       { title: '急修单', icon: '🛠️', color: 'blue', url: '/pages/fault/list' },
       { title: '维保记录', icon: '📋', color: 'orange', url: '/pages/order/list', tab: true },
@@ -46,7 +48,8 @@ Page({
     const app = getApp()
     this.setData({
       userInfo: app.globalData.userInfo,
-      roleText: (app.globalData.userInfo && app.globalData.userInfo.roleText) || ''
+      roleText: (app.globalData.userInfo && app.globalData.userInfo.roleText) || '',
+      offlineCount: getQueue().length
     })
     this.fetchSummary()
     refreshUnreadBadge()
@@ -64,6 +67,11 @@ Page({
     } catch (e) {
       // 汇总失败不阻断首页，看板显示 0 值
     }
+  },
+
+  // 离线提示条 → 离线缓存管理页（手动补传）
+  goOffline() {
+    wx.navigateTo({ url: '/pages/mine/offline' })
   },
 
   // 扫码签到主入口：扫电梯二维码 → 定位工单

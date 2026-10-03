@@ -5,6 +5,8 @@
     <view wx:if="{{location}}" class="location-ok">{{locationText}}</view>
     <view wx:elif="{{locateFailed}}" class="location-fail">{{locationText}}</view>
     <view wx:else class="em-text-secondary">{{locationText || '定位获取中...'}}</view>
+    <!-- 实时距离三态（docs/03 §3.2 项5）：OK 范围内 / NEAR 接近阈值 / OVER 超阈拦截 / UNKNOWN 坐标未登记只留痕 -->
+    <view wx:if="{{geoText}}" class="geo-state geo-{{geoState}}">{{geoText}}</view>
     <view class="step-action"><button size="mini" bindtap="getLocation">重新定位</button></view>
   </view>
 

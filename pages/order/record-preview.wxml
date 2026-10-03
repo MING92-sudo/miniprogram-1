@@ -1,36 +1,62 @@
 <view class="page" wx:if="{{record}}">
+  <view class="rec-title">电梯无纸化维保记录单</view>
+  <view class="rec-subtitle">{{record.workType}}{{record.workTypeCode ? '（' + record.workTypeCode + '）' : ''}}</view>
+
   <view class="em-card">
-    <view class="section-title">基本信息</view>
+    <view class="section-title">电梯信息</view>
     <view class="info-row"><text>电梯</text><text>{{record.elevatorName}}（{{record.elevatorCode}}）</text></view>
-    <view class="info-row"><text>维保类别</text><text>{{record.workType}}</text></view>
-    <view class="info-row"><text>签到时间</text><text>{{record.checkinTime}}</text></view>
-    <view class="info-row"><text>签退时间</text><text>{{record.checkoutTime}}</text></view>
-    <view class="info-row"><text>作业时长</text><text>{{record.duration}}</text></view>
-    <view class="info-row"><text>维保 / 配合人员</text><text>{{record.workerName}} / {{record.assistantName || '单人作业'}}</text></view>
+    <view class="info-row" wx:if="{{context.address}}"><text>地址</text><text>{{context.address}}</text></view>
+    <view class="info-row" wx:if="{{context.useUnitName}}"><text>使用单位</text><text>{{context.useUnitName}}</text></view>
+    <view class="info-row" wx:if="{{context.companyName}}"><text>维保单位</text><text>{{context.companyName}}</text></view>
     <view class="info-row"><text>隐患码</text><text>{{problemText}}</text></view>
     <view class="info-row"><text>下次维保日期</text><text>{{record.nextMaintenanceDate || '-'}}</text></view>
-    <view class="info-row">
-      <text>上报状态</text>
-      <text class="upload-{{record.uploadStatus}}">
-        {{record.uploadStatus === 'SUCCESS' ? '已上报' : record.uploadStatus === 'FAILED' ? '上报失败（待人工重传）' : '待上报'}}
-      </text>
+  </view>
+
+  <view class="em-card">
+    <view class="section-title">作业时段</view>
+    <view class="info-row"><text>签到时间</text><text>{{record.checkinTime || '-'}}</text></view>
+    <view class="info-row"><text>签退时间</text><text>{{record.checkoutTime || '-'}}</text></view>
+    <view class="info-row"><text>作业时长</text><text>{{record.duration || '-'}}</text></view>
+    <view class="info-row" wx:if="{{context.checkin.latitude}}">
+      <text>签到坐标（主维保）</text>
+      <text>{{context.checkin.latitude}}, {{context.checkin.longitude}}{{context.checkin.distance ? ' · 距电梯 ' + context.checkin.distance + ' 米/阈值 ' + context.checkin.threshold + ' 米' : ''}}</text>
+    </view>
+    <view class="info-row" wx:if="{{context.assistantCheckin.latitude}}">
+      <text>签到坐标（配合人员）</text>
+      <text>{{context.assistantCheckin.latitude}}, {{context.assistantCheckin.longitude}}</text>
     </view>
   </view>
 
   <view class="em-card">
-    <view class="section-title">检查项结果（仅实际执行项，{{items.length}} 项）</view>
+    <view class="section-title">作业人员</view>
+    <view class="info-row">
+      <text>主维保</text>
+      <text>{{record.workerName}}{{context.workerPhone ? ' · ' + context.workerPhone : ''}}{{context.workerPlatformId ? ' · 平台ID ' + context.workerPlatformId : ''}}</text>
+    </view>
+    <view class="info-row">
+      <text>配合人员</text>
+      <text>{{record.assistantName || '单人作业'}}{{context.assistantPhone ? ' · ' + context.assistantPhone : ''}}{{context.assistantPlatformId ? ' · 平台ID ' + context.assistantPlatformId : ''}}</text>
+    </view>
+  </view>
+
+  <view class="em-card">
+    <view class="section-title">检查项结果</view>
+    <view class="em-text-secondary item-summary">执行 {{items.length}} 项（共 {{itemTotal}} 项，本次无需执行的周期项不展示）</view>
     <view wx:for="{{items}}" wx:key="id" class="item-row">
       <view class="item-name">{{index + 1}}. {{item.name}}</view>
-      <view class="item-result">{{item.resultText || item.result || '-'}}</view>
-      <view class="item-desc" wx:if="{{item.abnormalDesc}}">{{item.abnormalDesc}}</view>
+      <view class="item-result {{item.result === 'ABNORMAL' ? 'item-abnormal' : ''}}">{{item.resultText}}</view>
+      <view class="item-remark" wx:if="{{item.remark}}">{{item.remark}}</view>
+      <view class="item-desc" wx:if="{{item.problemCode}}">隐患码：{{item.problemCode}}</view>
     </view>
   </view>
 
   <view class="em-card">
-    <view class="section-title">现场照片（{{photos.length}}）</view>
-    <view class="photo-grid" wx:if="{{photos.length}}">
-      <image wx:for="{{photos}}" wx:key="index" class="photo" src="{{item}}" mode="aspectFill"
-             data-url="{{item}}" bindtap="previewPhoto" />
+    <view class="section-title">现场照片（{{photoList.length}}）</view>
+    <view class="photo-grid" wx:if="{{photoList.length}}">
+      <view wx:for="{{photoList}}" wx:key="url" class="photo-cell {{item.abnormal ? 'photo-abnormal' : ''}}">
+        <image class="photo" src="{{item.url}}" mode="aspectFill" data-url="{{item.url}}" bindtap="previewPhoto" />
+        <view class="photo-tag" wx:if="{{item.abnormal}}">异常</view>
+      </view>
     </view>
     <view wx:else class="em-text-secondary">无</view>
   </view>
@@ -41,16 +67,33 @@
       <text>维保人员</text>
       <image class="sig" src="{{record.workerSignatureUrl}}" mode="aspectFit" />
     </view>
+    <view class="sig-row" wx:else><text>维保人员</text><text class="em-text-secondary">待签字</text></view>
     <view class="sig-row" wx:if="{{record.assistantSignatureUrl}}">
       <text>配合人员</text>
       <image class="sig" src="{{record.assistantSignatureUrl}}" mode="aspectFit" />
     </view>
+    <view class="sig-row" wx:elif="{{record.assistantName}}"><text>配合人员</text><text class="em-text-secondary">待签字</text></view>
     <view class="sig-row" wx:if="{{record.signatureUrl}}">
       <text>安全管理员</text>
       <image class="sig" src="{{record.signatureUrl}}" mode="aspectFit" />
     </view>
-    <view wx:if="{{record.confirmStatus === 'CONFIRMED'}}" class="em-text-secondary confirm-text">
-      使用单位已确认，确认记录归档不少于 4 年（不上报平台）
+    <view class="sig-row" wx:else><text>安全管理员</text><text class="em-text-secondary">待确认</text></view>
+    <view class="info-row">
+      <text>上报状态</text>
+      <text class="upload-{{record.uploadStatus}}">
+        {{record.uploadStatus === 'SUCCESS' ? '已上报' : record.uploadStatus === 'FAILED' ? '上报失败（待人工重传）' : '待上报'}}
+      </text>
+    </view>
+    <view class="em-text-secondary confirm-text" wx:if="{{confirmed}}">
+      使用单位已确认{{record.satisfaction != null ? '（满意度 ' + record.satisfaction + ' 分）' : ''}}，确认记录归档不少于 4 年（不上报平台）
     </view>
   </view>
+
+  <view class="em-card rec-actions">
+    <button size="mini" class="em-btn-ghost" bindtap="copySignLink">复制确认链接</button>
+    <button size="mini" class="em-btn-primary" wx:if="{{!confirmed}}" bindtap="goSign">安全管理员签字</button>
+    <button size="mini" class="em-btn-ghost" bindtap="goBack">返回</button>
+  </view>
 </view>
+
+<view wx:elif="{{loading}}" class="em-text-secondary loading-tip">记录加载中...</view>

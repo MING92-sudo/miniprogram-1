@@ -28,13 +28,17 @@
       <view class="info-row"><text>签退时间</text><text>{{order.checkoutTime || '-'}}</text></view>
     </view>
 
-    <view class="em-card" wx:if="{{order.status === 'PENDING'}}">
-      <button class="em-btn-primary" bindtap="goCheckin">开始签到</button>
+    <!-- 主维保与配合人员分别签到（docs/01 §3.7.2）：本人未签到即可签到，双人工单另提供动态码入口 -->
+    <view class="em-card" wx:if="{{canCheckin}}">
+      <button class="em-btn-primary" bindtap="goCheckin">{{isAssistant ? '配合人员签到' : '开始签到'}}</button>
+      <view wx:if="{{isDual}}" class="sub-action" bindtap="goDynamicCode">
+        {{isAssistant ? '已有主维保动态码？输入校验 ›' : '生成双人动态码（配合人员到场验证）›'}}
+      </view>
     </view>
 
     <view class="em-card" wx:if="{{order.status === 'PROCESSING'}}">
       <button class="em-btn-primary" bindtap="goChecklist">继续作业清单</button>
-      <view class="sub-action" bindtap="goDynamicCode">配合人员到场？输入双人动态码 ›</view>
+      <view wx:if="{{myCheckedIn}}" class="em-text-secondary sub-action">本人已签到{{isDual ? '，配合人员可各自签到' : ''}}</view>
     </view>
 
     <view class="em-card" wx:if="{{order.status === 'DONE'}}">

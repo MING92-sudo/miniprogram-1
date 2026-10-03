@@ -12,6 +12,18 @@ const ROLE_TEXT = {
   SYS_ADMIN: '系统管理员'
 }
 
+// 证件有效期提醒（docs/03 §3.2 项18）：已过期 / 60 天内到期 置顶提示，其余仅展示有效期
+function certReminder(user) {
+  const end = user && user.workEndDate ? String(user.workEndDate).slice(0, 10) : ''
+  if (!end) return { text: '', level: '' }
+  const ts = new Date(end.replace(/-/g, '/')).getTime()
+  if (!ts) return { text: '', level: '' }
+  const days = Math.floor((ts - Date.now()) / 86400000)
+  if (days < 0) return { text: '证件已于 ' + end + ' 过期，请联系管理员更新人员档案', level: 'expired' }
+  if (days <= 60) return { text: '证件将于 ' + end + ' 到期（剩 ' + days + ' 天），请及时换证', level: 'soon' }
+  return { text: '证件有效期至 ' + end, level: 'ok' }
+}
+
 // 角色可见菜单（用户需求：取消独立使用单位端，签字确认走分享链接/本机代签）
 const STAFF_ROLES = [ROLE.WORKER, ROLE.ASSISTANT, ROLE.LEADER]
 
@@ -30,7 +42,9 @@ Page({
     userInfo: null,
     roleText: '',
     versionText: '',
-    menus: []
+    menus: [],
+    certText: '',
+    certLevel: ''
   },
 
   onShow() {
@@ -57,11 +71,14 @@ Page({
     } catch (e) {
       versionText = ''
     }
+    const cert = certReminder(app.globalData.userInfo)
     this.setData({
       userInfo: app.globalData.userInfo,
       roleText: ROLE_TEXT[role] || ROLE[role] || '未登录',
       versionText,
-      menus: buildMenus(role)
+      menus: buildMenus(role),
+      certText: cert.text,
+      certLevel: cert.level
     })
   },
 

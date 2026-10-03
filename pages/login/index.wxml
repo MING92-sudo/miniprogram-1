@@ -35,7 +35,14 @@
       />
       <text class="eye" bindtap="togglePassword">👁</text>
     </view>
-    <view class="forgot" bindtap="forgotPassword">忘记密码？</view>
+    <view class="login-opts">
+      <!-- 记住密码：本机混淆存储，仅当前设备（docs/03 §5.6） -->
+      <view class="remember" bindtap="toggleRemember">
+        <text class="checkbox">{{remember ? '☑' : '☐'}}</text>
+        <text>记住密码</text>
+      </view>
+      <view class="forgot" bindtap="forgotPassword">忘记密码？</view>
+    </view>
 
     <button class="login-btn" disabled="{{logging}}" bindtap="onSubmit">
       {{logging ? '登录中...' : '立即登录'}}

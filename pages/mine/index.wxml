@@ -7,6 +7,9 @@
     </view>
   </view>
 
+  <!-- 证件到期提醒（docs/03 §3.2 项18） -->
+  <view wx:if="{{certText}}" class="cert-tip cert-{{certLevel}}">{{certText}}</view>
+
   <view class="em-card">
     <view
       wx:for="{{menus}}"

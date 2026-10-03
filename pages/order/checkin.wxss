@@ -16,6 +16,28 @@
   margin-bottom: 16rpx;
 }
 
+.geo-state {
+  margin-top: 12rpx;
+  font-size: 26rpx;
+}
+
+.geo-OK {
+  color: #00a870;
+}
+
+.geo-NEAR {
+  color: #ed7b2f;
+}
+
+.geo-OVER {
+  color: #d54941;
+  font-weight: 600;
+}
+
+.geo-UNKNOWN {
+  color: var(--em-text-secondary);
+}
+
 .location-fail {
   color: var(--em-danger, #e34d59);
   margin-bottom: 16rpx;

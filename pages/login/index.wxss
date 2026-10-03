@@ -98,6 +98,26 @@
   padding: 0 8rpx;
 }
 
+.login-opts {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 8rpx 0 24rpx;
+}
+
+.remember {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  font-size: 26rpx;
+  color: #4e5969;
+}
+
+.checkbox {
+  font-size: 30rpx;
+  color: #0052d9;
+}
+
 .forgot {
   text-align: right;
   color: #1668dc;

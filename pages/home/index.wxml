@@ -9,6 +9,11 @@
   </view>
 
   <view class="home-body">
+    <!-- 离线补传提示条（docs/03 §3.2 项2）：有待补传数据时常驻提醒，点击进离线缓存管理 -->
+    <view wx:if="{{offlineCount > 0}}" class="offline-bar" bindtap="goOffline">
+      ⚠️ 有 {{offlineCount}} 条离线数据待补传，点击查看
+    </view>
+
     <!-- 今日待维保电梯 -->
     <view class="section-title">今日待维保电梯</view>
     <view class="stat-grid">

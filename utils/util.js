@@ -46,9 +46,24 @@ function formatDuration(ms) {
   return pad(Math.floor(s / 3600)) + ':' + pad(Math.floor((s % 3600) / 60)) + ':' + pad(s % 60)
 }
 
+// Haversine 球面距离（米）：签到坐标 vs 电梯档案坐标（docs/02 §5.4）。
+// 仅用于前端"实时距离三态"提示，拦截以服务端为准（后端 WorkOrderService.checkin 同口径计算）。
+function distanceMeters(lat1, lng1, lat2, lng2) {
+  const a = [lat1, lng1, lat2, lng2].map(Number)
+  if (a.some((n) => !isFinite(n))) return -1
+  const R = 6371000
+  const rad = Math.PI / 180
+  const dLat = (a[2] - a[0]) * rad
+  const dLng = (a[3] - a[1]) * rad
+  const h = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(a[0] * rad) * Math.cos(a[2] * rad) * Math.sin(dLng / 2) * Math.sin(dLng / 2)
+  return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)))
+}
+
 module.exports = {
   uuid,
   formatTime,
   parseTime,
-  formatDuration
+  formatDuration,
+  distanceMeters
 }
