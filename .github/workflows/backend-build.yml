@@ -3,7 +3,8 @@ name: Backend Build
 on:
   pull_request:
   push:
-    branches: [master]
+    # master 为人工开发主干；codex/** 为 AI 协作分支（AGENTS §5），推送即跑后端构建与单测
+    branches: [master, "codex/**"]
 
 jobs:
   build:
