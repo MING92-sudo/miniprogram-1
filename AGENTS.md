@@ -16,7 +16,7 @@
 ## 1. 项目结构与分层
 
 ```
-├─ app.js / app.json / app.wxss   小程序入口（27 页，tabBar 4 个）
+├─ app.js / app.json / app.wxss   小程序入口（20 页，tabBar 4 个；范围收敛后口径见 docs/03 §3.2）
 ├─ pages/                        页面（每页 .js/.json/.wxml/.wxss 四件套）
 ├─ services/                     业务接口层：页面只调 services，禁止直接 wx.request
 ├─ utils/request.js              唯一请求封装（Bearer 鉴权、X-Idempotency-Key、401 处理）
@@ -24,9 +24,10 @@
 ├─ config/index.js               环境配置（useMock 开关、apiBaseUrl、LBS key 留空）
 ├─ constants/index.js            枚举/错误码/业务常量（文案统一从这里取）
 ├─ mock/                         mock 契约层（server.js 路由 = docs/04 A 部分）
-├─ backend/                      Spring Boot 3.3.4 后端（Flyway 迁移 + JWT + 平台转发 + 97 单测）
+├─ backend/                      Spring Boot 3.3.4 后端（Flyway V1—V12 + JWT/BCrypt + 平台转发 + 136 单测）
 ├─ admin/                        Vue3 + Vite + Element Plus 管理端（lint/vitest/build）
-├─ scripts/                      平台联调 PowerShell/Node 脚本
+├─ scripts/                      平台联调 PowerShell/Node 脚本（fixtures/ 存合成测试件；tmp/ 已 gitignore）
+├─ doc_text.txt                  平台《电梯维保记录上报接口规范 V1.5》原文提取（docs/04 B 部分的核对来源，只读）
 └─ docs/                         01—11 编号文档（见 §8 文档规则）
 ```
 
@@ -55,7 +56,7 @@
 - **幂等**：所有写接口自动携带 `X-Idempotency-Key`（`request.js` 已实现），新写接口不得绕过。
 - **微信小程序规范**：新页面四件套齐全并注册进 `app.json`；`requiredPrivateInfos` 变更须同步说明用途；不得引入新 UI 框架（TDesign 已移除，如重新引入须按 docs/08 重新评估并同步文档）。
 - **后端**：Java 17 / Spring Boot 3.3.4；统一 `ApiResponse` 返回；配置经 `PlatformProperties`（前缀 `platform.`）从环境变量注入；容器端口 80（`SERVER_PORT`）。
-- **目录级检查**：管理端改动在 `admin/` 内跑 `npm run lint && npm test && npm run build`；后端改动在 `backend/` 内跑 `mvn test`。
+- **目录级检查**：管理端改动在 `admin/` 内跑 `npm run lint && npm test && npm run build`（Windows 下若 esbuild 报 `Access is denied`，把 `TMP/TEMP` 指向工作区内目录如 `admin/.tmp-build` 再构建，见 docs/09 V3.5）；后端改动在 `backend/` 内跑 `mvn test`；改到签到/派单/模板链路时另跑 `node scripts/verify-dispatch.js` 与 `node scripts/verify-templates.js`。
 
 ## 4. 平台对接事实（实测为准，勿按规范臆测）
 
@@ -82,7 +83,9 @@
 
 ## 7. AI 代码导航（jcodemunch MCP）
 
-> 本仓库已由 jcodemunch 建立符号级索引（292 文件 / 2590 符号），Codex 会话自动加载其 MCP 工具；watcher 已安装（登录自启），代码变更自动增量重索引。
+> 本仓库已由 jcodemunch 建立符号级索引（292 文件 / 2590 符号）；watcher 已安装（登录自启），代码变更自动增量重索引。
+>
+> ⚠️ **可用性前提（V1.5 更正）**：其 MCP 工具（`route`/`menu`/`order`/`search_symbols` 等）并非每个会话都会加载——**会话开头先确认工具是否存在**（或 `list_repos` 是否可调用）。若不可用，直接回退 Read/Grep/Glob 完成导航，不得因等待索引而阻塞任务；本节其余约束（敏感信息、事实核验）不受影响。
 
 1. **优先用 jcodemunch 导航，替代裸 Read/Grep/Glob**：定位符号（函数/类/常量）、查引用、分析调用链、检索代码时，先经 `route`（自然语言任务→动作）或 `menu`（浏览工具目录）调起 `order` 分发对应动作（`search_symbols` / `find_references` / `get_call_hierarchy` / `get_blast_radius` 等），避免整文件盲读。
 2. **会话开头确认索引**：`list_repos` 显示该仓库 `fresh` 可直接检索；若 `stale` 或缺失，先 `index_folder` 重建再查。
@@ -107,3 +110,5 @@
 | V1.2 | 2026-10-02 | 同步实际架构：后端落地状态（97 单测）、admin 目录与目录级 lint/test 命令、docs 范围 01—11；gitignore 补本地 AI 工具缓存与备份文件 |
 | V1.3 | 2026-10-03 | 新增 §7 AI 代码导航（jcodemunch MCP）：优先符号级检索、索引自维护、敏感信息约束；原 §7/§8 顺延为 §8/§9 |
 | V1.4 | 2026-10-03 | §4.4 更正 2.7 查询口径：平台不支持按 `elevatorCode` 查询（以 docs/06 #8 / docs/04 A.0.2 实测为准），改为 factoryNumber/registrationCode/deviceCode |
+| V1.5 | 2026-10-03 | 全量代码审核整改后同步：①§1 结构表口径更新（小程序 20 页、后端 Flyway V1—V11 + 137 单测、补 `scripts/fixtures/` 与根目录 `doc_text.txt` 说明）；②§3 目录级检查补 admin 构建的 `TMP/TEMP` 规避办法与 verify 脚本触发条件；③§7 更正 jcodemunch 可用性前提——MCP 工具并非每个会话都加载，开头先确认、不可用即回退 Read/Grep/Glob；④§2.5 敏感文件口径澄清：合成测试 PDF 移至 `scripts/fixtures/`（`scripts/tmp/` 保持 gitignore 且不跟踪任何文件） |
+| V1.6 | 2026-10-03 | 已裁模块端点删除后同步计数（后端 Flyway V1—V12、100 条路由、136 单测）；明确**删除端点不删表**（`location_appeal`/`alert_rule`/`alert_record`/`op_log` 等保留以满足留存），恢复交付仍按 §1.2 三处同步 |
