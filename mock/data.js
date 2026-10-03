@@ -1,6 +1,6 @@
 // Mock 数据仓库（仅 config.useMock=true 时生效；后端就绪后可整体删除 mock/ 目录）
 // 数据为内存态：小程序冷启动后重置，一次会话内保持状态流转
-const { formatTime, formatDuration, parseTime } = require('../utils/util')
+const { formatTime, formatDuration, parseTime, distanceMeters } = require('../utils/util')
 const {
   APPENDIX_TPLS,
   FREQ_CHAIN,
@@ -515,7 +515,8 @@ function getElevatorProfile(id) {
 
 // 电梯列表（工作台看板/市监局对接卡片下钻）
 function listElevators() {
-  return db.elevators.map(function (el) {
+  // 停用（INACTIVE）电梯小程序不可见、不派单（docs/09 §6.6）
+  return db.elevators.filter(function (el) { return el.status !== 'INACTIVE' }).map(function (el) {
     const uu = getUseUnit(el.useUnitId) || {}
     return {
       id: el.id,
@@ -533,7 +534,13 @@ function listElevators() {
 function getOrder(id) {
   const o = db.orders.find((x) => x.id === id)
   if (!o) return null
-  const view = Object.assign({}, o, { elevator: getElevator(o.elevatorId) })
+  // 电梯视图补签到阈值缺省值（后端 elevatorView 同口径：电梯级为空则用全局默认 200 米）
+  const elView = Object.assign({}, getElevator(o.elevatorId))
+  if (elView.checkinThreshold == null) elView.checkinThreshold = 200
+  const view = Object.assign({}, o, { elevator: elView })
+  // 双人分别签到状态（docs/01 §3.7.2）
+  view.principalCheckedIn = !!o.checkinExtra
+  view.assistantCheckedIn = !!o.assistantCheckinExtra
   // 已完成工单附带完整维保记录视图数据（签字/确认状态，docs/01 §3.12.5 归档留痕）
   if (o.status === 'DONE' && o.originalRecordId) {
     const rec = db.unitRecords.find(function (r) { return r.originalRecordId === o.originalRecordId })
@@ -610,21 +617,80 @@ function listOrders(query) {
 }
 
 // 签到（body 对齐 docs/04 A.2：lng/lat/locationAccuracy/photoFileId/role/dynamicCode/collectedAt）
-function markCheckin(orderId, body) {
+function markCheckin(orderId, body, geo) {
   const o = db.orders.find((x) => x.id === orderId)
   if (!o) return null
+  const assistant = (body && body.role) === 'ASSISTANT'
   o.status = 'PROCESSING'
-  // 离线补传场景保留本地原始采集时间
-  o.checkinTime = (body && body.collectedAt) || formatTime()
-  o.checkinExtra = {
+  // 离线补传场景保留本地原始采集时间；首人签到时间作为作业起点（双人不互相覆盖）
+  const checkedAt = (body && body.collectedAt) || formatTime()
+  if (!o.checkinTime) o.checkinTime = checkedAt
+  const extra = {
     latitude: body && body.latitude,
     longitude: body && body.longitude,
     locationAccuracy: (body && body.locationAccuracy) || 0,
-    role: (body && body.role) || 'PRINCIPAL',
+    role: assistant ? 'ASSISTANT' : 'PRINCIPAL',
     dynamicCode: (body && body.dynamicCode) || '',
-    selfPhotoFileId: (body && body.photoFileId) || ''
+    selfPhotoFileId: (body && body.photoFileId) || '',
+    distance: geo && geo.distance != null && geo.distance >= 0 ? String(geo.distance) : '',
+    threshold: geo && geo.distance != null && geo.distance >= 0 ? String(geo.threshold) : '',
+    geoStatus: (geo && geo.geoStatus) || 'UNKNOWN',
+    checkedAt: checkedAt
   }
+  if (assistant) o.assistantCheckinExtra = extra
+  else o.checkinExtra = extra
   return o
+}
+
+// ── 双人动态码（docs/03 §3.2 项6：每 5 秒刷新、60 秒有效、绑定工单、一次性使用）──
+const DYNAMIC_CODE_STEP_SECONDS = 5
+const DYNAMIC_CODE_TTL_SECONDS = 60
+
+function issueDynamicCode(orderId) {
+  const o = db.orders.find((x) => x.id === orderId)
+  if (!o) return null
+  const code = String(Math.floor(Math.random() * 1000000)).padStart(6, '0')
+  const now = Date.now()
+  o.dynamicCodes = (o.dynamicCodes || []).filter((c) => c.expiresAt > now)
+  o.dynamicCodes.push({ code: code, expiresAt: now + DYNAMIC_CODE_TTL_SECONDS * 1000 })
+  // 只保留最近 12 个（60 秒 / 5 秒步长），与后端校验窗口一致
+  if (o.dynamicCodes.length > 12) o.dynamicCodes = o.dynamicCodes.slice(-12)
+  return {
+    code: code,
+    stepSeconds: DYNAMIC_CODE_STEP_SECONDS,
+    ttlSeconds: DYNAMIC_CODE_TTL_SECONDS,
+    expiresAt: formatTime(new Date(now + DYNAMIC_CODE_TTL_SECONDS * 1000))
+  }
+}
+
+function requireDynamicCode(o, code) {
+  if (!code) throw { code: 422, message: '配合人员签到必须携带双人动态码' }
+  if (o.dynamicCodeUsed === code) {
+    throw { code: 1003, message: '动态码已使用，请主维保人员刷新后重新取码' }
+  }
+  const now = Date.now()
+  const hit = (o.dynamicCodes || []).some((c) => c.code === code && c.expiresAt > now)
+  if (!hit) {
+    throw {
+      code: 1003,
+      message: '动态码不正确或已过期（有效期 ' + DYNAMIC_CODE_TTL_SECONDS + ' 秒），请主维保人员刷新后重试'
+    }
+  }
+}
+
+function consumeDynamicCode(o, code) {
+  requireDynamicCode(o, code)
+  o.dynamicCodeUsed = code
+}
+
+// 预览上下文用的手机号（按姓名反查演示账号档案）
+function phoneByName(name) {
+  if (!name) return ''
+  const keys = Object.keys(db.employees)
+  for (let i = 0; i < keys.length; i++) {
+    if (db.employees[keys[i]].name === name) return db.employees[keys[i]].phone || ''
+  }
+  return ''
 }
 
 // 签退：生成维保记录 + 平台 2.6 上报快照（冻结档案字段，后续档案变更不回溯）
@@ -678,6 +744,29 @@ function markCheckout(orderId, body) {
     satisfaction: null,
     signatureFileId: '',
     signatureUrl: ''
+  }
+  // 预览上下文快照（docs/03 §六）：与后端 maintain_record.preview_context 同口径，随记录冻结
+  const executed = items.filter((i) => i.notInThisRun !== true)
+  const pickGeo = (extra) => ({
+    latitude: (extra && extra.latitude != null) ? String(extra.latitude) : '',
+    longitude: (extra && extra.longitude != null) ? String(extra.longitude) : '',
+    distance: (extra && extra.distance) || '',
+    threshold: (extra && extra.threshold) || '',
+    geoStatus: (extra && extra.geoStatus) || '',
+    checkedAt: (extra && extra.checkedAt) || ''
+  })
+  record.context = {
+    address: el.location || '',
+    useUnitName: uu.unitName || '',
+    companyName: (db.company && db.company.name) || '',
+    workerPhone: phoneByName(o.workerName),
+    assistantPhone: phoneByName(o.assistantName),
+    workerPlatformId: o.workerPlatformId || '',
+    assistantPlatformId: o.assistantPlatformId || '',
+    checkin: pickGeo(o.checkinExtra),
+    assistantCheckin: pickGeo(o.assistantCheckinExtra),
+    itemTotal: items.length,
+    itemExecuted: executed.length
   }
   // 安全管理员签名确认链接令牌（链接可经微信分享远程签字，或维保人员本机代签）
   record.shareToken = 'sg' + Date.now().toString(36) + Math.floor(Math.random() * 1e8).toString(36)
@@ -915,6 +1004,9 @@ module.exports = {
   getOrder,
   listOrders,
   markCheckin,
+  issueDynamicCode,
+  requireDynamicCode,
+  consumeDynamicCode,
   markCheckout,
   reuploadRecord,
   buildReportPayload,

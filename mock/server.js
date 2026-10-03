@@ -1,8 +1,11 @@
 // Mock 拦截器：按 method + 路径模板匹配 services 层请求，返回统一响应的 data 部分
 // 路径模板支持 :id 形式参数；handler 内 return 即业务成功，throw {code,message} 即业务失败
 const d = require('./data')
-const { formatTime, parseTime } = require('../utils/util')
+const { formatTime, parseTime, distanceMeters } = require('../utils/util')
 const config = require('../config/index')
+
+// mock 无 JWT 解析：登录成功后记住当前演示角色，供自助改密等"当前用户"接口使用
+let currentRole = 'WORKER'
 
 // 自动排期触发点：真实后端为定时任务扫描 plans 表到期记录；
 // mock 在进入工单台/扫码/消息中心时即时检查到期电梯并自动派单
@@ -37,7 +40,19 @@ const routes = [
     })
     if (!user) throw { code: 401, message: '账号不存在，请联系维保单位管理员分配' }
     if (user.password !== password) throw { code: 401, message: '账号或密码错误' }
+    currentRole = roleKey
     return { token: 'mock-token-' + Date.now(), userInfo: user, role: roleKey }
+  }],
+  // 自助改密（docs/04 A.0.1；与后端 AuthController 同口径：校验原密码、新密码 ≥6 位且不同）
+  ['POST', '/auth/change-password', ({ body }) => {
+    const user = d.db.employees[currentRole] || d.db.employees.WORKER
+    const oldPassword = String((body && body.oldPassword) || '')
+    const newPassword = String((body && body.newPassword) || '')
+    if (!user || user.password !== oldPassword) throw { code: 401, message: '原密码不正确' }
+    if (newPassword.length < 6) throw { code: 422, message: '新密码至少 6 位' }
+    if (newPassword === oldPassword) throw { code: 422, message: '新密码不能与原密码相同' }
+    user.password = newPassword
+    return { ok: true }
   }],
   // 登录后绑定微信：wx.login code → 服务端换 openid 并与账号关联（mock 直接返回成功）
   ['POST', '/auth/bind-wechat', ({ body }) => {
@@ -47,6 +62,7 @@ const routes = [
   ['POST', '/auth/wx-login', ({ body }) => {
     const role = d.db.employees[body.role] ? body.role : 'WORKER'
     const user = d.db.employees[role]
+    currentRole = role
     return { token: 'mock-token-' + Date.now(), userInfo: user, role }
   }],
   ['POST', '/auth/bind-employee', ({ body }) => {
@@ -61,10 +77,11 @@ const routes = [
   // ── 工单 ──
   ['GET', '/home/summary', () => d.getHomeSummary()],
   ['GET', '/elevators', () => d.listElevators()],
-  // 扫码回填电梯信息（急修单用，docs/04 A.6）
+  // 扫码回填电梯信息（急修单用，docs/04 A.0.1）
   ['GET', '/elevators/by-code', ({ query }) => {
     const el = d.getElevatorByCode(String((query && query.code) || '').trim())
     if (!el) throw { code: 1404, message: '电梯不存在，请核对编号' }
+    if (el.status === 'INACTIVE') throw { code: 422, message: '该电梯已停用，贴梯二维码失效（docs/09 §6.6）' }
     return {
       id: el.id,
       elevatorCode: el.elevatorCode,
@@ -100,24 +117,45 @@ const routes = [
   }],
   ['POST', '/work-orders/:id/checkin', ({ params, body }) => {
     const o = findOr404(d.db.orders, params.id, '工单')
-    if (o.status !== 'PENDING') throw { code: 1003, message: '当前状态不允许签到' }
-    // 双人作业：配合人员签到必须携带主维保动态码（docs/04 A.2）
-    if (body.role === 'ASSISTANT') {
-      if (!body.dynamicCode) throw { code: 422, message: '配合人员签到必须携带双人动态码' }
-      if (body.dynamicCode !== '888888') throw { code: 1003, message: '动态码错误（演示环境固定为 888888）' }
+    if (o.status === 'DONE') throw { code: 1003, message: '当前状态不允许签到' }
+    const assistant = body.role === 'ASSISTANT'
+    // 主维保与配合人员分别签到，各自一条留痕（docs/01 §3.7.2）
+    if (assistant ? o.assistantCheckinExtra : o.checkinExtra) {
+      throw { code: 1003, message: (assistant ? '配合人员' : '主维保人员') + '已签到，不可重复签到' }
     }
-    d.markCheckin(o.id, body)
+    const lat = Number(body.latitude)
+    const lng = Number(body.longitude)
+    if (!isFinite(lat) || !isFinite(lng)) {
+      throw { code: 422, message: '签到必须携带定位坐标；定位失败请重试（严禁伪造坐标）' }
+    }
+    // 配合人员须携带主维保生成、未过期且未使用的动态码（一次性消费）
+    if (assistant) d.consumeDynamicCode(o, body.dynamicCode)
+    // 定位校验：与后端同口径计算距离；mock 只回显不拦截，拦截口径以后端为准（docs/04 A.0.1 说明）
+    const el = d.getElevator(o.elevatorId)
+    const threshold = (el && el.checkinThreshold) || 200
+    const raw = (el && el.lat && el.lng) ? distanceMeters(lat, lng, el.lat, el.lng) : -1
+    const distance = raw < 0 ? -1 : Math.round(raw * 10) / 10
+    const geoStatus = distance < 0 ? 'UNKNOWN' : 'PROVIDED'
+    d.markCheckin(o.id, body, { distance: distance, threshold: threshold, geoStatus: geoStatus })
     return {
       checkinId: 'chk_' + Date.now(),
-      distance: 35.6,
-      threshold: 200,
+      role: assistant ? 'ASSISTANT' : 'PRINCIPAL',
+      distance: distance < 0 ? null : distance,
+      threshold: distance < 0 ? null : threshold,
       passed: true,
-      geoStatus: 'PROVIDED'
+      geoStatus: geoStatus,
+      geoBackfilled: false
     }
   }],
-  ['POST', '/work-orders/:id/dynamic-code/verify', ({ body }) => {
-    // 演示约定：双人动态码固定 888888
-    if (body.code !== '888888') throw { code: 1003, message: '动态码错误（演示环境固定为 888888）' }
+  // 主维保生成双人动态码（每 5 秒刷新、60 秒有效，docs/03 §3.2 项6）
+  ['POST', '/work-orders/:id/dynamic-code', ({ params }) => {
+    const o = findOr404(d.db.orders, params.id, '工单')
+    if (o.status === 'DONE') throw { code: 1003, message: '当前状态不允许生成动态码' }
+    return d.issueDynamicCode(o.id)
+  }],
+  ['POST', '/work-orders/:id/dynamic-code/verify', ({ params, body }) => {
+    const o = findOr404(d.db.orders, params.id, '工单')
+    d.requireDynamicCode(o, body.code)
     return { ok: true }
   }],
   ['GET', '/work-orders/:id/checklist', ({ params }) => {
