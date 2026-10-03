@@ -60,7 +60,6 @@
         <el-form-item label="班组"><el-input v-model="form.groupName" placeholder="如：维保一班；组长按班组查看组员单据" /></el-form-item>
         <el-form-item label="作业开始日期"><el-input v-model="form.workStartDate" placeholder="yyyy-MM-dd" /></el-form-item>
         <el-form-item label="证件有效期至"><el-input v-model="form.workEndDate" placeholder="yyyy-MM-dd" /></el-form-item>
-        <div class="tip">维保人员/班组长手机参与五类互斥（docs/01 §3.2.4）；使用单位账号经小程序绑定产生，不在建档范围。</div>
         <div class="tip">新建后系统生成随机初始密码（一次性展示），人员用手机号登录后自行修改。</div>
       </el-form>
       <el-dialog v-model="pwdDialog" title="初始密码（一次性展示，请复制转发给本人）" width="460px" append-to-body>

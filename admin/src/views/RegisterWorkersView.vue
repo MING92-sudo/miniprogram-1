@@ -1,14 +1,14 @@
 <template>
   <el-card shadow="never">
     <div class="head">
-      <span>人员管理（2.4：登记维保人员 → 2.5 回填 platform_id）</span>
+      <span>人员管理</span>
       <div>
-        <el-button size="small" :loading="polling" @click="refreshPlatform">刷新平台名单（2.5）</el-button>
+        <el-button size="small" :loading="polling" @click="refreshPlatform">刷新平台名单</el-button>
         <el-button type="primary" size="small" :disabled="!auth.canWrite" @click="openNew">登记维保人员</el-button>
       </div>
     </div>
 
-    <h4 class="sec">平台人员比对（2.5）</h4>
+    <h4 class="sec">平台人员比对</h4>
     <el-table :data="platformList" v-loading="polling" stripe size="small">
       <el-table-column prop="workManName" label="姓名" width="100" />
       <el-table-column prop="workManCertificate" label="证书编号" min-width="180" show-overflow-tooltip />
@@ -19,7 +19,7 @@
       </el-table-column>
     </el-table>
 
-    <el-dialog v-model="dialog" title="登记维保人员（2.4）" width="560px">
+    <el-dialog v-model="dialog" title="登记维保人员" width="560px">
       <el-form label-width="110px">
         <el-form-item label="姓名" required><el-input v-model="form.workManName" /></el-form-item>
         <el-form-item label="证书编号" required><el-input v-model="form.workManCertificate" /></el-form-item>
@@ -28,7 +28,7 @@
         <el-form-item label="结束日期" required><el-date-picker v-model="form.workEndDate" type="date" value-format="YYYY-MM-DD" /></el-form-item>
         <el-form-item label="证书文件" required>
           <input type="file" @change="onFile" />
-          <div class="tip">certificateFile 必填（平台 2.4 multipart 实测口径）；成功后自动本地建档并返回初始密码</div>
+          <div class="tip">证书文件必填；成功后自动本地建档并返回初始密码</div>
         </el-form-item>
       </el-form>
       <template #footer>
@@ -86,8 +86,8 @@ async function save() {
     const res = await platformApi.registerWorker({ ...f, changState: 0, certificateFile })
     dialog.value = false
     ok(res && res.initialPassword
-      ? `2.4 登记成功，已自动建档。初始密码（仅展示一次）：${res.initialPassword}`
-      : '2.4 登记成功')
+      ? `登记成功，已自动建档。初始密码（仅展示一次）：${res.initialPassword}`
+      : '登记成功')
     await refreshPlatform()
   } catch (e) {
     showErr(e)

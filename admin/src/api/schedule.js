@@ -9,10 +9,6 @@ export function generatePlans(body) {
   return http.post('/admin/plans/generate', body)
 }
 
-export function planDetail(id) {
-  return http.get(`/admin/plans/${id}`)
-}
-
 export function assignPlan(id, body) {
   return http.put(`/admin/plans/${id}/assign`, body)
 }

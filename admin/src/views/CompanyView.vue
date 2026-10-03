@@ -4,7 +4,7 @@
       <div class="head">
         <span>维保单位档案</span>
         <el-button v-if="editing" size="small" @click="cancel">取消</el-button>
-        <el-button size="small" :loading="syncing" :disabled="!auth.canWrite || editing" @click="onSyncEntity">同步主体ID（2.2）</el-button>
+      <el-button size="small" :loading="syncing" :disabled="!auth.canWrite || editing" @click="onSyncEntity">同步主体ID</el-button>
         <el-button v-if="!editing" size="small" type="primary" :disabled="!auth.canWrite" @click="editing = true">编辑</el-button>
         <el-button v-else size="small" type="primary" :loading="saving" @click="save">保存</el-button>
       </div>

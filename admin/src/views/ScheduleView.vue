@@ -85,7 +85,6 @@
           </template>
         </el-table-column>
       </el-table>
-      <div class="note">已上报成功的电梯其平台侧"下次维保日期"已固化，审批通过会返回 platformDateSynced=false 提示（docs/04 A.5）</div>
     </el-card>
 
     <el-dialog v-model="assignDialog" title="排班指派" width="620px">

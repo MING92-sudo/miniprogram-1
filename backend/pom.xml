@@ -26,10 +26,6 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-validation</artifactId>
-        </dependency>
         <!-- 持久层：MyBatis-Plus（docs/02 技术栈蓝图）+ MySQL 8 + Flyway -->
         <dependency>
             <groupId>com.baomidou</groupId>
