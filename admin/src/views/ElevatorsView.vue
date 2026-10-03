@@ -14,9 +14,12 @@
 
     <el-table :data="rows" v-loading="loading" stripe @selection-change="onSelect">
       <el-table-column type="selection" width="42" />
-      <el-table-column prop="elevatorName" label="电梯名称" min-width="150" show-overflow-tooltip />
-      <el-table-column prop="elevatorCode" label="平台电梯编码" width="130">      </el-table-column>
-      <el-table-column prop="useUnitName" label="使用单位" min-width="150" show-overflow-tooltip />
+<el-table-column prop="elevatorName" label="项目名称" min-width="150" show-overflow-tooltip />
+<el-table-column prop="elevatorCode" label="电梯编码" width="130">      </el-table-column>
+<el-table-column prop="useUnitName" label="使用单位" min-width="150" show-overflow-tooltip />
+<el-table-column prop="regCode" label="注册代码" width="150" show-overflow-tooltip />
+<el-table-column prop="elevatorAdminister" label="安全管理员" width="100" />
+<el-table-column prop="elevatorAdministerPhone" label="安全管理员电话" width="130" />
       <el-table-column label="位置待补" width="100">
         <template #default="{ row }">
           <el-tag v-if="row.geoStatus === 'MISSING'" size="small" type="danger">待补坐标</el-tag>
@@ -133,11 +136,11 @@
         </el-form-item>
         <el-form-item label="维保周期码">
           <el-select v-model="form.workTypeCode" style="width: 100%">
-            <el-option label="FM 半月" value="FM" />
-            <el-option label="HM 季度" value="HM" />
-            <el-option label="TM 半年" value="TM" />
-            <el-option label="SM 年度" value="SM" />
-            <el-option label="OY 其它" value="OY" />
+            <el-option label="FM 按需" value="FM" />
+            <el-option label="HM 半月" value="HM" />
+            <el-option label="TM 季度" value="TM" />
+            <el-option label="SM 半年" value="SM" />
+            <el-option label="OY 年度" value="OY" />
           </el-select>
         </el-form-item>
         <el-form-item label="下次检验日期"><el-input v-model="form.nextCheckDate" placeholder="yyyy-MM-dd" /></el-form-item>
