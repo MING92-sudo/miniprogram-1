@@ -124,6 +124,9 @@ public class PlatformController {
         fields.put("changState", changState);
         Map<String, Object> resp = platformClient.registerWorkerState(fields,
                 bytes(certificateFile), filename(certificateFile));
+        // 2.4 建立(changState=0)/中止(changState=1) → 回写本地绑定状态（档案删除门禁与状态展示用）
+        archiveService.updateBindStatusByCertificate(workManCertificate,
+                "1".equals(changState) ? 1 : 0);
         // 用户需求①：2.4 平台登记成功 → 本地人员档案自动建档（按证书号去重；随机初始密码走账号流程）
         String employeeId = "";
         String account = workManPhone;

@@ -30,6 +30,13 @@
           <el-tag size="small" :type="row.syncStatus === 'SYNCED' ? 'success' : 'info'">{{ row.syncStatus }}</el-tag>
         </template>
       </el-table-column>
+      <el-table-column label="绑定状态" width="100">
+        <template #default="{ row }">
+          <el-tag size="small" :type="Number(row.bindStatus) === 1 ? 'danger' : 'success'">
+            {{ Number(row.bindStatus) === 1 ? '中止' : '正常' }}
+          </el-tag>
+        </template>
+      </el-table-column>
       <el-table-column prop="workEndDate" label="证件有效期至" width="120" />
       <el-table-column label="操作" width="110" fixed="right">
         <template #default="{ row }">

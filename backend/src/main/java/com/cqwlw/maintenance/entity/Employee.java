@@ -27,6 +27,8 @@ public class Employee {
     public String workEndDate;
     public String workStat;
     public String syncStatus;
+    /** 平台绑定状态（2.4 changState：0 建立/正常，1 中止） */
+    public Integer bindStatus;
     /** 账号启用（SYS_ADMIN 管理，停用后无法登录） */
     public Boolean enabled;
 

@@ -5,10 +5,6 @@ export function sync() {
   return http.post('/platform/sync', {})
 }
 
-export function syncStatus() {
-  return http.get('/reg/sync-status')
-}
-
 /** 2.5 单位维保人员查询（平台原始列表，只读） */
 export function platformWorkers(changState) {
   return http.get('/platform/workers', { params: { changState: changState || 0 }, timeout: 60000 })

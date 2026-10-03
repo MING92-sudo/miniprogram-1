@@ -89,6 +89,7 @@ public class PlatformSyncService {
                 if (e.certificate.equals(str(w.get("workManCertificate"))) && w.get("id") != null) {
                     e.platformId = String.valueOf(w.get("id"));
                     e.syncStatus = "SYNCED";
+                    e.bindStatus = "1".equals(str(w.get("changState"))) ? 1 : 0;
                     employeeMapper.updateById(e);
                     n++;
                     break;

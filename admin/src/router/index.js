@@ -12,7 +12,6 @@ const OrderListView = () => import('../views/OrderListView.vue')
 const OrderDetailView = () => import('../views/OrderDetailView.vue')
 const FailedRecordsView = () => import('../views/FailedRecordsView.vue')
 const UploadLogsView = () => import('../views/UploadLogsView.vue')
-const SyncStatusView = () => import('../views/SyncStatusView.vue')
 const CompanyView = () => import('../views/CompanyView.vue')
 const UseUnitsView = () => import('../views/UseUnitsView.vue')
 const EmployeesView = () => import('../views/EmployeesView.vue')
@@ -36,7 +35,6 @@ export const routes = [
       { path: 'orders/:id', component: OrderDetailView, meta: { title: '工单详情' } },
       { path: 'reports/failed', component: FailedRecordsView, meta: { title: '上报异常清单' } },
       { path: 'reports/logs', component: UploadLogsView, meta: { title: '上报日志' } },
-      { path: 'platform/sync', component: SyncStatusView, meta: { title: '平台同步' } },
       { path: 'schedule', component: ScheduleView, meta: { title: '计划调度' } },
       { path: 'archive/company', component: CompanyView, meta: { title: '维保单位档案' } },
       { path: 'archive/use-units', component: UseUnitsView, meta: { title: '使用单位档案' } },

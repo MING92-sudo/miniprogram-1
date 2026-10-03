@@ -25,6 +25,7 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -120,6 +121,24 @@ class AdminArchiveServiceTest {
                 "name", "乙", "phone", "13900004444", "role", "WORKER")));
         assertEquals(422, dup.getCode());
         assertTrue(dup.getMessage().contains("账号已存在"));
+    }
+
+    @Test
+    void deleteEmployeeBlockedWhilePlatformBindingActive() {
+        Employee e = new Employee();
+        e.id = "emp_9";
+        e.name = "已登记";
+        e.role = "WORKER";
+        e.platformId = "6901282369105174537";
+        e.bindStatus = 0;
+        when(employeeMapper.selectById("emp_9")).thenReturn(e);
+        BizException blocked = assertThrows(BizException.class, () -> service.deleteEmployee("emp_9"));
+        assertEquals(422, blocked.getCode());
+        verify(employeeMapper, never()).deleteById(anyString());
+
+        e.bindStatus = 1;
+        service.deleteEmployee("emp_9");
+        verify(employeeMapper).deleteById("emp_9");
     }
 
     @Test

@@ -206,8 +206,22 @@ public class AdminArchiveService {
         if (inflight != null && inflight > 0) {
             throw new BizException(422, "该人员名下有在途工单（待执行/进行中），暂不能删除");
         }
+        if (e.platformId != null && !e.platformId.isBlank()
+                && (e.bindStatus == null || e.bindStatus == 0)) {
+            throw new BizException(422, "该人员已在平台登记且绑定正常，请先在人员管理中止后再删除");
+        }
         employeeMapper.deleteById(id);
         return Map.of("ok", true);
+    }
+
+    /** 2.4 登记建立/中止后回写绑定状态（按证书号定位，平台内唯一） */
+    public void updateBindStatusByCertificate(String certificate, int bindStatus) {
+        Employee e = employeeMapper.selectList(new LambdaQueryWrapper<Employee>()
+                .eq(Employee::getCertificate, certificate)).stream().findFirst().orElse(null);
+        if (e != null) {
+            e.bindStatus = bindStatus;
+            employeeMapper.updateById(e);
+        }
     }
 
     public Map<String, Object> deleteUseUnit(String id) {
@@ -542,6 +556,7 @@ public class AdminArchiveService {
         m.put("workEndDate", nz(e.workEndDate));
         m.put("workStat", nz(e.workStat));
         m.put("syncStatus", nz(e.syncStatus));
+        m.put("bindStatus", e.bindStatus == null ? 0 : e.bindStatus);
         m.put("enabled", !Boolean.FALSE.equals(e.enabled));
         return m;
     }
