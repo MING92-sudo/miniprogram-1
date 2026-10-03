@@ -73,8 +73,8 @@
     </el-dialog>
     <el-dialog v-model="dialog" :title="form.id ? '编辑电梯' : '新建电梯'" width="640px">
       <el-form :model="form" label-width="130px">
-<el-form-item label="平台电梯编码" required><el-input v-model="form.elevatorCode"
-  placeholder="由平台分配；新梯从设备铭牌/登记证获取设备代码后点查询即可回填" /></el-form-item>
+<el-form-item label="平台电梯编码"><el-input v-model="form.elevatorCode" disabled
+  placeholder="任填下方 设备代码/注册代码/出厂编号 之一，点【平台查询】由 2.7 回填" /></el-form-item>
 <el-form-item v-if="platformHint" label=" ">
   <el-text size="small" type="success">{{ platformHint }}</el-text>
 </el-form-item>
@@ -85,15 +85,12 @@
             <el-option v-for="u in units" :key="u.id" :label="u.unitName" :value="u.id" />
           </el-select>
         </el-form-item>
-        <el-form-item label="注册代码"><el-input v-model="form.regCode" /></el-form-item>
-<el-form-item label="设备代码">
-  <el-input v-model="form.deviceCode">
-    <template #append v-if="!form.id">
-      <el-button :loading="querying" @click="queryFromPlatform">平台查询</el-button>
-    </template>
-  </el-input>
-</el-form-item>
-        <el-form-item label="出厂编号"><el-input v-model="form.factoryNumber" placeholder="设备铭牌（选填，亦可作2.7查询条件）" /></el-form-item>
+        <el-form-item label="注册代码"><el-input v-model="form.regCode" placeholder="登记证（选填，三选一即可查询）" /></el-form-item>
+        <el-form-item label="设备代码"><el-input v-model="form.deviceCode" placeholder="设备铭牌（选填，三选一即可查询）" /></el-form-item>
+        <el-form-item label="出厂编号"><el-input v-model="form.factoryNumber" placeholder="设备铭牌（选填，三选一即可查询）" /></el-form-item>
+        <el-form-item v-if="!form.id" label=" ">
+          <el-button type="primary" :loading="querying" @click="queryFromPlatform">平台查询</el-button>
+        </el-form-item>
         <el-form-item label="单位内编号" required>
           <el-input v-model="form.insideNumber" placeholder="使用单位内自编号（上报必填）" />
         </el-form-item>
