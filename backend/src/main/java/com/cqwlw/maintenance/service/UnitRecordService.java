@@ -49,6 +49,11 @@ public class UnitRecordService {
 
     public Map<String, Object> confirm(String id, Map<String, Object> body) {
         MaintainRecord r = findOr404(id);
+        // 已确认记录不可被二次提交覆盖签字/满意度（与 confirmByToken 一致）：
+        // docs/05 §2.9 冻结与不可变、§10.4 #13「确认后状态不可重复提交」
+        if ("CONFIRMED".equals(r.confirmStatus)) {
+            return JsonUtil.map("ok", true, "already", true);
+        }
         r.confirmStatus = "CONFIRMED";
         r.satisfaction = body.get("satisfaction") == null ? 0 : ((Number) body.get("satisfaction")).intValue();
         r.signatureFileId = WorkOrderService.strOrEmpty(body.get("signatureFileId"));
