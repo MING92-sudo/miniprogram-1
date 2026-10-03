@@ -40,7 +40,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref } from 'vue'
 import * as platformApi from '../api/platform'
 import { showErr, ok } from '../utils/ui'
 import { useAuthStore } from '../stores/auth'
@@ -96,7 +96,6 @@ async function save() {
   }
 }
 
-onMounted(load)
 </script>
 
 <style scoped>
