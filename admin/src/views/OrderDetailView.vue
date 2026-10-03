@@ -28,12 +28,49 @@
 
     <template v-if="recordInfo">
       <h4 class="sec">维保记录 / 使用单位确认</h4>
-      <el-descriptions :column="3" border size="small">
+      <el-descriptions :column="4" border size="small">
         <el-descriptions-item label="确认状态">{{ recordInfo.confirmStatus || 'PENDING' }}</el-descriptions-item>
         <el-descriptions-item label="上报状态">{{ recordInfo.uploadStatus || recordInfo.reportStatus || '-' }}</el-descriptions-item>
         <el-descriptions-item label="满意度">{{ recordInfo.satisfaction ?? '-' }}</el-descriptions-item>
+        <el-descriptions-item label="操作">
+          <el-button size="small" type="primary" @click="openPreview">预览记录</el-button>
+          <el-button size="small" @click="onDownloadPdf">下载PDF</el-button>
+        </el-descriptions-item>
       </el-descriptions>
     </template>
+
+    <el-drawer v-model="previewVisible" title="维保记录预览（与 PDF 同源）" size="480px">
+      <template v-if="preview">
+        <el-descriptions :column="1" border size="small">
+          <el-descriptions-item label="电梯">{{ preview.elevatorName }}（{{ preview.elevatorCode }}）</el-descriptions-item>
+          <el-descriptions-item label="维保类别">{{ preview.workType }}</el-descriptions-item>
+          <el-descriptions-item label="签到 / 签退">{{ preview.checkinTime }} ~ {{ preview.checkoutTime }}</el-descriptions-item>
+          <el-descriptions-item label="作业时长">{{ preview.duration }}</el-descriptions-item>
+          <el-descriptions-item label="维保 / 配合人员">{{ preview.workerName }} / {{ preview.assistantName || '单人' }}</el-descriptions-item>
+          <el-descriptions-item label="隐患码">{{ (preview.problemCodes || []).join('、') || 'S0' }}</el-descriptions-item>
+          <el-descriptions-item label="上报状态">{{ preview.uploadStatus }}</el-descriptions-item>
+        </el-descriptions>
+        <h4 class="sec">检查项明细（{{ (preview.items || []).length }} 项）</h4>
+        <el-table :data="preview.items" size="small" max-height="220">
+          <el-table-column type="index" label="#" width="44" />
+          <el-table-column prop="name" label="检查项" min-width="160" show-overflow-tooltip />
+          <el-table-column prop="result" label="结果" width="70" />
+        </el-table>
+        <h4 class="sec">现场照片（{{ (preview.photos || []).length }}）</h4>
+        <div v-if="(preview.photos || []).length" class="photos">
+          <el-image v-for="(p, i) in preview.photos" :key="i" :src="p" :preview-src-list="preview.photos"
+                    fit="cover" class="photo" />
+        </div>
+        <div v-else class="muted">无</div>
+        <h4 class="sec">签字区</h4>
+        <div class="signs">
+          <el-image v-if="preview.workerSignatureUrl" :src="preview.workerSignatureUrl" fit="contain" class="sign" />
+          <el-image v-if="preview.assistantSignatureUrl" :src="preview.assistantSignatureUrl" fit="contain" class="sign" />
+          <el-image v-if="preview.signatureUrl" :src="preview.signatureUrl" fit="contain" class="sign" />
+        </div>
+        <div v-if="!(preview.workerSignatureUrl || preview.assistantSignatureUrl || preview.signatureUrl)" class="muted">无签字图</div>
+      </template>
+    </el-drawer>
 
     <h4 class="sec">检查项结果（{{ items.length }} 项）</h4>
     <el-table :data="items" size="small" stripe max-height="420">
@@ -78,7 +115,8 @@ import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import * as orderApi from '../api/order'
 import * as scheduleApi from '../api/schedule'
-import { showErr, ok } from '../utils/ui'
+import * as reportApi from '../api/report'
+import { showErr, ok, downloadBlob } from '../utils/ui'
 import { useAuthStore } from '../stores/auth'
 
 const route = useRoute()
@@ -93,6 +131,21 @@ const transferForm = reactive({ toEmployeeId: '', reason: '' })
 
 const elevator = computed(() => order.value.elevator || {})
 const recordInfo = computed(() => order.value.recordInfo || null)
+const previewVisible = ref(false)
+const preview = ref(null)
+
+/** 维保记录预览：与使用单位确认/PDF 同源（GET /unit/records/{id}，docs/03 V2.1 §3.3） */
+async function openPreview() {
+  if (!recordInfo.value || !recordInfo.value.id) return
+  preview.value = await reportApi.getRecord(recordInfo.value.id)
+  previewVisible.value = true
+}
+
+async function onDownloadPdf() {
+  if (!recordInfo.value || !recordInfo.value.id) return
+  const blob = await reportApi.exportPdf(recordInfo.value.id)
+  downloadBlob(blob, `维保记录-${recordInfo.value.originalRecordId || recordInfo.value.id}.pdf`)
+}
 
 async function loadCandidates() {
   try {

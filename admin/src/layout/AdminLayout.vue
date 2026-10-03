@@ -10,32 +10,32 @@
         <el-menu-item index="/dashboard">
           <el-icon><Odometer /></el-icon><span>监控看板</span>
         </el-menu-item>
-        <el-sub-menu index="platform">
-          <template #title><el-icon><Refresh /></el-icon><span>平台对接</span></template>
-          <el-menu-item index="/platform/sync"><span>平台同步</span></el-menu-item>
+        <el-menu-item index="/schedule">
+          <el-icon><Tickets /></el-icon><span>计划调度</span>
+        </el-menu-item>
+        <el-sub-menu index="monitor">
+          <template #title><el-icon><Refresh /></el-icon><span>工单监控</span></template>
+          <el-menu-item index="/orders"><span>工单列表</span></el-menu-item>
           <el-menu-item index="/reports/failed"><span>上报异常清单</span></el-menu-item>
-          <el-menu-item index="/reports/logs"><span>上报日志</span></el-menu-item>
+          <el-menu-item index="/platform/sync"><span>平台同步</span></el-menu-item>
+        </el-sub-menu>
+        <el-sub-menu index="archive">
+          <template #title><el-icon><Tickets /></el-icon><span>档案管理</span></template>
           <el-menu-item index="/archive/company"><span>维保单位</span></el-menu-item>
           <el-menu-item index="/archive/use-units"><span>使用单位</span></el-menu-item>
           <el-menu-item index="/archive/employees"><span>人员</span></el-menu-item>
           <el-menu-item index="/archive/elevators"><span>电梯档案</span></el-menu-item>
         </el-sub-menu>
-        <el-sub-menu index="system">
-          <template #title><el-icon><Tickets /></el-icon><span>系统功能</span></template>
-          <el-menu-item index="/orders"><span>工单监控</span></el-menu-item>
-          <el-menu-item index="/schedule"><span>计划调度</span></el-menu-item>
-          <el-menu-item index="/templates"><span>检查项模板</span></el-menu-item>
-          <el-menu-item index="/ledger/faults"><span>故障记录</span></el-menu-item>
-          <el-menu-item index="/approvals"><span>定位异常申述审核</span></el-menu-item>
-          <el-menu-item index="/stats"><span>统计报表</span></el-menu-item>
-          <el-menu-item index="/alerts"><span>预警规则</span></el-menu-item>
-          <el-menu-item index="/notify"><span>发送记录</span></el-menu-item>
+        <el-sub-menu index="register">
+          <template #title><el-icon><Notebook /></el-icon><span>平台登记</span></template>
+          <el-menu-item index="/register/relations"><span>服务关系维护（2.3）</span></el-menu-item>
+          <el-menu-item index="/register/workers"><span>人员管理（2.4）</span></el-menu-item>
         </el-sub-menu>
-        <el-sub-menu v-if="auth.isSysAdmin" index="sysadmin">
-          <template #title><el-icon><Notebook /></el-icon><span>系统管理</span></template>
-          <el-menu-item index="/users"><span>用户权限</span></el-menu-item>
-          <el-menu-item index="/op-logs"><span>审计日志</span></el-menu-item>
-        </el-sub-menu>      </el-menu>
+        <el-sub-menu index="logs">
+          <template #title><el-icon><Notebook /></el-icon><span>上报日志</span></template>
+          <el-menu-item index="/reports/logs"><span>上报日志</span></el-menu-item>
+        </el-sub-menu>
+      </el-menu>
     </el-aside>
 
     <el-container>
@@ -69,9 +69,11 @@ const route = useRoute()
 /** 当前路由所在模块默认展开，其余折叠 */
 const openMenus = computed(() => {
   const p = route.path
-  if (p.startsWith('/platform') || p.startsWith('/reports') || p.startsWith('/archive')) return ['platform']
-  if (p.startsWith('/users') || p.startsWith('/op-logs')) return ['sysadmin']
-  return ['system']
+  if (p.startsWith('/orders') || p.startsWith('/platform') || p.startsWith('/reports/failed')) return ['monitor']
+  if (p.startsWith('/archive')) return ['archive']
+  if (p.startsWith('/register')) return ['register']
+  if (p.startsWith('/reports/logs')) return ['logs']
+  return ['monitor']
 })
 const auth = useAuthStore()
 

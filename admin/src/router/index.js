@@ -14,15 +14,9 @@ import CompanyView from '../views/CompanyView.vue'
 import UseUnitsView from '../views/UseUnitsView.vue'
 import EmployeesView from '../views/EmployeesView.vue'
 import ElevatorsView from '../views/ElevatorsView.vue'
-import FaultsView from '../views/FaultsView.vue'
-import StatsView from '../views/StatsView.vue'
 import ScheduleView from '../views/ScheduleView.vue'
-import TemplateManageView from '../views/TemplateManageView.vue'
-import AlertRulesView from '../views/AlertRulesView.vue'
-import NotifyRecordsView from '../views/NotifyRecordsView.vue'
-import UsersView from '../views/UsersView.vue'
-import OpLogsView from '../views/OpLogsView.vue'
-import ApprovalsView from '../views/ApprovalsView.vue'
+import RegisterRelationsView from '../views/RegisterRelationsView.vue'
+import RegisterWorkersView from '../views/RegisterWorkersView.vue'
 import ForbiddenView from '../views/ForbiddenView.vue'
 import NotFoundView from '../views/NotFoundView.vue'
 
@@ -39,20 +33,14 @@ export const routes = [
       { path: 'orders/:id', component: OrderDetailView, meta: { title: '工单详情' } },
       { path: 'reports/failed', component: FailedRecordsView, meta: { title: '上报异常清单' } },
       { path: 'reports/logs', component: UploadLogsView, meta: { title: '上报日志' } },
-      { path: 'approvals', component: ApprovalsView, meta: { title: '定位异常申述审核' } },
       { path: 'platform/sync', component: SyncStatusView, meta: { title: '平台同步' } },
       { path: 'schedule', component: ScheduleView, meta: { title: '计划调度' } },
-      { path: 'templates', component: TemplateManageView, meta: { title: '检查项模板' } },
       { path: 'archive/company', component: CompanyView, meta: { title: '维保单位档案' } },
       { path: 'archive/use-units', component: UseUnitsView, meta: { title: '使用单位档案' } },
       { path: 'archive/employees', component: EmployeesView, meta: { title: '人员档案' } },
       { path: 'archive/elevators', component: ElevatorsView, meta: { title: '电梯档案' } },
-      { path: 'ledger/faults', component: FaultsView, meta: { title: '故障台账' } },
-      { path: 'stats', component: StatsView, meta: { title: '统计报表' } },
-      { path: 'alerts', component: AlertRulesView, meta: { title: '预警规则' } },
-      { path: 'notify', component: NotifyRecordsView, meta: { title: '发送记录' } },
-      { path: 'users', component: UsersView, meta: { title: '用户权限' } },
-      { path: 'op-logs', component: OpLogsView, meta: { title: '审计日志' } }
+      { path: 'register/relations', component: RegisterRelationsView, meta: { title: '服务关系维护（2.3）' } },
+      { path: 'register/workers', component: RegisterWorkersView, meta: { title: '人员管理（2.4）' } }
     ]
   },
   { path: '/403', component: ForbiddenView, meta: { public: true, title: '无权限' } },

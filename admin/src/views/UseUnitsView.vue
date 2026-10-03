@@ -16,9 +16,10 @@
         <template #default="{ row }">{{ row.entityId || '—' }}</template>
       </el-table-column>
       <el-table-column prop="elevatorCount" label="电梯数" width="80" />
-      <el-table-column label="操作" width="80" fixed="right">
+      <el-table-column label="操作" width="160" fixed="right">
         <template #default="{ row }">
           <el-button link type="primary" :disabled="!auth.canWrite" @click="openEdit(row)">编辑</el-button>
+          <el-button link type="primary" :disabled="!auth.canWrite" @click="onSyncEntity(row)">同步主体ID</el-button>
           <el-button link type="danger" :disabled="!auth.canWrite" @click="onDelete(row)">删除</el-button>
         </template>
       </el-table-column>
@@ -60,6 +61,21 @@ const dialog = ref(false)
 const saving = ref(false)
 const form = reactive({ id: '', unitName: '', unitPrincipal: '', unitPrincipalPhone: '',
   elevatorAdminister: '', elevatorAdministerPhone: '', emergencyPhone: '' })
+
+/** 2.2 单主体同步（docs/09 V3.1 ④） */
+async function onSyncEntity(row) {
+  try {
+    const res = await archiveApi.syncUseUnitEntityId(row.id)
+    if (res.found) {
+      ok(`${row.unitName} 主体ID 已同步：${res.entityId}`)
+    } else {
+      ok(`未同步：${res.reason || '平台未查询到该主体'}`)
+    }
+    await load()
+  } catch (e) {
+    showErr(e)
+  }
+}
 
 async function load() {
   loading.value = true

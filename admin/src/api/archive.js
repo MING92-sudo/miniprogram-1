@@ -66,3 +66,35 @@ export function deleteElevator(id) {
 export function dispatchElevator(id) {
   return http.post(`/elevators/${id}/dispatch`, {})
 }
+
+// ── 范围收敛新增（docs/04 V2.9 A.9.0 / docs/09 V3.3）──
+
+/** 批量绑定维保人员与电梯（docs/04 A.9.0）：返回 {success[], failed[]} 逐台明细 */
+export function batchAssignWorkers(body) {
+  return http.post('/elevators/batch-assign-workers', body)
+}
+
+/** 批量导入经纬度：{items:[{code,lng,lat}]}，逐条回显成败 */
+export function batchGeo(items) {
+  return http.post('/elevators/batch-geo', { items })
+}
+
+/** 电梯贴梯二维码 PNG（内容=电梯编码），blob 直传 */
+export function elevatorQrPng(id) {
+  return http.get(`/elevators/${id}/qrcode`, { responseType: 'blob', timeout: 60000 })
+}
+
+/** 重置密码（docs/09 V2.2 方案 A）：12 位随机一次性返回 */
+export function resetEmployeePassword(id) {
+  return http.post(`/employees/${id}/reset-password`, {})
+}
+
+/** 2.2 单主体同步：维保单位 */
+export function syncCompanyEntityId() {
+  return http.post('/company/sync-entity-id', {})
+}
+
+/** 2.2 单主体同步：使用单位 */
+export function syncUseUnitEntityId(id) {
+  return http.post(`/use-units/${id}/sync-entity-id`, {})
+}

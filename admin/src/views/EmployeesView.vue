@@ -34,6 +34,7 @@
       <el-table-column label="操作" width="110" fixed="right">
         <template #default="{ row }">
           <el-button link type="primary" :disabled="!auth.canWrite" @click="openEdit(row)">编辑</el-button>
+          <el-button link type="warning" :disabled="!auth.canWrite" @click="onResetPwd(row)">重置密码</el-button>
           <el-button link type="danger" :disabled="!auth.canWrite" @click="onDelete(row)">删除</el-button>
         </template>
       </el-table-column>
@@ -151,6 +152,20 @@ async function onDelete(row) {
     if (e !== 'cancel' && e.message !== 'cancel') showErr(e)
   }
 }
+
+/** 重置密码（docs/09 V2.2 忘记密码方案 A：12 位随机，一次性弹窗转交本人） */
+async function onResetPwd(row) {
+  try {
+    await ElMessageBox.confirm(`确以为「${row.name}（${row.phone}）」重置密码？将生成 12 位随机密码。`, '重置密码', { type: 'warning' })
+    const res = await archiveApi.resetEmployeePassword(row.id)
+    await ElMessageBox.alert(
+      `新密码：${res.initialPassword}（仅展示一次，请转交本人，登录后可在小程序自助改密）`,
+      '重置成功', { type: 'success' })
+  } catch (e) {
+    if (e !== 'cancel' && e.message !== 'cancel') showErr(e)
+  }
+}
+
 async function save() {
   saving.value = true
   try {

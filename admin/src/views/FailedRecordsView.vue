@@ -62,7 +62,9 @@
     <el-dialog v-model="detailVisible" title="维保记录详情" width="720px">
       <el-descriptions :column="2" border size="small" v-if="detail">
         <el-descriptions-item label="电梯">{{ detail.elevatorName }}（{{ detail.elevatorCode }}）</el-descriptions-item>
+        <el-descriptions-item label="维保类别">{{ detail.workType }}</el-descriptions-item>
         <el-descriptions-item label="时长">{{ detail.duration }}</el-descriptions-item>
+        <el-descriptions-item label="上报状态">{{ detail.uploadStatus || detail.reportStatus }}</el-descriptions-item>
         <el-descriptions-item label="维保 / 配合">{{ detail.workerName }} / {{ detail.assistantName || '单人' }}</el-descriptions-item>
         <el-descriptions-item label="隐患码">{{ (detail.problemCodes || []).join('、') || '—' }}</el-descriptions-item>
         <el-descriptions-item label="确认状态">{{ detail.confirmStatus }}</el-descriptions-item>
@@ -73,6 +75,21 @@
                   fit="cover" class="photo" />
       </div>
       <div v-else-if="detail" class="muted">无现场照片</div>
+      <template v-if="detail">
+        <h4 class="sec">检查项明细（{{ (detail.items || []).length }} 项）</h4>
+        <el-table :data="detail.items" size="small" max-height="200">
+          <el-table-column type="index" label="#" width="44" />
+          <el-table-column prop="name" label="检查项" min-width="180" show-overflow-tooltip />
+          <el-table-column prop="result" label="结果" width="80" />
+        </el-table>
+        <h4 class="sec">签字区（维保 / 配合 / 安全管理员）</h4>
+        <div class="signs">
+          <el-image v-if="detail.workerSignatureUrl" :src="detail.workerSignatureUrl" fit="contain" class="sign" />
+          <el-image v-if="detail.assistantSignatureUrl" :src="detail.assistantSignatureUrl" fit="contain" class="sign" />
+          <el-image v-if="detail.signatureUrl" :src="detail.signatureUrl" fit="contain" class="sign" />
+        </div>
+        <div v-if="!(detail.workerSignatureUrl || detail.assistantSignatureUrl || detail.signatureUrl)" class="muted">无签字图</div>
+      </template>
     </el-dialog>
   </el-card>
 </template>
@@ -158,5 +175,8 @@ onMounted(() => load())
 .hz { margin-right: 4px; }
 .photos { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
 .photo { width: 120px; height: 90px; border-radius: 4px; }
+.sec { margin: 14px 0 8px; }
+.signs { display: flex; gap: 12px; margin-top: 8px; }
+.sign { width: 150px; height: 70px; border: 1px dashed #dcdfe6; border-radius: 4px; }
 .muted { color: #86909c; margin-top: 12px; }
 </style>

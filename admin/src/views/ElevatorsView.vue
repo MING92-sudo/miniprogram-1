@@ -5,6 +5,8 @@
       <div>
         <el-button size="small" type="warning" :disabled="!auth.canWrite || !selection.length"
                    @click="openBatch">批量分配维保人员</el-button>
+        <el-button size="small" type="warning" :disabled="!auth.canWrite || !selection.length"
+                   @click="openBatchGeo">批量导入经纬度</el-button>
         <el-button size="small" :loading="syncing" :disabled="!auth.canWrite" @click="onSync">平台回填（2.7）</el-button>
         <el-button type="primary" size="small" :disabled="!auth.canWrite" @click="openCreate">新建电梯</el-button>
       </div>
@@ -28,7 +30,11 @@
       <el-table-column label="操作" width="80" fixed="right">
         <template #default="{ row }">
           <el-button link type="primary" :disabled="!auth.canWrite" @click="openEdit(row)">编辑</el-button>
+          <el-button link type="primary" @click="onQr(row)">二维码</el-button>
           <el-button link type="warning" :disabled="!auth.canWrite" @click="onDispatch(row)">立即派单</el-button>
+          <el-button link type="warning" :disabled="!auth.canWrite" @click="onToggleStatus(row)">
+            {{ row.status === 'INACTIVE' ? '启用' : '停用' }}
+          </el-button>
           <el-button link type="danger" :disabled="!auth.canWrite" @click="onDelete(row)">删除</el-button>
         </template>
       </el-table-column>
@@ -53,24 +59,17 @@
         <el-button type="primary" :loading="saving" @click="saveBatch">确认分配</el-button>
       </template>
     </el-dialog>
-    <el-dialog v-model="batchDialog" title="批量分配维保人员" width="480px">
-      <el-form label-width="110px">
-        <el-form-item label="已选电梯"><span>{{ selection.length }} 台</span></el-form-item>
-        <el-form-item label="维保人员1">
-          <el-select v-model="batch.workerEmployeeId" filterable style="width: 100%">
-            <el-option v-for="e in staff" :key="e.id" :value="e.id" :label="e.name + '（' + e.phone + '）'" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="维保人员2">
-          <el-select v-model="batch.assistantEmployeeId" filterable clearable style="width: 100%">
-            <el-option v-for="e in staff" :key="e.id" :value="e.id" :label="e.name + '（' + e.phone + '）'" />
-          </el-select>
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="batchDialog = false">取消</el-button>
-        <el-button type="primary" :loading="saving" @click="saveBatch">确认分配</el-button>
-      </template>
+    <el-dialog v-model="geoDialog" title="批量导入经纬度（位置待补补录）" width="560px">
+      <div class="tip" style="margin-bottom: 8px">
+        CSV 两列：电梯编码,经度,纬度。先
+        <el-button link type="primary" size="small" @click="downloadGeoTemplate">下载模板</el-button>
+        填写后上传（仅对上方勾选的 {{ selection.length || '全部' }} 台电梯之外按编码全局匹配）。
+      </div>
+      <input type="file" accept=".csv,text/csv" @change="onGeoFile" />
+      <div v-if="geoResult" class="tip" style="margin-top: 8px">
+        成功 {{ geoResult.success.length }} 条；失败 {{ geoResult.failed.length }} 条
+        <div v-for="f in geoResult.failed" :key="f.code">{{ f.code }}：{{ f.reason }}</div>
+      </div>
     </el-dialog>
     <el-dialog v-model="dialog" :title="form.id ? '编辑电梯' : '新建电梯'" width="640px">
       <el-form :model="form" label-width="130px">
@@ -169,6 +168,8 @@ const assistantEmployeeId = ref('')
 const selection = ref([])
 const batchDialog = ref(false)
 const batch = ref({ workerEmployeeId: '', assistantEmployeeId: '' })
+const geoDialog = ref(false)
+const geoResult = ref(null)
 const platformHint = ref('')
 const categories = ['曳引与强制驱动电梯', '液压驱动电梯', '杂物电梯', '自动扶梯与自动人行道']
 
@@ -276,20 +277,85 @@ function openBatch() {
 }
 async function saveBatch() {
   if (!batch.value.workerEmployeeId) { ok('请选择维保人员1'); return }
-  const w = staff.value.find((x) => x.id === batch.value.workerEmployeeId)
-  const a = staff.value.find((x) => x.id === batch.value.assistantEmployeeId)
   saving.value = true
   try {
-    for (const row of selection.value) {
-      await archiveApi.updateElevator(row.id, {
-        workerName: w ? w.name : '', workerPhone: w ? w.phone : '', workerPlatformId: w ? w.platformId : '',
-        assistantName: a ? a.name : '', assistantPlatformId: a ? a.platformId : ''
-      })
-    }
+    // docs/04 A.9.0：批量绑定接口，逐台校验 1004/1002/1007，单台失败不阻塞
+    const res = await archiveApi.batchAssignWorkers({
+      elevatorIds: selection.value.map((r) => r.id),
+      principalId: batch.value.workerEmployeeId,
+      assistantId: batch.value.assistantEmployeeId || undefined
+    })
     batchDialog.value = false
-    ok(`已为 ${selection.value.length} 台电梯批量分配维保人员`)
+    const failed = res.failed || []
+    if (!failed.length) {
+      ok(`已为 ${(res.success || []).length} 台电梯绑定维保人员`)
+    } else {
+      const lines = failed.map((f) => `${f.elevatorId}：${f.reason}`).join('\n')
+      await ElMessageBox.alert(lines, `绑定结果：成功 ${(res.success || []).length} 台，失败 ${failed.length} 台`, { type: 'warning' })
+    }
     await load()
   } catch (e) { showErr(e) } finally { saving.value = false }
+}
+
+/** 批量导入经纬度（docs/09 §6.6）：前端生成 CSV 模板、解析后调 batch-geo */
+function openBatchGeo() {
+  geoResult.value = null
+  geoDialog.value = true
+}
+
+function downloadGeoTemplate() {
+  const header = 'code,lng,lat'
+  const sample = selection.value.map((r) => `${r.elevatorCode},,`).join('\n')
+  const blob = new Blob(['\ufeff' + header + '\n' + sample], { type: 'text/csv;charset=utf-8' })
+  const a = document.createElement('a')
+  a.href = URL.createObjectURL(blob)
+  a.download = 'elevator-geo-template.csv'
+  a.click()
+  URL.revokeObjectURL(a.href)
+}
+
+async function onGeoFile(e) {
+  const file = e.target.files[0]
+  if (!file) return
+  const text = await file.text()
+  const items = text.replace(/^\ufeff/, '').split(/\r?\n/)
+    .map((line) => line.split(',').map((s) => s.trim()))
+    .filter((parts, i) => i > 0 && parts.length >= 3 && parts[0])
+    .map((parts) => ({ code: parts[0], lng: parts[1], lat: parts[2] }))
+  if (!items.length) { ok('CSV 中没有有效数据行'); return }
+  try {
+    geoResult.value = await archiveApi.batchGeo(items)
+    await load()
+  } catch (err) { showErr(err) }
+}
+
+/** 贴梯二维码 PNG 下载（内容=电梯编码，docs/09 §6.6） */
+async function onQr(row) {
+  try {
+    const blob = await archiveApi.elevatorQrPng(row.id)
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(blob)
+    a.download = `qrcode-${row.elevatorCode || row.id}.png`
+    a.click()
+    URL.revokeObjectURL(a.href)
+  } catch (e) { showErr(e) }
+}
+
+/** 停用/启用（docs/09 §6.6：INACTIVE 不派单、小程序不可见；有历史记录用停用替代删除） */
+async function onToggleStatus(row) {
+  const toInactive = row.status !== 'INACTIVE'
+  try {
+    await ElMessageBox.confirm(
+      toInactive
+        ? `停用「${row.elevatorName}」？停用后不再自动派单、小程序不可见（历史记录保留 ≥4 年）`
+        : `启用「${row.elevatorName}」？`,
+      toInactive ? '停用电梯' : '启用电梯', { type: 'warning' })
+    await archiveApi.updateElevator(row.id, { status: toInactive ? 'INACTIVE' : '' })
+    ok(toInactive ? '已停用' : '已启用')
+    await load()
+  } catch (e) {
+    if (e !== 'cancel') showErr(e)
+  }
 }
 function syncEmployeeIds() {
   workerEmployeeId.value = (staff.value.find((x) => x.name === form.workerName) || {}).id || ''
