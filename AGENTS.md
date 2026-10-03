@@ -62,7 +62,7 @@
 1. 2.1 登录：**GET + URL 查询串**（规范写 POST+Body 有误）。
 2. 2.2—2.8：POST + `application/x-www-form-urlencoded` 表单；2.3/2.4 为 **multipart + 文件**（contractFile/certificateFile）。
 3. 根路径：`https://tzsb.scjgj.cq.gov.cn:1443/api/wlw/maintenance/`；全部接口需 `Authorization: Bearer`。
-4. 2.3 参数名实为 `useUnitName`；2.6 的 `workMan2Id` **必填**（单人作业也传第二人 ID）；2.7 可按 `elevatorCode` 查询且回填未脱敏的 `elevatorAdminister*`/`emergencyPhone`。
+4. 2.3 参数名实为 `useUnitName`；2.6 的 `workMan2Id` **必填**（单人作业也传第二人 ID）；2.7 **不支持**按 `elevatorCode` 查询（docs/06 #8 结论已修正），按 factoryNumber/registrationCode/deviceCode 查询，命中回填未脱敏的 `elevatorAdminister*`/`emergencyPhone`。
 5. code 兼容数字/字符串 `200`；五类手机号互斥平台不校验，由本系统建档期校验（`1002`）。
 6. token 为 JWT，`expires_in≈3599`，缓存 TTL = expires_in − 60s；401 清缓存重登重试 1 次。
 
@@ -106,3 +106,4 @@
 | V1.1 | 2026-09-30 | 派单验收口径改为“同项目 6 台同日到期一次性全部当日 09:00 派单”；补充全量一致性核查与 TDesign 依赖移除后的 lint 要求 |
 | V1.2 | 2026-10-02 | 同步实际架构：后端落地状态（97 单测）、admin 目录与目录级 lint/test 命令、docs 范围 01—11；gitignore 补本地 AI 工具缓存与备份文件 |
 | V1.3 | 2026-10-03 | 新增 §7 AI 代码导航（jcodemunch MCP）：优先符号级检索、索引自维护、敏感信息约束；原 §7/§8 顺延为 §8/§9 |
+| V1.4 | 2026-10-03 | §4.4 更正 2.7 查询口径：平台不支持按 `elevatorCode` 查询（以 docs/06 #8 / docs/04 A.0.2 实测为准），改为 factoryNumber/registrationCode/deviceCode |
