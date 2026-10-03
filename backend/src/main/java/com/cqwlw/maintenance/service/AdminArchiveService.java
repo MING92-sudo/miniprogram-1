@@ -39,18 +39,20 @@ public class AdminArchiveService {
     private final ElevatorMapper elevatorMapper;
     private final PhoneMutexService phoneMutexService;
     private final WorkOrderMapper workOrderMapper;
+    private final PlatformClient platformClient;
     private final BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
 
     public AdminArchiveService(CompanyMapper companyMapper, UseUnitMapper useUnitMapper,
                                EmployeeMapper employeeMapper, ElevatorMapper elevatorMapper,
                                PhoneMutexService phoneMutexService,
-                               WorkOrderMapper workOrderMapper) {
+                               WorkOrderMapper workOrderMapper, PlatformClient platformClient) {
         this.companyMapper = companyMapper;
         this.useUnitMapper = useUnitMapper;
         this.employeeMapper = employeeMapper;
         this.elevatorMapper = elevatorMapper;
         this.phoneMutexService = phoneMutexService;
         this.workOrderMapper = workOrderMapper;
+        this.platformClient = platformClient;
     }
 
     // ── 维保单位（GET/PUT /company）──
@@ -489,6 +491,11 @@ public class AdminArchiveService {
         if (body.get("useUnitEntityId") != null) {
             el.useUnitEntityId = str(body, "useUnitEntityId");
         }
+        if (body.get("status") != null) {
+            String s = str(body, "status");
+            // 停用=INACTIVE；空/ACTIVE=恢复在保（docs/09 §6.6：停用后不派单、小程序不可见）
+            el.status = "INACTIVE".equals(s) ? "INACTIVE" : null;
+        }
     }
 
     private Map<String, Object> companyRow(Company c) {
@@ -563,7 +570,222 @@ public class AdminArchiveService {
         m.put("workTypeCode", nz(el.workTypeCode));
         m.put("intervalDays", el.intervalDays == null ? 0 : el.intervalDays);
         m.put("specialType", nz(el.specialType));
+        m.put("status", nz(el.status));
         return m;
+    }
+
+    // ── 范围收敛新增（docs/04 V2.9 A.9.0 / docs/09 V3.3 §5.5·§6.6）──
+
+    /**
+     * 批量绑定维保人员与电梯（docs/04 A.9.0）：自动派单的数据前提。
+     * 逐台校验 1004（platform_id 未同步）/1002（手机互斥）/1007（证件有效期、主配同一人），
+     * 单台失败不阻塞其余成功台；返回 success/failed 逐台明细。
+     */
+    public Map<String, Object> batchAssignWorkers(Map<String, Object> body) {
+        if (!(body.get("elevatorIds") instanceof List<?> rawIds) || rawIds.isEmpty()) {
+            throw new BizException(422, "elevatorIds 不能为空");
+        }
+        if (rawIds.size() > 200) {
+            throw new BizException(422, "单次最多绑定 200 台电梯");
+        }
+        String principalId = str(body, "principalId");
+        if (principalId.isBlank()) {
+            throw new BizException(422, "principalId（维保人员1/主）必填");
+        }
+        String assistantId = str(body, "assistantId");
+        Employee principal = requireEmployee(principalId, "维保人员1");
+        Employee assistant = assistantId.isBlank() ? null : requireEmployee(assistantId, "维保人员2");
+        if (assistant != null && assistant.id.equals(principal.id)) {
+            throw new BizException(1007, "主/配合人员不可为同一人（docs/01 §3.2.4 ④）");
+        }
+        // 人员级校验一次（1004/1007），逐台复用
+        String personError = bindingError(principal);
+        if (personError == null && assistant != null) {
+            personError = bindingError(assistant);
+        }
+        // 手机互斥一次（同一主/配人员绑多台电梯时冲突结论相同）
+        List<Map<String, Object>> mutexConflicts = phoneMutexService.checkElevator(principal.phone);
+        List<Map<String, Object>> success = new ArrayList<>();
+        List<Map<String, Object>> failed = new ArrayList<>();
+        for (Object o : rawIds) {
+            String elevatorId = String.valueOf(o);
+            try {
+                if (personError != null) {
+                    throw new BizException(1004, personError);
+                }
+                if (!mutexConflicts.isEmpty()) {
+                    throw new BizException(1002, "手机号互斥冲突，请核对角色分配（docs/01 §3.2.4）",
+                            Map.of("conflicts", mutexConflicts));
+                }
+                Elevator el = elevatorMapper.selectById(elevatorId);
+                if (el == null) {
+                    throw new BizException(1404, "电梯不存在：" + elevatorId);
+                }
+                if ("INACTIVE".equals(el.status)) {
+                    throw new BizException(422, "电梯已停用：" + nz(el.elevatorName));
+                }
+                el.workerName = nz(principal.name);
+                el.workerPhone = nz(principal.phone);
+                el.workerPlatformId = nz(principal.platformId);
+                if (assistant != null) {
+                    el.assistantName = nz(assistant.name);
+                    el.assistantPlatformId = nz(assistant.platformId);
+                }
+                elevatorMapper.updateById(el);
+                success.add(Map.of("elevatorId", elevatorId,
+                        "elevatorName", nz(el.elevatorName)));
+            } catch (BizException e) {
+                Map<String, Object> f = new LinkedHashMap<>();
+                f.put("elevatorId", elevatorId);
+                f.put("code", e.getCode());
+                f.put("reason", e.getMessage());
+                if (e.getData() != null) {
+                    f.put("data", e.getData());
+                }
+                failed.add(f);
+            }
+        }
+        return Map.of("success", success, "failed", failed);
+    }
+
+    /** 人员绑定级校验：1004 platform_id 未同步不可派工；1007 证件过期（docs/04 A.0 码表） */
+    private String bindingError(Employee e) {
+        if (e.platformId == null || e.platformId.isBlank()) {
+            return "人员 platform_id 未同步（1004）：" + nz(e.name) + "，请先完成 2.4 登记/2.5 同步";
+        }
+        if (e.workEndDate != null && !e.workEndDate.isBlank()) {
+            try {
+                java.time.LocalDate end = java.time.LocalDate.parse(e.workEndDate);
+                if (end.isBefore(TimeUtil.now().toLocalDate())) {
+                    return "证件已过期（1007）：" + nz(e.name) + "（" + e.workEndDate + "）";
+                }
+            } catch (Exception ignored) {
+                // 日期格式异常不做拦截（与既有档案口径一致）
+            }
+        }
+        return null;
+    }
+
+    private Employee requireEmployee(String id, String label) {
+        Employee e = employeeMapper.selectById(id);
+        if (e == null) {
+            throw new BizException(1404, label + "不存在：" + id);
+        }
+        return e;
+    }
+
+    /** 批量导入经纬度（docs/09 V3.1/V3.3：位置待补补录入口），按 elevatorCode 更新坐标 */
+    public Map<String, Object> batchGeo(Map<String, Object> body) {
+        if (!(body.get("items") instanceof List<?> rawItems) || rawItems.isEmpty()) {
+            throw new BizException(422, "items 不能为空");
+        }
+        List<Map<String, Object>> success = new ArrayList<>();
+        List<Map<String, Object>> failed = new ArrayList<>();
+        for (Object o : rawItems) {
+            if (!(o instanceof Map<?, ?> raw)) {
+                continue;
+            }
+            Map<String, Object> item = (Map<String, Object>) raw;
+            String code = str(item, "code");
+            String lng = str(item, "lng");
+            String lat = str(item, "lat");
+            try {
+                if (code.isBlank() || lng.isBlank() || lat.isBlank()) {
+                    throw new BizException(422, "code/lng/lat 均必填");
+                }
+                Elevator el = elevatorMapper.selectList(new LambdaQueryWrapper<Elevator>()
+                                .eq(Elevator::getElevatorCode, code)).stream().findFirst()
+                        .orElseThrow(() -> new BizException(1404, "电梯不存在：" + code));
+                el.lng = new BigDecimal(lng);
+                el.lat = new BigDecimal(lat);
+                elevatorMapper.updateById(el);
+                success.add(Map.of("code", code));
+            } catch (BizException e) {
+                Map<String, Object> f = new LinkedHashMap<>();
+                f.put("code", code);
+                f.put("codeNum", e.getCode());
+                f.put("reason", e.getMessage());
+                failed.add(f);
+            } catch (NumberFormatException e) {
+                Map<String, Object> f = new LinkedHashMap<>();
+                f.put("code", code);
+                f.put("codeNum", 422);
+                f.put("reason", "经纬度格式不正确");
+                failed.add(f);
+            }
+        }
+        return Map.of("success", success, "failed", failed);
+    }
+
+    /** 2.2 单主体同步：维保单位（docs/09 V3.1 ④，复用 /platform/sync 的 queryID 逻辑） */
+    public Map<String, Object> syncCompanyEntityId() {
+        Company c = companyMapper.selectList(null).stream().findFirst()
+                .orElseThrow(() -> new BizException(1404, "维保单位档案不存在"));
+        return syncEntityId(c.organizationCode, c.name, () -> {
+            c.entityId = platformClient.queryEntityId(c.organizationCode, c.name);
+            companyMapper.updateById(c);
+            return c.entityId;
+        });
+    }
+
+    /** 2.2 单主体同步：使用单位 */
+    public Map<String, Object> syncUseUnitEntityId(String id) {
+        UseUnit u = useUnitMapper.selectById(id);
+        if (u == null) {
+            throw new BizException(1404, "使用单位不存在：" + id);
+        }
+        Company c = companyMapper.selectList(null).stream().findFirst()
+                .orElseThrow(() -> new BizException(422, "请先维护维保单位档案（organizationCode 必填）"));
+        return syncEntityId(c.organizationCode, u.unitName, () -> {
+            u.entityId = platformClient.queryEntityId(c.organizationCode, u.unitName);
+            useUnitMapper.updateById(u);
+            return u.entityId;
+        });
+    }
+
+    private Map<String, Object> syncEntityId(String organizationCode, String unitName,
+                                             java.util.concurrent.Callable<String> action) {
+        if (organizationCode == null || organizationCode.isBlank()) {
+            throw new BizException(422, "组织机构代码（organizationCode）为空，无法同步主体ID");
+        }
+        if (!platformClient.configured()) {
+            return Map.of("found", false, "reason", "监管平台凭证未配置");
+        }
+        try {
+            String entityId = action.call();
+            if (entityId == null || entityId.isBlank()) {
+                return Map.of("found", false, "reason", "平台未查询到该主体");
+            }
+            return Map.of("found", true, "entityId", entityId, "unitName", nz(unitName));
+        } catch (BizException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new BizException(2001, "平台 2.2 主体查询失败：" + e.getMessage());
+        }
+    }
+
+    /**
+     * 电梯贴梯二维码 PNG（docs/09 V3.3 §6.6）：内容=电梯编码字符串，
+     * 小程序扫码后经 resolve-by-elevator / elevators/by-code 识别工单。
+     */
+    public byte[] elevatorQrPng(String elevatorId) {
+        Elevator el = elevatorMapper.selectById(elevatorId);
+        if (el == null) {
+            throw new BizException(1404, "电梯不存在：" + elevatorId);
+        }
+        if (el.elevatorCode == null || el.elevatorCode.isBlank()) {
+            throw new BizException(422, "该电梯未设置电梯编号，无法生成二维码");
+        }
+        try {
+            var bits = new com.google.zxing.qrcode.QRCodeWriter()
+                    .encode(el.elevatorCode, com.google.zxing.BarcodeFormat.QR_CODE, 300, 300);
+            var png = com.google.zxing.client.j2se.MatrixToImageWriter.toBufferedImage(bits);
+            var out = new java.io.ByteArrayOutputStream();
+            javax.imageio.ImageIO.write(png, "png", out);
+            return out.toByteArray();
+        } catch (Exception e) {
+            throw new BizException(500, "二维码生成失败：" + e.getMessage());
+        }
     }
 
     private static void requireNoConflict(List<Map<String, Object>> conflicts) {

@@ -45,6 +45,8 @@ public class Elevator {
     public String stationsDoors;
     public String workTypeCode;
     public Integer intervalDays;
+    /** NULL/ACTIVE=在保；INACTIVE=停用（逻辑删除，docs/09 §6.6，V8 迁移） */
+    public String status;
     /** 特殊类别：消防/防爆/NULL（匹配自定义检查项模板 category_scope，缺失即 1006 提示，TSG 第二条） */
     public String specialType;
     public String workerName;

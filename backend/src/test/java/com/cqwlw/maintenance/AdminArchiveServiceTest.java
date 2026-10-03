@@ -9,8 +9,10 @@ import com.cqwlw.maintenance.mapper.EmployeeMapper;
 import com.cqwlw.maintenance.mapper.ElevatorMapper;
 import com.cqwlw.maintenance.mapper.UseUnitMapper;
 import com.cqwlw.maintenance.mapper.WorkOrderMapper;
+import com.cqwlw.maintenance.entity.Elevator;
 import com.cqwlw.maintenance.service.AdminArchiveService;
 import com.cqwlw.maintenance.service.PhoneMutexService;
+import com.cqwlw.maintenance.service.PlatformClient;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -38,6 +40,7 @@ class AdminArchiveServiceTest {
     private UseUnitMapper useUnitMapper;
     private EmployeeMapper employeeMapper;
     private ElevatorMapper elevatorMapper;
+    private PlatformClient platformClient;
     private AdminArchiveService service;
 
     @BeforeEach
@@ -68,10 +71,11 @@ class AdminArchiveServiceTest {
         other.elevatorAdministerPhone = "13800003005";
         when(useUnitMapper.selectList(any())).thenReturn(List.of(other));
 
+        platformClient = mock(PlatformClient.class);
         service = new AdminArchiveService(companyMapper, useUnitMapper,
                 employeeMapper, elevatorMapper,
                 new PhoneMutexService(companyMapper, useUnitMapper, employeeMapper),
-                mock(WorkOrderMapper.class));
+                mock(WorkOrderMapper.class), platformClient);
     }
 
     @Test
@@ -134,5 +138,107 @@ class AdminArchiveServiceTest {
         BizException e = assertThrows(BizException.class, () -> service.updateCompany(
                 Map.of("workMenegerPhone", "13800000001")));
         assertEquals(1002, e.getCode());
+    }
+
+    // ── 范围收敛新增（docs/04 A.9.0 / docs/09 V3.3）──
+
+    private Employee platformWorker(String id) {
+        Employee e = new Employee();
+        e.id = id;
+        e.name = "张伟";
+        e.role = "WORKER";
+        e.phone = "13800000001";
+        e.platformId = "6901282369105174537";
+        return e;
+    }
+
+    @Test
+    void batchAssignWorkersBindsElevatorAndWritesWorkerFields() {
+        Employee principal = platformWorker("emp_9");
+        when(employeeMapper.selectById("emp_9")).thenReturn(principal);
+        Elevator el = new Elevator();
+        el.id = "elv_1";
+        el.elevatorCode = "DT001";
+        el.elevatorName = "A栋1#梯";
+        when(elevatorMapper.selectById("elv_1")).thenReturn(el);
+
+        Map<String, Object> out = service.batchAssignWorkers(Map.of(
+                "elevatorIds", List.of("elv_1"), "principalId", "emp_9"));
+
+        assertEquals(1, ((List<?>) out.get("success")).size());
+        assertEquals(0, ((List<?>) out.get("failed")).size());
+        ArgumentCaptor<Elevator> captor = ArgumentCaptor.forClass(Elevator.class);
+        verify(elevatorMapper).updateById(captor.capture());
+        assertEquals("6901282369105174537", captor.getValue().workerPlatformId);
+        assertEquals("张伟", captor.getValue().workerName);
+    }
+
+    @Test
+    void batchAssignWorkersMissingPlatformIdFailsPerElevator() {
+        Employee noPlatform = platformWorker("emp_9");
+        noPlatform.platformId = "";
+        when(employeeMapper.selectById("emp_9")).thenReturn(noPlatform);
+
+        Map<String, Object> out = service.batchAssignWorkers(Map.of(
+                "elevatorIds", List.of("elv_1", "elv_2"), "principalId", "emp_9"));
+
+        assertEquals(0, ((List<?>) out.get("success")).size());
+        assertEquals(2, ((List<?>) out.get("failed")).size());
+    }
+
+    @Test
+    void batchAssignWorkersSamePrincipalAndAssistantRejected() {
+        when(employeeMapper.selectById("emp_9")).thenReturn(platformWorker("emp_9"));
+        BizException e = assertThrows(BizException.class, () -> service.batchAssignWorkers(Map.of(
+                "elevatorIds", List.of("elv_1"),
+                "principalId", "emp_9", "assistantId", "emp_9")));
+        assertEquals(1007, e.getCode());
+    }
+
+    @Test
+    void batchAssignWorkersExpiredCertificateRejected() {
+        Employee expired = platformWorker("emp_9");
+        expired.workEndDate = "2020-01-01";
+        when(employeeMapper.selectById("emp_9")).thenReturn(expired);
+        when(elevatorMapper.selectById("elv_1")).thenReturn(new Elevator());
+
+        Map<String, Object> out = service.batchAssignWorkers(Map.of(
+                "elevatorIds", List.of("elv_1"), "principalId", "emp_9"));
+        List<?> failed = (List<?>) out.get("failed");
+        assertEquals(1, failed.size());
+        assertTrue(String.valueOf(((Map<?, ?>) failed.get(0)).get("reason")).contains("证件已过期"));
+    }
+
+    @Test
+    void batchGeoUpdatesByCodeAndReportsFailures() {
+        Elevator el = new Elevator();
+        el.id = "elv_1";
+        el.elevatorCode = "DT001";
+        when(elevatorMapper.selectList(any())).thenReturn(List.of(el));
+
+        Map<String, Object> out = service.batchGeo(Map.of("items", List.of(
+                Map.of("code", "DT001", "lng", "106.55", "lat", "29.56"),
+                Map.of("code", "DT404", "lng", "1", "lat", "1"),
+                Map.of("code", "DT001", "lng", "x", "lat", "1"))));
+
+        // mock 对任何查询条件都返回同一电梯 → DT001/DT404 都命中，仅经纬度格式错的一条失败
+        assertEquals(2, ((List<?>) out.get("success")).size());
+        assertEquals(1, ((List<?>) out.get("failed")).size());
+        assertTrue(((List<?>) out.get("success")).stream()
+                .anyMatch(v -> "DT001".equals(((Map<?, ?>) v).get("code"))));
+        verify(elevatorMapper, org.mockito.Mockito.times(2)).updateById(any(Elevator.class));
+    }
+
+    @Test
+    void syncEntityIdFriendlyWhenPlatformNotConfigured() {
+        Company withOrg = new Company();
+        withOrg.id = "co_1";
+        withOrg.name = "维保单位";
+        withOrg.organizationCode = "5001ORGCODE";
+        when(companyMapper.selectList(any())).thenReturn(List.of(withOrg));
+        when(platformClient.configured()).thenReturn(false);
+        Map<String, Object> out = service.syncCompanyEntityId();
+        assertEquals(false, out.get("found"));
+        assertEquals("监管平台凭证未配置", out.get("reason"));
     }
 }

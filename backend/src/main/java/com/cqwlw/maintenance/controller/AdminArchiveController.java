@@ -145,6 +145,19 @@ public class AdminArchiveController {
                 body.get("password") == null ? "" : String.valueOf(body.get("password"))));
     }
 
+    /** 重置密码（docs/09 V2.2 忘记密码方案 A：ADMIN 操作，12 位随机一次性返回，V8 收敛新增） */
+    @PostMapping("/employees/{id}/reset-password")
+    public ApiResponse<Object> resetPasswordRandom(@PathVariable String id,
+                                                   @RequestHeader(value = "X-Idempotency-Key", required = false) String idemKey) {
+        IdempotencyService.Guard guard = idempotencyService.begin(idemKey, "/employees/reset-password");
+        if (guard.replayed()) {
+            return ApiResponse.ok(guard.replayedResult());
+        }
+        Map<String, Object> result = archiveService.resetEmployeePassword(id, "");
+        guard.commit(result);
+        return ApiResponse.ok(result);
+    }
+
     // ── 电梯 ──
 
     @PostMapping("/elevators")
@@ -168,6 +181,70 @@ public class AdminArchiveController {
             return ApiResponse.ok(guard.replayedResult());
         }
         Map<String, Object> result = archiveService.updateElevator(id, body);
+        guard.commit(result);
+        return ApiResponse.ok(result);
+    }
+
+    // ── 范围收敛新增（docs/04 V2.9 A.9.0 / docs/09 V3.3）──
+
+    /** 批量绑定维保人员与电梯（docs/04 A.9.0，自动派单的数据前提） */
+    @PostMapping("/elevators/batch-assign-workers")
+    public ApiResponse<Object> batchAssignWorkers(@RequestBody Map<String, Object> body,
+                                                  @RequestHeader(value = "X-Idempotency-Key", required = false) String idemKey) {
+        IdempotencyService.Guard guard = idempotencyService.begin(idemKey, "/elevators/batch-assign-workers");
+        if (guard.replayed()) {
+            return ApiResponse.ok(guard.replayedResult());
+        }
+        Map<String, Object> result = archiveService.batchAssignWorkers(body);
+        guard.commit(result);
+        return ApiResponse.ok(result);
+    }
+
+    /** 批量导入经纬度（位置待补补录，docs/09 §6.6） */
+    @PostMapping("/elevators/batch-geo")
+    public ApiResponse<Object> batchGeo(@RequestBody Map<String, Object> body,
+                                        @RequestHeader(value = "X-Idempotency-Key", required = false) String idemKey) {
+        IdempotencyService.Guard guard = idempotencyService.begin(idemKey, "/elevators/batch-geo");
+        if (guard.replayed()) {
+            return ApiResponse.ok(guard.replayedResult());
+        }
+        Map<String, Object> result = archiveService.batchGeo(body);
+        guard.commit(result);
+        return ApiResponse.ok(result);
+    }
+
+    /** 电梯贴梯二维码 PNG（内容=电梯编码，docs/09 §6.6） */
+    @PostMapping("/elevators/{id}/qrcode")
+    public org.springframework.http.ResponseEntity<byte[]> elevatorQrCode(@PathVariable String id) {
+        byte[] png = archiveService.elevatorQrPng(id);
+        return org.springframework.http.ResponseEntity.ok()
+                .header("Content-Type", "image/png")
+                .header("Content-Disposition", "attachment; filename=qrcode-" + id + ".png")
+                .body(png);
+    }
+
+    /** 2.2 维保单位主体ID拉取（docs/09 V3.1 ④） */
+    @PostMapping("/company/sync-entity-id")
+    public ApiResponse<Object> syncCompanyEntityId(
+            @RequestHeader(value = "X-Idempotency-Key", required = false) String idemKey) {
+        IdempotencyService.Guard guard = idempotencyService.begin(idemKey, "/company/sync-entity-id");
+        if (guard.replayed()) {
+            return ApiResponse.ok(guard.replayedResult());
+        }
+        Map<String, Object> result = archiveService.syncCompanyEntityId();
+        guard.commit(result);
+        return ApiResponse.ok(result);
+    }
+
+    /** 2.2 使用单位主体ID拉取（docs/09 V3.1 ④） */
+    @PostMapping("/use-units/{id}/sync-entity-id")
+    public ApiResponse<Object> syncUseUnitEntityId(@PathVariable String id,
+                                                   @RequestHeader(value = "X-Idempotency-Key", required = false) String idemKey) {
+        IdempotencyService.Guard guard = idempotencyService.begin(idemKey, "/use-units/sync-entity-id");
+        if (guard.replayed()) {
+            return ApiResponse.ok(guard.replayedResult());
+        }
+        Map<String, Object> result = archiveService.syncUseUnitEntityId(id);
         guard.commit(result);
         return ApiResponse.ok(result);
     }
