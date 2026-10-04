@@ -78,7 +78,7 @@ public class FileStorageService {
                         props.getCosBucket(), props.getCosRegion());
             }
         } else {
-            log.info("文件存储: 本地磁盘（{}，仅本地开发用）", props.getFileStorageDir());
+            log.warn("文件存储: 本地磁盘（{}）——容器重建/重新部署后本地文件将丢失，云端必须配置 COS_* 才能持久化照片与签名", props.getFileStorageDir());
         }
     }
 

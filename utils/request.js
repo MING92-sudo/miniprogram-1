@@ -57,7 +57,7 @@ function request(options) {
         // 401：登录态失效
         if (res.statusCode === 401 || body.code === 401) {
           handleUnauthorized()
-          reject({ code: 401, message: ERROR_CODES[401] })
+          reject({ code: 401, message: (body && body.message) || ERROR_CODES[401] })
           return
         }
         // 业务成功

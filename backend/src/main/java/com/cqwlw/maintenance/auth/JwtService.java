@@ -29,9 +29,10 @@ public class JwtService {
         this.expireHours = props.getJwtExpireHours();
     }
 
-    public String issue(String employeeId, String role, String openid) {
+    public String issue(String employeeId, String role, String openid, String sessionId) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("role", role);
+        claims.put("sid", sessionId);
         if (openid != null) {
             claims.put("openid", openid);
         }

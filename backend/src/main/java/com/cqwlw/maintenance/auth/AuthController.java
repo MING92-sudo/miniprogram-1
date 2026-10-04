@@ -2,6 +2,7 @@ package com.cqwlw.maintenance.auth;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.cqwlw.maintenance.common.ApiResponse;
+import com.cqwlw.maintenance.common.Ids;
 import com.cqwlw.maintenance.common.BizException;
 import com.cqwlw.maintenance.config.AppProperties;
 import com.cqwlw.maintenance.entity.Employee;
@@ -161,16 +162,24 @@ public class AuthController {
         String openid = openidHeader != null && !openidHeader.isEmpty() ? openidHeader : props.getDevOpenid();
         Map<String, Object> out = loginResult(current, openid);
         out.put("role", effectiveRole);
-        out.put("token", jwtService.issue(current.id, effectiveRole, openid));
+        out.put("token", issueSessionToken(current, effectiveRole, openid));
         return out;
     }
 
     private Map<String, Object> loginResult(Employee user, String openid) {
         Map<String, Object> out = new LinkedHashMap<>();
-        out.put("token", jwtService.issue(user.id, user.role, openid));
+        out.put("token", issueSessionToken(user, user.role, openid));
         out.put("userInfo", userInfo(user));
         out.put("role", user.role);
         return out;
+    }
+
+    /** 单端登录：每次签发覆盖 sys_employee.session_id，旧 token 由拦截器 401 */
+    private String issueSessionToken(Employee user, String role, String openid) {
+        String sid = Ids.next("sess");
+        user.sessionId = sid;
+        employeeMapper.updateById(user);
+        return jwtService.issue(user.id, role, openid, sid);
     }
 
     private Map<String, Object> userInfo(Employee user) {
