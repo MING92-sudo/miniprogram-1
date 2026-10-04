@@ -495,6 +495,15 @@ public class AdminArchiveService {
             String s = str(body, "specialType");
             el.specialType = s.isBlank() ? null : s; // 消防/防爆/NULL（1006 自定义模板匹配）
         }
+        if (body.get("elevatorAdminister") != null) {
+            el.elevatorAdminister = str(body, "elevatorAdminister");
+        }
+        if (body.get("elevatorAdministerPhone") != null) {
+            el.elevatorAdministerPhone = str(body, "elevatorAdministerPhone");
+        }
+        if (body.get("emergencyPhone") != null) {
+            el.emergencyPhone = str(body, "emergencyPhone");
+        }
         if (body.get("workerName") != null) {
             el.workerName = str(body, "workerName");
         }
