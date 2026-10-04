@@ -94,29 +94,6 @@
         <el-form-item label="出厂编号"><el-input v-model="form.factoryNumber" placeholder="设备铭牌（选填，三选一即可查询）" /></el-form-item>
         <el-form-item v-if="!form.id" label=" ">
           <el-button type="primary" :loading="querying" @click="queryFromPlatform">平台查询</el-button>
-        <el-form-item label="型号"><el-input v-model="form.model" /></el-form-item>
-        <el-form-item label="品牌 / 制造单位">
-          <el-input v-model="form.brand" placeholder="品牌" style="width: 48%" />
-          <el-input v-model="form.manufacturer" placeholder="制造单位" style="width: 48%; margin-left: 4%" />
-        </el-form-item>
-        <el-form-item label="产品编号"><el-input v-model="form.productNo" /></el-form-item>
-        <el-form-item label="驱动方式"><el-input v-model="form.driveMode" /></el-form-item>
-        <el-form-item label="额定载重">
-          <el-input v-model="form.ratedLoad" placeholder="数值" style="width: 48%" />
-          <el-input v-model="form.ratedLoadUnit" placeholder="单位（kg）" style="width: 48%; margin-left: 4%" />
-        </el-form-item>
-        <el-form-item label="额定速度">
-          <el-input v-model="form.ratedSpeed" placeholder="数值" style="width: 48%" />
-          <el-input v-model="form.ratedSpeedUnit" placeholder="单位（m/s）" style="width: 48%; margin-left: 4%" />
-        </el-form-item>
-        <el-form-item label="层站门数"><el-input v-model="form.stationsDoors" placeholder="如 11/11" /></el-form-item>
-        <el-form-item label="特殊类别">
-          <el-select v-model="form.specialType" clearable placeholder="普通电梯留空" style="width: 100%">
-            <el-option label="消防电梯" value="消防" />
-            <el-option label="防爆电梯" value="防爆" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="签到阈值(米)"><el-input v-model="form.checkinThreshold" placeholder="电梯级覆盖；留空用全局默认" /></el-form-item>
         </el-form-item>
         <el-form-item label="单位内编号" required>
           <el-input v-model="form.insideNumber" placeholder="使用单位内自编号（上报必填）" />
