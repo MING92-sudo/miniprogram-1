@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.cqwlw.maintenance.common.BizException;
 import com.cqwlw.maintenance.common.Ids;
 import com.cqwlw.maintenance.entity.Drill;
+import com.cqwlw.maintenance.entity.Employee;
 import com.cqwlw.maintenance.entity.Elevator;
 import com.cqwlw.maintenance.entity.Fault;
 import com.cqwlw.maintenance.entity.InspectRecord;
@@ -11,6 +12,7 @@ import com.cqwlw.maintenance.entity.Knowledge;
 import com.cqwlw.maintenance.entity.Message;
 import com.cqwlw.maintenance.entity.Rescue;
 import com.cqwlw.maintenance.mapper.DrillMapper;
+import com.cqwlw.maintenance.mapper.EmployeeMapper;
 import com.cqwlw.maintenance.mapper.ElevatorMapper;
 import com.cqwlw.maintenance.mapper.FaultMapper;
 import com.cqwlw.maintenance.mapper.InspectRecordMapper;
@@ -48,12 +50,14 @@ public class DirectoryService {
     private final ChecklistService checklistService;
     private final WorkOrderService workOrderService;
     private final EmployeeScopeService scopeService;
+    private final EmployeeMapper employeeMapper;
 
     public DirectoryService(RescueMapper rescueMapper, FaultMapper faultMapper,
                             DrillMapper drillMapper, InspectRecordMapper inspectMapper,
                             MessageMapper messageMapper, KnowledgeMapper knowledgeMapper,
                             ElevatorMapper elevatorMapper, ChecklistService checklistService,
-                            WorkOrderService workOrderService, EmployeeScopeService scopeService) {
+                            WorkOrderService workOrderService, EmployeeScopeService scopeService,
+                            EmployeeMapper employeeMapper) {
         this.rescueMapper = rescueMapper;
         this.faultMapper = faultMapper;
         this.drillMapper = drillMapper;
@@ -64,6 +68,7 @@ public class DirectoryService {
         this.checklistService = checklistService;
         this.workOrderService = workOrderService;
         this.scopeService = scopeService;
+        this.employeeMapper = employeeMapper;
     }
 
     // ── 救援 ──
@@ -189,7 +194,20 @@ public class DirectoryService {
             list = list.stream().filter(f -> status.equals(f.status)).toList();
         }
         List<Map<String, Object>> views = list.stream().map(this::faultView).toList();
+        enrichCreatorName(views);
         return workOrderService.paginate(views, query);
+    }
+
+    /** 急修单登记人姓名（empId → 姓名；员工已删除时回显原 ID） */
+    private void enrichCreatorName(List<Map<String, Object>> views) {
+        Map<String, String> names = new LinkedHashMap<>();
+        for (Employee e : employeeMapper.selectList(null)) {
+            names.put(e.id, e.name);
+        }
+        for (Map<String, Object> v : views) {
+            String by = String.valueOf(v.get("createdBy"));
+            v.put("createdByName", by.isEmpty() ? "" : names.getOrDefault(by, by));
+        }
     }
 
     public Map<String, Object> getFault(String id, String empId) {
@@ -201,7 +219,9 @@ public class DirectoryService {
         if (f.createdBy != null && creatorIds != null && !creatorIds.contains(f.createdBy)) {
             throw new BizException(1403, "仅可查看本人或本班组急修单");
         }
-        return faultView(f);
+        Map<String, Object> view = faultView(f);
+        enrichCreatorName(List.of(view));
+        return view;
     }
 
     public Map<String, Object> closeFault(String id, Map<String, Object> body) {

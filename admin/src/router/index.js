@@ -11,6 +11,7 @@ const DashboardView = () => import('../views/DashboardView.vue')
 const OrderListView = () => import('../views/OrderListView.vue')
 const OrderDetailView = () => import('../views/OrderDetailView.vue')
 const FailedRecordsView = () => import('../views/FailedRecordsView.vue')
+const FaultsView = () => import('../views/FaultsView.vue')
 const UploadLogsView = () => import('../views/UploadLogsView.vue')
 const CompanyView = () => import('../views/CompanyView.vue')
 const UseUnitsView = () => import('../views/UseUnitsView.vue')
@@ -35,6 +36,7 @@ export const routes = [
       { path: 'orders', component: OrderListView, meta: { title: '工单列表' } },
       { path: 'orders/:id', component: OrderDetailView, meta: { title: '工单详情' } },
       { path: 'reports/failed', component: FailedRecordsView, meta: { title: '上报异常清单' } },
+      { path: 'faults', component: FaultsView, meta: { title: '急修单' } },
       { path: 'reports/logs', component: UploadLogsView, meta: { title: '上报日志' } },
   { path: 'schedule', component: ScheduleView, meta: { title: '计划调度' } },
   { path: 'templates', component: TemplateManageView, meta: { title: '模板管理' } },

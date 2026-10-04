@@ -4,6 +4,7 @@ import com.cqwlw.maintenance.common.BizException;
 import com.cqwlw.maintenance.entity.Fault;
 import com.cqwlw.maintenance.entity.Rescue;
 import com.cqwlw.maintenance.mapper.DrillMapper;
+import com.cqwlw.maintenance.mapper.EmployeeMapper;
 import com.cqwlw.maintenance.mapper.ElevatorMapper;
 import com.cqwlw.maintenance.mapper.FaultMapper;
 import com.cqwlw.maintenance.mapper.InspectRecordMapper;
@@ -43,7 +44,7 @@ class DirectoryServiceTest {
         inspectMapper = mock(InspectRecordMapper.class);
         service = new DirectoryService(rescueMapper, faultMapper, mock(DrillMapper.class), inspectMapper,
                 mock(MessageMapper.class), mock(KnowledgeMapper.class), mock(ElevatorMapper.class),
-                mock(ChecklistService.class), mock(WorkOrderService.class), mock(EmployeeScopeService.class));
+                mock(ChecklistService.class), mock(WorkOrderService.class), mock(EmployeeScopeService.class), mock(EmployeeMapper.class));
     }
 
     @Test

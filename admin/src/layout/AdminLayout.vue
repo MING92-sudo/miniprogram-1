@@ -19,6 +19,7 @@
         <el-sub-menu index="monitor">
           <template #title><el-icon><Refresh /></el-icon><span>工单监控</span></template>
           <el-menu-item index="/orders"><span>工单列表</span></el-menu-item>
+          <el-menu-item index="/faults"><span>急修单</span></el-menu-item>
           <el-menu-item index="/reports/failed"><span>上报异常清单</span></el-menu-item>
         </el-sub-menu>
         <el-sub-menu index="archive">
