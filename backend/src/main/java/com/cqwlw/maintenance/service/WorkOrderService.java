@@ -616,6 +616,8 @@ public class WorkOrderService {
         r.duration = o.duration;
         r.itemsJson = JsonUtil.write(frozen);
         r.photosJson = JsonUtil.write(photos);
+        r.safetyJson = JsonUtil.write(body.get("safetyConfirm"));
+        r.todoDesc = strOrEmpty(body.get("todoDesc"));
         r.workerSignatureUrl = resolveSignatureUrl(body.get("signatureFileId"), body.get("signatureUrl"));
         r.assistantSignatureUrl = resolveSignatureUrl(body.get("assistantSignatureFileId"), body.get("assistantSignatureUrl"));
         r.problemCodesJson = JsonUtil.write(problemCodes);

@@ -29,6 +29,13 @@ Page({
     checkTotal: 0,
     naCount: 0,
     keyIssues: [], // 关键项执行/异常但未拍照（TSG 注A-2，签退拦截）
+    safety: [
+      { key: 'warning', label: '警示标志', checked: false },
+      { key: 'barrier', label: '现场围拦', checked: false },
+      { key: 'powerOff', label: '断电挂牌（如需要）', checked: false },
+      { key: 'twoPerson', label: '双人作业', checked: false }
+    ],
+    todoDesc: '', // 待办事项（V20 采集；空=无待办）
     checkBlocked: true, // 检查项未全部填写时灰置提交（docs/03 §5.7）
     submitting: false
   },
@@ -118,6 +125,20 @@ Page({
     })
   },
 
+  // 安全防护确认勾选（docs/04 V2.28：签退采集，写入维保记录）
+  onSafetyToggle(e) {
+    const key = e.currentTarget.dataset.key
+    this.setData({
+      safety: this.data.safety.map((c) =>
+        c.key === key ? Object.assign({}, c, { checked: !c.checked }) : c
+      )
+    })
+  },
+
+  onTodoInput(e) {
+    this.setData({ todoDesc: e.detail.value })
+  },
+
   // 跳转签名板（主维保/配合人员两个签字位）
   goSignature(e) {
     // 签退成功后的 Toast 等待期内页面即将 reLaunch，禁止再发起新路由（避免路由竞态）
@@ -171,7 +192,9 @@ Page({
       // 响应：{ duration, originalRecordId, reportStatus, recordId, shareToken }（docs/04 A.2）
       const resp = await checkout(this.data.orderId, {
         ...signatureData,
-        ...uploadedFields
+        ...uploadedFields,
+        safetyConfirm: this.data.safety.reduce((m, c) => Object.assign(m, { [c.key]: c.checked }), {}),
+        todoDesc: this.data.todoDesc
       })
       // 签退成功 → 进入签名确认页（安全管理员本机代签，或分享链接远程签字）
       wx.showToast({ title: '签退成功', icon: 'success' })
@@ -183,6 +206,8 @@ Page({
       if (e && e.code === -1) {
         // 签名已上传的部分写入 data；未上传部分交由离线队列按字段断点续传。
         const data = { ...signatureData }
+        data.safetyConfirm = this.data.safety.reduce((m, c) => Object.assign(m, { [c.key]: c.checked }), {})
+        data.todoDesc = this.data.todoDesc
         Object.keys(uploadedFields).forEach((field) => {
           data[field] = uploadedFields[field]
         })

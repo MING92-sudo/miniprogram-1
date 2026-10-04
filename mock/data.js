@@ -857,6 +857,8 @@ function createFault(body) {
   const f = {
     id: nextId('ft'),
     elevatorCode: body.elevatorCode,
+    faultNo: 'BWJX' + formatTime().replace(/[-: ]/g, '').slice(0, 12) + '001',
+    faultType: body.faultType || '一般故障',
     desc: body.desc || '',
     photos: Array.isArray(body.photos) ? body.photos : [],
     status: 'OPEN',
@@ -866,6 +868,20 @@ function createFault(body) {
     createdAt: formatTime()
   }
   db.faults.unshift(f)
+  return f
+}
+
+// 急修单派单（docs/04 V2.28 派单系统）：OPEN → ASSIGNED
+function dispatchFault(id, workerId) {
+  const f = db.faults.find((x) => x.id === id)
+  if (!f) throw { code: 1404, message: '急修单不存在' }
+  if (f.status !== 'OPEN') throw { code: 422, message: '仅待派单的急修单可派单' }
+  const emp = Object.values(db.employees).find((e) => e.id === workerId)
+  if (!emp) throw { code: 1404, message: '维保人员不存在' }
+  f.dispatchWorkerId = workerId
+  f.dispatchedWorkerName = emp.name
+  f.dispatchedAt = formatTime()
+  f.status = 'ASSIGNED'
   return f
 }
 
@@ -1017,5 +1033,6 @@ module.exports = {
   createInspect,
   createRescue,
   createFault,
+  dispatchFault,
   closeFault
 }

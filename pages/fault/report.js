@@ -7,6 +7,7 @@ Page({
   data: {
     elevatorCode: '',
     elevator: null,
+    faultType: '一般故障',
     desc: '',
     photos: [],
     submitting: false
@@ -35,6 +36,11 @@ Page({
 
   onDescInput(e) {
     this.setData({ desc: e.detail.value })
+  },
+
+  // 故障等级：一般故障 / 困人（紧急）（TSG T5002 困人 30 分钟到场口径，docs/04 V2.28）
+  onTypeChange(e) {
+    this.setData({ faultType: e.detail.value })
   },
 
   // 故障位置照片（最多 3 张）
@@ -75,6 +81,7 @@ Page({
     try {
       const fault = await reportFault({
         elevatorCode: this.data.elevatorCode,
+        faultType: this.data.faultType,
         desc: this.data.desc,
         photos: this.data.photos
       })

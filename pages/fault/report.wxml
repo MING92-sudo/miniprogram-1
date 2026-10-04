@@ -11,6 +11,23 @@
       <view class="info-line info-sub">注册代码 {{elevator.regCode || '-'}} · 设备代码 {{elevator.deviceCode || '-'}}</view>
     </view>
 
+    <view class="em-card">
+      <view class="form-label">故障等级</view>
+      <radio-group bindchange="onTypeChange" style="display:flex;gap:24rpx">
+        <label style="display:flex;align-items:center;gap:8rpx">
+          <radio value="一般故障" checked="{{faultType === '一般故障'}}" color="#2d6cdf" />
+          <text>一般故障</text>
+        </label>
+        <label style="display:flex;align-items:center;gap:8rpx">
+          <radio value="困人（紧急）" checked="{{faultType === '困人（紧急）'}}" color="#e34d59" />
+          <text style="color:#e34d59;font-weight:600">困人（紧急）</text>
+        </label>
+      </radio-group>
+      <view wx:if="{{faultType === '困人（紧急）'}}" class="em-text-secondary" style="margin-top:8rpx">
+        困人为紧急故障，将优先派单（TSG T5002：到场不超过 30 分钟/1 小时）
+      </view>
+    </view>
+
     <view class="form-label">故障描述</view>
     <textarea class="form-textarea" value="{{desc}}" bindinput="onDescInput" maxlength="500" placeholder="故障现象描述" />
 

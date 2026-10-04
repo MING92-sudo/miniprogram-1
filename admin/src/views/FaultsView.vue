@@ -2,7 +2,8 @@
   <el-card shadow="never">
     <div class="head">
       <el-select v-model="status" placeholder="状态" clearable style="width: 140px">
-        <el-option label="未闭环" value="OPEN" />
+        <el-option label="待派单" value="OPEN" />
+        <el-option label="已派单" value="ASSIGNED" />
         <el-option label="已闭环" value="CLOSED" />
       </el-select>
       <el-button type="primary" @click="load(1)">查询</el-button>
@@ -14,17 +15,21 @@
       <el-table-column prop="faultType" label="故障类型" width="110" />
       <el-table-column prop="desc" label="故障描述" min-width="200" show-overflow-tooltip />
       <el-table-column prop="createdByName" label="登记人" width="100" />
+      <el-table-column label="接单维保员" width="110">
+        <template #default="{ row }">{{ row.dispatchedWorkerName || '—' }}</template>
+      </el-table-column>
       <el-table-column prop="createdAt" label="登记时间" width="170" />
       <el-table-column label="状态" width="90">
         <template #default="{ row }">
-          <el-tag size="small" :type="row.status === 'CLOSED' ? 'success' : 'danger'">
-            {{ row.status === 'CLOSED' ? '已闭环' : '未闭环' }}
+          <el-tag size="small" :type="row.status === 'CLOSED' ? 'success' : row.status === 'ASSIGNED' ? 'primary' : 'danger'">
+            {{ { OPEN: '待派单', ASSIGNED: '已派单', CLOSED: '已闭环' }[row.status] || row.status }}
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="80" fixed="right">
+      <el-table-column label="操作" width="140" fixed="right">
         <template #default="{ row }">
           <el-button link type="primary" @click="openDetail(row.id)">详情</el-button>
+          <el-button v-if="row.status === 'OPEN'" link type="warning" @click="openDispatch(row)">派单</el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -42,6 +47,7 @@
         </el-descriptions-item>
         <el-descriptions-item label="电梯编码">{{ detail.elevatorCode }}</el-descriptions-item>
         <el-descriptions-item label="故障类型">{{ detail.faultType }}</el-descriptions-item>
+        <el-descriptions-item label="接单维保员">{{ detail.dispatchedWorkerName || '—' }}</el-descriptions-item>
         <el-descriptions-item label="登记人">{{ detail.createdByName || '—' }}</el-descriptions-item>
         <el-descriptions-item label="报修时间">{{ detail.createdAt }}</el-descriptions-item>
         <el-descriptions-item label="到场时间（以签到为准）">{{ detail.arrivedAt || "—" }}</el-descriptions-item>
@@ -65,12 +71,24 @@
         </el-descriptions-item>
       </el-descriptions>
     </el-dialog>
+
+    <el-dialog v-model="dispatchDialog" title="急修单派单" width="420px">
+      <el-select v-model="dispatchWorker" placeholder="选择维保人员" style="width: 100%">
+        <el-option v-for="w in workers" :key="w.id" :label="w.name + (w.phone ? '（' + w.phone + '）' : '')"
+                   :value="w.id" />
+      </el-select>
+      <template #footer>
+        <el-button @click="dispatchDialog = false">取消</el-button>
+        <el-button type="primary" :loading="dispatching" @click="confirmDispatch">确认派单</el-button>
+      </template>
+    </el-dialog>
   </el-card>
 </template>
 
 <script setup>
 import { reactive, ref, onMounted } from 'vue'
 import * as faultApi from '../api/fault'
+import * as archiveApi from '../api/archive'
 import { showErr } from '../utils/ui'
 
 const rows = ref([])
@@ -101,6 +119,38 @@ async function openDetail(id) {
     dialog.value = true
   } catch (e) {
     showErr(e)
+  }
+}
+
+const dispatchDialog = ref(false)
+const dispatchTarget = ref(null)
+const dispatchWorker = ref('')
+const dispatching = ref(false)
+const workers = ref([])
+
+async function openDispatch(row) {
+  dispatchTarget.value = row
+  dispatchWorker.value = ''
+  try {
+    const list = await archiveApi.employees()
+    workers.value = list || []
+  } catch (e) {
+    workers.value = []
+  }
+  dispatchDialog.value = true
+}
+
+async function confirmDispatch() {
+  if (!dispatchWorker.value) return
+  dispatching.value = true
+  try {
+    await faultApi.dispatch(dispatchTarget.value.id, dispatchWorker.value)
+    dispatchDialog.value = false
+    await load()
+  } catch (e) {
+    showErr(e)
+  } finally {
+    dispatching.value = false
   }
 }
 

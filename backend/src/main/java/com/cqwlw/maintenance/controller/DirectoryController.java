@@ -131,6 +131,13 @@ public class DirectoryController {
                 .body(pdf);
     }
 
+    /** 急修单派单（管理端调度）：指派接单维保员（docs/04 V2.28 派单系统） */
+    @PostMapping("/admin/faults/{id}/dispatch")
+    public ApiResponse<Map<String, Object>> dispatchFault(@PathVariable String id,
+                                                          @RequestBody Map<String, Object> body) {
+        return ApiResponse.ok(directoryService.dispatchFault(id, String.valueOf(body.get("workerId"))));
+    }
+
     private String empId(HttpServletRequest request) {
         return String.valueOf(request.getAttribute(AuthInterceptor.ATTR_EMP_ID));
     }

@@ -125,8 +125,7 @@ public class RecordPdfService {
             work.addCell(cell("作业结束（签退）", label));
             work.addCell(cell(fmt(r.checkoutTime), value));
             work.addCell(cell("安全防护确认", label));
-            PdfPCell safety = new PdfPCell(new Phrase(
-                    "☐ 警示标志　☐ 现场围拦　☐ 断电挂牌（如需要）　☐ 双人作业", value));
+            PdfPCell safety = new PdfPCell(new Phrase(safetyLine(r.safetyJson), value));
             safety.setColspan(3);
             safety.setPadding(5);
             work.addCell(safety);
@@ -177,7 +176,8 @@ public class RecordPdfService {
             issue.addCell(cell("发现问题及处理", label));
             issue.addCell(longTextCell(abnormalSummary(items), value, 3));
             issue.addCell(cell("待办事项", label));
-            issue.addCell(longTextCell("无待办，销项后归档", value, 3));
+            String todo = nz(r.todoDesc);
+            issue.addCell(longTextCell(todo.isEmpty() ? "无待办，销项后归档" : todo, value, 3));
             doc.add(issue);
 
             PdfPTable signs = new PdfPTable(3);
@@ -267,6 +267,29 @@ public class RecordPdfService {
         return sb.length() == 0 ? "无异常项。" : sb.toString();
     }
 
+    /** 安全防护确认勾选行：safety_json 回显 ☑/☐（V20 采集） */
+    private static String safetyLine(String safetyJson) {
+        Map<String, Object> flags;
+        try {
+            flags = safetyJson == null || safetyJson.isBlank()
+                    ? Map.of() : JsonUtil.MAPPER.readValue(safetyJson,
+                            new com.fasterxml.jackson.core.type.TypeReference<Map<String, Object>>() {
+                            });
+        } catch (Exception e) {
+            flags = Map.of();
+        }
+        boolean twoPerson = Boolean.TRUE.equals(flags.get("twoPerson"))
+                || "true".equals(String.valueOf(flags.get("twoPerson")));
+        return box(flags.get("warning")) + "警示标志　"
+                + box(flags.get("barrier")) + "现场围拦　"
+                + box(flags.get("powerOff")) + "断电挂牌（如需要）　"
+                + (twoPerson ? "☑" : "☐") + "双人作业";
+    }
+
+    private static String box(Object flag) {
+        return Boolean.parseBoolean(String.valueOf(flag)) ? "☑" : "☐";
+    }
+
     /** 急修单 PDF（一梯一档，版式按用户样单 2026-10-05）：时间链/电梯基本信息/报修与处理记录/照片/签字确认 */
     public byte[] renderFault(Map<String, Object> v) {
         try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
@@ -307,7 +330,7 @@ public class RecordPdfService {
             info.addCell(cell("故障等级", label));
             info.addCell(cell(nz(str(v.get("faultType")).isEmpty() ? "一般故障" : str(v.get("faultType"))), value));
             info.addCell(cell("接单人员（维保员）", label));
-            info.addCell(cell(nz(str(v.get("createdByName"))), value));
+            info.addCell(cell(nz(str(v.get("dispatchedWorkerName"))), value));
             info.addCell(cell("到场时间（签到）", label));
             info.addCell(cell(nz(str(v.get("arrivedAt"))), value));
             info.addCell(cell("维修结束时间", label));
@@ -330,7 +353,8 @@ public class RecordPdfService {
             elev.addCell(cell("额定载重 / 速度", label));
             elev.addCell(cell(nz(str(v.get("ratedSpec"))), value));
             elev.addCell(cell("维保单位 / 合同编号", label));
-            PdfPCell maintCell = new PdfPCell(new Phrase(nz(str(v.get("maintainerName"))), value));
+            PdfPCell maintCell = new PdfPCell(new Phrase(
+                    nz(str(v.get("companyName"))) + " / —", value));
             maintCell.setPadding(5);
             maintCell.setColspan(3);
             elev.addCell(maintCell);

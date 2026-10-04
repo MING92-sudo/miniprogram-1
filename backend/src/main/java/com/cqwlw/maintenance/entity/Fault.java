@@ -21,6 +21,10 @@ public class Fault {
     public String descr;
     public String siteDesc;
     public String status;
+    /** 接单维保员（派单系统，V20） */
+    public String dispatchWorkerId;
+    /** 派单时间 */
+    public java.time.LocalDateTime dispatchedAt;
     public String handleDesc;
     /** 到场时间：以维保人员当日首次签到为准 */
     public java.time.LocalDateTime arrivedAt;

@@ -28,6 +28,10 @@ public class MaintainRecord {
     public String duration;
     public String itemsJson;
     public String photosJson;
+    /** 安全防护确认勾选（JSON：warning/barrier/powerOff/twoPerson，V20） */
+    public String safetyJson;
+    /** 待办事项（V20；空=无待办） */
+    public String todoDesc;
     public String workerSignatureUrl;
     public String assistantSignatureUrl;
     public String problemCodesJson;

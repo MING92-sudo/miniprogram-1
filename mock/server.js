@@ -269,6 +269,8 @@ const routes = [
     if (!f) throw { code: 1404, message: '故障记录不存在' }
     return { ok: true }
   }],
+  ['POST', '/admin/faults/:id/dispatch', ({ params, body }) =>
+    d.dispatchFault(params.id, body && body.workerId)],
 
   // ── 合规台账（TSG 法定项，数据暂存本地不上报平台）──
   ['GET', '/drills', () => d.listDrills()],

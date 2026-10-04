@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.cqwlw.maintenance.common.BizException;
 import com.cqwlw.maintenance.common.Ids;
 import com.cqwlw.maintenance.entity.Drill;
+import com.cqwlw.maintenance.entity.Company;
 import com.cqwlw.maintenance.entity.Employee;
 import com.cqwlw.maintenance.entity.Elevator;
 import com.cqwlw.maintenance.entity.Fault;
@@ -13,6 +14,7 @@ import com.cqwlw.maintenance.entity.Knowledge;
 import com.cqwlw.maintenance.entity.Message;
 import com.cqwlw.maintenance.entity.Rescue;
 import com.cqwlw.maintenance.mapper.DrillMapper;
+import com.cqwlw.maintenance.mapper.CompanyMapper;
 import com.cqwlw.maintenance.mapper.EmployeeMapper;
 import com.cqwlw.maintenance.mapper.ElevatorMapper;
 import com.cqwlw.maintenance.mapper.FaultMapper;
@@ -58,6 +60,7 @@ public class DirectoryService {
     private final EmployeeMapper employeeMapper;
     private final UseUnitMapper useUnitMapper;
     private final WorkOrderMapper workOrderMapper;
+    private final CompanyMapper companyMapper;
 
     public DirectoryService(RescueMapper rescueMapper, FaultMapper faultMapper,
                             DrillMapper drillMapper, InspectRecordMapper inspectMapper,
@@ -65,7 +68,7 @@ public class DirectoryService {
                             ElevatorMapper elevatorMapper, ChecklistService checklistService,
                             WorkOrderService workOrderService, EmployeeScopeService scopeService,
                             EmployeeMapper employeeMapper, UseUnitMapper useUnitMapper,
-                            WorkOrderMapper workOrderMapper) {
+                            WorkOrderMapper workOrderMapper, CompanyMapper companyMapper) {
         this.rescueMapper = rescueMapper;
         this.faultMapper = faultMapper;
         this.drillMapper = drillMapper;
@@ -79,6 +82,7 @@ public class DirectoryService {
         this.employeeMapper = employeeMapper;
         this.useUnitMapper = useUnitMapper;
         this.workOrderMapper = workOrderMapper;
+        this.companyMapper = companyMapper;
     }
 
     // ── 救援 ──
@@ -165,7 +169,8 @@ public class DirectoryService {
         f.id = Ids.next("ft");
         f.createdBy = empId;
         f.elevatorCode = strOrEmpty(body.get("elevatorCode"));
-        f.faultType = strOrEmpty(body.get("faultType"));
+        // 故障等级：一般故障 / 困人（紧急）（小程序登记页选择，V2.28）
+        f.faultType = strOrEmpty(body.get("faultType")).isEmpty() ? "一般故障" : strOrEmpty(body.get("faultType"));
         f.descr = strOrEmpty(body.get("desc"));
         f.siteDesc = strOrEmpty(body.get("siteDesc"));
         f.photos = JsonUtil.write(body.get("photos") == null ? List.of() : body.get("photos"));
@@ -180,6 +185,28 @@ public class DirectoryService {
         }
         faultMapper.insert(f);
         return faultView(f);
+    }
+
+    /** 急修单派单（管理端调度）：指派接单维保员，OPEN → ASSIGNED（docs/04 V2.28 派单系统） */
+    public Map<String, Object> dispatchFault(String id, String workerId) {
+        Fault f = faultMapper.selectById(id);
+        if (f == null) {
+            throw new BizException(1404, "急修单不存在");
+        }
+        if (!"OPEN".equals(f.status)) {
+            throw new BizException(422, "仅待派单的急修单可派单");
+        }
+        Employee worker = employeeMapper.selectById(workerId);
+        if (worker == null) {
+            throw new BizException(1404, "维保人员不存在");
+        }
+        f.dispatchWorkerId = workerId;
+        f.dispatchedAt = TimeUtil.now();
+        f.status = "ASSIGNED";
+        faultMapper.updateById(f);
+        Map<String, Object> view = faultView(f);
+        enrichFaultViews(List.of(view));
+        return view;
     }
 
     /** 急修单编号：BWJX + yyyyMMddHHmm + 当日 3 位顺序 = 19 位 */
@@ -260,6 +287,13 @@ public class DirectoryService {
             String by = String.valueOf(v.get("createdBy"));
             v.put("createdByName", by.isEmpty() ? "" : names.getOrDefault(by, by));
             v.put("reporterPhone", by.isEmpty() ? "" : phones.getOrDefault(by, ""));
+            // 派单信息（V20 派单系统）
+            String dispatchId = String.valueOf(v.get("dispatchWorkerId"));
+            v.put("dispatchedWorkerName", "null".equals(dispatchId) || dispatchId.isEmpty()
+                    ? "" : names.getOrDefault(dispatchId, dispatchId));
+            // 维保单位：系统默认本单位（company 表首条）
+            Company comp = companyMapper.selectList(null).stream().findFirst().orElse(null);
+            v.put("companyName", comp == null || comp.name == null ? "" : comp.name);
             Elevator el = elevators.get(String.valueOf(v.get("elevatorCode")));
             v.put("elevatorName", el == null || el.elevatorName == null ? "" : el.elevatorName);
             v.put("useUnitName", el == null || el.useUnitId == null ? "" : useUnitName(el.useUnitId));
