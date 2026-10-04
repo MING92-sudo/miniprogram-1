@@ -44,6 +44,7 @@
         <el-table-column label="操作" width="170" fixed="right">
           <template #default="{ row }">
             <el-button link type="primary" :disabled="!auth.canWrite" @click="openAssign(row)">指派</el-button>
+            <el-button link type="warning" :disabled="!auth.canWrite" @click="onDispatchNow(row)">立即派单</el-button>
             <el-button link type="warning" :disabled="!auth.canRead" @click="openDelay(row)">申请延期</el-button>
           </template>
         </el-table-column>
@@ -145,6 +146,7 @@
 import { reactive, ref, onMounted } from 'vue'
 import { useAuthStore } from '../stores/auth'
 import * as scheduleApi from '../api/schedule'
+import * as archiveApi from '../api/archive'
 import { showErr, ok } from '../utils/ui'
 
 const auth = useAuthStore()
@@ -204,6 +206,18 @@ async function loadDelays() {
   }
 }
 
+  async function onDispatchNow(row) {
+    try {
+      await ElMessageBox.confirm(
+        `确认为「${row.elevatorName}（${row.planDate}）」立即生成维保工单？（用于首保/补单，跳过到期检查）`,
+        '立即派单', { type: 'warning' })
+      const o = await archiveApi.dispatchElevator(row.elevatorId)
+      ok('已派单：' + ((o && o.orderNo) || ''))
+      await load()
+    } catch (e) {
+      if (e !== 'cancel') showErr(e)
+    }
+  }
 async function onGenerate() {
   if (!range.value || !range.value[0]) {
     ok('请先选择计划日期范围')

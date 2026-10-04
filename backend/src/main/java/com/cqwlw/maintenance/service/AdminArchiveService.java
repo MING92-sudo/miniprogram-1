@@ -445,6 +445,8 @@ public class AdminArchiveService {
             el.inspectionReportFileId = str(body, "inspectionReportFileId");
             el.inspectionReportUrl = str(body, "inspectionReportUrl");
             el.inspectionReportUploadedAt = TimeUtil.now();
+            // 年检周期一年：上传新报告即滚动下次年检时间（一梯一档台账口径）
+            el.nextCheckDate = TimeUtil.now().toLocalDate().plusYears(1);
         }
         if (body.get("nextCheckDate") != null) {
             el.nextCheckDate = TimeUtil.parseDate(str(body, "nextCheckDate"));

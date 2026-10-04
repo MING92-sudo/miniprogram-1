@@ -30,12 +30,10 @@
       <el-table-column prop="workTypeCode" label="周期码" width="80" />
       <el-table-column prop="nextCheckDate" label="下次检验" width="110" />
       <el-table-column prop="platformSyncedAt" label="最近同步" width="160" />
-      <el-table-column label="操作" width="170" fixed="right">
+      <el-table-column label="操作" width="130" fixed="right">
         <template #default="{ row }">
-          <el-button link type="primary" @click="openArchive(row)">档案</el-button>
           <el-button link type="primary" :disabled="!auth.canWrite" @click="openEdit(row)">编辑</el-button>
           <el-button link type="primary" @click="onQr(row)">二维码</el-button>
-          <el-button link type="warning" :disabled="!auth.canWrite" @click="onDispatch(row)">立即派单</el-button>
           <el-button link type="warning" :disabled="!auth.canWrite" @click="onToggleStatus(row)">
             {{ row.status === 'INACTIVE' ? '启用' : '停用' }}
           </el-button>
@@ -146,45 +144,7 @@
       </template>
     </el-dialog>
   </el-card>
-  <el-drawer v-model="archiveDrawer" :title="'一梯一档 · ' + (archiveElevator.elevatorName || '')" size="62%">
-    <el-tabs v-model="archiveTab">
-      <el-tab-pane label="维保记录" name="records">
-        <el-table :data="archiveRecords" v-loading="archiveLoading" stripe size="small">
-          <el-table-column prop="createdAt" label="签退时间" width="170" />
-          <el-table-column prop="workTypeCode" label="类别码" width="80" />
-          <el-table-column prop="workerName" label="维保人员" width="100" />
-          <el-table-column prop="duration" label="时长" width="90" />
-          <el-table-column prop="reportStatus" label="上报状态" width="110" />
-          <el-table-column label="操作" width="130" fixed="right">
-            <template #default="{ row }">
-              <el-button link type="primary" @click="previewRecordPdf(row.id)">预览</el-button>
-              <el-button link type="primary" @click="downloadRecordPdf(row.id)">下载</el-button>
-            </template>
-          </el-table-column>
-        </el-table>
-      </el-tab-pane>
-      <el-tab-pane label="急修单" name="faults">
-        <el-table :data="archiveFaults" stripe size="small">
-          <el-table-column prop="createdAt" label="登记时间" width="170" />
-          <el-table-column prop="faultType" label="类型" width="100" />
-          <el-table-column prop="desc" label="描述" min-width="200" show-overflow-tooltip />
-          <el-table-column label="状态" width="90">
-            <template #default="{ row }">
-              <el-tag size="small" :type="row.status === 'CLOSED' ? 'success' : 'danger'">
-                {{ row.status === 'CLOSED' ? '已闭环' : '未闭环' }}
-              </el-tag>
-            </template>
-          </el-table-column>
-          <el-table-column label="操作" width="130" fixed="right">
-            <template #default="{ row }">
-              <el-button link type="primary" @click="previewFaultPdf(row.id)">预览</el-button>
-              <el-button link type="primary" @click="downloadFaultPdf(row.id)">下载</el-button>
-            </template>
-          </el-table-column>
-        </el-table>
-      </el-tab-pane>
-    </el-tabs>
-  </el-drawer>
+
 </template>
 
 <script setup>
@@ -192,10 +152,7 @@ import { reactive, ref, onMounted } from 'vue'
 import { useAuthStore } from '../stores/auth'
 import * as archiveApi from '../api/archive'
 import * as platformApi from '../api/platform'
-import * as faultApi from '../api/fault'
-import { API_BASE } from '../api/client'
-import * as reportApi from '../api/report'
-import { showErr, ok, downloadBlob } from '../utils/ui'
+import { showErr, ok } from '../utils/ui'
 import { ElMessageBox } from 'element-plus'
 
 const auth = useAuthStore()
@@ -257,49 +214,6 @@ function openCreate() {
       if (e !== 'cancel') showErr(e)
     }
   }
-// ── 一梯一档：维保记录 + 急修单 预览/下载 ──
-const archiveDrawer = ref(false)
-const archiveTab = ref('records')
-const archiveElevator = ref({})
-const archiveRecords = ref([])
-const archiveFaults = ref([])
-const archiveLoading = ref(false)
-
-async function openArchive(row) {
-  archiveElevator.value = row
-  archiveDrawer.value = true
-  archiveLoading.value = true
-  try {
-    const [r, f] = await Promise.all([
-      reportApi.listRecords({ elevatorCode: row.elevatorCode, size: 100 }),
-      faultApi.list({ size: 200 })
-    ])
-    archiveRecords.value = r.list || []
-    archiveFaults.value = (f.list || []).filter((x) => x.elevatorCode === row.elevatorCode)
-  } catch (e) {
-    showErr(e)
-  } finally {
-    archiveLoading.value = false
-  }
-}
-
-async function fetchPdf(url) {
-  return await fetch(url, { headers: { Authorization: 'Bearer ' + localStorage.getItem('admin_token') } })
-    .then((r) => { if (!r.ok) throw new Error('生成失败'); return r.blob() })
-}
-
-async function previewRecordPdf(id) {
-  try { window.open(URL.createObjectURL(await fetchPdf(API_BASE + `/admin/records/${id}/export-pdf`))) } catch (e) { showErr(e) }
-}
-async function downloadRecordPdf(id) {
-  try { downloadBlob(await fetchPdf(API_BASE + `/admin/records/${id}/export-pdf`), '维保记录-' + id + '.pdf') } catch (e) { showErr(e) }
-}
-async function previewFaultPdf(id) {
-  try { window.open(URL.createObjectURL(await fetchPdf(API_BASE + `/admin/faults/${id}/export-pdf`))) } catch (e) { showErr(e) }
-}
-async function downloadFaultPdf(id) {
-  try { downloadBlob(await fetchPdf(API_BASE + `/admin/faults/${id}/export-pdf`), '急修单-' + id + '.pdf') } catch (e) { showErr(e) }
-}
 function openEdit(row) {
   Object.assign(form, empty, row)
   syncEmployeeIds()
@@ -452,18 +366,6 @@ function syncEmployeeIds() {
   assistantEmployeeId.value = (staff.value.find((x) => x.name === form.assistantName) || {}).id || ''
   form.workerId = workerEmployeeId.value
   form.assistantEmployeeId = assistantEmployeeId.value
-}
-async function onDispatch(row) {
-  try {
-    await ElMessageBox.confirm(
-      `确认为「${row.elevatorName}（${row.elevatorCode}）」立即生成维保工单？（用于首保/补单，跳过到期检查）`,
-      '立即派单', { type: 'warning' })
-    const o = await archiveApi.dispatchElevator(row.id)
-    ok('已派单：' + ((o && o.orderNo) || ''))
-    await load()
-  } catch (e) {
-    if (e !== 'cancel') showErr(e)
-  }
 }
 async function queryFromPlatform() {
   querying.value = true

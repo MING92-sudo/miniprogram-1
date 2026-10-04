@@ -620,6 +620,12 @@ public class WorkOrderService {
         recordMapper.updateById(r);
         o.reportStatus = r.reportStatus;
         orderMapper.updateById(o);
+        // 下次维保时间随最近一次维保自动滚动；最后维保时间同步（一梯一档台账口径）
+        if (el != null) {
+            el.nextMaintenanceDate = r.nextMaintenanceDate;
+            el.lastMaintenanceAt = r.checkoutTime;
+            elevatorMapper.updateById(el);
+        }
 
         return JsonUtil.map(
                 "workOrderId", o.id,
