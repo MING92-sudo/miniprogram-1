@@ -19,6 +19,7 @@ import com.cqwlw.maintenance.mapper.InspectRecordMapper;
 import com.cqwlw.maintenance.mapper.KnowledgeMapper;
 import com.cqwlw.maintenance.mapper.MessageMapper;
 import com.cqwlw.maintenance.mapper.RescueMapper;
+import com.cqwlw.maintenance.mapper.UseUnitMapper;
 import com.cqwlw.maintenance.util.JsonUtil;
 import com.cqwlw.maintenance.util.TimeUtil;
 import org.springframework.stereotype.Service;
@@ -51,13 +52,14 @@ public class DirectoryService {
     private final WorkOrderService workOrderService;
     private final EmployeeScopeService scopeService;
     private final EmployeeMapper employeeMapper;
+    private final UseUnitMapper useUnitMapper;
 
     public DirectoryService(RescueMapper rescueMapper, FaultMapper faultMapper,
                             DrillMapper drillMapper, InspectRecordMapper inspectMapper,
                             MessageMapper messageMapper, KnowledgeMapper knowledgeMapper,
                             ElevatorMapper elevatorMapper, ChecklistService checklistService,
                             WorkOrderService workOrderService, EmployeeScopeService scopeService,
-                            EmployeeMapper employeeMapper) {
+                            EmployeeMapper employeeMapper, UseUnitMapper useUnitMapper) {
         this.rescueMapper = rescueMapper;
         this.faultMapper = faultMapper;
         this.drillMapper = drillMapper;
@@ -69,6 +71,7 @@ public class DirectoryService {
         this.workOrderService = workOrderService;
         this.scopeService = scopeService;
         this.employeeMapper = employeeMapper;
+        this.useUnitMapper = useUnitMapper;
     }
 
     // ── 救援 ──
@@ -194,20 +197,32 @@ public class DirectoryService {
             list = list.stream().filter(f -> status.equals(f.status)).toList();
         }
         List<Map<String, Object>> views = list.stream().map(this::faultView).toList();
-        enrichCreatorName(views);
+        enrichFaultViews(views);
         return workOrderService.paginate(views, query);
     }
 
-    /** 急修单登记人姓名（empId → 姓名；员工已删除时回显原 ID） */
-    private void enrichCreatorName(List<Map<String, Object>> views) {
+    /** 急修单视图增强：登记人姓名 + 电梯名称 + 使用单位名（一梯一档预览/PDF 用） */
+    private void enrichFaultViews(List<Map<String, Object>> views) {
         Map<String, String> names = new LinkedHashMap<>();
         for (Employee e : employeeMapper.selectList(null)) {
             names.put(e.id, e.name);
         }
+        Map<String, Elevator> elevators = new LinkedHashMap<>();
+        for (Elevator el : elevatorMapper.selectList(null)) {
+            elevators.put(el.elevatorCode, el);
+        }
         for (Map<String, Object> v : views) {
             String by = String.valueOf(v.get("createdBy"));
             v.put("createdByName", by.isEmpty() ? "" : names.getOrDefault(by, by));
+            Elevator el = elevators.get(String.valueOf(v.get("elevatorCode")));
+            v.put("elevatorName", el == null || el.elevatorName == null ? "" : el.elevatorName);
+            v.put("useUnitName", el == null || el.useUnitId == null ? "" : useUnitName(el.useUnitId));
         }
+    }
+
+    private String useUnitName(String useUnitId) {
+        var uu = useUnitMapper.selectById(useUnitId);
+        return uu == null || uu.unitName == null ? "" : uu.unitName;
     }
 
     public Map<String, Object> getFault(String id, String empId) {
@@ -220,7 +235,7 @@ public class DirectoryService {
             throw new BizException(1403, "仅可查看本人或本班组急修单");
         }
         Map<String, Object> view = faultView(f);
-        enrichCreatorName(List.of(view));
+        enrichFaultViews(List.of(view));
         return view;
     }
 

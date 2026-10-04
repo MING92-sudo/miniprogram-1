@@ -190,6 +190,86 @@ public class RecordPdfService {
         }
     }
 
+    /** 急修单 PDF（一梯一档）：基本信息/故障描述/现场照片/处理结果/单位签字 */
+    public byte[] renderFault(Map<String, Object> v) {
+        try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            Document doc = new Document(PageSize.A4, 36, 36, 40, 40);
+            PdfWriter.getInstance(doc, out);
+            doc.open();
+
+            Font title = font(16, Font.BOLD);
+            Font label = font(9, Font.BOLD);
+            Font value = font(9, Font.NORMAL);
+            Font small = font(7.5f, Font.NORMAL);
+
+            Paragraph head = new Paragraph("电梯急修单", title);
+            head.setAlignment(Element.ALIGN_CENTER);
+            doc.add(head);
+            Paragraph sub = new Paragraph("单号 " + nz(str(v.get("id")))
+                    + "　生成时间 " + TimeUtil.format(TimeUtil.now()), small);
+            sub.setAlignment(Element.ALIGN_CENTER);
+            sub.setSpacingAfter(10);
+            doc.add(sub);
+
+            String status = str(v.get("status"));
+            PdfPTable info = table(4, label, value);
+            info.addCell(cell("电梯编码", label));
+            info.addCell(cell(nz(str(v.get("elevatorCode"))), value));
+            info.addCell(cell("项目名称", label));
+            info.addCell(cell(nz(str(v.get("elevatorName"))), value));
+            info.addCell(cell("使用单位", label));
+            info.addCell(cell(nz(str(v.get("useUnitName"))), value));
+            info.addCell(cell("故障类型", label));
+            info.addCell(cell(nz(str(v.get("faultType"))), value));
+            info.addCell(cell("登记人", label));
+            info.addCell(cell(nz(str(v.get("createdByName"))), value));
+            info.addCell(cell("登记时间", label));
+            info.addCell(cell(nz(str(v.get("createdAt"))), value));
+            info.addCell(cell("状态", label));
+            info.addCell(cell("CLOSED".equals(status) ? "已闭环" : "未闭环", value));
+            info.addCell(cell("闭环时间", label));
+            info.addCell(cell(nz(str(v.get("confirmedAt"))), value));
+            doc.add(info);
+
+            Paragraph descTitle = new Paragraph("故障描述", label);
+            descTitle.setSpacingBefore(10);
+            descTitle.setSpacingAfter(4);
+            doc.add(descTitle);
+            doc.add(new Paragraph(nz(str(v.get("desc"))), value));
+
+            Paragraph fixTitle = new Paragraph("处理结果", label);
+            fixTitle.setSpacingBefore(10);
+            fixTitle.setSpacingAfter(4);
+            doc.add(fixTitle);
+            doc.add(new Paragraph(nz(str(v.get("result"))), value));
+
+            List<?> photos = v.get("photos") instanceof List<?> l ? l : List.of();
+            Paragraph photoTitle = new Paragraph("现场照片（" + photos.size() + " 张）", label);
+            photoTitle.setSpacingBefore(10);
+            photoTitle.setSpacingAfter(4);
+            doc.add(photoTitle);
+            if (photos.isEmpty()) {
+                doc.add(new Paragraph("无现场照片。", small));
+            } else {
+                PdfPTable photoGrid = new PdfPTable(2);
+                photoGrid.setWidthPercentage(100);
+                for (Object url : photos) {
+                    photoGrid.addCell(photoCell(String.valueOf(url), small));
+                }
+                if (photos.size() % 2 == 1) {
+                    photoGrid.addCell(emptyCell());
+                }
+                doc.add(photoGrid);
+            }
+
+            doc.add(signCell("使用单位安全管理员签字", str(v.get("signature")), small));
+            doc.close();
+            return out.toByteArray();
+        } catch (Exception e) {
+            log.warn("急修单 PDF 生成失败: id={}, {}", v == null ? null : v.get("id"), e.getMessage());
+            throw new IllegalStateException("PDF 生成失败", e);
+        }
+    }
     /** 照片/签字按 URL 拉取；本机 /files/{id} 回退查 AppFile 本地路径；失败返回 null（占位文字） */
     protected byte[] loadImage(String url) {
         if (url == null || url.isBlank()) {

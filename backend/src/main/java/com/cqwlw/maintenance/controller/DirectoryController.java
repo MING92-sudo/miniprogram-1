@@ -3,8 +3,15 @@ package com.cqwlw.maintenance.controller;
 import com.cqwlw.maintenance.common.ApiResponse;
 import com.cqwlw.maintenance.auth.AuthInterceptor;
 import com.cqwlw.maintenance.service.DirectoryService;
+import com.cqwlw.maintenance.service.RecordPdfService;
 import com.cqwlw.maintenance.service.IdempotencyService;
 import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -23,10 +30,13 @@ public class DirectoryController {
 
     private final DirectoryService directoryService;
     private final IdempotencyService idempotencyService;
+    private final RecordPdfService pdfService;
 
-    public DirectoryController(DirectoryService directoryService, IdempotencyService idempotencyService) {
+    public DirectoryController(DirectoryService directoryService, IdempotencyService idempotencyService,
+                               RecordPdfService pdfService) {
         this.directoryService = directoryService;
         this.idempotencyService = idempotencyService;
+        this.pdfService = pdfService;
     }
 
     @PostMapping("/rescues")
@@ -98,6 +108,19 @@ public class DirectoryController {
                                                        @RequestBody(required = false) Map<String, Object> body,
                                                        HttpServletRequest request) {
         return ApiResponse.ok(directoryService.closeFault(id, body));
+    }
+
+    /** 急修单 PDF（一梯一档预览/下载，docs/04 A.3） */
+    @GetMapping("/admin/faults/{id}/export-pdf")
+    public ResponseEntity<byte[]> exportFaultPdf(@PathVariable String id, HttpServletRequest request) {
+        Map<String, Object> view = directoryService.getFault(id, empId(request));
+        byte[] pdf = pdfService.renderFault(view);
+        String filename = URLEncoder.encode("急修单-" + id + ".pdf", StandardCharsets.UTF_8);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename*=UTF-8''" + filename)
+                .contentType(MediaType.APPLICATION_PDF)
+                .body(pdf);
     }
 
     private String empId(HttpServletRequest request) {

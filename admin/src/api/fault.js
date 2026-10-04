@@ -8,3 +8,7 @@ export function list(params) {
 export function get(id) {
   return http.get(`/faults/${id}`)
 }
+/** 急修单 PDF（一梯一档预览/下载） */
+export function exportPdf(id) {
+  return http.get(`/admin/faults/${id}/export-pdf`, { responseType: 'blob', timeout: 120000 })
+}
