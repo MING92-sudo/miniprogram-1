@@ -190,7 +190,7 @@ public class RecordPdfService {
         }
     }
 
-    /** 急修单 PDF（一梯一档）：基本信息/故障描述/现场照片/处理结果/单位签字 */
+    /** 急修单 PDF（一梯一档，版式按用户样单 2026-10-05）：时间链/电梯基本信息/报修与处理记录/照片/签字确认 */
     public byte[] renderFault(Map<String, Object> v) {
         try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             Document doc = new Document(PageSize.A4, 36, 36, 40, 40);
@@ -202,68 +202,79 @@ public class RecordPdfService {
             Font value = font(9, Font.NORMAL);
             Font small = font(7.5f, Font.NORMAL);
 
-            Paragraph head = new Paragraph("电梯急修单", title);
-            head.setAlignment(Element.ALIGN_CENTER);
-            doc.add(head);
-            Paragraph sub = new Paragraph("单号 " + nz(str(v.get("faultNo")))
-                    + "　生成时间 " + TimeUtil.format(TimeUtil.now()), small);
-            sub.setAlignment(Element.ALIGN_CENTER);
-            sub.setSpacingAfter(10);
-            doc.add(sub);
-
             String status = str(v.get("status"));
+            // ── 单据头：标题居左，编号/状态居右 ──
+            PdfPTable head = new PdfPTable(2);
+            head.setWidthPercentage(100);
+            head.setWidths(new int[] {1, 1});
+            PdfPCell headL = new PdfPCell(new Paragraph("电梯急修单", title));
+            headL.setBorder(PdfPCell.NO_BORDER);
+            PdfPCell headR = new PdfPCell(new Paragraph(
+                    "编号：" + nz(str(v.get("faultNo"))) + "\n单据状态："
+                            + ("CLOSED".equals(status) ? "已完成" : "未闭环") + "　·　页数：1/1",
+                    font(9, Font.BOLD)));
+            headR.setBorder(PdfPCell.NO_BORDER);
+            headR.setHorizontalAlignment(Element.ALIGN_RIGHT);
+            head.addCell(headL);
+            head.addCell(headR);
+            head.setSpacingAfter(8);
+            doc.add(head);
+
+            // ── 时间链表 ──
             PdfPTable info = table(4, label, value);
-            info.addCell(cell("电梯编码", label));
-            info.addCell(cell(nz(str(v.get("elevatorCode"))), value));
-            info.addCell(cell("项目名称", label));
-            info.addCell(cell(nz(str(v.get("elevatorName"))), value));
-            info.addCell(cell("使用单位", label));
-            info.addCell(cell(nz(str(v.get("useUnitName"))), value));
-            info.addCell(cell("故障类型", label));
-            info.addCell(cell(nz(str(v.get("faultType"))), value));
-            info.addCell(cell("登记人", label));
-            info.addCell(cell(nz(str(v.get("createdByName"))), value));
             info.addCell(cell("报修时间", label));
             info.addCell(cell(nz(str(v.get("createdAt"))), value));
-            info.addCell(cell("到场时间（以签到为准）", label));
+            info.addCell(cell("报修人 / 电话", label));
+            info.addCell(cell((nz(str(v.get("createdByName")))
+                    + (nz(str(v.get("reporterPhone"))).isEmpty() ? "" : " / " + str(v.get("reporterPhone")))), value));
+            info.addCell(cell("故障等级", label));
+            info.addCell(cell(nz(str(v.get("faultType")).isEmpty() ? "一般故障" : str(v.get("faultType"))), value));
+            info.addCell(cell("接单人员（维保员）", label));
+            info.addCell(cell(nz(str(v.get("createdByName"))), value));
+            info.addCell(cell("到场时间（签到）", label));
             info.addCell(cell(nz(str(v.get("arrivedAt"))), value));
             info.addCell(cell("维修结束时间", label));
             info.addCell(cell(nz(str(v.get("finishedAt"))), value));
-            info.addCell(cell("状态", label));
-            info.addCell(cell("CLOSED".equals(status) ? "已闭环" : "未闭环", value));
-            info.addCell(cell("闭环时间", label));
-            info.addCell(cell(nz(str(v.get("confirmedAt"))), value));
             doc.add(info);
 
-            Paragraph descTitle = new Paragraph("故障描述", label);
-            descTitle.setSpacingBefore(10);
-            descTitle.setSpacingAfter(4);
-            doc.add(descTitle);
-            doc.add(new Paragraph(nz(str(v.get("desc"))), value));
+            // ── 电梯基本信息（扫码自动带出，不可手改） ──
+            doc.add(sectionBar("电梯基本信息（扫码自动带出，不可手改）"));
+            PdfPTable elev = table(4, label, value);
+            elev.addCell(cell("注册代码/登记证号", label));
+            elev.addCell(cell(nz(str(v.get("regCode"))), value));
+            elev.addCell(cell("电梯类型", label));
+            elev.addCell(cell(nz(str(v.get("model"))), value));
+            elev.addCell(cell("使用单位", label));
+            elev.addCell(cell(nz(str(v.get("useUnitName"))), value));
+            elev.addCell(cell("设备地点", label));
+            elev.addCell(cell(nz(str(v.get("location"))), value));
+            elev.addCell(cell("层站数", label));
+            elev.addCell(cell(nz(str(v.get("stationsDoors"))), value));
+            elev.addCell(cell("额定载重 / 速度", label));
+            elev.addCell(cell(nz(str(v.get("ratedSpec"))), value));
+            elev.addCell(cell("维保单位 / 合同编号", label));
+            PdfPCell maintCell = new PdfPCell(new Phrase(nz(str(v.get("maintainerName"))), value));
+            maintCell.setPadding(5);
+            maintCell.setColspan(3);
+            elev.addCell(maintCell);
+            doc.add(elev);
 
-            Paragraph siteTitle = new Paragraph("现场情况描述", label);
-            siteTitle.setSpacingBefore(10);
-            siteTitle.setSpacingAfter(4);
-            doc.add(siteTitle);
-            doc.add(new Paragraph(nz(str(v.get("siteDesc"))), value));
-
-            Paragraph fixTitle = new Paragraph("处理结果", label);
-            fixTitle.setSpacingBefore(10);
-            fixTitle.setSpacingAfter(4);
-            doc.add(fixTitle);
-            doc.add(new Paragraph(nz(str(v.get("result"))), value));
-
-            Paragraph todoTitle = new Paragraph("待办事项", label);
-            todoTitle.setSpacingBefore(10);
-            todoTitle.setSpacingAfter(4);
-            doc.add(todoTitle);
-            doc.add(new Paragraph(nz(str(v.get("todoDesc"))) + "", value));
+            // ── 报修与处理记录 ──
+            doc.add(sectionBar("报修与处理记录"));
+            PdfPTable record = table(4, label, value);
+            record.addCell(cell("故障描述", label));
+            record.addCell(longTextCell(nz(str(v.get("desc"))), value, 3));
+            record.addCell(cell("现场情况描述", label));
+            record.addCell(longTextCell(nz(str(v.get("siteDesc"))), value, 3));
+            record.addCell(cell("处理结果", label));
+            record.addCell(longTextCell(nz(str(v.get("result"))), value, 3));
+            record.addCell(cell("待办事项", label));
+            String todo = nz(str(v.get("todoDesc")));
+            record.addCell(longTextCell(todo.isEmpty() ? "无待办，销项后归档" : todo, value, 3));
+            doc.add(record);
 
             List<?> photos = v.get("photos") instanceof List<?> l ? l : List.of();
-            Paragraph photoTitle = new Paragraph("现场照片（" + photos.size() + " 张）", label);
-            photoTitle.setSpacingBefore(10);
-            photoTitle.setSpacingAfter(4);
-            doc.add(photoTitle);
+            doc.add(sectionBar("故障点位置照片（" + photos.size() + " 张，建议含时间水印）"));
             if (photos.isEmpty()) {
                 doc.add(new Paragraph("无现场照片。", small));
             } else {
@@ -278,7 +289,38 @@ public class RecordPdfService {
                 doc.add(photoGrid);
             }
 
-            doc.add(signCell("使用单位安全管理员签字", str(v.get("signature")), small));
+            // ── 签字确认（签名图片自动落入对应位置） ──
+            PdfPTable sign = new PdfPTable(4);
+            sign.setWidthPercentage(100);
+            sign.setWidths(new int[] {1, 2, 1, 1});
+            sign.addCell(cell("签字确认", label));
+            PdfPCell signMain = new PdfPCell();
+            signMain.setColspan(3);
+            signMain.setPadding(6);
+            byte[] signImg = loadImage(str(v.get("signature")));
+            if (signImg != null) {
+                try {
+                    Image img = Image.getInstance(signImg);
+                    img.scaleToFit(120, 40);
+                    img.setAlignment(Element.ALIGN_LEFT);
+                    signMain.addElement(img);
+                } catch (Exception e) {
+                    signMain.addElement(new Paragraph("（签字图片无法解析）", small));
+                }
+            } else {
+                signMain.addElement(new Paragraph(
+                        nz(str(v.get("signature"))).isEmpty() ? "使用单位安全管理员签字：＿＿＿＿＿＿" : "（签字图片加载失败）",
+                        small));
+            }
+            signMain.addElement(new Paragraph("日期：" + (nz(str(v.get("confirmedAt"))).isEmpty() ? "＿＿＿＿＿＿" : str(v.get("confirmedAt"))), small));
+            signMain.addElement(new Paragraph("（可选）维保员签字：＿＿＿＿＿＿　维保单位（盖章）：＿＿＿＿＿＿", small));
+            sign.addCell(signMain);
+            doc.add(sign);
+
+            Paragraph foot = new Paragraph("本单据由系统生成，签字确认后锁定归档 · 打印时间："
+                    + TimeUtil.format(TimeUtil.now()) + " · 本单共 1 页", small);
+            foot.setSpacingBefore(6);
+            doc.add(foot);
             doc.close();
             return out.toByteArray();
         } catch (Exception e) {
@@ -293,19 +335,56 @@ public class RecordPdfService {
         }
         try {
             if (url.startsWith("http")) {
-                return restTemplate.getForObject(url, byte[].class);
+                // 同源 /files/{id}：直接读存储（本地或 COS），避免自调用 HTTP（2026-10-05）
+                if (url.contains("/files/")) {
+                    return readStoredFile(url.substring(url.lastIndexOf("/files/") + "/files/".length()));
+                }
+                byte[] remote = restTemplate.getForObject(url, byte[].class);
+                if (remote != null) {
+                    return remote;
+                }
+                // 历史数据：COS 直链私有读不可达时，按 url 反查文件记录走内网读取
+                AppFile legacy = fileMapper.selectList(
+                        new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<AppFile>()
+                                .eq(AppFile::getUrl, url)).stream()
+                        .findFirst().orElse(null);
+                return legacy == null ? null : fileStorage.readBytes(legacy);
             }
             if (url.startsWith("/files/")) {
-                AppFile f = fileMapper.selectById(url.substring("/files/".length()));
-                if (f != null) {
-                    var path = fileStorage.localPath(f);
-                    return java.nio.file.Files.readAllBytes(path);
-                }
+                return readStoredFile(url.substring("/files/".length()));
             }
         } catch (Exception e) {
             log.warn("PDF 图片拉取失败（占位处理）: url={}, {}", mask(url), e.getMessage());
         }
         return null;
+    }
+
+    private byte[] readStoredFile(String fileId) {
+        AppFile f = fileMapper.selectById(fileId);
+        return f == null ? null : fileStorage.readBytes(f);
+    }
+
+    /** 深色分节标题条（样单：电梯基本信息 / 报修与处理记录 / 故障点位置照片），返回单行表供 doc.add */
+    private static PdfPTable sectionBar(String text) {
+        Font barFont = font(9.5f, Font.BOLD, java.awt.Color.WHITE);
+        PdfPCell c = new PdfPCell(new Phrase(text, barFont));
+        c.setBackgroundColor(new java.awt.Color(23, 50, 77));
+        c.setPadding(5);
+        PdfPTable wrap = new PdfPTable(1);
+        wrap.setWidthPercentage(100);
+        wrap.setSpacingBefore(8);
+        wrap.setSpacingAfter(0);
+        wrap.addCell(c);
+        return wrap;
+    }
+
+    /** 跨列长文本单元格（故障描述/现场情况/处理结果/待办事项） */
+    private static PdfPCell longTextCell(String text, Font font, int colspan) {
+        PdfPCell c = new PdfPCell(new Phrase(text, font));
+        c.setPadding(5);
+        c.setColspan(colspan);
+        c.setMinimumHeight(24);
+        return c;
     }
 
     private PdfPCell signCell(String caption, String url, Font font) {
@@ -389,6 +468,12 @@ public class RecordPdfService {
         } catch (Exception e) {
             throw new IllegalStateException("中文字体初始化失败", e);
         }
+    }
+
+    private static Font font(float size, int style, java.awt.Color color) {
+        Font f = font(size, style);
+        f.setColor(color);
+        return f;
     }
 
     private static String mask(String url) {

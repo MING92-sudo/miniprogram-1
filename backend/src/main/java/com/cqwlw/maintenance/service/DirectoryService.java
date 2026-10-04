@@ -247,8 +247,10 @@ public class DirectoryService {
     /** 急修单视图增强：登记人姓名 + 电梯名称 + 使用单位名（一梯一档预览/PDF 用） */
     private void enrichFaultViews(List<Map<String, Object>> views) {
         Map<String, String> names = new LinkedHashMap<>();
+        Map<String, String> phones = new LinkedHashMap<>();
         for (Employee e : employeeMapper.selectList(null)) {
             names.put(e.id, e.name);
+            phones.put(e.id, e.phone == null ? "" : e.phone);
         }
         Map<String, Elevator> elevators = new LinkedHashMap<>();
         for (Elevator el : elevatorMapper.selectList(null)) {
@@ -257,10 +259,32 @@ public class DirectoryService {
         for (Map<String, Object> v : views) {
             String by = String.valueOf(v.get("createdBy"));
             v.put("createdByName", by.isEmpty() ? "" : names.getOrDefault(by, by));
+            v.put("reporterPhone", by.isEmpty() ? "" : phones.getOrDefault(by, ""));
             Elevator el = elevators.get(String.valueOf(v.get("elevatorCode")));
             v.put("elevatorName", el == null || el.elevatorName == null ? "" : el.elevatorName);
             v.put("useUnitName", el == null || el.useUnitId == null ? "" : useUnitName(el.useUnitId));
+            // PDF 电梯基本信息栏（样单：扫码自动带出，不可手改）
+            v.put("regCode", el == null || el.regCode == null ? "" : el.regCode);
+            v.put("model", el == null || el.model == null ? "" : el.model);
+            v.put("location", el == null || el.location == null ? "" : el.location);
+            v.put("stationsDoors", el == null || el.stationsDoors == null ? "" : el.stationsDoors);
+            v.put("ratedSpec", el == null ? "" : ratedSpec(el));
         }
+    }
+
+    /** 额定载重/速度组合文案（急修单 PDF 用） */
+    private String ratedSpec(Elevator el) {
+        StringBuilder sb = new StringBuilder();
+        if (el.ratedLoad != null) {
+            sb.append(el.ratedLoad).append(el.ratedLoadUnit == null ? "kg" : el.ratedLoadUnit);
+        }
+        if (el.ratedSpeed != null) {
+            if (sb.length() > 0) {
+                sb.append(" / ");
+            }
+            sb.append(el.ratedSpeed).append(el.ratedSpeedUnit == null ? "m/s" : el.ratedSpeedUnit);
+        }
+        return sb.toString();
     }
 
     private String useUnitName(String useUnitId) {
