@@ -90,11 +90,4 @@ export function resetEmployeePassword(id) {
 }
 
 /** 2.2 单主体同步：维保单位 */
-export function syncCompanyEntityId() {
-  return http.post('/company/sync-entity-id', {})
-}
-
 /** 2.2 单主体同步：使用单位 */
-export function syncUseUnitEntityId(id) {
-  return http.post(`/use-units/${id}/sync-entity-id`, {})
-}

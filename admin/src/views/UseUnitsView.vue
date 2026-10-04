@@ -20,7 +20,7 @@
       <el-table-column label="操作" width="160" fixed="right">
         <template #default="{ row }">
           <el-button link type="primary" :disabled="!auth.canWrite" @click="openEdit(row)">编辑</el-button>
-          <el-button link type="primary" :disabled="!auth.canWrite" @click="onSyncEntity(row)">同步主体ID</el-button>
+          
           <el-button link type="danger" :disabled="!auth.canWrite" @click="onDelete(row)">删除</el-button>
         </template>
       </el-table-column>
@@ -29,7 +29,7 @@
     <el-dialog v-model="dialog" :title="form.id ? '编辑使用单位' : '新建使用单位'" width="520px">
       <el-form :model="form" label-width="130px">
         <el-form-item label="单位名称" required><el-input v-model="form.unitName" /></el-form-item>
-        <el-form-item label="统一社会信用代码" required><el-input v-model="form.organizationCode" placeholder="平台 2.2 主体查询必填" /></el-form-item>
+        <el-form-item label="统一社会信用代码"><el-input v-model="form.organizationCode" placeholder="选填" /></el-form-item>
         <el-form-item label="负责人"><el-input v-model="form.unitPrincipal" /></el-form-item>
         <el-form-item label="负责人手机">
           <el-input v-model="form.unitPrincipalPhone" />
@@ -61,21 +61,6 @@ const dialog = ref(false)
 const saving = ref(false)
 const form = reactive({ id: '', unitName: '', unitPrincipal: '', unitPrincipalPhone: '',
   organizationCode: '', elevatorAdminister: '', elevatorAdministerPhone: '', emergencyPhone: '' })
-
-/** 2.2 单主体同步（docs/09 V3.1 ④） */
-async function onSyncEntity(row) {
-  try {
-    const res = await archiveApi.syncUseUnitEntityId(row.id)
-    if (res.found) {
-      ok(`${row.unitName} 主体ID 已同步：${res.entityId}`)
-    } else {
-      ok(`未同步：${res.reason || '平台未查询到该主体'}`)
-    }
-    await load()
-  } catch (e) {
-    showErr(e)
-  }
-}
 
 async function load() {
   loading.value = true

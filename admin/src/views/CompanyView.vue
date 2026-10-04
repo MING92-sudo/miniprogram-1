@@ -4,8 +4,7 @@
       <div class="head">
         <span>维保单位档案</span>
         <el-button v-if="editing" size="small" @click="cancel">取消</el-button>
-      <el-button size="small" :loading="syncing" :disabled="!auth.canWrite || editing" @click="onSyncEntity">同步主体ID</el-button>
-        <el-button v-if="!editing" size="small" type="primary" :disabled="!auth.canWrite" @click="editing = true">编辑</el-button>
+            <el-button v-if="!editing" size="small" type="primary" :disabled="!auth.canWrite" @click="editing = true">编辑</el-button>
         <el-button v-else size="small" type="primary" :loading="saving" @click="save">保存</el-button>
       </div>
     </template>
@@ -32,26 +31,10 @@ const auth = useAuthStore()
 const loading = ref(false)
 const editing = ref(false)
 const saving = ref(false)
-const syncing = ref(false)
+
 const form = reactive({ name: '', organizationCode: '', workMenegerName: '', workMenegerPhone: '', entityId: '' })
 
-/** 2.2 单主体同步（docs/09 V3.1 ④）：按单位名称拉取 entityID 落库 */
-async function onSyncEntity() {
-  syncing.value = true
-  try {
-    const res = await archiveApi.syncCompanyEntityId()
-    if (res.found) {
-      form.entityId = res.entityId
-      ok('主体ID 已同步：' + res.entityId)
-    } else {
-      ok('未同步：' + (res.reason || '平台未查询到该主体'))
-    }
-  } catch (e) {
-    showErr(e)
-  } finally {
-    syncing.value = false
-  }
-}
+
 
 async function load() {
   loading.value = true

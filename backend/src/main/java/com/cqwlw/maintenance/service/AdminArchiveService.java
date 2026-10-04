@@ -99,8 +99,8 @@ public class AdminArchiveService {
     }
 
     public Map<String, Object> createUseUnit(Map<String, Object> body) {
-        if (str(body, "unitName").isBlank() || str(body, "organizationCode").isBlank()) {
-            throw new BizException(422, "使用单位名称与统一社会信用代码必填");
+        if (str(body, "unitName").isBlank()) {
+            throw new BizException(422, "使用单位名称必填");
         }
         UseUnit u = new UseUnit();
         u.id = Ids.next("uu");
