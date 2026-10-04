@@ -13,6 +13,9 @@
         <el-menu-item index="/schedule">
           <el-icon><Tickets /></el-icon><span>计划调度</span>
         </el-menu-item>
+        <el-menu-item index="/ledger">
+          <el-icon><Notebook /></el-icon><span>电梯台账</span>
+        </el-menu-item>
         <el-menu-item index="/templates">
           <el-icon><List /></el-icon><span>模板管理</span>
         </el-menu-item>

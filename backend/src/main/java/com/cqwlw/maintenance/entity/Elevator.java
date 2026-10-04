@@ -25,6 +25,10 @@ public class Elevator {
     public String useUnitId;
     public String category;
     public LocalDate nextCheckDate;
+    /** 年检报告（一梯一档）：PDF 存 COS/本地文件服务，元数据落库 */
+    public String inspectionReportFileId;
+    public String inspectionReportUrl;
+    public java.time.LocalDateTime inspectionReportUploadedAt;
     public LocalDate nextMaintenanceDate;
     public String factoryNumber;
     public String useUnitEntityId;

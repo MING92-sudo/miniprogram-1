@@ -441,6 +441,11 @@ public class AdminArchiveService {
         if (body.get("category") != null) {
             el.category = str(body, "category");
         }
+        if (body.get("inspectionReportFileId") != null && !str(body, "inspectionReportFileId").isBlank()) {
+            el.inspectionReportFileId = str(body, "inspectionReportFileId");
+            el.inspectionReportUrl = str(body, "inspectionReportUrl");
+            el.inspectionReportUploadedAt = TimeUtil.now();
+        }
         if (body.get("nextCheckDate") != null) {
             el.nextCheckDate = TimeUtil.parseDate(str(body, "nextCheckDate"));
         }
@@ -607,6 +612,9 @@ public class AdminArchiveService {
         m.put("useUnitId", nz(el.useUnitId));
         m.put("useUnitName", uu == null ? "" : nz(uu.unitName));
         m.put("nextCheckDate", TimeUtil.formatDate(el.nextCheckDate));
+        m.put("inspectionReportFileId", nz(el.inspectionReportFileId));
+        m.put("inspectionReportUrl", nz(el.inspectionReportUrl));
+        m.put("inspectionReportUploadedAt", TimeUtil.format(el.inspectionReportUploadedAt));
         m.put("platformSyncedAt", TimeUtil.format(el.platformSyncedAt));
         m.put("lng", el.lng == null ? "" : String.valueOf(el.lng));
         m.put("lat", el.lat == null ? "" : String.valueOf(el.lat));
