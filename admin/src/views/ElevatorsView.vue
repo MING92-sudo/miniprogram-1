@@ -386,14 +386,18 @@ async function queryFromPlatform() {
     }
     const p = res.elevator || {}
     const picked = []
-    if (p.elevatorCode !== undefined && p.elevatorCode !== null && String(p.elevatorCode) !== '') {
-      form.elevatorCode = String(p.elevatorCode)
+    const ec = String(p.elevatorCode == null ? '').trim()
+    if (ec && ec !== 'null' && ec !== 'undefined') {
+      form.elevatorCode = ec
       picked.push('电梯编号')
     }
     const put = (src, key, label) => {
       const v = p[src]
-      if (v !== undefined && v !== null && String(v) !== '') {
-        form[key] = String(v)
+      if (v === undefined || v === null) return
+      const s = String(v).trim()
+      // 平台未登记的字段返回字符串 "null"（如 251076 的安全管理员），视为空不回填
+      if (s && s !== 'null' && s !== 'undefined') {
+        form[key] = s
         picked.push(label)
       }
     }
