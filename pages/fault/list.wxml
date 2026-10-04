@@ -24,7 +24,7 @@
       <view class="fault-title">{{item.elevatorCode || '电梯'}}</view>
       <view class="tag tag-{{item.status}}">{{item.statusText}}</view>
     </view>
-    <view class="em-text-secondary">单号 {{item.id}}</view>
+      <view class="em-text-secondary">单号 {{item.faultNo || item.id}}</view>
     <view class="em-text-secondary">{{item.desc || ''}}</view>
     <view class="em-text-secondary fault-time">{{item.createdAt || ''}}</view>
   </view>

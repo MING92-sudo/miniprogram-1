@@ -6,7 +6,6 @@ import com.cqwlw.maintenance.entity.AppFile;
 import com.cqwlw.maintenance.mapper.AppFileMapper;
 import com.cqwlw.maintenance.service.FileStorageService;
 import jakarta.servlet.http.HttpServletRequest;
-import org.springframework.core.io.FileSystemResource;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -45,21 +44,22 @@ public class FileController {
         return ApiResponse.ok(Map.of("fileId", f.id, "url", f.url == null ? "" : f.url));
     }
 
-    /** 本地回退读取（COS 模式前端直接用 url，不会走到这里） */
+    /** 同源文件下发：本地文件直读；COS 模式经内网凭证流式拉取（托管桶私有读，直链不可访问） */
     @GetMapping("/files/{id}")
-    public ResponseEntity<FileSystemResource> serve(@PathVariable String id) throws Exception {
+    public ResponseEntity<byte[]> serve(@PathVariable String id) throws Exception {
         AppFile f = fileMapper.selectById(id);
-        if (f == null || f.url != null && f.url.startsWith("http")) {
+        if (f == null) {
             throw new BizException(1404, "文件不存在");
         }
-        var path = fileStorageService.localPath(f);
-        if (!Files.exists(path)) {
+        byte[] data = fileStorageService.readBytes(f);
+        if (data == null) {
             throw new BizException(1404, "文件不存在");
         }
         return ResponseEntity.ok()
                 .contentType(MediaType.parseMediaType(
                         f.contentType == null ? "application/octet-stream" : f.contentType))
-                .body(new FileSystemResource(path));
+                .contentLength(data.length)
+                .body(data);
     }
 
     /** P4 直传元数据（docs/04 A.6 POST /files/sts）：返回存储模式与直传元数据，真实 STS 签发为云端 CAM 部署项 */

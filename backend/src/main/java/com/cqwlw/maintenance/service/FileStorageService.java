@@ -94,21 +94,20 @@ public class FileStorageService {
         String ext = extOf(file.getOriginalFilename());
         String id = Ids.next("file");
         String objectKey = LocalDate.now(TimeUtil.ZONE) + "/" + id + ext;
-        String url;
+        // 统一同源 /files/{id} 地址：公网域名可达，小程序/管理端/PDF 后端均可直接读取；
+        // 托管桶默认私有读，COS 直链外部无法访问（2026-10-05 急修单签名/照片不可见根因）
         if (cosClient != null) {
             ObjectMetadata meta = new ObjectMetadata();
             meta.setContentLength(file.getSize());
             meta.setContentType(file.getContentType());
             cosClient.putObject(props.getCosBucket(), objectKey, file.getInputStream(), meta);
-            url = "https://" + props.getCosBucket() + ".cos." + props.getCosRegion()
-                    + ".myqcloud.com/" + objectKey;
         } else {
             Path dir = Paths.get(props.getFileStorageDir());
             Files.createDirectories(dir);
             Path target = dir.resolve(objectKey.replace('/', '_'));
             file.transferTo(target.toAbsolutePath().toFile());
-            url = schemeHost + "/files/" + id;
         }
+        String url = schemeHost + "/files/" + id;
         AppFile f = new AppFile();
         f.id = id;
         f.objectKey = objectKey;
@@ -124,6 +123,32 @@ public class FileStorageService {
     public Path localPath(AppFile f) {
         return Paths.get(props.getFileStorageDir(), f.objectKey.replace('/', '_'))
                 .toAbsolutePath();
+    }
+
+    /**
+     * 读取文件字节：优先本地磁盘；COS 模式经内网凭证流式拉取。
+     * 供 /files/{id} 同源下发（替代不可公开访问的 COS 直链），失败返回 null。
+     */
+    public byte[] readBytes(AppFile f) {
+        try {
+            Path local = localPath(f);
+            if (Files.exists(local)) {
+                return Files.readAllBytes(local);
+            }
+        } catch (IOException e) {
+            log.warn("本地文件读取失败: id={}, {}", f.id, e.getMessage());
+        }
+        if (cosClient != null) {
+            try (var obj = cosClient.getObject(props.getCosBucket(), f.objectKey);
+                 var in = obj.getObjectContent();
+                 var out = new java.io.ByteArrayOutputStream()) {
+                in.transferTo(out);
+                return out.toByteArray();
+            } catch (Exception e) {
+                log.warn("COS 文件拉取失败: id={}, {}", f.id, e.getMessage());
+            }
+        }
+        return null;
     }
 
     /**
