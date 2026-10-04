@@ -30,7 +30,7 @@
       <el-table-column prop="workTypeCode" label="周期码" width="80" />
       <el-table-column prop="nextCheckDate" label="下次检验" width="110" />
       <el-table-column prop="platformSyncedAt" label="最近同步" width="160" />
-      <el-table-column label="操作" width="100" fixed="right">
+      <el-table-column label="操作" width="170" fixed="right">
         <template #default="{ row }">
           <el-button link type="primary" @click="openArchive(row)">档案</el-button>
           <el-button link type="primary" :disabled="!auth.canWrite" @click="openEdit(row)">编辑</el-button>

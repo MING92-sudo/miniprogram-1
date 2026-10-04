@@ -44,8 +44,8 @@ export const routes = [
       { path: 'archive/use-units', component: UseUnitsView, meta: { title: '使用单位档案' } },
       { path: 'archive/employees', component: EmployeesView, meta: { title: '人员档案' } },
       { path: 'archive/elevators', component: ElevatorsView, meta: { title: '电梯档案' } },
-      { path: 'register/relations', component: RegisterRelationsView, meta: { title: '服务关系维护（2.3）' } },
-      { path: 'register/workers', component: RegisterWorkersView, meta: { title: '人员管理（2.4）' } }
+      { path: 'register/relations', component: RegisterRelationsView, meta: { title: '服务关系维护' } },
+      { path: 'register/workers', component: RegisterWorkersView, meta: { title: '人员管理' } }
     ]
   },
   { path: '/403', component: ForbiddenView, meta: { public: true, title: '无权限' } },

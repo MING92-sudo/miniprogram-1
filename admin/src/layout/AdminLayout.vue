@@ -31,8 +31,8 @@
         </el-sub-menu>
         <el-sub-menu index="register">
           <template #title><el-icon><Notebook /></el-icon><span>平台登记</span></template>
-          <el-menu-item index="/register/relations"><span>服务关系维护（2.3）</span></el-menu-item>
-          <el-menu-item index="/register/workers"><span>人员管理（2.4）</span></el-menu-item>
+          <el-menu-item index="/register/relations"><span>服务关系维护</span></el-menu-item>
+          <el-menu-item index="/register/workers"><span>人员管理</span></el-menu-item>
         </el-sub-menu>
         <el-sub-menu index="logs">
           <template #title><el-icon><Notebook /></el-icon><span>上报日志</span></template>
@@ -101,4 +101,14 @@ const roleText = computed(() => ROLE_TEXT[auth.role] || auth.role)
 .user-box { display: flex; align-items: center; gap: 10px; }
 .user-name { color: #1d2129; }
 .admin-main { padding: 16px; overflow: auto; }
+</style>
+
+<style>
+/* 全局布局微调（管理端所有页面生效） */
+.admin-main { background: #f5f6f7; }
+.admin-main .el-card { border-radius: 10px; border: none; box-shadow: 0 1px 4px rgba(29,33,41,.06); }
+.admin-main .el-card__header { background: #fafbfc; }
+.el-table th.el-table__cell { background: #f7f8fa; color: #1d2129; font-weight: 600; }
+.el-table .cell .el-button.is-link { margin-left: 0; margin-right: 10px; }
+.el-table .cell .el-button.is-link:last-child { margin-right: 0; }
 </style>
