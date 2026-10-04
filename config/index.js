@@ -1,6 +1,6 @@
 // 全局配置
 // dev = 本地自建后端（日常开发默认）；prod = 云托管域名（部署/云端联调时切换，见 docs/11 §部署）
-const ENV = 'dev'
+const ENV = 'prod'
 
 const API_BASE_URL = {
   // dev：自建后端（P2 最小代理：平台 token 中控 + 41 条业务契约，docs/08 P2）。
