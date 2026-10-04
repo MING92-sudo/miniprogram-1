@@ -97,7 +97,8 @@ import * as archiveApi from '../api/archive'
 import { uploadFile } from '../api/upload'
 import * as reportApi from '../api/report'
 import * as faultApi from '../api/fault'
-import { showErr, ok } from '../utils/ui'
+import { showErr, ok, downloadBlob } from '../utils/ui'
+import { API_BASE } from '../api/client'
 
 const auth = useAuthStore()
 const rows = ref([])
