@@ -9,7 +9,7 @@
     </div>
 
     <el-table :data="rows" v-loading="loading" stripe>
-      <el-table-column prop="id" label="单号" width="160" show-overflow-tooltip />
+      <el-table-column prop="faultNo" label="单号" width="190" show-overflow-tooltip />
       <el-table-column prop="elevatorCode" label="电梯编码" width="140" />
       <el-table-column prop="faultType" label="故障类型" width="110" />
       <el-table-column prop="desc" label="故障描述" min-width="200" show-overflow-tooltip />
@@ -34,7 +34,7 @@
 
     <el-dialog v-model="dialog" title="急修单详情" width="640px">
       <el-descriptions v-if="detail" :column="2" border>
-        <el-descriptions-item label="单号">{{ detail.id }}</el-descriptions-item>
+        <el-descriptions-item label="单号">{{ detail.faultNo || detail.id }}</el-descriptions-item>
         <el-descriptions-item label="状态">
           <el-tag size="small" :type="detail.status === 'CLOSED' ? 'success' : 'danger'">
             {{ detail.status === 'CLOSED' ? '已闭环' : '未闭环' }}
@@ -43,8 +43,11 @@
         <el-descriptions-item label="电梯编码">{{ detail.elevatorCode }}</el-descriptions-item>
         <el-descriptions-item label="故障类型">{{ detail.faultType }}</el-descriptions-item>
         <el-descriptions-item label="登记人">{{ detail.createdByName || '—' }}</el-descriptions-item>
-        <el-descriptions-item label="登记时间">{{ detail.createdAt }}</el-descriptions-item>
+        <el-descriptions-item label="报修时间">{{ detail.createdAt }}</el-descriptions-item>
+        <el-descriptions-item label="到场时间（以签到为准）">{{ detail.arrivedAt || "—" }}</el-descriptions-item>
+        <el-descriptions-item label="维修结束时间">{{ detail.finishedAt || "—" }}</el-descriptions-item>
         <el-descriptions-item label="故障描述" :span="2">{{ detail.desc }}</el-descriptions-item>
+        <el-descriptions-item label="现场情况描述" :span="2">{{ detail.siteDesc || "—" }}</el-descriptions-item>
         <el-descriptions-item label="处理结果" :span="2">{{ detail.result || '—' }}</el-descriptions-item>
         <el-descriptions-item label="闭环时间" :span="2">{{ detail.confirmedAt || '—' }}</el-descriptions-item>
         <el-descriptions-item label="现场照片" :span="2">

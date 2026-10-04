@@ -4,7 +4,8 @@
   <block wx:if="{{fault}}">
     <!-- 单据头 -->
     <view class="em-card">
-      <view class="info-row"><text>急修单号</text><text>{{fault.id}}</text></view>
+      <view class="info-row"><text>急修单号</text><text>{{fault.faultNo || fault.id}}</text></view>
+      <view class="info-row"><text>到场时间（以签到为准）</text><text>{{fault.arrivedAt || '-'}}</text></view>
       <view class="info-row"><text>状态</text><text class="tag tag-{{fault.status}}">{{statusText}}</text></view>
       <view class="info-row"><text>电梯编号</text><text>{{fault.elevatorCode}}</text></view>
       <view class="info-row"><text>上报时间</text><text>{{fault.createdAt}}</text></view>
@@ -47,8 +48,13 @@
 
     <!-- 处理中：维修闭环操作 -->
     <view class="em-card" wx:if="{{fault.status !== 'CLOSED'}}">
+      <view class="sec-label">现场情况描述</view>
+      <textarea class="form-textarea" value="{{siteDesc}}" bindinput="onSiteInput" maxlength="500" placeholder="到场后现场情况（可先登记，维修中补充）" />
+      <view class="sec-label">待办事项</view>
+      <textarea class="form-textarea" value="{{todoDesc}}" bindinput="onTodoInput" maxlength="500" placeholder="遗留问题与后续待办（可留空）" />
       <view class="sec-label">处理结果</view>
       <textarea class="form-textarea" value="{{result}}" bindinput="onResultInput" maxlength="500" placeholder="维修措施与处理结果" />
+      <button class="em-btn-secondary" disabled="{{submitting}}" bindtap="onSaveProcess">保存维修过程</button>
       <view wx:if="{{signaturePath}}" class="em-text-secondary">已获取签字，提交后生效</view>
       <button class="em-btn-primary" disabled="{{submitting}}" bindtap="onSign">使用单位安全管理员签字确认</button>
     </view>

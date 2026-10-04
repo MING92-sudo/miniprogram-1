@@ -11,6 +11,7 @@ import com.cqwlw.maintenance.mapper.InspectRecordMapper;
 import com.cqwlw.maintenance.mapper.KnowledgeMapper;
 import com.cqwlw.maintenance.mapper.MessageMapper;
 import com.cqwlw.maintenance.mapper.RescueMapper;
+import com.cqwlw.maintenance.mapper.WorkOrderMapper;
 import com.cqwlw.maintenance.mapper.UseUnitMapper;
 import com.cqwlw.maintenance.service.ChecklistService;
 import com.cqwlw.maintenance.service.DirectoryService;
@@ -45,7 +46,7 @@ class DirectoryServiceTest {
         inspectMapper = mock(InspectRecordMapper.class);
         service = new DirectoryService(rescueMapper, faultMapper, mock(DrillMapper.class), inspectMapper,
                 mock(MessageMapper.class), mock(KnowledgeMapper.class), mock(ElevatorMapper.class),
-                mock(ChecklistService.class), mock(WorkOrderService.class), mock(EmployeeScopeService.class), mock(EmployeeMapper.class), mock(UseUnitMapper.class));
+                mock(ChecklistService.class), mock(WorkOrderService.class), mock(EmployeeScopeService.class), mock(EmployeeMapper.class), mock(UseUnitMapper.class), mock(WorkOrderMapper.class));
     }
 
     @Test

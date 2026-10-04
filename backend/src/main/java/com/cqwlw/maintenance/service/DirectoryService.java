@@ -7,6 +7,7 @@ import com.cqwlw.maintenance.entity.Drill;
 import com.cqwlw.maintenance.entity.Employee;
 import com.cqwlw.maintenance.entity.Elevator;
 import com.cqwlw.maintenance.entity.Fault;
+import com.cqwlw.maintenance.entity.WorkOrder;
 import com.cqwlw.maintenance.entity.InspectRecord;
 import com.cqwlw.maintenance.entity.Knowledge;
 import com.cqwlw.maintenance.entity.Message;
@@ -19,12 +20,15 @@ import com.cqwlw.maintenance.mapper.InspectRecordMapper;
 import com.cqwlw.maintenance.mapper.KnowledgeMapper;
 import com.cqwlw.maintenance.mapper.MessageMapper;
 import com.cqwlw.maintenance.mapper.RescueMapper;
+import com.cqwlw.maintenance.mapper.WorkOrderMapper;
 import com.cqwlw.maintenance.mapper.UseUnitMapper;
 import com.cqwlw.maintenance.util.JsonUtil;
 import com.cqwlw.maintenance.util.TimeUtil;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -53,13 +57,15 @@ public class DirectoryService {
     private final EmployeeScopeService scopeService;
     private final EmployeeMapper employeeMapper;
     private final UseUnitMapper useUnitMapper;
+    private final WorkOrderMapper workOrderMapper;
 
     public DirectoryService(RescueMapper rescueMapper, FaultMapper faultMapper,
                             DrillMapper drillMapper, InspectRecordMapper inspectMapper,
                             MessageMapper messageMapper, KnowledgeMapper knowledgeMapper,
                             ElevatorMapper elevatorMapper, ChecklistService checklistService,
                             WorkOrderService workOrderService, EmployeeScopeService scopeService,
-                            EmployeeMapper employeeMapper, UseUnitMapper useUnitMapper) {
+                            EmployeeMapper employeeMapper, UseUnitMapper useUnitMapper,
+                            WorkOrderMapper workOrderMapper) {
         this.rescueMapper = rescueMapper;
         this.faultMapper = faultMapper;
         this.drillMapper = drillMapper;
@@ -72,6 +78,7 @@ public class DirectoryService {
         this.scopeService = scopeService;
         this.employeeMapper = employeeMapper;
         this.useUnitMapper = useUnitMapper;
+        this.workOrderMapper = workOrderMapper;
     }
 
     // ── 救援 ──
@@ -160,21 +167,57 @@ public class DirectoryService {
         f.elevatorCode = strOrEmpty(body.get("elevatorCode"));
         f.faultType = strOrEmpty(body.get("faultType"));
         f.descr = strOrEmpty(body.get("desc"));
+        f.siteDesc = strOrEmpty(body.get("siteDesc"));
         f.photos = JsonUtil.write(body.get("photos") == null ? List.of() : body.get("photos"));
         f.status = "OPEN";
         f.handleDesc = "";
         f.createdAt = TimeUtil.now();
+        f.faultNo = nextFaultNo();
+        // 到场时间以维保人员当日该梯首次签到为准；无签到记录时以报修时间兜底
+        f.arrivedAt = firstCheckinToday(f.elevatorCode);
+        if (f.arrivedAt == null) {
+            f.arrivedAt = f.createdAt;
+        }
         faultMapper.insert(f);
         return faultView(f);
+    }
+
+    /** 急修单编号：BWJX + yyyyMMddHHmm + 当日 3 位顺序 = 19 位 */
+    private String nextFaultNo() {
+        String prefix = "BWJX" + TimeUtil.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmm"));
+        long count = faultMapper.selectCount(new LambdaQueryWrapper<Fault>()
+                .likeRight(Fault::getFaultNo, prefix));
+        return prefix + String.format("%03d", count + 1);
+    }
+
+    /** 到场时间：当日该梯最早一次维保签到（docs/04 A.3 急修单到场以签到为准） */
+    private LocalDateTime firstCheckinToday(String elevatorCode) {
+        Elevator el = elevatorMapper.selectList(new LambdaQueryWrapper<Elevator>()
+                .eq(Elevator::getElevatorCode, elevatorCode)).stream().findFirst().orElse(null);
+        if (el == null) {
+            return null;
+        }
+        String today = TimeUtil.date(TimeUtil.now());
+        return workOrderMapper.selectList(new LambdaQueryWrapper<WorkOrder>()
+                        .eq(WorkOrder::getElevatorId, el.id)
+                        .isNotNull(WorkOrder::getCheckinTime)
+                        .orderByAsc(WorkOrder::getCheckinTime)).stream()
+                .filter(o -> o.checkinTime != null && TimeUtil.date(o.checkinTime).equals(today))
+                .map(o -> o.checkinTime).findFirst().orElse(null);
     }
 
     public Map<String, Object> faultView(Fault f) {
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("id", f.id);
+        m.put("faultNo", f.faultNo == null || f.faultNo.isBlank() ? f.id : f.faultNo);
         m.put("createdBy", f.createdBy == null ? "" : f.createdBy);
         m.put("elevatorCode", f.elevatorCode);
         m.put("faultType", f.faultType);
         m.put("desc", f.descr);
+        m.put("siteDesc", f.siteDesc == null ? "" : f.siteDesc);
+        m.put("arrivedAt", TimeUtil.format(f.arrivedAt));
+        m.put("finishedAt", TimeUtil.format(f.finishedAt));
+        m.put("todoDesc", f.todoDesc == null ? "" : f.todoDesc);
         m.put("photos", JsonUtil.readStringList(f.photos));
         m.put("status", f.status);
         m.put("result", f.handleDesc);
@@ -239,6 +282,33 @@ public class DirectoryService {
         return view;
     }
 
+    /** 维修过程字段（小程序急修单详情页）：现场情况/待办事项/处理结果/维修结束时间 */
+    public Map<String, Object> updateFault(String id, Map<String, Object> body, String empId) {
+        Fault f = faultMapper.selectById(id);
+        if (f == null) {
+            throw new BizException(1404, "急修单不存在");
+        }
+        Set<String> creatorIds = scopeService.visibleCreatorIds(scopeService.require(empId));
+        if (f.createdBy != null && creatorIds != null && !creatorIds.contains(f.createdBy)) {
+            throw new BizException(1403, "仅可操作本人或本班组急修单");
+        }
+        if (body.get("siteDesc") != null) {
+            f.siteDesc = strOrEmpty(body.get("siteDesc"));
+        }
+        if (body.get("todoDesc") != null) {
+            f.todoDesc = strOrEmpty(body.get("todoDesc"));
+        }
+        if (body.get("handleDesc") != null) {
+            f.handleDesc = strOrEmpty(body.get("handleDesc"));
+        }
+        if (body.get("finishedAt") != null) {
+            f.finishedAt = TimeUtil.parse(strOrEmpty(body.get("finishedAt")));
+        }
+        faultMapper.updateById(f);
+        Map<String, Object> view = faultView(f);
+        enrichFaultViews(List.of(view));
+        return view;
+    }
     public Map<String, Object> closeFault(String id, Map<String, Object> body) {
         Fault f = faultMapper.selectById(id);
         if (f == null) {
@@ -257,6 +327,9 @@ public class DirectoryService {
         }
         f.status = "CLOSED";
         f.handleDesc = result;
+        if (f.finishedAt == null) {
+            f.finishedAt = TimeUtil.now();
+        }
         f.signature = signature;
         f.confirmedAt = TimeUtil.now();
         faultMapper.updateById(f);

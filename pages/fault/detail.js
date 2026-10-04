@@ -1,6 +1,7 @@
 // 急修单详情：完整单据查看 + 维修闭环（处理结果 + 使用单位安全管理员签字，docs/01 §3.9.2）
-const { getFaultDetail, closeFault } = require('../../services/fault')
+const { getFaultDetail, updateFault, closeFault } = require('../../services/fault')
 const { uploadImage } = require('../../services/upload')
+const { formatTime, ok } = require('../../utils/util')
 
 const STATUS_TEXT = {
   OPEN: '处理中',
@@ -14,6 +15,9 @@ Page({
     statusText: '',
     loading: true,
     result: '',
+    siteDesc: '',
+    todoDesc: '',
+    finishedAt: '',
     signaturePath: '',
     submitting: false
   },
@@ -26,7 +30,13 @@ Page({
   async fetchDetail() {
     try {
       const fault = await getFaultDetail(this.data.id)
-      this.setData({ fault, statusText: STATUS_TEXT[fault.status] || fault.status, loading: false })
+      this.setData({
+        fault,
+        statusText: STATUS_TEXT[fault.status] || fault.status,
+        siteDesc: fault.siteDesc || '',
+        todoDesc: fault.todoDesc || '',
+        loading: false
+      })
     } catch (e) {
       this.setData({ loading: false })
       wx.showToast({ title: e.message || '加载失败', icon: 'none' })
@@ -35,6 +45,32 @@ Page({
 
   onResultInput(e) {
     this.setData({ result: e.detail.value })
+  },
+
+  onSiteInput(e) {
+    this.setData({ siteDesc: e.detail.value })
+  },
+
+  onTodoInput(e) {
+    this.setData({ todoDesc: e.detail.value })
+  },
+
+  // 保存维修过程字段（现场情况/待办事项/处理结果/维修结束时间）
+  async onSaveProcess() {
+    if (this.data.submitting) return
+    this.setData({ submitting: true })
+    try {
+      await updateFault(this.data.id, {
+        siteDesc: this.data.siteDesc,
+        todoDesc: this.data.todoDesc,
+        handleDesc: this.data.result,
+        finishedAt: require('../../utils/util').formatTime()
+      })
+      ok('维修过程已保存')
+    } catch (e) {
+      wx.showToast({ title: e.message || '保存失败', icon: 'none' })
+    }
+    this.setData({ submitting: false })
   },
 
   onPreviewPhoto(e) {

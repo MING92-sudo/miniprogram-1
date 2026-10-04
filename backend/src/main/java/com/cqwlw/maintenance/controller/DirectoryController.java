@@ -15,6 +15,7 @@ import java.nio.charset.StandardCharsets;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -103,6 +104,13 @@ public class DirectoryController {
         return ApiResponse.ok(directoryService.getFault(id, empId(request)));
     }
 
+    /** 维修过程字段更新（小程序急修单详情页） */
+    @PutMapping("/faults/{id}")
+    public ApiResponse<Map<String, Object>> updateFault(@PathVariable String id,
+                                                        @RequestBody Map<String, Object> body,
+                                                        HttpServletRequest request) {
+        return ApiResponse.ok(directoryService.updateFault(id, body, empId(request)));
+    }
     @PostMapping("/faults/{id}/close")
     public ApiResponse<Map<String, Object>> closeFault(@PathVariable String id,
                                                        @RequestBody(required = false) Map<String, Object> body,

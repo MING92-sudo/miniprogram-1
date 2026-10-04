@@ -205,7 +205,7 @@ public class RecordPdfService {
             Paragraph head = new Paragraph("电梯急修单", title);
             head.setAlignment(Element.ALIGN_CENTER);
             doc.add(head);
-            Paragraph sub = new Paragraph("单号 " + nz(str(v.get("id")))
+            Paragraph sub = new Paragraph("单号 " + nz(str(v.get("faultNo")))
                     + "　生成时间 " + TimeUtil.format(TimeUtil.now()), small);
             sub.setAlignment(Element.ALIGN_CENTER);
             sub.setSpacingAfter(10);
@@ -223,8 +223,12 @@ public class RecordPdfService {
             info.addCell(cell(nz(str(v.get("faultType"))), value));
             info.addCell(cell("登记人", label));
             info.addCell(cell(nz(str(v.get("createdByName"))), value));
-            info.addCell(cell("登记时间", label));
+            info.addCell(cell("报修时间", label));
             info.addCell(cell(nz(str(v.get("createdAt"))), value));
+            info.addCell(cell("到场时间（以签到为准）", label));
+            info.addCell(cell(nz(str(v.get("arrivedAt"))), value));
+            info.addCell(cell("维修结束时间", label));
+            info.addCell(cell(nz(str(v.get("finishedAt"))), value));
             info.addCell(cell("状态", label));
             info.addCell(cell("CLOSED".equals(status) ? "已闭环" : "未闭环", value));
             info.addCell(cell("闭环时间", label));
@@ -237,11 +241,23 @@ public class RecordPdfService {
             doc.add(descTitle);
             doc.add(new Paragraph(nz(str(v.get("desc"))), value));
 
+            Paragraph siteTitle = new Paragraph("现场情况描述", label);
+            siteTitle.setSpacingBefore(10);
+            siteTitle.setSpacingAfter(4);
+            doc.add(siteTitle);
+            doc.add(new Paragraph(nz(str(v.get("siteDesc"))), value));
+
             Paragraph fixTitle = new Paragraph("处理结果", label);
             fixTitle.setSpacingBefore(10);
             fixTitle.setSpacingAfter(4);
             doc.add(fixTitle);
             doc.add(new Paragraph(nz(str(v.get("result"))), value));
+
+            Paragraph todoTitle = new Paragraph("待办事项", label);
+            todoTitle.setSpacingBefore(10);
+            todoTitle.setSpacingAfter(4);
+            doc.add(todoTitle);
+            doc.add(new Paragraph(nz(str(v.get("todoDesc"))) + "", value));
 
             List<?> photos = v.get("photos") instanceof List<?> l ? l : List.of();
             Paragraph photoTitle = new Paragraph("现场照片（" + photos.size() + " 张）", label);
