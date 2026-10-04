@@ -8,7 +8,14 @@ ALTER TABLE fault
     ADD COLUMN todo_desc VARCHAR(500) NULL AFTER finished_at;
 
 -- 存量单据按原登记时间回填编号（每分钟内按 id 顺序编号）
-UPDATE fault
-SET fault_no = CONCAT('BWJX', DATE_FORMAT(created_at, '%Y%m%d%H%i'),
-                      LPAD(ROW_NUMBER() OVER (PARTITION BY DATE_FORMAT(created_at, '%Y%m%d%H%i') ORDER BY id), 3, '0'))
-WHERE fault_no IS NULL;
+-- 生产库为 MySQL 5.7，无窗口函数；改用派生表 + 相关子查询按分钟内 id 顺序编号
+UPDATE fault f
+JOIN (
+    SELECT a.id,
+           (SELECT COUNT(*) FROM fault b
+            WHERE DATE_FORMAT(b.created_at, '%Y%m%d%H%i') = DATE_FORMAT(a.created_at, '%Y%m%d%H%i')
+              AND b.id <= a.id) AS rn
+    FROM fault a
+) t ON t.id = f.id
+SET f.fault_no = CONCAT('BWJX', DATE_FORMAT(f.created_at, '%Y%m%d%H%i'), LPAD(t.rn, 3, '0'))
+WHERE f.fault_no IS NULL;
