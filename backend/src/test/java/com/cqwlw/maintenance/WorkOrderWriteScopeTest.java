@@ -15,6 +15,7 @@ import com.cqwlw.maintenance.mapper.UseUnitMapper;
 import com.cqwlw.maintenance.mapper.WorkOrderMapper;
 import com.cqwlw.maintenance.mapper.SysParamMapper;
 import com.cqwlw.maintenance.service.CheckinThresholdService;
+import com.cqwlw.maintenance.service.FileStorageService;
 import com.cqwlw.maintenance.service.ChecklistService;
 import com.cqwlw.maintenance.service.DispatchService;
 import com.cqwlw.maintenance.service.EmployeeScopeService;
@@ -72,7 +73,7 @@ class WorkOrderWriteScopeTest {
                 employeeMapper, mock(CompanyMapper.class), recordMapper, mock(FaultMapper.class),
                 mock(InspectRecordMapper.class), mock(ChecklistService.class), mock(DispatchService.class),
                 reportService, new EmployeeScopeService(employeeMapper),
-                new CheckinThresholdService(mock(SysParamMapper.class), new AppProperties()), new AppProperties());
+                new CheckinThresholdService(mock(SysParamMapper.class), new AppProperties()), mock(FileStorageService.class), new AppProperties());
 
         when(orderMapper.selectById(FOREIGN_ORDER))
                 .thenReturn(order(FOREIGN_ORDER, PID_ZHANG, "PROCESSING", TimeUtil.now().minusHours(2)));

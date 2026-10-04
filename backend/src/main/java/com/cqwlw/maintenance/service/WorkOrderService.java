@@ -66,6 +66,7 @@ public class WorkOrderService {
     private final EmployeeScopeService scopeService;
     private final CheckinThresholdService thresholdService;
     private final com.cqwlw.maintenance.config.AppProperties props;
+    private final FileStorageService fileStorage;
 
     public WorkOrderService(WorkOrderMapper orderMapper, ElevatorMapper elevatorMapper,
                             UseUnitMapper useUnitMapper, EmployeeMapper employeeMapper,
@@ -75,6 +76,7 @@ public class WorkOrderService {
                             PlatformReportService reportService,
                             EmployeeScopeService scopeService,
                             CheckinThresholdService thresholdService,
+                            FileStorageService fileStorage,
                             com.cqwlw.maintenance.config.AppProperties props) {
         this.orderMapper = orderMapper;
         this.elevatorMapper = elevatorMapper;
@@ -89,6 +91,7 @@ public class WorkOrderService {
         this.reportService = reportService;
         this.scopeService = scopeService;
         this.thresholdService = thresholdService;
+        this.fileStorage = fileStorage;
         this.props = props;
     }
 
@@ -573,8 +576,21 @@ public class WorkOrderService {
         Elevator el = elevatorMapper.selectById(o.elevatorId);
         UseUnit uu = el == null || el.useUnitId == null ? null : useUnitMapper.selectById(el.useUnitId);
         List<Map<String, Object>> frozen = items.stream().map(i -> new LinkedHashMap<>(i)).collect(Collectors.toList());
+        // 照片以 fileId 解析出的可访问 URL 为准；历史/演示数据的本地临时路径（wxfile://、http://tmp/）不入档（2026-10-05 管理端乱图）
         List<String> photos = frozen.stream()
-                .flatMap(i -> asList(i.get("photos")).stream().map(String::valueOf))
+                .flatMap(i -> {
+                    List<String> urls = asList(i.get("photoFileIds")).stream()
+                            .map(id -> fileStorage.urlOf(String.valueOf(id)))
+                            .filter(s -> !s.isEmpty())
+                            .collect(Collectors.toList());
+                    if (urls.isEmpty()) {
+                        urls = asList(i.get("photos")).stream()
+                                .map(String::valueOf)
+                                .filter(WorkOrderService::isHttpUrl)
+                                .collect(Collectors.toList());
+                    }
+                    return urls.stream();
+                })
                 .collect(Collectors.toList());
         List<String> problemCodes = frozen.stream()
                 .filter(i -> "ABNORMAL".equals(String.valueOf(i.get("result")))
@@ -600,8 +616,8 @@ public class WorkOrderService {
         r.duration = o.duration;
         r.itemsJson = JsonUtil.write(frozen);
         r.photosJson = JsonUtil.write(photos);
-        r.workerSignatureUrl = strOrEmpty(body.get("signatureUrl"));
-        r.assistantSignatureUrl = strOrEmpty(body.get("assistantSignatureUrl"));
+        r.workerSignatureUrl = resolveSignatureUrl(body.get("signatureFileId"), body.get("signatureUrl"));
+        r.assistantSignatureUrl = resolveSignatureUrl(body.get("assistantSignatureFileId"), body.get("assistantSignatureUrl"));
         r.problemCodesJson = JsonUtil.write(problemCodes);
         r.originalRecordId = o.originalRecordId;
         r.reportStatus = o.reportStatus;
@@ -840,6 +856,20 @@ public class WorkOrderService {
 
     static String nz(String s) {
         return s == null ? "" : s;
+    }
+
+    /** 签名 URL：优先 fileId 解析；客户端直传的 URL 仅接受 http(s)，本地临时路径（wxfile://、http://tmp/）丢弃 */
+    private String resolveSignatureUrl(Object fileId, Object legacyUrl) {
+        String url = fileStorage.urlOf(strOrEmpty(fileId));
+        if (!url.isEmpty()) {
+            return url;
+        }
+        String legacy = strOrEmpty(legacyUrl);
+        return isHttpUrl(legacy) ? legacy : "";
+    }
+
+    static boolean isHttpUrl(String s) {
+        return s != null && (s.startsWith("http://") || s.startsWith("https://"));
     }
 
     @SuppressWarnings("unchecked")

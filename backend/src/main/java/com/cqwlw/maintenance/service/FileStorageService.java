@@ -127,6 +127,21 @@ public class FileStorageService {
     }
 
     /**
+     * fileId → 可访问 URL（COS 直链或本地 /files/{id}）；
+     * 入参已是 http(s) URL 时原样返回；查不到返回空串。供记录归档时把 fileId 归一为 URL。
+     */
+    public String urlOf(String fileIdOrUrl) {
+        if (fileIdOrUrl == null || fileIdOrUrl.isBlank()) {
+            return "";
+        }
+        if (fileIdOrUrl.startsWith("http://") || fileIdOrUrl.startsWith("https://")) {
+            return fileIdOrUrl;
+        }
+        AppFile f = fileMapper.selectById(fileIdOrUrl);
+        return f == null || f.url == null ? "" : f.url;
+    }
+
+    /**
      * P4 直传元数据（docs/04 A.6 POST /files/sts）：返回存储模式与直传所需元数据
      * （bucket/region/授权目录/内网凭证地址）。真实 STS 临时凭证签发需云端 CAM 角色
      * + cos-sts SDK，属部署项——未接入前照片/签名统一走 /files/upload 代理上传。

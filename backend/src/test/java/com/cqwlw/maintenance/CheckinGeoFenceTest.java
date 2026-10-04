@@ -15,6 +15,7 @@ import com.cqwlw.maintenance.mapper.UseUnitMapper;
 import com.cqwlw.maintenance.mapper.WorkOrderMapper;
 import com.cqwlw.maintenance.mapper.SysParamMapper;
 import com.cqwlw.maintenance.service.CheckinThresholdService;
+import com.cqwlw.maintenance.service.FileStorageService;
 import com.cqwlw.maintenance.service.ChecklistService;
 import com.cqwlw.maintenance.service.DispatchService;
 import com.cqwlw.maintenance.service.EmployeeScopeService;
@@ -72,7 +73,7 @@ class CheckinGeoFenceTest {
                 mock(FaultMapper.class), mock(InspectRecordMapper.class), mock(ChecklistService.class),
                 mock(DispatchService.class), mock(PlatformReportService.class),
                 new EmployeeScopeService(employeeMapper),
-                new CheckinThresholdService(mock(SysParamMapper.class), props), props);
+                new CheckinThresholdService(mock(SysParamMapper.class), props), mock(FileStorageService.class), props);
 
         order = new WorkOrder();
         order.id = ORDER;
