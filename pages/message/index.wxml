@@ -17,6 +17,12 @@
       <view wx:if="{{!item.read}}" class="dot"></view>
     </view>
     <view class="em-text-secondary">{{item.content || ''}}</view>
+    <view wx:if="{{expandedId === item.id}}" class="msg-detail">
+      <view class="msg-detail-row"><text class="msg-detail-label">标题</text><text>{{item.title || '—'}}</text></view>
+      <view class="msg-detail-row"><text class="msg-detail-label">时间</text><text>{{item.createdAt || '—'}}</text></view>
+      <view class="msg-detail-row"><text class="msg-detail-label">类型</text><text>{{item.type || '—'}}</text></view>
+      <view class="msg-detail-row msg-detail-full"><text class="msg-detail-label">详细内容</text><text>{{item.content || '（无正文）'}}</text></view>
+    </view>
     <view class="em-text-secondary msg-time">{{item.createdAt || ''}}</view>
   </view>
 </view>

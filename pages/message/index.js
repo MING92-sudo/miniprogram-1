@@ -9,7 +9,8 @@ Page({
     page: 1,
     size: 20,
     total: 0,
-    unreadCount: 0
+    unreadCount: 0,
+    expandedId: ''
   },
 
   onShow() {
@@ -61,14 +62,16 @@ Page({
   async onItemTap(e) {
     const id = e.currentTarget.dataset.id
     const item = this.data.list.find((m) => m.id === id)
-    if (!item || item.read) return
-    try {
-      await markRead(id)
-      this.fetchList(true)
-      this.syncUnread()
-    } catch (err) {
-      wx.showToast({ title: err.message || '操作失败', icon: 'none' })
-    }
+    if (!item) return
+    // 点按消息：展开/收起详细信息；未读则顺带标记已读
+    this.setData({ expandedId: this.data.expandedId === id ? '' : id })
+    if (item.read) return
+    const idx = this.data.list.findIndex((m) => m.id === id)
+    markRead(id)
+      .then(() => {
+        this.setData({ ['list[' + idx + '].read']: true, unreadCount: Math.max(0, this.data.unreadCount - 1) })
+      })
+      .catch(() => {})
   },
 
   async onMarkAll() {

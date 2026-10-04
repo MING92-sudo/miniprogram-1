@@ -13,7 +13,14 @@
   <view class="em-card">
     <view class="step-no">STEP 2</view>
     <view class="step-title">签到身份</view>
-    <view class="role-row">
+    <view class="em-text-secondary" style="margin-bottom: 12rpx">{{identityText}}</view>
+    <view wx:if="{{role === 'PRINCIPAL' && isDual}}" class="code-wrap">
+      <view class="code-input" style="text-align:center;letter-spacing:8rpx;font-size:40rpx;font-weight:600">
+        {{issuedCode || '生成中...'}}
+      </view>
+      <view class="em-text-secondary">{{codeCountdown}} 秒后刷新 · 配合人员输入后即可完成其签到</view>
+    </view>
+    <view wx:if="{{!roleLocked}}" class="role-row">
       <view
         wx:for="{{roles}}"
         wx:key="value"
@@ -22,7 +29,7 @@
         bindtap="onRoleChange"
       >{{item.label}}</view>
     </view>
-    <view wx:if="{{role === 'ASSISTANT'}}" class="code-wrap">
+    <view wx:if="{{role === 'ASSISTANT' && !roleLocked || role === 'ASSISTANT' && isDual}}" class="code-wrap">
       <input
         class="code-input"
         type="number"

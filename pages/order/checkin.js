@@ -1,10 +1,11 @@
 // 签到流程：定位（实时距离三态）→ 水印自拍 → 提交
 // 错误码约定：1001 定位超阈（服务端拦截，定位申诉审核流已裁 docs/01 §10.2）、1003 状态/动态码类拦截；
 // 1006/1007 为配置类拦截（docs/04 A.0.1）
-const { checkin, getOrderDetail } = require('../../services/order')
+const { checkin, getOrderDetail, issueDynamicCode } = require('../../services/order')
 const { uploadImage } = require('../../services/upload')
 const { reverseGeocode } = require('../../services/location')
 const { formatTime, distanceMeters } = require('../../utils/util')
+const { getUserInfo } = require('../../utils/auth')
 
 // 角色（docs/04 A.2）：主维保 PRINCIPAL / 配合人员 ASSISTANT
 const ROLES = [
@@ -19,6 +20,11 @@ Page({
     roles: ROLES,
     role: 'PRINCIPAL', // 双人作业：配合人员须携带主维保动态码
     dynamicCode: '',
+    identityText: '',   // 按登录账号自动判定的签到身份（docs/03 §3.2 项5）
+    roleLocked: false,  // 身份与登录账号匹配时锁定，不允许手选
+    isDual: false,
+    issuedCode: '',
+    codeCountdown: 5,
     location: null,
     locationText: '',
     addressText: '',
@@ -55,10 +61,73 @@ Page({
           threshold: Number(el.checkinThreshold) || 200
         }
       })
+      this.resolveIdentity(order)
       this.updateGeoState()
     } catch (e) {
       // 详情加载失败不阻断签到流程
     }
+  },
+
+  // 按登录账号自动判定签到身份：主维保 → 显示动态码供配合人员输入；配合人员 → 输入动态码
+  resolveIdentity(order) {
+    // 从双人动态码校验页携码进入时保持配合人员身份
+    if (this.data.role === 'ASSISTANT' && this.data.dynamicCode) {
+      this.setData({ roleLocked: true, isDual: true, identityText: '配合人员（已携主维保动态码）' })
+      return
+    }
+    const me = getUserInfo() || {}
+    const isDual = !!order.assistantName
+    const isPrincipal = !!order.workerName &&
+      (me.name === order.workerName ||
+        (!!order.workerPlatformId && me.platformId === order.workerPlatformId))
+    const isAssistant = !!order.assistantName &&
+      (me.name === order.assistantName ||
+        (!!order.assistantPlatformId && me.platformId === order.assistantPlatformId))
+    if (!isDual) {
+      this.setData({ role: 'PRINCIPAL', roleLocked: true, isDual: false, identityText: '单人作业 · 主维保人' })
+    } else if (isPrincipal) {
+      this.setData({ role: 'PRINCIPAL', roleLocked: true, isDual: true, identityText: '主维保人（下方动态码供配合人员输入）' })
+      this.startCodeTimer()
+    } else if (isAssistant) {
+      this.setData({ role: 'ASSISTANT', roleLocked: true, isDual: true, identityText: '配合人员（请输入主维保动态码）' })
+    } else {
+      this.setData({ roleLocked: false, isDual: true, identityText: '当前账号不在该工单人员名单，请选择签到身份' })
+    }
+  },
+
+  // 主维保身份：内联生成动态码（5 秒步长轮换，与双人动态码页同口径）
+  startCodeTimer() {
+    this.stopCodeTimer()
+    this.refreshCode()
+    this._codeTimer = setInterval(() => {
+      const left = this.data.codeCountdown - 1
+      if (left <= 0) this.refreshCode()
+      else this.setData({ codeCountdown: left })
+    }, 1000)
+  },
+
+  stopCodeTimer() {
+    if (this._codeTimer) {
+      clearInterval(this._codeTimer)
+      this._codeTimer = null
+    }
+  },
+
+  async refreshCode() {
+    try {
+      const r = await issueDynamicCode(this.data.orderId)
+      this.setData({ issuedCode: r.code, codeCountdown: r.stepSeconds || 5 })
+    } catch (e) {
+      this.stopCodeTimer()
+    }
+  },
+
+  onHide() {
+    this.stopCodeTimer()
+  },
+
+  onUnload() {
+    this.stopCodeTimer()
   },
 
   // 实时距离三态（docs/03 §3.2 项5）：范围内 / 接近阈值 / 超出阈值；
