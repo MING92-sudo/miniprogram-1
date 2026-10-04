@@ -1,6 +1,7 @@
 package com.cqwlw.maintenance.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.cqwlw.maintenance.auth.AdminRoles;
 import com.cqwlw.maintenance.common.BizException;
 import com.cqwlw.maintenance.common.Ids;
@@ -362,6 +363,20 @@ public class AdminArchiveService {
         applyElevator(el, body);
         requireNoConflict(phoneMutexService.checkElevator(el.workerPhone));
         elevatorMapper.updateById(el);
+        // 经纬度清空（留空保存）必须显式置 NULL——updateById 默认跳过 null 字段，
+        // 否则错误的首采坐标永远无法清除（清空后下次签到重新现场采集，docs/02 §5.4）
+        boolean clearLng = body.get("lng") != null && str(body, "lng").isBlank();
+        boolean clearLat = body.get("lat") != null && str(body, "lat").isBlank();
+        if (clearLng || clearLat) {
+            LambdaUpdateWrapper<Elevator> uw = new LambdaUpdateWrapper<Elevator>().eq(Elevator::getId, id);
+            if (clearLng) {
+                uw.set(Elevator::getLng, null);
+            }
+            if (clearLat) {
+                uw.set(Elevator::getLat, null);
+            }
+            elevatorMapper.update(null, uw);
+        }
         return elevatorAdminRow(el);
     }
 

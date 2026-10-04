@@ -148,6 +148,7 @@
         <el-form-item label="经纬度">
           <el-input v-model="form.lng" placeholder="经度 lng" style="width: 48%" />
           <el-input v-model="form.lat" placeholder="纬度 lat" style="width: 48%; margin-left: 4%" />
+        <div class="em-text-secondary" style="margin-top:4px">留空保存即清空坐标：下次首次签到将重新现场采集（docs/02 §5.4）</div>
         </el-form-item>
         <el-form-item label="维保人员手机">
           <el-select v-model="form.workerId" filterable clearable placeholder="选择维保人员1（自动带出平台ID）"

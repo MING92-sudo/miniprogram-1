@@ -1,6 +1,7 @@
 package com.cqwlw.maintenance;
 
 import com.cqwlw.maintenance.common.BizException;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.cqwlw.maintenance.entity.Company;
 import com.cqwlw.maintenance.entity.Employee;
 import com.cqwlw.maintenance.entity.UseUnit;
@@ -25,6 +26,7 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -121,6 +123,29 @@ class AdminArchiveServiceTest {
                 "name", "乙", "phone", "13900004444", "role", "WORKER")));
         assertEquals(422, dup.getCode());
         assertTrue(dup.getMessage().contains("账号已存在"));
+    }
+
+    @Test
+    void updateElevatorClearsGeoWhenBlankToRecollect() {
+        // LambdaUpdateWrapper 需要 TableInfo 缓存（纯 Mockito 单测无 MyBatis 环境，手动初始化一次）
+        com.baomidou.mybatisplus.core.metadata.TableInfoHelper.initTableInfo(
+                new org.apache.ibatis.builder.MapperBuilderAssistant(
+                        new com.baomidou.mybatisplus.core.MybatisConfiguration(), ""), Elevator.class);
+        Employee worker = new Employee();
+        worker.id = "emp_1";
+        worker.role = "WORKER";
+        when(employeeMapper.selectList(any())).thenReturn(List.of(worker));
+
+        Elevator el = new Elevator();
+        el.id = "el_9";
+        el.elevatorCode = "EM-1";
+        el.elevatorName = "测试梯";
+        el.lng = new java.math.BigDecimal("106.1");
+        el.lat = new java.math.BigDecimal("29.2");
+        when(elevatorMapper.selectById("el_9")).thenReturn(el);
+
+        service.updateElevator("el_9", Map.of("elevatorName", "测试梯", "lng", "", "lat", ""));
+        verify(elevatorMapper).update(isNull(), any(LambdaUpdateWrapper.class));
     }
 
     @Test
