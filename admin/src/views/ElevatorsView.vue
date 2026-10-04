@@ -402,6 +402,7 @@ async function queryFromPlatform() {
       }
     }
     put('deviceCode', 'deviceCode', '设备代码')
+    put('factoryNumber', 'factoryNumber', '出厂编号')
     put('regCode', 'regCode', '注册代码')
     put('registrationCode', 'regCode', '注册代码')
     put('emergencyPhone', 'emergencyPhone', '应急电话')
