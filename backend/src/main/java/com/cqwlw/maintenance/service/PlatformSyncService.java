@@ -192,13 +192,13 @@ public class PlatformSyncService {
                         el.useUnitEntityId = String.valueOf(p.get("useUnitEntityId"));
                     }
                     // 手机号脱敏值不覆盖本地真实号码（docs/04 B.7：以平台为准、手机号除外）
-                    if (isUnmasked(str(p.get("elevatorAdministerPhone")))) {
+                    if (hasRealValue(str(p.get("elevatorAdministerPhone")))) {
                         el.elevatorAdministerPhone = str(p.get("elevatorAdministerPhone"));
                     }
-                    if (isUnmasked(str(p.get("emergencyPhone")))) {
+                    if (hasRealValue(str(p.get("emergencyPhone")))) {
                         el.emergencyPhone = str(p.get("emergencyPhone"));
                     }
-                    if (p.get("elevatorAdminister") != null) {
+                    if (hasRealValue(str(p.get("elevatorAdminister")))) {
                         el.elevatorAdminister = str(p.get("elevatorAdminister"));
                     }
                     el.platformSyncedAt = TimeUtil.now();
@@ -216,7 +216,9 @@ public class PlatformSyncService {
         return o == null ? null : String.valueOf(o);
     }
 
-    private static boolean isUnmasked(String phone) {
-        return phone != null && !phone.contains("*");
+    /** 2.7 返回的"null"/空串/脱敏值均视为平台未登记，不覆盖本地档案字段 */
+    private static boolean hasRealValue(String v) {
+        return v != null && !v.isBlank() && !v.contains("*")
+                && !"null".equalsIgnoreCase(v) && !"undefined".equalsIgnoreCase(v);
     }
 }
