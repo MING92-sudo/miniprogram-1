@@ -62,7 +62,7 @@ class DynamicCodeTest {
                 mock(FaultMapper.class), mock(InspectRecordMapper.class), mock(ChecklistService.class),
                 mock(DispatchService.class), mock(PlatformReportService.class),
                 new EmployeeScopeService(employeeMapper),
-                new CheckinThresholdService(mock(SysParamMapper.class), props), props);
+                new CheckinThresholdService(mock(SysParamMapper.class), props), mock(FileStorageService.class), props);
 
         order = order(ORDER);
         when(orderMapper.selectById(ORDER)).thenReturn(order);
