@@ -635,6 +635,7 @@ public class AdminArchiveService {
         m.put("workerPhone", nz(el.workerPhone));
         m.put("assistantName", nz(el.assistantName));
         m.put("elevatorAdminister", nz(el.elevatorAdminister));
+        m.put("elevatorAdministerPhone", nz(el.elevatorAdministerPhone));
         m.put("emergencyPhone", nz(el.emergencyPhone));
         m.put("workTypeCode", nz(el.workTypeCode));
         m.put("intervalDays", el.intervalDays == null ? 0 : el.intervalDays);
