@@ -34,7 +34,6 @@
         </el-sub-menu>
         <el-sub-menu index="register">
           <template #title><el-icon><Notebook /></el-icon><span>平台登记</span></template>
-          <el-menu-item index="/register/relations"><span>服务关系维护</span></el-menu-item>
           <el-menu-item index="/register/workers"><span>人员管理</span></el-menu-item>
         </el-sub-menu>
         <el-sub-menu index="logs">
