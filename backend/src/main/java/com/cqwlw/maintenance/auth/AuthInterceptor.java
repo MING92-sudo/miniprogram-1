@@ -33,9 +33,11 @@ public class AuthInterceptor implements HandlerInterceptor {
             throw new BizException(401, "登录已过期，请重新登录");
         }
         Claims claims = jwtService.verify(auth.substring(7).trim());
+        String client = claims.get("client", String.class);
         String sid = claims.get("sid", String.class);
         com.cqwlw.maintenance.entity.Employee user = employeeMapper.selectById(claims.getSubject());
-        if (user == null || sid == null || !sid.equals(user.sessionId)) {
+        String current = "admin".equals(client) ? user.sessionAdmin : user.sessionId;
+        if (user == null || sid == null || !sid.equals(current)) {
             throw new BizException(401, "账号已在其他设备登录，请重新登录");
         }
         request.setAttribute(ATTR_EMP_ID, claims.getSubject());

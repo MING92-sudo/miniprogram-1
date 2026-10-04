@@ -24,8 +24,9 @@ function certReminder(user) {
   return { text: '证件有效期至 ' + end, level: 'ok' }
 }
 
-// 角色可见菜单（用户需求：取消独立使用单位端，签字确认走分享链接/本机代签）
-const STAFF_ROLES = [ROLE.WORKER, ROLE.ASSISTANT, ROLE.LEADER]
+// 角色可见菜单（用户需求：取消独立使用单位端，签字确认走分享链接/本机代签）；
+// ADMIN/SYS_ADMIN 登录小程序视为管理巡视：可见全部菜单且后端数据权限不限班组
+const STAFF_ROLES = [ROLE.WORKER, ROLE.ASSISTANT, ROLE.LEADER, ROLE.ADMIN, ROLE.SYS_ADMIN]
 
 function buildMenus(role) {
   const menus = []

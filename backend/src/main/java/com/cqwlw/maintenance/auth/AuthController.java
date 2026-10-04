@@ -65,7 +65,8 @@ public class AuthController {
             }
         }
         String openid = openidHeader != null && !openidHeader.isEmpty() ? openidHeader : props.getDevOpenid();
-        return ApiResponse.ok(loginResult(user, openid));
+        String client = "admin".equals(String.valueOf(body.get("client"))) ? "admin" : "mp";
+        return ApiResponse.ok(loginResult(user, openid, client));
     }
 
     @PostMapping("/auth/bind-wechat")
@@ -98,7 +99,7 @@ public class AuthController {
         if (Boolean.FALSE.equals(user.enabled)) {
             throw new BizException(403, "账号已停用，请联系系统管理员");
         }
-        return ApiResponse.ok(loginResult(user, openid));
+        return ApiResponse.ok(loginResult(user, openid, "mp"));
     }
 
     @PostMapping("/auth/bind-employee")
@@ -160,26 +161,30 @@ public class AuthController {
         }
         String effectiveRole = forceUnitAdmin ? "UNIT_ADMIN" : (role.equals(current.role) ? current.role : role);
         String openid = openidHeader != null && !openidHeader.isEmpty() ? openidHeader : props.getDevOpenid();
-        Map<String, Object> out = loginResult(current, openid);
+        Map<String, Object> out = loginResult(current, openid, "mp");
         out.put("role", effectiveRole);
-        out.put("token", issueSessionToken(current, effectiveRole, openid));
+        out.put("token", issueSessionToken(current, effectiveRole, openid, "mp"));
         return out;
     }
 
-    private Map<String, Object> loginResult(Employee user, String openid) {
+    private Map<String, Object> loginResult(Employee user, String openid, String client) {
         Map<String, Object> out = new LinkedHashMap<>();
-        out.put("token", issueSessionToken(user, user.role, openid));
+        out.put("token", issueSessionToken(user, user.role, openid, client));
         out.put("userInfo", userInfo(user));
         out.put("role", user.role);
         return out;
     }
 
-    /** 单端登录：每次签发覆盖 sys_employee.session_id，旧 token 由拦截器 401 */
-    private String issueSessionToken(Employee user, String role, String openid) {
+    /** 单端登录（按端隔离）：签发覆盖对应端会话，同端互踢、跨端互不干扰 */
+    private String issueSessionToken(Employee user, String role, String openid, String client) {
         String sid = Ids.next("sess");
-        user.sessionId = sid;
+        if ("admin".equals(client)) {
+            user.sessionAdmin = sid;
+        } else {
+            user.sessionId = sid;
+        }
         employeeMapper.updateById(user);
-        return jwtService.issue(user.id, role, openid, sid);
+        return jwtService.issue(user.id, role, openid, client, sid);
     }
 
     private Map<String, Object> userInfo(Employee user) {

@@ -20,7 +20,7 @@ class JwtServiceTest {
     @Test
     void issueAndVerify() {
         JwtService service = service();
-        String token = service.issue("emp_1", "WORKER", "openid_x", "sess_1");
+        String token = service.issue("emp_1", "WORKER", "openid_x", "mp", "sess_1");
         Claims claims = service.verify(token);
         assertEquals("emp_1", claims.getSubject());
         assertEquals("WORKER", claims.get("role", String.class));
