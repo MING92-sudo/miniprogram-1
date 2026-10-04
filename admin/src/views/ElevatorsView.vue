@@ -28,7 +28,9 @@
       </el-table-column>
       <el-table-column prop="workerName" label="维保人员" width="90" />
       <el-table-column prop="workTypeCode" label="周期码" width="80" />
-      <el-table-column prop="nextCheckDate" label="下次检验" width="110" />
+      <el-table-column label="下次检验" width="110">
+        <template #default="{ row }">{{ (row.nextCheckDate || '').slice(0, 7) }}</template>
+      </el-table-column>
       <el-table-column prop="platformSyncedAt" label="最近同步" width="160" />
       <el-table-column label="操作" width="130" fixed="right">
         <template #default="{ row }">
@@ -119,7 +121,10 @@
             <el-option label="OY 年度" value="OY" />
           </el-select>
         </el-form-item>
-        <el-form-item label="下次检验日期"><el-input v-model="form.nextCheckDate" placeholder="yyyy-MM-dd" /></el-form-item>
+      <el-form-item label="下次检验时间">
+        <el-date-picker v-model="form.nextCheckDate" type="month" value-format="YYYY-MM"
+                        placeholder="选择年月" style="width: 100%" />
+      </el-form-item>
         <el-form-item label="经纬度">
           <el-input v-model="form.lng" placeholder="经度 lng" style="width: 48%" />
           <el-input v-model="form.lat" placeholder="纬度 lat" style="width: 48%; margin-left: 4%" />
@@ -217,11 +222,18 @@ function openCreate() {
   }
 function openEdit(row) {
   Object.assign(form, empty, row)
+  form.nextCheckDate = (form.nextCheckDate || '').slice(0, 7)
   syncEmployeeIds()
   dialog.value = true
 }
 
+function normalizeNextCheck() {
+  // 月份选择器存 yyyy-MM，落库补齐为当月 1 日（下次检验只需年月）
+  form.nextCheckDate = form.nextCheckDate ? form.nextCheckDate + '-01' : ''
+}
+
 async function save() {
+  normalizeNextCheck()
   if (!form.id && form.workerId) {
     const e = staff.value.find((x) => x.id === form.workerId)
     if (e) { form.workerName = e.name; form.workerPhone = e.phone; form.workerPlatformId = e.platformId }

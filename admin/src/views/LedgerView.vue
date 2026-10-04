@@ -12,7 +12,9 @@
       <el-table-column prop="regCode" label="注册代码" width="170" show-overflow-tooltip />
       <el-table-column prop="elevatorAdminister" label="安全管理员" width="100" />
       <el-table-column prop="elevatorAdministerPhone" label="管理员电话" width="130" />
-      <el-table-column prop="nextCheckDate" label="下次年检时间" width="120" />
+      <el-table-column label="下次年检时间" width="120">
+        <template #default="{ row }">{{ (row.nextCheckDate || '').slice(0, 7) }}</template>
+      </el-table-column>
       <el-table-column prop="nextMaintenanceDate" label="下次维保时间" width="130" />
       <el-table-column label="一梯一档" width="100" fixed="right">
         <template #default="{ row }">
