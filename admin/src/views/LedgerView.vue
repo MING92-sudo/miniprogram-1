@@ -59,6 +59,7 @@
       </el-tab-pane>
       <el-tab-pane label="急修单" name="faults">
         <el-table :data="archiveFaults" stripe size="small">
+          <el-table-column prop="faultNo" label="单号" width="190" show-overflow-tooltip />
           <el-table-column prop="createdAt" label="登记时间" width="170" />
           <el-table-column prop="faultType" label="类型" width="100" />
           <el-table-column prop="desc" label="描述" min-width="200" show-overflow-tooltip />
