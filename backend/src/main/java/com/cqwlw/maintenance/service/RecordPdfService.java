@@ -65,129 +65,206 @@ public class RecordPdfService {
             Font value = font(9, Font.NORMAL);
             Font small = font(7.5f, Font.NORMAL);
 
-            Paragraph head = new Paragraph("电梯维保记录", title);
-            head.setAlignment(Element.ALIGN_CENTER);
+            // ── 单据头（样单 2026-10-05）：标题居左，编号/性质/状态居右 ──
+            PdfPTable head = new PdfPTable(2);
+            head.setWidthPercentage(100);
+            head.setWidths(new int[] {1, 1});
+            PdfPCell headL = new PdfPCell();
+            headL.setBorder(PdfPCell.NO_BORDER);
+            headL.addElement(new Paragraph("电梯维保单", title));
+            headL.addElement(new Paragraph("（维保单位名称 / Logo 占位）", small));
+            PdfPCell headR = new PdfPCell(new Paragraph(
+                    "编号：" + nz(r.originalRecordId) + "\n维保性质：" + nz(r.workType)
+                            + "\n单据状态：" + (r.checkoutTime == null ? "进行中" : "已完成"),
+                    font(9, Font.BOLD, new java.awt.Color(214, 108, 24))));
+            headR.setBorder(PdfPCell.NO_BORDER);
+            headR.setHorizontalAlignment(Element.ALIGN_RIGHT);
+            head.addCell(headL);
+            head.addCell(headR);
+            head.setSpacingAfter(8);
             doc.add(head);
-            Paragraph sub = new Paragraph("记录编号 " + nz(r.originalRecordId)
-                    + "　生成时间 " + TimeUtil.format(TimeUtil.now()), small);
-            sub.setAlignment(Element.ALIGN_CENTER);
-            sub.setSpacingAfter(10);
-            doc.add(sub);
 
-            // ── 基本信息表 ──
+            // ── 维保日期表 ──
             PdfPTable info = table(4, label, value);
-            info.addCell(cell("电梯名称", label));
-            info.addCell(cell(nz(r.elevatorName), value));
-            info.addCell(cell("电梯编码", label));
-            info.addCell(cell(nz(r.elevatorCode), value));
-            info.addCell(cell("设备代码", label));
-            info.addCell(cell(el == null ? "" : nz(el.deviceCode), value));
-            info.addCell(cell("使用单位", label));
-            info.addCell(cell(uu == null ? "" : nz(uu.unitName), value));
-            info.addCell(cell("维保类别", label));
-            info.addCell(cell(nz(r.workType), value));
-            info.addCell(cell("作业时长", label));
-            info.addCell(cell(nz(r.duration), value));
-            info.addCell(cell("签到时间", label));
-            info.addCell(cell(fmt(r.checkinTime), value));
-            info.addCell(cell("签退时间", label));
-            info.addCell(cell(fmt(r.checkoutTime), value));
-            info.addCell(cell("维保人员1", label));
-            info.addCell(cell(nz(r.workerName), value));
-            info.addCell(cell("维保人员2", label));
-            info.addCell(cell(nz(r.assistantName), value));
-            info.addCell(cell("使用单位负责人", label));
-            info.addCell(cell(uu == null ? "" : nz(uu.unitPrincipal), value));
-            info.addCell(cell("安全管理员", label));
-            info.addCell(cell(el != null && notBlank(el.elevatorAdminister)
-                    ? el.elevatorAdminister : (uu == null ? "" : nz(uu.elevatorAdminister)), value));
-            info.addCell(cell("下次维保日期", label));
+            info.addCell(cell("维保日期", label));
+            info.addCell(cell(fmt(r.checkinTime) + "（实际）", value));
+            info.addCell(cell("上次维保", label));
+            info.addCell(cell(el == null || el.lastMaintenanceAt == null
+                    ? "—" : TimeUtil.format(el.lastMaintenanceAt), value));
+            info.addCell(cell("下次应维保", label));
             info.addCell(cell(TimeUtil.formatDate(r.nextMaintenanceDate), value));
-            info.addCell(cell("上报状态", label));
-            info.addCell(cell(REPORT_STATUS_TEXT.getOrDefault(
-                    nz(r.reportStatus), nz(r.reportStatus)), value));
+            info.addCell(cell("维保合同编号", label));
+            info.addCell(cell("—", value));
             doc.add(info);
 
-            // ── 检查项明细 ──
+            // ── 电梯基本信息（扫码自动带出） ──
+            doc.add(sectionBar("电梯基本信息（扫码自动带出）"));
+            PdfPTable elev = table(4, label, value);
+            elev.addCell(cell("注册代码/登记证号", label));
+            elev.addCell(cell(el == null ? "" : nz(el.regCode), value));
+            elev.addCell(cell("使用单位内编号", label));
+            elev.addCell(cell(el == null ? "" : nz(el.insideNumber), value));
+            elev.addCell(cell("使用单位", label));
+            elev.addCell(cell(uu == null ? "" : nz(uu.unitName), value));
+            elev.addCell(cell("使用地点", label));
+            elev.addCell(cell(el == null ? "" : nz(el.location), value));
+            elev.addCell(cell("电梯类型", label));
+            elev.addCell(cell(el == null ? "" : nz(el.category), value));
+            elev.addCell(cell("层站数 / 载重 / 速度", label));
+            elev.addCell(cell(el == null ? "" : elevSpec(el), value));
+            doc.add(elev);
+
+            // ── 维保人员与作业时间 ──
+            PdfPTable work = table(4, label, value);
+            work.addCell(cell("维保人员 1（签字）", label));
+            work.addCell(cell(nz(r.workerName), value));
+            work.addCell(cell("维保人员 2（签字）", label));
+            work.addCell(cell(nz(r.assistantName), value));
+            work.addCell(cell("作业开始（签到）", label));
+            work.addCell(cell(fmt(r.checkinTime) + "（定位+时间戳）", value));
+            work.addCell(cell("作业结束（签退）", label));
+            work.addCell(cell(fmt(r.checkoutTime), value));
+            work.addCell(cell("安全防护确认", label));
+            PdfPCell safety = new PdfPCell(new Phrase(
+                    "☐ 警示标志　☐ 现场围拦　☐ 断电挂牌（如需要）　☐ 双人作业", value));
+            safety.setColspan(3);
+            safety.setPadding(5);
+            work.addCell(safety);
+            doc.add(work);
+
+            // ── 维保项目检查表（TSG T5002-2017 附件 A–D） ──
             List<Map<String, Object>> items = r.itemsJson == null ? List.of() : JsonUtil.readList(r.itemsJson);
-            Paragraph itemTitle = new Paragraph("检查项明细（" + items.size() + " 项）", label);
-            itemTitle.setSpacingBefore(10);
-            itemTitle.setSpacingAfter(4);
-            doc.add(itemTitle);
-            PdfPTable itemsTable = new PdfPTable(new float[]{1.2f, 7f, 2f, 4f});
+            doc.add(sectionBar("维保项目检查表（按 TSG T5002-2017 附件 A–D 自动带出）"));
+            PdfPTable itemsTable = new PdfPTable(new float[]{1f, 1.6f, 5f, 5f, 2f, 4f});
             itemsTable.setWidthPercentage(100);
             itemsTable.addCell(headCell("序号", label));
-            itemsTable.addCell(headCell("检查项", label));
+            itemsTable.addCell(headCell("部位", label));
+            itemsTable.addCell(headCell("维保项目（内容）", label));
+            itemsTable.addCell(headCell("基本要求", label));
             itemsTable.addCell(headCell("结果", label));
-            itemsTable.addCell(headCell("数值/备注", label));
+            itemsTable.addCell(headCell("处理情况/备注", label));
             int seq = 1;
             for (Map<String, Object> item : items) {
+                if (Boolean.TRUE.equals(item.get("notInThisRun"))) {
+                    continue;
+                }
                 itemsTable.addCell(bodyCell(String.valueOf(seq++), small));
+                itemsTable.addCell(bodyCell(partOf(str(item.get("itemCode"))), small));
                 itemsTable.addCell(bodyCell(nz(str(item.get("name"))), small));
-                String result = str(item.get("result"));
-                itemsTable.addCell(bodyCell(RESULT_TEXT.getOrDefault(result, nz(result)), small));
-                String remark = firstNonBlank(
-                        str(item.get("abnormalDesc")), str(item.get("valueText")),
-                        item.get("value") == null ? null : ("读数 " + item.get("value")
-                                + (item.get("valueUnit") == null ? "" : item.get("valueUnit"))),
-                        str(item.get("skipReason")));
-                itemsTable.addCell(bodyCell(nz(remark), small));
+                itemsTable.addCell(bodyCell(nz(str(item.get("requirement"))), small));
+                String res = str(item.get("result"));
+                PdfPCell resultCell = bodyCell(RESULT_TEXT.getOrDefault(res, nz(res)), small);
+                if ("ABNORMAL".equals(res)) {
+                    resultCell.setBackgroundColor(new java.awt.Color(255, 243, 224));
+                }
+                itemsTable.addCell(resultCell);
+                itemsTable.addCell(bodyCell(remarkOf(item), small));
             }
-            if (items.isEmpty()) {
+            if (seq == 1) {
+                itemsTable.addCell(bodyCell("—", small));
                 itemsTable.addCell(bodyCell("—", small));
                 itemsTable.addCell(bodyCell("无检查项明细", small));
                 itemsTable.addCell(bodyCell("—", small));
                 itemsTable.addCell(bodyCell("—", small));
+                itemsTable.addCell(bodyCell("—", small));
             }
             doc.add(itemsTable);
+            doc.add(new Paragraph("注：检查结果三态——正常 / 异常 / 不适用；异常项必须填写处理情况并拍照。",
+                    small));
 
-            // ── 签字区 ──
-            Paragraph signTitle = new Paragraph("签字确认", label);
-            signTitle.setSpacingBefore(10);
-            signTitle.setSpacingAfter(4);
-            doc.add(signTitle);
+            // ── 发现问题及处理 / 待办事项 / 签字确认 ──
+            PdfPTable issue = table(4, label, value);
+            issue.addCell(cell("发现问题及处理", label));
+            issue.addCell(longTextCell(abnormalSummary(items), value, 3));
+            issue.addCell(cell("待办事项", label));
+            issue.addCell(longTextCell("无待办，销项后归档", value, 3));
+            doc.add(issue);
+
             PdfPTable signs = new PdfPTable(3);
             signs.setWidthPercentage(100);
-            signs.addCell(signCell("维保人员签字（" + nz(r.workerName) + "）",
+            signs.addCell(signCell("维保人员 1 签字（" + nz(r.workerName) + "）",
                     r.workerSignatureUrl, small));
-            signs.addCell(signCell("维保人员2签字（" + nz(r.assistantName) + "）",
+            signs.addCell(signCell("维保人员 2 签字（" + nz(r.assistantName) + "）",
                     r.assistantSignatureUrl, small));
-            signs.addCell(signCell("使用单位安全管理员签字", r.signatureUrl, small));
+            signs.addCell(signCell("使用单位安全管理人员签字", r.signatureUrl, small));
             doc.add(signs);
 
-            // ── 现场照片 ──
-            List<String> photos;
-            try {
-                photos = r.photosJson == null ? List.of()
-                        : JsonUtil.MAPPER.readValue(r.photosJson,
-                                new com.fasterxml.jackson.core.type.TypeReference<List<String>>() {
-                                });
-            } catch (Exception e) {
-                photos = List.of();
-            }
-            Paragraph photoTitle = new Paragraph("现场照片（" + photos.size() + " 张）", label);
-            photoTitle.setSpacingBefore(10);
-            photoTitle.setSpacingAfter(4);
-            doc.add(photoTitle);
-            if (photos.isEmpty()) {
-                doc.add(new Paragraph("本次作业无现场照片。", small));
-            } else {
-                PdfPTable photoGrid = new PdfPTable(2);
-                photoGrid.setWidthPercentage(100);
-                for (String url : photos) {
-                    photoGrid.addCell(photoCell(url, small));
-                }
-                if (photos.size() % 2 == 1) {
-                    photoGrid.addCell(emptyCell());
-                }
-                doc.add(photoGrid);
-            }
+            Paragraph foot = new Paragraph("本记录归入电梯安全技术档案，至少保存 4 年 · 打印时间："
+                    + TimeUtil.format(TimeUtil.now()), small);
+            foot.setSpacingBefore(6);
+            doc.add(foot);
             doc.close();
             return out.toByteArray();
         } catch (Exception e) {
             log.warn("维保记录 PDF 生成失败: id={}, {}", r == null ? null : r.id, e.getMessage());
             throw new IllegalStateException("PDF 生成失败", e);
         }
+    }
+
+    /** 电梯规格组合：层站数 / 载重 / 速度 */
+    private static String elevSpec(Elevator el) {
+        StringBuilder sb = new StringBuilder();
+        if (notBlank(el.stationsDoors)) {
+            sb.append(el.stationsDoors);
+        }
+        if (el.ratedLoad != null) {
+            if (sb.length() > 0) {
+                sb.append(" / ");
+            }
+            sb.append(el.ratedLoad).append(el.ratedLoadUnit == null ? "kg" : el.ratedLoadUnit);
+        }
+        if (el.ratedSpeed != null) {
+            if (sb.length() > 0) {
+                sb.append(" / ");
+            }
+            sb.append(el.ratedSpeed).append(el.ratedSpeedUnit == null ? "m/s" : el.ratedSpeedUnit);
+        }
+        return sb.toString();
+    }
+
+    /** 部位：TSG 附件表号 → 部位名（1机房 2轿厢 3层站层门 4底坑 5井道，其余 —） */
+    private static String partOf(String itemCode) {
+        if (itemCode == null || !itemCode.matches("[A-D]-\\d+-\\d+")) {
+            return "—";
+        }
+        int tableNo = Integer.parseInt(itemCode.split("-")[1]);
+        return switch (tableNo) {
+            case 1 -> "机房";
+            case 2 -> "轿厢";
+            case 3 -> "层站·层门";
+            case 4 -> "底坑";
+            case 5 -> "井道";
+            default -> "—";
+        };
+    }
+
+    /** 处理情况/备注：异常描述优先，其次读数/不适用原因 */
+    private static String remarkOf(Map<String, Object> item) {
+        String remark = firstNonBlank(
+                str(item.get("abnormalDesc")), str(item.get("valueText")),
+                item.get("value") == null ? null : ("读数 " + item.get("value")
+                        + (item.get("valueUnit") == null ? "" : item.get("valueUnit"))),
+                str(item.get("skipReason")));
+        return nz(remark);
+    }
+
+    /** 异常项汇总（发现问题及处理栏） */
+    private static String abnormalSummary(List<Map<String, Object>> items) {
+        StringBuilder sb = new StringBuilder();
+        for (Map<String, Object> item : items) {
+            if (!"ABNORMAL".equals(str(item.get("result")))) {
+                continue;
+            }
+            if (sb.length() > 0) {
+                sb.append("\n");
+            }
+            sb.append(nz(str(item.get("name"))));
+            if (notBlank(str(item.get("problemCode")))) {
+                sb.append("（").append(str(item.get("problemCode"))).append("）");
+            }
+            sb.append("：").append(nz(str(item.get("abnormalDesc"))));
+        }
+        return sb.length() == 0 ? "无异常项。" : sb.toString();
     }
 
     /** 急修单 PDF（一梯一档，版式按用户样单 2026-10-05）：时间链/电梯基本信息/报修与处理记录/照片/签字确认 */
