@@ -63,6 +63,7 @@ class RecordPdfServiceTest {
         r.workerSignatureUrl = "https://bucket.cos.example/sign1.png";
         r.assistantSignatureUrl = "";
         r.signatureUrl = "https://bucket.cos.example/sign2.png";
+        r.previewContextJson = JsonUtil.write(Map.of("companyName", "重庆渝达物业管理有限公司"));
         return r;
     }
 
@@ -81,5 +82,13 @@ class RecordPdfServiceTest {
         r.workerSignatureUrl = null;
         byte[] pdf = service.render(r, null, null);
         assertEquals("%PDF", new String(pdf, 0, 4, StandardCharsets.US_ASCII));
+    }
+
+    /** 布局整改可视化样本：写入 target/ 供渲染核对 */
+    @org.junit.jupiter.api.Test
+    void dumpSamplePdfForLayoutReview() throws Exception {
+        java.nio.file.Files.write(
+                java.nio.file.Path.of("target", "sample-record.pdf"),
+                service.render(record(), null, null));
     }
 }

@@ -65,24 +65,21 @@ public class RecordPdfService {
             Font value = font(9, Font.NORMAL);
             Font small = font(7.5f, Font.NORMAL);
 
-            // ── 单据头（样单 2026-10-05）：标题居左，编号/性质/状态居右 ──
-            PdfPTable head = new PdfPTable(2);
-            head.setWidthPercentage(100);
-            head.setWidths(new int[] {1, 1});
-            PdfPCell headL = new PdfPCell();
-            headL.setBorder(PdfPCell.NO_BORDER);
-            headL.addElement(new Paragraph("电梯维保单", title));
-            headL.addElement(new Paragraph("（维保单位名称 / Logo 占位）", small));
-            PdfPCell headR = new PdfPCell(new Paragraph(
+            // ── 单据头（2026-10-05 布局整改）：标题/维保单位名称居中，编号/性质/状态居右 ──
+            Paragraph meta = new Paragraph(
                     "编号：" + nz(r.originalRecordId) + "\n维保性质：" + nz(r.workType)
                             + "\n单据状态：" + (r.checkoutTime == null ? "进行中" : "已完成"),
-                    font(9, Font.BOLD, new java.awt.Color(214, 108, 24))));
-            headR.setBorder(PdfPCell.NO_BORDER);
-            headR.setHorizontalAlignment(Element.ALIGN_RIGHT);
-            head.addCell(headL);
-            head.addCell(headR);
-            head.setSpacingAfter(8);
-            doc.add(head);
+                    font(9, Font.BOLD, new java.awt.Color(214, 108, 24)));
+            meta.setAlignment(Element.ALIGN_RIGHT);
+            doc.add(meta);
+            Paragraph titleP = new Paragraph("电梯维保单", title);
+            titleP.setAlignment(Element.ALIGN_CENTER);
+            titleP.setSpacingBefore(6);
+            doc.add(titleP);
+            Paragraph companyP = new Paragraph(companyNameOf(r), font(10, Font.BOLD));
+            companyP.setAlignment(Element.ALIGN_CENTER);
+            companyP.setSpacingAfter(8);
+            doc.add(companyP);
 
             // ── 维保日期表 ──
             PdfPTable info = table(4, label, value);
@@ -98,7 +95,7 @@ public class RecordPdfService {
             doc.add(info);
 
             // ── 电梯基本信息（扫码自动带出） ──
-            doc.add(sectionBar("电梯基本信息（扫码自动带出）"));
+            doc.add(sectionBar("电梯基本信息"));
             PdfPTable elev = table(4, label, value);
             elev.addCell(cell("注册代码/登记证号", label));
             elev.addCell(cell(el == null ? "" : nz(el.regCode), value));
@@ -133,7 +130,7 @@ public class RecordPdfService {
 
             // ── 维保项目检查表（TSG T5002-2017 附件 A–D） ──
             List<Map<String, Object>> items = r.itemsJson == null ? List.of() : JsonUtil.readList(r.itemsJson);
-            doc.add(sectionBar("维保项目检查表（按 TSG T5002-2017 附件 A–D 自动带出）"));
+            doc.add(sectionBar("维保项目检查表"));
             PdfPTable itemsTable = new PdfPTable(new float[]{1f, 1.6f, 5f, 5f, 2f, 4f});
             itemsTable.setWidthPercentage(100);
             itemsTable.addCell(headCell("序号", label));
@@ -168,8 +165,11 @@ public class RecordPdfService {
                 itemsTable.addCell(bodyCell("—", small));
             }
             doc.add(itemsTable);
-            doc.add(new Paragraph("注：检查结果三态——正常 / 异常 / 不适用；异常项必须填写处理情况并拍照。",
-                    small));
+            Paragraph note = new Paragraph("注：检查结果三态——正常 / 异常 / 不适用；异常项必须填写处理情况并拍照。",
+                    small);
+            note.setSpacingBefore(4); // 与检查表/下方表格留出间距，避免文字压线重叠
+            note.setSpacingAfter(6);
+            doc.add(note);
 
             // ── 发现问题及处理 / 待办事项 / 签字确认 ──
             PdfPTable issue = table(4, label, value);
@@ -471,6 +471,7 @@ public class RecordPdfService {
         PdfPCell c = new PdfPCell(new Phrase(text, barFont));
         c.setBackgroundColor(new java.awt.Color(23, 50, 77));
         c.setPadding(5);
+        c.setHorizontalAlignment(Element.ALIGN_CENTER); // 段落标题条居中（2026-10-05 布局整改）
         PdfPTable wrap = new PdfPTable(1);
         wrap.setWidthPercentage(100);
         wrap.setSpacingBefore(8);
@@ -601,6 +602,21 @@ public class RecordPdfService {
 
     private static String nz(String s) {
         return s == null ? "" : s;
+    }
+
+    /** 维保单位名称：取签退冻结的预览上下文（buildPreviewContext 冻结 companyName），缺失时占位 */
+    private String companyNameOf(MaintainRecord r) {
+        try {
+            if (r.previewContextJson != null && !r.previewContextJson.isEmpty()) {
+                String name = str(JsonUtil.readMap(r.previewContextJson).get("companyName"));
+                if (notBlank(name)) {
+                    return name;
+                }
+            }
+        } catch (Exception e) {
+            log.warn("预览上下文解析失败，维保单位名称使用占位：{}", e.getMessage());
+        }
+        return "（维保单位名称）";
     }
 
     private static boolean notBlank(String s) {
