@@ -135,10 +135,9 @@ public class RecordPdfService {
             // ── 维保项目检查表（TSG T5002-2017 附件 A–D） ──
             List<Map<String, Object>> items = r.itemsJson == null ? List.of() : JsonUtil.readList(r.itemsJson);
             doc.add(sectionBar("维保项目检查表"));
-            PdfPTable itemsTable = new PdfPTable(new float[]{1f, 1.6f, 5f, 5f, 2f, 4f});
+            PdfPTable itemsTable = new PdfPTable(new float[]{1f, 5f, 5f, 2f, 4f}); // 部位列删除（2026-10-05 用户反馈）
             itemsTable.setWidthPercentage(100);
             itemsTable.addCell(headCell("序号", label));
-            itemsTable.addCell(headCell("部位", label));
             itemsTable.addCell(headCell("维保项目（内容）", label));
             itemsTable.addCell(headCell("基本要求", label));
             itemsTable.addCell(headCell("结果", label));
@@ -149,7 +148,6 @@ public class RecordPdfService {
                     continue;
                 }
                 itemsTable.addCell(bodyCell(String.valueOf(seq++), small));
-                itemsTable.addCell(bodyCell(partOf(str(item.get("itemCode"))), small));
                 itemsTable.addCell(bodyCell(nz(str(item.get("name"))), small));
                 itemsTable.addCell(bodyCell(nz(str(item.get("requirement"))), small));
                 String res = str(item.get("result"));
@@ -161,7 +159,6 @@ public class RecordPdfService {
                 itemsTable.addCell(bodyCell(remarkOf(item), small));
             }
             if (seq == 1) {
-                itemsTable.addCell(bodyCell("—", small));
                 itemsTable.addCell(bodyCell("—", small));
                 itemsTable.addCell(bodyCell("无检查项明细", small));
                 itemsTable.addCell(bodyCell("—", small));
@@ -183,6 +180,29 @@ public class RecordPdfService {
             String todo = nz(r.todoDesc);
             issue.addCell(longTextCell(todo.isEmpty() ? "无待办，销项后归档" : todo, value, 3));
             doc.add(issue);
+
+            // ── 现场照片：2 列网格，位于待办事项与签字之间（2026-10-05 用户指定版式） ──
+            List<String> photoUrls = r.photosJson == null ? List.of()
+                    : JsonUtil.readStringList(r.photosJson);
+            int slots = Math.max(4, (photoUrls.size() + 1) / 2 * 2);
+            PdfPTable photoGrid = new PdfPTable(2);
+            photoGrid.setWidthPercentage(100);
+            photoGrid.setSpacingBefore(4);
+            photoGrid.setSpacingAfter(6);
+            java.awt.Color placeholderGray = new java.awt.Color(150, 150, 150);
+            for (int i = 0; i < slots; i++) {
+                if (i < photoUrls.size()) {
+                    photoGrid.addCell(photoCell(photoUrls.get(i), small));
+                } else {
+                    PdfPCell ph = new PdfPCell(new Phrase("照片 " + (i + 1), font(8, Font.NORMAL, placeholderGray)));
+                    ph.setMinimumHeight(60);
+                    ph.setPadding(6);
+                    ph.setHorizontalAlignment(Element.ALIGN_CENTER);
+                    ph.setVerticalAlignment(Element.ALIGN_MIDDLE);
+                    photoGrid.addCell(ph);
+                }
+            }
+            doc.add(photoGrid);
 
             PdfPTable signs = new PdfPTable(3);
             signs.setWidthPercentage(100);
@@ -227,20 +247,7 @@ public class RecordPdfService {
     }
 
     /** 部位：TSG 附件表号 → 部位名（1机房 2轿厢 3层站层门 4底坑 5井道，其余 —） */
-    private static String partOf(String itemCode) {
-        if (itemCode == null || !itemCode.matches("[A-D]-\\d+-\\d+")) {
-            return "—";
-        }
-        int tableNo = Integer.parseInt(itemCode.split("-")[1]);
-        return switch (tableNo) {
-            case 1 -> "机房";
-            case 2 -> "轿厢";
-            case 3 -> "层站·层门";
-            case 4 -> "底坑";
-            case 5 -> "井道";
-            default -> "—";
-        };
-    }
+    // partOf 已随「部位」列删除（2026-10-05 用户反馈）
 
     /** 处理情况/备注：异常描述优先，其次读数/不适用原因 */
     private static String remarkOf(Map<String, Object> item) {

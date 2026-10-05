@@ -15,7 +15,7 @@
       <el-table-column prop="workManCertificate" label="证书编号" min-width="180" show-overflow-tooltip />
       <el-table-column prop="workManPhone" label="手机号" width="130" />
       <el-table-column label="作业期限" width="200">
-        <template #default="{ row }">{{ row.workStartDate || '—' }} ~ {{ row.workEndDate || '—' }}</template>
+        <template #default="{ row }">{{ fmtDate(row.workStartDate) }} ~ {{ fmtDate(row.workEndDate) }}</template>
       </el-table-column>
       <el-table-column label="绑定状态" width="100">
         <template #default="{ row }">
@@ -107,6 +107,18 @@ function openTerminate(row) {
   terminateRow.value = row
   terminateFile = null
   terminateDialog.value = true
+}
+
+// 平台返回的作业期限为毫秒时间戳，格式化为 yyyy-MM-dd（2026-10-05 用户反馈）
+function fmtDate(v) {
+  if (v == null || v === '') return '—'
+  const n = Number(v)
+  if (!Number.isNaN(n) && String(v).replace(/[^0-9]/g, '').length >= 12) {
+    const d = new Date(n)
+    const p = (x) => String(x).padStart(2, '0')
+    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
+  }
+  return String(v)
 }
 
 function onTerminateFile(e) {
