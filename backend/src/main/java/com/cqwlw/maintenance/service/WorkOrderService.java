@@ -25,6 +25,7 @@ import com.cqwlw.maintenance.util.TimeUtil;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.stereotype.Service;
 
+import java.security.SecureRandom;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
@@ -52,6 +53,8 @@ public class WorkOrderService {
     private static final int DYNAMIC_CODE_STEP_SECONDS = 5;
     /** 双人动态码有效期（秒）：60 秒内的码可校验；绑定工单、一次性使用（docs/05 §2.5） */
     private static final int DYNAMIC_CODE_TTL_SECONDS = 60;
+    /** M7：分享令牌随机源（旧实现 Math.random 可猜，同 AdminArchiveService 口径） */
+    private static final SecureRandom SHARE_TOKEN_RANDOM = new SecureRandom();
 
     private final WorkOrderMapper orderMapper;
     private final ElevatorMapper elevatorMapper;
@@ -322,7 +325,8 @@ public class WorkOrderService {
         if (el != null && el.lat != null && el.lng != null) {
             geoStatus = el.geoStatus == null || el.geoStatus.isEmpty() ? "PROVIDED" : el.geoStatus;
             distance = GeoUtil.distanceMeters(lat, lng, el.lat.doubleValue(), el.lng.doubleValue());
-            if (distance > threshold) {
+            // M11：SELF_COLLECTED 基准由首个签到者 GPS 自证回填，不作为围栏拦截依据（仅留痕，1005 语义）
+            if (!"SELF_COLLECTED".equals(el.geoStatus) && distance > threshold) {
                 throw new BizException(1001, "签到位置超出允许范围：距电梯 " + round1(distance)
                         + " 米，阈值 " + threshold + " 米；请到现场后重试");
             }
@@ -467,6 +471,8 @@ public class WorkOrderService {
 
     // ── 检查项 ──
     public List<Map<String, Object>> items(WorkOrder o) {
+        // M13 已知取舍：GET 详情路径会在此懒生成并 updateById 清单（读路径写库）。
+        // 功能正确、移动生成时机涉及派单/模板链路回归，风险大于收益，保留现状。
         if (o.checklistJson == null || o.checklistJson.isEmpty()) {
             Elevator el = elevatorMapper.selectById(o.elevatorId);
             String category = el == null ? "" : el.category;
@@ -509,7 +515,7 @@ public class WorkOrderService {
             throw new BizException(422, "关键项「" + name + "」为试验/测试/校验/检测类，必须至少附 1 张照片留证（TSG 注A-2）");
         }
         item.put("result", result);
-        item.put("value", body.get("value") != null ? ((Number) body.get("value")).doubleValue() : null);
+        item.put("value", parseNumeric(body.get("value"))); // M14：数字/数字字符串放行，非法类型 422
         item.put("valueText", strOrEmpty(body.get("valueText")));
         item.put("abnormalDesc", strOrEmpty(body.get("abnormalDesc")));
         item.put("skipReason", strOrEmpty(body.get("skipReason")));
@@ -630,8 +636,10 @@ public class WorkOrderService {
         r.retryCount = 0;
         r.nextMaintenanceDate = LocalDate.now(TimeUtil.ZONE).plusDays(interval);
         r.confirmStatus = "PENDING";
-        r.shareToken = "sg" + Long.toString(System.currentTimeMillis(), 36)
-                + Long.toString((long) (Math.random() * 1e8), 36);
+        // M7：SecureRandom 128bit——旧实现时间36进制+Math.random 可猜，令牌可写签名与满意度
+        byte[] shareTokenBytes = new byte[16];
+        SHARE_TOKEN_RANDOM.nextBytes(shareTokenBytes);
+        r.shareToken = "sg" + java.util.HexFormat.of().formatHex(shareTokenBytes);
         r.createdAt = TimeUtil.now();
         r.reportPayloadJson = JsonUtil.write(buildReportPayload(r, el, uu));
         r.previewContextJson = JsonUtil.write(buildPreviewContext(o, el, uu, items.size(), mustRun.size()));
@@ -884,6 +892,21 @@ public class WorkOrderService {
 
     static boolean isHttpUrl(String s) {
         return s != null && (s.startsWith("http://") || s.startsWith("https://"));
+    }
+
+    /** M14：检测数值接受 Number/数字字符串；其余 422（旧实现直接强转，前端传字符串即 500） */
+    private static Double parseNumeric(Object v) {
+        if (v == null) {
+            return null;
+        }
+        if (v instanceof Number n) {
+            return n.doubleValue();
+        }
+        try {
+            return Double.valueOf(String.valueOf(v));
+        } catch (NumberFormatException e) {
+            throw new BizException(422, "检测数值格式不正确");
+        }
     }
 
     @SuppressWarnings("unchecked")

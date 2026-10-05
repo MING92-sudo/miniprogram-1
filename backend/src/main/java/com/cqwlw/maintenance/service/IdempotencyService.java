@@ -9,6 +9,7 @@ import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 
 import java.util.Map;
+import java.time.temporal.ChronoUnit;
 
 /**
  * 写接口幂等：所有写接口携带 X-Idempotency-Key（AGENTS §3）。
@@ -32,8 +33,15 @@ public class IdempotencyService {
             return new Guard(null, exist.responseJson);
         }
         if (exist != null) {
-            // 首次请求仍在处理中：拒绝并发重复提交
+            // M4：无响应的悬挂记录（业务异常后未 commit）10 分钟过期放行，避免同 key 永久 422；
+            // 10 分钟内视为首次请求仍在处理中，拒绝并发重复提交
+            boolean stale = (exist.responseJson == null || exist.responseJson.isEmpty())
+                    && exist.createdAt != null
+                    && ChronoUnit.MINUTES.between(exist.createdAt, TimeUtil.now()) >= 10;
+            if (!stale) {
             throw new BizException(422, "相同请求正在处理，请勿重复提交");
+            }
+            mapper.deleteById(exist.idemKey);
         }
         IdempotencyKey row = new IdempotencyKey();
         row.idemKey = key;

@@ -73,6 +73,8 @@ app:
   cos-bucket: ${COS_BUCKET:7072-prod-d3gg6nba2f3160af9-1498557567}
   cos-auth-url: ${COS_AUTH_URL:http://api.weixin.qq.com/_/cos/getauth}
   file-storage-dir: ${FILE_STORAGE_DIR:${APP_FILE_ROOT:./data/files}}
+  # M8：配置后文件 URL 用该地址拼装（未配置沿用请求 Host，反向代理子路径部署建议配置）
+  public-base-url: ${APP_PUBLIC_BASE_URL:}
   # LBS 逆地址解析 key（前端不接触 key，docs/08 审查 #5）
   lbs-amap-key: ${LBS_AMAP_KEY:}
   lbs-tencent-key: ${LBS_TENCENT_KEY:}

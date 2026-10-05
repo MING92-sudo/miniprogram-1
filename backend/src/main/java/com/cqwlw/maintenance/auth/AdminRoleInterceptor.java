@@ -4,6 +4,7 @@ import com.cqwlw.maintenance.common.BizException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.stereotype.Component;
+import org.springframework.web.servlet.HandlerMapping;
 import org.springframework.web.servlet.HandlerInterceptor;
 
 /**
@@ -26,7 +27,10 @@ public class AdminRoleInterceptor implements HandlerInterceptor {
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
         String role = String.valueOf(request.getAttribute(AuthInterceptor.ATTR_ROLE));
-        String path = request.getRequestURI();
+        // M12：用 Spring 实际匹配的路由模式（与 Security/路由同源），getRequestURI 是原始未解码路径，
+        // 二者不同源在反向代理子路径部署时会错配；无 attribute 时回退（兼容单测/Filter 之前场景）
+        Object bestPattern = request.getAttribute(HandlerMapping.BEST_MATCHING_PATTERN_ATTRIBUTE);
+        String path = bestPattern != null ? String.valueOf(bestPattern) : request.getRequestURI();
         boolean write = !"GET".equals(request.getMethod());
         boolean allowed;
         if (!write && path.startsWith("/elevators")) {

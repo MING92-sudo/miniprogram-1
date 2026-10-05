@@ -32,6 +32,7 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -130,6 +131,25 @@ class WorkOrderWriteScopeTest {
         when(orderMapper.selectList(any())).thenReturn(List.of(
                 order(FOREIGN_ORDER, PID_ZHANG, "PROCESSING", TimeUtil.now().minusHours(2))));
         assertForbidden(() -> service.resolveByElevator("code_x", EMP_LI));
+    }
+
+    /** M14：检测数值接受数字字符串（前端可能传字符串），非法类型 422 而非 500 */
+    @Test
+    void itemValueAcceptsNumericStringButRejectsGarbage() {
+        Map<String, Object> ok = new java.util.HashMap<>();
+        ok.put("result", "NORMAL");
+        ok.put("value", "12.5");
+        service.submitItem(OWN_ORDER, "it_1", ok, EMP_LI);
+        org.mockito.ArgumentCaptor<WorkOrder> cap = org.mockito.ArgumentCaptor.forClass(WorkOrder.class);
+        verify(orderMapper).updateById(cap.capture());
+        assertTrue(cap.getValue().checklistJson.contains("12.5"), "字符串数值应被解析落库");
+
+        Map<String, Object> bad = new java.util.HashMap<>();
+        bad.put("result", "NORMAL");
+        bad.put("value", "abc");
+        BizException e = assertThrows(BizException.class,
+                () -> service.submitItem(OWN_ORDER, "it_1", bad, EMP_LI));
+        assertEquals(422, e.getCode());
     }
 
     @Test

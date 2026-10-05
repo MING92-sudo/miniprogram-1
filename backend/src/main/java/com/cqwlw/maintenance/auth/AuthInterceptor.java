@@ -36,12 +36,17 @@ public class AuthInterceptor implements HandlerInterceptor {
         String client = claims.get("client", String.class);
         String sid = claims.get("sid", String.class);
         com.cqwlw.maintenance.entity.Employee user = employeeMapper.selectById(claims.getSubject());
+        if (user == null) {
+            // M1：先判空再取字段——员工被删除/停用时返回 401（前端清登录态），而非 500
+            throw new BizException(401, "登录已过期，请重新登录");
+        }
         String current = "admin".equals(client) ? user.sessionAdmin : user.sessionId;
-        if (user == null || sid == null || !sid.equals(current)) {
+        if (sid == null || !sid.equals(current)) {
             throw new BizException(401, "账号已在其他设备登录，请重新登录");
         }
         request.setAttribute(ATTR_EMP_ID, claims.getSubject());
-        request.setAttribute(ATTR_ROLE, claims.get("role"));
+        // M2：角色以数据库为准——DB 降权/停用后旧 token 里的 role 不再生效
+        request.setAttribute(ATTR_ROLE, user.role);
         request.setAttribute(ATTR_OPENID, claims.get("openid"));
         return true;
     }

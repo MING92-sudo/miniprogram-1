@@ -115,7 +115,7 @@ public class FileStorageService {
             Path target = dir.resolve(objectKey.replace('/', '_'));
             file.transferTo(target.toAbsolutePath().toFile());
         }
-        String url = schemeHost + "/files/" + id;
+        String url = resolveBase(schemeHost) + "/files/" + id;
         AppFile f = new AppFile();
         f.id = id;
         f.objectKey = objectKey;
@@ -131,6 +131,12 @@ public class FileStorageService {
     public Path localPath(AppFile f) {
         return Paths.get(props.getFileStorageDir(), f.objectKey.replace('/', '_'))
                 .toAbsolutePath();
+    }
+
+    /** M8：配置 app.public-base-url 时用它拼文件 URL，忽略请求 Host（防 Host 头污染落库） */
+    private String resolveBase(String schemeHost) {
+        String configured = props.getPublicBaseUrl();
+        return configured != null && !configured.isEmpty() ? configured : schemeHost;
     }
 
     /**
@@ -187,7 +193,7 @@ public class FileStorageService {
         m.put("mode", cos ? "COS" : "LOCAL");
         m.put("dir", dir);
         m.put("maxAge", maxAge);
-        m.put("uploadUrl", schemeHost + "/files/upload");
+        m.put("uploadUrl", resolveBase(schemeHost) + "/files/upload");
         if (cos) {
             m.put("bucket", props.getCosBucket());
             m.put("region", props.getCosRegion());

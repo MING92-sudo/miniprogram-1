@@ -1,9 +1,11 @@
 package com.cqwlw.maintenance;
 
 import com.cqwlw.maintenance.auth.AdminRoleInterceptor;
+import com.cqwlw.maintenance.auth.AuthInterceptor;
 import com.cqwlw.maintenance.common.BizException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.web.servlet.HandlerMapping;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
@@ -27,8 +29,22 @@ class AdminRoleInterceptorTest {
         HttpServletRequest req = mock(HttpServletRequest.class);
         when(req.getMethod()).thenReturn(method);
         when(req.getRequestURI()).thenReturn(uri);
-        when(req.getAttribute(any())).thenReturn(role);
+        // M12：拦截器改读 BEST_MATCHING_PATTERN_ATTRIBUTE；单测以 uri 充当路由模式
+        when(req.getAttribute(HandlerMapping.BEST_MATCHING_PATTERN_ATTRIBUTE)).thenReturn(uri);
+        when(req.getAttribute(AuthInterceptor.ATTR_ROLE)).thenReturn(role);
         return req;
+    }
+
+    /** M12：路由模式与原始 URI 不同源时（如 %20 编码子路径），门禁按模式判定不误杀 */
+    @Test
+    void encodedUriStillMatchedByPattern() {
+        HttpServletRequest req = mock(HttpServletRequest.class);
+        when(req.getMethod()).thenReturn("POST");
+        when(req.getRequestURI()).thenReturn("/admin/plans/pl%201/delay");
+        when(req.getAttribute(HandlerMapping.BEST_MATCHING_PATTERN_ATTRIBUTE))
+                .thenReturn("/admin/plans/{id}/delay");
+        when(req.getAttribute(AuthInterceptor.ATTR_ROLE)).thenReturn("LEADER");
+        assertDoesNotThrow(() -> interceptor.preHandle(req, response, handler));
     }
 
     @Test

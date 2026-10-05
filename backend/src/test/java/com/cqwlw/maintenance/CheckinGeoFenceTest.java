@@ -124,6 +124,15 @@ class CheckinGeoFenceTest {
         assertEquals("PENDING", order.status, "拦截后不得改状态（无副作用）");
     }
 
+    /** M11：SELF_COLLECTED 基准由首个签到者自证回填，不作为围栏拦截依据（仅留痕） */
+    @Test
+    void selfCollectedBaselineDoesNotFence() {
+        elevator.geoStatus = "SELF_COLLECTED";
+        Map<String, Object> r = service.checkin(ORDER, body(EL_LAT + 0.01, EL_LNG), EMP);
+        assertEquals(Boolean.TRUE, r.get("passed"), "自证基准坐标只留痕不拦截（M11）");
+        assertEquals("PROCESSING", order.status);
+    }
+
     @Test
     void elevatorThresholdOverridesGlobalDefault() {
         elevator.checkinThreshold = 30;

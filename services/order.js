@@ -48,11 +48,13 @@ function runItemThisTime(orderId, itemId) {
 
 // 签退提交（后端自动转发平台 2.6，失败不自动重试）
 function checkout(orderId, data) {
-  return post(`/work-orders/${orderId}/checkout`, data)
+  return post(`/work-orders/${orderId}/checkout`, data,
+    { idempotencyKey: 'co_' + orderId })
 }
 
 // 手动重报平台 2.6（仅 uploadStatus=FAILED 的记录，docs/04 A.7 P3 修订）
 function retryRecordUpload(recordId) {
+  // 注意：此处不用稳定幂等键——重报必须真实重发，重放旧响应会吞掉重试
   return post(`/platform/records/${recordId}/reupload`, {})
 }
 

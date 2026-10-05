@@ -22,6 +22,8 @@ public class AppProperties {
     private String cosBucket;
     private String cosAuthUrl = "http://api.weixin.qq.com/_/cos/getauth";
     private String fileStorageDir = "./data/files";
+    /** M8：公网基础地址（如 https://api.example.com）；配置后文件 URL 不再从请求 Host 拼装，防 Host 头污染 */
+    private String publicBaseUrl;
     private String lbsAmapKey;
     private String lbsTencentKey;
 
@@ -38,6 +40,14 @@ public class AppProperties {
 
     public String getJwtSecret() {
         return jwtSecret;
+    }
+
+    public String getPublicBaseUrl() {
+        return publicBaseUrl;
+    }
+
+    public void setPublicBaseUrl(String publicBaseUrl) {
+        this.publicBaseUrl = publicBaseUrl;
     }
 
     public void setJwtSecret(String jwtSecret) {
