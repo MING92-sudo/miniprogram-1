@@ -1,6 +1,7 @@
 package com.cqwlw.maintenance.service;
 
 import com.cqwlw.maintenance.common.Ids;
+import com.cqwlw.maintenance.common.BizException;
 import com.cqwlw.maintenance.config.AppProperties;
 import com.cqwlw.maintenance.entity.AppFile;
 import com.cqwlw.maintenance.mapper.AppFileMapper;
@@ -34,6 +35,7 @@ import java.nio.file.Paths;
 import java.time.LocalDate;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * 文件存储（P4 STS 直传前的代理上传方案，Q6=A 决策）：
@@ -91,7 +93,13 @@ public class FileStorageService {
 
     /** 上传并落库，返回 { fileId, url }（前端 uploadImage 契约） */
     public AppFile store(MultipartFile file, String schemeHost) throws IOException {
-        String ext = extOf(file.getOriginalFilename());
+        // C1/M9：扩展名+contentType 双白名单（jpg/png/webp/pdf，覆盖 2.3 合同/2.4 证书 PDF），
+        // 拒绝 html/svg 等可执行类型落库，阻断存储型 XSS 与任意类型上传
+        String declaredExt = ALLOWED_CONTENT_TYPES.get(file.getContentType());
+        String ext = extOf(file.getOriginalFilename()).toLowerCase();
+        if (declaredExt == null || !ALLOWED_EXTS.contains(ext)) {
+            throw new BizException(422, "不支持的文件类型（仅允许 jpg/png/webp/pdf）");
+        }
         String id = Ids.next("file");
         String objectKey = LocalDate.now(TimeUtil.ZONE) + "/" + id + ext;
         // 统一同源 /files/{id} 地址：公网域名可达，小程序/管理端/PDF 后端均可直接读取；
@@ -228,6 +236,14 @@ public class FileStorageService {
         int dot = name.lastIndexOf('.');
         return dot > -1 ? name.substring(dot) : "";
     }
+
+    /** 上传白名单：contentType → 规范扩展名；扩展名额外放宽 .jpeg 等价写法 */
+    private static final Map<String, String> ALLOWED_CONTENT_TYPES = Map.of(
+            "image/jpeg", ".jpg",
+            "image/png", ".png",
+            "image/webp", ".webp",
+            "application/pdf", ".pdf");
+    private static final Set<String> ALLOWED_EXTS = Set.of(".jpg", ".jpeg", ".png", ".webp", ".pdf");
 
     /**
      * 云托管内网临时凭证提供器：GET /cos/getauth 换取临时密钥，缓存至过期前 5 分钟。

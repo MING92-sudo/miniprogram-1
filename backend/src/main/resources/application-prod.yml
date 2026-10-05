@@ -1,0 +1,5 @@
+# 生产 profile（SPRING_PROFILES_ACTIVE=prod）：
+# C4：JWT 密钥不带默认值——JWT_SECRET 未注入时占位符解析失败，容器启动即失败（fail-closed）
+app:
+  jwt-secret: ${JWT_SECRET}
+  jwt-expire-hours: ${JWT_EXPIRE_HOURS:24}

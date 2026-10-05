@@ -57,7 +57,8 @@ app:
   # 云托管免鉴权注入 X-WX-OPENID；本地开发无该头时用 dev_openid 兜底
   dev-openid: ${DEV_OPENID:dev_openid}
   # 演示种子数据（生产置 false）
-  seed-demo-data: ${SEED_DEMO_DATA:${DB_SEED_DEMO:true}}
+  # C5：默认关闭——生产首启不得自动写入弱口令账号与假电梯（虚假数据风险）
+  seed-demo-data: ${SEED_DEMO_DATA:${DB_SEED_DEMO:false}}
   # 作业时长下限（分钟，签到→签退；业主补充规则，上线前待业务/合规确认）。测试跑通签退流程可临时置 0/1。
   work-duration-minutes: ${APP_WORK_DURATION_MINUTES:30}
   # 签到定位阈值全局默认（米）：电梯级 elevator.checkin_threshold 优先；坐标未登记则不拦截只留痕（docs/02 §5.4）

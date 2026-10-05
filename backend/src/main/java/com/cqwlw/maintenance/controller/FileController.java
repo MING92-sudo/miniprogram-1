@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.nio.file.Files;
+import java.util.Set;
 import java.util.Map;
 
 /**
@@ -23,6 +24,10 @@ import java.util.Map;
  */
 @RestController
 public class FileController {
+
+    /** 允许按原 contentType 内联下发的类型（与上传白名单一致） */
+    private static final Set<String> SERVEABLE_TYPES = Set.of(
+            "image/jpeg", "image/png", "image/webp", "application/pdf");
 
     private final FileStorageService fileStorageService;
     private final AppFileMapper fileMapper;
@@ -55,9 +60,14 @@ public class FileController {
         if (data == null) {
             throw new BizException(1404, "文件不存在");
         }
+        // C1：仅白名单类型按原 contentType 下发（图片内联展示/PDF 预览），其余一律 octet-stream，
+        // 并强制 nosniff，防止客户端可控 contentType 被浏览器执行（存储型 XSS）
+        String ct = f.contentType == null ? "" : f.contentType;
+        MediaType mediaType = SERVEABLE_TYPES.contains(ct)
+                ? MediaType.parseMediaType(ct) : MediaType.APPLICATION_OCTET_STREAM;
         return ResponseEntity.ok()
-                .contentType(MediaType.parseMediaType(
-                        f.contentType == null ? "application/octet-stream" : f.contentType))
+                .header("X-Content-Type-Options", "nosniff")
+                .contentType(mediaType)
                 .contentLength(data.length)
                 .body(data);
     }

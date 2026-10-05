@@ -1,9 +1,7 @@
 package com.cqwlw.maintenance.common;
 
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.UUID;
 
 /**
  * ID 生成：与 mock 前缀风格一致（wo_/ur_/msg_...）；
@@ -11,7 +9,6 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 public final class Ids {
 
-    private static final DateTimeFormatter TS = DateTimeFormatter.ofPattern("yyMMddHHmmss");
     /** originalRecordId 同毫秒内序号（保证任意连续 100 个 ID 互不相同） */
     private static final AtomicInteger RECORD_SEQ = new AtomicInteger();
 
@@ -19,9 +16,8 @@ public final class Ids {
     }
 
     public static String next(String prefix) {
-        String t = LocalDateTime.now().format(TS);
-        int rnd = ThreadLocalRandom.current().nextInt(1000, 9999);
-        return prefix + "_" + t + rnd;
+        // C2：UUID 不可枚举——旧实现（秒级时间戳+9000 随机数）可被批量猜出文件 ID
+        return prefix + "_" + UUID.randomUUID().toString().replace("-", "");
     }
 
     /**

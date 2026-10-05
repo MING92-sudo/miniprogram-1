@@ -11,7 +11,7 @@ public class AppProperties {
     private String jwtSecret;
     private int jwtExpireHours = 72;
     private String devOpenid = "dev_openid";
-    private boolean seedDemoData = true;
+    private boolean seedDemoData = false; // C5：默认不播种，与 yml 默认一致
     /** 作业时长下限（分钟，签到→签退）；默认 30，测试可临时调小（APP_WORK_DURATION_MINUTES） */
     private int workDurationMinutes = 30;
     /** 签到定位阈值全局默认（米）；电梯级 elevator.checkin_threshold 优先（docs/02 §5.4） */

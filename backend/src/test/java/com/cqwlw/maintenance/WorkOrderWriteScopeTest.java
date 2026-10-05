@@ -59,6 +59,7 @@ class WorkOrderWriteScopeTest {
     private static final String CHECKLIST = "[{\"id\":\"it_1\",\"name\":\"曳引机\",\"isKey\":false,\"photoRequired\":false}]";
 
     private WorkOrderMapper orderMapper;
+    private ElevatorMapper elevatorMapper;
     private MaintainRecordMapper recordMapper;
     private PlatformReportService reportService;
     private WorkOrderService service;
@@ -69,11 +70,12 @@ class WorkOrderWriteScopeTest {
         recordMapper = mock(MaintainRecordMapper.class);
         reportService = mock(PlatformReportService.class);
         EmployeeMapper employeeMapper = mock(EmployeeMapper.class);
-        service = new WorkOrderService(orderMapper, mock(ElevatorMapper.class), mock(UseUnitMapper.class),
+        elevatorMapper = mock(ElevatorMapper.class);
+        service = new WorkOrderService(orderMapper, elevatorMapper, mock(UseUnitMapper.class),
                 employeeMapper, mock(CompanyMapper.class), recordMapper, mock(FaultMapper.class),
                 mock(InspectRecordMapper.class), mock(ChecklistService.class), mock(DispatchService.class),
                 reportService, new EmployeeScopeService(employeeMapper),
-                new CheckinThresholdService(mock(SysParamMapper.class), new AppProperties()), mock(FileStorageService.class), new AppProperties());
+                new CheckinThresholdService(mock(SysParamMapper.class), new AppProperties()), mock(FileStorageService.class), TxTestSupport.noopTx(), new AppProperties());
 
         when(orderMapper.selectById(FOREIGN_ORDER))
                 .thenReturn(order(FOREIGN_ORDER, PID_ZHANG, "PROCESSING", TimeUtil.now().minusHours(2)));
@@ -117,6 +119,17 @@ class WorkOrderWriteScopeTest {
         verify(orderMapper, never()).updateById(any(WorkOrder.class));
         verify(recordMapper, never()).insert(any(MaintainRecord.class));
         verify(reportService, never()).attemptUpload(any());
+    }
+
+    /** C3：resolve-by-elevator 同样须过归属校验——凭电梯编码不得读取他班组工单全量信息 */
+    @Test
+    void workerCannotResolveForeignOrderByElevatorCode() {
+        com.cqwlw.maintenance.entity.Elevator el = new com.cqwlw.maintenance.entity.Elevator();
+        el.id = "el_1";
+        when(elevatorMapper.selectOne(any())).thenReturn(el);
+        when(orderMapper.selectList(any())).thenReturn(List.of(
+                order(FOREIGN_ORDER, PID_ZHANG, "PROCESSING", TimeUtil.now().minusHours(2))));
+        assertForbidden(() -> service.resolveByElevator("code_x", EMP_LI));
     }
 
     @Test

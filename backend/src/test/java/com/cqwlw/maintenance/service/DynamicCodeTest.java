@@ -2,6 +2,7 @@ package com.cqwlw.maintenance.service;
 
 import com.cqwlw.maintenance.common.BizException;
 import com.cqwlw.maintenance.config.AppProperties;
+import com.cqwlw.maintenance.TxTestSupport;
 import com.cqwlw.maintenance.entity.Employee;
 import com.cqwlw.maintenance.entity.WorkOrder;
 import com.cqwlw.maintenance.mapper.CompanyMapper;
@@ -62,7 +63,7 @@ class DynamicCodeTest {
                 mock(FaultMapper.class), mock(InspectRecordMapper.class), mock(ChecklistService.class),
                 mock(DispatchService.class), mock(PlatformReportService.class),
                 new EmployeeScopeService(employeeMapper),
-                new CheckinThresholdService(mock(SysParamMapper.class), props), mock(FileStorageService.class), props);
+                new CheckinThresholdService(mock(SysParamMapper.class), props), mock(FileStorageService.class), TxTestSupport.noopTx(), props);
 
         order = order(ORDER);
         when(orderMapper.selectById(ORDER)).thenReturn(order);

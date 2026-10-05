@@ -73,7 +73,7 @@ class CheckinGeoFenceTest {
                 mock(FaultMapper.class), mock(InspectRecordMapper.class), mock(ChecklistService.class),
                 mock(DispatchService.class), mock(PlatformReportService.class),
                 new EmployeeScopeService(employeeMapper),
-                new CheckinThresholdService(mock(SysParamMapper.class), props), mock(FileStorageService.class), props);
+                new CheckinThresholdService(mock(SysParamMapper.class), props), mock(FileStorageService.class), TxTestSupport.noopTx(), props);
 
         order = new WorkOrder();
         order.id = ORDER;

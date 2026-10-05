@@ -22,6 +22,7 @@ import com.cqwlw.maintenance.mapper.WorkOrderMapper;
 import com.cqwlw.maintenance.util.GeoUtil;
 import com.cqwlw.maintenance.util.JsonUtil;
 import com.cqwlw.maintenance.util.TimeUtil;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -67,6 +68,7 @@ public class WorkOrderService {
     private final CheckinThresholdService thresholdService;
     private final com.cqwlw.maintenance.config.AppProperties props;
     private final FileStorageService fileStorage;
+    private final TransactionTemplate transactionTemplate;
 
     public WorkOrderService(WorkOrderMapper orderMapper, ElevatorMapper elevatorMapper,
                             UseUnitMapper useUnitMapper, EmployeeMapper employeeMapper,
@@ -77,6 +79,7 @@ public class WorkOrderService {
                             EmployeeScopeService scopeService,
                             CheckinThresholdService thresholdService,
                             FileStorageService fileStorage,
+                            TransactionTemplate transactionTemplate,
                             com.cqwlw.maintenance.config.AppProperties props) {
         this.orderMapper = orderMapper;
         this.elevatorMapper = elevatorMapper;
@@ -92,6 +95,7 @@ public class WorkOrderService {
         this.scopeService = scopeService;
         this.thresholdService = thresholdService;
         this.fileStorage = fileStorage;
+        this.transactionTemplate = transactionTemplate;
         this.props = props;
     }
 
@@ -264,7 +268,7 @@ public class WorkOrderService {
         }
     }
 
-    public Map<String, Object> resolveByElevator(String elevatorCode) {
+    public Map<String, Object> resolveByElevator(String elevatorCode, String empId) {
         dispatchService.ensureDueOrders();
         Elevator el = elevatorMapper.selectOne(new LambdaQueryWrapper<Elevator>()
                 .eq(Elevator::getElevatorCode, elevatorCode).last("LIMIT 1"));
@@ -277,6 +281,7 @@ public class WorkOrderService {
         if (o == null) {
             throw new BizException(1404, "该电梯暂无进行中的工单");
         }
+        requireOrderScope(o, empId); // C3：与其它端点同样校验班组归属，防跨班组越权读取
         return toMap(o, true);
     }
 
@@ -571,7 +576,6 @@ public class WorkOrderService {
         o.originalRecordId = Ids.nextRecordId();
         o.reportStatus = "SUBMITTED";
         o.duration = TimeUtil.formatDuration(TimeUtil.toMillis(checkoutTime) - TimeUtil.toMillis(o.checkinTime));
-        orderMapper.updateById(o);
 
         Elevator el = elevatorMapper.selectById(o.elevatorId);
         UseUnit uu = el == null || el.useUnitId == null ? null : useUnitMapper.selectById(el.useUnitId);
@@ -631,19 +635,23 @@ public class WorkOrderService {
         r.createdAt = TimeUtil.now();
         r.reportPayloadJson = JsonUtil.write(buildReportPayload(r, el, uu));
         r.previewContextJson = JsonUtil.write(buildPreviewContext(o, el, uu, items.size(), mustRun.size()));
-        recordMapper.insert(r);
+        // B3：本地落库原子化（工单 DONE + 维保记录 + 电梯滚动）——任一失败全部回滚，
+        // 避免"工单已完成但记录丢失"的合规证据链断裂；平台上传移出事务避免长事务持锁
+        transactionTemplate.executeWithoutResult(tx -> {
+            orderMapper.updateById(o);
+            recordMapper.insert(r);
+            if (el != null) {
+                el.nextMaintenanceDate = r.nextMaintenanceDate;
+                el.lastMaintenanceAt = r.checkoutTime;
+                elevatorMapper.updateById(el);
+            }
+        });
         // P3：签退成功后自动转发平台 2.6（失败不自动重试，AGENTS §2.3；
         // 平台凭证未配置时保持 SUBMITTED=待上报，本地/演示流程不受影响）
         r.reportStatus = reportService.attemptUpload(r);
         recordMapper.updateById(r);
         o.reportStatus = r.reportStatus;
         orderMapper.updateById(o);
-        // 下次维保时间随最近一次维保自动滚动；最后维保时间同步（一梯一档台账口径）
-        if (el != null) {
-            el.nextMaintenanceDate = r.nextMaintenanceDate;
-            el.lastMaintenanceAt = r.checkoutTime;
-            elevatorMapper.updateById(el);
-        }
 
         return JsonUtil.map(
                 "workOrderId", o.id,
@@ -659,7 +667,9 @@ public class WorkOrderService {
      * 2.6 只收汇总字段，预览需要地址/单位/人员手机号/签到经纬度/条目总数等本地留痕信息。
      */
     Map<String, Object> buildPreviewContext(WorkOrder o, Elevator el, UseUnit uu, int itemTotal, int itemExecuted) {
-        Company c = companyMapper.selectList(null).stream().findFirst().orElse(new Company());
+        // B2：单维保单位约定下取唯一档案；表空即建档缺失，宁可中断也不上报空负责人
+        Company c = companyMapper.selectList(null).stream().findFirst()
+                .orElseThrow(() -> new BizException(422, "维保单位档案未配置，无法生成上报数据"));
         Map<String, Object> ctx = new LinkedHashMap<>();
         ctx.put("address", el == null ? "" : nz(el.location));
         ctx.put("useUnitName", uu == null ? "" : nz(uu.unitName));
@@ -700,14 +710,16 @@ public class WorkOrderService {
 
     /** 平台 2.6 报文快照（20 字段冻结；workMeneger 拼写按规范原文，docs/04 B.6） */
     Map<String, Object> buildReportPayload(MaintainRecord r, Elevator el, UseUnit uu) {
-        Company c = companyMapper.selectList(null).stream().findFirst().orElse(new Company());
+        // B2：单维保单位约定下取唯一档案；表空即建档缺失，宁可中断也不上报空负责人
+        Company c = companyMapper.selectList(null).stream().findFirst()
+                .orElseThrow(() -> new BizException(422, "维保单位档案未配置，无法生成上报数据"));
+        // B1：按平台人员 ID 强关联取本人手机号——禁止按姓名/任意 WORKER 兜底，
+        // 否则会把 B 的手机号随 A 的姓名冻结进 2.6 报文（虚假数据上平台，AGENTS §6）
         String recorderPhone = employeeMapper.selectList(new LambdaQueryWrapper<Employee>()
-                .eq(Employee::getName, r.workerName)).stream().findFirst()
-                .map(e -> e.phone).orElse("");
+                .eq(Employee::getPlatformId, r.workerPlatformId)).stream().findFirst()
+                .map(e -> nz(e.phone)).orElse("");
         if (recorderPhone.isEmpty()) {
-            recorderPhone = employeeMapper.selectList(new LambdaQueryWrapper<Employee>()
-                    .eq(Employee::getRole, "WORKER")).stream().findFirst()
-                    .map(e -> e.phone).orElse("");
+            throw new BizException(422, "员工平台人员ID未关联或缺少手机号，无法上报");
         }
         Map<String, Object> p = new LinkedHashMap<>();
         p.put("elevatorCode", nz(r.elevatorCode));

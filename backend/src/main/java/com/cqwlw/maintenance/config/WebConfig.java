@@ -35,7 +35,8 @@ public class WebConfig implements WebMvcConfigurer {
                         "/auth/login", "/auth/wx-login", "/auth/bind-wechat",
                         "/auth/bind-employee", "/auth/bind-use-unit", "/auth/logout",
                         "/unit/records/*/sign-view", "/unit/records/*/confirm-by-token",
-                        "/files/upload", "/files/*", "/location/reverse",
+                        // C1：/files/upload 纳入鉴权（未登录不得写入）；/files/* 仍公开读（ID 已改 UUID 不可枚举）
+                        "/files/*", "/location/reverse",
                         "/", "/index.html", "/assets/**", "/favicon.ico"
                 );
         // 顺序在鉴权之后：依赖 AuthInterceptor 写入的 role attribute

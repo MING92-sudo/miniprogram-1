@@ -58,12 +58,13 @@ public class WorkOrderController {
 
     @PostMapping("/work-orders/resolve-by-elevator")
     public ApiResponse<Object> resolveByElevator(@RequestBody Map<String, Object> body,
-                                                 @RequestHeader(value = "X-Idempotency-Key", required = false) String idemKey) {
+                                                 @RequestHeader(value = "X-Idempotency-Key", required = false) String idemKey,
+                                                 HttpServletRequest request) {
         IdempotencyService.Guard guard = idempotencyService.begin(idemKey, "/work-orders/resolve-by-elevator");
         if (guard.replayed()) {
             return ApiResponse.ok(guard.replayedResult());
         }
-        Map<String, Object> result = workOrderService.resolveByElevator(str(body.get("elevatorCode")));
+        Map<String, Object> result = workOrderService.resolveByElevator(str(body.get("elevatorCode")), empId(request));
         guard.commit(result);
         return ApiResponse.ok(result);
     }

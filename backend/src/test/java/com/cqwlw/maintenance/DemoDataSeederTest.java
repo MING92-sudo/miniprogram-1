@@ -46,6 +46,12 @@ import static org.mockito.Mockito.when;
  */
 class DemoDataSeederTest {
 
+    /** C5：种子默认必须关闭——生产首启不得自动写入弱口令账号与假电梯 */
+    @Test
+    void seedDemoDataDefaultsToFalse() {
+        assertFalse(new AppProperties().isSeedDemoData());
+    }
+
     private EmployeeMapper employeeMapper;
     private ElevatorMapper elevatorMapper;
     private WorkOrderMapper orderMapper;
