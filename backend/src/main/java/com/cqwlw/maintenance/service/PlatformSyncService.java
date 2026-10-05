@@ -158,7 +158,13 @@ public class PlatformSyncService {
         int n = 0;
         Company c = companyMapper.selectList(null).stream().findFirst().orElse(null);
         if (c != null && c.organizationCode != null) {
-            c.entityId = platformClient.queryEntityId(c.organizationCode, c.name);
+            Map<String, Object> entity = platformClient.queryEntity(c.organizationCode, c.name);
+            c.entityId = String.valueOf(entity.get("entityID"));
+            // 维保单位名称以平台 2.2 返回为准（2026-10-05 用户确认）
+            String platformName = entity.get("unitName") == null ? "" : String.valueOf(entity.get("unitName"));
+            if (!platformName.isEmpty()) {
+                c.name = platformName;
+            }
             companyMapper.updateById(c);
             n++;
         }

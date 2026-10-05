@@ -58,6 +58,12 @@ public class PlatformClient {
 
     /** 2.2 通用主体查询：返回 data[0].entityID（实测业务数据在 data 数组中） */
     public String queryEntityId(String organizationCode, String unitName) {
+        return String.valueOf(queryEntity(organizationCode, unitName).get("entityID"));
+    }
+
+    /** 2.2 通用主体查询：返回 data[0] 原始记录（entityID/unitName/organizationCode）——unitName 为平台侧权威单位名称 */
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> queryEntity(String organizationCode, String unitName) {
         MultiValueMap<String, String> form = new org.springframework.util.LinkedMultiValueMap<>();
         form.add("organizationCode", organizationCode);
         if (unitName != null && !unitName.isEmpty()) {
@@ -67,7 +73,7 @@ public class PlatformClient {
         Object data = body.get("data");
         if (data instanceof List<?> list && !list.isEmpty()
                 && list.get(0) instanceof Map<?, ?> first && first.get("entityID") != null) {
-            return String.valueOf(first.get("entityID"));
+            return (Map<String, Object>) first;
         }
         throw new BizException(404, "平台未查询到该单位主体，请核对单位名称与统一社会信用代码");
     }

@@ -31,8 +31,14 @@ class RecordPdfServiceTest {
 
     @BeforeEach
     void setUp() {
+        com.cqwlw.maintenance.entity.Company company = new com.cqwlw.maintenance.entity.Company();
+        company.name = "重庆博威电梯有限公司"; // 2.2 平台回填后的本单位名称
+        com.cqwlw.maintenance.mapper.CompanyMapper companyMapper =
+                mock(com.cqwlw.maintenance.mapper.CompanyMapper.class);
+        org.mockito.Mockito.when(companyMapper.selectList(org.mockito.ArgumentMatchers.any()))
+                .thenReturn(java.util.List.of(company));
         service = new RecordPdfService(new RestTemplate(), mock(AppFileMapper.class),
-                mock(FileStorageService.class)) {
+                mock(FileStorageService.class), companyMapper) {
             @Override
             protected byte[] loadImage(String url) {
                 return url == null || url.isBlank() ? null : TINY_PNG.clone();

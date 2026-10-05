@@ -1,10 +1,12 @@
 package com.cqwlw.maintenance.service;
 
 import com.cqwlw.maintenance.entity.AppFile;
+import com.cqwlw.maintenance.entity.Company;
 import com.cqwlw.maintenance.entity.Elevator;
 import com.cqwlw.maintenance.entity.MaintainRecord;
 import com.cqwlw.maintenance.entity.UseUnit;
 import com.cqwlw.maintenance.mapper.AppFileMapper;
+import com.cqwlw.maintenance.mapper.CompanyMapper;
 import com.cqwlw.maintenance.util.JsonUtil;
 import com.cqwlw.maintenance.util.TimeUtil;
 import com.lowagie.text.Document;
@@ -46,12 +48,14 @@ public class RecordPdfService {
     private final RestTemplate restTemplate;
     private final AppFileMapper fileMapper;
     private final FileStorageService fileStorage;
+    private final CompanyMapper companyMapper;
 
     public RecordPdfService(RestTemplate restTemplate, AppFileMapper fileMapper,
-                            FileStorageService fileStorage) {
+                            FileStorageService fileStorage, CompanyMapper companyMapper) {
         this.restTemplate = restTemplate;
         this.fileMapper = fileMapper;
         this.fileStorage = fileStorage;
+        this.companyMapper = companyMapper;
     }
 
     public byte[] render(MaintainRecord r, Elevator el, UseUnit uu) {
@@ -604,8 +608,12 @@ public class RecordPdfService {
         return s == null ? "" : s;
     }
 
-    /** 维保单位名称：取签退冻结的预览上下文（buildPreviewContext 冻结 companyName），缺失时占位 */
+    /** 维保单位名称：取维保单位档案（名称经 2.2 以平台返回为准回填），回退签退冻结值，缺失时占位 */
     private String companyNameOf(MaintainRecord r) {
+        Company c = companyMapper.selectList(null).stream().findFirst().orElse(null);
+        if (c != null && notBlank(c.name)) {
+            return c.name;
+        }
         try {
             if (r.previewContextJson != null && !r.previewContextJson.isEmpty()) {
                 String name = str(JsonUtil.readMap(r.previewContextJson).get("companyName"));
