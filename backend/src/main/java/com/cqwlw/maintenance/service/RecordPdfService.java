@@ -181,28 +181,23 @@ public class RecordPdfService {
             issue.addCell(longTextCell(todo.isEmpty() ? "无待办，销项后归档" : todo, value, 3));
             doc.add(issue);
 
-            // ── 现场照片：2 列网格，位于待办事项与签字之间（2026-10-05 用户指定版式） ──
+            // ── 现场照片：2 列网格，格子数随照片数量自适应（无照片不渲染；奇数张末格跨两列） ──
             List<String> photoUrls = r.photosJson == null ? List.of()
                     : JsonUtil.readStringList(r.photosJson);
-            int slots = Math.max(4, (photoUrls.size() + 1) / 2 * 2);
-            PdfPTable photoGrid = new PdfPTable(2);
-            photoGrid.setWidthPercentage(100);
-            photoGrid.setSpacingBefore(4);
-            photoGrid.setSpacingAfter(6);
-            java.awt.Color placeholderGray = new java.awt.Color(150, 150, 150);
-            for (int i = 0; i < slots; i++) {
-                if (i < photoUrls.size()) {
-                    photoGrid.addCell(photoCell(photoUrls.get(i), small));
-                } else {
-                    PdfPCell ph = new PdfPCell(new Phrase("照片 " + (i + 1), font(8, Font.NORMAL, placeholderGray)));
-                    ph.setMinimumHeight(60);
-                    ph.setPadding(6);
-                    ph.setHorizontalAlignment(Element.ALIGN_CENTER);
-                    ph.setVerticalAlignment(Element.ALIGN_MIDDLE);
-                    photoGrid.addCell(ph);
+            if (!photoUrls.isEmpty()) {
+                PdfPTable photoGrid = new PdfPTable(2);
+                photoGrid.setWidthPercentage(100);
+                photoGrid.setSpacingBefore(4);
+                photoGrid.setSpacingAfter(6);
+                for (int i = 0; i < photoUrls.size(); i++) {
+                    PdfPCell pc = photoCell(photoUrls.get(i), small);
+                    if (i == photoUrls.size() - 1 && photoUrls.size() % 2 == 1) {
+                        pc.setColspan(2); // 奇数张：末张独占一行
+                    }
+                    photoGrid.addCell(pc);
                 }
+                doc.add(photoGrid);
             }
-            doc.add(photoGrid);
 
             PdfPTable signs = new PdfPTable(3);
             signs.setWidthPercentage(100);
