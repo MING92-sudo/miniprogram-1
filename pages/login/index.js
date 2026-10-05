@@ -2,40 +2,10 @@
 // 登录成功后绑定微信（wx.login → /auth/bind-wechat），下次可微信一键登录（P2）
 const auth = require('../../services/auth')
 const { isLoggedIn } = require('../../utils/auth')
-const { uuid } = require('../../utils/util')
 
-// 记住密码（docs/01 §10.1 3.1 / docs/03 §5.6）：仅当前设备生效。
-// 小程序无系统级密钥库，这里用「安装期随机设备密钥 + XOR + 十六进制」避免明文落盘，
-// 属本机混淆而非强加密：清除缓存/换设备即失效，密钥与密文都只存本机 Storage（不上传）。
+// 记住账号（docs/01 §10.1 3.1 / docs/03 §5.6）：仅当前设备生效。
+// Minor5：密码不落盘（XOR 混淆密钥与密文同存 Storage 等价明文），只记账号。
 const REMEMBER_KEY = 'em_remember_login'
-const DEVICE_KEY = 'em_device_key'
-
-function deviceKey() {
-  let k = wx.getStorageSync(DEVICE_KEY)
-  if (!k) {
-    k = uuid()
-    wx.setStorageSync(DEVICE_KEY, k)
-  }
-  return k
-}
-
-function obfuscate(text) {
-  const k = deviceKey()
-  let hex = ''
-  for (let i = 0; i < text.length; i++) {
-    hex += ('0000' + (text.charCodeAt(i) ^ k.charCodeAt(i % k.length)).toString(16)).slice(-4)
-  }
-  return hex
-}
-
-function deobfuscate(hex) {
-  const k = deviceKey()
-  let out = ''
-  for (let i = 0; i + 4 <= String(hex).length; i += 4) {
-    out += String.fromCharCode(parseInt(hex.slice(i, i + 4), 16) ^ k.charCodeAt((i / 4) % k.length))
-  }
-  return out
-}
 
 Page({
   data: {
@@ -50,23 +20,17 @@ Page({
   onLoad() {
     // 已登录直接进首页。onLoad 阶段发起 switchTab 会与初始路由竞态（routeDone 错误），延迟到 onReady
     this._signedIn = isLoggedIn()
-    // 记住密码：回填本机保存的账号与密码（混淆存储，仅当前设备）
+    // 记住账号：回填本机保存的账号（密码不落盘）
     const saved = wx.getStorageSync(REMEMBER_KEY)
     if (saved && saved.phone) {
-      let password = ''
-      try {
-        password = deobfuscate(saved.pwd || '')
-      } catch (e) {
-        password = ''
-      }
-      this.setData({ phone: saved.phone, password: password, remember: true })
+      this.setData({ phone: saved.phone, remember: true })
     }
   },
 
   toggleRemember() {
     const remember = !this.data.remember
     this.setData({ remember: remember })
-    // 取消勾选即清除本机保存的账号密码（docs/03 §5.6：不勾选不保存）
+    // 取消勾选即清除本机保存的账号（docs/03 §5.6：不勾选不保存）
     if (!remember) wx.removeStorageSync(REMEMBER_KEY)
   },
 
@@ -112,9 +76,9 @@ Page({
       const data = await auth.accountLogin(phone, this.data.password)
       auth.applyLoginResult(data)
       getApp().setAuth(data)
-      // 登录成功后再落盘：避免记住无效凭据
+      // 登录成功后再落盘：只记账号，密码不落盘（Minor5）
       if (this.data.remember) {
-        wx.setStorageSync(REMEMBER_KEY, { phone: phone, pwd: obfuscate(this.data.password) })
+        wx.setStorageSync(REMEMBER_KEY, { phone: phone })
       } else {
         wx.removeStorageSync(REMEMBER_KEY)
       }

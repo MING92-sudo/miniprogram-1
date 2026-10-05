@@ -36,10 +36,10 @@
       <text class="eye" bindtap="togglePassword">👁</text>
     </view>
     <view class="login-opts">
-      <!-- 记住密码：本机混淆存储，仅当前设备（docs/03 §5.6） -->
-      <view class="remember" bindtap="toggleRemember">
-        <text class="checkbox">{{remember ? '☑' : '☐'}}</text>
-        <text>记住密码</text>
+<!-- 记住账号：仅本机存储，密码不落盘（docs/03 §5.6） -->
+<view class="remember" bindtap="toggleRemember">
+<text class="checkbox">{{remember ? '☑' : '☐'}}</text>
+<text>记住账号</text>
       </view>
       <view class="forgot" bindtap="forgotPassword">忘记密码？</view>
     </view>

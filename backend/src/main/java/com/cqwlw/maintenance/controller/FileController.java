@@ -56,6 +56,10 @@ public class FileController {
         if (f == null) {
             throw new BizException(1404, "文件不存在");
         }
+        // Minor1：全量读入内存前限制大小（与 multipart 上限一致 20MB），防并发下载内存压力
+        if (f.sizeBytes != null && f.sizeBytes > 20L * 1024 * 1024) {
+            throw new BizException(422, "文件过大，暂不支持在线读取");
+        }
         byte[] data = fileStorageService.readBytes(f);
         if (data == null) {
             throw new BizException(1404, "文件不存在");

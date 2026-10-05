@@ -29,6 +29,8 @@ class FileStorageServiceStsTest {
         AppProperties p = new AppProperties();
         p.setCosBucket("7072-prod-d3gg6nba2f3160af9-1498557567");
         p.setCosRegion("ap-shanghai");
+        // Minor3：Java 侧不再带默认值——yml 绑定注入（此处显式模拟 yml 默认）
+        p.setCosAuthUrl("http://api.weixin.qq.com/_/cos/getauth");
         Map<String, Object> m = service(p).stsDirective("checkin/20260928/", 1800, "http://x");
         assertEquals("COS", m.get("mode"));
         assertEquals("7072-prod-d3gg6nba2f3160af9-1498557567", m.get("bucket"));

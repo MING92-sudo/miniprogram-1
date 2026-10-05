@@ -107,9 +107,10 @@ const routes = [
     if (!p) throw { code: 1404, message: '电梯不存在' }
     return p
   }],
-  ['POST', '/work-orders/resolve-by-elevator', ({ body }) => {
+  // Minor7：只读查询改 GET（与后端 2026-10-05 整改一致）
+  ['GET', '/work-orders/resolve-by-elevator', ({ query }) => {
     d.ensureDueOrders()
-    const el = d.getElevatorByCode(body.elevatorCode)
+    const el = d.getElevatorByCode(query.elevatorCode)
     if (!el) throw { code: 1404, message: '未识别的电梯二维码' }
     const order = d.db.orders.find((o) => o.elevatorId === el.id && o.status !== 'DONE')
     if (!order) throw { code: 1404, message: '该电梯暂无进行中的工单' }

@@ -20,7 +20,7 @@ public class AppProperties {
     private String cosSecretKey;
     private String cosRegion;
     private String cosBucket;
-    private String cosAuthUrl = "http://api.weixin.qq.com/_/cos/getauth";
+    private String cosAuthUrl; // Minor3：默认值只保留 yml 一处
     private String fileStorageDir = "./data/files";
     /** M8：公网基础地址（如 https://api.example.com）；配置后文件 URL 不再从请求 Host 拼装，防 Host 头污染 */
     private String publicBaseUrl;

@@ -13,7 +13,7 @@ function getOrderDetail(orderId) {
 
 // 扫码识别电梯 → 关联工单
 function resolveByElevatorCode(elevatorCode) {
-  return post('/work-orders/resolve-by-elevator', { elevatorCode })
+  return get('/work-orders/resolve-by-elevator', { elevatorCode })
 }
 
 // 签到（定位 + 水印自拍照片）

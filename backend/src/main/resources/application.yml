@@ -37,12 +37,11 @@ platform:
   key: ${REG_KEY:}
   appcode: ${REG_APPCODE:}
   secret: ${REG_SECRET:}
-  retry-auto: ${REG_RETRY_AUTO:false}
   legacy-upload-enabled: ${REG_LEGACY_UPLOAD_ENABLED:false}
 
 logging:
   level:
-    com.cqwlw.maintenance: DEBUG
+    com.cqwlw.maintenance: INFO # Minor2：生产默认 INFO，本地调试临时改回
 
 mybatis-plus:
   configuration:

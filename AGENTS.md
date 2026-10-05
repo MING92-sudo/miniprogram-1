@@ -41,7 +41,7 @@
 
 1. **平台凭证 `REG_*`（username/key/appcode/secret）严禁**写入代码、mock、文档、注释、`container.config.json` 或任何入库文件；只允许存在于 `.env`（本地，已 gitignore）与云托管环境变量。`.env.example` 只留变量名与格式说明。
 2. **LBS key 同理不入库**（`config/index.js` 中 `lbs.*Key` 留空）。
-3. `originalRecordId` 幂等性未经平台书面确认前，**任何自动重试逻辑默认关闭**（`REG_RETRY_AUTO=false`、后端 `retry-auto=false`）；禁止在提交/PR 中"顺手"打开重试。
+3. `originalRecordId` 幂等性未经平台书面确认前，**任何自动重试逻辑默认关闭**（当前后端无自动重试实现，Minor6 已删除零调用的 `retry-auto` 配置）；禁止在提交/PR 中"顺手"打开重试。
 4. 上报相关日志必须脱敏：不打印完整 token、手机号、密钥。
 5. `.env`、证书 PDF、合同 PDF 等真实数据文件不得提交；`scripts/tmp/`、trace 文件提交前确认已 gitignore。
 
@@ -113,6 +113,7 @@
 | V1.5 | 2026-10-03 | 全量代码审核整改后同步：①§1 结构表口径更新（小程序 20 页、后端 Flyway V1—V11 + 137 单测、补 `scripts/fixtures/` 与根目录 `doc_text.txt` 说明）；②§3 目录级检查补 admin 构建的 `TMP/TEMP` 规避办法与 verify 脚本触发条件；③§7 更正 jcodemunch 可用性前提——MCP 工具并非每个会话都加载，开头先确认、不可用即回退 Read/Grep/Glob；④§2.5 敏感文件口径澄清：合成测试 PDF 移至 `scripts/fixtures/`（`scripts/tmp/` 保持 gitignore 且不跟踪任何文件） |
 | V1.6 | 2026-10-03 | 已裁模块端点删除后同步计数（后端 Flyway V1—V12、100 条路由、136 单测）；明确**删除端点不删表**（`location_appeal`/`alert_rule`/`alert_record`/`op_log` 等保留以满足留存），恢复交付仍按 §1.2 三处同步 |
 | V1.7 | 2026-10-05 | 计数更正：后端 Flyway V1—V20（20 个迁移）、138 单测；M15 文档漂移整改 |
+| V1.8 | 2026-10-05 | §2.3 红线表述同步：删除零调用的 `retry-auto`/`REG_RETRY_AUTO` 配置（Minor6），红线改为"无自动重试实现，确认前禁止引入" |
 
 <!-- aoci:begin -->
 ## AOCI Repository Cognition

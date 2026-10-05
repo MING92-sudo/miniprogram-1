@@ -56,17 +56,11 @@ public class WorkOrderController {
         return String.valueOf(request.getAttribute(com.cqwlw.maintenance.auth.AuthInterceptor.ATTR_EMP_ID));
     }
 
-    @PostMapping("/work-orders/resolve-by-elevator")
-    public ApiResponse<Object> resolveByElevator(@RequestBody Map<String, Object> body,
-                                                 @RequestHeader(value = "X-Idempotency-Key", required = false) String idemKey,
+    // Minor7：只读查询改 GET，不再占用幂等表
+    @GetMapping("/work-orders/resolve-by-elevator")
+    public ApiResponse<Object> resolveByElevator(@RequestParam String elevatorCode,
                                                  HttpServletRequest request) {
-        IdempotencyService.Guard guard = idempotencyService.begin(idemKey, "/work-orders/resolve-by-elevator");
-        if (guard.replayed()) {
-            return ApiResponse.ok(guard.replayedResult());
-        }
-        Map<String, Object> result = workOrderService.resolveByElevator(str(body.get("elevatorCode")), empId(request));
-        guard.commit(result);
-        return ApiResponse.ok(result);
+        return ApiResponse.ok(workOrderService.resolveByElevator(elevatorCode, empId(request)));
     }
 
     @PostMapping("/work-orders/{id}/checkin")
@@ -133,7 +127,4 @@ public class WorkOrderController {
         return ApiResponse.ok(result);
     }
 
-    private static String str(Object o) {
-        return o == null ? null : String.valueOf(o);
-    }
 }
