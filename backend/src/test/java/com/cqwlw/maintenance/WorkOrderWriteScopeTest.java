@@ -17,7 +17,6 @@ import com.cqwlw.maintenance.mapper.SysParamMapper;
 import com.cqwlw.maintenance.service.CheckinThresholdService;
 import com.cqwlw.maintenance.service.FileStorageService;
 import com.cqwlw.maintenance.service.ChecklistService;
-import com.cqwlw.maintenance.service.DispatchService;
 import com.cqwlw.maintenance.service.EmployeeScopeService;
 import com.cqwlw.maintenance.service.PlatformReportService;
 import com.cqwlw.maintenance.service.WorkOrderService;
@@ -74,7 +73,7 @@ class WorkOrderWriteScopeTest {
         elevatorMapper = mock(ElevatorMapper.class);
         service = new WorkOrderService(orderMapper, elevatorMapper, mock(UseUnitMapper.class),
                 employeeMapper, mock(CompanyMapper.class), recordMapper, mock(FaultMapper.class),
-                mock(InspectRecordMapper.class), mock(ChecklistService.class), mock(DispatchService.class),
+                mock(InspectRecordMapper.class), mock(ChecklistService.class),
                 reportService, new EmployeeScopeService(employeeMapper),
                 new CheckinThresholdService(mock(SysParamMapper.class), new AppProperties()), mock(FileStorageService.class), TxTestSupport.noopTx(), new AppProperties());
 

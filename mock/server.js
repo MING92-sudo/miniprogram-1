@@ -7,8 +7,8 @@ const config = require('../config/index')
 // mock 无 JWT 解析：登录成功后记住当前演示角色，供自助改密等"当前用户"接口使用
 let currentRole = 'WORKER'
 
-// 自动排期触发点：真实后端为定时任务扫描 plans 表到期记录；
-// mock 在进入工单台/扫码/消息中心时即时检查到期电梯并自动派单
+// 自动排期触发点：真实后端为定时任务（docs/04 A.10.9），读接口一律不触发派单；
+// mock 无调度器，仅在模块加载时执行一次，读接口不得再调用 ensureDueOrders
 d.ensureDueOrders()
 
 // 分页（page 从 1 开始，size 默认 20，与接口文档 A.0 约定一致）
@@ -93,10 +93,7 @@ const routes = [
       category: el.category
     }
   }],
-  ['GET', '/work-orders', ({ query }) => {
-    d.ensureDueOrders()
-    return paginate(d.listOrders(query), query)
-  }],
+  ['GET', '/work-orders', ({ query }) => paginate(d.listOrders(query), query)],
   ['GET', '/work-orders/:id', ({ params }) => {
     const order = d.getOrder(params.id)
     if (!order) throw { code: 1404, message: '工单不存在' }
@@ -109,7 +106,6 @@ const routes = [
   }],
   // Minor7：只读查询改 GET（与后端 2026-10-05 整改一致）
   ['GET', '/work-orders/resolve-by-elevator', ({ query }) => {
-    d.ensureDueOrders()
     const el = d.getElevatorByCode(query.elevatorCode)
     if (!el) throw { code: 1404, message: '未识别的电梯二维码' }
     const order = d.db.orders.find((o) => o.elevatorId === el.id && o.status !== 'DONE')
@@ -177,6 +173,16 @@ const routes = [
     if (body.result === 'ABNORMAL' && !(body.photoFileIds || []).length && !(body.photoUrls || []).length) {
       throw { code: 422, message: '「' + item.name + '」为异常时必须至少附 1 张照片' }
     }
+    // 异常项必须显式记录隐患判定（S0—S7）；S0 表示该项异常但不构成严重事故隐患
+    if (body.result === 'ABNORMAL') {
+      const pc = String(body.problemCode == null ? '' : body.problemCode).trim()
+      if (!pc) {
+        throw { code: 422, message: '「' + item.name + '」为异常时必须记录隐患判定（S0—S7），不得留空' }
+      }
+      if (['S0', 'S1', 'S2', 'S3', 'S4', 'S5', 'S6', 'S7'].indexOf(pc) < 0) {
+        throw { code: 422, message: '「' + item.name + '」隐患码非法：' + pc + '（取值范围 S0—S7）' }
+      }
+    }
     // 关键项（试验/测试/校验/检测类，TSG 注A-2）执行时须照片留证；
     // 结果为"不适用"（NA，如该电梯无此部件）时豁免——部件不存在无从拍照（docs/08 BUG 修复）
     // ⚠ 必须用 body.result（本次选择），item.result 是旧状态：新填项为空串，恒 !== 'NA'，导致 BUG 复现
@@ -221,6 +227,11 @@ const routes = [
     )
     if (keyNoPhoto.length) {
       throw { code: 422, message: '关键项「' + keyNoPhoto[0].name + '」须至少附 1 张照片留证（TSG 注A-2），无法签退' }
+    }
+    // 兜底防御：异常项缺隐患判定时拒绝签退，不得静默报 S0（与后端同一口径）
+    const abnormalUncoded = mustRun.filter((i) => i.result === 'ABNORMAL' && !i.problemCode)
+    if (abnormalUncoded.length) {
+      throw { code: 1003, message: '检查项「' + abnormalUncoded[0].name + '」为异常但未记录隐患判定，无法签退' }
     }
     // 业务规则：签到—签退间隔不少于 N 分钟（config.minWorkDurationMinutes，业主补充规则）
     const minutes = (Date.now() - parseTime(o.checkinTime)) / 60000
@@ -293,7 +304,6 @@ const routes = [
 
   // ── 消息 ──
   ['GET', '/messages', ({ query }) => {
-    d.ensureDueOrders()
     const list = d.db.messages.slice().sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1))
     return paginate(list, query)
   }],

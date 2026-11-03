@@ -70,7 +70,7 @@ class ReportPayloadGuardTest {
         service = new WorkOrderService(orderMapper, elevatorMapper,
                 mock(UseUnitMapper.class), employeeMapper, companyMapper, recordMapper,
                 mock(FaultMapper.class), mock(InspectRecordMapper.class), mock(ChecklistService.class),
-                mock(DispatchService.class), reportService,
+                reportService,
                 new EmployeeScopeService(employeeMapper),
                 new CheckinThresholdService(mock(SysParamMapper.class), new AppProperties()),
                 fileStorage, tx.template, new AppProperties());

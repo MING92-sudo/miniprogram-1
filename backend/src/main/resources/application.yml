@@ -49,9 +49,10 @@ mybatis-plus:
 
 # 自建应用配置（全部环境变量注入，禁止真实凭证入库）
 app:
-  # JWT 签名密钥：生产必须注入强随机 JWT_SECRET
-  # 默认值仅保证容器能启动（jjwt 要求 ≥32 字节）；生产必须注入强随机 JWT_SECRET/APP_JWT_SECRET
-  jwt-secret: ${JWT_SECRET:${APP_JWT_SECRET:dev-only-secret-change-me-32bytes-minimum-0123456789}}
+  # JWT 签名密钥：无默认值，必须由环境变量注入（AGENTS §2.1 凭证严禁入库）。
+  # 曾用 dev-only-secret... 作为默认值入库，任何漏配部署都会以公开密钥签发 token
+  # （可伪造 role=SYS_ADMIN），已移除；缺失时 JwtService 启动即失败并给出可操作提示。
+  jwt-secret: ${JWT_SECRET:}
   jwt-expire-hours: ${JWT_EXPIRE_HOURS:72}
   # 云托管免鉴权注入 X-WX-OPENID；本地开发无该头时用 dev_openid 兜底
   dev-openid: ${DEV_OPENID:dev_openid}

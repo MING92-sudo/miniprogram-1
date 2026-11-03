@@ -25,7 +25,15 @@ public class JwtService {
     private final long expireHours;
 
     public JwtService(AppProperties props) {
-        this.key = Keys.hmacShaKeyFor(props.getJwtSecret().getBytes(StandardCharsets.UTF_8));
+        String secret = props.getJwtSecret();
+        // 签名密钥无默认值（application.yml 已移除 dev 默认串）：缺失即启动失败，
+        // 否则会以公开密钥签发 token，任何人可伪造 role=SYS_ADMIN（AGENTS §2.1）
+        if (secret == null || secret.isBlank()) {
+            throw new IllegalStateException(
+                    "JWT 签名密钥未配置：请注入环境变量 JWT_SECRET（建议 32 字节以上强随机串），"
+                            + "禁止使用默认值——默认值一旦入库即等同公开密钥");
+        }
+        this.key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
         this.expireHours = props.getJwtExpireHours();
     }
 

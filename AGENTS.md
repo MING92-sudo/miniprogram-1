@@ -24,7 +24,7 @@
 ├─ config/index.js               环境配置（useMock 开关、apiBaseUrl、LBS key 留空）
 ├─ constants/index.js            枚举/错误码/业务常量（文案统一从这里取）
 ├─ mock/                         mock 契约层（server.js 路由 = docs/04 A 部分）
-├─ backend/                      Spring Boot 3.3.4 后端（Flyway V1—V20 + JWT/BCrypt + 平台转发 + 138 单测）
+├─ backend/                      Spring Boot 3.3.4 后端（Flyway V1—V20 + JWT/BCrypt + 平台转发 + 169 单测）
 ├─ admin/                        Vue3 + Vite + Element Plus 管理端（lint/vitest/build）
 ├─ scripts/                      平台联调 PowerShell/Node 脚本（fixtures/ 存合成测试件；tmp/ 已 gitignore）
 ├─ doc_text.txt                  平台《电梯维保记录上报接口规范 V1.5》原文提取（docs/04 B 部分的核对来源，只读）
@@ -114,6 +114,7 @@
 | V1.6 | 2026-10-03 | 已裁模块端点删除后同步计数（后端 Flyway V1—V12、100 条路由、136 单测）；明确**删除端点不删表**（`location_appeal`/`alert_rule`/`alert_record`/`op_log` 等保留以满足留存），恢复交付仍按 §1.2 三处同步 |
 | V1.7 | 2026-10-05 | 计数更正：后端 Flyway V1—V20（20 个迁移）、138 单测；M15 文档漂移整改 |
 | V1.8 | 2026-10-05 | §2.3 红线表述同步：删除零调用的 `retry-auto`/`REG_RETRY_AUTO` 配置（Minor6），红线改为"无自动重试实现，确认前禁止引入" |
+| V1.9 | 2026-11-03 | 安全/合规 P0 移植后计数更新（后端 169 单测）；明确派单仅定时任务驱动、异常项 S0—S7 显式判定、2.7 归属 fail-closed、JWT 无默认密钥 |
 
 <!-- aoci:begin -->
 ## AOCI Repository Cognition

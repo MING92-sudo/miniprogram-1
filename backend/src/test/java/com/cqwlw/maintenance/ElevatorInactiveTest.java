@@ -9,6 +9,7 @@ import com.cqwlw.maintenance.mapper.WorkOrderMapper;
 import com.cqwlw.maintenance.service.ChecklistService;
 import com.cqwlw.maintenance.service.DispatchService;
 import com.cqwlw.maintenance.service.ElevatorService;
+import com.cqwlw.maintenance.service.OrderNoIssuer;
 import com.cqwlw.maintenance.util.TimeUtil;
 import org.junit.jupiter.api.Test;
 
@@ -50,7 +51,7 @@ class ElevatorInactiveTest {
         ElevatorMapper elevatorMapper = mock(ElevatorMapper.class);
         WorkOrderMapper orderMapper = mock(WorkOrderMapper.class);
         DispatchService dispatch = new DispatchService(elevatorMapper, orderMapper,
-                mock(MessageMapper.class), mock(ChecklistService.class));
+                mock(MessageMapper.class), mock(ChecklistService.class), new OrderNoIssuer(orderMapper));
         when(elevatorMapper.selectList(any())).thenReturn(List.of(elevator("el_off", "INACTIVE")));
 
         assertTrue(dispatch.ensureDueOrders().isEmpty(), "停用电梯不得自动派单");
@@ -64,8 +65,10 @@ class ElevatorInactiveTest {
         ChecklistService checklistService = mock(ChecklistService.class);
         when(checklistService.label(any())).thenReturn("半月维保");
         DispatchService dispatch = new DispatchService(elevatorMapper, orderMapper,
-                mock(MessageMapper.class), checklistService);
-        when(elevatorMapper.selectList(any())).thenReturn(List.of(elevator("el_on", null)));
+                mock(MessageMapper.class), checklistService, new OrderNoIssuer(orderMapper));
+        Elevator active = elevator("el_on", null);
+        when(elevatorMapper.selectList(any())).thenReturn(List.of(active));
+        when(elevatorMapper.selectOne(any())).thenReturn(active);
 
         assertEquals(1, dispatch.ensureDueOrders().size(), "在保电梯的到期派单不得被停用过滤误伤");
     }
@@ -74,7 +77,8 @@ class ElevatorInactiveTest {
     void manualDispatchRejectsInactiveElevator() {
         ElevatorMapper elevatorMapper = mock(ElevatorMapper.class);
         DispatchService dispatch = new DispatchService(elevatorMapper, mock(WorkOrderMapper.class),
-                mock(MessageMapper.class), mock(ChecklistService.class));
+                mock(MessageMapper.class), mock(ChecklistService.class),
+                new OrderNoIssuer(mock(WorkOrderMapper.class)));
         when(elevatorMapper.selectById("el_off")).thenReturn(elevator("el_off", "INACTIVE"));
 
         BizException e = assertThrows(BizException.class, () -> dispatch.dispatchNow("el_off"));

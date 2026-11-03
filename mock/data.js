@@ -716,7 +716,7 @@ function markCheckout(orderId, body) {
   const abnormalItems = items.filter((i) => i.result === 'ABNORMAL' && i.problemCode)
   const problemCodes = abnormalItems.length
     ? abnormalItems.map((i) => i.problemCode)
-    : ['S0'] // 无隐患必须填 S0（平台 2.6）
+    : ['S0'] // 仅当无任何异常项时补 S0 = 未发现严重事故隐患（平台 2.6）
 
   const record = {
     id: nextId('ur'),

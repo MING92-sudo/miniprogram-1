@@ -61,7 +61,7 @@ class DynamicCodeTest {
         service = new WorkOrderService(orderMapper, mock(ElevatorMapper.class), mock(UseUnitMapper.class),
                 employeeMapper, mock(CompanyMapper.class), mock(MaintainRecordMapper.class),
                 mock(FaultMapper.class), mock(InspectRecordMapper.class), mock(ChecklistService.class),
-                mock(DispatchService.class), mock(PlatformReportService.class),
+                mock(PlatformReportService.class),
                 new EmployeeScopeService(employeeMapper),
                 new CheckinThresholdService(mock(SysParamMapper.class), props), mock(FileStorageService.class), TxTestSupport.noopTx(), props);
 

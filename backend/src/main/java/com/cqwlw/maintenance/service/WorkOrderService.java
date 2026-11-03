@@ -47,6 +47,14 @@ public class WorkOrderService {
 
     /** 业务规则：签到—签退间隔不少于 N 分钟（app.work-duration-minutes 默认 30，业主补充规则，上线前待确认） */
     private static final int DEFAULT_MIN_WORK_DURATION_MINUTES = 30;
+    /**
+     * 严重事故隐患码 S0—S7（平台 V1.5 规范 3.2，与前端 constants PROBLEM_CODES 同源）。
+     * S0「未发现严重事故隐患」是合法取值：检查项异常但不构成严重隐患时填 S0；
+     * 只有没有任何异常检查项时签退才自动补 S0。异常项一律要求显式记录判定，
+     * 杜绝"有异常却报未发现隐患"的假数据上报监管平台。
+     */
+    private static final Set<String> PROBLEM_CODES = Set.of(
+            "S0", "S1", "S2", "S3", "S4", "S5", "S6", "S7");
     private static final Map<String, Integer> WORK_TYPE_INTERVAL_DAYS =
             Map.of("FM", 30, "HM", 15, "TM", 90, "SM", 180, "OY", 365);
     /** 双人动态码步长（秒）：docs/03 §3.2 项6「每 5 秒刷新」 */
@@ -65,7 +73,6 @@ public class WorkOrderService {
     private final FaultMapper faultMapper;
     private final InspectRecordMapper inspectMapper;
     private final ChecklistService checklistService;
-    private final DispatchService dispatchService;
     private final PlatformReportService reportService;
     private final EmployeeScopeService scopeService;
     private final CheckinThresholdService thresholdService;
@@ -77,7 +84,7 @@ public class WorkOrderService {
                             UseUnitMapper useUnitMapper, EmployeeMapper employeeMapper,
                             CompanyMapper companyMapper, MaintainRecordMapper recordMapper,
                             FaultMapper faultMapper, InspectRecordMapper inspectMapper,
-                            ChecklistService checklistService, DispatchService dispatchService,
+                            ChecklistService checklistService,
                             PlatformReportService reportService,
                             EmployeeScopeService scopeService,
                             CheckinThresholdService thresholdService,
@@ -93,7 +100,6 @@ public class WorkOrderService {
         this.faultMapper = faultMapper;
         this.inspectMapper = inspectMapper;
         this.checklistService = checklistService;
-        this.dispatchService = dispatchService;
         this.reportService = reportService;
         this.scopeService = scopeService;
         this.thresholdService = thresholdService;
@@ -108,8 +114,9 @@ public class WorkOrderService {
     }
 
     // ── 首页汇总 ──
+    // 读接口不触发派单：派单只由定时任务（09:00 + 13 分钟兜底）与管理端显式操作驱动，
+    // 否则并发打开首页会造成重复派单，并使读接口偶发失败（审查 B6/B7）
     public Map<String, Object> homeSummary(String empId) {
-        dispatchService.ensureDueOrders();
         String today = TimeUtil.date(TimeUtil.now());
         String soonEnd = TimeUtil.date(TimeUtil.now().plusDays(3));
         int dueToday = 0;
@@ -166,7 +173,6 @@ public class WorkOrderService {
 
     // ── 列表 ──
     public Map<String, Object> listOrders(Map<String, String> query, String empId) {
-        dispatchService.ensureDueOrders();
         List<WorkOrder> list = orderMapper.selectList(new LambdaQueryWrapper<WorkOrder>()
                 .orderByDesc(WorkOrder::getPlanTime));
         list = scopeOrders(list, empId);
@@ -272,7 +278,6 @@ public class WorkOrderService {
     }
 
     public Map<String, Object> resolveByElevator(String elevatorCode, String empId) {
-        dispatchService.ensureDueOrders();
         Elevator el = elevatorMapper.selectOne(new LambdaQueryWrapper<Elevator>()
                 .eq(Elevator::getElevatorCode, elevatorCode).last("LIMIT 1"));
         if (el == null) {
@@ -509,6 +514,15 @@ public class WorkOrderService {
         if ("ABNORMAL".equals(result) && !hasPhoto) {
             throw new BizException(422, "「" + name + "」为异常时必须至少附 1 张照片");
         }
+        if ("ABNORMAL".equals(result)) {
+            String pc = str(body.get("problemCode"));
+            if (isBlank(pc)) {
+                throw new BizException(422, "「" + name + "」为异常时必须记录隐患判定（S0—S7），不得留空");
+            }
+            if (!PROBLEM_CODES.contains(pc.trim())) {
+                throw new BizException(422, "「" + name + "」隐患码非法：" + pc + "（取值范围 S0—S7）");
+            }
+        }
         boolean isKey = Boolean.TRUE.equals(item.get("isKey"));
         boolean photoRequired = Boolean.TRUE.equals(item.get("photoRequired"));
         if (isKey && photoRequired && !"NA".equals(result) && !hasPhoto) {
@@ -602,12 +616,29 @@ public class WorkOrderService {
                     return urls.stream();
                 })
                 .collect(Collectors.toList());
-        List<String> problemCodes = frozen.stream()
-                .filter(i -> "ABNORMAL".equals(String.valueOf(i.get("result")))
-                        && !String.valueOf(i.get("problemCode")).isEmpty())
-                .map(i -> String.valueOf(i.get("problemCode"))).collect(Collectors.toList());
+        List<Map<String, Object>> abnormalItems = frozen.stream()
+                .filter(i -> "ABNORMAL".equals(String.valueOf(i.get("result"))))
+                .collect(Collectors.toList());
+        // 兜底防御：存在异常项却无隐患码的检查项（历史数据/绕过 submitItem 的写入）不得静默报 S0
+        List<Map<String, Object>> abnormalUncoded = abnormalItems.stream()
+                .filter(i -> isBlank(str(i.get("problemCode"))))
+                .collect(Collectors.toList());
+        if (!abnormalUncoded.isEmpty()) {
+            throw new BizException(1003, "检查项「" + abnormalUncoded.get(0).get("name")
+                    + "」为异常但未记录隐患判定，无法签退");
+        }
+        List<String> problemCodes = abnormalItems.stream()
+                .map(i -> str(i.get("problemCode")).trim())
+                .collect(Collectors.toList());
+        List<String> invalidCodes = problemCodes.stream()
+                .filter(pc -> !PROBLEM_CODES.contains(pc))
+                .collect(Collectors.toList());
+        if (!invalidCodes.isEmpty()) {
+            throw new BizException(1003, "检查项隐患码非法：" + invalidCodes.get(0)
+                    + "（取值范围 S0—S7），无法签退");
+        }
         if (problemCodes.isEmpty()) {
-            problemCodes = List.of("S0"); // 无隐患必须填 S0（平台 2.6 约定）
+            problemCodes = List.of("S0"); // 仅当无任何异常项时补 S0 = 未发现严重事故隐患（平台 2.6 约定）
         }
         int interval = WORK_TYPE_INTERVAL_DAYS.getOrDefault(o.workTypeCode, 15);
 

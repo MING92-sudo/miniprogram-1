@@ -42,6 +42,7 @@ mvn spring-boot:run        # 默认 8080；容器内由 Dockerfile 设 SERVER_PO
 ## 凭证与安全
 
 - `REG_*` 平台凭证一律配置在 `.env`（本地）/ 云托管「服务设置 → 环境变量」，**严禁入库**；`.env.example` 为模板。
+- 自建 JWT 签名密钥 `JWT_SECRET`（≥32 字节强随机）必须注入；代码内已无默认值，缺失或空白时后端启动即失败，避免以公开密钥签发 token。
 - LBS 逆地址解析 key 同样不入库（`config/index.js` 中留空，调试时经 storage 注入）。
 
 ## 云托管部署

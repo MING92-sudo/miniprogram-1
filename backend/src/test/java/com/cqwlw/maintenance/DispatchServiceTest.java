@@ -1,5 +1,6 @@
 package com.cqwlw.maintenance;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.cqwlw.maintenance.entity.Elevator;
 import com.cqwlw.maintenance.entity.Message;
 import com.cqwlw.maintenance.entity.WorkOrder;
@@ -8,6 +9,7 @@ import com.cqwlw.maintenance.mapper.MessageMapper;
 import com.cqwlw.maintenance.mapper.WorkOrderMapper;
 import com.cqwlw.maintenance.service.ChecklistService;
 import com.cqwlw.maintenance.service.DispatchService;
+import com.cqwlw.maintenance.service.OrderNoIssuer;
 import com.cqwlw.maintenance.util.TimeUtil;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -17,6 +19,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -33,6 +36,9 @@ class DispatchServiceTest {
     private WorkOrderMapper orderMapper;
     private MessageMapper messageMapper;
     private DispatchService service;
+    private List<Elevator> rows = List.of();
+    private final java.util.concurrent.atomic.AtomicInteger lockCursor =
+            new java.util.concurrent.atomic.AtomicInteger();
 
     @BeforeEach
     void setUp() throws Exception {
@@ -41,9 +47,21 @@ class DispatchServiceTest {
         messageMapper = mock(MessageMapper.class);
         ChecklistService checklistService = new ChecklistService();
         checklistService.load();
-        service = new DispatchService(elevatorMapper, orderMapper, messageMapper, checklistService);
+        service = new DispatchService(elevatorMapper, orderMapper, messageMapper,
+                checklistService, new OrderNoIssuer(orderMapper));
         when(orderMapper.selectCount(any())).thenReturn(0L);
         when(orderMapper.selectList(any())).thenReturn(List.of());
+    }
+
+    /** 派单前会 SELECT ... FOR UPDATE 取锁；mock 按扫描顺序返回同一批电梯 */
+    private void givenElevators(List<Elevator> list) {
+        rows = list;
+        lockCursor.set(0);
+        when(elevatorMapper.selectList(any())).thenReturn(list);
+        when(elevatorMapper.selectOne(any())).thenAnswer(inv -> {
+            int i = lockCursor.getAndIncrement();
+            return rows.isEmpty() ? null : rows.get(Math.min(i, rows.size() - 1));
+        });
     }
 
     private Elevator dueElevator(String id) {
@@ -67,7 +85,7 @@ class DispatchServiceTest {
         for (int i = 1; i <= 6; i++) {
             elevators.add(dueElevator("el_" + i));
         }
-        when(elevatorMapper.selectList(any())).thenReturn(elevators);
+        givenElevators(elevators);
 
         List<WorkOrder> created = service.ensureDueOrders();
 
@@ -88,7 +106,7 @@ class DispatchServiceTest {
     void typeUpgradesToYearlyWhenDue365Days() {
         Elevator el = dueElevator("el_y");
         el.lastMaintenanceAt = TimeUtil.now().minusDays(366);
-        when(elevatorMapper.selectList(any())).thenReturn(List.of(el));
+        givenElevators(List.of(el));
 
         List<WorkOrder> created = service.ensureDueOrders();
         assertEquals(1, created.size());
@@ -99,7 +117,7 @@ class DispatchServiceTest {
     @Test
     void activeOrderSkipsDispatch() {
         Elevator el = dueElevator("el_a");
-        when(elevatorMapper.selectList(any())).thenReturn(List.of(el));
+        givenElevators(List.of(el));
         when(orderMapper.selectCount(any())).thenReturn(1L);
 
         assertEquals(0, service.ensureDueOrders().size());
@@ -109,7 +127,7 @@ class DispatchServiceTest {
     void notYetDueSkipsDispatch() {
         Elevator el = dueElevator("el_n");
         el.lastMaintenanceAt = TimeUtil.now().minusDays(5); // 15 天周期未到"到期前一天"
-        when(elevatorMapper.selectList(any())).thenReturn(List.of(el));
+        givenElevators(List.of(el));
 
         assertEquals(0, service.ensureDueOrders().size());
     }
@@ -119,12 +137,27 @@ class DispatchServiceTest {
         Elevator el = dueElevator("el_f");
         // 上次 14 天前 → 到期日 = 明天（恰好进入"到期前一天"窗口），计划时间应为到期日 09:00
         el.lastMaintenanceAt = TimeUtil.now().minusDays(14);
-        when(elevatorMapper.selectList(any())).thenReturn(List.of(el));
+        givenElevators(List.of(el));
 
         List<WorkOrder> created = service.ensureDueOrders();
         assertEquals(1, created.size());
         String planDay = TimeUtil.date(created.get(0).planTime);
         assertEquals("09:00:00", TimeUtil.format(created.get(0).planTime).substring(11));
         assertEquals(true, planDay.compareTo(TimeUtil.date(TimeUtil.now())) >= 0);
+    }
+
+    @Test
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    void locksElevatorRowBeforeCreatingOrder() {
+        Elevator el = dueElevator("el_lock");
+        givenElevators(List.of(el));
+
+        assertEquals(1, service.ensureDueOrders().size());
+
+        ArgumentCaptor<LambdaQueryWrapper> captor =
+                ArgumentCaptor.forClass(LambdaQueryWrapper.class);
+        verify(elevatorMapper).selectOne(captor.capture());
+        assertTrue(captor.getValue().getSqlSegment().toUpperCase().contains("FOR UPDATE"),
+                "派单创建前必须对电梯行加锁，否则并发跑批会为同一台电梯重复派单");
     }
 }
