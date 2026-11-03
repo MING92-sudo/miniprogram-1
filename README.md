@@ -49,7 +49,7 @@ mvn spring-boot:run        # 默认 8080；容器内由 Dockerfile 设 SERVER_PO
 ## 云托管部署
 
 - 代码仓库流水线以**根目录 Dockerfile** 构建（内部转 `backend/` 多阶段构建），容器监听端口 80；
-- 部署后小程序经 `wx.cloud.callContainer` 调用，无需配 request 合法域名。
+- 部署后小程序经 `wx.cloud.callContainer` 调用（环境 ID / 服务名在 `config/index.js` 的 `cloud.env`、`cloud.service`），无需配 request 合法域名；文件上传仍走 `wx.uploadFile`，需把云托管域名加入 uploadFile 合法域名。
 - 对象存储：后端默认使用云托管托管桶（桶名/地域非凭证，已写入 `backend/src/main/resources/application.yml` 默认值），凭证走云托管内网临时接口 `/_/cos/getauth`，**无需在环境变量配置任何 COS 密钥**；仅自建 COS 桶本地联调时才注入 `COS_SECRET_ID/COS_SECRET_KEY`。
 
 ## Web 管理端（admin/，docs/09 一期）

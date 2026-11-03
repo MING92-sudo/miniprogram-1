@@ -1,5 +1,7 @@
 // 文件上传（水印照片、签名图）
 // 架构约定：腾讯云 COS + STS 临时凭证直传；token 类凭证由后端签发，小程序不接触长期密钥
+// 说明：wx.cloud.callContainer 只支持 JSON，不支持 multipart，因此上传仍走 wx.uploadFile，
+//      需把 config.apiBaseUrl 的域名配到「服务器域名 → uploadFile 合法域名」（docs/11）。
 const config = require('../config/index')
 const { getToken } = require('../utils/auth')
 

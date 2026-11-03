@@ -8,9 +8,22 @@ App({
   },
 
   onLaunch() {
+    this.initCloud()
     this.restoreAuth()
     this.watchNetwork()
     this.watchUpdate()
+  },
+
+  // 云托管：callContainer 前必须先 wx.cloud.init（环境 ID 来自 config.cloud.env）。
+  // 低版本基础库无 wx.cloud 时静默跳过，utils/request 会自动回退 wx.request。
+  initCloud() {
+    const config = require('./config/index')
+    if (!config.cloud || !config.cloud.enabled) return
+    if (!wx.cloud || typeof wx.cloud.init !== 'function') {
+      console.warn('当前基础库不支持 wx.cloud，接口回退 wx.request')
+      return
+    }
+    wx.cloud.init({ env: config.cloud.env, traceUser: false })
   },
 
   // 新版本自动更新：下载完成后提示重启（体验版/正式版生效）

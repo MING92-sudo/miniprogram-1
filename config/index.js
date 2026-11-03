@@ -1,5 +1,5 @@
 // 全局配置
-// dev = 本地自建后端（日常开发默认）；prod = 云托管域名（部署/云端联调时切换，见 docs/11 §部署）
+// dev = 本地自建后端（日常开发默认）；prod = 云托管（部署/云端联调用 wx.cloud.callContainer，见 docs/11）
 const ENV = 'prod'
 
 const API_BASE_URL = {
@@ -11,12 +11,22 @@ const API_BASE_URL = {
   prod: 'https://springboot-l1ws-321794-10-1498557567.sh.run.tcloudbase.com'
 }
 
+// 云托管（微信云开发）：小程序经 wx.cloud.callContainer 调容器，免配 request 合法域名。
+// env   = 云开发环境 ID；service = 云托管服务名（两者都在云托管控制台「环境/服务」页可查）。
+// 上传仍走 wx.uploadFile（callContainer 只收 JSON），该域名需配到「uploadFile 合法域名」。
+const CLOUD = {
+  enabled: ENV === 'prod',
+  env: 'prod-d3gg6nba2f3160af9',
+  service: 'springboot-l1ws'
+}
+
 const config = {
   env: ENV,
   // ★ 前端独立开发开关：true = 全部接口走 mock/ 本地数据（无需后端）
   //   后端就绪联调时改为 false，services 层接口签名不变
   useMock: false,
   apiBaseUrl: API_BASE_URL[ENV],
+  cloud: CLOUD,
   requestTimeout: 15000, // 普通请求 15s（接口文档 A.0 约定）
   uploadTimeout: 120000, // 文件上传 120s
   pageSize: 20, // 分页默认 size
