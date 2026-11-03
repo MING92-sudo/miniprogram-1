@@ -12,11 +12,11 @@ const API_BASE_URL = {
 }
 
 // 云托管（微信云开发）：小程序经 wx.cloud.callContainer 调容器，免配 request 合法域名。
-// env   = 云开发环境 ID；service = 云托管服务名（两者都在云托管控制台「环境/服务」页可查）。
+// env   = 云开发环境 ID（环境名 cloud1）；service = 云托管服务名（控制台「环境/服务」页可查）。
 // 上传仍走 wx.uploadFile（callContainer 只收 JSON），该域名需配到「uploadFile 合法域名」。
 const CLOUD = {
   enabled: ENV === 'prod',
-  env: 'prod-d3gg6nba2f3160af9',
+  env: 'cloud1-d8g6d6byy3ff0c74d',
   service: 'springboot-l1ws'
 }
 
