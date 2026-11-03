@@ -43,6 +43,7 @@ mvn spring-boot:run        # 默认 8080；容器内由 Dockerfile 设 SERVER_PO
 
 - `REG_*` 平台凭证一律配置在 `.env`（本地）/ 云托管「服务设置 → 环境变量」，**严禁入库**；`.env.example` 为模板。
 - 自建 JWT 签名密钥 `JWT_SECRET`（≥32 字节强随机）必须注入；代码内已无默认值，缺失或空白时后端启动即失败，避免以公开密钥签发 token。
+- 微信登录走 `wx.login` 的 code → 后端 `jscode2session` 换 openid：`WX_APPID` / `WX_APPSECRET` 必须注入（云托管环境变量或本地 `.env`），**不入库**；不配置时绑定/一键登录返回 `2001`。代码不再信任 `X-WX-OPENID` 请求头，也没有 `dev_openid` 兜底。
 - LBS 逆地址解析 key 同样不入库（`config/index.js` 中留空，调试时经 storage 注入）。
 
 ## 云托管部署

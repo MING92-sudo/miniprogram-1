@@ -32,11 +32,13 @@ public class WebConfig implements WebMvcConfigurer {
                 .addPathPatterns("/**")
                 .excludePathPatterns(
                         "/health", "/api/count",
-                        "/auth/login", "/auth/wx-login", "/auth/bind-wechat",
-                        "/auth/bind-employee", "/auth/bind-use-unit", "/auth/logout",
+                        "/auth/login", "/auth/wx-login", "/auth/logout",
+                        // bind-* 是登录后写操作，统一走 AuthInterceptor（校验 JWT + 单端会话 sid），
+                        // AuthController 内仍保留 currentUser 防御，避免未来路由配置回退时越权
                         "/unit/records/*/sign-view", "/unit/records/*/confirm-by-token",
-                        // C1：/files/upload 纳入鉴权（未登录不得写入）；/files/* 仍公开读（ID 已改 UUID 不可枚举）
-                        "/files/*", "/location/reverse",
+                        // 文件写侧（upload/sts）必须登录；GET /files/{id} 由 FileAccessTokenService 的
+                        // URL 时效签名把门（AuthInterceptor 对 GET 放行，Controller 校验 s=）
+                        "/location/reverse",
                         "/", "/index.html", "/assets/**", "/favicon.ico"
                 );
         // 顺序在鉴权之后：依赖 AuthInterceptor 写入的 role attribute

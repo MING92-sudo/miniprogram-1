@@ -24,7 +24,7 @@
 ├─ config/index.js               环境配置（useMock 开关、apiBaseUrl、LBS key 留空）
 ├─ constants/index.js            枚举/错误码/业务常量（文案统一从这里取）
 ├─ mock/                         mock 契约层（server.js 路由 = docs/04 A 部分）
-├─ backend/                      Spring Boot 3.3.4 后端（Flyway V1—V20 + JWT/BCrypt + 平台转发 + 169 单测）
+├─ backend/                      Spring Boot 3.3.4 后端（Flyway V1—V21 + JWT/BCrypt + 平台转发 + 184 单测）
 ├─ admin/                        Vue3 + Vite + Element Plus 管理端（lint/vitest/build）
 ├─ scripts/                      平台联调 PowerShell/Node 脚本（fixtures/ 存合成测试件；tmp/ 已 gitignore）
 ├─ doc_text.txt                  平台《电梯维保记录上报接口规范 V1.5》原文提取（docs/04 B 部分的核对来源，只读）
@@ -115,6 +115,7 @@
 | V1.7 | 2026-10-05 | 计数更正：后端 Flyway V1—V20（20 个迁移）、138 单测；M15 文档漂移整改 |
 | V1.8 | 2026-10-05 | §2.3 红线表述同步：删除零调用的 `retry-auto`/`REG_RETRY_AUTO` 配置（Minor6），红线改为"无自动重试实现，确认前禁止引入" |
 | V1.9 | 2026-11-03 | 安全/合规 P0 移植后计数更新（后端 169 单测）；明确派单仅定时任务驱动、异常项 S0—S7 显式判定、2.7 归属 fail-closed、JWT 无默认密钥 |
+| V2.0 | 2026-11-03 | 安全/合规 P0 移植收尾（自 `codex/audit-fixes` 按主题合入，codex 分支已全部收敛为 `master`）：①微信登录改 `wx.login` code → 后端 `jscode2session` 换 openid（新增 `WX_APPID`/`WX_APPSECRET`，§2 红线口径不变：凭证只进环境变量/`.env`）；②`/auth/bind-*` 改为登录后写操作，同 openid 先解绑再绑定（V21 迁移 + `uk_openid`）；③`GET /files/{id}` 增加 URL 时效签名 `?s=`（`FileAccessTokenService`）；④§1 计数更新（Flyway V1—V21、184 单测），docs/02 V1.8、docs/04 V2.30 同步 |
 
 <!-- aoci:begin -->
 ## AOCI Repository Cognition

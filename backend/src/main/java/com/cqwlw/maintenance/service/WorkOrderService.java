@@ -485,7 +485,17 @@ public class WorkOrderService {
             o.checklistJson = JsonUtil.write(checklistService.buildChecklist(o.workTypeCode, category, specialType));
             orderMapper.updateById(o);
         }
-        return JsonUtil.readList(o.checklistJson);
+        List<Map<String, Object>> items = JsonUtil.readList(o.checklistJson);
+        // 读路径重签：清单照片 URL 带时效，工单详情/作业页可能远晚于上传时间打开
+        for (Map<String, Object> item : items) {
+            Object photos = item.get("photos");
+            if (photos instanceof List<?> list) {
+                item.put("photos", list.stream()
+                        .map(v -> fileStorage.resolveStoredUrl(String.valueOf(v)))
+                        .collect(Collectors.toList()));
+            }
+        }
+        return items;
     }
 
     public Map<String, Object> getChecklist(String orderId, String empId) {
@@ -826,8 +836,8 @@ public class WorkOrderService {
                     Map<String, Object> info = new LinkedHashMap<>();
                     info.put("id", rec.id);
                     info.put("shareToken", nz(rec.shareToken));
-                    info.put("workerSignatureUrl", nz(rec.workerSignatureUrl));
-                    info.put("assistantSignatureUrl", nz(rec.assistantSignatureUrl));
+                    info.put("workerSignatureUrl", fileStorage.resolveStoredUrl(rec.workerSignatureUrl));
+                    info.put("assistantSignatureUrl", fileStorage.resolveStoredUrl(rec.assistantSignatureUrl));
                     info.put("confirmStatus", nz(rec.confirmStatus));
                     info.put("uploadStatus", UnitRecordService.uploadStatus(rec.reportStatus));
                     info.put("satisfaction", rec.satisfaction);

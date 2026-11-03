@@ -36,6 +36,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import static com.cqwlw.maintenance.util.JsonUtil.map;
 
@@ -61,6 +62,7 @@ public class DirectoryService {
     private final UseUnitMapper useUnitMapper;
     private final WorkOrderMapper workOrderMapper;
     private final CompanyMapper companyMapper;
+    private final FileStorageService fileStorageService;
 
     public DirectoryService(RescueMapper rescueMapper, FaultMapper faultMapper,
                             DrillMapper drillMapper, InspectRecordMapper inspectMapper,
@@ -68,7 +70,8 @@ public class DirectoryService {
                             ElevatorMapper elevatorMapper, ChecklistService checklistService,
                             WorkOrderService workOrderService, EmployeeScopeService scopeService,
                             EmployeeMapper employeeMapper, UseUnitMapper useUnitMapper,
-                            WorkOrderMapper workOrderMapper, CompanyMapper companyMapper) {
+                            WorkOrderMapper workOrderMapper, CompanyMapper companyMapper,
+                            FileStorageService fileStorageService) {
         this.rescueMapper = rescueMapper;
         this.faultMapper = faultMapper;
         this.drillMapper = drillMapper;
@@ -83,6 +86,7 @@ public class DirectoryService {
         this.useUnitMapper = useUnitMapper;
         this.workOrderMapper = workOrderMapper;
         this.companyMapper = companyMapper;
+        this.fileStorageService = fileStorageService;
     }
 
     // ── 救援 ──
@@ -245,10 +249,11 @@ public class DirectoryService {
         m.put("arrivedAt", TimeUtil.format(f.arrivedAt));
         m.put("finishedAt", TimeUtil.format(f.finishedAt));
         m.put("todoDesc", f.todoDesc == null ? "" : f.todoDesc);
-        m.put("photos", JsonUtil.readStringList(f.photos));
+        m.put("photos", JsonUtil.readStringList(f.photos).stream()
+                .map(fileStorageService::resolveStoredUrl).collect(Collectors.toList()));
         m.put("status", f.status);
         m.put("result", f.handleDesc);
-        m.put("signature", f.signature == null ? "" : f.signature);
+        m.put("signature", fileStorageService.resolveStoredUrl(f.signature));
         m.put("confirmedAt", f.confirmedAt == null ? "" : TimeUtil.format(f.confirmedAt));
         m.put("createdAt", TimeUtil.format(f.createdAt));
         return m;

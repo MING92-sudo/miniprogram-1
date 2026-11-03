@@ -4,18 +4,18 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.cqwlw.maintenance.common.ApiResponse;
 import com.cqwlw.maintenance.common.Ids;
 import com.cqwlw.maintenance.common.BizException;
-import com.cqwlw.maintenance.config.AppProperties;
 import com.cqwlw.maintenance.entity.Employee;
 import com.cqwlw.maintenance.mapper.EmployeeMapper;
+import com.cqwlw.maintenance.service.WxAuthService;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.LinkedHashMap;
@@ -23,7 +23,11 @@ import java.util.Map;
 
 /**
  * 认证（docs/04 A.1 契约）：账号密码登录（BCrypt）→ 自建 JWT；
- * 云托管免鉴权 X-WX-OPENID 绑定；wx-login 仅限已绑定 openid 的账号（phoneCode 解析后置，Q8=A）。
+ * 微信侧一律由 wx.login 的 code 经 jscode2session 换真实 openid（bind-wechat 落库 / wx-login 查账号）。
+ *
+ * <p>openid 只有一个来源——后端 jscode2session（WxAuthService）：
+ * 不再回退 app.dev-openid，也不再信任可伪造的 X-WX-OPENID 请求头。否则任何 HTTP 客户端
+ * 自带一个 openid 就能签发该账号 JWT，或全员落库同一 dev_openid 导致按 openid 查人串号。
  */
 @RestController
 public class AuthController {
@@ -32,18 +36,17 @@ public class AuthController {
 
     private final EmployeeMapper employeeMapper;
     private final JwtService jwtService;
-    private final AppProperties props;
+    private final WxAuthService wxAuthService;
     private final BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
 
-    public AuthController(EmployeeMapper employeeMapper, JwtService jwtService, AppProperties props) {
+    public AuthController(EmployeeMapper employeeMapper, JwtService jwtService, WxAuthService wxAuthService) {
         this.employeeMapper = employeeMapper;
         this.jwtService = jwtService;
-        this.props = props;
+        this.wxAuthService = wxAuthService;
     }
 
     @PostMapping("/auth/login")
-    public ApiResponse<Map<String, Object>> login(@RequestBody Map<String, Object> body,
-                                                  @RequestHeader(value = "X-WX-OPENID", required = false) String openidHeader) {
+    public ApiResponse<Map<String, Object>> login(@RequestBody Map<String, Object> body) {
         String phone = body.get("phone") == null ? "" : String.valueOf(body.get("phone")).trim();
         String password = body.get("password") == null ? "" : String.valueOf(body.get("password"));
         Employee user = employeeMapper.selectOne(new LambdaQueryWrapper<Employee>()
@@ -64,56 +67,60 @@ public class AuthController {
                 throw new BizException(403, "该账号无管理端权限，请使用小程序登录");
             }
         }
-        String openid = openidHeader != null && !openidHeader.isEmpty() ? openidHeader : props.getDevOpenid();
         String client = "admin".equals(String.valueOf(body.get("client"))) ? "admin" : "mp";
-        return ApiResponse.ok(loginResult(user, openid, client));
+        return ApiResponse.ok(loginResult(user, null, client));
     }
 
+    /**
+     * 微信绑定（登录后调用，需 Bearer）。openid 由 code 换取并写入当前账号。
+     * 事务：先解绑同一 openid 的其他账号、再写当前账号，两写必须同成同败
+     * （否则解绑成功、绑定失败会让原账号丢掉微信登录）。
+     */
     @PostMapping("/auth/bind-wechat")
+    @Transactional
     public ApiResponse<Map<String, Object>> bindWeChat(@RequestBody Map<String, Object> body,
-                                                       HttpServletRequest request,
-                                                       @RequestHeader(value = "X-WX-OPENID", required = false) String openidHeader) {
-        if (body.get("code") == null || String.valueOf(body.get("code")).isEmpty()) {
-            throw new BizException(422, "缺少微信 code");
-        }
-        String openid = openidHeader != null && !openidHeader.isEmpty() ? openidHeader : props.getDevOpenid();
+                                                       HttpServletRequest request) {
         Employee current = currentUser(request);
-        if (current != null) {
-            current.openid = openid;
-            employeeMapper.updateById(current);
-            log.info("微信绑定成功: empId={}", current.id);
-            return ApiResponse.ok(Map.of("ok", true, "openid", openid));
+        if (current == null) {
+            throw new BizException(401, "登录已过期，请重新登录后再绑定微信");
         }
-        return ApiResponse.ok(Map.of("ok", true, "openid", openid));
+        String openid = wxAuthService.openidFromCode(text(body.get("code")));
+        // 一个微信只对应一个账号：显式 SQL 清掉其他持有者（含历史重复行），再由唯一键兜底
+        int released = employeeMapper.unbindOpenidExcept(openid, current.id);
+        if (released > 0) {
+            log.info("openid 已从 {} 个其他账号解绑", released);
+        }
+        current.openid = openid;
+        employeeMapper.updateById(current);
+        log.info("微信绑定成功: empId={}", current.id); // 不打印 openid（脱敏，AGENTS §2.4）
+        return ApiResponse.ok(Map.of("ok", true));
     }
 
     @PostMapping("/auth/wx-login")
-    public ApiResponse<Map<String, Object>> wxLogin(@RequestBody Map<String, Object> body,
-                                                    @RequestHeader(value = "X-WX-OPENID", required = false) String openidHeader) {
-        String openid = openidHeader != null && !openidHeader.isEmpty() ? openidHeader : props.getDevOpenid();
+    public ApiResponse<Map<String, Object>> wxLogin(@RequestBody Map<String, Object> body) {
+        String openid = wxAuthService.openidFromCode(text(body.get("code")));
         Employee user = employeeMapper.selectOne(new LambdaQueryWrapper<Employee>()
                 .eq(Employee::getOpenid, openid).last("LIMIT 1"));
         if (user == null) {
-            throw new BizException(401, "该微信尚未绑定账号，请先用账号密码登录并绑定微信");
+            // 422 而非 401：前端 request.js 对 401 会清登录态，一键登录入口若在已登录页面调用会误登出
+            throw new BizException(422, "该微信尚未绑定账号，请先用账号密码登录并绑定微信");
         }
         if (Boolean.FALSE.equals(user.enabled)) {
             throw new BizException(403, "账号已停用，请联系系统管理员");
         }
-        return ApiResponse.ok(loginResult(user, openid, "mp"));
+        return ApiResponse.ok(loginResult(user, null, "mp"));
     }
 
     @PostMapping("/auth/bind-employee")
     public ApiResponse<Map<String, Object>> bindEmployee(@RequestBody(required = false) Map<String, Object> body,
-                                                         HttpServletRequest request,
-                                                         @RequestHeader(value = "X-WX-OPENID", required = false) String openidHeader) {
+                                                         HttpServletRequest request) {
         String role = body != null && "LEADER".equals(body.get("role")) ? "LEADER" : "WORKER";
-        return ApiResponse.ok(roleLogin(request, openidHeader, role, false));
+        return ApiResponse.ok(roleLogin(request, role, false));
     }
 
     @PostMapping("/auth/bind-use-unit")
-    public ApiResponse<Map<String, Object>> bindUseUnit(HttpServletRequest request,
-                                                        @RequestHeader(value = "X-WX-OPENID", required = false) String openidHeader) {
-        return ApiResponse.ok(roleLogin(request, openidHeader, "UNIT_ADMIN", true));
+    public ApiResponse<Map<String, Object>> bindUseUnit(HttpServletRequest request) {
+        return ApiResponse.ok(roleLogin(request, "UNIT_ADMIN", true));
     }
 
     /** 用户需求④：登录用户自助改密（新密码 ≥6 位；既有 JWT 不失效，重新登录用新密码） */
@@ -153,18 +160,23 @@ public class AuthController {
         return ApiResponse.ok(Map.of("userInfo", userInfo(user), "role", role));
     }
 
-    private Map<String, Object> roleLogin(HttpServletRequest request, String openidHeader, String role,
+    private Map<String, Object> roleLogin(HttpServletRequest request, String requestedRole,
                                           boolean forceUnitAdmin) {
         Employee current = currentUser(request);
         if (current == null) {
             throw new BizException(401, "请先登录后再切换角色");
         }
-        String effectiveRole = forceUnitAdmin ? "UNIT_ADMIN" : (role.equals(current.role) ? current.role : role);
-        String openid = openidHeader != null && !openidHeader.isEmpty() ? openidHeader : props.getDevOpenid();
-        Map<String, Object> out = loginResult(current, openid, "mp");
-        out.put("role", effectiveRole);
-        out.put("token", issueSessionToken(current, effectiveRole, openid, "mp"));
-        return out;
+        // 防越权：角色只能取员工在库中的真实角色，禁止采信客户端 body 指定的角色
+        //（否则任意 WORKER 可自铸 LEADER/UNIT_ADMIN 令牌读取整个管理端）
+        String targetRole = forceUnitAdmin ? "UNIT_ADMIN" : requestedRole;
+        if (!targetRole.equals(current.role)) {
+            throw new BizException(403, "无权使用该角色");
+        }
+        return loginResult(current, null, "mp");
+    }
+
+    private static String text(Object value) {
+        return value == null ? "" : String.valueOf(value).trim();
     }
 
     private Map<String, Object> loginResult(Employee user, String openid, String client) {

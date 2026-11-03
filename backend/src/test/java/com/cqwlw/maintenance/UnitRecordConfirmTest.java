@@ -2,6 +2,7 @@ package com.cqwlw.maintenance;
 
 import com.cqwlw.maintenance.entity.MaintainRecord;
 import com.cqwlw.maintenance.mapper.MaintainRecordMapper;
+import com.cqwlw.maintenance.service.FileStorageService;
 import com.cqwlw.maintenance.service.UnitRecordService;
 import com.cqwlw.maintenance.service.WorkOrderService;
 import org.junit.jupiter.api.BeforeEach;
@@ -34,7 +35,7 @@ class UnitRecordConfirmTest {
     @BeforeEach
     void setUp() {
         recordMapper = mock(MaintainRecordMapper.class);
-        service = new UnitRecordService(recordMapper, mock(WorkOrderService.class));
+        service = new UnitRecordService(recordMapper, mock(WorkOrderService.class), mock(FileStorageService.class));
         record = new MaintainRecord();
         record.id = RECORD_ID;
         record.confirmStatus = "PENDING";

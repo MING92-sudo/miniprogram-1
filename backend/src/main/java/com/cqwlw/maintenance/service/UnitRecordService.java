@@ -21,10 +21,13 @@ public class UnitRecordService {
 
     private final MaintainRecordMapper recordMapper;
     private final WorkOrderService workOrderService;
+    private final FileStorageService fileStorageService;
 
-    public UnitRecordService(MaintainRecordMapper recordMapper, WorkOrderService workOrderService) {
+    public UnitRecordService(MaintainRecordMapper recordMapper, WorkOrderService workOrderService,
+                             FileStorageService fileStorageService) {
         this.recordMapper = recordMapper;
         this.workOrderService = workOrderService;
+        this.fileStorageService = fileStorageService;
     }
 
     public MaintainRecord findOr404(String id) {
@@ -82,7 +85,7 @@ public class UnitRecordService {
         m.put("itemTotal", items == null ? 0 : items.size());
         m.put("photoCount", photos.size());
         m.put("satisfaction", r.satisfaction);
-        m.put("signatureUrl", WorkOrderService.nz(r.signatureUrl));
+        m.put("signatureUrl", fileStorageService.resolveStoredUrl(r.signatureUrl));
         return m;
     }
 
@@ -121,10 +124,10 @@ public class UnitRecordService {
         m.put("checkinTime", TimeUtil.format(r.checkinTime));
         m.put("checkoutTime", TimeUtil.format(r.checkoutTime));
         m.put("duration", r.duration);
-        m.put("items", r.itemsJson == null ? List.of() : JsonUtil.readList(r.itemsJson));
-        m.put("photos", JsonUtil.readStringList(r.photosJson));
-        m.put("workerSignatureUrl", r.workerSignatureUrl);
-        m.put("assistantSignatureUrl", r.assistantSignatureUrl);
+        m.put("items", resolveItems(r.itemsJson));
+        m.put("photos", resolveStoredUrls(JsonUtil.readStringList(r.photosJson)));
+        m.put("workerSignatureUrl", fileStorageService.resolveStoredUrl(r.workerSignatureUrl));
+        m.put("assistantSignatureUrl", fileStorageService.resolveStoredUrl(r.assistantSignatureUrl));
         m.put("problemCodes", JsonUtil.readStringList(r.problemCodesJson));
         m.put("originalRecordId", r.originalRecordId);
         m.put("reportStatus", r.reportStatus);
@@ -134,12 +137,33 @@ public class UnitRecordService {
         m.put("confirmStatus", r.confirmStatus);
         m.put("satisfaction", r.satisfaction);
         m.put("signatureFileId", r.signatureFileId);
-        m.put("signatureUrl", r.signatureUrl);
+        m.put("signatureUrl", fileStorageService.resolveStoredUrl(r.signatureUrl));
         m.put("shareToken", r.shareToken);
         m.put("reportPayload", r.reportPayloadJson == null ? null : JsonUtil.readMap(r.reportPayloadJson));
         // 预览上下文（docs/03 §六）：地址/使用单位/维保单位/手机号/平台ID/签到经纬度/条目总数
         m.put("context", r.previewContextJson == null ? Map.of() : JsonUtil.readMap(r.previewContextJson));
         return m;
+    }
+
+    /** 记录详情是长期读路径：把清单照片与签名从库里无签名 URL 重签为当前可访问 URL */
+    private List<Map<String, Object>> resolveItems(String itemsJson) {
+        if (itemsJson == null || itemsJson.isEmpty()) {
+            return List.of();
+        }
+        List<Map<String, Object>> items = JsonUtil.readList(itemsJson);
+        for (Map<String, Object> item : items) {
+            Object photos = item.get("photos");
+            if (photos instanceof List<?> list) {
+                item.put("photos", list.stream()
+                        .map(v -> fileStorageService.resolveStoredUrl(String.valueOf(v)))
+                        .collect(Collectors.toList()));
+            }
+        }
+        return items;
+    }
+
+    private List<String> resolveStoredUrls(List<String> urls) {
+        return urls.stream().map(fileStorageService::resolveStoredUrl).collect(Collectors.toList());
     }
 
     /** 上报状态归一（docs/04 A.3 P3 修订）：REPORTED→SUCCESS，FAILED→FAILED，其余 PENDING */

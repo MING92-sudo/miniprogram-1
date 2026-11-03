@@ -166,7 +166,11 @@ public class AdminArchiveService {
         e.role = role;
         e.roleText = str(body, "roleText").isBlank() ? defaultRoleText(role) : str(body, "roleText");
         e.groupName = str(body, "groupName");
-        String initialPassword = str(body, "password").isBlank() ? randomPassword() : str(body, "password");
+        String password = str(body, "password");
+        if (!password.isBlank() && password.length() < 8) {
+            throw new BizException(422, "请设置至少 8 位初始密码");
+        }
+        String initialPassword = password.isBlank() ? randomPassword() : password;
         e.passwordHash = encoder.encode(initialPassword);
         e.platformId = str(body, "platformId");
         e.certificate = str(body, "certificate");

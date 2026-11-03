@@ -442,9 +442,11 @@ public class RecordPdfService {
         }
         try {
             if (url.startsWith("http")) {
-                // 同源 /files/{id}：直接读存储（本地或 COS），避免自调用 HTTP（2026-10-05）
-                if (url.contains("/files/")) {
-                    return readStoredFile(url.substring(url.lastIndexOf("/files/") + "/files/".length()));
+                // 同源 /files/{id}：直接读存储（本地或 COS），避免自调用 HTTP（2026-10-05）；
+                // 链接可能带 ?s= 访问签名，必须剥离后再取主键
+                String sharedId = FileStorageService.fileIdFromUrl(url);
+                if (sharedId != null) {
+                    return readStoredFile(sharedId);
                 }
                 byte[] remote = restTemplate.getForObject(url, byte[].class);
                 if (remote != null) {
@@ -457,8 +459,9 @@ public class RecordPdfService {
                         .findFirst().orElse(null);
                 return legacy == null ? null : fileStorage.readBytes(legacy);
             }
-            if (url.startsWith("/files/")) {
-                return readStoredFile(url.substring("/files/".length()));
+            String relativeId = FileStorageService.fileIdFromUrl(url);
+            if (relativeId != null) {
+                return readStoredFile(relativeId);
             }
         } catch (Exception e) {
             log.warn("PDF 图片拉取失败（占位处理）: url={}, {}", mask(url), e.getMessage());

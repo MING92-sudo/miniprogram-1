@@ -4,6 +4,7 @@ import com.cqwlw.maintenance.common.ApiResponse;
 import com.cqwlw.maintenance.common.BizException;
 import com.cqwlw.maintenance.entity.AppFile;
 import com.cqwlw.maintenance.mapper.AppFileMapper;
+import com.cqwlw.maintenance.service.FileAccessTokenService;
 import com.cqwlw.maintenance.service.FileStorageService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.MediaType;
@@ -31,10 +32,13 @@ public class FileController {
 
     private final FileStorageService fileStorageService;
     private final AppFileMapper fileMapper;
+    private final FileAccessTokenService fileToken;
 
-    public FileController(FileStorageService fileStorageService, AppFileMapper fileMapper) {
+    public FileController(FileStorageService fileStorageService, AppFileMapper fileMapper,
+                          FileAccessTokenService fileToken) {
         this.fileStorageService = fileStorageService;
         this.fileMapper = fileMapper;
+        this.fileToken = fileToken;
     }
 
     @PostMapping("/files/upload")
@@ -49,9 +53,16 @@ public class FileController {
         return ApiResponse.ok(Map.of("fileId", f.id, "url", f.url == null ? "" : f.url));
     }
 
-    /** 同源文件下发：本地文件直读；COS 模式经内网凭证流式拉取（托管桶私有读，直链不可访问） */
+    /**
+     * 同源文件下发：本地文件直读；COS 模式经内网凭证流式拉取（托管桶私有读，直链不可访问）。
+     * 读取必须带 URL 时效签名（小程序 image 标签不带 Authorization 头，签字页也需匿名渲染）。
+     */
     @GetMapping("/files/{id}")
-    public ResponseEntity<byte[]> serve(@PathVariable String id) throws Exception {
+    public ResponseEntity<byte[]> serve(@PathVariable String id,
+                                        @RequestParam(name = "s", required = false) String signature) throws Exception {
+        if (!fileToken.verify(id, signature)) {
+            throw new BizException(403, "文件链接无效或已过期");
+        }
         AppFile f = fileMapper.selectById(id);
         if (f == null) {
             throw new BizException(1404, "文件不存在");

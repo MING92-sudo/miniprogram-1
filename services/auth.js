@@ -21,17 +21,17 @@ function accountLogin(phone, password) {
 
 // 登录后绑定微信登录（wx.login code → openid 与账号关联）
 function bindWeChat(code) {
-  return post('/auth/bind-wechat', { code: code }, { needAuth: false })
+  return post('/auth/bind-wechat', { code: code }, { needAuth: true })
 }
 
 // 绑定维保人员档案（手机号匹配）
 function bindEmployee(data) {
-  return post('/auth/bind-employee', data, { needAuth: false })
+  return post('/auth/bind-employee', data, { needAuth: true })
 }
 
 // 绑定使用单位（邀请码）
 function bindUseUnit(data) {
-  return post('/auth/bind-use-unit', data, { needAuth: false })
+  return post('/auth/bind-use-unit', data, { needAuth: true })
 }
 
 // 退出登录

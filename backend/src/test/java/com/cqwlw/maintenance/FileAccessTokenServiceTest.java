@@ -1,0 +1,93 @@
+package com.cqwlw.maintenance;
+
+import com.cqwlw.maintenance.config.AppProperties;
+import com.cqwlw.maintenance.service.FileAccessTokenService;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+/**
+ * 文件访问签名：读文件靠它把门（小程序 image 标签不带 Authorization 头，且使用单位
+ * 签字页匿名访问需要渲染签名图），因此签名必须确定性、不可跨文件复用、不可枚举。
+ */
+class FileAccessTokenServiceTest {
+
+    private FileAccessTokenService token;
+
+    @BeforeEach
+    void setUp() {
+        AppProperties props = new AppProperties();
+        props.setJwtSecret("unit-test-secret-0123456789abcdef");
+        token = new FileAccessTokenService(props);
+    }
+
+    @Test
+    void signatureCarriesExpiryAndIsFresh() {
+        assertTrue(token.verify("file_1", token.sign("file_1")));
+        String expired = token.sign("file_1", System.currentTimeMillis() / 1000 - 1);
+        assertFalse(token.verify("file_1", expired));
+        String future = token.sign("file_1", System.currentTimeMillis() / 1000 + 3600);
+        assertTrue(token.verify("file_1", future));
+    }
+
+    @Test
+    void differentFilesGetDifferentSignatures() {
+        assertNotEquals(token.sign("file_1"), token.sign("file_2"));
+    }
+
+    @Test
+    void rejectsSignatureOfAnotherFile() {
+        assertFalse(token.verify("file_2", token.sign("file_1")));
+    }
+
+    @Test
+    void rejectsMissingOrMalformedSignature() {
+        assertFalse(token.verify("file_1", null));
+        assertFalse(token.verify("file_1", ""));
+        assertFalse(token.verify("file_1", "   "));
+        assertFalse(token.verify("file_1", "deadbeef"));
+        assertFalse(token.verify(null, token.sign("file_1")));
+    }
+
+    @Test
+    void signatureChangesWithSecret() {
+        AppProperties other = new AppProperties();
+        other.setJwtSecret("another-secret-0123456789abcdefg");
+        assertNotEquals(token.sign("file_1"), new FileAccessTokenService(other).sign("file_1"));
+    }
+
+    @Test
+    void refusesToStartWithoutSecret() {
+        AppProperties blank = new AppProperties();
+        blank.setJwtSecret("  ");
+        assertThrows(IllegalStateException.class, () -> new FileAccessTokenService(blank));
+    }
+
+    @Test
+    void rejectsSignatureMadeWithBareSecret() {
+        // 密钥必须带域隔离串派生，避免与其它 HMAC 用途跨用
+        long exp = System.currentTimeMillis() / 1000 + 3600;
+        String bare = exp + "." + hmacHex("unit-test-secret-0123456789abcdef", "file_1:" + exp);
+        assertFalse(token.verify("file_1", bare));
+    }
+
+    private static String hmacHex(String secret, String payload) {
+        try {
+            javax.crypto.Mac mac = javax.crypto.Mac.getInstance("HmacSHA256");
+            mac.init(new javax.crypto.spec.SecretKeySpec(
+                    secret.getBytes(java.nio.charset.StandardCharsets.UTF_8), "HmacSHA256"));
+            byte[] out = mac.doFinal(payload.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            StringBuilder sb = new StringBuilder(out.length * 2);
+            for (byte b : out) {
+                sb.append(Character.forDigit((b >> 4) & 0xF, 16)).append(Character.forDigit(b & 0xF, 16));
+            }
+            return sb.toString();
+        } catch (Exception e) {
+            throw new IllegalStateException(e);
+        }
+    }
+}

@@ -54,8 +54,10 @@ app:
   # （可伪造 role=SYS_ADMIN），已移除；缺失时 JwtService 启动即失败并给出可操作提示。
   jwt-secret: ${JWT_SECRET:}
   jwt-expire-hours: ${JWT_EXPIRE_HOURS:72}
-  # 云托管免鉴权注入 X-WX-OPENID；本地开发无该头时用 dev_openid 兜底
-  dev-openid: ${DEV_OPENID:dev_openid}
+  # 微信小程序凭证：code 换 openid（jscode2session）用，只允许环境变量注入。
+  # 未配置时 /auth/bind-wechat、/auth/wx-login 明确报错，不再用 dev_openid 或 X-WX-OPENID 兜底。
+  wx-appid: ${WX_APPID:}
+  wx-appsecret: ${WX_APPSECRET:}
   # 演示种子数据（生产置 false）
   # C5：默认关闭——生产首启不得自动写入弱口令账号与假电梯（虚假数据风险）
   seed-demo-data: ${SEED_DEMO_DATA:${DB_SEED_DEMO:false}}

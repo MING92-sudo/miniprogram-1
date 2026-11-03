@@ -17,6 +17,7 @@ import com.cqwlw.maintenance.mapper.UseUnitMapper;
 import com.cqwlw.maintenance.service.ChecklistService;
 import com.cqwlw.maintenance.service.DirectoryService;
 import com.cqwlw.maintenance.service.EmployeeScopeService;
+import com.cqwlw.maintenance.service.FileStorageService;
 import com.cqwlw.maintenance.service.WorkOrderService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -47,7 +48,7 @@ class DirectoryServiceTest {
         inspectMapper = mock(InspectRecordMapper.class);
         service = new DirectoryService(rescueMapper, faultMapper, mock(DrillMapper.class), inspectMapper,
                 mock(MessageMapper.class), mock(KnowledgeMapper.class), mock(ElevatorMapper.class),
-                mock(ChecklistService.class), mock(WorkOrderService.class), mock(EmployeeScopeService.class), mock(EmployeeMapper.class), mock(UseUnitMapper.class), mock(WorkOrderMapper.class), mock(CompanyMapper.class));
+                mock(ChecklistService.class), mock(WorkOrderService.class), mock(EmployeeScopeService.class), mock(EmployeeMapper.class), mock(UseUnitMapper.class), mock(WorkOrderMapper.class), mock(CompanyMapper.class), mock(FileStorageService.class));
     }
 
     @Test

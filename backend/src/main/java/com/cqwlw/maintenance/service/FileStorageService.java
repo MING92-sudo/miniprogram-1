@@ -54,14 +54,17 @@ public class FileStorageService {
     private final AppFileMapper fileMapper;
     private final RestTemplate restTemplate;
     private final ObjectMapper objectMapper;
+    private final FileAccessTokenService fileToken;
     private volatile COSClient cosClient;
 
     public FileStorageService(AppProperties props, AppFileMapper fileMapper,
-                              RestTemplate restTemplate, ObjectMapper objectMapper) {
+                              RestTemplate restTemplate, ObjectMapper objectMapper,
+                              FileAccessTokenService fileToken) {
         this.props = props;
         this.fileMapper = fileMapper;
         this.restTemplate = restTemplate;
         this.objectMapper = objectMapper;
+        this.fileToken = fileToken;
     }
 
     @PostConstruct
@@ -124,6 +127,8 @@ public class FileStorageService {
         f.sizeBytes = file.getSize();
         f.createdAt = TimeUtil.now();
         fileMapper.insert(f);
+        // 数据库只存不带签名的稳定地址；返回给客户端的是带时效签名的可读 URL
+        f.url = signedUrl(f.url, id);
         return f;
     }
 
@@ -166,18 +171,79 @@ public class FileStorageService {
     }
 
     /**
-     * fileId → 可访问 URL（COS 直链或本地 /files/{id}）；
-     * 入参已是 http(s) URL 时原样返回；查不到返回空串。供记录归档时把 fileId 归一为 URL。
+     * fileId → 可访问 URL（本地 /files/{id} 带访问签名）；
+     * 入参已是 http(s) URL 时仅对本站 /files/ 链接重签，外链（演示图等）原样返回；
+     * 查不到返回空串。供记录归档时把 fileId 归一为 URL。
      */
     public String urlOf(String fileIdOrUrl) {
         if (fileIdOrUrl == null || fileIdOrUrl.isBlank()) {
             return "";
         }
         if (fileIdOrUrl.startsWith("http://") || fileIdOrUrl.startsWith("https://")) {
-            return fileIdOrUrl;
+            return resolveStoredUrl(fileIdOrUrl);
         }
         AppFile f = fileMapper.selectById(fileIdOrUrl);
-        return f == null || f.url == null ? "" : f.url;
+        return f == null || f.url == null ? "" : signedUrl(f.url, f.id);
+    }
+
+    /**
+     * 读路径重签：库里存的是不带签名的稳定 URL（或历史无签名 URL），
+     * 每次返回给客户端前补上新鲜签名，避免归档链接 1 小时后全部失效。
+     * 外链（如演示图 picsum）不重签，原样返回。
+     */
+    public String resolveStoredUrl(String url) {
+        if (url == null || url.isBlank()) {
+            return "";
+        }
+        String fileId = fileIdFromUrl(url);
+        if (fileId == null) {
+            return url;
+        }
+        int idx = url.indexOf("/files/");
+        return signedUrl(url.substring(0, idx) + "/files/" + fileId, fileId);
+    }
+
+    /**
+     * 从 /files/{id} 形态的 URL 提取 fileId，忽略 {@code ?s=} 签名与 fragment。
+     * 服务端内部按 URL 回源（PDF 抓图等）时必须先剥离 query，否则会把 "id?s=..." 当成主键。
+     *
+     * @return fileId；不是本站 /files/ 链接时返回 null
+     */
+    public static String fileIdFromUrl(String url) {
+        if (url == null) {
+            return null;
+        }
+        int idx = url.indexOf("/files/");
+        if (idx < 0) {
+            return null;
+        }
+        String tail = url.substring(idx + "/files/".length());
+        int cut = tail.length();
+        for (char c : new char[]{'?', '#', '/'}) {
+            int p = tail.indexOf(c);
+            if (p >= 0 && p < cut) {
+                cut = p;
+            }
+        }
+        String fileId = tail.substring(0, cut);
+        return fileId.isEmpty() ? null : fileId;
+    }
+
+    /** 去掉旧 query/fragment 后追加签名，避免重复 s= 或签名被旧参数干扰 */
+    private String signedUrl(String baseUrl, String fileId) {
+        String base = baseUrl == null ? "" : baseUrl;
+        int cut = base.length();
+        int q = base.indexOf('?');
+        if (q >= 0 && q < cut) {
+            cut = q;
+        }
+        int h = base.indexOf('#');
+        if (h >= 0 && h < cut) {
+            cut = h;
+        }
+        base = base.substring(0, cut);
+        String sep = base.contains("?") ? "&" : "?";
+        return base + sep + "s=" + fileToken.sign(fileId);
     }
 
     /**
