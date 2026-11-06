@@ -40,7 +40,7 @@
 .msg-detail {
   margin-top: 12rpx;
   font-size: 28rpx;
-  color: #1a1a1a;
+  color: var(--em-text-primary);
 }
 
 .msg-detail-row {
@@ -49,7 +49,7 @@
 }
 
 .msg-detail-label {
-  color: #86909c;
+  color: var(--em-text-secondary);
   width: 140rpx;
   flex-shrink: 0;
 }

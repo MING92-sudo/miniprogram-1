@@ -1,91 +1,45 @@
+/* 登录页：克制工业风（白底 + 单蓝 + 下划线输入） */
 .login-page {
   min-height: 100vh;
-  position: relative;
-  overflow: hidden;
-  padding: 140rpx 64rpx 60rpx;
+  padding: 120rpx 64rpx 80rpx;
   box-sizing: border-box;
-  background: #ffffff;
+  background: linear-gradient(180deg, var(--em-brand-light) 0%, #ffffff 360rpx);
 }
 
-/* ── 装饰色块 ── */
-.deco {
-  position: absolute;
-  border-radius: 50%;
-  background: linear-gradient(150deg, #69b1ff, #1668dc);
-}
-
-.deco-top {
-  width: 420rpx;
-  height: 420rpx;
-  right: -160rpx;
-  top: -180rpx;
-}
-
-.deco-bottom-l {
-  width: 300rpx;
-  height: 300rpx;
-  left: -120rpx;
-  bottom: -100rpx;
-  border-radius: 40% 60% 55% 45%;
-}
-
-.deco-bottom-r {
-  width: 140rpx;
-  height: 140rpx;
-  right: -40rpx;
-  bottom: 140rpx;
-  background: linear-gradient(150deg, #91caff, #4096ff);
-}
-
-/* ── 标题 ── */
+/* ── 标题区 ── */
 .login-header {
-  position: relative;
-  margin-bottom: 100rpx;
+  margin-bottom: 80rpx;
 }
 
 .login-title {
-  color: #1668dc;
+  color: var(--em-text-primary);
   font-size: 52rpx;
-  font-weight: 800;
+  font-weight: 700;
+  line-height: 1.2;
 }
 
 .login-sub {
-  color: #1d2129;
-  font-size: 40rpx;
-  font-weight: 500;
+  color: var(--em-text-secondary);
+  font-size: 28rpx;
   margin-top: 16rpx;
 }
 
 .login-bar {
-  width: 120rpx;
-  height: 10rpx;
+  width: 80rpx;
+  height: 8rpx;
   border-radius: 999rpx;
-  background: linear-gradient(90deg, #4096ff, #69b1ff);
+  background: var(--em-brand);
   margin-top: 28rpx;
 }
 
 /* ── 输入区 ── */
-.form-area {
-  position: relative;
-}
-
 .input-row {
   display: flex;
   align-items: center;
-  border-bottom: 2rpx solid #e5e6eb;
-  padding: 26rpx 4rpx;
-}
-
-.input-icon {
-  font-size: 34rpx;
-  margin-right: 20rpx;
-}
-
-.input-divider {
-  width: 2rpx;
-  height: 32rpx;
-  background: #e5e6eb;
-  margin-right: 20rpx;
+  border-bottom: 2rpx solid var(--em-border);
+  padding: 20rpx 0;
+  min-height: 96rpx;
+  box-sizing: border-box;
 }
 
 .input-field {
@@ -93,51 +47,69 @@
   font-size: 30rpx;
 }
 
+/* 显示/隐藏密码（触控目标 ≥ 88rpx） */
 .eye {
-  font-size: 34rpx;
-  padding: 0 8rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 96rpx;
+  min-height: 88rpx;
+  font-size: 26rpx;
+  color: var(--em-brand);
+  flex-shrink: 0;
 }
 
+/* ── 选项行 ── */
 .login-opts {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin: 8rpx 0 24rpx;
+  margin: 16rpx 0 24rpx;
 }
 
 .remember {
   display: flex;
   align-items: center;
-  gap: 8rpx;
-  font-size: 26rpx;
-  color: #4e5969;
+  min-height: 72rpx;
+  padding: 0 4rpx;
 }
 
-.checkbox {
-  font-size: 30rpx;
-  color: #0052d9;
+.remember-text {
+  font-size: 26rpx;
+  color: var(--em-text-secondary);
+  margin-left: 12rpx;
 }
 
 .forgot {
-  text-align: right;
-  color: #1668dc;
+  display: flex;
+  align-items: center;
+  min-height: 72rpx;
+  padding: 0 4rpx;
+  color: var(--em-brand);
   font-size: 26rpx;
-  margin-top: 20rpx;
 }
 
 /* ── 登录按钮 ── */
 .login-btn {
-  margin-top: 72rpx;
-  background: linear-gradient(90deg, #4096ff, #1668dc);
+  margin-top: 8rpx;
+  background: var(--em-brand);
   color: #ffffff;
-  font-size: 34rpx;
+  font-size: 32rpx;
   font-weight: 600;
   border-radius: 999rpx;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 16rpx;
-  line-height: 2.6;
+  line-height: 2.8;
+}
+.login-btn::after {
+  border: none;
+}
+
+.login-btn[disabled] {
+  background: var(--em-brand-light);
+  color: var(--em-brand);
 }
 
 .login-arrow {
@@ -152,36 +124,36 @@
 
 /* ── 协议 ── */
 .agreement {
-  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 12rpx;
   margin-top: 120rpx;
 }
 
 .checkbox {
-  width: 36rpx;
-  height: 36rpx;
-  border: 2rpx solid #c9cdd4;
+  width: 40rpx;
+  height: 40rpx;
+  box-sizing: border-box;
+  border: 2rpx solid var(--em-text-disabled);
   border-radius: 8rpx;
   color: #ffffff;
   font-size: 24rpx;
   text-align: center;
-  line-height: 32rpx;
+  line-height: 36rpx;
   flex-shrink: 0;
 }
 
 .checkbox.checked {
-  background: #1668dc;
-  border-color: #1668dc;
+  background: var(--em-brand);
+  border-color: var(--em-brand);
 }
 
 .agreement-text {
   font-size: 24rpx;
-  color: #4e5969;
+  color: var(--em-text-secondary);
+  margin-left: 12rpx;
 }
 
 .link {
-  color: #ff7d00;
+  color: var(--em-brand);
 }

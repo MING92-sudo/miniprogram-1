@@ -93,8 +93,10 @@ class OrderNoIssuerTest {
     }
 
     @Test
-    void retriesWithIncrementedSequenceOnDuplicateKey() {
-        when(orderMapper.selectCount(any())).thenReturn(0L);
+    void retriesAfterDuplicateKeyByRecounting() {
+        // 首次计数 0 → WO-001 撞键；并发对端已提交 → 重试时重统计为 1 → WO-002（紧邻下一空闲号）。
+        // 旧实现「计数 + attempt」在重试时会把对端新提交的号与重试次数重复累加，得出 WO-003 跳过 002。
+        when(orderMapper.selectCount(any())).thenReturn(0L, 1L);
         WorkOrder o = newOrder();
         when(orderMapper.insert(o))
                 .thenThrow(new org.springframework.dao.DuplicateKeyException("dup"))
@@ -102,7 +104,7 @@ class OrderNoIssuerTest {
 
         issuer.insert(o);
 
-        // 首次冲突后必须换序号重试落库，否则唯一键异常会中断整个派单/派工循环
+        // 撞键后必须重新统计当日工单数再取下一空闲号，否则唯一键异常会中断整个派单/派工循环
         verify(orderMapper, times(2)).insert(o);
         assertEquals("WO" + TODAY + "-002", o.orderNo);
     }

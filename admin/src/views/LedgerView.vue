@@ -6,7 +6,8 @@
     </div>
 
     <el-table :data="rows" v-loading="loading" stripe>
-      <el-table-column prop="elevatorName" label="项目名称" min-width="150" show-overflow-tooltip />
+      <el-table-column prop="elevatorName" label="电梯名称" min-width="150" show-overflow-tooltip />
+      <el-table-column prop="projectName" label="项目名称（小区）" min-width="120" show-overflow-tooltip />
       <el-table-column prop="useUnitName" label="使用单位" min-width="150" show-overflow-tooltip />
       <el-table-column prop="deviceCode" label="设备代码" width="170" show-overflow-tooltip />
       <el-table-column prop="regCode" label="注册代码" width="170" show-overflow-tooltip />

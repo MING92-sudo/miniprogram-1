@@ -49,7 +49,7 @@
       <image class="photo-preview" src="{{photo}}" mode="aspectFill" bindtap="goCamera" />
       <view class="photo-remove" bindtap="removePhoto">重拍</view>
     </view>
-    <view wx:else class="photo-empty" bindtap="goCamera">📷 点击拍照（自动叠加时间水印）</view>
+    <view wx:else class="photo-empty" bindtap="goCamera">点击拍照（自动叠加时间水印）</view>
   </view>
 
   <view class="em-card">

@@ -96,4 +96,4 @@
   </view>
 </view>
 
-<view wx:elif="{{loading}}" class="em-text-secondary loading-tip">记录加载中...</view>
+<view wx:elif="{{loading}}" class="em-text-secondary loading-tip">{{loadingText}}</view>

@@ -1,33 +1,33 @@
 .page { padding: 20rpx; }
 .info-row { display: flex; justify-content: space-between; padding: 12rpx 0; font-size: 28rpx; }
-.info-row text:first-child { color: #86909c; }
-.item-row { padding: 12rpx 0; border-bottom: 1rpx solid #f2f3f5; font-size: 28rpx; }
-.item-result { color: #0052d9; }
-.item-desc { color: #e34d59; font-size: 26rpx; }
+.info-row text:first-child { color: var(--em-text-secondary); }
+.item-row { padding: 12rpx 0; border-bottom: 1rpx solid var(--em-border); font-size: 28rpx; }
+.item-result { color: var(--em-brand); }
+.item-desc { color: var(--em-error); font-size: 26rpx; }
 .photo-grid { display: flex; flex-wrap: wrap; gap: 12rpx; }
 .photo { width: 200rpx; height: 200rpx; border-radius: 8rpx; }
 .sig-row { display: flex; justify-content: space-between; align-items: center; padding: 12rpx 0; font-size: 28rpx; }
-.sig { width: 240rpx; height: 120rpx; border: 1rpx dashed #dcdfe6; border-radius: 8rpx; }
+.sig { width: 240rpx; height: 120rpx; border: 1rpx dashed var(--em-border); border-radius: 8rpx; }
 .confirm-text { padding: 12rpx 0; }
 .rec-title { font-size: 34rpx; font-weight: 700; text-align: center; padding: 12rpx 0 4rpx; }
-.rec-subtitle { font-size: 26rpx; color: #86909c; text-align: center; padding-bottom: 16rpx; }
+.rec-subtitle { font-size: 26rpx; color: var(--em-text-secondary); text-align: center; padding-bottom: 16rpx; }
 .item-summary { font-size: 26rpx; padding-bottom: 8rpx; }
-.item-remark { color: #4e5969; font-size: 26rpx; }
-.item-abnormal { color: #e34d59; font-weight: 600; }
+.item-remark { color: var(--em-text-secondary); font-size: 26rpx; }
+.item-abnormal { color: var(--em-error); font-weight: 600; }
 .photo-cell { position: relative; }
-.photo-abnormal .photo { border: 4rpx solid #e34d59; }
+.photo-abnormal .photo { border: 4rpx solid var(--em-error); }
 .photo-tag {
   position: absolute;
   left: 8rpx;
   top: 8rpx;
   padding: 2rpx 10rpx;
   border-radius: 6rpx;
-  background: #e34d59;
+  background: var(--em-error);
   color: #fff;
   font-size: 20rpx;
 }
 .rec-actions { display: flex; gap: 16rpx; justify-content: space-between; }
 .loading-tip { padding: 40rpx; text-align: center; }
-.upload-SUCCESS { color: #00a870; }
-.upload-FAILED { color: #e34d59; }
-.upload-PENDING { color: #ed7b2f; }
+.upload-SUCCESS { color: var(--em-success); }
+.upload-FAILED { color: var(--em-error); }
+.upload-PENDING { color: var(--em-warning); }

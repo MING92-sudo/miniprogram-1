@@ -22,15 +22,15 @@
 }
 
 .geo-OK {
-  color: #00a870;
+  color: var(--em-success);
 }
 
 .geo-NEAR {
-  color: #ed7b2f;
+  color: var(--em-warning);
 }
 
 .geo-OVER {
-  color: #d54941;
+  color: var(--em-error);
   font-weight: 600;
 }
 
@@ -39,7 +39,7 @@
 }
 
 .location-fail {
-  color: var(--em-danger, #e34d59);
+  color: var(--em-error);
   margin-bottom: 16rpx;
 }
 
@@ -51,7 +51,9 @@
 .role-item {
   flex: 1;
   text-align: center;
-  padding: 16rpx 0;
+  padding: 0;
+  min-height: 88rpx;
+  line-height: 88rpx;
   border-radius: var(--em-radius);
   background: var(--em-bg-page);
   color: var(--em-text-secondary);
@@ -60,7 +62,7 @@
 
 .role-active {
   color: var(--em-brand);
-  background: rgba(0, 82, 217, 0.06);
+  background: var(--em-brand-light);
   border-color: var(--em-brand);
   font-weight: 600;
 }
@@ -70,7 +72,7 @@
 }
 
 .code-input {
-  border: 2rpx solid var(--em-border, #e5e6eb);
+  border: 2rpx solid var(--em-border);
   border-radius: var(--em-radius);
   padding: 16rpx 24rpx;
   margin-bottom: 12rpx;

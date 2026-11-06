@@ -423,6 +423,9 @@ public class AdminArchiveService {
         if (body.get("location") != null) {
             el.location = str(body, "location");
         }
+        if (body.get("projectName") != null) {
+            el.projectName = str(body, "projectName");
+        }
         if (body.get("regCode") != null) {
             el.regCode = str(body, "regCode");
         }
@@ -602,6 +605,7 @@ public class AdminArchiveService {
         m.put("id", el.id);
         m.put("elevatorCode", nz(el.elevatorCode));
         m.put("elevatorName", nz(el.elevatorName));
+        m.put("projectName", nz(el.projectName));
         m.put("location", nz(el.location));
         m.put("regCode", nz(el.regCode));
         m.put("deviceCode", nz(el.deviceCode));

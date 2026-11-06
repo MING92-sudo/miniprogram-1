@@ -1,6 +1,7 @@
 // 急修单列表：状态筛选 + 详情闭环跟踪
 const { getFaultList } = require('../../services/fault')
 const { ensureLogin } = require('../../utils/guard')
+const { TOAST_TEXT, EMPTY_TEXT, LOADING_TEXT } = require('../../constants/index')
 
 const STATUS_TEXT = {
   OPEN: '处理中',
@@ -22,7 +23,9 @@ Page({
     size: 20,
     total: 0,
     status: '',
-    loading: false
+    loading: false,
+    emptyText: EMPTY_TEXT,
+    loadingText: LOADING_TEXT
   },
 
   onShow() {
@@ -70,7 +73,7 @@ Page({
         page
       })
     } catch (e) {
-      wx.showToast({ title: e.message || '加载失败', icon: 'none' })
+      wx.showToast({ title: e.message || TOAST_TEXT.LOAD_FAILED, icon: 'none' })
     }
     this.setData({ loading: false })
   },

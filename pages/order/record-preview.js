@@ -1,11 +1,12 @@
 // 维保记录预览页（docs/03 §六 信息完整性清单）：与使用单位确认同源，属本地留痕展示层。
 // 仅展示实际执行的检查项（周期项"本次无需执行"不进入本次记录），并汇总"执行 N 项（共 M 项）"。
 const { getRecord } = require('../../services/unit')
-const { CHECK_RESULT_TEXT } = require('../../constants/index')
+const { CHECK_RESULT_TEXT, TOAST_TEXT, LOADING_TEXT } = require('../../constants/index')
 
 Page({
   data: {
     loading: true,
+    loadingText: LOADING_TEXT,
     record: null,
     context: null,
     items: [],
@@ -59,7 +60,7 @@ Page({
       })
     }).catch(function (e) {
       that.setData({ loading: false })
-      wx.showToast({ title: (e && e.message) || '记录加载失败', icon: 'none' })
+      wx.showToast({ title: (e && e.message) || TOAST_TEXT.LOAD_FAILED, icon: 'none' })
     })
   },
 

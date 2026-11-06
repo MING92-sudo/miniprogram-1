@@ -5,7 +5,7 @@ const { getChecklist, submitChecklistItem } = require('../../services/order')
 const { uploadImage } = require('../../services/upload')
 const { reverseGeocode } = require('../../services/location')
 const { formatTime } = require('../../utils/util')
-const { PROBLEM_CODES } = require('../../constants/index')
+const { PROBLEM_CODES, TOAST_TEXT } = require('../../constants/index')
 const offline = require('../../utils/offline')
 
 const MAX_PHOTOS = 4
@@ -41,6 +41,10 @@ Page({
       const checklist = await getChecklist(this.data.orderId)
       const item = ((checklist && checklist.items) || []).find((i) => i.id === this.data.itemId)
       if (!item) return
+      // 照片归一为 { url, fileId }：已上传的 fileId 非空（无需重复上传），新拍的 fileId 为空
+      const fileIds = item.photoFileIds || []
+      const urls = item.photos || []
+      const photos = urls.map(function (u, i) { return { url: u, fileId: fileIds[i] || '' } })
       this.setData({
         item,
         result: item.result || '',
@@ -50,7 +54,7 @@ Page({
         problemCode: item.problemCode || '',
         problemDesc: item.problemCode ? PROBLEM_CODES[item.problemCode] : '',
         skipReason: item.skipReason || '',
-        photos: item.photos || []
+        photos: photos
       })
     } catch (e) {
       // 回显失败不阻断填写
@@ -114,7 +118,7 @@ Page({
   // 由水印相机页面回传（已完成水印合成与压缩）
   onPhotoReady(photo) {
     if (!photo) return
-    this.setData({ photos: this.data.photos.concat(photo) })
+    this.setData({ photos: this.data.photos.concat({ url: photo, fileId: '' }) })
   },
 
   removePhoto(e) {
@@ -127,7 +131,7 @@ Page({
   previewPhoto(e) {
     wx.previewImage({
       current: e.currentTarget.dataset.src,
-      urls: this.data.photos
+      urls: this.data.photos.map(function (p) { return p.url })
     })
   },
 
@@ -143,7 +147,7 @@ Page({
       problemCode: this.data.result === 'ABNORMAL' ? this.data.problemCode : '',
       skipReason: this.data.result === 'NA' ? this.data.skipReason : '',
       photoFileIds: fileIds,
-      photoUrls: this.data.photos, // mock 演示回显（本地路径）；真实后端忽略
+      photoUrls: this.data.photos.map(function (p) { return p.url }), // mock 演示回显；真实后端只落 photoFileIds
       recordedAt: formatTime() // 离线补传时为本地原始时间戳
     }
   },
@@ -188,10 +192,11 @@ Page({
     if (err) return wx.showToast({ title: err, icon: 'none' })
     this.setData({ submitting: true })
     try {
-      // 照片已在选取时压缩至约定范围（长边 ≤1200px、≤500KB）
-      const fileIds = []
-      for (const p of this.data.photos) {
-        const r = await uploadImage(p)
+      // 照片已在选取时压缩至约定范围（长边 ≤1200px、≤500KB）。
+      // 仅上传本次新拍的本地路径；已上传（fileId 非空）的直连 fileId，避免对已解析 URL 重复 uploadFile 失败
+      const fileIds = this.data.photos.filter(function (p) { return p.fileId }).map(function (p) { return p.fileId })
+      for (const p of this.data.photos.filter(function (x) { return !x.fileId })) {
+        const r = await uploadImage(p.url)
         fileIds.push(r.fileId)
       }
       await submitChecklistItem(this.data.orderId, this.data.itemId, this.buildPayload(fileIds))
@@ -203,7 +208,7 @@ Page({
         this.saveOffline()
         wx.showToast({ title: '网络异常，已存入离线队列', icon: 'none' })
       } else {
-        wx.showToast({ title: e.message || '保存失败', icon: 'none' })
+        wx.showToast({ title: e.message || TOAST_TEXT.SAVE_FAILED, icon: 'none' })
       }
     }
     this.setData({ submitting: false })
@@ -213,7 +218,9 @@ Page({
   saveOffline() {
     const { orderId, itemId } = this.data
     const item = this.data.item || {}
-    const payload = this.buildPayload([])
+    // 已上传照片保留 fileId（重放时合并），仅本次新拍的本地路径入 photoPaths 待补传
+    const existingFileIds = this.data.photos.filter(function (p) { return p.fileId }).map(function (p) { return p.fileId })
+    const payload = this.buildPayload(existingFileIds)
     const cached = offline.getCachedOrder(orderId)
     const snapshot = (cached && cached.snapshot) || { id: orderId, orderNo: orderId, checklist: [] }
     snapshot.checklist = snapshot.checklist || []
@@ -237,8 +244,8 @@ Page({
       url: `/work-orders/${orderId}/checklist/${itemId}`,
       method: 'POST',
       data: payload,
-      // 本地照片路径随任务入队，补传时先上传文件再回填 photoFileIds（docs/08 P1）
-      photoPaths: this.data.photos.slice(),
+      // 本地照片路径随任务入队，补传时先上传文件再合并回填 photoFileIds（docs/08 P1）
+      photoPaths: this.data.photos.filter(function (p) { return !p.fileId }).map(function (p) { return p.url }),
       desc: item.name || '检查项填写'
     })
   }

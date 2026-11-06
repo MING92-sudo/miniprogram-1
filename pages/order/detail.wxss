@@ -42,7 +42,7 @@
 
 .tag-PENDING {
   color: var(--em-warning);
-  background: #fdf6ec;
+  background: var(--em-warning-bg);
 }
 
 .tag-PROCESSING {
@@ -52,7 +52,7 @@
 
 .tag-DONE {
   color: var(--em-success);
-  background: #e8f7f0;
+  background: var(--em-success-bg);
 }
 
 .sub-action {
@@ -76,7 +76,7 @@
 }
 .rec-item {
   padding: 14rpx 0;
-  border-bottom: 2rpx solid #f2f3f5;
+  border-bottom: 2rpx solid var(--em-border);
 }
 
 .rec-item:last-child {
@@ -97,9 +97,9 @@
   border-radius: 999rpx;
 }
 
-.rec-NORMAL { color: #2ba471; background: rgba(43, 164, 113, 0.1); }
-.rec-ABNORMAL { color: #e34d59; background: rgba(227, 77, 89, 0.1); }
-.rec-NA { color: #86909c; background: rgba(134, 144, 156, 0.12); }
+.rec-NORMAL { color: var(--em-success); background: var(--em-success-bg); }
+.rec-ABNORMAL { color: var(--em-error); background: var(--em-error-bg); }
+.rec-NA { color: var(--em-neutral); background: var(--em-neutral-bg); }
 
 .rec-remark {
   font-size: 24rpx;
@@ -118,7 +118,7 @@
   width: 210rpx;
   height: 158rpx;
   border-radius: 12rpx;
-  background: #eef1f6;
+  background: var(--em-bg-page);
 }
 
 .rec-sig-row {
@@ -135,7 +135,7 @@
   width: 100%;
   height: 140rpx;
   margin-top: 10rpx;
-  background: #f5f8fd;
+  background: var(--em-bg-page);
   border-radius: 12rpx;
 }
 

@@ -1,6 +1,6 @@
 // 工单列表：看板式卡片（蓝色页头 + 搜索/扫码 + 电梯信息卡，UI 参照无纸化维保截屏）
 const { getOrderList, resolveByElevatorCode } = require('../../services/order')
-const { STATUS_TEXT } = require('../../constants/index')
+const { STATUS_TEXT, TOAST_TEXT, EMPTY_TEXT } = require('../../constants/index')
 const { ensureLogin } = require('../../utils/guard')
 
 const TABS = [
@@ -29,7 +29,8 @@ Page({
   status: '',
   due: '',
   dueLabel: '',
-  loading: false
+  loading: false,
+  emptyText: EMPTY_TEXT
   },
 
   onLoad(query) {
@@ -108,7 +109,7 @@ Page({
         page
       })
     } catch (e) {
-      wx.showToast({ title: e.message || '加载失败', icon: 'none' })
+      wx.showToast({ title: e.message || TOAST_TEXT.LOAD_FAILED, icon: 'none' })
     }
     this.setData({ loading: false })
   },

@@ -115,6 +115,17 @@
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
             </plugin>
+            <!-- 单测可复现性：Mockito inline mock maker 依赖 Byte Buddy 自附加 JVM agent。
+                 受限环境（Windows 沙箱/部分 CI）会以外部进程自附加失败，报
+                 "Could not initialize plugin: interface org.mockito.plugins.MockMaker"（138 例级联报错）；
+                 显式允许 JVM 自附加后 184 例可稳定通过（2026-11-05 实测）。 -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <argLine>-Djdk.attach.allowAttachSelf=true</argLine>
+                </configuration>
+            </plugin>
         </plugins>
     </build>
 </project>

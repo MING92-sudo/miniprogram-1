@@ -134,7 +134,7 @@ const db = {
   },
 
   elevators: [
-    { id: 'el_1', elevatorCode: 'EM-2024-001', elevatorName: '世纪大厦 1# 客梯', location: '渝北区龙山一路 88 号世纪大厦', regCode: 'TSCQ5001120001', deviceCode: 'DT-CQ-2024-001', insideNumber: 'KT-01', model: 'OTIS 300VF', useUnitId: 'uu_1', category: '曳引驱动电梯', nextCheckDate: addDays(45),
+    { id: 'el_1', elevatorCode: 'EM-2024-001', elevatorName: '世纪大厦 1# 客梯', projectName: '世纪大厦', location: '渝北区龙山一路 88 号世纪大厦', regCode: 'TSCQ5001120001', deviceCode: 'DT-CQ-2024-001', insideNumber: 'KT-01', model: 'OTIS 300VF', useUnitId: 'uu_1', category: '曳引与强制驱动电梯', nextCheckDate: addDays(45),
       // ── 平台 2.7 自动获取字段（8 个，电话未脱敏，可直接回填用于 2.6 上报）──
       factoryNumber: 'SGL20131212-1', useUnitEntityId: '5633318206815862786',
       elevatorAdminister: '王芳', elevatorAdministerPhone: '13800000003', emergencyPhone: '023-67612345',
@@ -145,7 +145,7 @@ const db = {
       driveMode: '曳引驱动', ratedLoad: 1000, ratedLoadUnit: 'kg', ratedSpeed: 1.75, ratedSpeedUnit: 'm/s', stationsDoors: '11/11',
       // 维保绑定配置：到期自动派单的人员与频次（正式版为维保合同 + 排班表）
       maintenance: { workTypeCode: 'HM', intervalDays: 15, workerName: '张伟', workerPhone: '13800000001', workerPlatformId: '6901282369105174537', assistantName: '李强', assistantPlatformId: '6901284774286860288', lastMaintenanceAt: addDays(-3) } },
-    { id: 'el_2', elevatorCode: 'EM-2024-002', elevatorName: '世纪大厦 2# 客梯', location: '渝北区龙山一路 88 号世纪大厦', regCode: 'TSCQ5001120002', deviceCode: 'DT-CQ-2024-002', insideNumber: 'KT-02', model: 'OTIS 300VF', useUnitId: 'uu_1', category: '曳引驱动电梯', nextCheckDate: addDays(18),
+    { id: 'el_2', elevatorCode: 'EM-2024-002', elevatorName: '世纪大厦 2# 客梯', projectName: '世纪大厦', location: '渝北区龙山一路 88 号世纪大厦', regCode: 'TSCQ5001120002', deviceCode: 'DT-CQ-2024-002', insideNumber: 'KT-02', model: 'OTIS 300VF', useUnitId: 'uu_1', category: '曳引与强制驱动电梯', nextCheckDate: addDays(18),
       factoryNumber: 'SGL20131212-2', useUnitEntityId: '5633318206815862786',
       elevatorAdminister: '王芳', elevatorAdministerPhone: '13800000003', emergencyPhone: '023-67612345',
       platformSyncedAt: '2026-09-29 14:20:00',
@@ -153,7 +153,7 @@ const db = {
       brand: '奥的斯', manufacturer: '奥的斯电梯（中国）有限公司', productNo: 'OTIS-2013-8818',
       driveMode: '曳引驱动', ratedLoad: 1000, ratedLoadUnit: 'kg', ratedSpeed: 1.75, ratedSpeedUnit: 'm/s', stationsDoors: '11/11',
       maintenance: { workTypeCode: 'HM', intervalDays: 15, workerName: '张伟', workerPlatformId: '6901282369105174537', assistantName: '李强', assistantPlatformId: '6901284774286860288', lastMaintenanceAt: addDays(-3) } },
-    { id: 'el_3', elevatorCode: 'EM-2024-003', elevatorName: '蓝湾国际 A 座货梯', location: '江北区滨江路 6 号蓝湾国际', regCode: 'TSCQ5001120003', deviceCode: 'DT-CQ-2024-003', insideNumber: 'HT-01', model: '三菱 GPS-III', useUnitId: 'uu_2', category: '曳引驱动电梯', nextCheckDate: addDays(200),
+    { id: 'el_3', elevatorCode: 'EM-2024-003', elevatorName: '蓝湾国际 A 座货梯', projectName: '蓝湾国际', location: '江北区滨江路 6 号蓝湾国际', regCode: 'TSCQ5001120003', deviceCode: 'DT-CQ-2024-003', insideNumber: 'HT-01', model: '三菱 GPS-III', useUnitId: 'uu_2', category: '曳引与强制驱动电梯', nextCheckDate: addDays(200),
       factoryNumber: 'MITS-2018-0331', useUnitEntityId: '5633318206815862790',
       elevatorAdminister: '吴静', elevatorAdministerPhone: '13800003005', emergencyPhone: '023-67991234',
       platformSyncedAt: '2026-09-29 14:25:00',
@@ -161,7 +161,7 @@ const db = {
       brand: '三菱', manufacturer: '上海三菱电梯有限公司', productNo: 'MLS-2018-0331',
       driveMode: '曳引驱动', ratedLoad: 2000, ratedLoadUnit: 'kg', ratedSpeed: 1.0, ratedSpeedUnit: 'm/s', stationsDoors: '6/6',
       maintenance: { workTypeCode: 'FM', intervalDays: 30, workerName: '张伟', workerPhone: '13800000001', workerPlatformId: '6901282369105174537', assistantName: '', assistantPlatformId: '', lastMaintenanceAt: addDays(-10) } },
-    { id: 'el_4', elevatorCode: 'EM-2024-004', elevatorName: '蓝湾国际 B 座客梯', location: '江北区滨江路 6 号蓝湾国际', regCode: 'TSCQ5001120004', deviceCode: 'DT-CQ-2024-004', insideNumber: 'KT-01', model: '日立 YK', useUnitId: 'uu_2', category: '曳引驱动电梯', nextCheckDate: addDays(240),
+    { id: 'el_4', elevatorCode: 'EM-2024-004', elevatorName: '蓝湾国际 B 座客梯', projectName: '蓝湾国际', location: '江北区滨江路 6 号蓝湾国际', regCode: 'TSCQ5001120004', deviceCode: 'DT-CQ-2024-004', insideNumber: 'KT-01', model: '日立 YK', useUnitId: 'uu_2', category: '曳引与强制驱动电梯', nextCheckDate: addDays(240),
       factoryNumber: 'HIT-2021-1102', useUnitEntityId: '5633318206815862790',
       elevatorAdminister: '吴静', elevatorAdministerPhone: '13800003005', emergencyPhone: '023-67991234',
       platformSyncedAt: '2026-09-29 14:25:00',
@@ -178,7 +178,7 @@ const db = {
       workType: '半月维保', workTypeCode: 'HM', planTime: today('09:00:00'), status: 'PENDING',
       workerName: '张伟', assistantName: '李强', workerPlatformId: '6901282369105174537', assistantPlatformId: '6901284774286860288',
       checkinTime: '', checkoutTime: '', duration: '', originalRecordId: '', reportStatus: '',
-      checklist: buildChecklist('HM', '曳引驱动电梯')
+      checklist: buildChecklist('HM', '曳引与强制驱动电梯')
     },
     {
       id: 'wo_2', orderNo: 'WO20260929-002', elevatorId: 'el_3',
@@ -186,7 +186,7 @@ const db = {
       workerName: '张伟', assistantName: '', workerPlatformId: '6901282369105174537', assistantPlatformId: '',
       // 签到时间留足 30 分钟作业时长下限（constants MIN_WORK_DURATION_MINUTES），保证演示可直接签退
       checkinTime: today('08:00:00'), checkoutTime: '', duration: '', originalRecordId: '', reportStatus: '',
-      checklist: buildChecklist('FM', '曳引驱动电梯')
+      checklist: buildChecklist('FM', '曳引与强制驱动电梯')
     },
     {
       id: 'wo_3', orderNo: 'WO20260928-011', elevatorId: 'el_2',
@@ -194,7 +194,7 @@ const db = {
       workerName: '张伟', assistantName: '李强', workerPlatformId: '6901282369105174537', assistantPlatformId: '6901284774286860288',
       checkinTime: today('08:52:00'), checkoutTime: today('11:20:00'), duration: '02:28:00',
       originalRecordId: '19480012609000011', reportStatus: 'REPORTED',
-      checklist: makeDoneItems('HM', true, '曳引驱动电梯')
+      checklist: makeDoneItems('HM', true, '曳引与强制驱动电梯')
     },
     {
       id: 'wo_4', orderNo: 'WO20260927-008', elevatorId: 'el_3',
@@ -202,7 +202,7 @@ const db = {
       workerName: '张伟', assistantName: '', workerPlatformId: '6901282369105174537', assistantPlatformId: '',
       checkinTime: today('16:28:00'), checkoutTime: today('18:05:00'), duration: '01:37:00',
       originalRecordId: '19480012609000008', reportStatus: 'REPORTED',
-      checklist: makeDoneItems('FM', false, '曳引驱动电梯')
+      checklist: makeDoneItems('FM', false, '曳引与强制驱动电梯')
     },
     {
       id: 'wo_5', orderNo: 'WO20260926-005', elevatorId: 'el_1',
@@ -210,7 +210,7 @@ const db = {
       workerName: '张伟', assistantName: '李强', workerPlatformId: '6901282369105174537', assistantPlatformId: '6901284774286860288',
       checkinTime: today('09:02:00'), checkoutTime: today('15:40:00'), duration: '06:38:00',
       originalRecordId: '19480012609000005', reportStatus: 'REPORTED',
-      checklist: makeDoneItems('OY', false, '曳引驱动电梯')
+      checklist: makeDoneItems('OY', false, '曳引与强制驱动电梯')
     }
   ],
 
@@ -233,7 +233,7 @@ const db = {
   // 应急演练：每半年至少 1 轮，覆盖本单位在保的全部电梯品种
   drills: [
     {
-      id: 'dr_1', drillDate: addDays(-20), category: '曳引驱动电梯', scene: '困人救援',
+      id: 'dr_1', drillDate: addDays(-20), category: '曳引与强制驱动电梯', scene: '困人救援',
       participants: '张伟、李强、王芳',
       process: '模拟 3 层困人，按预案盘车平层、开门解救，全程 18 分钟',
       problems: '对讲通话音量偏小',
@@ -258,7 +258,7 @@ const db = {
       workType: '半月维保', workTypeCode: 'HM',
       workerName: '张伟', assistantName: '李强', workerPlatformId: '6901282369105174537', assistantPlatformId: '6901284774286860288',
       checkinTime: today('08:52:00'), checkoutTime: today('11:20:00'), duration: '02:28:00',
-      items: makeDoneItems('HM', true, '曳引驱动电梯'), photos: [DEMO_PHOTO],
+      items: makeDoneItems('HM', true, '曳引与强制驱动电梯'), photos: [DEMO_PHOTO],
       workerSignatureUrl: DEMO_SIGNATURE,
       problemCodes: ['S5'],
       originalRecordId: '19480012609000011', reportStatus: 'REPORTED', retryCount: 0,
@@ -270,7 +270,7 @@ const db = {
       workType: '困人救援', workTypeCode: 'FM',
       workerName: '张伟', assistantName: '', workerPlatformId: '6901282369105174537', assistantPlatformId: '',
       checkinTime: today('16:28:00'), checkoutTime: today('18:05:00'), duration: '01:37:00',
-      items: makeDoneItems('FM', false, '曳引驱动电梯'), photos: [],
+      items: makeDoneItems('FM', false, '曳引与强制驱动电梯'), photos: [],
       workerSignatureUrl: DEMO_SIGNATURE,
       problemCodes: ['S0'], // 无隐患必须填 S0（平台 2.6 约定）
       originalRecordId: '19480012609000008', reportStatus: 'REPORTED', retryCount: 0,
@@ -363,7 +363,16 @@ function ensureDueOrders() {
     // ★ 保养类型按时间自动升级（TSG 附件A 累加式：季度=半月+季度项，半年=+半年项，年度=+年度项）：
     //   距上次年度维保 ≥365 天 → 本次派年度单（76 项清单）
     //   距上次半年维保 ≥180 天 → 半年单（59 项）；距上次季度维保 ≥90 天 → 季度单（44 项）；否则半月单（31 项）
-    //   某类型从未执行时以其基线日期（lastMaintenanceAt/上次任意维保）起算
+    //   某类型从未执行时以其"首次维保日期"起算（用户确认 2026-11-06）：最早一次 DONE 签退，
+    //   无任何已完成维保时回退建档基线 lastMaintenanceAt（而非最近一次任意维保，否则只做半月保的电梯永不升级）
+    let first = null
+    db.orders.forEach(function (o) {
+      if (o.elevatorId === el.id && o.status === 'DONE' && o.checkoutTime) {
+        const t = parseTime(o.checkoutTime)
+        if (first === null || t < first) first = t
+      }
+    })
+    if (first === null) first = parseTime(cfg.lastMaintenanceAt) || 0
     const lastOf = function (c) {
       let t = 0
       db.orders.forEach(function (o) {
@@ -372,7 +381,7 @@ function ensureDueOrders() {
           if (tt > t) t = tt
         }
       })
-      return t || last
+      return t || first
     }
     const dueType = function (c, days) {
       return now - lastOf(c) >= days * 86400000
@@ -495,7 +504,7 @@ function getElevatorProfile(id) {
     },
     // 本地维护（平台 2.7 不返回：使用单位名称/安装地址/经纬度/型号品牌/制造单位/下次检验日期）
     local: {
-      projectName: unit.unitName || '',
+      projectName: el.projectName || '',
       unitPrincipal: unit.unitPrincipal || '',
       address: el.location || '',
       lng: el.lng != null ? String(el.lng) : '',
@@ -517,7 +526,6 @@ function getElevatorProfile(id) {
 function listElevators() {
   // 停用（INACTIVE）电梯小程序不可见、不派单（docs/09 §6.6）
   return db.elevators.filter(function (el) { return el.status !== 'INACTIVE' }).map(function (el) {
-    const uu = getUseUnit(el.useUnitId) || {}
     return {
       id: el.id,
       elevatorName: el.elevatorName || '',
@@ -525,7 +533,7 @@ function listElevators() {
       deviceCode: el.deviceCode || '',
       regCode: el.regCode || '',
       model: el.model || '',
-      projectName: getUseUnit(el.useUnitId) ? getUseUnit(el.useUnitId).unitName : ''
+      projectName: el.projectName || ''
     }
   })
 }
@@ -612,7 +620,7 @@ function listOrders(query) {
     , regCode: (getElevator(o.elevatorId) || {}).regCode || ''
     , insideNumber: (getElevator(o.elevatorId) || {}).insideNumber || ''
     , model: (getElevator(o.elevatorId) || {}).model || ''
-    , projectName: (getUseUnit((getElevator(o.elevatorId) || {}).useUnitId) || {}).unitName || ''
+    , projectName: (getElevator(o.elevatorId) || {}).projectName || ''
   }))
 }
 

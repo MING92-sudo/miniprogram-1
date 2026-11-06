@@ -51,8 +51,8 @@ class ChecklistServiceDbPathTest {
     @Test
     void dbPathProducesIdenticalChecklistToJsonPath() throws Exception {
         when(mapper.selectList(ArgumentMatchers.any())).thenReturn(officialRows("A"));
-        List<Map<String, Object>> fromJson = jsonService.buildChecklist("HM", "曳引驱动电梯");
-        List<Map<String, Object>> fromDb = dbService.buildChecklist("HM", "曳引驱动电梯");
+        List<Map<String, Object>> fromJson = jsonService.buildChecklist("HM", "曳引与强制驱动电梯");
+        List<Map<String, Object>> fromDb = dbService.buildChecklist("HM", "曳引与强制驱动电梯");
         assertEquals(fromJson, fromDb);
         assertEquals(fromJson.size(), fromDb.size());
     }
@@ -80,8 +80,8 @@ class ChecklistServiceDbPathTest {
         rows.add(custom);
         when(mapper.selectList(ArgumentMatchers.any())).thenReturn(rows);
 
-        List<Map<String, Object>> items = dbService.buildChecklist("HM", "曳引驱动电梯", "消防电梯");
-        int officialCount = jsonService.buildChecklist("HM", "曳引驱动电梯").size();
+        List<Map<String, Object>> items = dbService.buildChecklist("HM", "曳引与强制驱动电梯", "消防电梯");
+        int officialCount = jsonService.buildChecklist("HM", "曳引与强制驱动电梯").size();
         assertEquals(officialCount + 1, items.size());
         Map<String, Object> last = items.get(items.size() - 1);
         assertEquals("CT-TEST-1", last.get("itemCode"));
@@ -94,7 +94,7 @@ class ChecklistServiceDbPathTest {
     @Test
     void customNotAppendedWithoutSpecialType() throws Exception {
         when(mapper.selectList(ArgumentMatchers.any())).thenReturn(officialRows("A"));
-        List<Map<String, Object>> items = dbService.buildChecklist("HM", "曳引驱动电梯", null);
-        assertEquals(jsonService.buildChecklist("HM", "曳引驱动电梯").size(), items.size());
+        List<Map<String, Object>> items = dbService.buildChecklist("HM", "曳引与强制驱动电梯", null);
+        assertEquals(jsonService.buildChecklist("HM", "曳引与强制驱动电梯").size(), items.size());
     }
 }

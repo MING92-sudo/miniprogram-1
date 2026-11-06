@@ -3,7 +3,7 @@
 // 按状态与"本人是否已签到"显示操作：未签到→去签到（主维保/配合人员分别签到，docs/01 §3.7.2）；
 // 已签到→继续作业清单；双人工单提供动态码入口；DONE→只读
 const { getOrderDetail, resolveByElevatorCode, retryRecordUpload } = require('../../services/order')
-const { STATUS_TEXT, REPORT_STATUS_TEXT, CHECK_RESULT_TEXT } = require('../../constants/index')
+const { STATUS_TEXT, REPORT_STATUS_TEXT, CHECK_RESULT_TEXT, TOAST_TEXT, LOADING_TEXT } = require('../../constants/index')
 const { getUserInfo } = require('../../utils/auth')
 
 Page({
@@ -14,6 +14,7 @@ Page({
     reportStatusText: '',
     canReupload: false,
     loading: true,
+    loadingText: LOADING_TEXT,
     isDual: false,       // 双人工单（有配合人员）
     isAssistant: false,  // 当前登录人是配合人员
     myCheckedIn: false,  // 本人是否已签到（主维保/配合人员各自一条留痕）
@@ -41,7 +42,7 @@ Page({
       this.applyOrder(order)
     } catch (e) {
       this.setData({ loading: false })
-      wx.showToast({ title: e.message || '加载失败', icon: 'none' })
+      wx.showToast({ title: e.message || TOAST_TEXT.LOAD_FAILED, icon: 'none' })
     }
   },
 

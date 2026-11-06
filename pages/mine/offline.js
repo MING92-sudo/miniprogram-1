@@ -3,6 +3,7 @@
 const config = require('../../config/index')
 const offline = require('../../utils/offline')
 const { formatTime } = require('../../utils/util')
+const { EMPTY_TEXT } = require('../../constants/index')
 
 Page({
   data: {
@@ -10,7 +11,8 @@ Page({
     useMock: config.useMock,
     cacheList: [],
     queueCount: 0,
-    syncing: false
+    syncing: false,
+    emptyText: EMPTY_TEXT
   },
 
   onShow() {

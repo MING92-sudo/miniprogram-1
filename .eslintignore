@@ -1,0 +1,7 @@
+admin/
+backend/
+docs/
+data/
+tmp/
+scripts/tmp/
+node_modules/

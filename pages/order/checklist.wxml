@@ -1,79 +1,98 @@
 <view class="cl-page">
-  <!-- 蓝色页头 -->
-  <view class="cl-header">维保详情</view>
+  <!-- 头部上下文（类别码 · 维保类别 · 电梯名 · 项目名称） -->
+  <view class="cl-hero">
+    <view class="cl-hero-eyebrow">
+      <text class="cl-hero-code">{{workTypeCode}}</text>
+      <text class="cl-hero-type">{{workType}}</text>
+    </view>
+    <text class="cl-hero-name">{{elevatorName}}</text>
+    <text wx:if="{{projectName}}" class="cl-hero-sub">{{projectName}}</text>
+  </view>
 
   <view class="cl-body">
-    <!-- 进度（结论锚点上方） -->
-    <view class="em-card cl-progress" id="sec-content">
-      <view class="progress-head">
-        <text class="progress-title">作业清单</text>
-        <text class="progress-num">{{doneCount}}/{{total}}</text>
+    <!-- 进度 + 三态汇总 -->
+    <view class="em-card cl-progress">
+      <view class="cl-progress-head">
+        <text class="cl-progress-title">作业进度</text>
+        <text class="cl-progress-num"><text class="cl-progress-cur">{{doneCount}}</text> / {{requiredTotal}}</text>
       </view>
-      <view class="progress-bar">
-        <view class="progress-inner" style="width: {{progress}}%"></view>
+      <view class="cl-progress-bar">
+        <view class="cl-progress-inner" style="width: {{progress}}%"></view>
       </view>
-    </view>
-
-    <!-- 检查项表格 -->
-    <view class="cl-table">
-      <view class="cl-tr cl-th">
-        <view class="cl-td cl-td-name">维保内容</view>
-        <view class="cl-td cl-td-req">维保要求</view>
-        <view class="cl-td cl-td-result">结果</view>
-        <view class="cl-td cl-td-remark">备注</view>
-      </view>
-      <view
-        wx:for="{{items}}"
-        wx:key="id"
-        class="cl-tr"
-        data-id="{{item.id}}"
-        bindtap="goItemForm"
-      >
-        <view class="cl-td cl-td-name">
-          {{item.name}}
-          <text wx:if="{{item.isKey}}" class="cl-key">*</text>
-          <view wx:if="{{item.notInThisRun}}" class="cl-periodic">
-            <text class="cl-periodic-tag">本次未排</text>
-            <text class="cl-periodic-run" data-id="{{item.id}}" catchtap="onRunThisTime">本次执行</text>
-          </view>
-        </view>
-        <view class="cl-td cl-td-req">{{item.requirement}}</view>
-        <view class="cl-td cl-td-result">
-          <view class="cl-result {{item.result === 'NORMAL' ? 'cl-ok' : item.result === 'ABNORMAL' ? 'cl-ng' : item.result === 'NA' ? 'cl-na' : ''}}">
-            {{item.resultText || '待填'}}
-          </view>
-          <view class="cl-arrow">›</view>
-        </view>
-        <view class="cl-td cl-td-remark">
-          <view class="cl-remark {{item.remark ? '' : 'cl-remark-empty'}}">{{item.remark || '—'}}</view>
-        </view>
+      <view class="cl-chips">
+        <view class="cl-chip cl-chip-ok">正常 {{normalCount}}</view>
+        <view class="cl-chip cl-chip-ng">异常 {{abnormalCount}}</view>
+        <view class="cl-chip cl-chip-na">不适用 {{naCount}}</view>
+        <view class="cl-chip cl-chip-pending">待填 {{pendingCount}}</view>
       </view>
     </view>
 
-    <!-- 结论：签退 -->
-    <view class="em-card cl-checkout" id="sec-result" wx:if="{{!loading}}">
-      <button class="em-btn-primary" bindtap="goCheckout">
-        {{doneCount < requiredTotal ? '完成清单，去签退（' + (requiredTotal - doneCount) + ' 项未填）' : '完成清单，去签退'}}
-      </button>
+    <!-- 分节检查项列表 -->
+    <view class="cl-sections" wx:if="{{!loading}}">
+      <view class="cl-section" wx:for="{{sections}}" wx:key="label" wx:for-item="section">
+        <view class="cl-section-head">
+          <text class="cl-section-title">{{section.label}}</text>
+          <text class="cl-section-count">{{section.done}}/{{section.total}}</text>
+        </view>
+
+        <view class="cl-items">
+          <view
+            wx:for="{{section.items}}"
+            wx:key="id"
+            wx:for-item="item"
+            class="cl-item {{item.notInThisRun ? 'is-skip-row' : ''}}"
+            data-id="{{item.id}}"
+            hover-class="cl-item-hover"
+            bindtap="goItemForm"
+          >
+            <view class="cl-item-glyph {{item.glyphClass}}">{{item.glyph}}</view>
+
+            <view class="cl-item-body">
+              <view class="cl-item-top">
+                <text class="cl-item-code">{{item.itemCode}}</text>
+                <text class="cl-item-name">{{item.name}}</text>
+                <text wx:if="{{item.isKey}}" class="cl-item-key">★</text>
+              </view>
+              <view wx:if="{{item.sub}}" class="cl-item-sub {{item.subClass}}">{{item.sub}}</view>
+            </view>
+
+            <view class="cl-item-side">
+              <view wx:if="{{item.notInThisRun}}" class="cl-item-skip-tag">本次未排</view>
+              <view wx:else class="cl-item-result {{item.resultClass}}">{{item.resultText || '待填'}}</view>
+              <view wx:if="{{item.photoCount}}" class="cl-item-photo">◉{{item.photoCount}}</view>
+              <view
+                wx:if="{{item.notInThisRun}}"
+                class="cl-item-run"
+                data-id="{{item.id}}"
+                catchtap="onRunThisTime"
+              >本次执行</view>
+            </view>
+          </view>
+        </view>
+      </view>
     </view>
 
     <!-- 照片汇总 -->
-    <view class="em-card cl-photos" id="sec-photos">
-      <view class="section-title">现场照片（{{photos.length}}）</view>
-      <view wx:if="{{photos.length === 0}}" class="em-text-secondary">暂无照片</view>
-      <view class="cl-photo-grid">
+    <view class="em-card cl-photos">
+      <view class="cl-photos-head">
+        <text class="cl-photos-title">现场照片</text>
+        <text class="cl-photos-count">{{photos.length}}</text>
+      </view>
+      <view wx:if="{{photos.length === 0}}" class="cl-photos-empty">{{emptyText.PHOTO}}</view>
+      <view wx:else class="cl-photo-grid">
         <view wx:for="{{photos}}" wx:key="src" class="cl-photo-item" data-src="{{item.src}}" bindtap="previewPhoto">
           <image class="cl-photo" src="{{item.src}}" mode="aspectFill" />
-          <view class="cl-photo-name">{{item.itemName}}</view>
+          <text class="cl-photo-name">{{item.itemName}}</text>
         </view>
       </view>
     </view>
   </view>
+</view>
 
-  <!-- 悬浮锚点导航 -->
-  <view class="cl-nav">
-    <view class="cl-nav-btn cl-nav-active" data-target="sec-content" bindtap="goSection">内容</view>
-    <view class="cl-nav-btn" data-target="sec-result" bindtap="goSection">结论</view>
-    <view class="cl-nav-btn" data-target="sec-photos" bindtap="goSection">照片</view>
-  </view>
+<!-- 底部固定签退栏 -->
+<view class="cl-footer">
+  <button
+    class="cl-footer-btn {{pendingCount > 0 ? 'is-pending' : ''}}"
+    bindtap="goCheckout"
+  >{{pendingCount > 0 ? '完成清单去签退 · 剩 ' + pendingCount + ' 项' : '完成清单，去签退'}}</button>
 </view>

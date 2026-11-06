@@ -154,22 +154,22 @@ public class DemoDataSeeder implements ApplicationRunner {
         useUnit("uu_2", "重庆蓝湾物业服务有限公司", "91500106MAABU3797P", "周涛", "13930003002", "吴静", "13800003005", "02367991234");
 
         // ── 电梯（平台 2.7 回填字段 + 本地字段 + 维保绑定） ──
-        elevator("el_1", "EM-2024-001", "世纪大厦 1# 客梯", "渝北区龙山一路 88 号世纪大厦",
+        elevator("el_1", "EM-2024-001", "世纪大厦 1# 客梯", "世纪大厦", "渝北区龙山一路 88 号世纪大厦",
                 "TSCQ5001120001", "DT-CQ-2024-001", "KT-01", "OTIS 300VF", "uu_1", 45,
                 "SGL20131212-1", "5633318206815862786", "王芳", "13800000003", "02367612345",
                 "106.633520", "29.719210", "奥的斯", "奥的斯电梯（中国）有限公司", "OTIS-2013-8817",
                 1000, "1.75", "11/11", "HM", 15, "张伟", "13800000001", PID_ZHANGWEI, "李强", PID_LIQIANG, 3);
-        elevator("el_2", "EM-2024-002", "世纪大厦 2# 客梯", "渝北区龙山一路 88 号世纪大厦",
+        elevator("el_2", "EM-2024-002", "世纪大厦 2# 客梯", "世纪大厦", "渝北区龙山一路 88 号世纪大厦",
                 "TSCQ5001120002", "DT-CQ-2024-002", "KT-02", "OTIS 300VF", "uu_1", 18,
                 "SGL20131212-2", "5633318206815862786", "王芳", "13800000003", "02367612345",
                 "106.633520", "29.719210", "奥的斯", "奥的斯电梯（中国）有限公司", "OTIS-2013-8818",
                 1000, "1.75", "11/11", "HM", 15, "张伟", "13800000001", PID_ZHANGWEI, "李强", PID_LIQIANG, 3);
-        elevator("el_3", "EM-2024-003", "蓝湾国际 A 座货梯", "江北区滨江路 6 号蓝湾国际",
+        elevator("el_3", "EM-2024-003", "蓝湾国际 A 座货梯", "蓝湾国际", "江北区滨江路 6 号蓝湾国际",
                 "TSCQ5001120003", "DT-CQ-2024-003", "HT-01", "三菱 GPS-III", "uu_2", 200,
                 "MITS-2018-0331", "5633318206815862790", "吴静", "13800003005", "02367991234",
                 "106.574210", "29.588660", "三菱", "上海三菱电梯有限公司", "MLS-2018-0331",
                 2000, "1.00", "6/6", "FM", 30, "张伟", "13800000001", PID_ZHANGWEI, "", "", 10);
-        elevator("el_4", "EM-2024-004", "蓝湾国际 B 座客梯", "江北区滨江路 6 号蓝湾国际",
+        elevator("el_4", "EM-2024-004", "蓝湾国际 B 座客梯", "蓝湾国际", "江北区滨江路 6 号蓝湾国际",
                 "TSCQ5001120004", "DT-CQ-2024-004", "KT-01", "日立 YK", "uu_2", 240,
                 "HIT-2021-1102", "5633318206815862790", "吴静", "13800003005", "02367991234",
                 "106.574210", "29.588660", "日立", "日立电梯（中国）有限公司", "HIT-2021-1102",
@@ -224,7 +224,7 @@ public class DemoDataSeeder implements ApplicationRunner {
         Drill d = new Drill();
         d.id = "dr_1";
         d.drillDate = LocalDate.now(TimeUtil.ZONE).minusDays(20);
-        d.category = "曳引驱动电梯";
+        d.category = "曳引与强制驱动电梯";
         d.scene = "困人救援";
         d.participants = "张伟、李强、王芳";
         d.process = "模拟 3 层困人，按预案盘车平层、开门解救，全程 18 分钟";
@@ -324,7 +324,7 @@ public class DemoDataSeeder implements ApplicationRunner {
     }
 
     @SuppressWarnings("checkstyle:ParameterNumber")
-    private void elevator(String id, String code, String name, String location,
+    private void elevator(String id, String code, String name, String projectName, String location,
                           String regCode, String deviceCode, String insideNumber, String model,
                           String useUnitId, int nextCheckInDays, String factoryNumber, String useUnitEntityId,
                           String administer, String administerPhone, String emergencyPhone,
@@ -337,13 +337,14 @@ public class DemoDataSeeder implements ApplicationRunner {
         el.id = id;
         el.elevatorCode = code;
         el.elevatorName = name;
+        el.projectName = projectName;
         el.location = location;
         el.regCode = regCode;
         el.deviceCode = deviceCode;
         el.insideNumber = insideNumber;
         el.model = model;
         el.useUnitId = useUnitId;
-        el.category = "曳引驱动电梯";
+        el.category = "曳引与强制驱动电梯";
         el.nextCheckDate = LocalDate.now(TimeUtil.ZONE).plusDays(nextCheckInDays);
         el.factoryNumber = factoryNumber;
         el.useUnitEntityId = useUnitEntityId;
@@ -453,7 +454,7 @@ public class DemoDataSeeder implements ApplicationRunner {
         r.checkinTime = TimeUtil.parse(checkinTime);
         r.checkoutTime = TimeUtil.parse(checkoutTime);
         r.duration = duration;
-        r.itemsJson = JsonUtil.write(checklistService.makeDoneItems(doneType, withAbnormal, "曳引驱动电梯"));
+        r.itemsJson = JsonUtil.write(checklistService.makeDoneItems(doneType, withAbnormal, "曳引与强制驱动电梯"));
         r.photosJson = JsonUtil.write(withAbnormal
                 ? List.of("https://picsum.photos/seed/em-elev/600/450") : List.of());
         r.workerSignatureUrl = DEMO_SIGNATURE;

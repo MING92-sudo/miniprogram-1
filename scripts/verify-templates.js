@@ -57,10 +57,10 @@ if (total !== EXPECTED_TOTAL) {
 
 // 品种路由：确保不能把液压/杂物/扶梯模板误落到附件A。
 const routeCases = [
-  ['曳引驱动电梯', 'A', 76],
-  ['液压乘客电梯', 'B', 66],
+  ['曳引与强制驱动电梯', 'A', 76],
+  ['液压驱动电梯', 'B', 66],
   ['杂物电梯', 'C', 52],
-  ['自动扶梯', 'D', 63]
+  ['自动扶梯与自动人行道', 'D', 63]
 ]
 routeCases.forEach(function (c) {
   const category = c[0]

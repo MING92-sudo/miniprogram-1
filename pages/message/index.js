@@ -2,6 +2,7 @@
 const { getMessageList, markRead, markAllRead } = require('../../services/message')
 const { ensureLogin } = require('../../utils/guard')
 const { refreshUnreadBadge } = require('../../utils/badge')
+const { TOAST_TEXT, EMPTY_TEXT } = require('../../constants/index')
 
 Page({
   data: {
@@ -10,7 +11,8 @@ Page({
     size: 20,
     total: 0,
     unreadCount: 0,
-    expandedId: ''
+    expandedId: '',
+    emptyText: EMPTY_TEXT
   },
 
   onShow() {
@@ -50,7 +52,7 @@ Page({
         page
       })
     } catch (e) {
-      wx.showToast({ title: e.message || '加载失败', icon: 'none' })
+      wx.showToast({ title: e.message || TOAST_TEXT.LOAD_FAILED, icon: 'none' })
     }
   },
 
@@ -80,7 +82,7 @@ Page({
       this.fetchList(true)
       this.syncUnread()
     } catch (e) {
-      wx.showToast({ title: e.message || '操作失败', icon: 'none' })
+      wx.showToast({ title: e.message || TOAST_TEXT.OPERATE_FAILED, icon: 'none' })
     }
   }
 })

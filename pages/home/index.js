@@ -13,10 +13,21 @@ const TAB_PAGES = [
   '/pages/mine/index'
 ]
 
+// 首页头部时段问候（个性化，替代营销式文案）
+function greet() {
+  const h = new Date().getHours()
+  if (h < 6) return '凌晨好'
+  if (h < 11) return '早上好'
+  if (h < 14) return '中午好'
+  if (h < 18) return '下午好'
+  return '晚上好'
+}
+
 Page({
   data: {
     userInfo: null,
     roleText: '',
+    greeting: '',
     summary: {
       dueToday: 0, dueSoon: 0, overdue: 0,
       inProgress: 0, unconfirmed: 0, platformTotal: 0,
@@ -24,9 +35,10 @@ Page({
     },
     offlineCount: 0, // 离线待补传条数（docs/03 §3.2 项2：离线补传提示条）
     queryMenus: [
-      { title: '急修单', icon: '🛠️', color: 'blue', url: '/pages/fault/list' },
-      { title: '维保记录', icon: '📋', color: 'orange', url: '/pages/order/list', tab: true },
-      { title: '消息通知', icon: '💬', color: 'blue', url: '/pages/message/index', tab: true }
+      { title: '急修单', iconClass: 'icon-emergency', url: '/pages/fault/list' },
+      { title: '维保记录', iconClass: 'icon-record', url: '/pages/order/list', tab: true },
+      { title: '消息通知', iconClass: 'icon-message', url: '/pages/message/index', tab: true },
+      { title: '设备信息', iconClass: 'icon-device', url: '/pages/elevator/list' }
     ],
   },
 
@@ -46,9 +58,11 @@ Page({
 
   refresh() {
     const app = getApp()
+    const u = app.globalData.userInfo || {}
     this.setData({
-      userInfo: app.globalData.userInfo,
-      roleText: (app.globalData.userInfo && app.globalData.userInfo.roleText) || '',
+      userInfo: u,
+      roleText: u.roleText || '',
+      greeting: greet() + (u.name ? '，' + u.name : ''),
       offlineCount: getQueue().length
     })
     this.fetchSummary()

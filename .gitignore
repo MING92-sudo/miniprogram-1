@@ -23,6 +23,13 @@ Thumbs.db
 # 微信开发者工具个人配置（官方建议不入库）
 project.private.config.json
 
+# 微信开发者工具「转为多端应用」自动生成物（本项目为单端小程序，未启用多端打包；
+# 若确定要交付 Android/iOS 多端，删除以下 4 行并提交对应文件）
+app.miniapp.json
+project.miniapp.json
+i18n/
+miniapp/
+
 # ── 凭证与本地配置（严禁入库）────────────────────
 # 平台监管接口凭证 username/key/appcode/secret
 .env

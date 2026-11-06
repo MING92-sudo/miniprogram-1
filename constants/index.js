@@ -96,6 +96,28 @@ const IMAGE_LIMIT = {
   MAX_SIZE: 500 * 1024 // 500KB
 }
 
+// 通用提示文案（页面/弹层统一从这里取，AGENTS §3：禁止硬编码）
+const TOAST_TEXT = {
+  LOAD_FAILED: '加载失败',
+  SAVE_FAILED: '保存失败',
+  OPERATE_FAILED: '操作失败',
+  LOGIN_FAILED: '登录失败'
+}
+
+// 空状态文案（列表/汇总无数据时展示）
+const EMPTY_TEXT = {
+  ORDER: '暂无工单',
+  FAULT: '暂无急修单',
+  MESSAGE: '暂无消息',
+  PHOTO: '暂无照片',
+  CACHE: '暂无缓存',
+  ELEVATOR: '暂无电梯',
+  ELEVATOR_SEARCH: '未找到匹配设备'
+}
+
+// 加载中文案
+const LOADING_TEXT = '加载中...'
+
 module.exports = {
   ROLE,
   ORDER_STATUS,
@@ -107,5 +129,8 @@ module.exports = {
   REPORT_STATUS_TEXT,
   MIN_WORK_DURATION_MINUTES,
   ERROR_CODES,
-  IMAGE_LIMIT
+  IMAGE_LIMIT,
+  TOAST_TEXT,
+  EMPTY_TEXT,
+  LOADING_TEXT
 }

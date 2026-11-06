@@ -1,6 +1,8 @@
 package com.cqwlw.maintenance;
 
+import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.cqwlw.maintenance.entity.Elevator;
 import com.cqwlw.maintenance.entity.Message;
 import com.cqwlw.maintenance.entity.WorkOrder;
@@ -11,6 +13,8 @@ import com.cqwlw.maintenance.service.ChecklistService;
 import com.cqwlw.maintenance.service.DispatchService;
 import com.cqwlw.maintenance.service.OrderNoIssuer;
 import com.cqwlw.maintenance.util.TimeUtil;
+import org.apache.ibatis.builder.MapperBuilderAssistant;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -39,6 +43,14 @@ class DispatchServiceTest {
     private List<Elevator> rows = List.of();
     private final java.util.concurrent.atomic.AtomicInteger lockCursor =
             new java.util.concurrent.atomic.AtomicInteger();
+
+    @BeforeAll
+    static void initMybatisPlusLambdaCache() {
+        // 纯 Mockito 单测无 MyBatis 环境，getSqlSegment() 需 TableInfo 缓存，手动初始化一次
+        MapperBuilderAssistant assistant = new MapperBuilderAssistant(new MybatisConfiguration(), "");
+        TableInfoHelper.initTableInfo(assistant, WorkOrder.class);
+        TableInfoHelper.initTableInfo(assistant, Elevator.class);
+    }
 
     @BeforeEach
     void setUp() throws Exception {
@@ -69,7 +81,7 @@ class DispatchServiceTest {
         el.id = id;
         el.elevatorCode = "EM-" + id;
         el.elevatorName = "电梯" + id;
-        el.category = "曳引驱动电梯";
+        el.category = "曳引与强制驱动电梯";
         el.workTypeCode = "HM";
         el.intervalDays = 15;
         el.workerName = "张伟";
@@ -112,6 +124,37 @@ class DispatchServiceTest {
         assertEquals(1, created.size());
         assertEquals("OY", created.get(0).workTypeCode);
         assertEquals("年度维保", created.get(0).workType);
+    }
+
+    /** 累加式升级基线 = 首次维保日期（用户确认 2026-11-06）：
+     *  只做过半月保、从未做过季/半年/年保的电梯，应按最早一次 DONE 签退起算，而非最近一次任意维保。 */
+    @Test
+    void neverDoneTypeUpgradesFromFirstMaintenanceDate() {
+        Elevator el = dueElevator("el_first");
+        el.lastMaintenanceAt = TimeUtil.now().minusDays(400);
+        givenElevators(List.of(el));
+
+        LocalDateTime earliest = TimeUtil.now().minusDays(400);
+        LocalDateTime latest = TimeUtil.now().minusDays(15);
+        when(orderMapper.selectList(any())).thenAnswer(inv -> {
+            LambdaQueryWrapper<WorkOrder> w = inv.getArgument(0);
+            boolean byType = w.getSqlSegment().contains("work_type_code");
+            if (byType) {
+                return List.of(); // OY/SM/TM 从未执行
+            }
+            WorkOrder old = new WorkOrder();
+            old.workTypeCode = "HM";
+            old.checkoutTime = earliest;
+            WorkOrder recent = new WorkOrder();
+            recent.workTypeCode = "HM";
+            recent.checkoutTime = latest;
+            return List.of(old, recent);
+        });
+
+        List<WorkOrder> created = service.ensureDueOrders();
+        assertEquals(1, created.size());
+        assertEquals("OY", created.get(0).workTypeCode,
+                "距首次维保 ≥365 天且从未做过年保，应按首次维保日期升级年保");
     }
 
     @Test

@@ -57,10 +57,15 @@ public class UnitRecordService {
         if ("CONFIRMED".equals(r.confirmStatus)) {
             return JsonUtil.map("ok", true, "already", true);
         }
+        String signatureUrl = WorkOrderService.strOrEmpty(body.get("signatureUrl"));
+        String signatureFileId = WorkOrderService.strOrEmpty(body.get("signatureFileId"));
+        if (signatureUrl.isEmpty() && signatureFileId.isEmpty()) {
+            throw new BizException(422, "请先完成签名");
+        }
         r.confirmStatus = "CONFIRMED";
         r.satisfaction = body.get("satisfaction") == null ? 0 : ((Number) body.get("satisfaction")).intValue();
-        r.signatureFileId = WorkOrderService.strOrEmpty(body.get("signatureFileId"));
-        r.signatureUrl = WorkOrderService.strOrEmpty(body.get("signatureUrl"));
+        r.signatureFileId = signatureFileId;
+        r.signatureUrl = signatureUrl;
         recordMapper.updateById(r);
         return JsonUtil.map("ok", true);
     }

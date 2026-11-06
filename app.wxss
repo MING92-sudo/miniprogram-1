@@ -1,18 +1,25 @@
 /**app.wxss 全局样式**/
 page {
-  /* 主题色（对齐 TDesign） */
-  --em-brand: #0052d9;
-  --em-brand-light: #ecf2fe;
-  --em-success: #2ba471;
-  --em-warning: #e37318;
-  --em-error: #d54941;
-  --em-text-primary: #000000e6;
-  --em-text-secondary: #00000099;
-  --em-text-disabled: #00000042;
-  --em-bg-page: #f5f6f7;
-  --em-bg-card: #ffffff;
-  --em-border: #e7e7e7;
+  /* 主题色（克制工业风：单蓝 + 三语义色） */
+  --em-brand: #0A5BD3;
+  --em-brand-light: #E8F0FB;
+  --em-success: #0F8A5F;
+  --em-success-bg: #E6F4EE;
+  --em-warning: #B85C0A;
+  --em-warning-bg: #FBF0E4;
+  --em-error: #C2382B;
+  --em-error-bg: #FBE9E7;
+  --em-neutral: #6B7480;
+  --em-neutral-bg: #F0F1F3;
+  --em-text-primary: #1A1E26;
+  --em-text-secondary: #5C6572;
+  --em-text-disabled: #9AA3AF;
+  --em-bg-page: #F2F4F7;
+  --em-bg-card: #FFFFFF;
+  --em-border: #E4E8EE;
+  --em-radius-sm: 8rpx;
   --em-radius: 12rpx;
+  --em-radius-lg: 16rpx;
 
   background-color: var(--em-bg-page);
   color: var(--em-text-primary);

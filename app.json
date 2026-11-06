@@ -16,6 +16,8 @@
     "pages/fault/report",
     "pages/fault/detail",
     "pages/fault/list",
+    "pages/elevator/list",
+    "pages/elevator/detail",
     "pages/mine/offline",
     "pages/unit/sign",
     "pages/login/index",
@@ -29,8 +31,8 @@
     "backgroundTextStyle": "dark"
   },
   "tabBar": {
-    "color": "#666666",
-    "selectedColor": "#0052d9",
+    "color": "#5C6572",
+    "selectedColor": "#0A5BD3",
     "backgroundColor": "#ffffff",
     "borderStyle": "black",
     "list": [

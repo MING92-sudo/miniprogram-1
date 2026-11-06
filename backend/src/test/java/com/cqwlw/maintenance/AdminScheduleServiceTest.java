@@ -94,7 +94,7 @@ class AdminScheduleServiceTest {
         el.id = id;
         el.elevatorCode = code;
         el.elevatorName = "电梯" + code;
-        el.category = "曳引驱动电梯";
+        el.category = "曳引与强制驱动电梯";
         el.workTypeCode = "HM";
         el.intervalDays = 15;
         return el;

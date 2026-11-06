@@ -2,6 +2,7 @@
 // 登录成功后绑定微信（wx.login → /auth/bind-wechat），下次可微信一键登录（P2）
 const auth = require('../../services/auth')
 const { isLoggedIn } = require('../../utils/auth')
+const { TOAST_TEXT } = require('../../constants/index')
 
 // 记住账号（docs/01 §10.1 3.1 / docs/03 §5.6）：仅当前设备生效。
 // Minor5：密码不落盘（XOR 混淆密钥与密文同存 Storage 等价明文），只记账号。
@@ -94,7 +95,7 @@ Page({
       wx.showToast({ title: '登录成功', icon: 'success' })
       wx.reLaunch({ url: '/pages/home/index' })
     } catch (err) {
-      wx.showToast({ title: err.message || '登录失败', icon: 'none' })
+      wx.showToast({ title: err.message || TOAST_TEXT.LOGIN_FAILED, icon: 'none' })
     }
     this.setData({ logging: false })
   }

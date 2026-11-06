@@ -123,6 +123,30 @@ class ReportPayloadGuardTest {
         assertEquals(422, e.getCode());
     }
 
+    /** 签退签名服务端兜底：主维保签名缺失 → 422，且不落任何库（前端校验的双保险） */
+    @Test
+    void checkoutRequiresWorkerSignature() {
+        WorkOrder o = new WorkOrder();
+        o.id = "wo_1";
+        o.elevatorId = "el_1";
+        o.workTypeCode = "HM";
+        o.status = "PROCESSING";
+        o.workerName = "张三";
+        o.workerPlatformId = PID_LI;
+        o.assistantPlatformId = "";
+        o.checkinTime = TimeUtil.now().minusMinutes(40);
+        o.checklistJson = "[{\"id\":\"it_1\",\"name\":\"曳引机\",\"isKey\":false,\"photoRequired\":false,\"result\":\"NORMAL\",\"notInThisRun\":false}]";
+        when(orderMapper.selectById("wo_1")).thenReturn(o);
+        when(elevatorMapper.selectById("el_1")).thenReturn(new Elevator());
+        when(employeeMapper.selectById(EMP_LI)).thenReturn(employee("李四", PID_LI, "13800000001"));
+
+        BizException e = assertThrows(BizException.class,
+                () -> service.checkout("wo_1", Map.of(), EMP_LI));
+        assertEquals(422, e.getCode());
+        verify(orderMapper, never()).updateById(any(WorkOrder.class));
+        verify(recordMapper, never()).insert(any(MaintainRecord.class));
+    }
+
     /** B3：维保记录落库失败 → 事务回滚、不上传平台、工单相关写不生效 */
     @Test
     void checkoutRecordInsertFailureRollsBack() {
@@ -145,7 +169,7 @@ class ReportPayloadGuardTest {
         when(recordMapper.insert(any(MaintainRecord.class))).thenThrow(new RuntimeException("db down"));
 
         RuntimeException ex = assertThrows(RuntimeException.class,
-                () -> service.checkout("wo_1", Map.of(), EMP_LI));
+                () -> service.checkout("wo_1", Map.of("signatureUrl", "https://x/sign.png"), EMP_LI));
         assertTrue(tx.rolledBack, "记录落库失败必须回滚事务（B3）");
         assertFalse(tx.committed, "失败路径不得提交（B3）");
         verify(reportService, never()).attemptUpload(any());

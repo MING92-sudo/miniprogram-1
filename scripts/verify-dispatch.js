@@ -8,7 +8,7 @@ const now = Date.now()
 // 到期一次性全部派单，计划时间统一为当日 09:00:00，作业时长由签退 30 分钟校验把关。
 for (let i = 1; i <= 6; i++) {
   d.db.elevators.push({
-    id: 'vt_' + i, elevatorCode: 'VT-' + i, elevatorName: '验证梯-' + i, useUnitId: 'uu_1', category: '曳引驱动电梯',
+    id: 'vt_' + i, elevatorCode: 'VT-' + i, elevatorName: '验证梯-' + i, useUnitId: 'uu_1', category: '曳引与强制驱动电梯',
     maintenance: {
       intervalDays: 15, workerName: '李强', workerPhone: '13800000004',
       workerPlatformId: '6901284774286860288', assistantName: '', assistantPlatformId: '',

@@ -15,7 +15,7 @@
   flex-shrink: 0;
   font-size: 22rpx;
   color: var(--em-error);
-  background: #fdecec;
+  background: var(--em-error-bg);
   padding: 4rpx 16rpx;
   border-radius: 8rpx;
 }
@@ -41,26 +41,28 @@
 .option {
   flex: 1;
   text-align: center;
-  padding: 16rpx 0;
+  padding: 0;
+  min-height: 88rpx;
+  line-height: 88rpx;
   border-radius: var(--em-radius);
   background: var(--em-bg-page);
 }
 
 .opt-ok {
-  background: #e8f7f0;
+  background: var(--em-success-bg);
   color: var(--em-success);
   font-weight: 600;
 }
 
 .opt-ng {
-  background: #fdecec;
+  background: var(--em-error-bg);
   color: var(--em-error);
   font-weight: 600;
 }
 
 .opt-na {
-  background: #eeeeee;
-  color: var(--em-text-secondary);
+  background: var(--em-neutral-bg);
+  color: var(--em-neutral);
   font-weight: 600;
 }
 

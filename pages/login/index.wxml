@@ -1,19 +1,12 @@
 <view class="login-page">
-  <!-- 装饰色块 -->
-  <view class="deco deco-top"></view>
-  <view class="deco deco-bottom-l"></view>
-  <view class="deco deco-bottom-r"></view>
-
   <view class="login-header">
-    <view class="login-title">电梯维保管家</view>
-    <view class="login-sub">欢迎登录</view>
+    <view class="login-title">电梯无纸化维保</view>
+    <view class="login-sub">维保记录电子化 · 对接监管平台</view>
     <view class="login-bar"></view>
   </view>
 
   <view class="form-area">
     <view class="input-row">
-      <text class="input-icon">📱</text>
-      <view class="input-divider"></view>
       <input
         class="input-field"
         type="number"
@@ -24,8 +17,6 @@
       />
     </view>
     <view class="input-row">
-      <text class="input-icon">🔒</text>
-      <view class="input-divider"></view>
       <input
         class="input-field"
         password="{{!showPassword}}"
@@ -33,13 +24,14 @@
         value="{{password}}"
         bindinput="onPasswordInput"
       />
-      <text class="eye" bindtap="togglePassword">👁</text>
+      <view class="eye" bindtap="togglePassword">{{showPassword ? '隐藏' : '显示'}}</view>
     </view>
+
     <view class="login-opts">
-<!-- 记住账号：仅本机存储，密码不落盘（docs/03 §5.6） -->
-<view class="remember" bindtap="toggleRemember">
-<text class="checkbox">{{remember ? '☑' : '☐'}}</text>
-<text>记住账号</text>
+      <!-- 记住账号：仅本机存储，密码不落盘（docs/03 §5.6 / Minor5） -->
+      <view class="remember" bindtap="toggleRemember">
+        <view class="checkbox {{remember ? 'checked' : ''}}">{{remember ? '✓' : ''}}</view>
+        <text class="remember-text">记住账号</text>
       </view>
       <view class="forgot" bindtap="forgotPassword">忘记密码？</view>
     </view>
@@ -52,6 +44,6 @@
 
   <view class="agreement">
     <view class="checkbox {{agreed ? 'checked' : ''}}" bindtap="toggleAgreed">{{agreed ? '✓' : ''}}</view>
-    <view class="agreement-text">登录代表您已经同意<text class="link">《用户协议》</text>和<text class="link">《隐私政策》</text></view>
+    <view class="agreement-text">登录代表您已同意<text class="link">《用户协议》</text>和<text class="link">《隐私政策》</text></view>
   </view>
 </view>

@@ -85,7 +85,8 @@ async function flushQueue() {
           // 每成功一张即持久化断点（含本任务剩余照片 + 其后未处理任务）
           persist(failed.concat([task], queue.slice(idx + 1)))
         }
-        task.data.photoFileIds = fileIds
+        // 合并入队时已携带的既有 fileId（编辑既有照片项后离线补传），避免重放覆盖丢照
+        task.data.photoFileIds = (task.data.photoFileIds || []).concat(fileIds)
         task.photoPaths = undefined
         task.uploadedFileIds = undefined
       }

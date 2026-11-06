@@ -1,0 +1,49 @@
+<view class="em-page">
+  <view wx:if="{{loading}}" class="em-card em-text-secondary">{{loadingText}}</view>
+
+  <block wx:if="{{profile}}">
+    <!-- 头部：名称 + 类别 -->
+    <view class="em-card">
+      <view class="head-row">
+        <view class="el-name">{{profile.elevatorName || '-'}}</view>
+        <view wx:if="{{profile.category}}" class="el-cat">{{profile.category}}</view>
+      </view>
+      <view class="em-text-secondary">{{profile.insideNumber ? '内部编号 ' + profile.insideNumber + ' · ' : ''}}{{profile.model || '-'}}</view>
+    </view>
+
+    <!-- 平台同步信息（2.7 自动获取，docs/04 B.7） -->
+    <view class="em-card">
+      <view class="section-title">平台同步信息</view>
+      <view class="info-row"><text>电梯编号</text><text>{{profile.platform.elevatorCode || '-'}}</text></view>
+      <view class="info-row"><text>注册代码</text><text>{{profile.platform.registrationCode || '-'}}</text></view>
+      <view class="info-row"><text>设备代码</text><text>{{profile.platform.deviceCode || '-'}}</text></view>
+      <view class="info-row"><text>出厂编号</text><text>{{profile.platform.factoryNumber || '-'}}</text></view>
+      <view class="info-row"><text>使用单位主体ID</text><text>{{profile.platform.useUnitEntityId || '-'}}</text></view>
+      <view class="info-row"><text>安全管理员</text><text>{{profile.platform.elevatorAdminister || '-'}}</text></view>
+      <view class="info-row"><text>管理员电话</text><text>{{profile.platform.elevatorAdministerPhone || '-'}}</text></view>
+      <view class="info-row"><text>应急电话</text><text>{{profile.platform.emergencyPhone || '-'}}</text></view>
+      <view class="em-text-secondary" wx:if="{{profile.platform.syncedAt}}">同步时间：{{profile.platform.syncedAt}}</view>
+    </view>
+
+    <!-- 本地维护信息（平台不提供，本地建档维护） -->
+    <view class="em-card">
+      <view class="section-title">本地维护信息</view>
+      <view class="info-row" bindtap="onEditProjectName">
+        <text>项目名称</text>
+        <text class="info-editable">{{profile.local.projectName || '待补充'}} <text class="info-edit-hint">修改</text></text>
+      </view>
+      <view class="info-row"><text>使用单位负责人</text><text>{{profile.local.unitPrincipal || '-'}}</text></view>
+      <view class="info-row"><text>安装地址</text><text>{{profile.local.address || '-'}}</text></view>
+      <view class="info-row" wx:if="{{profile.local.lng && profile.local.lat}}"><text>经纬度</text><text>{{profile.local.lng}}, {{profile.local.lat}}</text></view>
+      <view class="info-row"><text>品牌</text><text>{{profile.local.brand || '-'}}</text></view>
+      <view class="info-row"><text>制造单位</text><text>{{profile.local.manufacturer || '-'}}</text></view>
+      <view class="info-row"><text>产品编号</text><text>{{profile.local.productNo || '-'}}</text></view>
+      <view class="info-row"><text>驱动方式</text><text>{{profile.local.driveMode || '-'}}</text></view>
+      <view class="info-row"><text>额定载重</text><text>{{profile.local.ratedLoad || '-'}}</text></view>
+      <view class="info-row"><text>额定速度</text><text>{{profile.local.ratedSpeed || '-'}}</text></view>
+      <view class="info-row"><text>层站/门</text><text>{{profile.local.stationsDoors || '-'}}</text></view>
+      <view class="info-row"><text>下次检验日期</text><text>{{profile.local.nextCheckDate || '-'}}</text></view>
+      <view class="info-row"><text>下次维保日期</text><text>{{profile.local.nextMaintenanceDate || '-'}}</text></view>
+    </view>
+  </block>
+</view>

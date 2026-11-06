@@ -5,7 +5,7 @@
       <canvas id="wm-canvas" type="2d" class="wm-canvas"></canvas>
       <view wx:if="{{!output}}" class="preview-empty" bindtap="takePhoto">
         <view wx:if="{{processing}}">水印合成中...</view>
-        <view wx:else>📷 点击拍照</view>
+        <view wx:else>点击拍照</view>
       </view>
     </view>
   </view>

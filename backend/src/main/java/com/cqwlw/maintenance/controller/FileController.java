@@ -82,6 +82,9 @@ public class FileController {
                 ? MediaType.parseMediaType(ct) : MediaType.APPLICATION_OCTET_STREAM;
         return ResponseEntity.ok()
                 .header("X-Content-Type-Options", "nosniff")
+                // 客户端缓存 1 小时（与访问签名 TTL 一致）：签名过期后客户端自然换新 URL，
+                // 管理端/小程序对同一签名 URL 短期内不再重复回源，进一步省服务器与 COS 流量
+                .header("Cache-Control", "private, max-age=3600")
                 .contentType(mediaType)
                 .contentLength(data.length)
                 .body(data);

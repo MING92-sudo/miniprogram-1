@@ -2,6 +2,7 @@
 const { getFaultDetail, updateFault, closeFault } = require('../../services/fault')
 const { uploadImage } = require('../../services/upload')
 const { formatTime, ok } = require('../../utils/util')
+const { TOAST_TEXT, LOADING_TEXT } = require('../../constants/index')
 
 const STATUS_TEXT = {
   OPEN: '处理中',
@@ -14,6 +15,7 @@ Page({
     fault: null,
     statusText: '',
     loading: true,
+    loadingText: LOADING_TEXT,
     result: '',
     siteDesc: '',
     todoDesc: '',
@@ -39,7 +41,7 @@ Page({
       })
     } catch (e) {
       this.setData({ loading: false })
-      wx.showToast({ title: e.message || '加载失败', icon: 'none' })
+      wx.showToast({ title: e.message || TOAST_TEXT.LOAD_FAILED, icon: 'none' })
     }
   },
 
@@ -68,7 +70,7 @@ Page({
       })
       ok('维修过程已保存')
     } catch (e) {
-      wx.showToast({ title: e.message || '保存失败', icon: 'none' })
+      wx.showToast({ title: e.message || TOAST_TEXT.SAVE_FAILED, icon: 'none' })
     }
     this.setData({ submitting: false })
   },
@@ -113,7 +115,7 @@ Page({
       this.fetchDetail()
     } catch (e) {
       wx.hideLoading()
-      wx.showToast({ title: e.message || '操作失败', icon: 'none' })
+      wx.showToast({ title: e.message || TOAST_TEXT.OPERATE_FAILED, icon: 'none' })
     }
     this.setData({ submitting: false })
   }

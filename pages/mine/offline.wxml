@@ -7,7 +7,7 @@
 
   <view class="em-card">
     <view class="row-title">本地工单缓存</view>
-    <view wx:if="{{cacheList.length === 0}}" class="em-text-secondary">暂无缓存</view>
+    <view wx:if="{{cacheList.length === 0}}" class="em-text-secondary">{{emptyText.CACHE}}</view>
     <view wx:for="{{cacheList}}" wx:key="key" class="cache-row" data-key="{{item.key}}" data-id="{{item.orderId}}" bindtap="onClearCache">
       <view class="cache-main">
         <view>{{item.orderNo}}</view>

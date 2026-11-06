@@ -15,7 +15,7 @@ const API_BASE_URL = {
 // env   = 云开发环境 ID（环境名 cloud1）；service = 云托管服务名（控制台「环境/服务」页可查）。
 // 上传仍走 wx.uploadFile（callContainer 只收 JSON），该域名需配到「uploadFile 合法域名」。
 const CLOUD = {
-  enabled: ENV === 'prod',
+  enabled: false, // ★ 临时诊断：关闭 callContainer，回退 wx.request 直连验证（定位到正确 env/service 后恢复 ENV === 'prod'）
   env: 'cloud1-d8g6d6byy3ff0c74d',
   service: 'springboot-l1ws'
 }

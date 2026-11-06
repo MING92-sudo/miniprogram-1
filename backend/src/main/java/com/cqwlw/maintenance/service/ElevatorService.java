@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * 电梯档案视图（docs/01 §3.4.1 + 平台 2.7 回填字段，字段名与前端契约一致）。
@@ -21,10 +22,13 @@ public class ElevatorService {
 
     private final ElevatorMapper elevatorMapper;
     private final UseUnitMapper useUnitMapper;
+    private final EmployeeScopeService scopeService;
 
-    public ElevatorService(ElevatorMapper elevatorMapper, UseUnitMapper useUnitMapper) {
+    public ElevatorService(ElevatorMapper elevatorMapper, UseUnitMapper useUnitMapper,
+                           EmployeeScopeService scopeService) {
         this.elevatorMapper = elevatorMapper;
         this.useUnitMapper = useUnitMapper;
+        this.scopeService = scopeService;
     }
 
     public Elevator get(String id) {
@@ -36,13 +40,19 @@ public class ElevatorService {
                 .eq(Elevator::getElevatorCode, code).last("LIMIT 1"));
     }
 
-    public List<Map<String, Object>> listView() {
+    public List<Map<String, Object>> listView(String empId) {
+        // 班组数据权限（V7）：组长看本组、组员看本人、管理角色不限；与工单清单同谓词
+        // （workerPlatformId / assistantPlatformId 命中即本人负责的电梯，docs/01 §3.4.1）
+        Set<String> ids = scopeService.visibleWorkerPlatformIds(scopeService.require(empId));
         return elevatorMapper.selectList(new LambdaQueryWrapper<Elevator>().orderByAsc(Elevator::getId))
                 .stream()
                 // 停用（INACTIVE）电梯小程序不可见（docs/09 §6.6 / V8 迁移注释）；status 多为 NULL，故在内存过滤
                 .filter(el -> !"INACTIVE".equals(el.status))
+                // 单人作业时 assistantPlatformId 为空；Set.of(...) 的 contains(null) 会抛 NPE，须判空
+                .filter(el -> ids == null
+                        || (el.workerPlatformId != null && ids.contains(el.workerPlatformId))
+                        || (el.assistantPlatformId != null && ids.contains(el.assistantPlatformId)))
                 .map(el -> {
-                    UseUnit uu = el.useUnitId == null ? null : useUnitMapper.selectById(el.useUnitId);
                     Map<String, Object> m = new LinkedHashMap<>();
                     m.put("id", el.id);
                     m.put("elevatorName", el.elevatorName);
@@ -50,7 +60,8 @@ public class ElevatorService {
                     m.put("deviceCode", el.deviceCode);
                     m.put("regCode", el.regCode);
                     m.put("model", el.model);
-                    m.put("projectName", uu == null ? "" : uu.unitName);
+                    // 项目名称 = 小区/楼盘名称（elevator.project_name），与使用单位名称解耦（docs/01 §3.4.1）
+                    m.put("projectName", nz(el.projectName));
                     return m;
                 }).toList();
     }
@@ -78,10 +89,17 @@ public class ElevatorService {
         return m;
     }
 
-    public Map<String, Object> profile(String id) {
+    public Map<String, Object> profile(String id, String empId) {
         Elevator el = get(id);
         if (el == null) {
             throw new BizException(1404, "电梯不存在");
+        }
+        // 越权防护：仅可查看本人（或本组）负责的电梯档案，防跨班组读取管理员/应急电话等敏感字段
+        Set<String> ids = scopeService.visibleWorkerPlatformIds(scopeService.require(empId));
+        if (ids != null
+                && (el.workerPlatformId == null || !ids.contains(el.workerPlatformId))
+                && (el.assistantPlatformId == null || !ids.contains(el.assistantPlatformId))) {
+            throw new BizException(1403, "仅可查看本人负责的电梯");
         }
         UseUnit uu = el.useUnitId == null ? null : useUnitMapper.selectById(el.useUnitId);
         Map<String, Object> platform = new LinkedHashMap<>();
@@ -96,7 +114,7 @@ public class ElevatorService {
         platform.put("emergencyPhone", nz(el.emergencyPhone));
 
         Map<String, Object> local = new LinkedHashMap<>();
-        local.put("projectName", uu == null ? "" : nz(uu.unitName));
+        local.put("projectName", nz(el.projectName));
         local.put("unitPrincipal", uu == null ? "" : nz(uu.unitPrincipal));
         local.put("address", nz(el.location));
         local.put("lng", el.lng != null ? String.valueOf(el.lng) : "");
@@ -120,6 +138,28 @@ public class ElevatorService {
         out.put("platform", platform);
         out.put("local", local);
         return out;
+    }
+
+    /** 维保人员现场更正项目名称（小区名称，管理端可能写错；docs/01 §3.4.1）。仅本人负责的电梯，越权 1403。 */
+    public void updateProjectName(String id, String empId, String projectName) {
+        Elevator el = get(id);
+        if (el == null) {
+            throw new BizException(1404, "电梯不存在");
+        }
+        Set<String> ids = scopeService.visibleWorkerPlatformIds(scopeService.require(empId));
+        if (ids != null
+                && (el.workerPlatformId == null || !ids.contains(el.workerPlatformId))
+                && (el.assistantPlatformId == null || !ids.contains(el.assistantPlatformId))) {
+            throw new BizException(1403, "仅可维护本人负责的电梯");
+        }
+        String v = projectName == null ? "" : projectName.trim();
+        if (v.isEmpty()) {
+            throw new BizException(422, "项目名称不能为空");
+        }
+        Elevator patch = new Elevator();
+        patch.id = el.id;
+        patch.projectName = v;
+        elevatorMapper.updateById(patch);
     }
 
     static String nz(String s) {

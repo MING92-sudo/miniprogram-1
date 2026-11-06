@@ -150,12 +150,19 @@ public class DispatchService {
         if (now < dueMs - 86400000L) {
             return null;
         }
+        // 类型升级基线：某类型从未执行时以其"首次维保日期"起算（用户确认 2026-11-06），
+        // 而非最近一次任意维保——否则只做过半月保的电梯永远够不到季/半年/年保升级周期。
+        // 首次维保 = 最早一次 DONE 签退；无任何已完成维保时回退建档基线 lastMaintenanceAt。
+        LocalDateTime first = firstMaintenance(el.id);
+        if (first == null) {
+            first = el.lastMaintenanceAt;
+        }
         String code = "HM";
-        if (elapsedDays(lastOf(el.id, "OY", last), now) >= 365) {
+        if (elapsedDays(lastOf(el.id, "OY", first), now) >= 365) {
             code = "OY";
-        } else if (elapsedDays(lastOf(el.id, "SM", last), now) >= 180) {
+        } else if (elapsedDays(lastOf(el.id, "SM", first), now) >= 180) {
             code = "SM";
-        } else if (elapsedDays(lastOf(el.id, "TM", last), now) >= 90) {
+        } else if (elapsedDays(lastOf(el.id, "TM", first), now) >= 90) {
             code = "TM";
         }
         // 计划时间 = 到期日当天 09:00（已过期则记为今日，前端统计呈"保养超期"）
@@ -233,6 +240,18 @@ public class DispatchService {
         return orderMapper.selectList(q).stream()
                 .map(o -> o.checkoutTime)
                 .max(LocalDateTime::compareTo)
+                .orElse(null);
+    }
+
+    /** 首次维保日期 = 最早一次已完成（DONE）维保的签退时间；无任何已完成维保时返回 null（调用方回退建档基线） */
+    private LocalDateTime firstMaintenance(String elevatorId) {
+        LambdaQueryWrapper<WorkOrder> q = new LambdaQueryWrapper<WorkOrder>()
+                .eq(WorkOrder::getElevatorId, elevatorId)
+                .eq(WorkOrder::getStatus, "DONE")
+                .isNotNull(WorkOrder::getCheckoutTime);
+        return orderMapper.selectList(q).stream()
+                .map(o -> o.checkoutTime)
+                .min(LocalDateTime::compareTo)
                 .orElse(null);
     }
 

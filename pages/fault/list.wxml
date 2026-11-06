@@ -10,7 +10,7 @@
   </view>
 
   <view wx:if="{{!loading && list.length === 0}}" class="em-card em-text-secondary empty">
-    暂无急修单
+    {{emptyText.FAULT}}
   </view>
 
   <view
@@ -29,7 +29,7 @@
     <view class="em-text-secondary fault-time">{{item.createdAt || ''}}</view>
   </view>
 
-  <view wx:if="{{loading}}" class="loading-tip em-text-secondary">加载中...</view>
+  <view wx:if="{{loading}}" class="loading-tip em-text-secondary">{{loadingText}}</view>
 
   <view class="em-card">
     <button class="em-btn-primary" bindtap="goReport">新建急修单</button>

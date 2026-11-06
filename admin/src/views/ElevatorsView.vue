@@ -14,7 +14,8 @@
 
     <el-table :data="rows" v-loading="loading" stripe @selection-change="onSelect">
       <el-table-column type="selection" width="42" />
-<el-table-column prop="elevatorName" label="项目名称" min-width="150" show-overflow-tooltip />
+<el-table-column prop="elevatorName" label="电梯名称" min-width="150" show-overflow-tooltip />
+<el-table-column prop="projectName" label="项目名称（小区）" min-width="120" show-overflow-tooltip />
 <el-table-column prop="elevatorCode" label="电梯编码" width="130">      </el-table-column>
 <el-table-column prop="useUnitName" label="使用单位" min-width="150" show-overflow-tooltip />
 <el-table-column prop="regCode" label="注册代码" width="150" show-overflow-tooltip />
@@ -83,6 +84,7 @@
   <el-text size="small" type="success">{{ platformHint }}</el-text>
 </el-form-item>
         <el-form-item label="电梯名称" required><el-input v-model="form.elevatorName" /></el-form-item>
+        <el-form-item label="项目名称（小区）"><el-input v-model="form.projectName" placeholder="电梯所在小区/楼盘名称" /></el-form-item>
         <el-form-item label="安装地点"><el-input v-model="form.location" /></el-form-item>
         <el-form-item label="使用单位">
           <el-select v-model="form.useUnitId" clearable style="width: 100%">
@@ -180,7 +182,7 @@ const geoResult = ref(null)
 const platformHint = ref('')
 const categories = ['曳引与强制驱动电梯', '液压驱动电梯', '杂物电梯', '自动扶梯与自动人行道']
 
-const empty = { id: '', elevatorCode: '', elevatorName: '', location: '', useUnitId: '', regCode: '', factoryNumber: '', insideNumber: '', elevatorAdminister: '', elevatorAdministerPhone: '', emergencyPhone: '',
+const empty = { id: '', elevatorCode: '', elevatorName: '', projectName: '', location: '', useUnitId: '', regCode: '', factoryNumber: '', insideNumber: '', elevatorAdminister: '', elevatorAdministerPhone: '', emergencyPhone: '',
   deviceCode: '', model: '', brand: '', manufacturer: '', productNo: '', driveMode: '', ratedLoad: '', ratedLoadUnit: '', ratedSpeed: '', ratedSpeedUnit: '', stationsDoors: '',
   specialType: '', checkinThreshold: '', useUnitEntityId: '', nextMaintenanceDate: '',
   category: '曳引与强制驱动电梯', workTypeCode: 'HM', nextCheckDate: '',

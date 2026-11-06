@@ -94,13 +94,13 @@
 
 .self-check {
   font-size: 28rpx;
-  color: #1a1a1a;
-  background: #f5f6f7;
+  color: var(--em-text-primary);
+  background: var(--em-bg-page);
   border-radius: 12rpx;
   padding: 20rpx 24rpx;
 }
 
 .self-check-bad {
-  color: #e34d59;
-  background: #fdecec;
+  color: var(--em-error);
+  background: var(--em-error-bg);
 }

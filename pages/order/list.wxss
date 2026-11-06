@@ -1,13 +1,13 @@
-/* 工单页：参照无纸化维保截屏（蓝色页头 + 电梯信息卡） */
+/* 工单页：单蓝页头 + 电梯信息卡 */
 .wo-page {
   min-height: 100vh;
-  background: #f0f4fa;
+  background: var(--em-bg-page);
   padding-bottom: 40rpx;
 }
 
 /* ── 蓝色页头 ── */
 .wo-header {
-  background: linear-gradient(160deg, #1668dc 0%, #4096ff 100%);
+  background: var(--em-brand);
   padding: 32rpx 24rpx 36rpx;
   border-radius: 0 0 32rpx 32rpx;
 }
@@ -35,20 +35,16 @@
   padding: 14rpx 28rpx;
 }
 
-.wo-search-icon {
-  font-size: 26rpx;
-  margin-right: 12rpx;
-}
-
 .wo-search-input {
   flex: 1;
   font-size: 26rpx;
-  color: var(--em-text, #1d2129);
+  color: var(--em-text-primary);
 }
 
 .wo-scan {
-  font-size: 44rpx;
+  font-size: 26rpx;
   color: #ffffff;
+  flex-shrink: 0;
 }
 
 /* ── 过滤提示 ── */
@@ -56,14 +52,14 @@
   display: flex;
   align-items: center;
   gap: 12rpx;
-  color: #d46b08;
+  color: var(--em-warning);
   font-size: 26rpx;
   padding: 16rpx 24rpx;
   margin: 20rpx 24rpx 0;
 }
 
 .due-clear {
-  color: #1890ff;
+  color: var(--em-brand);
 }
 
 /* ── 状态 tabs ── */
@@ -79,15 +75,17 @@
   flex: 1;
   text-align: center;
   font-size: 26rpx;
-  color: var(--em-text-secondary, #86909c);
-  padding: 14rpx 0;
+  color: var(--em-text-secondary);
+  padding: 0;
+  min-height: 88rpx;
+  line-height: 88rpx;
   border-radius: 12rpx;
 }
 
 .wo-tab-active {
-  color: #1668dc;
+  color: var(--em-brand);
   font-weight: 600;
-  background: rgba(22, 104, 220, 0.08);
+  background: var(--em-brand-light);
 }
 
 /* ── 工单卡片 ── */
@@ -97,7 +95,7 @@
 
 .wo-empty {
   text-align: center;
-  color: var(--em-text-secondary, #86909c);
+  color: var(--em-text-secondary);
 }
 
 .wo-card {
@@ -105,7 +103,7 @@
   border-radius: 20rpx;
   padding: 24rpx;
   margin-bottom: 24rpx;
-  box-shadow: 0 4rpx 16rpx rgba(22, 104, 220, 0.06);
+  box-shadow: 0 4rpx 16rpx rgba(10, 91, 211, 0.06);
 }
 
 .wo-card-head {
@@ -116,31 +114,46 @@
 }
 
 .wo-type-tag {
-  background: #ffa940;
-  color: #ffffff;
+  background: var(--em-brand-light);
+  color: var(--em-brand);
   font-size: 24rpx;
   font-weight: 600;
   padding: 6rpx 20rpx;
   border-radius: 10rpx;
 }
 
+/* 状态胶囊：色点 + 文字（三编码，杜绝仅颜色） */
 .wo-status {
   margin-left: auto;
-  font-size: 26rpx;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 8rpx;
+  padding: 4rpx 16rpx;
+  border-radius: 999rpx;
+  font-size: 24rpx;
   font-weight: 600;
 }
 
-.status-PENDING { color: #fa8c16; }
-.status-PROCESSING { color: #1890ff; }
-.status-DONE { color: #52c41a; }
+.wo-status::before {
+  content: '';
+  width: 12rpx;
+  height: 12rpx;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.status-PENDING { color: var(--em-warning); background: var(--em-warning-bg); }
+.status-PROCESSING { color: var(--em-brand); background: var(--em-brand-light); }
+.status-DONE { color: var(--em-success); background: var(--em-success-bg); }
 
 /* ── 信息区 ── */
 .wo-info {
-  background: #f5f8fd;
+  background: var(--em-bg-page);
   border-radius: 16rpx;
   padding: 20rpx 24rpx;
   font-size: 26rpx;
-  color: #4e5969;
+  color: var(--em-text-secondary);
   line-height: 1.9;
 }
 
@@ -154,7 +167,7 @@
 }
 
 .wo-strong {
-  color: #1d2129;
+  color: var(--em-text-primary);
   font-weight: 600;
 }
 
@@ -168,17 +181,21 @@
 
 .wo-btn {
   font-size: 26rpx;
-  padding: 12rpx 36rpx;
+  padding: 0 36rpx;
+  min-height: 88rpx;
+  line-height: 88rpx;
+  text-align: center;
   border-radius: 999rpx;
+  box-sizing: border-box;
 }
 
 .wo-btn-ghost {
-  color: #1668dc;
-  border: 2rpx solid #1668dc;
-  background: #f0f7ff;
+  color: var(--em-brand);
+  border: 2rpx solid var(--em-brand);
+  background: var(--em-brand-light);
 }
 
 .wo-btn-primary {
   color: #ffffff;
-  background: linear-gradient(150deg, #4096ff, #1668dc);
+  background: var(--em-brand);
 }

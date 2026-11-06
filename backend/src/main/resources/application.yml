@@ -65,7 +65,8 @@ app:
   work-duration-minutes: ${APP_WORK_DURATION_MINUTES:30}
   # 签到定位阈值全局默认（米）：电梯级 elevator.checkin_threshold 优先；坐标未登记则不拦截只留痕（docs/02 §5.4）
   checkin-threshold-meters: ${APP_CHECKIN_THRESHOLD_METERS:200}
-  # 文件存储：配置 COS_BUCKET/COS_REGION 即走 COS 代理上传，否则回退本地磁盘（仅开发用）。
+  # 文件存储：配置 COS_BUCKET/COS_REGION 即上传 COS（持久化源）+ 本地磁盘写穿缓存（读取优先命中本地，免 COS 下行流量费）；
+  # 否则回退本地磁盘（仅开发用，容器重建即丢失）。本地缓存目录见 file-storage-dir，云托管为临时磁盘、非持久化。
   # 桶名/地域非凭证，可直接入库（微信云托管控制台-对象存储-存储配置）；
   # 云托管托管桶无静态密钥，走内网临时凭证 COS_AUTH_URL（/_/cos/getauth），
   # 仅自建 COS 桶（本地联调）才注入 COS_SECRET_ID/COS_SECRET_KEY。

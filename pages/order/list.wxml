@@ -4,7 +4,6 @@
     <view class="wo-title">{{dueLabel ? dueLabel : '维保工单'}}（{{total || 0}}{{dueLabel ? '台' : '单'}}）</view>
     <view class="wo-search-row">
       <view class="wo-search">
-        <view class="wo-search-icon">🔍</view>
         <input
           class="wo-search-input"
         placeholder="电梯编码/设备代码/登记证号/名称"
@@ -13,7 +12,7 @@
           bindconfirm="onSearch"
         />
       </view>
-      <view class="wo-scan" bindtap="onScan">📷</view>
+      <view class="wo-scan" bindtap="onScan">扫码</view>
     </view>
   </view>
 
@@ -35,7 +34,7 @@
 
   <!-- 工单卡片 -->
   <view class="wo-list">
-    <view wx:if="{{list.length === 0 && !loading}}" class="em-card wo-empty">暂无工单</view>
+    <view wx:if="{{list.length === 0 && !loading}}" class="em-card wo-empty">{{emptyText.ORDER}}</view>
 
     <view wx:for="{{list}}" wx:key="id" class="wo-card">
       <view class="wo-card-head">

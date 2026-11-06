@@ -337,8 +337,9 @@ public class WorkOrderService {
             }
         }
         String collectedAt = str(body.get("collectedAt"));
-        LocalDateTime checkinTime = collectedAt != null && !collectedAt.isEmpty()
-                ? TimeUtil.parse(collectedAt) : TimeUtil.now();
+        // 客户端 collectedAt 非法/空时回退服务器时间，避免 checkinTime 落 null（记录时间缺失 + 时长异常）
+        LocalDateTime parsed = collectedAt != null && !collectedAt.isEmpty() ? TimeUtil.parse(collectedAt) : null;
+        LocalDateTime checkinTime = parsed != null ? parsed : TimeUtil.now();
         Map<String, Object> extra = new LinkedHashMap<>();
         extra.put("latitude", body.get("latitude"));
         extra.put("longitude", body.get("longitude"));
@@ -429,11 +430,22 @@ public class WorkOrderService {
                 + " 秒），请主维保人员刷新后重试");
     }
 
-    /** 校验并消费（一次性）：记下已用码防重放；置空串而非 null（MyBatis-Plus 默认策略不更新 null 字段） */
+    /**
+     * 校验并消费（一次性）：先按 60 秒窗口校验，再以原子条件更新落库——
+     * {@code UPDATE ... WHERE dynamic_code IS NULL OR = ''}，命中 0 行即已被并发消费。
+     * 旧实现「内存判空 + updateById」存在 TOCTOU：两个并发签到者同时读到空码、同时校验通过、
+     * 各自 updateById 覆盖，同一动态码被两次使用。原子更新把「判空 + 写入」压成单条 SQL，
+     * 并发下只有一条命中；命中 0 行（被对端抢注）→ 1003。
+     */
     private void consumeDynamicCode(WorkOrder o, String code) {
         requireDynamicCode(o, code);
+        LocalDateTime expiresAt = TimeUtil.now().plusSeconds(DYNAMIC_CODE_TTL_SECONDS);
+        int updated = orderMapper.consumeDynamicCodeIfUnused(o.id, code, expiresAt);
+        if (updated == 0) {
+            throw new BizException(1003, "动态码已使用，请主维保人员刷新后重新取码");
+        }
         o.dynamicCode = code;
-        o.dynamicCodeExpiresAt = TimeUtil.now().plusSeconds(DYNAMIC_CODE_TTL_SECONDS);
+        o.dynamicCodeExpiresAt = expiresAt;
     }
 
     long currentStep() {
@@ -486,14 +498,22 @@ public class WorkOrderService {
             orderMapper.updateById(o);
         }
         List<Map<String, Object>> items = JsonUtil.readList(o.checklistJson);
-        // 读路径重签：清单照片 URL 带时效，工单详情/作业页可能远晚于上传时间打开
+        // 读路径重签：清单照片 URL 带时效，工单详情/作业页可能远晚于上传时间打开。
+        // 照片以 photoFileIds 解析出的可访问 URL 为准；历史/演示数据的本地临时路径（wxfile://、http://tmp/）不入回显，
+        // 否则照片只在拍照设备可见、其他设备/管理端乱图（2026-11-06 根因：photos 曾落本地临时路径）
         for (Map<String, Object> item : items) {
-            Object photos = item.get("photos");
-            if (photos instanceof List<?> list) {
-                item.put("photos", list.stream()
-                        .map(v -> fileStorage.resolveStoredUrl(String.valueOf(v)))
-                        .collect(Collectors.toList()));
+            List<String> urls = asList(item.get("photoFileIds")).stream()
+                    .map(id -> fileStorage.urlOf(String.valueOf(id)))
+                    .filter(s -> !s.isEmpty())
+                    .collect(Collectors.toList());
+            if (urls.isEmpty()) {
+                urls = asList(item.get("photos")).stream()
+                        .map(String::valueOf)
+                        .map(fileStorage::resolveStoredUrl)
+                        .filter(WorkOrderService::isHttpUrl)
+                        .collect(Collectors.toList());
             }
+            item.put("photos", urls);
         }
         return items;
     }
@@ -501,7 +521,15 @@ public class WorkOrderService {
     public Map<String, Object> getChecklist(String orderId, String empId) {
         WorkOrder o = findOr404(orderId);
         requireOrderScope(o, empId);
-        return JsonUtil.map("checklistId", o.id, "items", items(o));
+        // 作业页头部上下文：类别码/维保类别/电梯名/项目名称（小区），作业清单页重设计用
+        Elevator el = elevatorMapper.selectById(o.elevatorId);
+        return JsonUtil.map(
+                "checklistId", o.id,
+                "workTypeCode", nz(o.workTypeCode),
+                "workType", nz(o.workType),
+                "elevatorName", el == null ? "" : nz(el.elevatorName),
+                "projectName", el == null ? "" : nz(el.projectName),
+                "items", items(o));
     }
 
     @SuppressWarnings("unchecked")
@@ -544,7 +572,13 @@ public class WorkOrderService {
         item.put("abnormalDesc", strOrEmpty(body.get("abnormalDesc")));
         item.put("skipReason", strOrEmpty(body.get("skipReason")));
         item.put("problemCode", strOrEmpty(body.get("problemCode")));
-        item.put("photos", body.get("photoUrls") == null ? new ArrayList<>() : body.get("photoUrls"));
+        // 照片落档以 photoFileIds 解析出的可访问 URL 为准，不落本地临时路径（wxfile://、http://tmp/），
+        // 否则照片只在拍照设备可见、其他设备/管理端乱图（2026-11-06 根因）
+        List<String> photoUrls = asList(body.get("photoFileIds")).stream()
+                .map(id -> fileStorage.urlOf(String.valueOf(id)))
+                .filter(s -> !s.isEmpty())
+                .collect(Collectors.toList());
+        item.put("photos", photoUrls);
         item.put("photoFileIds", body.get("photoFileIds") == null ? new ArrayList<>() : body.get("photoFileIds"));
         String recordedAt = str(body.get("recordedAt"));
         item.put("recordedAt", recordedAt == null || recordedAt.isEmpty()
@@ -601,6 +635,19 @@ public class WorkOrderService {
                     + " 分钟），请继续作业后再签退");
         }
 
+        // 签名服务端兜底（前端 checkout.js 亦校验，双保险，对齐"作业时长前后端双保险"口径）：
+        // 主维保签名必填；配有配合人员的工单须双人签字（docs/04 A.2 签退自检）
+        String workerSignature = resolveSignatureUrl(body.get("signatureFileId"), body.get("signatureUrl"));
+        String assistantSignature = resolveSignatureUrl(body.get("assistantSignatureFileId"), body.get("assistantSignatureUrl"));
+        boolean hasAssistant = o.assistantName != null && !o.assistantName.isBlank()
+                && !"无".equals(o.assistantName.trim());
+        if (workerSignature.isEmpty()) {
+            throw new BizException(422, "请完成主维保人员签名");
+        }
+        if (hasAssistant && assistantSignature.isEmpty()) {
+            throw new BizException(422, "请完成配合人员签名（双人签字）");
+        }
+
         o.status = "DONE";
         o.checkoutTime = checkoutTime;
         o.originalRecordId = Ids.nextRecordId();
@@ -650,7 +697,8 @@ public class WorkOrderService {
         if (problemCodes.isEmpty()) {
             problemCodes = List.of("S0"); // 仅当无任何异常项时补 S0 = 未发现严重事故隐患（平台 2.6 约定）
         }
-        int interval = WORK_TYPE_INTERVAL_DAYS.getOrDefault(o.workTypeCode, 15);
+        int interval = el != null && el.intervalDays != null
+                ? el.intervalDays : WORK_TYPE_INTERVAL_DAYS.getOrDefault(o.workTypeCode, 15);
 
         MaintainRecord r = new MaintainRecord();
         r.id = Ids.next("ur");
@@ -669,8 +717,8 @@ public class WorkOrderService {
         r.photosJson = JsonUtil.write(photos);
         r.safetyJson = JsonUtil.write(body.get("safetyConfirm"));
         r.todoDesc = strOrEmpty(body.get("todoDesc"));
-        r.workerSignatureUrl = resolveSignatureUrl(body.get("signatureFileId"), body.get("signatureUrl"));
-        r.assistantSignatureUrl = resolveSignatureUrl(body.get("assistantSignatureFileId"), body.get("assistantSignatureUrl"));
+        r.workerSignatureUrl = workerSignature;
+        r.assistantSignatureUrl = assistantSignature;
         r.problemCodesJson = JsonUtil.write(problemCodes);
         r.originalRecordId = o.originalRecordId;
         r.reportStatus = o.reportStatus;
@@ -800,7 +848,6 @@ public class WorkOrderService {
     // ── 视图组装 ──
     public Map<String, Object> toMap(WorkOrder o, boolean withElevator) {
         Elevator el = elevatorMapper.selectById(o.elevatorId);
-        UseUnit uu = el == null || el.useUnitId == null ? null : useUnitMapper.selectById(el.useUnitId);
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("id", o.id);
         m.put("orderNo", o.orderNo);
@@ -851,7 +898,7 @@ public class WorkOrderService {
             m.put("regCode", el == null ? "" : nz(el.regCode));
             m.put("insideNumber", el == null ? "" : nz(el.insideNumber));
             m.put("model", el == null ? "" : nz(el.model));
-            m.put("projectName", uu == null ? "" : nz(uu.unitName));
+            m.put("projectName", el == null ? "" : nz(el.projectName));
         }
         return m;
     }
@@ -866,6 +913,7 @@ public class WorkOrderService {
         e.put("deviceCode", el.deviceCode);
         e.put("insideNumber", el.insideNumber);
         e.put("model", el.model);
+        e.put("projectName", el.projectName);
         e.put("useUnitId", el.useUnitId);
         e.put("category", el.category);
         e.put("nextCheckDate", TimeUtil.formatDate(el.nextCheckDate));

@@ -8,7 +8,9 @@
 .tab {
   flex: 1;
   text-align: center;
-  padding: 12rpx 0;
+  padding: 0;
+  min-height: 88rpx;
+  line-height: 88rpx;
   border-radius: 999rpx;
   font-size: 26rpx;
   color: var(--em-text-secondary);
@@ -41,12 +43,12 @@
 
 .tag-OPEN {
   color: var(--em-warning);
-  background: #fdf6ec;
+  background: var(--em-warning-bg);
 }
 
 .tag-CLOSED {
   color: var(--em-success);
-  background: #e8f7f0;
+  background: var(--em-success-bg);
 }
 
 .fault-time {

@@ -26,9 +26,11 @@ import java.util.Set;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -72,6 +74,8 @@ class DynamicCodeTest {
         when(employeeMapper.selectById(EMP_A)).thenReturn(employee(EMP_A, "李强", PID_A));
         when(employeeMapper.selectList(any())).thenReturn(List.of(
                 employee(EMP_P, "张伟", PID_P), employee(EMP_A, "李强", PID_A)));
+        // 原子消费默认成功（1 行命中）；具体用例可覆写为 0 模拟并发抢注
+        when(orderMapper.consumeDynamicCodeIfUnused(any(), any(), any())).thenReturn(1);
     }
 
     private static WorkOrder order(String id) {
@@ -189,6 +193,20 @@ class DynamicCodeTest {
         BizException e = assertThrows(BizException.class,
                 () -> service.checkin(ORDER, checkin("ASSISTANT", null), EMP_A));
         assertEquals(422, e.getCode());
+    }
+
+    /** #7 修复：动态码消费为原子条件更新（UPDATE ... WHERE dynamic_code IS NULL/''）。
+     *  并发下同一码只有一条命中；对端先抢注 → 本端命中 0 行 → 1003，且不落任何签到留痕。 */
+    @Test
+    void concurrentConsumeRejectsLoser() {
+        String code = String.valueOf(service.issueDynamicCode(ORDER, EMP_P).get("code"));
+        when(orderMapper.consumeDynamicCodeIfUnused(eq(ORDER), eq(code), any())).thenReturn(0);
+
+        BizException e = assertThrows(BizException.class,
+                () -> service.checkin(ORDER, checkin("ASSISTANT", code), EMP_A));
+        assertEquals(1003, e.getCode(), "并发输家必须拒绝（动态码已被对端抢注）");
+        verify(orderMapper, never()).updateById(any(WorkOrder.class));
+        assertNull(order.assistantCheckinExtraJson, "输家不得写任何签到留痕");
     }
 
     /** docs/01 §3.7.2：主维保与配合人员分别签到，两人留痕互不覆盖 */

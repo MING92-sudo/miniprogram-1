@@ -104,6 +104,15 @@ const routes = [
     if (!p) throw { code: 1404, message: '电梯不存在' }
     return p
   }],
+  // 维保人员现场更正项目名称（小区名称，管理端可能写错；docs/04 A.2.1）
+  ['PUT', '/elevators/:id/project-name', ({ params, body }) => {
+    const el = d.getElevator(params.id)
+    if (!el) throw { code: 1404, message: '电梯不存在' }
+    const v = String((body && body.projectName) || '').trim()
+    if (!v) throw { code: 422, message: '项目名称不能为空' }
+    el.projectName = v
+    return { ok: true }
+  }],
   // Minor7：只读查询改 GET（与后端 2026-10-05 整改一致）
   ['GET', '/work-orders/resolve-by-elevator', ({ query }) => {
     const el = d.getElevatorByCode(query.elevatorCode)
@@ -157,7 +166,15 @@ const routes = [
   }],
   ['GET', '/work-orders/:id/checklist', ({ params }) => {
     const o = findOr404(d.db.orders, params.id, '工单')
-    return { checklistId: o.id, items: o.checklist }
+    const el = d.getElevator(o.elevatorId) || {}
+    return {
+      checklistId: o.id,
+      workTypeCode: o.workTypeCode || '',
+      workType: o.workType || '',
+      elevatorName: el.elevatorName || '',
+      projectName: el.projectName || '',
+      items: o.checklist
+    }
   }],
   ['POST', '/work-orders/:id/checklist/:itemId', ({ params, body }) => {
     const o = findOr404(d.db.orders, params.id, '工单')

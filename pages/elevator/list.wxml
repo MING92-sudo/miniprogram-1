@@ -1,0 +1,32 @@
+<view class="el-page">
+  <!-- 蓝色页头：标题 + 搜索 -->
+  <view class="el-header">
+    <view class="el-title">设备信息（{{list.length || 0}} 台）</view>
+    <view class="el-search">
+      <input
+        class="el-search-input"
+        placeholder="搜索名称/编号/设备代码/型号"
+        value="{{keyword}}"
+        confirm-type="search"
+        bindinput="onSearchInput"
+      />
+    </view>
+  </view>
+
+  <view class="el-list">
+    <view wx:if="{{list.length === 0 && !loading}}" class="em-card el-empty">{{emptyHint}}</view>
+
+    <view wx:for="{{list}}" wx:key="id" class="el-card" data-id="{{item.id}}" bindtap="goDetail">
+      <view class="el-head">
+        <view class="el-name">{{item.elevatorName}}</view>
+        <view class="el-arrow">›</view>
+      </view>
+      <view class="el-code">{{item.elevatorCode || '/'}}</view>
+      <view class="el-info">
+        <view class="el-info-row"><text class="el-label">项目名称</text><text class="el-value">{{item.projectName || '/'}}</text></view>
+        <view class="el-info-row"><text class="el-label">设备代码</text><text class="el-value">{{item.deviceCode || '/'}}</text></view>
+        <view class="el-info-row"><text class="el-label">型号</text><text class="el-value">{{item.model || '/'}}</text></view>
+      </view>
+    </view>
+  </view>
+</view>

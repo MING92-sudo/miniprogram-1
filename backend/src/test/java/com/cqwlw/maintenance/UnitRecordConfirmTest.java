@@ -68,6 +68,17 @@ class UnitRecordConfirmTest {
     }
 
     @Test
+    void confirmWithoutSignatureRejected() {
+        try {
+            service.confirm(RECORD_ID, Map.of("satisfaction", 5));
+            assertTrue(false, "无签名确认应抛 422（与 confirmByToken 一致）");
+        } catch (com.cqwlw.maintenance.common.BizException e) {
+            assertEquals(422, e.getCode());
+        }
+        verify(recordMapper, never()).updateById(any(MaintainRecord.class));
+    }
+
+    @Test
     void confirmUnknownRecordIs404() {
         when(recordMapper.selectById("ur_missing")).thenReturn(null);
         try {

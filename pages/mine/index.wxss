@@ -6,18 +6,18 @@
 }
 
 .cert-expired {
-  background: #fdecee;
-  color: #d54941;
+  background: var(--em-error-bg);
+  color: var(--em-error);
 }
 
 .cert-soon {
-  background: #fff7e8;
-  color: #ed7b2f;
+  background: var(--em-warning-bg);
+  color: var(--em-warning);
 }
 
 .cert-ok {
-  background: #f2f3f5;
-  color: #4e5969;
+  background: var(--em-neutral-bg);
+  color: var(--em-neutral);
 }
 
 .user-card {

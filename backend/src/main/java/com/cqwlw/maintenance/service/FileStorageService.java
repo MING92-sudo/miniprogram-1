@@ -39,7 +39,8 @@ import java.util.Set;
 
 /**
  * 文件存储（P4 STS 直传前的代理上传方案，Q6=A 决策）：
- * 配置 COS_BUCKET/COS_REGION 时上传腾讯云 COS；否则回退本地磁盘（仅本地开发）。
+ * 配置 COS_BUCKET/COS_REGION 时上传腾讯云 COS（持久化源）+ 本地磁盘写穿缓存（读取优先命中本地，免 COS 下行流量费）；
+ * 否则回退本地磁盘（仅本地开发，容器重建即丢失）。
  * 云托管托管桶无静态密钥，走云托管内网临时凭证（COS_AUTH_URL=/_/cos/getauth）；
  * 自建 COS 桶（本地联调）可注入 COS_SECRET_ID/COS_SECRET_KEY。
  */
@@ -107,16 +108,23 @@ public class FileStorageService {
         String objectKey = LocalDate.now(TimeUtil.ZONE) + "/" + id + ext;
         // 统一同源 /files/{id} 地址：公网域名可达，小程序/管理端/PDF 后端均可直接读取；
         // 托管桶默认私有读，COS 直链外部无法访问（2026-10-05 急修单签名/照片不可见根因）
+        byte[] bytes = file.getBytes();
         if (cosClient != null) {
+            // 持久化源：上传 COS（失败抛出——本地缓存会随容器重建丢失，COS 是唯一持久化源）
             ObjectMetadata meta = new ObjectMetadata();
-            meta.setContentLength(file.getSize());
+            meta.setContentLength(bytes.length);
             meta.setContentType(file.getContentType());
-            cosClient.putObject(props.getCosBucket(), objectKey, file.getInputStream(), meta);
+            cosClient.putObject(props.getCosBucket(), objectKey,
+                    new java.io.ByteArrayInputStream(bytes), meta);
+            // 写穿缓存：本地磁盘兜底，读取路径优先命中本地、免 COS 下行流量费（best-effort）
+            try {
+                cacheLocal(objectKey, bytes);
+            } catch (IOException e) {
+                log.warn("本地缓存写入失败（不影响上传）: id={}, {}", id, e.getMessage());
+            }
         } else {
-            Path dir = Paths.get(props.getFileStorageDir());
-            Files.createDirectories(dir);
-            Path target = dir.resolve(objectKey.replace('/', '_'));
-            file.transferTo(target.toAbsolutePath().toFile());
+            // 本地磁盘是唯一存储（失败必须抛出，否则文件丢失）
+            cacheLocal(objectKey, bytes);
         }
         String url = resolveBase(schemeHost) + "/files/" + id;
         AppFile f = new AppFile();
@@ -132,7 +140,7 @@ public class FileStorageService {
         return f;
     }
 
-    /** 本地回退：按 fileId 读回字节（COS 模式前端直接用 url） */
+    /** 本地落盘路径：按 objectKey 计算（COS 模式为写穿缓存、本地模式为唯一存储） */
     public Path localPath(AppFile f) {
         return Paths.get(props.getFileStorageDir(), f.objectKey.replace('/', '_'))
                 .toAbsolutePath();
@@ -145,8 +153,8 @@ public class FileStorageService {
     }
 
     /**
-     * 读取文件字节：优先本地磁盘；COS 模式经内网凭证流式拉取。
-     * 供 /files/{id} 同源下发（替代不可公开访问的 COS 直链），失败返回 null。
+     * 读取文件字节：优先本地磁盘缓存（免 COS 下行流量费）；缓存未命中再经内网凭证流式拉取 COS
+     * 并写回本地缓存（write-back），供后续读取直连本地。供 /files/{id} 同源下发，失败返回 null。
      */
     public byte[] readBytes(AppFile f) {
         try {
@@ -155,19 +163,36 @@ public class FileStorageService {
                 return Files.readAllBytes(local);
             }
         } catch (IOException e) {
-            log.warn("本地文件读取失败: id={}, {}", f.id, e.getMessage());
+            log.warn("本地缓存读取失败: id={}, {}", f.id, e.getMessage());
         }
         if (cosClient != null) {
+            byte[] data;
             try (var obj = cosClient.getObject(props.getCosBucket(), f.objectKey);
                  var in = obj.getObjectContent();
                  var out = new java.io.ByteArrayOutputStream()) {
                 in.transferTo(out);
-                return out.toByteArray();
+                data = out.toByteArray();
             } catch (Exception e) {
                 log.warn("COS 文件拉取失败: id={}, {}", f.id, e.getMessage());
+                return null;
             }
+            // 命中 COS 后写回本地缓存，后续读取免 COS 下行流量费（best-effort）
+            try {
+                cacheLocal(f.objectKey, data);
+            } catch (IOException e) {
+                log.warn("本地缓存写回失败: id={}, {}", f.id, e.getMessage());
+            }
+            return data;
         }
         return null;
+    }
+
+    /** 写本地缓存（COS 模式为 write-through/write-back 缓存，本地模式为唯一存储） */
+    private void cacheLocal(String objectKey, byte[] bytes) throws IOException {
+        Path dir = Paths.get(props.getFileStorageDir());
+        Files.createDirectories(dir);
+        Path target = dir.resolve(objectKey.replace('/', '_'));
+        Files.write(target, bytes);
     }
 
     /**

@@ -10,13 +10,14 @@
 | 需求与合规依据 | `docs/01-需求文档.md`（TSG T5002 + 平台规范 V1.5 逐字核对） |
 | 平台接口怎么调 | `docs/07-平台联调实测记录.md` + `docs/07-full-test-20260930.md`（**实测优先于规范**） |
 | 内部 API 契约 | `docs/04-接口文档.md` A 部分（= `mock/server.js` 路由） |
-| 当前进展 | `docs/08-项目审查与开发计划.md` |
+| 当前进展 | `docs/08-项目审查与开发计划.md`（阶段与历史） |
+| **还剩什么没完成** | `docs/12-未完成事项清单.md`（**待办唯一清单**，含 P0 上线门禁） |
 | 管理端设计与验收 | `docs/09-管理端设计.md` + `docs/10-管理端验收清单.md` |
 
 ## 1. 项目结构与分层
 
 ```
-├─ app.js / app.json / app.wxss   小程序入口（20 页，tabBar 4 个；范围收敛后口径见 docs/03 §3.2）
+├─ app.js / app.json / app.wxss   小程序入口（22 页，tabBar 4 个；范围收敛后口径见 docs/03 §3.2）
 ├─ pages/                        页面（每页 .js/.json/.wxml/.wxss 四件套）
 ├─ services/                     业务接口层：页面只调 services，禁止直接 wx.request
 ├─ utils/request.js              唯一请求封装（Bearer 鉴权、X-Idempotency-Key、401 处理）
@@ -24,11 +25,11 @@
 ├─ config/index.js               环境配置（useMock 开关、apiBaseUrl、LBS key 留空）
 ├─ constants/index.js            枚举/错误码/业务常量（文案统一从这里取）
 ├─ mock/                         mock 契约层（server.js 路由 = docs/04 A 部分）
-├─ backend/                      Spring Boot 3.3.4 后端（Flyway V1—V21 + JWT/BCrypt + 平台转发 + 184 单测）
+├─ backend/                      Spring Boot 3.3.4 后端（Flyway V1—V22 + JWT/BCrypt + 平台转发 + 188 单测）
 ├─ admin/                        Vue3 + Vite + Element Plus 管理端（lint/vitest/build）
 ├─ scripts/                      平台联调 PowerShell/Node 脚本（fixtures/ 存合成测试件；tmp/ 已 gitignore）
 ├─ doc_text.txt                  平台《电梯维保记录上报接口规范 V1.5》原文提取（docs/04 B 部分的核对来源，只读）
-└─ docs/                         01—11 编号文档（见 §8 文档规则）
+└─ docs/                         01—12 编号文档（见 §8 文档规则）
 ```
 
 **分层规则**：
@@ -116,6 +117,10 @@
 | V1.8 | 2026-10-05 | §2.3 红线表述同步：删除零调用的 `retry-auto`/`REG_RETRY_AUTO` 配置（Minor6），红线改为"无自动重试实现，确认前禁止引入" |
 | V1.9 | 2026-11-03 | 安全/合规 P0 移植后计数更新（后端 169 单测）；明确派单仅定时任务驱动、异常项 S0—S7 显式判定、2.7 归属 fail-closed、JWT 无默认密钥 |
 | V2.0 | 2026-11-03 | 安全/合规 P0 移植收尾（自 `codex/audit-fixes` 按主题合入，codex 分支已全部收敛为 `master`）：①微信登录改 `wx.login` code → 后端 `jscode2session` 换 openid（新增 `WX_APPID`/`WX_APPSECRET`，§2 红线口径不变：凭证只进环境变量/`.env`）；②`/auth/bind-*` 改为登录后写操作，同 openid 先解绑再绑定（V21 迁移 + `uk_openid`）；③`GET /files/{id}` 增加 URL 时效签名 `?s=`（`FileAccessTokenService`）；④§1 计数更新（Flyway V1—V21、184 单测），docs/02 V1.8、docs/04 V2.30 同步 |
+| V2.1 | 2026-11-05 | 整理轮：①§0 导航新增 `docs/12-未完成事项清单.md` 为**待办唯一清单**（docs/08 降为阶段与历史口径）；②§1 结构表 docs 范围改 01—12；③约定根 `npm run lint` 只覆盖小程序代码（新增 `.eslintignore` 排除 admin/backend/docs，未装 admin 依赖也可通过），admin/backend 仍在各自目录内校验 |
+| V2.2 | 2026-11-06 | 设备信息（用户需求）：小程序新增「设备信息」入口（`pages/elevator/list` + `pages/elevator/detail`，复用既有 `GET /elevators`、`GET /elevators/{id}/profile`），电梯列表/档案接入班组数据权限（V7 同谓词，仅本人负责的电梯）；§1 计数更新（小程序 22 页、后端 185 单测），docs/03 V2.5、docs/04 V2.31 同步 |
+| V2.3 | 2026-11-06 | 项目名称/小区名称字段独立（用户需求）：`elevator` 新增 `project_name` 列（V22 迁移），与使用单位名称（物业公司）区分——历史实现曾把「项目名称」误回显为使用单位名称；新增 `PUT /elevators/{id}/project-name`（维保人员现场更正，班组数据权限同 V2.2 谓词，仅本人负责的电梯，越权 1403/空值 422）；电梯列表/档案/工单视图的 `projectName` 改取 `elevator.project_name`；管理端电梯页/台账补「项目名称（小区）」列与表单项。§1 计数更新（Flyway V1—V22、后端 187 单测），docs/01 V3.5、docs/03 V2.6、docs/04 V2.32、docs/09 V3.14 同步 |
+| V2.4 | 2026-11-06 | 品种取值统一（用户需求）：电梯品种（category）取值统一为 TSG T5002 第八条四类口径——曳引与强制驱动电梯/液压驱动电梯/杂物电梯/自动扶梯与自动人行道 → 附件 A/B/C/D；backend/mock 的 `CATEGORY_APPENDIX` 由细分七类改为四类，与管理端建档表单、`DemoDataSeeder`、`ChecklistTemplateSeeder.APPENDIX_SCOPE` 对齐，消除液压/扶梯/人行道电梯检查项静默回退附件 A 的缺陷；新增 `ChecklistServiceTest.categoryRoutesToCorrectAppendix`。§1 计数更新（后端 188 单测），docs/01 V3.6、docs/03 V2.7、docs/04 V2.33 同步 |
 
 <!-- aoci:begin -->
 ## AOCI Repository Cognition
