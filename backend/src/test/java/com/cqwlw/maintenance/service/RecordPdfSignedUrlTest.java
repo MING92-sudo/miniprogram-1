@@ -1,14 +1,21 @@
 package com.cqwlw.maintenance.service;
 
 import com.cqwlw.maintenance.entity.AppFile;
+import com.cqwlw.maintenance.entity.MaintainRecord;
 import com.cqwlw.maintenance.mapper.AppFileMapper;
 import com.cqwlw.maintenance.mapper.CompanyMapper;
+import com.cqwlw.maintenance.util.JsonUtil;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.web.client.RestTemplate;
 
+import java.util.List;
+import java.util.Map;
+
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -54,5 +61,30 @@ class RecordPdfSignedUrlTest {
     @Test
     void missingFileStillDegradesToNull() {
         assertNull(service.loadImage("http://localhost:8080/files/file_missing?s=1.2"));
+    }
+
+    @Test
+    void pdfPhotosRecoverOldRecordsFromPhotoFileIds() {
+        MaintainRecord record = new MaintainRecord();
+        record.photosJson = JsonUtil.write(List.of("wxfile://tmp_old.jpg"));
+        when(fileStorage.urlOf("file_1"))
+                .thenReturn("http://localhost:8080/files/file_1?s=fresh");
+
+        List<String> urls = service.recordPhotoUrls(record, List.of(Map.of(
+                "photos", List.of("wxfile://tmp_old.jpg"),
+                "photoFileIds", List.of("file_1"))));
+
+        assertEquals(List.of("http://localhost:8080/files/file_1?s=fresh"), urls);
+    }
+
+    @Test
+    void pdfPhotosDropUnrecoverableLocalPaths() {
+        MaintainRecord record = new MaintainRecord();
+        record.photosJson = JsonUtil.write(List.of("http://tmp/old.png"));
+
+        List<String> urls = service.recordPhotoUrls(record, List.of(Map.of(
+                "photos", List.of("http://tmp/old.png"))));
+
+        assertTrue(urls.isEmpty());
     }
 }

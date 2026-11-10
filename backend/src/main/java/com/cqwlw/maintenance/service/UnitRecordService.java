@@ -75,8 +75,8 @@ public class UnitRecordService {
         if (token == null || token.isEmpty() || !token.equals(r.shareToken)) {
             throw new BizException(401, "确认链接无效或已失效");
         }
-        List<Map<String, Object>> items = JsonUtil.readList(r.itemsJson);
-        List<String> photos = JsonUtil.readStringList(r.photosJson);
+        List<Map<String, Object>> items = resolveItems(r.itemsJson);
+        List<String> photos = resolveRecordPhotos(items, r.photosJson);
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("confirmed", "CONFIRMED".equals(r.confirmStatus));
         m.put("elevatorName", WorkOrderService.nz(r.elevatorName));
@@ -129,8 +129,9 @@ public class UnitRecordService {
         m.put("checkinTime", TimeUtil.format(r.checkinTime));
         m.put("checkoutTime", TimeUtil.format(r.checkoutTime));
         m.put("duration", r.duration);
-        m.put("items", resolveItems(r.itemsJson));
-        m.put("photos", resolveStoredUrls(JsonUtil.readStringList(r.photosJson)));
+        List<Map<String, Object>> items = resolveItems(r.itemsJson);
+        m.put("items", items);
+        m.put("photos", resolveRecordPhotos(items, r.photosJson));
         m.put("workerSignatureUrl", fileStorageService.resolveStoredUrl(r.workerSignatureUrl));
         m.put("assistantSignatureUrl", fileStorageService.resolveStoredUrl(r.assistantSignatureUrl));
         m.put("problemCodes", JsonUtil.readStringList(r.problemCodesJson));
@@ -150,25 +151,54 @@ public class UnitRecordService {
         return m;
     }
 
-    /** 记录详情是长期读路径：把清单照片与签名从库里无签名 URL 重签为当前可访问 URL */
+    /**
+     * 记录详情是长期读路径：照片优先按 photoFileIds 重签为当前可访问 URL，
+     * 历史快照里的本地临时路径（wxfile://、http://tmp/）不可跨设备访问，必须过滤掉。
+     * 2026-11-06 前的记录可能已成功上传 fileId、但 photos 仍冻结为本地路径，
+     * 只重签 photos 会让其他手机与管理端继续显示断图（本轮修复）。
+     */
     private List<Map<String, Object>> resolveItems(String itemsJson) {
         if (itemsJson == null || itemsJson.isEmpty()) {
             return List.of();
         }
         List<Map<String, Object>> items = JsonUtil.readList(itemsJson);
         for (Map<String, Object> item : items) {
-            Object photos = item.get("photos");
-            if (photos instanceof List<?> list) {
-                item.put("photos", list.stream()
-                        .map(v -> fileStorageService.resolveStoredUrl(String.valueOf(v)))
-                        .collect(Collectors.toList()));
+            List<String> urls = WorkOrderService.asList(item.get("photoFileIds")).stream()
+                    .map(String::valueOf)
+                    .map(fileStorageService::urlOf)
+                    .filter(WorkOrderService::isHttpUrl)
+                    .collect(Collectors.toList());
+            if (urls.isEmpty()) {
+                Object photos = item.get("photos");
+                if (photos instanceof List<?> list) {
+                    urls = list.stream()
+                            .map(v -> fileStorageService.resolveStoredUrl(String.valueOf(v)))
+                            .filter(WorkOrderService::isHttpUrl)
+                            .collect(Collectors.toList());
+                }
             }
+            item.put("photos", urls);
         }
         return items;
     }
 
-    private List<String> resolveStoredUrls(List<String> urls) {
-        return urls.stream().map(fileStorageService::resolveStoredUrl).collect(Collectors.toList());
+    /**
+     * 记录级照片墙与检查项明细同源：优先取已解析的检查项照片（可恢复旧记录的 fileId），
+     * 仅当明细没有照片时才回退到冻结的 photos_json。
+     */
+    private List<String> resolveRecordPhotos(List<Map<String, Object>> items, String photosJson) {
+        List<String> fromItems = items.stream()
+                .flatMap(i -> WorkOrderService.asList(i.get("photos")).stream()
+                        .map(String::valueOf)
+                        .filter(WorkOrderService::isHttpUrl))
+                .collect(Collectors.toList());
+        if (!fromItems.isEmpty()) {
+            return fromItems;
+        }
+        return JsonUtil.readStringList(photosJson).stream()
+                .map(fileStorageService::resolveStoredUrl)
+                .filter(WorkOrderService::isHttpUrl)
+                .collect(Collectors.toList());
     }
 
     /** 上报状态归一（docs/04 A.3 P3 修订）：REPORTED→SUCCESS，FAILED→FAILED，其余 PENDING */

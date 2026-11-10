@@ -27,6 +27,7 @@ import org.springframework.web.client.RestTemplate;
 
 import java.io.ByteArrayOutputStream;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -134,6 +135,9 @@ public class RecordPdfService {
 
             // ── 维保项目检查表（TSG T5002-2017 附件 A–D） ──
             List<Map<String, Object>> items = r.itemsJson == null ? List.of() : JsonUtil.readList(r.itemsJson);
+            if (items == null) {
+                items = List.of();
+            }
             doc.add(sectionBar("维保项目检查表"));
             PdfPTable itemsTable = new PdfPTable(new float[]{1f, 5f, 5f, 2f, 4f}); // 部位列删除（2026-10-05 用户反馈）
             itemsTable.setWidthPercentage(100);
@@ -182,8 +186,7 @@ public class RecordPdfService {
             doc.add(issue);
 
             // ── 现场照片：2 列网格，格子数随照片数量自适应（无照片不渲染；奇数张末格跨两列） ──
-            List<String> photoUrls = r.photosJson == null ? List.of()
-                    : JsonUtil.readStringList(r.photosJson);
+            List<String> photoUrls = recordPhotoUrls(r, items);
             if (!photoUrls.isEmpty()) {
                 PdfPTable photoGrid = new PdfPTable(2);
                 photoGrid.setWidthPercentage(100);
@@ -435,6 +438,44 @@ public class RecordPdfService {
             throw new IllegalStateException("PDF 生成失败", e);
         }
     }
+
+    /**
+     * PDF 照片源：优先按检查项 photoFileIds 解析（可恢复旧记录已上传但 photos 仍冻结为
+     * wxfile://、http://tmp/ 本地路径的照片），无 fileId 时才回退冻结的 photos_json。
+     * 本地临时路径跨设备不可读，必须过滤，避免 PDF 中打印成“照片加载失败”。
+     */
+    List<String> recordPhotoUrls(MaintainRecord r, List<Map<String, Object>> items) {
+        List<String> resolved = new ArrayList<>();
+        for (Map<String, Object> item : items) {
+            List<String> itemUrls = new ArrayList<>();
+            for (Object id : WorkOrderService.asList(item.get("photoFileIds"))) {
+                String url = fileStorage.urlOf(String.valueOf(id));
+                if (WorkOrderService.isHttpUrl(url)) {
+                    itemUrls.add(url);
+                }
+            }
+            if (itemUrls.isEmpty()) {
+                for (Object photo : WorkOrderService.asList(item.get("photos"))) {
+                    String url = fileStorage.resolveStoredUrl(String.valueOf(photo));
+                    if (WorkOrderService.isHttpUrl(url)) {
+                        itemUrls.add(url);
+                    }
+                }
+            }
+            resolved.addAll(itemUrls);
+        }
+        if (!resolved.isEmpty()) {
+            return resolved;
+        }
+        for (String photo : JsonUtil.readStringList(r.photosJson)) {
+            String url = fileStorage.resolveStoredUrl(photo);
+            if (WorkOrderService.isHttpUrl(url)) {
+                resolved.add(url);
+            }
+        }
+        return resolved;
+    }
+
     /** 照片/签字按 URL 拉取；本机 /files/{id} 回退查 AppFile 本地路径；失败返回 null（占位文字） */
     protected byte[] loadImage(String url) {
         if (url == null || url.isBlank()) {
