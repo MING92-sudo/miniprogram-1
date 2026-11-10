@@ -16,7 +16,7 @@
 | 管理端设计与验收 | `docs/09-管理端设计.md`、`docs/10-管理端验收清单.md` | 角色矩阵与人工验收证据 |
 | 测试与上线检查 | `docs/05-测试与验收方案.md`、`docs/11-云托管部署手册.md` | 人工验收结论写回 docs/05、docs/10 |
 
-**当前基线（2026-11-10 机审）**：小程序 22 页（tabBar 4）；`services/` 9 个模块；`mock/server.js` 47 条路由；后端 104 个 Web 映射注解（101 条业务路由 + 3 个探针）、Flyway V1—V22、196 个单测；管理端 17 个视图；文档 01—12。计数用于快速定位，提交前以代码实测为准；文档数字滞后时改文档，不要为迁就旧数字改代码。
+**当前基线（2026-11-10 机审）**：小程序 22 页（tabBar 4）；`services/` 9 个模块；`mock/server.js` 47 条路由；后端 104 个 Web 映射注解（101 条业务路由 + 3 个探针）、Flyway V1—V22、200 个单测；管理端 17 个视图；文档 01—12。计数用于快速定位，提交前以代码实测为准；文档数字滞后时改文档，不要为迁就旧数字改代码。
 
 ## 1. 系统组成与分层
 
@@ -29,7 +29,7 @@
 ├─ config/index.js                环境配置（ENV、useMock、apiBaseUrl、cloud.env/service、LBS key 留空）
 ├─ constants/index.js             枚举/错误码/业务常量（文案统一从这里取）
 ├─ mock/                          mock 契约层（server.js 路由 = docs/04 A 部分）
-├─ backend/                       Spring Boot 3.3.4 后端（Flyway V1—V22、JWT/BCrypt、平台转发、196 单测）
+├─ backend/                       Spring Boot 3.3.4 后端（Flyway V1—V22、JWT/BCrypt、平台转发、200 单测）
 ├─ admin/                         Vue3 + Vite + Element Plus 管理端（17 视图；lint/vitest/build）
 ├─ scripts/                       平台联调脚本与回归脚本（fixtures/ 合成测试件；tmp/ 已 gitignore）
 ├─ doc_text.txt                   平台规范 V1.5 原文提取（docs/04 B 部分核对来源，只读）
@@ -172,6 +172,7 @@
 | V2.3 | 2026-11-06 | 项目名称/小区名称字段独立（用户需求）：`elevator` 新增 `project_name` 列（V22 迁移），与使用单位名称（物业公司）区分——历史实现曾把「项目名称」误回显为使用单位名称；新增 `PUT /elevators/{id}/project-name`（维保人员现场更正，班组数据权限同 V2.2 谓词，仅本人负责的电梯，越权 1403/空值 422）；电梯列表/档案/工单视图的 `projectName` 改取 `elevator.project_name`；管理端电梯页/台账补「项目名称（小区）」列与表单项。§1 计数更新（Flyway V1—V22、后端 187 单测），docs/01 V3.5、docs/03 V2.6、docs/04 V2.32、docs/09 V3.14 同步 |
 | V2.4 | 2026-11-06 | 品种取值统一（用户需求）：电梯品种（category）取值统一为 TSG T5002 第八条四类口径——曳引与强制驱动电梯/液压驱动电梯/杂物电梯/自动扶梯与自动人行道 → 附件 A/B/C/D；backend/mock 的 `CATEGORY_APPENDIX` 由细分七类改为四类，与管理端建档表单、`DemoDataSeeder`、`ChecklistTemplateSeeder.APPENDIX_SCOPE` 对齐，消除液压/扶梯/人行道电梯检查项静默回退附件 A 的缺陷；新增 `ChecklistServiceTest.categoryRoutesToCorrectAppendix`。§1 计数更新（后端 188 单测），docs/01 V3.6、docs/03 V2.7、docs/04 V2.33 同步 |
 | V3.0 | 2026-11-10 | **重写**：按“导航→架构→红线→业务不变量→编码→平台事实→Git→测试→文档→AI 协作”重组，合并重复条款；更新基线为 22 页 / 47 条 mock / 101 条业务路由 / 22 个迁移 / 196 单测；新增 §3 关键业务不变量（工单归属、签到、动态码原子消费、签退校验、上报快照、派单基线、文件写穿缓存、工单号重试）；安全红线补充 WX/JWT/COS/文件签名与 CI 占位密钥口径；AI 导航改为工具无关并注明 AOCI 托管块不可手改 |
+| V3.1 | 2026-11-10 | 后端启动新增**迁移失败自愈**：`migrate()` 前按主键删除 `flyway_schema_history` 中 `success=0` 的失败行后重跑该迁移，只删失败行、不重写已成功迁移的 checksum（`FLYWAY_REPAIR` 的 M6 语义不变）；背景是云托管 MySQL 5.7 上 V22 迁移中断导致容器崩溃重启循环、且环境拿不到数据库写权限。补 `FlywayRepairConfigTest` 4 例（后端 200 单测），docs/11 新增 §8「迁移中断自愈与排查」 |
 
 <!-- aoci:begin -->
 ## AOCI Repository Cognition
