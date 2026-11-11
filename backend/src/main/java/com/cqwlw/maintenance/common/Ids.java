@@ -2,6 +2,8 @@ package com.cqwlw.maintenance.common;
 
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.UUID;
+import java.nio.ByteBuffer;
+import java.util.Base64;
 
 /**
  * ID 生成：与 mock 前缀风格一致（wo_/ur_/msg_...）；
@@ -16,8 +18,16 @@ public final class Ids {
     }
 
     public static String next(String prefix) {
-        // C2：UUID 不可枚举——旧实现（秒级时间戳+9000 随机数）可被批量猜出文件 ID
-        return prefix + "_" + UUID.randomUUID().toString().replace("-", "");
+        // C2：UUID 不可枚举——旧实现（秒级时间戳+9000 随机数）可被批量猜出文件 ID。
+        // 但 32 位 hex UUID + 前缀会超过业务表 id 列 VARCHAR(32)：2026-11-11 生产 INSERT use_unit
+        // 报 "Data too long for column 'id'"（"uu_" + 32 = 35 > 32）。改用 Base64URL 编码 16 字节 UUID
+        // （22 字符，128bit 熵不变、仍不可枚举），prefix + "_" + 22 ≤ 32（最长前缀 sess/file 得 27）。
+        UUID uuid = UUID.randomUUID();
+        byte[] bytes = new byte[16];
+        ByteBuffer.wrap(bytes)
+                .putLong(uuid.getMostSignificantBits())
+                .putLong(uuid.getLeastSignificantBits());
+        return prefix + "_" + Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
     }
 
     /**
