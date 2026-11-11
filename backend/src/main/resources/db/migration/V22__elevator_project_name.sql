@@ -7,4 +7,4 @@
 -- 处理：elevator 增加独立字段 project_name，承载项目名称（小区名称）；与 use_unit.unit_name 解耦。
 
 ALTER TABLE elevator
-    ADD COLUMN project_name VARCHAR(128) NULL AFTER elevator_name COMMENT '项目名称（小区名称，维保人员现场可维护）';
+    ADD COLUMN project_name VARCHAR(128) NULL COMMENT '项目名称（小区名称，维保人员现场可维护）' AFTER elevator_name;
