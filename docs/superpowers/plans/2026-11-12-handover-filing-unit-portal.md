@@ -289,8 +289,8 @@
 **Interfaces:**
 - 无新代码接口；三处同步收尾。
 
-- [ ] **Step 1: 三处同步接口文档**（`services/` + `mock/server.js` + `docs/04`）。
-- [ ] **Step 2: 更新计数与修订记录**（AGENTS.md §10 追加 V3.4）。
-- [ ] **Step 3: 全量回归**：backend `mvn test`、根 `npm run lint`、`node scripts/verify-dispatch.js`、`node scripts/verify-templates.js`。
-- [ ] **Step 4: 走查小程序链路**：mock 下走「登录 → 移交发起 → 查验 → 归档 → 首保 → 签退」全链路。
-- [ ] **Step 5: Commit**：`docs: 同步移交/外接建档/使用单位门户文档与计数`。
+- [x] **Step 1: 三处同步接口文档**（`services/` + `mock/server.js` + `docs/04`）。
+- [ ] **Step 2: 更新计数与修订记录**（AGENTS.md / docs/12 有他人未提交改动，留待合并时一并处理）（AGENTS.md §10 追加 V3.4）。
+- [x] **Step 3: 全量回归**：backend `mvn test`、根 `npm run lint`、`node scripts/verify-dispatch.js`、`node scripts/verify-templates.js`。
+- [ ] **Step 4: 走查小程序链路**（mock 路由已补并脚本验证状态机；UI 全链路待小程序发布后走）：mock 下走「登录 → 移交发起 → 查验 → 归档 → 首保 → 签退」全链路。
+- [x] **Step 5: Commit**：`docs: 同步移交/外接建档/使用单位门户文档与计数`。
