@@ -245,11 +245,11 @@
 **Interfaces:**
 - Consumes: Task 4—7 后端接口。
 
-- [ ] **Step 1: 写 services**（`getHandoverList/init/submitDocs/...`，动词开头，对齐 `docs/04`）。
-- [ ] **Step 2: 写页面**：移交发起/详情/查验/整改/确认、外接建档发起/资料/接管查验/交接确认（外部签字复用 `pages/common/signature`）。
-- [ ] **Step 3: 根目录 lint**：`npm run lint` → 通过。
-- [ ] **Step 4: 注册页面 + mock 路由同步**：`mock/server.js` 补移交/外接路由。
-- [ ] **Step 5: Commit**：`feat: 小程序移交与外接建档页面`。
+- [x] **Step 1: 写 services**（`getHandoverList/init/submitDocs/...`，动词开头，对齐 `docs/04`）。
+- [x] **Step 2: 写页面**：移交发起/详情/查验/整改/确认、外接建档发起/资料/接管查验/交接确认（外部签字复用 `pages/common/signature`）。
+- [x] **Step 3: 根目录 lint**：`npm run lint` → 通过。
+- [x] **Step 4: 注册页面 + mock 路由同步**：`mock/server.js` 补移交/外接路由。
+- [x] **Step 5: Commit**：`feat: 小程序移交与外接建档页面`。
 
 ## Task 13: 小程序——使用单位门户 + 维保日历
 
@@ -261,11 +261,11 @@
 **Interfaces:**
 - Consumes: Task 10—11 后端接口。
 
-- [ ] **Step 1: 写门户页面**：首页/电梯列表/维保记录/急修记录/待签字/报修（报修从本单位电梯选）。
-- [ ] **Step 2: 写维保日历页**：展示未来 12 个月排期。
-- [ ] **Step 3: 使用单位登录入口 + 按角色路由分发**。
-- [ ] **Step 4: 根目录 lint** → 通过。
-- [ ] **Step 5: Commit**：`feat: 使用单位门户与维保日历页面`。
+- [x] **Step 1: 写门户页面**：首页/电梯列表/维保记录/急修记录/待签字/报修（报修从本单位电梯选）。
+- [x] **Step 2: 写维保日历页**：展示未来 12 个月排期。
+- [x] **Step 3: 使用单位登录入口 + 按角色路由分发**。
+- [x] **Step 4: 根目录 lint** → 通过。
+- [x] **Step 5: Commit**：`feat: 使用单位门户与维保日历页面`。
 
 ## Task 14: 管理端页面
 
@@ -276,10 +276,10 @@
 **Interfaces:**
 - Consumes: Task 1—10 管理端只读接口。
 
-- [ ] **Step 1: 写视图**：移交单/外接建档单列表详情、合同管理、区域管理、使用单位账号管理。
-- [ ] **Step 2: 电梯页/台账加区域列与 `archive_source` 列。
-- [ ] **Step 3: 跑 admin 三件套**：`npm run lint && npm test && npm run build` → 通过。
-- [ ] **Step 4: Commit**：`feat: 管理端移交/外接/合同/区域/使用单位账号视图`。
+- [x] **Step 1: 写视图**：移交单/外接建档单列表详情、合同管理、区域管理、使用单位账号管理。
+- [x] **Step 2: 电梯页/台账加区域列与 `archive_source` 列。
+- [x] **Step 3: 跑 admin 三件套**：`npm run lint && npm test && npm run build` → 通过。
+- [x] **Step 4: Commit**：`feat: 管理端移交/外接/合同/区域/使用单位账号视图`。
 
 ## Task 15: 文档同步 + 回归验收
 
