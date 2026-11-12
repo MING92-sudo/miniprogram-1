@@ -38,7 +38,7 @@
 - `controller/`：`RegionController.java`、`HandoverController.java`、`ExternalFilingController.java`、`ContractController.java`、`UnitPortalController.java`、`MaintenanceCalendarController.java`
 - `mapper/`：上述实体各一个 `*Mapper.java`
 - 修改：`entity/Elevator.java`、`entity/Employee.java`、`entity/WorkOrder.java`、`entity/UseUnit.java`、`auth/AdminRoleInterceptor.java`、`service/DispatchService.java`（首保复用 `dispatchNow` 逻辑抽公共方法）
-- `resources/db/migration/`：`V24__region.sql`、`V25__elevator_archive_source.sql`、`V26__handover.sql`、`V27__external_filing.sql`、`V28__contract.sql`
+- `resources/db/migration/`：`V24__region.sql`、`V25__elevator_archive_source.sql`、`V26__contract.sql`、`V27__handover.sql`、`V28__handover_issue.sql`、`V29__external_filing.sql`、`V30__use_unit_account.sql`
 
 ### 小程序新增（`pages/`）
 - `handover/`：`init`、`detail`、`inspect`、`rectify`、`confirm`
@@ -88,7 +88,7 @@
 
 **Files:**
 - Create: `entity/MaintenanceContract.java`、`entity/ContractElevator.java`、`mapper/*`、`service/ContractService.java`、`controller/ContractController.java`
-- Create: `backend/src/main/resources/db/migration/V28__contract.sql`
+- Create: `backend/src/main/resources/db/migration/V26__contract.sql`
 
 **Interfaces:**
 - Produces: `ContractService.create()`（校验起始日 ≤ 建档日）、`getActiveContractByElevator(elevatorId)`；`POST /contracts`、`GET /contracts`、`GET /contracts/{id}`。
@@ -104,7 +104,7 @@
 
 **Files:**
 - Create: `entity/HandoverOrder.java`、`entity/HandoverCheck.java`、`entity/HandoverCheckItem.java`、`entity/HandoverRectification.java`、`entity/HandoverSign.java`、`mapper/*`
-- Create: `backend/src/main/resources/db/migration/V26__handover.sql`
+- Create: `backend/src/main/resources/db/migration/V27__handover.sql`
 - Create: `service/HandoverService.java`、`controller/HandoverController.java`
 
 **Interfaces:**
@@ -121,6 +121,7 @@
 ## Task 5: 归档事件 + 首保工单闭环
 
 **Files:**
+- Create: `backend/src/main/resources/db/migration/V28__handover_issue.sql`（`handover_order` 加 `handover_issue` 遗留问题标记列）
 - Modify: `service/HandoverService.java`（补 `archive()`）、`service/DispatchService.java`（抽 `precreateFirstOrder(elevator, planDate)` 公共方法）、`service/WorkOrderService.java`（首保签退回写遗留问题）
 
 **Interfaces:**
@@ -157,7 +158,7 @@
 
 **Files:**
 - Create: `entity/ExternalFilingOrder.java`、`entity/ExternalFilingDoc.java`、`entity/ExternalTakeoverCheck.java`、`entity/ExternalTakeoverCheckItem.java`、`entity/HandoverConfirmation.java`、`mapper/*`
-- Create: `backend/src/main/resources/db/migration/V27__external_filing.sql`
+- Create: `backend/src/main/resources/db/migration/V29__external_filing.sql`
 - Create: `service/ExternalFilingService.java`、`controller/ExternalFilingController.java`
 
 **Interfaces:**
@@ -189,13 +190,14 @@
 ## Task 9: 使用单位账号 + 登录
 
 **Files:**
+- Create: `backend/src/main/resources/db/migration/V30__use_unit_account.sql`
 - Modify: `entity/UseUnit.java`（account/passwordHash/openid）、`auth/*`（使用单位登录鉴权）
 - Create: `service/UnitAccountService.java`、`controller/UnitAccountController.java`
 
 **Interfaces:**
 - Produces: `POST /unit/accounts`（管理端开通）、`POST /unit/login`（账号密码）、`POST /unit/bind-wechat`（邀请码绑定微信）。
 
-- [ ] **Step 1: 写迁移 + 实体**：`use_unit` 加 `account`/`password_hash`/`openid`。
+- [ ] **Step 1: 写 V29 迁移 + 实体**：`use_unit` 加 `account`/`password_hash`/`openid`。
 - [ ] **Step 2: 写失败测试**：`UnitAccountServiceTest.loginRejectsWrongPassword`（错密码 401）；`bindWechatByInviteCode`（邀请码绑定）。
 - [ ] **Step 3: 跑测试确认失败** → FAIL。
 - [ ] **Step 4: 实现** `UnitAccountService` + 登录鉴权（JWT 带 `use_unit` 身份）。
