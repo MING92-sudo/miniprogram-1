@@ -43,9 +43,9 @@ public class ElevatorService {
     }
 
     public List<Map<String, Object>> listView(String empId) {
-        // 班组数据权限（V7）：组长看本组、组员看本人、管理角色不限；与工单清单同谓词
-        // （workerPlatformId / assistantPlatformId 命中即本人负责的电梯，docs/01 §3.4.1）
-        Set<String> ids = scopeService.visibleWorkerPlatformIds(scopeService.require(empId));
+        // 读范围（Task 8）：本区域电梯 + 本班组（组长）+ 本人；区域未分区时退化为原来的本人口径。
+        // 写路径（project-name/local）仍走 visibleWorkerPlatformIds 严格谓词，不得共用。
+        Set<String> ids = scopeService.visibleReadPlatformIds(scopeService.require(empId));
         return elevatorMapper.selectList(new LambdaQueryWrapper<Elevator>().orderByAsc(Elevator::getId))
                 .stream()
                 // 停用（INACTIVE）电梯小程序不可见（docs/09 §6.6 / V8 迁移注释）；status 多为 NULL，故在内存过滤

@@ -268,9 +268,9 @@ public class WorkOrderService {
         return toMap(o, true);
     }
 
-    /** 班组数据权限（V7）：组长看本组，组员看本人，管理角色不限 */
+    /** 班组数据权限（V7）：组长看本组，组员看本人，管理角色不限；Task 8 起读范围扩到本区域 */
     public List<WorkOrder> scopeOrders(List<WorkOrder> list, String empId) {
-        Set<String> ids = scopeService.visibleWorkerPlatformIds(scopeService.require(empId));
+        Set<String> ids = scopeService.visibleReadPlatformIds(scopeService.require(empId));
         if (ids == null) {
             return list;
         }

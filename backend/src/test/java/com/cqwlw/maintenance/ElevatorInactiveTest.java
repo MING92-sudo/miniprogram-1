@@ -100,7 +100,8 @@ class ElevatorInactiveTest {
         when(elevatorMapper.selectList(any()))
                 .thenReturn(List.of(elevator("el_on", null), elevator("el_off", "INACTIVE")));
         // 管理角色不限班组（ids=null），隔离班组权限以单独验证「停用电梯隐藏」
-        when(scopeService.visibleWorkerPlatformIds(any())).thenReturn(null);
+        // Task 8：列表读范围走 visibleReadPlatformIds（区域感知），写路径仍用 visibleWorkerPlatformIds
+        when(scopeService.visibleReadPlatformIds(any())).thenReturn(null);
 
         List<Map<String, Object>> list = service.listView("emp_1");
         assertEquals(1, list.size(), "小程序电梯列表不得出现停用电梯");
@@ -124,7 +125,7 @@ class ElevatorInactiveTest {
 
         when(elevatorMapper.selectList(any())).thenReturn(List.of(asWorker, asAssistant, other));
         when(scopeService.require("emp_1")).thenReturn(new Employee());
-        when(scopeService.visibleWorkerPlatformIds(any())).thenReturn(Set.of("pid_zhang"));
+        when(scopeService.visibleReadPlatformIds(any())).thenReturn(Set.of("pid_zhang"));
 
         List<Map<String, Object>> list = service.listView("emp_1");
         assertEquals(2, list.size(), "作业人员仅可见本人作为主维保或配合人员的电梯");
