@@ -1,0 +1,44 @@
+<view class="em-page">
+  <view class="filter-bar">
+    <view
+      wx:for="{{filters}}"
+      wx:key="key"
+      class="filter-chip {{activeStatus === item.key ? 'is-active' : ''}}"
+      data-key="{{item.key}}"
+      bindtap="onFilter"
+    >{{item.label}}</view>
+  </view>
+
+  <view wx:if="{{loading && !list.length}}" class="em-card em-text-secondary">{{loadingText}}</view>
+
+  <view wx:if="{{failed}}" class="em-card">
+    <view class="em-text-secondary">{{text.LIST_FAILED}}</view>
+    <button class="em-btn-ghost retry" bindtap="onRetry">重试</button>
+  </view>
+
+  <view wx:if="{{!loading && !failed && !list.length}}" class="em-card em-text-secondary">{{text.LIST_EMPTY}}</view>
+
+  <view
+    wx:for="{{list}}"
+    wx:key="id"
+    class="em-card row"
+    data-id="{{item.id}}"
+    bindtap="onTapRow"
+  >
+    <view class="row-head">
+      <text class="row-no">{{item.handoverNo}}</text>
+      <text class="tag tag-{{item.status}}">{{item.statusText}}</text>
+    </view>
+    <view class="row-title">{{item.projectName}}</view>
+    <view wx:if="{{item.subtitle}}" class="em-text-secondary">{{item.subtitle}}</view>
+    <view class="em-text-secondary">发起 {{item.createdAt || '-'}}{{item.receiverName ? ' · 接收人 ' + item.receiverName : ''}}</view>
+  </view>
+
+  <view wx:if="{{hasMore}}" class="em-card">
+    <button class="em-btn-ghost" bindtap="onMore">加载更多（共 {{total}} 条）</button>
+  </view>
+
+  <view wx:if="{{canWrite}}" class="em-card">
+    <button class="em-btn-primary" bindtap="goInit">发起移交</button>
+  </view>
+</view>

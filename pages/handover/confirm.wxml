@@ -1,0 +1,47 @@
+<view class="em-page">
+  <view wx:if="{{loading}}" class="em-card em-text-secondary">{{loadingText}}</view>
+
+  <block wx:if="{{handover}}">
+    <view class="em-card">
+      <view class="head-row">
+        <view>
+          <view class="order-no">{{handover.handoverNo}}</view>
+          <view class="em-text-secondary">{{handover.projectName}}</view>
+        </view>
+        <view class="tag">待确认归档</view>
+      </view>
+    </view>
+
+    <view class="em-card">
+      <view class="section-title">归档摘要</view>
+      <view class="info-row"><text>电梯名称</text><text>{{handover.elevatorName || '-'}}</text></view>
+      <view class="info-row"><text>电梯代码</text><text>{{handover.elevatorCode || '-'}}</text></view>
+      <view class="info-row"><text>电梯品种</text><text>{{handover.category || '-'}}</text></view>
+      <view class="info-row"><text>安装地址</text><text>{{handover.location || '-'}}</text></view>
+      <view class="info-row"><text>注册代码</text><text>{{handover.regCode || '-'}}</text></view>
+      <view class="info-row"><text>接收工程师</text><text>{{handover.receiverName || '未分配'}}</text></view>
+      <view class="info-row"><text>必传资料</text><text>{{docCount}}/{{docTotal}} 已上传</text></view>
+      <view class="info-row"><text>发起人</text><text>{{handover.initiatorName || '-'}}</text></view>
+      <view class="info-row"><text>监督检验合格日</text><text>{{handover.supervisionPassDate || '-'}}</text></view>
+    </view>
+
+    <view wx:if="{{locked}}" class="em-card">
+      <view class="em-text-secondary">本单当前不可确认归档（需「待确认归档」状态 + 维保经理/班组长及以上岗位）</view>
+    </view>
+
+    <block wx:if="{{!locked}}">
+      <view class="em-card">
+        <view class="section-title">确认人</view>
+        <view class="field">
+          <view class="field-label">姓名<text class="req">*</text></view>
+          <input class="field-input" value="{{confirmerName}}" bindinput="onNameInput" placeholder="确认人姓名" />
+        </view>
+        <view class="em-text-secondary tip">确认后本单归档：自动建电梯档案（来源=安装移交）并预建 15 日后的首保工单</view>
+      </view>
+
+      <view class="em-card">
+        <button class="em-btn-primary" disabled="{{submitting}}" bindtap="onSubmit">确认归档</button>
+      </view>
+    </block>
+  </block>
+</view>

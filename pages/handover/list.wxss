@@ -1,0 +1,83 @@
+.filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16rpx;
+  padding: 20rpx 24rpx 0;
+}
+
+.filter-chip {
+  padding: 8rpx 24rpx;
+  font-size: 24rpx;
+  color: var(--em-text-secondary);
+  background: var(--em-bg-card);
+  border-radius: 999rpx;
+}
+
+.filter-chip.is-active {
+  color: #ffffff;
+  background: var(--em-brand);
+}
+
+.row {
+  display: block;
+}
+
+.row-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8rpx;
+}
+
+.row-no {
+  font-size: 28rpx;
+  font-weight: 600;
+}
+
+.row-title {
+  font-size: 30rpx;
+  font-weight: 500;
+  margin-bottom: 6rpx;
+}
+
+.tag {
+  flex-shrink: 0;
+  font-size: 22rpx;
+  padding: 4rpx 16rpx;
+  border-radius: 10rpx;
+}
+
+.tag-DOC_SUBMITTING {
+  color: var(--em-warning);
+  background: var(--em-warning-bg);
+}
+
+.tag-INSPECTING {
+  color: var(--em-brand);
+  background: var(--em-brand-light);
+}
+
+.tag-RECTIFYING {
+  color: var(--em-error);
+  background: var(--em-error-bg);
+}
+
+.tag-PENDING_CONFIRM {
+  color: var(--em-warning);
+  background: var(--em-warning-bg);
+}
+
+.tag-ARCHIVED {
+  color: var(--em-success);
+  background: var(--em-success-bg);
+}
+
+.em-btn-ghost {
+  background: var(--em-brand-light);
+  color: var(--em-brand);
+  border-radius: var(--em-radius);
+}
+
+.retry {
+  margin-top: 16rpx;
+}

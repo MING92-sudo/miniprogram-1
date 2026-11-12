@@ -2,7 +2,7 @@
 // 只做“显示什么”的映射，真正的鉴权在后端：列表数据范围由 EmployeeScopeService 的读写谓词决定，
 // 这里藏掉的入口即便被直接跳转，后端仍会 403/1403。
 //
-// 尚未上线的小程序页面（移交/外接建档、使用单位门户）不在这里造假入口，
+// 尚未上线的小程序页面（外接建档、使用单位门户）不在这里造假入口，
 // 用 scope 文案说明该角色当前的能力边界，页面上线后在 tiles 里补。
 
 const TILE = {
@@ -14,7 +14,9 @@ const TILE = {
   faultAll: { title: '急修单', iconClass: 'icon-emergency', url: '/pages/fault/list' },
   msg: { title: '消息通知', iconClass: 'icon-message', url: '/pages/message/index', tab: true },
   deviceMine: { title: '我的设备', iconClass: 'icon-device', url: '/pages/elevator/list' },
-  deviceAll: { title: '设备台账', iconClass: 'icon-device', url: '/pages/elevator/list' }
+  deviceAll: { title: '设备台账', iconClass: 'icon-device', url: '/pages/elevator/list' },
+  // 移交单：列表 → 发起/详情（install 与维保经理/质量负责人在列表内按状态推进）
+  handover: { title: '移交单', iconClass: 'icon-record', url: '/pages/handover/list' }
 }
 
 /**
@@ -55,16 +57,16 @@ const VIEWS = {
     roleText: '维保经理',
     scope: '全维保部数据（巡视）；排班与审批在管理端完成',
     canOperate: false,
-    tiles: [TILE.orderAll, TILE.faultAll, TILE.msg, TILE.deviceAll],
-    menus: [TILE.faultAll]
+    tiles: [TILE.handover, TILE.orderAll, TILE.faultAll, TILE.msg, TILE.deviceAll],
+    menus: [TILE.handover, TILE.faultAll]
   },
   MAINT_QUALITY: {
     dept: '维保部',
     roleText: '维保质量负责人',
     scope: '全维保部只读抽查；不可签退、不可重报',
     canOperate: false,
-    tiles: [TILE.orderRead, TILE.faultAll, TILE.msg, TILE.deviceAll],
-    menus: [TILE.faultAll]
+    tiles: [TILE.handover, TILE.orderRead, TILE.faultAll, TILE.msg, TILE.deviceAll],
+    menus: [TILE.handover, TILE.faultAll]
   },
   MAINT_BIZ: {
     dept: '维保部',
@@ -77,26 +79,26 @@ const VIEWS = {
   INSTALL_MANAGER: {
     dept: '安装部',
     roleText: '安装项目经理',
-    scope: '移交/外接建档在管理端发起；小程序版页面开发中',
+    scope: '移交单发起与资料上传；外接建档在管理端完成',
     canOperate: false,
-    tiles: [TILE.msg, TILE.deviceAll],
-    menus: []
+    tiles: [TILE.handover, TILE.msg, TILE.deviceAll],
+    menus: [TILE.handover]
   },
   INSTALL_CLERK: {
     dept: '安装部',
     roleText: '安装文员',
-    scope: '移交/建档资料在管理端上传；小程序版页面开发中',
+    scope: '移交资料上传与整改照片；外接建档在管理端完成',
     canOperate: false,
-    tiles: [TILE.msg],
-    menus: []
+    tiles: [TILE.handover, TILE.msg],
+    menus: [TILE.handover]
   },
   INSTALL_WORKER: {
     dept: '安装部',
     roleText: '安装员',
     scope: '现场查验与急修登记（本部门被指派单据）',
     canOperate: false,
-    tiles: [TILE.faultMine, TILE.msg, TILE.deviceAll],
-    menus: [TILE.faultMine]
+    tiles: [TILE.handover, TILE.faultMine, TILE.msg, TILE.deviceAll],
+    menus: [TILE.handover, TILE.faultMine]
   },
   ADMIN: {
     dept: '平台层',

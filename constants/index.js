@@ -125,6 +125,95 @@ const EMPTY_TEXT = {
 // 加载中文案
 const LOADING_TEXT = '加载中...'
 
+// 移交单状态（W1 安装移交，docs/04 A.9；状态机见 backend HandoverService）
+const HANDOVER_STATUS = {
+  INIT: 'INIT',
+  DOC_SUBMITTING: 'DOC_SUBMITTING',
+  INSPECTING: 'INSPECTING',
+  RECTIFYING: 'RECTIFYING',
+  PENDING_CONFIRM: 'PENDING_CONFIRM',
+  ARCHIVED: 'ARCHIVED'
+}
+
+const HANDOVER_STATUS_TEXT = {
+  INIT: '待发起',
+  DOC_SUBMITTING: '资料移交中',
+  INSPECTING: '现场查验',
+  RECTIFYING: '整改复验中',
+  PENDING_CONFIRM: '待确认归档',
+  ARCHIVED: '已归档'
+}
+
+// 流程节点（详情页进度条；RECTIFYING 是 INSPECTING 的分支，落位在第 3 格）
+const HANDOVER_STEPS = [
+  { key: 'DOC_SUBMITTING', label: '资料移交' },
+  { key: 'INSPECTING', label: '现场查验' },
+  { key: 'RECTIFYING', label: '整改复验' },
+  { key: 'PENDING_CONFIRM', label: '待确认' },
+  { key: 'ARCHIVED', label: '已归档' }
+]
+
+// 3 必传资料（缺一后端 422，HandoverService.submitDocs）
+const HANDOVER_DOCS = [
+  { field: 'supervisionReportFileId', label: '监督检验报告' },
+  { field: 'maintenanceManualFileId', label: '维保说明书' },
+  { field: 'qualityCertificateFileId', label: '整机质量证明' }
+]
+
+// 现场查验 6 类（顺序固定，HandoverService.ITEM_TYPES）；rectify=true 的项任一 FAIL 强制进整改
+const HANDOVER_CHECK_ITEMS = [
+  { itemType: 'RUNNING', label: '运行', rectify: false },
+  { itemType: 'SAFETY_DEVICE', label: '安全装置', rectify: true },
+  { itemType: 'BRAKE', label: '制动器', rectify: true },
+  { itemType: 'EMERGENCY_OPERATION', label: '紧急操作', rectify: false },
+  { itemType: 'MACHINE_ROOM_SHAFT', label: '机房井道', rectify: false },
+  { itemType: 'ACCESSORIES', label: '随附物品', rectify: false }
+]
+
+// 查验/复验结果（PASS/FAIL/NA，HandoverService 常量）
+const HANDOVER_RESULTS = ['PASS', 'FAIL', 'NA']
+const HANDOVER_RESULT_TEXT = {
+  PASS: '合格',
+  FAIL: '不合格',
+  NA: '不适用'
+}
+
+// 电梯品种四类（TSG T5002 第八条；与后端 ChecklistTemplateSeeder.APPENDIX_SCOPE 一致）
+const ELEVATOR_CATEGORIES = ['曳引与强制驱动电梯', '液压驱动电梯', '杂物电梯', '自动扶梯与自动人行道']
+
+// 可发起/推进移交单的岗位（docs/14 §5 handover:write）
+const HANDOVER_WRITE_ROLES = [
+  ROLE.INSTALL_MANAGER,
+  ROLE.INSTALL_CLERK,
+  ROLE.INSTALL_WORKER,
+  ROLE.MAINT_MANAGER,
+  ROLE.ADMIN,
+  ROLE.SYS_ADMIN
+]
+
+// 移交页提示与校验文案（AGENTS §4.1：页面不硬编码文案）
+const HANDOVER_TEXT = {
+  PROJECT_REQUIRED: '请填写项目名称',
+  LOAD_INVALID: '额定载重须为数字',
+  SPEED_INVALID: '额定速度须为数字',
+  DOCS_REQUIRED: '监督检验报告、维保说明书、整机质量证明缺一不可',
+  RECEIVER_REQUIRED: '请选择接收工程师',
+  ITEMS_REQUIRED: '请完成 6 项查验结果',
+  RECTIFY_REQUIRED: '请选择需整改项',
+  PHOTO_REQUIRED: '请上传整改前/后照片',
+  CONFIRMER_REQUIRED: '请填写确认人姓名',
+  CONFIRM_TITLE: '确认归档',
+  CONFIRM_CONTENT: '确认后移交单归档并自动建电梯档案、预建首保工单，且不可撤销。是否继续？',
+  REJECT_TITLE: '复验不通过',
+  REJECT_CONTENT: '复验不通过将保持整改中，由安装部重新上传整改照片。是否继续？',
+  RECEIVER_MANUAL_TIP: '当前账号无人员目录读取权限，请手工填写接收工程师工号与姓名',
+  INSPECT_FAIL_TIP: '不合格项须拍照留证：请在「整改」页上传整改前后照片',
+  DETAIL_GAP_TIP: '查验明细与整改记录由后端在归档时汇总，小程序端仅驱动状态流转；完整记录请在管理端「移交单」查阅',
+  READONLY_TIP: '当前岗位对移交单只读，可查看列表与详情，发起/推进请用安装部或维保经理账号',
+  LIST_EMPTY: '暂无移交单',
+  LIST_FAILED: '移交单列表暂不可用，可按 ID 打开详情'
+}
+
 module.exports = {
   ROLE,
   ORDER_STATUS,
@@ -139,5 +228,15 @@ module.exports = {
   IMAGE_LIMIT,
   TOAST_TEXT,
   EMPTY_TEXT,
-  LOADING_TEXT
+  LOADING_TEXT,
+  HANDOVER_STATUS,
+  HANDOVER_STATUS_TEXT,
+  HANDOVER_STEPS,
+  HANDOVER_DOCS,
+  HANDOVER_CHECK_ITEMS,
+  HANDOVER_RESULTS,
+  HANDOVER_RESULT_TEXT,
+  ELEVATOR_CATEGORIES,
+  HANDOVER_WRITE_ROLES,
+  HANDOVER_TEXT
 }

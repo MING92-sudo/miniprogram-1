@@ -1,0 +1,44 @@
+<view class="em-page">
+  <view wx:if="{{loading}}" class="em-card em-text-secondary">{{loadingText}}</view>
+
+  <block wx:if="{{handover}}">
+    <view class="em-card">
+      <view class="section-title">{{handover.handoverNo}}</view>
+      <view class="em-text-secondary">{{handover.projectName}} · {{handover.elevatorName || handover.elevatorCode || '未填电梯名称'}}</view>
+      <view class="em-text-secondary">现场查验 6 类，安全装置/制动器任一不合格将转「整改复验中」</view>
+    </view>
+
+    <view wx:if="{{locked}}" class="em-card">
+      <view class="em-text-secondary">当前状态或岗位不可提交查验（仅「现场查验」状态的接收工程师/班组长可提交）</view>
+    </view>
+
+    <view wx:if="{{!locked}}" class="em-card">
+      <view wx:for="{{items}}" wx:key="itemType" class="item">
+        <view class="item-head">
+          <text class="item-label">{{index + 1}}. {{item.label}}</text>
+          <text class="item-req">必填</text>
+        </view>
+        <radio-group class="item-results" data-index="{{index}}" bindchange="onResult">
+          <label wx:for="{{results}}" wx:for-item="r" wx:key="*this" class="item-radio">
+            <radio value="{{r}}" checked="{{item.result === r}}" color="#0A5BD3" />
+            <text class="res-{{r}}">{{resultText[r]}}</text>
+          </label>
+        </radio-group>
+        <view wx:if="{{item.result === 'FAIL'}}" class="fail-tip">
+          {{text.INSPECT_FAIL_TIP}}{{item.rectifyHint ? '（本项不合格将强制整改）' : ''}}
+        </view>
+        <input
+          class="item-remark"
+          value="{{item.remark}}"
+          data-index="{{index}}"
+          bindinput="onRemark"
+          placeholder="备注（不合格项请写明问题）"
+        />
+      </view>
+    </view>
+
+    <view wx:if="{{!locked}}" class="em-card">
+      <button class="em-btn-primary" disabled="{{submitting}}" bindtap="onSubmit">提交查验</button>
+    </view>
+  </block>
+</view>
