@@ -2,7 +2,9 @@ package com.cqwlw.maintenance.controller;
 
 import com.cqwlw.maintenance.common.ApiResponse;
 import com.cqwlw.maintenance.entity.HandoverOrder;
+import com.cqwlw.maintenance.entity.HandoverSign;
 import com.cqwlw.maintenance.service.HandoverService;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -79,5 +81,17 @@ public class HandoverController {
     public ApiResponse<HandoverOrder> confirm(@PathVariable String id,
                                               @RequestBody(required = false) Map<String, Object> body) {
         return ApiResponse.ok(handoverService.confirm(id, body));
+    }
+
+    /** 节点账号签字（通过=签字；非该节点授权角色 1403，Task 6） */
+    @PostMapping("/handovers/{id}/sign")
+    public ApiResponse<HandoverSign> sign(@PathVariable String id,
+                                          @RequestBody(required = false) Map<String, Object> body,
+                                          HttpServletRequest request) {
+        return ApiResponse.ok(handoverService.signNode(id, body, empId(request)));
+    }
+
+    private String empId(HttpServletRequest request) {
+        return String.valueOf(request.getAttribute(com.cqwlw.maintenance.auth.AuthInterceptor.ATTR_EMP_ID));
     }
 }

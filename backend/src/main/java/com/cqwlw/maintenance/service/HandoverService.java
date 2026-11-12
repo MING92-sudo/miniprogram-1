@@ -9,6 +9,7 @@ import com.cqwlw.maintenance.entity.HandoverCheck;
 import com.cqwlw.maintenance.entity.HandoverCheckItem;
 import com.cqwlw.maintenance.entity.HandoverOrder;
 import com.cqwlw.maintenance.entity.HandoverRectification;
+import com.cqwlw.maintenance.entity.HandoverSign;
 import com.cqwlw.maintenance.entity.WorkOrder;
 import com.cqwlw.maintenance.mapper.ElevatorMapper;
 import com.cqwlw.maintenance.mapper.EmployeeMapper;
@@ -55,6 +56,16 @@ public class HandoverService {
     private static final Set<String> RECTIFY_ITEM_TYPES = Set.of("SAFETY_DEVICE", "BRAKE");
     private static final String PASS = "PASS";
     private static final String FAIL = "FAIL";
+
+    /** 节点签字动作（Task 6）：通过=签字，驳回留痕（状态流转仍由业务端点驱动） */
+    private static final String APPROVE = "APPROVE";
+    private static final String REJECT = "REJECT";
+    /** 节点 → 授权角色（设计文档 §7/§10：安装部单角色、维保部经理 LEADER/ADMIN、接收工程师/查验人 WORKER） */
+    private static final Map<String, Set<String>> NODE_ROLES = Map.of(
+            "INSTALLER_HANDOVER", Set.of("INSTALLER"),
+            "MAINTENANCE_ASSIGN", Set.of("LEADER", "ADMIN", "SYS_ADMIN"),
+            "MAINTENANCE_CONFIRM", Set.of("LEADER", "ADMIN", "SYS_ADMIN"),
+            "SITE_INSPECT", Set.of("WORKER", "LEADER", "ADMIN", "SYS_ADMIN"));
 
     private final HandoverOrderMapper orderMapper;
     private final HandoverCheckMapper checkMapper;
@@ -315,6 +326,43 @@ public class HandoverService {
             workOrderMapper.updateById(first);
         }
         return order;
+    }
+
+    /**
+     * 移交节点账号签字（Task 6，设计文档 §7）：内部账号「节点通过即签字」——actor 取登录人，
+     * 账号名自动填写；只有该节点授权角色可签，否则 1403（防伪造他人节点确认）。
+     * 只留痕不改状态机：节点动作与状态流转仍由各自业务端点驱动（submitDocs/assignReceiver/inspect/confirm）。
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public HandoverSign signNode(String handoverId, Map<String, Object> body, String actorEmpId) {
+        HandoverOrder order = requireOrder(handoverId);
+        String nodeType = str(body, "nodeType") == null ? "" : str(body, "nodeType").trim();
+        Set<String> allowedRoles = NODE_ROLES.get(nodeType);
+        if (allowedRoles == null) {
+            throw new BizException(422, "未知签字节点：" + nodeType);
+        }
+        String action = str(body, "action") == null ? "" : str(body, "action").trim().toUpperCase();
+        if (!APPROVE.equals(action) && !REJECT.equals(action)) {
+            throw new BizException(422, "签字动作非法（APPROVE/REJECT）：" + action);
+        }
+        Employee actor = actorEmpId == null || actorEmpId.isBlank()
+                ? null : employeeMapper.selectById(actorEmpId);
+        if (actor == null) {
+            throw new BizException(401, "登录已过期，请重新登录");
+        }
+        if (!allowedRoles.contains(actor.role)) {
+            throw new BizException(1403, "仅授权岗位可签「" + nodeType + "」节点");
+        }
+        HandoverSign sign = new HandoverSign();
+        sign.id = Ids.next("hs");
+        sign.handoverId = order.id;
+        sign.nodeType = nodeType;
+        sign.actorId = actor.id;
+        sign.actorName = actor.name;
+        sign.action = action;
+        sign.at = LocalDateTime.now();
+        signMapper.insert(sign);
+        return sign;
     }
 
     /** 移交单详情，不存在 1404 */
