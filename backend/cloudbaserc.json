@@ -1,0 +1,6 @@
+{
+  "envId": "prod-d3gg6nba2f3160af9",
+  "cloudrun": {
+    "name": "springboot-l1ws"
+  }
+}
