@@ -6,6 +6,9 @@ const config = require('../config/index')
 
 // mock 无 JWT 解析：登录成功后记住当前演示角色，供自助改密等"当前用户"接口使用
 let currentRole = 'WORKER'
+// 移交/外接建档 mock 状态（模块级，进程重启即清空）
+const mockHandovers = []
+const mockFilings = []
 
 // 自动排期触发点：真实后端为定时任务（docs/04 A.10.9），读接口一律不触发派单；
 // mock 无调度器，仅在模块加载时执行一次，读接口不得再调用 ensureDueOrders
@@ -449,7 +452,95 @@ const routes = [
   }],
 
   // ── 文件（真实上传走 wx.uploadFile，此路由兜底）──
-  ['POST', '/files/upload', () => ({ fileId: 'mock_file_' + Date.now(), url: '' })]
+  ['POST', '/files/upload', () => ({ fileId: 'mock_file_' + Date.now(), url: '' })],
+  // ── 移交单 / 外接建档 / 使用单位门户 / 维保日历（Task 12/13/14 最小 mock）──
+  ['GET', '/handovers', ({ query }) => paginate(mockHandovers.filter((h) => !query.status || h.status === query.status), query)],
+  ['POST', '/handovers', ({ body }) => {
+    const o = Object.assign({ id: 'ho_' + Date.now(), handoverNo: 'HO' + Date.now(), status: 'DOC_SUBMITTING',
+      createdAt: formatTime(new Date()), checks: [], rectifications: [], signs: [] }, body)
+    mockHandovers.unshift(o)
+    return o
+  }],
+  ['GET', '/handovers/:id', ({ params }) => findOr404(mockHandovers, params.id, '移交单')],
+  ['POST', '/handovers/:id/submit-docs', ({ params, body }) => {
+    const o = findOr404(mockHandovers, params.id, '移交单')
+    Object.assign(o, body, { status: 'INSPECTING' })
+    return o
+  }],
+  ['POST', '/handovers/:id/inspect', ({ params, body }) => {
+    const o = findOr404(mockHandovers, params.id, '移交单')
+    const items = (body.items || []).map((it, i) => Object.assign({ id: 'hi_' + i }, it))
+    o.checks = [{ id: 'hc_' + Date.now(), checkerName: body.checkerName, checkedAt: formatTime(new Date()), items }].concat(o.checks || [])
+    const force = items.some((it) => (it.itemType === 'SAFETY_DEVICE' || it.itemType === 'BRAKE') && it.result === 'FAIL')
+    o.status = force ? 'RECTIFYING' : 'PENDING_CONFIRM'
+    return o
+  }],
+  ['POST', '/handovers/:id/rectify', ({ params, body }) => {
+    const o = findOr404(mockHandovers, params.id, '移交单')
+    o.rectifications = (o.rectifications || []).concat((body.rectifications || []).map((r, i) => Object.assign({ id: 'hr_' + Date.now() + i }, r)))
+    return o
+  }],
+  ['POST', '/handovers/:id/recheck-rectify', ({ params, body }) => {
+    const o = findOr404(mockHandovers, params.id, '移交单')
+    o.rectifications = (o.rectifications || []).map((r) => Object.assign({}, r, { recheckResult: body.result }))
+    o.status = body.result === 'PASS' ? 'PENDING_CONFIRM' : 'RECTIFYING'
+    return o
+  }],
+  ['POST', '/handovers/:id/confirm', ({ params, body }) => {
+    const o = findOr404(mockHandovers, params.id, '移交单')
+    Object.assign(o, body, { status: 'ARCHIVED', confirmedAt: formatTime(new Date()) })
+    return o
+  }],
+  ['GET', '/filings', ({ query }) => paginate(mockFilings.filter((f) => !query.status || f.status === query.status), query)],
+  ['POST', '/filings', ({ body }) => {
+    const o = Object.assign({ id: 'ef_' + Date.now(), filingNo: 'EF' + Date.now(), status: 'DOC_COLLECTING',
+      createdAt: formatTime(new Date()), docs: [], takeoverChecks: [], confirmation: null }, body)
+    mockFilings.unshift(o)
+    return o
+  }],
+  ['GET', '/filings/:id', ({ params }) => findOr404(mockFilings, params.id, '外接建档单')],
+  ['POST', '/filings/:id/submit-docs', ({ params, body }) => {
+    const o = findOr404(mockFilings, params.id, '外接建档单')
+    o.docs = (body.docs || []).map((x, i) => Object.assign({ id: 'fd_' + i }, x))
+    o.status = 'TAKEOVER_CHECKING'
+    return o
+  }],
+  ['POST', '/filings/:id/takeover-check', ({ params, body }) => {
+    const o = findOr404(mockFilings, params.id, '外接建档单')
+    o.takeoverChecks = [{ id: 'tc_' + Date.now(), checkerName: body.checkerName, checkedAt: formatTime(new Date()), items: (body.items || []).map((it, i) => Object.assign({ id: 'ti_' + i }, it)) }]
+    o.status = 'PENDING_CONFIRM'
+    return o
+  }],
+  ['POST', '/filings/:id/confirm', ({ params, body }) => {
+    const o = findOr404(mockFilings, params.id, '外接建档单')
+    o.confirmation = Object.assign({ id: 'hcn_' + Date.now(), at: formatTime(new Date()) }, body)
+    o.status = 'ARCHIVED'
+    return o
+  }],
+  ['POST', '/unit/accounts', () => ({ account: 'U' + Date.now(), initialPassword: 'Mock12345678', inviteCode: 'MOCK2345' })],
+  ['POST', '/unit/login', ({ body }) => {
+    if (!body.account || !body.password) throw { code: 422, message: '请填写账号与密码' }
+    const unit = (d.db.useUnits || [])[0] || { id: 'uu_1', unitName: '演示使用单位' }
+    return { token: 'mock-unit-token', useUnitId: unit.id, unitName: unit.unitName, role: 'UNIT_ADMIN', wechatBound: false }
+  }],
+  ['POST', '/unit/bind-wechat', () => ({ bound: true })],
+  ['GET', '/unit/elevators', () => {
+    const unit = (d.db.useUnits || [])[0] || {}
+    return (d.db.elevators || []).filter((el) => el.useUnitId === unit.id && el.status !== 'INACTIVE').map((el) => ({
+      id: el.id, elevatorCode: el.elevatorCode, elevatorName: el.elevatorName, projectName: el.projectName,
+      location: el.location, insideNumber: el.insideNumber, regCode: el.regCode, deviceCode: el.deviceCode
+    }))
+  }],
+  ['GET', '/unit/records/list', () => (d.db.records || []).slice(0, 50).map((r) => ({
+    id: r.id, elevatorCode: r.elevatorCode, elevatorName: r.elevatorName, workType: r.workType,
+    workerName: r.workerName, checkinTime: r.checkinTime, checkoutTime: r.checkoutTime,
+    duration: r.duration, confirmStatus: r.confirmStatus || 'PENDING' }))],
+  ['GET', '/unit/pending-signs', () => (d.db.records || []).filter((r) => r.confirmStatus !== 'CONFIRMED').slice(0, 50).map((r) => ({
+    id: r.id, elevatorCode: r.elevatorCode, elevatorName: r.elevatorName, checkoutTime: r.checkoutTime,
+    confirmStatus: r.confirmStatus || 'PENDING' }))],
+  ['GET', '/unit/faults', () => (d.db.faults || []).slice(0, 50)],
+  ['POST', '/unit/faults', ({ body }) => d.createFault(body)],
+  ['GET', '/maintenance-calendar', ({ query }) => ({ from: query.from || '', to: query.to || '', entries: [] })]
 ]
 
 // ── 路径匹配 ──
