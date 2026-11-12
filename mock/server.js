@@ -111,6 +111,36 @@ const routes = [
     const v = String((body && body.projectName) || '').trim()
     if (!v) throw { code: 422, message: '项目名称不能为空' }
     el.projectName = v
+    el.elevatorName = v // 电梯名称 = 项目名称（小区），合并
+    return { ok: true }
+  }],
+  // 维保人员现场维护设备本地信息（docs/04 A.2.1；不开放经纬度/使用单位负责人）
+  ['PUT', '/elevators/:id/local', ({ params, body }) => {
+    const el = d.getElevator(params.id)
+    if (!el) throw { code: 1404, message: '电梯不存在' }
+    const fields = ['brand', 'manufacturer', 'productNo', 'driveMode',
+      'ratedLoad', 'ratedLoadUnit', 'ratedSpeed', 'ratedSpeedUnit', 'stationsDoors', 'nextCheckDate', 'nextMaintenanceDate']
+    let any = false
+    fields.forEach(function (f) {
+      if (body && body[f] !== undefined) {
+        el[f] = body[f]
+        any = true
+      }
+    })
+    // 安装地址：profile 返回 local.address，落库字段为 location
+    if (body && body.address !== undefined) {
+      el.location = String(body.address || '')
+      any = true
+    }
+    // 项目名称：空校验 + 同步电梯名称（电梯名称 = 项目名称，合并）
+    if (body && body.projectName !== undefined) {
+      const v = String(body.projectName || '').trim()
+      if (!v) throw { code: 422, message: '项目名称不能为空' }
+      el.projectName = v
+      el.elevatorName = v
+      any = true
+    }
+    if (!any) throw { code: 422, message: '无可更新的设备信息' }
     return { ok: true }
   }],
   // Minor7：只读查询改 GET（与后端 2026-10-05 整改一致）
@@ -229,9 +259,27 @@ const routes = [
     item.notInThisRun = false
     return { ok: true }
   }],
+  ['POST', '/work-orders/:id/signature', ({ params, body }) => {
+    const o = findOr404(d.db.orders, params.id, '工单')
+    if (o.status !== 'PROCESSING') throw { code: 1003, message: '当前状态不允许签字（请先完成签到）' }
+    const role = body.role === 'ASSISTANT' ? 'ASSISTANT' : 'PRINCIPAL'
+    if (role === 'ASSISTANT') {
+      o.assistantSignatureFileId = body.signatureFileId || ''
+      o.assistantSignatureUrl = body.signatureUrl || ''
+    } else {
+      o.workerSignatureFileId = body.signatureFileId || ''
+      o.workerSignatureUrl = body.signatureUrl || ''
+    }
+    return { ok: true, role }
+  }],
   ['POST', '/work-orders/:id/checkout', ({ params, body }) => {
     const o = findOr404(d.db.orders, params.id, '工单')
     if (o.status !== 'PROCESSING') throw { code: 1003, message: '请先完成签到' }
+    // 签字已在各自手机完成（docs/01 §3.7.5）：签退前校验双签名齐全（后端同口径）
+    if (!o.workerSignatureFileId) throw { code: 422, message: '请完成主维保签字' }
+    if (o.assistantName && o.assistantName !== '无' && !o.assistantSignatureFileId) {
+      throw { code: 422, message: '请完成配合人员签字（双人签字）' }
+    }
     // 周期性"本次无需执行"条目不计入未完成项（docs/03 §7 验收）
     const mustRun = o.checklist.filter((i) => !i.notInThisRun)
     const unfinished = mustRun.filter((i) => !i.result).length

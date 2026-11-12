@@ -549,6 +549,9 @@ function getOrder(id) {
   // 双人分别签到状态（docs/01 §3.7.2）
   view.principalCheckedIn = !!o.checkinExtra
   view.assistantCheckedIn = !!o.assistantCheckinExtra
+  // 各自手机签状态（docs/01 §3.7.5）
+  view.workerSigned = !!o.workerSignatureFileId
+  view.assistantSigned = !!o.assistantSignatureFileId
   // 已完成工单附带完整维保记录视图数据（签字/确认状态，docs/01 §3.12.5 归档留痕）
   if (o.status === 'DONE' && o.originalRecordId) {
     const rec = db.unitRecords.find(function (r) { return r.originalRecordId === o.originalRecordId })
@@ -741,8 +744,8 @@ function markCheckout(orderId, body) {
     duration: o.duration,
     items,
     photos,
-    workerSignatureUrl: (body && body.signatureUrl) || '',
-    assistantSignatureUrl: (body && body.assistantSignatureUrl) || '',
+    workerSignatureUrl: o.workerSignatureUrl || o.workerSignatureFileId || (body && body.signatureUrl) || '',
+    assistantSignatureUrl: o.assistantSignatureUrl || o.assistantSignatureFileId || (body && body.assistantSignatureUrl) || '',
     problemCodes,
     originalRecordId: o.originalRecordId,
     reportStatus: o.reportStatus,
