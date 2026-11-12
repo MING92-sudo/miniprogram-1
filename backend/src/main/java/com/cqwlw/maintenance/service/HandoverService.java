@@ -27,7 +27,9 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeParseException;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -378,6 +380,34 @@ public class HandoverService {
                         (HandoverOrder o) -> o.createdAt == null ? LocalDateTime.MIN : o.createdAt).reversed())
                 .toList();
         return Paginate.of(filtered, query == null ? Map.of() : query);
+    }
+
+    /**
+     * 详情（管理端 Task 14 / 小程序详情页共用）：单据字段保持顶层不变，另加
+     * checks（查验批次+items）、rectifications、signs 三个关联数组，避免前端再打多个接口。
+     */
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> detail(String id) {
+        HandoverOrder o = requireOrder(id);
+        Map<String, Object> out = com.cqwlw.maintenance.util.JsonUtil.MAPPER.convertValue(o, Map.class);
+        List<HandoverCheck> checks = checkMapper.selectList(new LambdaQueryWrapper<HandoverCheck>()
+                .eq(HandoverCheck::getHandoverId, id).orderByDesc(HandoverCheck::getCheckedAt));
+        List<Map<String, Object>> checkViews = new ArrayList<>();
+        for (HandoverCheck c : checks == null ? List.<HandoverCheck>of() : checks) {
+            Map<String, Object> m = new LinkedHashMap<>(com.cqwlw.maintenance.util.JsonUtil.MAPPER.convertValue(c, Map.class));
+            List<HandoverCheckItem> items = checkItemMapper.selectList(new LambdaQueryWrapper<HandoverCheckItem>()
+                    .eq(HandoverCheckItem::getCheckId, c.id));
+            m.put("items", items == null ? List.of() : items);
+            checkViews.add(m);
+        }
+        out.put("checks", checkViews);
+        List<HandoverRectification> rects = rectificationMapper.selectList(new LambdaQueryWrapper<HandoverRectification>()
+                .eq(HandoverRectification::getHandoverId, id));
+        out.put("rectifications", rects == null ? List.of() : rects);
+        List<HandoverSign> signs = signMapper.selectList(new LambdaQueryWrapper<HandoverSign>()
+                .eq(HandoverSign::getHandoverId, id).orderByDesc(HandoverSign::getAt));
+        out.put("signs", signs == null ? List.of() : signs);
+        return out;
     }
 
     /** 移交单详情，不存在 1404 */

@@ -50,8 +50,8 @@ public class HandoverController {
 
     /** 移交单详情 */
     @GetMapping("/handovers/{id}")
-    public ApiResponse<HandoverOrder> get(@PathVariable String id) {
-        return ApiResponse.ok(handoverService.get(id));
+    public ApiResponse<Map<String, Object>> get(@PathVariable String id) {
+        return ApiResponse.ok(handoverService.detail(id));
     }
 
     /** 提交 3 必传资料（缺一 422） */

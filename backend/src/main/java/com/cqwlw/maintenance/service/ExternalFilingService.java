@@ -26,7 +26,9 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeParseException;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -328,6 +330,31 @@ public class ExternalFilingService {
                         (ExternalFilingOrder o) -> o.createdAt == null ? LocalDateTime.MIN : o.createdAt).reversed())
                 .toList();
         return Paginate.of(filtered, query == null ? Map.of() : query);
+    }
+
+    /** 详情（Task 14 管理端）：单据字段保持顶层，另加 docs / takeoverCheckItems / confirmation */
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> detail(String id) {
+        ExternalFilingOrder o = requireFiling(id);
+        Map<String, Object> out = com.cqwlw.maintenance.util.JsonUtil.MAPPER.convertValue(o, Map.class);
+        List<ExternalFilingDoc> docs = docMapper.selectList(new LambdaQueryWrapper<ExternalFilingDoc>()
+                .eq(ExternalFilingDoc::getFilingId, id));
+        out.put("docs", docs == null ? List.of() : docs);
+        List<ExternalTakeoverCheck> checks = checkMapper.selectList(new LambdaQueryWrapper<ExternalTakeoverCheck>()
+                .eq(ExternalTakeoverCheck::getFilingId, id).orderByDesc(ExternalTakeoverCheck::getCheckedAt));
+        List<Map<String, Object>> checkViews = new ArrayList<>();
+        for (ExternalTakeoverCheck c : checks == null ? List.<ExternalTakeoverCheck>of() : checks) {
+            Map<String, Object> m = new LinkedHashMap<>(com.cqwlw.maintenance.util.JsonUtil.MAPPER.convertValue(c, Map.class));
+            List<ExternalTakeoverCheckItem> items = checkItemMapper.selectList(new LambdaQueryWrapper<ExternalTakeoverCheckItem>()
+                    .eq(ExternalTakeoverCheckItem::getCheckId, c.id));
+            m.put("items", items == null ? List.of() : items);
+            checkViews.add(m);
+        }
+        out.put("takeoverChecks", checkViews);
+        List<HandoverConfirmation> confs = confirmationMapper.selectList(new LambdaQueryWrapper<HandoverConfirmation>()
+                .eq(HandoverConfirmation::getFilingId, id));
+        out.put("confirmation", confs == null || confs.isEmpty() ? null : confs.get(0));
+        return out;
     }
 
     /** 外接建档单详情，不存在 1404 */

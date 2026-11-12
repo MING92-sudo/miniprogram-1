@@ -135,4 +135,43 @@ class HandoverServiceTest {
         assertEquals("ho_new", ((HandoverOrder) rows.get(0)).id, "应按发起时间倒序");
         assertEquals(2, out.get("total"));
     }
+
+    /** 详情带子资源（Task 14）：单据字段仍在顶层，另出 checks/rectifications/signs */
+    @Test
+    void detailCarriesSubResources() {
+        HandoverOrderMapper orderMapper = mock(HandoverOrderMapper.class);
+        HandoverCheckMapper checkMapper = mock(HandoverCheckMapper.class);
+        HandoverCheckItemMapper itemMapper = mock(HandoverCheckItemMapper.class);
+        HandoverRectificationMapper rectMapper = mock(HandoverRectificationMapper.class);
+        HandoverSignMapper signMapper = mock(HandoverSignMapper.class);
+        HandoverOrder o = new HandoverOrder();
+        o.id = "ho_1";
+        o.status = "INSPECTING";
+        when(orderMapper.selectById("ho_1")).thenReturn(o);
+        com.cqwlw.maintenance.entity.HandoverCheck c = new com.cqwlw.maintenance.entity.HandoverCheck();
+        c.id = "hc_1";
+        c.handoverId = "ho_1";
+        when(checkMapper.selectList(any())).thenReturn(java.util.List.of(c));
+        com.cqwlw.maintenance.entity.HandoverCheckItem it = new com.cqwlw.maintenance.entity.HandoverCheckItem();
+        it.id = "hi_1";
+        it.checkId = "hc_1";
+        it.itemType = "BRAKE";
+        it.result = "FAIL";
+        when(itemMapper.selectList(any())).thenReturn(java.util.List.of(it));
+        when(rectMapper.selectList(any())).thenReturn(java.util.List.of());
+        when(signMapper.selectList(any())).thenReturn(java.util.List.of());
+
+        HandoverService svc = new HandoverService(orderMapper, checkMapper, itemMapper, rectMapper, signMapper,
+                mock(com.cqwlw.maintenance.mapper.ElevatorMapper.class),
+                mock(com.cqwlw.maintenance.mapper.EmployeeMapper.class),
+                mock(com.cqwlw.maintenance.mapper.WorkOrderMapper.class),
+                mock(com.cqwlw.maintenance.service.DispatchService.class));
+
+        Map<String, Object> out = svc.detail("ho_1");
+        assertEquals("ho_1", out.get("id"));
+        java.util.List<?> checks = (java.util.List<?>) out.get("checks");
+        assertEquals(1, checks.size());
+        assertEquals(1, ((Map<?, ?>) checks.get(0)).get("items") == null ? 0 : 1);
+        assertEquals(0, ((java.util.List<?>) out.get("rectifications")).size());
+    }
 }

@@ -47,8 +47,8 @@ public class ExternalFilingController {
 
     /** 外接建档单详情 */
     @GetMapping("/filings/{id}")
-    public ApiResponse<ExternalFilingOrder> get(@PathVariable String id) {
-        return ApiResponse.ok(filingService.get(id));
+    public ApiResponse<Map<String, Object>> get(@PathVariable String id) {
+        return ApiResponse.ok(filingService.detail(id));
     }
 
     /** 提交建档资料（可标缺件待补办，提交后进入 TAKEOVER_CHECKING） */
