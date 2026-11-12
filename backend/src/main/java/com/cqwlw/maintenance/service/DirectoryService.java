@@ -247,6 +247,7 @@ public class DirectoryService {
         m.put("desc", f.descr);
         m.put("siteDesc", f.siteDesc == null ? "" : f.siteDesc);
         m.put("arrivedAt", TimeUtil.format(f.arrivedAt));
+        m.put("dispatchedAt", TimeUtil.format(f.dispatchedAt));
         m.put("finishedAt", TimeUtil.format(f.finishedAt));
         m.put("todoDesc", f.todoDesc == null ? "" : f.todoDesc);
         m.put("photos", JsonUtil.readStringList(f.photos).stream()
@@ -308,6 +309,21 @@ public class DirectoryService {
             v.put("location", el == null || el.location == null ? "" : el.location);
             v.put("stationsDoors", el == null || el.stationsDoors == null ? "" : el.stationsDoors);
             v.put("ratedSpec", el == null ? "" : ratedSpec(el));
+            // 急修记录单「使用单位与设备基本情况」区块（docs/13 §3.2、§4.2）：
+            // 与维保记录 PDF 同源同口径，缺档案时留空由导出层打印占位
+            v.put("insideNumber", el == null || el.insideNumber == null ? "" : el.insideNumber);
+            v.put("projectName", el == null || el.projectName == null ? "" : el.projectName);
+            v.put("category", el == null || el.category == null ? "" : el.category);
+            v.put("specialType", el == null || el.specialType == null ? "" : el.specialType);
+            v.put("productNo", el == null || el.productNo == null ? "" : el.productNo);
+            v.put("deviceCode", el == null || el.deviceCode == null ? "" : el.deviceCode);
+            v.put("manufacturer", el == null || el.manufacturer == null ? "" : el.manufacturer);
+            v.put("driveMode", el == null || el.driveMode == null ? "" : el.driveMode);
+            v.put("ratedLoadSpec", el == null || el.ratedLoad == null ? ""
+                    : el.ratedLoad + " " + (el.ratedLoadUnit == null ? "kg" : el.ratedLoadUnit));
+            v.put("ratedSpeedSpec", el == null || el.ratedSpeed == null ? ""
+                    : el.ratedSpeed.stripTrailingZeros().toPlainString() + " "
+                    + (el.ratedSpeedUnit == null ? "m/s" : el.ratedSpeedUnit));
         }
     }
 
