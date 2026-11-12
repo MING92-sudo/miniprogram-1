@@ -20,9 +20,15 @@ function updateElevatorProjectName(elevatorId, projectName) {
   return put('/elevators/' + elevatorId + '/project-name', { projectName })
 }
 
+// 维保人员现场维护设备本地信息（品牌/制造单位/地址/载重/速度/日期等，docs/04 A.2.1）
+function updateElevatorLocal(elevatorId, fields) {
+  return put('/elevators/' + elevatorId + '/local', fields)
+}
+
 module.exports = {
   getElevatorByCode,
   getElevatorList,
   getElevatorProfile,
-  updateElevatorProjectName
+  updateElevatorProjectName,
+  updateElevatorLocal
 }
