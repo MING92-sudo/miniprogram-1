@@ -20,6 +20,8 @@ public class Employee {
     public String roleText;
     /** 所属班组（组长按班组查看组员工单/急修单，V7） */
     public String groupName;
+    /** 所属区域（region.id，可空；移交/外接建档/使用单位门户可见性范围谓词，V24 迁移） */
+    public String regionId;
     public String openid;
     public String platformId;
     public String certificate;

@@ -19,6 +19,8 @@ public class Elevator {
     public String elevatorName;
     /** 项目名称（小区名称，与使用单位名称区分；维保人员现场可维护，docs/01 §3.4.1） */
     public String projectName;
+    /** 所属区域（region.id，可空；移交/外接建档/使用单位门户可见性范围谓词，V24 迁移） */
+    public String regionId;
     public String location;
     public String regCode;
     public String deviceCode;
