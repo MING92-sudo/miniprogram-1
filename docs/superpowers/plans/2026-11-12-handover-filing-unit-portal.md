@@ -63,12 +63,12 @@
 **Interfaces:**
 - Produces: `RegionService.list()/create()/update()/delete()`；`GET/POST/PUT/DELETE /regions`；`PUT /elevators/{id}/region`、`PUT /employees/{id}/region`。
 
-- [ ] **Step 1: 写迁移与实体**：`V24__region.sql` 建 `region` 表（id/name/sort_order/remark）并给 `elevator`、`sys_employee` 加可空 `region_id` 列；`Region.java` 实体字段对齐。
-- [ ] **Step 2: 写失败测试**：`RegionServiceTest.listCreatesAndFilters`（建区域→查列表→断言 name 存在）。
-- [ ] **Step 3: 跑测试确认失败**：`mvn test -Dtest=RegionServiceTest` → FAIL（`RegionMapper` 未定义）。
-- [ ] **Step 4: 实现** `RegionService` + `RegionController`（CRUD + 分配接口，越权 1403）。
-- [ ] **Step 5: 跑测试确认通过** → PASS。
-- [ ] **Step 6: Commit**：`feat: 新增区域主数据与电梯/员工区域字段`。
+- [x] **Step 1: 写迁移与实体**：`V24__region.sql` 建 `region` 表（id/name/sort_order/remark）并给 `elevator`、`sys_employee` 加可空 `region_id` 列；`Region.java` 实体字段对齐。
+- [x] **Step 2: 写失败测试**：`RegionServiceTest.listCreatesAndFilters`（建区域→查列表→断言 name 存在）。
+- [x] **Step 3: 跑测试确认失败**：`mvn test -Dtest=RegionServiceTest` → FAIL（`RegionMapper` 未定义）。
+- [x] **Step 4: 实现** `RegionService` + `RegionController`（CRUD + 分配接口，越权 1403）。
+- [x] **Step 5: 跑测试确认通过** → PASS。
+- [x] **Step 6: Commit**：`feat: 新增区域主数据与电梯/员工区域字段`。
 
 ## Task 2: 电梯建档字段 + 工单来源字段
 
@@ -79,10 +79,10 @@
 **Interfaces:**
 - Produces: 电梯 `archiveSource`（int，0/1/2）、`supervisionPassDate`、`handoverAt`；工单 `sourceHandoverId`、`sourceFilingId`、`handoverIssue`。
 
-- [ ] **Step 1: 写迁移**：`elevator` 加 `archive_source`（default 0）、`supervision_pass_date`、`handover_at`；`work_order` 加 `source_handover_id`、`source_filing_id`、`handover_issue`（default false）。
-- [ ] **Step 2: 更新实体字段**（对齐列名，`@TableField` 注明非驼峰映射处）。
-- [ ] **Step 3: 跑后端全量测试**：`mvn test` → PASS（无回归）。
-- [ ] **Step 4: Commit**：`feat: 电梯建档来源与工单来源/遗留问题字段`。
+- [x] **Step 1: 写迁移**：`elevator` 加 `archive_source`（default 0）、`supervision_pass_date`、`handover_at`；`work_order` 加 `source_handover_id`、`source_filing_id`、`handover_issue`（default false）。
+- [x] **Step 2: 更新实体字段**（对齐列名，`@TableField` 注明非驼峰映射处）。
+- [x] **Step 3: 跑后端全量测试**：`mvn test` → PASS（无回归）。
+- [x] **Step 4: Commit**：`feat: 电梯建档来源与工单来源/遗留问题字段`。
 
 ## Task 3: 维保合同（最小版）
 
@@ -93,12 +93,12 @@
 **Interfaces:**
 - Produces: `ContractService.create()`（校验起始日 ≤ 建档日）、`getActiveContractByElevator(elevatorId)`；`POST /contracts`、`GET /contracts`、`GET /contracts/{id}`。
 
-- [ ] **Step 1: 写迁移与实体**：`maintenance_contract`（contract_no/use_unit_id/start_date/end_date/status/amount）、`contract_elevator`（contract_id + elevator_id 唯一约束）。
-- [ ] **Step 2: 写失败测试**：`ContractServiceTest.rejectsContractStartingAfterFilingDate`（起始日晚于建档日 → 抛 422）；`rejectsOverlappingActiveContract`（同梯已有生效合同 → 冲突提示）。
-- [ ] **Step 3: 跑测试确认失败** → FAIL。
-- [ ] **Step 4: 实现** `ContractService` + `ContractController`。
-- [ ] **Step 5: 跑测试确认通过** → PASS。
-- [ ] **Step 6: Commit**：`feat: 维保合同最小版（建合同/合同电梯关联/生效期校验）`。
+- [x] **Step 1: 写迁移与实体**：`maintenance_contract`（contract_no/use_unit_id/start_date/end_date/status/amount）、`contract_elevator`（contract_id + elevator_id 唯一约束）。
+- [x] **Step 2: 写失败测试**：`ContractServiceTest.rejectsContractStartingAfterFilingDate`（起始日晚于建档日 → 抛 422）；`rejectsOverlappingActiveContract`（同梯已有生效合同 → 冲突提示）。
+- [x] **Step 3: 跑测试确认失败** → FAIL。
+- [x] **Step 4: 实现** `ContractService` + `ContractController`。
+- [x] **Step 5: 跑测试确认通过** → PASS。
+- [x] **Step 6: Commit**：`feat: 维保合同最小版（建合同/合同电梯关联/生效期校验）`。
 
 ## Task 4: 移交单状态机 + 必传卡点 + 现场查验
 
@@ -111,12 +111,12 @@
 - Produces: `HandoverService.init()`（安装部发起）、`submitDocs()`（必传卡点）、`assignReceiver()`（维保部经理分配接收人员）、`submitInspect()`（查验 + 安全装置/制动器不合格→整改）、`submitRectify()`（整改前后照片）、`recheckRectify()`（复验通过回待确认）、`confirm()`（经理确认）、`archive()`（触发归档动作，见 Task 5）。
 - 状态枚举：`INIT`→`DOC_SUBMITTING`→`INSPECTING`→（`RECTIFYING`⇄）→`PENDING_CONFIRM`→`ARCHIVED`。
 
-- [ ] **Step 1: 写迁移与实体**：`handover_order`、`handover_check`、`handover_check_item`、`handover_rectification`、`handover_sign`。
-- [ ] **Step 2: 写失败测试**：`HandoverServiceTest.submitDocsBlocksOnMissingRequired`（缺监督检验报告/维保说明书/整机质量证明 → 422 拦截）；`inspectForceRectifyOnSafetyFail`（安全装置不合格 → 状态转 RECTIFYING）；`recheckReturnsToPendingConfirm`（复验通过回待确认）。
-- [ ] **Step 3: 跑测试确认失败** → FAIL。
-- [ ] **Step 4: 实现** `HandoverService` + `HandoverController` + 现场查验清单自动生成（按提交电梯类别生成查验项）。
-- [ ] **Step 5: 跑测试确认通过** → PASS。
-- [ ] **Step 6: Commit**：`feat: 移交单状态机与必传/查验/整改闭环`。
+- [x] **Step 1: 写迁移与实体**：`handover_order`、`handover_check`、`handover_check_item`、`handover_rectification`、`handover_sign`。
+- [x] **Step 2: 写失败测试**：`HandoverServiceTest.submitDocsBlocksOnMissingRequired`（缺监督检验报告/维保说明书/整机质量证明 → 422 拦截）；`inspectForceRectifyOnSafetyFail`（安全装置不合格 → 状态转 RECTIFYING）；`recheckReturnsToPendingConfirm`（复验通过回待确认）。
+- [x] **Step 3: 跑测试确认失败** → FAIL。
+- [x] **Step 4: 实现** `HandoverService` + `HandoverController` + 现场查验清单自动生成（按提交电梯类别生成查验项）。
+- [x] **Step 5: 跑测试确认通过** → PASS。
+- [x] **Step 6: Commit**：`feat: 移交单状态机与必传/查验/整改闭环`。
 
 ## Task 5: 归档事件 + 首保工单闭环
 
@@ -128,16 +128,16 @@
 - Consumes: Task 2 电梯/工单字段、Task 4 移交状态机。
 - Produces: `HandoverService.archive()` 事务内：写电梯 `archiveSource=1` + `supervisionPassDate`/`handoverAt` + 责任人（接收工程师）+ 关联资料 + 调用 `DispatchService.precreateFirstOrder()`（首保 HM，planTime=归档日+15日）。
 
-- [ ] **Step 1: 写失败测试**：`HandoverArchiveTest.archiveCreatesElevatorAndFirstOrder`（归档后：电梯 `archiveSource=1`、责任人=接收工程师、存在首保工单 `workTypeCode=HM` 且 `sourceHandoverId` 回指移交单）；`archiveIsIdempotent`（重复归档不重复建工单）；`archivePrecreatedOrderBlocksScheduledDispatch`（归档预建首保后，定时派单扫描不再给该电梯派新单）。
-- [ ] **Step 2: 跑测试确认失败** → FAIL。
-- [ ] **Step 3: 实现** `archive()` + `DispatchService.precreateFirstOrder()`（复用 `createOrder` 逻辑，code=HM，planTime 可指定未来日期）。
-- [ ] **Step 4: 跑测试确认通过** → PASS。
-- [ ] **Step 5: 跑派单回归**：`node scripts/verify-dispatch.js` → 通过。
-- [ ] **Step 6: 写失败测试**：`HandoverIssueClosureTest.checkoutWritesBackAndNotifies`（首保签退时 `handoverIssue=true` → 回写来源移交单标记遗留问题并通知安装部）。
-- [ ] **Step 7: 跑测试确认失败** → FAIL。
-- [ ] **Step 8: 实现** `WorkOrderService.checkout` 中当 `sourceHandoverId` 非空且 `handoverIssue=true` 时回写移交单 + 通知安装部。
-- [ ] **Step 9: 跑测试确认通过** → PASS。
-- [ ] **Step 10: Commit**：`feat: 移交归档事件与首保工单闭环（建电梯+首保+责任人+遗留问题回写）`。
+- [x] **Step 1: 写失败测试**：`HandoverArchiveTest.archiveCreatesElevatorAndFirstOrder`（归档后：电梯 `archiveSource=1`、责任人=接收工程师、存在首保工单 `workTypeCode=HM` 且 `sourceHandoverId` 回指移交单）；`archiveIsIdempotent`（重复归档不重复建工单）；`archivePrecreatedOrderBlocksScheduledDispatch`（归档预建首保后，定时派单扫描不再给该电梯派新单）。
+- [x] **Step 2: 跑测试确认失败** → FAIL。
+- [x] **Step 3: 实现** `archive()` + `DispatchService.precreateFirstOrder()`（复用 `createOrder` 逻辑，code=HM，planTime 可指定未来日期）。
+- [x] **Step 4: 跑测试确认通过** → PASS。
+- [x] **Step 5: 跑派单回归**：`node scripts/verify-dispatch.js` → 通过。
+- [x] **Step 6: 写失败测试**：`HandoverIssueClosureTest.checkoutWritesBackAndNotifies`（首保签退时 `handoverIssue=true` → 回写来源移交单标记遗留问题并通知安装部）。
+- [x] **Step 7: 跑测试确认失败** → FAIL。
+- [x] **Step 8: 实现** `WorkOrderService.checkout` 中当 `sourceHandoverId` 非空且 `handoverIssue=true` 时回写移交单 + 通知安装部。
+- [x] **Step 9: 跑测试确认通过** → PASS。
+- [x] **Step 10: Commit**：`feat: 移交归档事件与首保工单闭环（建电梯+首保+责任人+遗留问题回写）`。
 
 ## Task 6: 移交内部账号节点签字
 
@@ -148,11 +148,11 @@
 - Consumes: `handover_sign` 表（Task 4）。
 - Produces: `signNode(handoverId, nodeType, action)` 记录账号节点确认（账号名自动填写，`action`=通过/驳回）。
 
-- [ ] **Step 1: 写失败测试**：`HandoverSignTest.signNodeRecordsAccountName`（签字后 `handover_sign` 有 `actor_name` 且 `action` 正确）；`signNodeRejectsNonAssignedRole`（非该节点角色签字 → 1403）。
-- [ ] **Step 2: 跑测试确认失败** → FAIL。
-- [ ] **Step 3: 实现** `signNode()`。
-- [ ] **Step 4: 跑测试确认通过** → PASS。
-- [ ] **Step 5: Commit**：`feat: 移交节点账号签字（内部账号自动填名）`。
+- [x] **Step 1: 写失败测试**：`HandoverSignTest.signNodeRecordsAccountName`（签字后 `handover_sign` 有 `actor_name` 且 `action` 正确）；`signNodeRejectsNonAssignedRole`（非该节点角色签字 → 1403）。
+- [x] **Step 2: 跑测试确认失败** → FAIL。
+- [x] **Step 3: 实现** `signNode()`。
+- [x] **Step 4: 跑测试确认通过** → PASS。
+- [x] **Step 5: Commit**：`feat: 移交节点账号签字（内部账号自动填名）`。
 
 ## Task 7: 外接建档状态机 + 合同前置 + 接管查验 + 交接确认
 
