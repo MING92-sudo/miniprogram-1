@@ -14,8 +14,7 @@
 
     <el-table :data="rows" v-loading="loading" stripe @selection-change="onSelect">
       <el-table-column type="selection" width="42" />
-<el-table-column prop="elevatorName" label="电梯名称" min-width="150" show-overflow-tooltip />
-<el-table-column prop="projectName" label="项目名称（小区）" min-width="120" show-overflow-tooltip />
+<el-table-column prop="projectName" label="项目名称（小区）" min-width="150" show-overflow-tooltip />
 <el-table-column prop="elevatorCode" label="电梯编码" width="130">      </el-table-column>
 <el-table-column prop="useUnitName" label="使用单位" min-width="150" show-overflow-tooltip />
 <el-table-column prop="regCode" label="注册代码" width="150" show-overflow-tooltip />
@@ -83,8 +82,7 @@
 <el-form-item v-if="platformHint" label=" ">
   <el-text size="small" type="success">{{ platformHint }}</el-text>
 </el-form-item>
-        <el-form-item label="电梯名称" required><el-input v-model="form.elevatorName" /></el-form-item>
-        <el-form-item label="项目名称（小区）"><el-input v-model="form.projectName" placeholder="电梯所在小区/楼盘名称" /></el-form-item>
+        <el-form-item label="项目名称（小区）" required><el-input v-model="form.projectName" placeholder="电梯所在小区/楼盘名称（即电梯名称）" /></el-form-item>
         <el-form-item label="安装地点"><el-input v-model="form.location" /></el-form-item>
         <el-form-item label="使用单位">
           <el-select v-model="form.useUnitId" clearable style="width: 100%">
@@ -214,7 +212,7 @@ function openCreate() {
 
   async function onDelete(row) {
     try {
-      await ElMessageBox.confirm(`确认删除电梯「${row.elevatorName}（${row.elevatorCode}）」？有在途工单时将被拒绝`, '删除电梯', { type: 'warning' })
+      await ElMessageBox.confirm(`确认删除电梯「${row.projectName}（${row.elevatorCode}）」？有在途工单时将被拒绝`, '删除电梯', { type: 'warning' })
       await archiveApi.deleteElevator(row.id)
       ok('已删除')
       await load()
@@ -246,6 +244,7 @@ async function save() {
   try {
     const body = { ...form }
     delete body.id
+    delete body.elevatorName // 电梯名称=项目名称合并：不再单独提交电梯名称，由后端随 projectName 同步
     delete body.useUnitName
     delete body.geoStatus
     delete body.platformSyncedAt
@@ -366,8 +365,8 @@ async function onToggleStatus(row) {
   try {
     await ElMessageBox.confirm(
       toInactive
-        ? `停用「${row.elevatorName}」？停用后不再自动派单、小程序不可见（历史记录保留 ≥4 年）`
-        : `启用「${row.elevatorName}」？`,
+        ? `停用「${row.projectName}」？停用后不再自动派单、小程序不可见（历史记录保留 ≥4 年）`
+        : `启用「${row.projectName}」？`,
       toInactive ? '停用电梯' : '启用电梯', { type: 'warning' })
     await archiveApi.updateElevator(row.id, { status: toInactive ? 'INACTIVE' : '' })
     ok(toInactive ? '已停用' : '已启用')
@@ -423,9 +422,9 @@ async function queryFromPlatform() {
     put('elevatorAdminister', 'elevatorAdminister', '安全管理员')
     put('elevatorAdministerPhone', 'elevatorAdministerPhone', '管理员电话')
     put('useUnitEntityId', 'useUnitEntityId', '使用单位主体')
-    if (!form.elevatorName && p.elevatorName) {
-      form.elevatorName = String(p.elevatorName)
-      picked.push('电梯名称')
+    if (!form.projectName && p.elevatorName) {
+      form.projectName = String(p.elevatorName)
+      picked.push('项目名称（小区）')
     }
     if (p.useUnitEntityId) {
       const hit = units.value.find((u) => u.entityId === String(p.useUnitEntityId))

@@ -6,8 +6,7 @@
     </div>
 
     <el-table :data="rows" v-loading="loading" stripe>
-      <el-table-column prop="elevatorName" label="电梯名称" min-width="150" show-overflow-tooltip />
-      <el-table-column prop="projectName" label="项目名称（小区）" min-width="120" show-overflow-tooltip />
+      <el-table-column prop="projectName" label="项目名称（小区）/电梯名称" min-width="180" show-overflow-tooltip />
       <el-table-column prop="useUnitName" label="使用单位" min-width="150" show-overflow-tooltip />
       <el-table-column prop="deviceCode" label="设备代码" width="170" show-overflow-tooltip />
       <el-table-column prop="regCode" label="注册代码" width="170" show-overflow-tooltip />
@@ -41,7 +40,7 @@
     </el-table>
   </el-card>
 
-  <el-drawer v-model="archiveDrawer" :title="'一梯一档 · ' + (archiveElevator.elevatorName || '')" size="62%">
+  <el-drawer v-model="archiveDrawer" :title="'一梯一档 · ' + (archiveElevator.projectName || archiveElevator.elevatorName || '')" size="62%">
     <el-tabs v-model="archiveTab">
       <el-tab-pane label="维保记录" name="records">
         <el-table :data="archiveRecords" v-loading="archiveLoading" stripe size="small">
@@ -184,7 +183,7 @@ async function uploadReport(row, options) {
       inspectionReportFileId: up.fileId,
       inspectionReportUrl: up.url
     })
-    ok(`「${row.elevatorName}」年检报告已上传`)
+    ok(`「${row.projectName || row.elevatorName}」年检报告已上传`)
     await load()
   } catch (e) {
     showErr(e)
