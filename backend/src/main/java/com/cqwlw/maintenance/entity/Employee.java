@@ -22,6 +22,12 @@ public class Employee {
     public String groupName;
     /** 所属区域（region.id，可空；移交/外接建档/使用单位门户可见性范围谓词，V24 迁移） */
     public String regionId;
+    /** 部门：INSTALL/MAINT/UNIT/PLATFORM（docs/14 §4 部门域互斥，V31 迁移；为空时按 role 回退） */
+    public String department;
+    /** 直属上级 empId（docs/14 §5 上级可见下级，V31 迁移） */
+    public String managerId;
+    /** 岗位名称（展示用，V31 迁移） */
+    public String jobTitle;
     public String openid;
     public String platformId;
     public String certificate;

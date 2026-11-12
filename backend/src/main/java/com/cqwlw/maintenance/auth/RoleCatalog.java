@@ -1,0 +1,102 @@
+package com.cqwlw.maintenance.auth;
+
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+/**
+ * 角色目录（docs/14 §3 角色码表）：角色码 → 部门 / 中文名 / 可否登录管理端 / 直属上级。
+ * 只做静态映射，不做鉴权判定（判定见 {@link PermissionMatrix}）；未知角色返回 null。
+ */
+public final class RoleCatalog {
+
+    /** 部门码（docs/14 §2）：三个业务部门平级，PLATFORM 为平台层 */
+    public static final String PLATFORM = "PLATFORM";
+    public static final String INSTALL = "INSTALL";
+    public static final String MAINT = "MAINT";
+    public static final String UNIT = "UNIT";
+
+    public static final String ADMIN = "ADMIN";
+    public static final String SYS_ADMIN = "SYS_ADMIN";
+    public static final String INSTALL_MANAGER = "INSTALL_MANAGER";
+    public static final String INSTALL_CLERK = "INSTALL_CLERK";
+    public static final String INSTALL_WORKER = "INSTALL_WORKER";
+    public static final String MAINT_MANAGER = "MAINT_MANAGER";
+    public static final String MAINT_BIZ = "MAINT_BIZ";
+    public static final String LEADER = "LEADER";
+    public static final String MAINT_QUALITY = "MAINT_QUALITY";
+    public static final String WORKER = "WORKER";
+    public static final String ASSISTANT = "ASSISTANT";
+    public static final String UNIT_ADMIN = "UNIT_ADMIN";
+
+    /**
+     * 角色定义。
+     *
+     * @param parentRole 直属上级角色，仅用于建档/展示口径，不参与鉴权判定（真实的上级是
+     *                   {@code sys_employee.manager_id}，见 service/DeptScopeService）
+     */
+    public record Role(String code, String department, String name, boolean adminConsole, String parentRole) {
+    }
+
+    private static final Map<String, Role> ROLES;
+
+    static {
+        Map<String, Role> roles = new LinkedHashMap<>();
+        for (Role role : List.of(
+                // 平台层
+                new Role(SYS_ADMIN, PLATFORM, "系统管理员", true, null),
+                new Role(ADMIN, PLATFORM, "平台管理员", true, null),
+                // 安装部
+                new Role(INSTALL_MANAGER, INSTALL, "安装项目经理", true, ADMIN),
+                new Role(INSTALL_CLERK, INSTALL, "安装文员", true, INSTALL_MANAGER),
+                new Role(INSTALL_WORKER, INSTALL, "安装员", false, INSTALL_MANAGER),
+                // 维保部
+                new Role(MAINT_MANAGER, MAINT, "维保经理", true, ADMIN),
+                new Role(MAINT_BIZ, MAINT, "维保商务", true, MAINT_MANAGER),
+                new Role(LEADER, MAINT, "维保班组长", true, MAINT_MANAGER),
+                new Role(MAINT_QUALITY, MAINT, "维保质量负责人", true, MAINT_MANAGER),
+                new Role(WORKER, MAINT, "维保人员", false, LEADER),
+                new Role(ASSISTANT, MAINT, "配合维保人员", false, LEADER),
+                // 使用单位（对 ADMIN 报备，非员工目录内的上下级）
+                new Role(UNIT_ADMIN, UNIT, "使用单位安全管理员", false, null))) {
+            roles.put(role.code(), role);
+        }
+        ROLES = Map.copyOf(roles);
+    }
+
+    private RoleCatalog() {
+    }
+
+    /** 角色定义；未知角色返回 null */
+    public static Role role(String role) {
+        return role == null ? null : ROLES.get(role);
+    }
+
+    /** 角色码集合（12 个：docs/14 §3 十二行） */
+    public static Set<String> codes() {
+        return ROLES.keySet();
+    }
+
+    /** 部门码：PLATFORM/INSTALL/MAINT/UNIT；未知角色返回 null */
+    public static String departmentOf(String role) {
+        Role r = role(role);
+        return r == null ? null : r.department();
+    }
+
+    /** 中文名；未知角色返回 null */
+    public static String nameOf(String role) {
+        Role r = role(role);
+        return r == null ? null : r.name();
+    }
+
+    /** 管理端是否可登录（docs/14 §3「可登录端」列 + §10 #1/#2 越权用例） */
+    public static boolean canUseAdminConsole(String role) {
+        Role r = role(role);
+        return r != null && r.adminConsole();
+    }
+
+    public static boolean known(String role) {
+        return role(role) != null;
+    }
+}
