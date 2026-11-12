@@ -198,12 +198,12 @@
 **Interfaces:**
 - Produces: `POST /unit/accounts`（管理端开通）、`POST /unit/login`（账号密码）、`POST /unit/bind-wechat`（邀请码绑定微信）。
 
-- [ ] **Step 1: 写 V29 迁移 + 实体**：`use_unit` 加 `account`/`password_hash`/`openid`。
-- [ ] **Step 2: 写失败测试**：`UnitAccountServiceTest.loginRejectsWrongPassword`（错密码 401）；`bindWechatByInviteCode`（邀请码绑定）。
-- [ ] **Step 3: 跑测试确认失败** → FAIL。
-- [ ] **Step 4: 实现** `UnitAccountService` + 登录鉴权（JWT 带 `use_unit` 身份）。
-- [ ] **Step 5: 跑测试确认通过** → PASS。
-- [ ] **Step 6: Commit**：`feat: 使用单位账号与登录`。
+- [x] **Step 1: 写 V29 迁移 + 实体**：`use_unit` 加 `account`/`password_hash`/`openid`。
+- [x] **Step 2: 写失败测试**：`UnitAccountServiceTest.loginRejectsWrongPassword`（错密码 401）；`bindWechatByInviteCode`（邀请码绑定）。
+- [x] **Step 3: 跑测试确认失败** → FAIL。
+- [x] **Step 4: 实现** `UnitAccountService` + 登录鉴权（JWT 带 `use_unit` 身份）。
+- [x] **Step 5: 跑测试确认通过** → PASS。
+- [x] **Step 6: Commit**：`feat: 使用单位账号与登录`。
 
 ## Task 10: 使用单位只读接口 + 报修
 
@@ -215,11 +215,11 @@
 - Consumes: Task 9 鉴权身份（`useUnitId`）。
 - Produces: `GET /unit/elevators`、`GET /unit/records`、`GET /unit/faults`、`GET /unit/pending-signs`、`POST /unit/faults`（从本单位电梯选）。
 
-- [ ] **Step 1: 写失败测试**：`UnitPortalServiceTest.scopesToOwnUnit`（只返回本单位电梯/记录/急修，含他人单位数据时被过滤）；`reportFaultCreatesAndDispatches`（报修→急修单→派给电梯责任人）。
-- [ ] **Step 2: 跑测试确认失败** → FAIL。
-- [ ] **Step 3: 实现** `UnitPortalService` + `UnitPortalController` + 报修复用 `/faults`。
-- [ ] **Step 4: 跑测试确认通过** → PASS。
-- [ ] **Step 5: Commit**：`feat: 使用单位只读接口与报修（复用急修链路）`。
+- [x] **Step 1: 写失败测试**：`UnitPortalServiceTest.scopesToOwnUnit`（只返回本单位电梯/记录/急修，含他人单位数据时被过滤）；`reportFaultCreatesAndDispatches`（报修→急修单→派给电梯责任人）。
+- [x] **Step 2: 跑测试确认失败** → FAIL。
+- [x] **Step 3: 实现** `UnitPortalService` + `UnitPortalController` + 报修复用 `/faults`。
+- [x] **Step 4: 跑测试确认通过** → PASS。
+- [x] **Step 5: Commit**：`feat: 使用单位只读接口与报修（复用急修链路）`。
 
 ## Task 11: 维保日历投影
 
