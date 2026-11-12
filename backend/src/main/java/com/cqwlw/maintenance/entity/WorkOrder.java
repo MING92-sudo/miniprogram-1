@@ -40,4 +40,10 @@ public class WorkOrder {
     public String dynamicCode;
     public LocalDateTime dynamicCodeExpiresAt;
     public String checklistJson;
+    /** 主维保签字 fileId（各自手机签，V23 迁移；只存 fileId 不带签名 URL） */
+    public String workerSignatureFileId;
+    public LocalDateTime workerSignatureAt;
+    /** 配合人员签字 fileId（V23 迁移） */
+    public String assistantSignatureFileId;
+    public LocalDateTime assistantSignatureAt;
 }

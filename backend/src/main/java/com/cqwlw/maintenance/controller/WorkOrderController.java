@@ -114,6 +114,20 @@ public class WorkOrderController {
         return ApiResponse.ok(workOrderService.runThisTime(id, itemId, empId(request)));
     }
 
+    /** 主维保/配合人员各自手机签字（docs/01 §3.7.5）：写操作带幂等键去重 */
+    @PostMapping("/work-orders/{id}/signature")
+    public ApiResponse<Object> signOrder(@PathVariable String id, @RequestBody Map<String, Object> body,
+                                         @RequestHeader(value = "X-Idempotency-Key", required = false) String idemKey,
+                                         HttpServletRequest request) {
+        IdempotencyService.Guard guard = idempotencyService.begin(idemKey, "/work-orders/signature");
+        if (guard.replayed()) {
+            return ApiResponse.ok(guard.replayedResult());
+        }
+        Map<String, Object> result = workOrderService.signOrder(id, body, empId(request));
+        guard.commit(result);
+        return ApiResponse.ok(result);
+    }
+
     @PostMapping("/work-orders/{id}/checkout")
     public ApiResponse<Object> checkout(@PathVariable String id, @RequestBody(required = false) Map<String, Object> body,
                                         @RequestHeader(value = "X-Idempotency-Key", required = false) String idemKey,

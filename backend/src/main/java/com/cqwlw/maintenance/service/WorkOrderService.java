@@ -601,11 +601,79 @@ public class WorkOrderService {
         return JsonUtil.map("ok", true);
     }
 
+    // ── 签字（各自手机签，docs/01 §3.7.5：主维保和配合人员分别手写签名） ──
+
+    /**
+     * 主维保/配合人员各自在自己手机签字（docs/01 §3.7.5）。
+     * 严格各签各的：普通作业人员仅可签本人对应角色，组长/管理员可代签（{@link #requireSignRole}）；
+     * 仅 PROCESSING 状态可签，签退（仅主维保）前由 checkout 校验双签名齐全。
+     */
+    public Map<String, Object> signOrder(String orderId, Map<String, Object> body, String empId) {
+        WorkOrder o = findOr404(orderId);
+        requireOrderScope(o, empId);
+        if (!"PROCESSING".equals(o.status)) {
+            throw new BizException(1003, "当前状态不允许签字（请先完成签到）");
+        }
+        String role = str(body.get("role"));
+        boolean assistant = "ASSISTANT".equals(role);
+        if (!assistant && !"PRINCIPAL".equals(role)) {
+            throw new BizException(422, "签字角色非法：须为 PRINCIPAL 或 ASSISTANT");
+        }
+        requireSignRole(o, role, empId);
+        String fileId = str(body.get("signatureFileId")).trim();
+        if (fileId.isEmpty()) {
+            throw new BizException(422, "签字图未上传，请重试");
+        }
+        LocalDateTime now = TimeUtil.now();
+        if (assistant) {
+            o.assistantSignatureFileId = fileId;
+            o.assistantSignatureAt = now;
+        } else {
+            o.workerSignatureFileId = fileId;
+            o.workerSignatureAt = now;
+        }
+        orderMapper.updateById(o);
+        return JsonUtil.map("ok", true, "role", assistant ? "ASSISTANT" : "PRINCIPAL");
+    }
+
+    /**
+     * 签字身份校验（严格各签各的，防代签）：普通作业人员仅可签本人对应角色；
+     * ADMIN/SYS_ADMIN/LEADER 可代签（LEADER 对本组负责，班组数据权限同源，docs/01 §3.7.5）。
+     */
+    private void requireSignRole(WorkOrder o, String role, String empId) {
+        Employee login = scopeService.require(empId);
+        String r = login.role == null ? "" : login.role;
+        if ("ADMIN".equals(r) || "SYS_ADMIN".equals(r) || "LEADER".equals(r)) {
+            return;
+        }
+        String pid = login.platformId;
+        if ("ASSISTANT".equals(role)) {
+            if (pid == null || pid.isBlank() || !pid.equals(o.assistantPlatformId)) {
+                throw new BizException(1403, "仅配合人员本人可签配合人员签字");
+            }
+        } else {
+            if (pid == null || pid.isBlank() || !pid.equals(o.workerPlatformId)) {
+                throw new BizException(1403, "仅主维保本人可签主维保签字");
+            }
+        }
+    }
+
     // ── 签退 ──
     @SuppressWarnings("unchecked")
     public Map<String, Object> checkout(String orderId, Map<String, Object> body, String empId) {
         WorkOrder o = findOr404(orderId);
         requireOrderScope(o, empId);
+        // 仅主维保可签退（docs/01 §3.7.5）：普通作业人员只有主维保本人可签退；
+        // 组长/管理员可代签退（处理异常工单），配合人员不可签退（防代签退 → 平台 2.6 虚假数据）
+        Employee login = scopeService.require(empId);
+        String loginRole = login.role == null ? "" : login.role;
+        boolean privileged = "ADMIN".equals(loginRole) || "SYS_ADMIN".equals(loginRole) || "LEADER".equals(loginRole);
+        if (!privileged) {
+            String pid = login.platformId;
+            if (pid == null || pid.isBlank() || !pid.equals(o.workerPlatformId)) {
+                throw new BizException(1403, "仅主维保可签退");
+            }
+        }
         if (!"PROCESSING".equals(o.status)) {
             throw new BizException(1003, "请先完成签到");
         }
@@ -635,10 +703,13 @@ public class WorkOrderService {
                     + " 分钟），请继续作业后再签退");
         }
 
-        // 签名服务端兜底（前端 checkout.js 亦校验，双保险，对齐"作业时长前后端双保险"口径）：
-        // 主维保签名必填；配有配合人员的工单须双人签字（docs/04 A.2 签退自检）
-        String workerSignature = resolveSignatureUrl(body.get("signatureFileId"), body.get("signatureUrl"));
-        String assistantSignature = resolveSignatureUrl(body.get("assistantSignatureFileId"), body.get("assistantSignatureUrl"));
+        // 签字来源：优先取工单各自手机签（V23 字段），兼容旧客户端直接在签退体提交（docs/01 §3.7.5）
+        String workerSignature = resolveSignatureUrl(
+                nz(o.workerSignatureFileId).isEmpty() ? body.get("signatureFileId") : o.workerSignatureFileId,
+                body.get("signatureUrl"));
+        String assistantSignature = resolveSignatureUrl(
+                nz(o.assistantSignatureFileId).isEmpty() ? body.get("assistantSignatureFileId") : o.assistantSignatureFileId,
+                body.get("assistantSignatureUrl"));
         boolean hasAssistant = o.assistantName != null && !o.assistantName.isBlank()
                 && !"无".equals(o.assistantName.trim());
         if (workerSignature.isEmpty()) {
@@ -864,6 +935,9 @@ public class WorkOrderService {
         // 双人分别签到（docs/01 §3.7.2）：前端据此决定"签到/已签到"入口与动态码模式
         m.put("principalCheckedIn", hasCheckin(o.checkinExtraJson));
         m.put("assistantCheckedIn", hasCheckin(o.assistantCheckinExtraJson));
+        // 签字各自手机签（docs/01 §3.7.5）：前端据此展示签字入口与已签状态
+        m.put("workerSigned", o.workerSignatureFileId != null && !o.workerSignatureFileId.isBlank());
+        m.put("assistantSigned", o.assistantSignatureFileId != null && !o.assistantSignatureFileId.isBlank());
         m.put("checkoutTime", TimeUtil.format(o.checkoutTime));
         m.put("duration", o.duration == null ? "" : o.duration);
         m.put("originalRecordId", o.originalRecordId == null ? "" : o.originalRecordId);
