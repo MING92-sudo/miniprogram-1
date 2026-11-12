@@ -57,6 +57,17 @@ class RegionServiceTest {
     }
 
     @Test
+    void createRejectsNonNumericSortOrder() {
+        RegionMapper regionMapper = mock(RegionMapper.class);
+        RegionService svc = service(regionMapper, mock(ElevatorMapper.class), mock(EmployeeMapper.class));
+
+        BizException e = assertThrows(BizException.class,
+                () -> svc.create(Map.of("name", "渝北区", "sortOrder", "abc")));
+        assertEquals(422, e.getCode(), "排序号非数字应拒绝");
+        verify(regionMapper, never()).insert(any(Region.class));
+    }
+
+    @Test
     void assignElevatorRegionSetsRegionId() {
         RegionMapper regionMapper = mock(RegionMapper.class);
         ElevatorMapper elevatorMapper = mock(ElevatorMapper.class);

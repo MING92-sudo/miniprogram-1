@@ -17,7 +17,7 @@ import java.util.Map;
 
 /**
  * 区域主数据 + 电梯/员工区域分配（Task 1，移交/外接建档/使用单位门户的可见性范围谓词）。
- * 管理端门禁在 RegionController 校验（非管理员 1403，本服务不做角色判断）。
+ * 管理端门禁在 RegionController 校验（非管理员 403，本服务不做角色判断）。
  */
 @Service
 public class RegionService {
@@ -141,7 +141,7 @@ public class RegionService {
         try {
             return Integer.parseInt(String.valueOf(o).trim());
         } catch (NumberFormatException e) {
-            return null;
+            throw new BizException(422, "排序号必须为数字");
         }
     }
 }

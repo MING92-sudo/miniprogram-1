@@ -20,9 +20,9 @@ import java.util.Map;
 
 /**
  * 区域主数据 CRUD + 电梯/员工区域分配（Task 1，移交/外接建档/使用单位门户可见性范围）。
- * 全部端点仅管理员（ADMIN/SYS_ADMIN）可用，非管理员 1403、无副作用。
- * 注：/elevators/{id}/region、/employees/{id}/region 同时受 AdminRoleInterceptor 管理端写门禁覆盖（403），
- * 此处校验为兜底；/regions/** 未被拦截器覆盖，以此处校验为准（1403）。
+ * 全部端点仅管理员（ADMIN/SYS_ADMIN）可用，非管理员 403、无副作用。
+ * 注：/elevators/{id}/region、/employees/{id}/region 同时受 AdminRoleInterceptor 管理端写门禁覆盖，
+ * 非管理员会先被拦截器以 403 拦截；此处 requireAdmin 为兜底（同为 403，口径一致）。
  */
 @RestController
 public class RegionController {
@@ -82,7 +82,7 @@ public class RegionController {
     private static void requireAdmin(HttpServletRequest request) {
         String role = String.valueOf(request.getAttribute(AuthInterceptor.ATTR_ROLE));
         if (!AdminRoles.canWrite(role)) {
-            throw new BizException(1403, "仅管理员可维护区域");
+            throw new BizException(403, "仅管理员可维护区域");
         }
     }
 
