@@ -54,17 +54,16 @@
   </view>
 
   <view class="em-card">
-    <view class="section-title">主维保人员签字</view>
-    <image wx:if="{{signature}}" class="sig-preview" src="{{signature}}" mode="aspectFit" bindtap="goSignature" data-field="signature" />
-    <view wx:else class="sig-empty" bindtap="goSignature" data-field="signature">点击签名</view>
-    <view class="em-text-secondary sig-tip">主维保人员签字将作为维保记录的签退凭证</view>
-  </view>
-
-  <view class="em-card" wx:if="{{hasAssistant}}">
-    <view class="section-title">配合人员签字（双人签字）</view>
-    <image wx:if="{{assistantSignature}}" class="sig-preview" src="{{assistantSignature}}" mode="aspectFit" bindtap="goSignature" data-field="assistantSignature" />
-    <view wx:else class="sig-empty" bindtap="goSignature" data-field="assistantSignature">点击签名</view>
-    <view class="em-text-secondary sig-tip">双人作业须配合人员同时签字确认（{{'配合人员'}}到场）</view>
+    <view class="section-title">签字状态（各自手机签）</view>
+    <view class="info-row">
+      <text>主维保签字</text>
+      <text class="{{workerSigned ? 'elapsed-ok' : 'elapsed-warn'}}">{{workerSigned ? '已签字' : '未签字'}}</text>
+    </view>
+    <view class="info-row" wx:if="{{hasAssistant}}">
+      <text>配合人员签字</text>
+      <text class="{{assistantSigned ? 'elapsed-ok' : 'elapsed-warn'}}">{{assistantSigned ? '已签字' : '未签字'}}</text>
+    </view>
+    <view class="em-text-secondary sig-tip">主维保/配合人员在各自手机签字（docs/01 §3.7.5），未签字请在工单详情完成</view>
   </view>
 
   <view class="em-card">

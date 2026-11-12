@@ -1,7 +1,7 @@
 // 工单列表：看板式卡片（蓝色页头 + 搜索/扫码 + 电梯信息卡，UI 参照无纸化维保截屏）
 const { getOrderList, resolveByElevatorCode } = require('../../services/order')
 const { STATUS_TEXT, TOAST_TEXT, EMPTY_TEXT } = require('../../constants/index')
-const { ensureLogin } = require('../../utils/guard')
+const { isLoggedIn } = require('../../utils/auth')
 
 const TABS = [
   { key: '', label: '全部' },
@@ -19,6 +19,7 @@ const DUE_LABEL = {
 
 Page({
   data: {
+    guest: false,
     tabs: TABS,
     activeTab: '',
     list: [],
@@ -42,10 +43,8 @@ Page({
   },
 
   onShow() {
-    // 首次 onShow 发生在 tab 路由进行中，守卫 reLaunch 会与其竞态
-    // （routeDone with a webviewId xxx is not found），首次守卫延迟到 onReady
     if (!this._authReady) return
-    if (!ensureLogin()) return
+    if (!this.guard()) return
     this.applyDueFromStorage()
     this.applyStatusFromStorage()
     this.fetchList(true)
@@ -53,10 +52,24 @@ Page({
 
   onReady() {
     this._authReady = true
-    if (!ensureLogin()) return
+    if (!this.guard()) return
     this.applyDueFromStorage()
     this.applyStatusFromStorage()
     this.fetchList(true)
+  },
+
+  // 未登录：展示登录引导空状态，不强制跳转（登录规范：先浏览后登录）
+  guard() {
+    if (isLoggedIn()) {
+      this.setData({ guest: false })
+      return true
+    }
+    this.setData({ guest: true })
+    return false
+  },
+
+  goLogin() {
+    wx.navigateTo({ url: '/pages/login/index' })
   },
 
   // 首页统计卡下钻：读取一次性过滤条件（switchTab 不能带参，经存储传递）

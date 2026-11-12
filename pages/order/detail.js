@@ -2,7 +2,8 @@
 // 入参：orderId 或 elevatorCode（扫码进入）
 // 按状态与"本人是否已签到"显示操作：未签到→去签到（主维保/配合人员分别签到，docs/01 §3.7.2）；
 // 已签到→继续作业清单；双人工单提供动态码入口；DONE→只读
-const { getOrderDetail, resolveByElevatorCode, retryRecordUpload } = require('../../services/order')
+const { getOrderDetail, resolveByElevatorCode, retryRecordUpload, signOrder } = require('../../services/order')
+const { uploadImage } = require('../../services/upload')
 const { STATUS_TEXT, REPORT_STATUS_TEXT, CHECK_RESULT_TEXT, TOAST_TEXT, LOADING_TEXT } = require('../../constants/index')
 const { getUserInfo } = require('../../utils/auth')
 
@@ -18,7 +19,9 @@ Page({
     isDual: false,       // 双人工单（有配合人员）
     isAssistant: false,  // 当前登录人是配合人员
     myCheckedIn: false,  // 本人是否已签到（主维保/配合人员各自一条留痕）
-    canCheckin: false
+    canCheckin: false,
+    mySigned: false,     // 本人是否已签字（各自手机签，docs/01 §3.7.5）
+    canSign: false
   },
 
   onLoad(query) {
@@ -68,6 +71,9 @@ Page({
       (me.name === order.assistantName ||
         (!!order.assistantPlatformId && me.platformId === order.assistantPlatformId))
     const myCheckedIn = isAssistant ? !!order.assistantCheckedIn : !!order.principalCheckedIn
+    // 各自手机签：本人是否已签（主维保签 workerSigned、配合人员签 assistantSigned），
+    // PROCESSING 状态即可签字（签字身份由后端严格校验，docs/01 §3.7.5）
+    const mySigned = isAssistant ? !!order.assistantSigned : !!order.workerSigned
     this.setData({
       order,
       elevator: order.elevator || null,
@@ -75,6 +81,8 @@ Page({
       isAssistant: isAssistant,
       myCheckedIn: myCheckedIn,
       canCheckin: order.status !== 'DONE' && !myCheckedIn,
+      mySigned: mySigned,
+      canSign: order.status === 'PROCESSING' && !mySigned,
       statusText: STATUS_TEXT[order.status] || order.status,
       reportStatusText: order.reportStatus
         ? REPORT_STATUS_TEXT[order.reportStatus] || order.reportStatus
@@ -120,6 +128,31 @@ Page({
 
   goChecklist() {
     wx.navigateTo({ url: `/pages/order/checklist?orderId=${this.data.order.id}` })
+  },
+
+  // 各自手机签字（docs/01 §3.7.5）：主维保/配合人员跳转签名板，签字后回传上传
+  goSign() {
+    if (this._signing) return
+    wx.navigateTo({
+      url: `/pages/common/signature?from=detail&orderId=${this.data.order.id}`
+    })
+  },
+
+  // 签名板回传（EventChannel 降级通道）→ 上传签名图 → 提交签字（后端严格校验角色）
+  async onSignatureReady(data) {
+    if (!data || !data.path || this._signing) return
+    this._signing = true
+    try {
+      const role = this.data.isAssistant ? 'ASSISTANT' : 'PRINCIPAL'
+      const up = await uploadImage(data.path)
+      await signOrder(this.data.order.id, { role, signatureFileId: up.fileId, signatureUrl: up.url || '' })
+      wx.showToast({ title: '签字成功', icon: 'success' })
+      this.fetchOrder(this.data.order.id)
+    } catch (e) {
+      wx.showToast({ title: e.message || '签字失败', icon: 'none' })
+    } finally {
+      this._signing = false
+    }
   },
 
   // 主维保→生成动态码；配合人员→输入校验（docs/03 §3.2 项6）

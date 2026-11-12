@@ -2,8 +2,7 @@
 // 业务规则：签到—签退间隔不少于 N 分钟（config.minWorkDurationMinutes，前后端双重校验）
 // 提交后触发记录生成与监管平台上报（后端）
 const { getOrderDetail, getChecklist, checkout } = require('../../services/order')
-const { uploadImage } = require('../../services/upload')
-const { formatTime, formatDuration, parseTime } = require('../../utils/util')
+const { formatDuration, parseTime } = require('../../utils/util')
 const config = require('../../config/index')
 const offline = require('../../utils/offline')
 
@@ -22,8 +21,8 @@ Page({
       { key: 'power', label: '电梯电源已恢复', checked: false },
       { key: 'run', label: '电梯试运行正常', checked: false }
     ],
-    signature: '',
-    assistantSignature: '',
+    workerSigned: false, // 主维保已签字（各自手机签，docs/01 §3.7.5）
+    assistantSigned: false, // 配合人员已签字
     hasAssistant: false, // 工单配有配合人员时需双人签字（docs/04 A.2 签退自检）
     checkDone: 0,
     checkTotal: 0,
@@ -82,7 +81,9 @@ Page({
       this.setData({
         elevatorName: (order.elevator && order.elevator.elevatorName) || '',
         checkinTime: order.checkinTime || '',
-        hasAssistant: !!(order.assistantName && order.assistantName !== '无')
+        hasAssistant: !!(order.assistantName && order.assistantName !== '无'),
+        workerSigned: !!order.workerSigned,
+        assistantSigned: !!order.assistantSigned
       })
       this.startTicker()
     } catch (e) {
@@ -139,27 +140,13 @@ Page({
     this.setData({ todoDesc: e.detail.value })
   },
 
-  // 跳转签名板（主维保/配合人员两个签字位）
-  goSignature(e) {
-    // 签退成功后的 Toast 等待期内页面即将 reLaunch，禁止再发起新路由（避免路由竞态）
-    if (this._leaving) return
-    this._sigTarget = e.currentTarget.dataset.field
-    wx.navigateTo({
-      url: `/pages/common/signature?from=checkout&orderId=${this.data.orderId}`
-    })
-  },
-
-  // 签名页直接方法回传（EventChannel 降级通道）
-  onSignatureReady(data) {
-    if (this._sigTarget) this.setData({ [this._sigTarget]: data.path })
-  },
-
   async onSubmit() {
     const allChecked = this.data.selfChecks.every((c) => c.checked)
     if (!allChecked) return wx.showToast({ title: '请完成全部自检项', icon: 'none' })
-    if (!this.data.signature) return wx.showToast({ title: '请完成主维保人员签名', icon: 'none' })
-    if (this.data.hasAssistant && !this.data.assistantSignature) {
-      return wx.showToast({ title: '请完成配合人员签名（双人签字）', icon: 'none' })
+    // 签字已在各自手机完成（docs/01 §3.7.5），此处仅做完整性预检，后端 422 双保险
+    if (!this.data.workerSigned) return wx.showToast({ title: '请完成主维保签字', icon: 'none' })
+    if (this.data.hasAssistant && !this.data.assistantSigned) {
+      return wx.showToast({ title: '请完成配合人员签字（双人签字）', icon: 'none' })
     }
     // 时长下限前端校验（后端 422 双保险）
     if (!this.data.durationOk) {
@@ -169,33 +156,13 @@ Page({
       })
     }
     this.setData({ submitting: true })
-    const signatureUploads = []
-    const uploadedFields = {}
-    if (this.data.signature) {
-      signatureUploads.push({ field: 'signatureFileId', path: this.data.signature })
-    }
-    if (this.data.assistantSignature) {
-      signatureUploads.push({ field: 'assistantSignatureFileId', path: this.data.assistantSignature })
-    }
-    const signatureData = {
-      signatureUrl: this.data.signature, // mock 演示回显；真实后端忽略
-      assistantSignatureUrl: this.data.assistantSignature || '',
-      collectedAt: formatTime()
+    const payload = {
+      safetyConfirm: this.data.safety.reduce((m, c) => Object.assign(m, { [c.key]: c.checked }), {}),
+      todoDesc: this.data.todoDesc
     }
     try {
-      for (const upload of signatureUploads) {
-        if (!uploadedFields[upload.field]) {
-          const r = await uploadImage(upload.path)
-          uploadedFields[upload.field] = r.fileId
-        }
-      }
       // 响应：{ duration, originalRecordId, reportStatus, recordId, shareToken }（docs/04 A.2）
-      const resp = await checkout(this.data.orderId, {
-        ...signatureData,
-        ...uploadedFields,
-        safetyConfirm: this.data.safety.reduce((m, c) => Object.assign(m, { [c.key]: c.checked }), {}),
-        todoDesc: this.data.todoDesc
-      })
+      const resp = await checkout(this.data.orderId, payload)
       // 签退成功 → 进入签名确认页（安全管理员本机代签，或分享链接远程签字）
       wx.showToast({ title: '签退成功', icon: 'success' })
       this._leaving = true
@@ -204,21 +171,10 @@ Page({
       }, 800)
     } catch (e) {
       if (e && e.code === -1) {
-        // 签名已上传的部分写入 data；未上传部分交由离线队列按字段断点续传。
-        const data = { ...signatureData }
-        data.safetyConfirm = this.data.safety.reduce((m, c) => Object.assign(m, { [c.key]: c.checked }), {})
-        data.todoDesc = this.data.todoDesc
-        Object.keys(uploadedFields).forEach((field) => {
-          data[field] = uploadedFields[field]
-        })
-        const remainingUploads = signatureUploads
-          .filter((upload) => !uploadedFields[upload.field])
-          .map((upload) => ({ ...upload }))
         offline.enqueue({
           url: `/work-orders/${this.data.orderId}/checkout`,
           method: 'POST',
-          data,
-          uploads: remainingUploads,
+          data: payload,
           desc: '签退提交'
         })
         wx.showToast({ title: '网络异常，签退已存入离线补传', icon: 'none' })

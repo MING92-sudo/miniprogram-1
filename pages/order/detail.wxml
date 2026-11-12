@@ -39,6 +39,9 @@
     <view class="em-card" wx:if="{{order.status === 'PROCESSING'}}">
       <button class="em-btn-primary" bindtap="goChecklist">继续作业清单</button>
       <view wx:if="{{myCheckedIn}}" class="em-text-secondary sub-action">本人已签到{{isDual ? '，配合人员可各自签到' : ''}}</view>
+      <!-- 各自手机签字（docs/01 §3.7.5）：本人未签即可在自己手机签字，签字身份由后端严格校验 -->
+      <button wx:if="{{canSign}}" class="em-btn-ghost" bindtap="goSign">{{isAssistant ? '配合人员签字' : '主维保签字'}}</button>
+      <view wx:if="{{mySigned}}" class="em-text-secondary sub-action">本人已签字</view>
     </view>
 
     <view class="em-card" wx:if="{{order.status === 'DONE'}}">

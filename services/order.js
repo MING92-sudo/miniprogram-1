@@ -46,6 +46,11 @@ function runItemThisTime(orderId, itemId) {
   return post(`/work-orders/${orderId}/checklist/${itemId}/run-this-time`, {})
 }
 
+// 主维保/配合人员各自手机签字（docs/01 §3.7.5：严格各签各的，可重复签覆盖）
+function signOrder(orderId, data) {
+  return post(`/work-orders/${orderId}/signature`, data)
+}
+
 // 签退提交（后端自动转发平台 2.6，失败不自动重试）
 function checkout(orderId, data) {
   return post(`/work-orders/${orderId}/checkout`, data,
@@ -68,6 +73,7 @@ module.exports = {
   getChecklist,
   submitChecklistItem,
   runItemThisTime,
+  signOrder,
   checkout,
   retryRecordUpload
 }
