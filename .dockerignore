@@ -1,0 +1,32 @@
+# 云托管源码构建上下文（Dockerfile 在仓库根，单容器：admin dist → backend static → jar）
+#
+# 关键：.env 绝不能进入构建上下文——镜像层可被拉取，等于把平台凭证与 DB 密码写进云端。
+# 本地开发依赖仓库外/云托管环境变量注入，构建阶段不需要 .env。
+
+# 版本库与 CI
+.git
+.github
+.gitignore
+AGENTS.md
+LICENSE
+
+# 依赖与构建产物（镜像里由 npm ci / mvn package 重新生成）
+node_modules
+admin/node_modules
+admin/dist
+admin/.tmp-build
+backend/target
+backend/src/main/resources/static
+
+# 本地数据、脚本临时件、文档（不参与运行）
+tmp
+docs
+mock
+scripts
+miniapp
+*.log
+
+# 凭证与本地环境
+.env
+.env.*
+!.env.example
