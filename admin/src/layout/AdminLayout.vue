@@ -62,6 +62,15 @@ const MENUS = [
   { index: '/dashboard', title: '监控看板', icon: Odometer, perm: 'console:read' },
   { index: '/schedule', title: '计划调度', icon: Tickets, perm: 'plan:write' },
   { index: '/ledger', title: '电梯台账', icon: Notebook, perm: 'ledger:read' },
+  {
+    index: 'handover',
+    title: '安装移交',
+    icon: Tickets,
+    children: [
+      { index: '/handovers', title: '移交单', perm: 'handover:read' },
+      { index: '/filings', title: '外接建档', perm: 'filing:read' }
+    ]
+  },
   { index: '/templates', title: '模板管理', icon: List, perm: 'template:write' },
   {
     index: 'monitor',
@@ -81,7 +90,9 @@ const MENUS = [
       { index: '/archive/company', title: '维保单位', perm: 'employee:read' },
       { index: '/archive/use-units', title: '使用单位', perm: 'useunit:read' },
       { index: '/archive/employees', title: '人员', perm: 'employee:read' },
-      { index: '/archive/elevators', title: '电梯档案', perm: 'ledger:read' }
+      { index: '/archive/elevators', title: '电梯档案', perm: 'ledger:read' },
+      { index: '/contracts', title: '维保合同', perm: 'contract:read' },
+      { index: '/regions', title: '区域管理', perm: 'region:write' }
     ]
   },
   {
@@ -110,6 +121,7 @@ const MENU_ICONS = {
   '/schedule': Tickets,
   '/ledger': Notebook,
   '/templates': List,
+  handover: Tickets,
   monitor: Refresh,
   archive: Tickets,
   register: Notebook,
@@ -139,7 +151,8 @@ const menus = computed(() => {
 const openMenus = computed(() => {
   const p = route.path
   if (p.startsWith('/orders') || p.startsWith('/platform') || p.startsWith('/reports/failed')) return ['monitor']
-  if (p.startsWith('/archive')) return ['archive']
+  if (p.startsWith('/handovers') || p.startsWith('/filings')) return ['handover']
+  if (p.startsWith('/archive') || p.startsWith('/contracts') || p.startsWith('/regions')) return ['archive']
   if (p.startsWith('/register')) return ['register']
   if (p.startsWith('/reports/logs')) return ['logs']
   return ['monitor']

@@ -21,6 +21,10 @@ const ScheduleView = () => import('../views/ScheduleView.vue')
 const TemplateManageView = () => import('../views/TemplateManageView.vue')
 const LedgerView = () => import('../views/LedgerView.vue')
 const RegisterWorkersView = () => import('../views/RegisterWorkersView.vue')
+const HandoverView = () => import('../views/HandoverView.vue')
+const FilingView = () => import('../views/FilingView.vue')
+const ContractView = () => import('../views/ContractView.vue')
+const RegionView = () => import('../views/RegionView.vue')
 const ForbiddenView = () => import('../views/ForbiddenView.vue')
 const NotFoundView = () => import('../views/NotFoundView.vue')
 
@@ -55,6 +59,10 @@ export const routes = [
       { path: 'schedule', component: ScheduleView, meta: { title: '计划调度', perm: 'plan:write' } },
       { path: 'templates', component: TemplateManageView, meta: { title: '模板管理', perm: 'template:write' } },
       { path: 'ledger', component: LedgerView, meta: { title: '电梯台账', perm: 'ledger:read' } },
+      { path: 'handovers', component: HandoverView, meta: { title: '移交单', perm: 'handover:read' } },
+      { path: 'filings', component: FilingView, meta: { title: '外接建档', perm: 'filing:read' } },
+      { path: 'contracts', component: ContractView, meta: { title: '维保合同', perm: 'contract:read' } },
+      { path: 'regions', component: RegionView, meta: { title: '区域管理', perm: 'region:write' } },
       { path: 'archive/company', component: CompanyView, meta: { title: '维保单位档案', perm: 'employee:read' } },
       { path: 'archive/use-units', component: UseUnitsView, meta: { title: '使用单位档案', perm: 'useunit:read' } },
       { path: 'archive/employees', component: EmployeesView, meta: { title: '人员档案', perm: 'employee:read' } },
