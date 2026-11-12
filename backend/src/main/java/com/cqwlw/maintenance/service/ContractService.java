@@ -72,10 +72,12 @@ public class ContractService {
             if (links != null && !links.isEmpty()) {
                 List<String> contractIds = links.stream()
                         .map(l -> l.contractId).distinct().toList();
+                // 生效=ACTIVE 且未过期（end_date ≥ 今天），与 getActiveContractByElevator 对齐，过期放行续签
                 Long active = contractMapper.selectCount(
                         new LambdaQueryWrapper<MaintenanceContract>()
                                 .in(MaintenanceContract::getId, contractIds)
-                                .eq(MaintenanceContract::getStatus, "ACTIVE"));
+                                .eq(MaintenanceContract::getStatus, "ACTIVE")
+                                .ge(MaintenanceContract::getEndDate, LocalDate.now()));
                 if (active != null && active > 0) {
                     throw new BizException(422, "电梯已有生效合同");
                 }
