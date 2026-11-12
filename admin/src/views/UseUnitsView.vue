@@ -20,6 +20,7 @@
       <el-table-column label="操作" width="160" fixed="right">
         <template #default="{ row }">
           <el-button link type="primary" :disabled="!auth.canWrite" @click="openEdit(row)">编辑</el-button>
+          <el-button link type="warning" :disabled="!auth.canWrite" @click="openAccount(row)">开通账号</el-button>
           
           <el-button link type="danger" :disabled="!auth.canWrite" @click="onDelete(row)">删除</el-button>
         </template>
@@ -44,18 +45,42 @@
         <el-button type="primary" :loading="saving" @click="save">保存</el-button>
       </template>
     </el-dialog>
-  </el-card>
+      <el-dialog v-model="accDialog" title="使用单位门户账号" width="460px">
+      <div v-if="accResult">
+        <el-alert type="success" :closable="false" show-icon
+                  title="账号已开通/重置，口令只显示这一次，请复制转交安全管理员" />
+        <el-descriptions :column="1" border style="margin-top: 12px">
+          <el-descriptions-item label="使用单位">{{ accResult.unitName }}</el-descriptions-item>
+          <el-descriptions-item label="登录账号">{{ accResult.account }}</el-descriptions-item>
+          <el-descriptions-item label="初始口令">{{ accResult.initialPassword }}</el-descriptions-item>
+          <el-descriptions-item label="微信邀请码">{{ accResult.inviteCode }}</el-descriptions-item>
+        </el-descriptions>
+        <div class="tip">安全管理员在小程序「使用单位」入口用邀请码绑定微信后，即可查看本梯记录并报修。</div>
+      </div>
+      <el-empty v-else description="点击下方按钮生成账号与邀请码" :image-size="60" />
+      <template #footer>
+        <el-button @click="accDialog = false">关闭</el-button>
+        <el-button type="primary" :loading="accSaving" @click="createAccount">生成/重置</el-button>
+      </template>
+    </el-dialog>
+
+</el-card>
 </template>
 
 <script setup>
 import { reactive, ref, onMounted } from 'vue'
 import { useAuthStore } from '../stores/auth'
 import * as archiveApi from '../api/archive'
+import * as unitApi from '../api/unit'
 import { showErr, ok } from '../utils/ui'
 import { ElMessageBox } from 'element-plus'
 
 const auth = useAuthStore()
 const rows = ref([])
+const accDialog = ref(false)
+const accSaving = ref(false)
+const accResult = ref(null)
+const accUnit = ref(null)
 const loading = ref(false)
 const dialog = ref(false)
 const saving = ref(false)
@@ -112,6 +137,25 @@ async function save() {
     showErr(e)
   } finally {
     saving.value = false
+  }
+}
+
+function openAccount(row) {
+  accUnit.value = row
+  accResult.value = null
+  accDialog.value = true
+}
+
+async function createAccount() {
+  if (!accUnit.value) return
+  accSaving.value = true
+  try {
+    accResult.value = await unitApi.createUnitAccount({ useUnitId: accUnit.value.id })
+    ok('账号已生成，请复制下方口令')
+  } catch (e) {
+    showErr(e)
+  } finally {
+    accSaving.value = false
   }
 }
 
