@@ -19,6 +19,8 @@ public class HandoverOrder {
     @TableId
     public String id;
     public String handoverNo;
+    /** 发起时间（V33；管理端列表排序用） */
+    public LocalDateTime createdAt;
     /** INIT/DOC_SUBMITTING/INSPECTING/RECTIFYING/PENDING_CONFIRM/ARCHIVED */
     public String status;
     /** 归档建梯后回填（1:1） */

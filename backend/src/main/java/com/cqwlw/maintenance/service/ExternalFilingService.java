@@ -3,6 +3,7 @@ package com.cqwlw.maintenance.service;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.cqwlw.maintenance.common.BizException;
 import com.cqwlw.maintenance.common.Ids;
+import com.cqwlw.maintenance.common.Paginate;
 import com.cqwlw.maintenance.entity.Elevator;
 import com.cqwlw.maintenance.entity.ExternalFilingDoc;
 import com.cqwlw.maintenance.entity.ExternalFilingOrder;
@@ -114,6 +115,7 @@ public class ExternalFilingService {
         ExternalFilingOrder o = new ExternalFilingOrder();
         o.id = Ids.next("ef");
         o.filingNo = Ids.next("ef");
+        o.createdAt = LocalDateTime.now();
         o.status = DOC_COLLECTING;
         o.contractId = contractId;
         o.useUnitId = useUnitId;
@@ -313,6 +315,19 @@ public class ExternalFilingService {
             workOrderMapper.updateById(first);
         }
         return o;
+    }
+
+    /** 管理端列表（Task 14）：按状态过滤，发起时间倒序 */
+    public Map<String, Object> list(Map<String, String> query) {
+        String status = query == null ? null : query.get("status");
+        List<ExternalFilingOrder> all = orderMapper.selectList(new LambdaQueryWrapper<ExternalFilingOrder>()
+                .orderByDesc(ExternalFilingOrder::getCreatedAt));
+        List<ExternalFilingOrder> filtered = (all == null ? List.<ExternalFilingOrder>of() : all).stream()
+                .filter(o -> status == null || status.isBlank() || status.equals(o.status))
+                .sorted(java.util.Comparator.comparing(
+                        (ExternalFilingOrder o) -> o.createdAt == null ? LocalDateTime.MIN : o.createdAt).reversed())
+                .toList();
+        return Paginate.of(filtered, query == null ? Map.of() : query);
     }
 
     /** 外接建档单详情，不存在 1404 */

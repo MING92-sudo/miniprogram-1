@@ -246,4 +246,29 @@ class ExternalFilingServiceTest {
         m.service.archive("ef_1");
         verify(m.elevatorMapper, org.mockito.Mockito.never()).insert(any(Elevator.class));
     }
+
+    /** 管理端列表（Task 14）：status 过滤 + 发起时间倒序 */
+    @Test
+    void listFiltersByStatusAndSortsByCreatedAt() {
+        Mocks m = new Mocks();
+        ExternalFilingOrder old = new ExternalFilingOrder();
+        old.id = "ef_old";
+        old.status = "PENDING_CONFIRM";
+        old.createdAt = java.time.LocalDateTime.of(2026, 1, 1, 9, 0);
+        ExternalFilingOrder recent = new ExternalFilingOrder();
+        recent.id = "ef_new";
+        recent.status = "PENDING_CONFIRM";
+        recent.createdAt = java.time.LocalDateTime.of(2026, 1, 2, 9, 0);
+        ExternalFilingOrder other = new ExternalFilingOrder();
+        other.id = "ef_x";
+        other.status = "DOC_COLLECTING";
+        other.createdAt = java.time.LocalDateTime.of(2026, 1, 3, 9, 0);
+        when(m.orderMapper.selectList(any())).thenReturn(List.of(old, recent, other));
+
+        Map<String, Object> out = m.service.list(Map.of("status", "PENDING_CONFIRM"));
+        java.util.List<?> rows = (java.util.List<?>) out.get("list");
+        assertEquals(2, rows.size());
+        assertEquals("ef_new", ((ExternalFilingOrder) rows.get(0)).id, "应按发起时间倒序");
+        assertEquals(2, out.get("total"));
+    }
 }

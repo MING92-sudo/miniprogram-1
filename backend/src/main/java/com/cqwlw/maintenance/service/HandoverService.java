@@ -3,6 +3,7 @@ package com.cqwlw.maintenance.service;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.cqwlw.maintenance.common.BizException;
 import com.cqwlw.maintenance.common.Ids;
+import com.cqwlw.maintenance.common.Paginate;
 import com.cqwlw.maintenance.entity.Elevator;
 import com.cqwlw.maintenance.entity.Employee;
 import com.cqwlw.maintenance.entity.HandoverCheck;
@@ -106,6 +107,7 @@ public class HandoverService {
         HandoverOrder o = new HandoverOrder();
         o.id = Ids.next("ho");
         o.handoverNo = Ids.next("ho");
+        o.createdAt = LocalDateTime.now();
         o.status = DOC_SUBMITTING;
         o.projectName = projectName.trim();
         o.elevatorId = trimToNull(str(body, "elevatorId"));
@@ -363,6 +365,19 @@ public class HandoverService {
         sign.at = LocalDateTime.now();
         signMapper.insert(sign);
         return sign;
+    }
+
+    /** 管理端列表（Task 14）：按状态过滤，发起时间倒序；内存再过滤一次防谓词漏条件 */
+    public Map<String, Object> list(Map<String, String> query) {
+        String status = query == null ? null : query.get("status");
+        List<HandoverOrder> all = orderMapper.selectList(new LambdaQueryWrapper<HandoverOrder>()
+                .orderByDesc(HandoverOrder::getCreatedAt));
+        List<HandoverOrder> filtered = (all == null ? List.<HandoverOrder>of() : all).stream()
+                .filter(o -> status == null || status.isBlank() || status.equals(o.status))
+                .sorted(java.util.Comparator.comparing(
+                        (HandoverOrder o) -> o.createdAt == null ? LocalDateTime.MIN : o.createdAt).reversed())
+                .toList();
+        return Paginate.of(filtered, query == null ? Map.of() : query);
     }
 
     /** 移交单详情，不存在 1404 */

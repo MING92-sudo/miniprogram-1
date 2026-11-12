@@ -19,6 +19,7 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -105,5 +106,33 @@ class HandoverServiceTest {
                 "recheckerId", "r1", "recheckerName", "赵六", "result", "PASS"));
 
         assertEquals("PENDING_CONFIRM", created.status, "复验通过应回待确认");
+    }
+
+    /** 管理端列表（Task 14）：status 过滤 + 发起时间倒序 */
+    @Test
+    void listFiltersByStatusAndSortsByCreatedAt() {
+        HandoverOrderMapper orderMapper = mock(HandoverOrderMapper.class);
+        HandoverOrder old = new HandoverOrder();
+        old.id = "ho_old";
+        old.status = "PENDING_CONFIRM";
+        old.createdAt = java.time.LocalDateTime.of(2026, 1, 1, 9, 0);
+        HandoverOrder recent = new HandoverOrder();
+        recent.id = "ho_new";
+        recent.status = "PENDING_CONFIRM";
+        recent.createdAt = java.time.LocalDateTime.of(2026, 1, 2, 9, 0);
+        HandoverOrder other = new HandoverOrder();
+        other.id = "ho_x";
+        other.status = "INSPECTING";
+        other.createdAt = java.time.LocalDateTime.of(2026, 1, 3, 9, 0);
+        when(orderMapper.selectList(any())).thenReturn(java.util.List.of(old, recent, other));
+        HandoverService svc = service(orderMapper, mock(HandoverCheckMapper.class),
+                mock(HandoverCheckItemMapper.class), mock(HandoverRectificationMapper.class),
+                mock(HandoverSignMapper.class));
+
+        Map<String, Object> out = svc.list(Map.of("status", "PENDING_CONFIRM"));
+        java.util.List<?> rows = (java.util.List<?>) out.get("list");
+        assertEquals(2, rows.size());
+        assertEquals("ho_new", ((HandoverOrder) rows.get(0)).id, "应按发起时间倒序");
+        assertEquals(2, out.get("total"));
     }
 }

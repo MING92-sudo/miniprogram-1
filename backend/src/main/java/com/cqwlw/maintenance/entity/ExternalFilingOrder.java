@@ -19,6 +19,8 @@ public class ExternalFilingOrder {
     @TableId
     public String id;
     public String filingNo;
+    /** 发起时间（V33；管理端列表排序用） */
+    public LocalDateTime createdAt;
     /** INIT/DOC_COLLECTING/TAKEOVER_CHECKING/PENDING_CONFIRM/ARCHIVED */
     public String status;
     public String contractId;
