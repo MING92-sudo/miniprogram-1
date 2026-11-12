@@ -15,6 +15,10 @@ public class AuthInterceptor implements HandlerInterceptor {
 
     public static final String ATTR_EMP_ID = "empId";
     public static final String ATTR_ROLE = "role";
+    /** 使用单位门户令牌的 use_unit.id（Task 9）；员工令牌下为 null */
+    public static final String ATTR_UNIT_ID = "useUnitId";
+    /** 使用单位令牌标记（JWT claim ut=1），与员工令牌分流 */
+    public static final String CLAIM_UNIT_TOKEN = "ut";
     public static final String ATTR_OPENID = "openid";
 
     private final JwtService jwtService;
@@ -38,6 +42,15 @@ public class AuthInterceptor implements HandlerInterceptor {
             throw new BizException(401, "登录已过期，请重新登录");
         }
         Claims claims = jwtService.verify(auth.substring(7).trim());
+        // 使用单位门户令牌（Task 9）：subject 是 use_unit.id，不查员工目录、不参与单端会话覆盖
+        if ("1".equals(claims.get(CLAIM_UNIT_TOKEN, String.class))) {
+            if (!"UNIT_ADMIN".equals(claims.get("role", String.class))) {
+                throw new BizException(401, "登录已过期，请重新登录");
+            }
+            request.setAttribute(ATTR_UNIT_ID, claims.getSubject());
+            request.setAttribute(ATTR_ROLE, "UNIT_ADMIN");
+            return true;
+        }
         String client = claims.get("client", String.class);
         String sid = claims.get("sid", String.class);
         com.cqwlw.maintenance.entity.Employee user = employeeMapper.selectById(claims.getSubject());

@@ -55,6 +55,25 @@ public class JwtService {
                 .compact();
     }
 
+    /**
+     * 使用单位门户令牌（Task 9）：subject=use_unit.id，claims 带 ut=1 让 AuthInterceptor 走门户分支。
+     * 门户账号不属员工目录、无单端会话（无 sid），故不与员工令牌共用会话覆盖逻辑。
+     */
+    public String issueUnit(String useUnitId, String client) {
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("role", "UNIT_ADMIN");
+        claims.put("client", client);
+        claims.put("ut", "1");
+        Instant now = Instant.now();
+        return Jwts.builder()
+                .subject(useUnitId)
+                .claims(claims)
+                .issuedAt(Date.from(now))
+                .expiration(Date.from(now.plusSeconds(expireHours * 3600)))
+                .signWith(key)
+                .compact();
+    }
+
     /** 校验并返回 claims；无效/过期抛 401（前端统一清登录态） */
     public Claims verify(String token) {
         try {

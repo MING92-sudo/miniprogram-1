@@ -19,4 +19,10 @@ public class UseUnit {
     public String elevatorAdministerPhone;
     public String emergencyPhone;
     public String entityId;
+    /** 门户登录账号 / 口令哈希 / 邀请码 / 绑定 openid（V30 迁移，Task 9） */
+    public String account;
+    public String passwordHash;
+    public String inviteCode;
+    public String openid;
+    public java.time.LocalDateTime boundAt;
 }
