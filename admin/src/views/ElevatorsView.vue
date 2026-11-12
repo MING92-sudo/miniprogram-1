@@ -17,6 +17,9 @@
 <el-table-column prop="projectName" label="项目名称（小区）" min-width="150" show-overflow-tooltip />
 <el-table-column prop="elevatorCode" label="电梯编码" width="130">      </el-table-column>
 <el-table-column prop="useUnitName" label="使用单位" min-width="150" show-overflow-tooltip />
+      <el-table-column label="区域" width="110">
+        <template #default="{ row }">{{ regionName(row.regionId) }}</template>
+      </el-table-column>
 <el-table-column prop="regCode" label="注册代码" width="150" show-overflow-tooltip />
 <el-table-column prop="elevatorAdminister" label="安全管理员" width="100" />
 <el-table-column prop="elevatorAdministerPhone" label="安全管理员电话" width="130" />
@@ -163,6 +166,8 @@ import { ElMessageBox } from 'element-plus'
 
 const auth = useAuthStore()
 const rows = ref([])
+const regions = ref([])
+const regionName = (id) => (regions.value.find((r) => r.id === id) || {}).name || '—'
 const units = ref([])
 const loading = ref(false)
 const dialog = ref(false)
@@ -438,7 +443,19 @@ async function queryFromPlatform() {
   }
 }
 
-onMounted(load)
+async function loadRegions() {
+  try {
+    const api = await import('../api/region')
+    regions.value = await api.listRegions()
+  } catch (e) {
+    regions.value = []
+  }
+}
+
+onMounted(() => {
+  load()
+  loadRegions()
+})
 </script>
 
 <style scoped>

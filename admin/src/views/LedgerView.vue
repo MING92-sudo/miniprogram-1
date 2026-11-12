@@ -8,6 +8,9 @@
     <el-table :data="rows" v-loading="loading" stripe>
       <el-table-column prop="projectName" label="项目名称（小区）/电梯名称" min-width="180" show-overflow-tooltip />
       <el-table-column prop="useUnitName" label="使用单位" min-width="150" show-overflow-tooltip />
+      <el-table-column label="区域" width="110">
+        <template #default="{ row }">{{ regionName(row.regionId) }}</template>
+      </el-table-column>
       <el-table-column prop="deviceCode" label="设备代码" width="170" show-overflow-tooltip />
       <el-table-column prop="regCode" label="注册代码" width="170" show-overflow-tooltip />
       <el-table-column prop="elevatorAdminister" label="安全管理员" width="100" />
@@ -102,6 +105,8 @@ import { API_BASE } from '../api/client'
 
 const auth = useAuthStore()
 const rows = ref([])
+const regions = ref([])
+const regionName = (id) => (regions.value.find((r) => r.id === id) || {}).name || '—'
 const loading = ref(false)
 const archiveDrawer = ref(false)
 const archiveTab = ref('records')
@@ -191,7 +196,19 @@ async function uploadReport(row, options) {
 }
 
 
-onMounted(() => load())
+async function loadRegions() {
+  try {
+    const api = await import('../api/region')
+    regions.value = await api.listRegions()
+  } catch (e) {
+    regions.value = []
+  }
+}
+
+onMounted(() => {
+  load()
+  loadRegions()
+})
 </script>
 
 <style scoped>

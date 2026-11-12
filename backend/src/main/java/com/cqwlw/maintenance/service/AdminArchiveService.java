@@ -615,6 +615,9 @@ public class AdminArchiveService {
         m.put("location", nz(el.location));
         m.put("regCode", nz(el.regCode));
         m.put("deviceCode", nz(el.deviceCode));
+        // 区域与建档来源（Task 14 Step 2）：区域决定维保人员可见范围，来源区分 存量/移交/外接
+        m.put("regionId", nz(el.regionId));
+        m.put("archiveSource", el.archiveSource == null ? 0 : el.archiveSource);
         m.put("insideNumber", nz(el.insideNumber));
         m.put("model", nz(el.model));
         m.put("factoryNumber", nz(el.factoryNumber));
