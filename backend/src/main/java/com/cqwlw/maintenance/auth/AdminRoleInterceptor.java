@@ -15,6 +15,8 @@ import org.springframework.web.servlet.HandlerInterceptor;
  * 旧 /admin/op-logs 查询、PUT /admin/employees/{id}/password 已删除；账号启停 PUT /admin/employees/{id}/enabled 改按 ADMIN+ 门禁；
  * 角色本身保留供既有账号兼容，见 docs/09 §3.1"保留不启用"；审计留痕 AuditInterceptor 仍写 op_log，仅无查询界面）；
  * 例外：GET /elevators* 为小程序共用读接口，任何已登录角色放行；
+ *       PUT /elevators/{id}/project-name、PUT /elevators/{id}/local 为维保人员现场更正电梯本地信息，
+ *       任何已登录角色放行（越权由 ElevatorService 归属校验兜底，1403）；POST /elevators/{id}/dispatch 手动派单仍需管理员；
  *       二期例外（docs/04 A.2/A.5）：发起延期（POST /admin/plans/{id}/delay）与
  *       转派（POST /admin/orders/{id}/transfer）为"班组长及以上"，LEADER 可写。
  */
@@ -23,6 +25,10 @@ public class AdminRoleInterceptor implements HandlerInterceptor {
 
     private static final java.util.regex.Pattern LEADER_WRITABLE =
             java.util.regex.Pattern.compile("^/admin/(plans/[^/]+/delay|orders/[^/]+/transfer)$");
+
+    /** 维保人员现场可写的电梯端点（归属校验在 ElevatorService，仅本人负责的电梯，越权 1403） */
+    private static final java.util.regex.Pattern WORKER_WRITABLE_ELEVATOR =
+            java.util.regex.Pattern.compile("^/elevators/[^/]+/(project-name|local)$");
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
@@ -35,6 +41,8 @@ public class AdminRoleInterceptor implements HandlerInterceptor {
         boolean allowed;
         if (!write && path.startsWith("/elevators")) {
             return true; // 小程序共用电梯读接口
+        } else if (write && WORKER_WRITABLE_ELEVATOR.matcher(path).matches()) {
+            return true; // 维保人员现场更正电梯本地信息，越权由 ElevatorService 归属校验兜底（1403）
         } else if (write && LEADER_WRITABLE.matcher(path).matches()) {
             allowed = AdminRoles.canRead(role); // 班组长及以上
         } else if (write) {

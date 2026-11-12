@@ -97,4 +97,15 @@ class AdminRoleInterceptorTest {
         assertDoesNotThrow(() -> interceptor.preHandle(
                 request("PUT", "/admin/plans/delays/pd_1/decide", "SYS_ADMIN"), response, handler));
     }
+
+    /** 维保人员现场可写电梯本地信息（docs/04 A.2.1）：WORKER 可写 project-name/local，手动派单 dispatch 仍需管理员 */
+    @Test
+    void workerCanEditOwnElevatorLocalInfo() {
+        assertDoesNotThrow(() -> interceptor.preHandle(
+                request("PUT", "/elevators/{id}/project-name", "WORKER"), response, handler));
+        assertDoesNotThrow(() -> interceptor.preHandle(
+                request("PUT", "/elevators/{id}/local", "WORKER"), response, handler));
+        assertThrows(BizException.class, () -> interceptor.preHandle(
+                request("POST", "/elevators/{id}/dispatch", "WORKER"), response, handler));
+    }
 }

@@ -348,8 +348,8 @@ public class AdminArchiveService {
     }
 
     public Map<String, Object> createElevator(Map<String, Object> body) {
-        if (str(body, "elevatorCode").isBlank() || str(body, "elevatorName").isBlank()) {
-            throw new BizException(422, "电梯编号与名称必填");
+        if (str(body, "elevatorCode").isBlank() || str(body, "projectName").isBlank()) {
+            throw new BizException(422, "电梯编号与项目名称（小区）必填");
         }
         Elevator el = new Elevator();
         el.id = Ids.next("el");
@@ -417,14 +417,15 @@ public class AdminArchiveService {
         if (body.get("elevatorCode") != null) {
             el.elevatorCode = str(body, "elevatorCode");
         }
-        if (body.get("elevatorName") != null) {
-            el.elevatorName = str(body, "elevatorName");
-        }
         if (body.get("location") != null) {
             el.location = str(body, "location");
         }
+        // 电梯名称 = 项目名称（小区），合并维护（用户需求 2026-11-11）；projectName 优先
         if (body.get("projectName") != null) {
             el.projectName = str(body, "projectName");
+            el.elevatorName = el.projectName;
+        } else if (body.get("elevatorName") != null) {
+            el.elevatorName = str(body, "elevatorName");
         }
         if (body.get("regCode") != null) {
             el.regCode = str(body, "regCode");

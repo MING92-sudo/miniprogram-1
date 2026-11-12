@@ -54,6 +54,15 @@ public class ElevatorController {
         return ApiResponse.ok(Map.of("ok", true));
     }
 
+    /** 维保人员现场维护设备本地信息（docs/04 A.2.1）；仅本人负责的电梯，越权 1403 */
+    @PutMapping("/elevators/{id}/local")
+    public ApiResponse<Map<String, Object>> updateLocal(@PathVariable String id,
+                                                        @RequestBody Map<String, Object> body,
+                                                        HttpServletRequest request) {
+        elevatorService.updateLocal(id, empId(request), body);
+        return ApiResponse.ok(Map.of("ok", true));
+    }
+
     private String empId(HttpServletRequest request) {
         return String.valueOf(request.getAttribute(com.cqwlw.maintenance.auth.AuthInterceptor.ATTR_EMP_ID));
     }

@@ -170,7 +170,7 @@ class AdminArchiveServiceTest {
     void createElevatorRejectsUnknownUseUnit() {
         when(useUnitMapper.selectById("uu_none")).thenReturn(null);
         BizException e = assertThrows(BizException.class, () -> service.createElevator(Map.of(
-                "elevatorCode", "EM-9", "elevatorName", "测试梯", "useUnitId", "uu_none")));
+                "elevatorCode", "EM-9", "projectName", "测试梯", "useUnitId", "uu_none")));
         assertEquals(422, e.getCode());
     }
 

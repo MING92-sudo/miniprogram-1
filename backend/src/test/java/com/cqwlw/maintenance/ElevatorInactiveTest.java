@@ -1,5 +1,6 @@
 package com.cqwlw.maintenance;
 
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.cqwlw.maintenance.common.BizException;
 import com.cqwlw.maintenance.entity.Elevator;
 import com.cqwlw.maintenance.entity.Employee;
@@ -24,6 +25,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -176,5 +178,88 @@ class ElevatorInactiveTest {
 
         BizException e = assertThrows(BizException.class, () -> service.viewByCode(el.elevatorCode));
         assertEquals(422, e.getCode(), "停用电梯的贴梯二维码应提示失效（docs/09 §6.6）");
+    }
+
+    // ── 现场维护设备本地信息（docs/01 §3.4.1；用户需求 2026-11-11：全部本地字段可改 + 电梯名称=项目名称合并）──
+
+    private static void initElevatorTableInfo() {
+        // LambdaUpdateWrapper 需要 TableInfo 缓存（纯 Mockito 单测无 MyBatis 环境，手动初始化一次）
+        com.baomidou.mybatisplus.core.metadata.TableInfoHelper.initTableInfo(
+                new org.apache.ibatis.builder.MapperBuilderAssistant(
+                        new com.baomidou.mybatisplus.core.MybatisConfiguration(), ""), Elevator.class);
+    }
+
+    @Test
+    void updateLocalSavesFieldsAndSyncsElevatorName() {
+        initElevatorTableInfo();
+        ElevatorMapper elevatorMapper = mock(ElevatorMapper.class);
+        EmployeeScopeService scopeService = mock(EmployeeScopeService.class);
+        ElevatorService service = new ElevatorService(elevatorMapper, mock(UseUnitMapper.class), scopeService);
+
+        when(elevatorMapper.selectById("el_mine")).thenReturn(elevator("el_mine", null));
+        when(scopeService.require("emp_1")).thenReturn(new Employee());
+        when(scopeService.visibleWorkerPlatformIds(any())).thenReturn(Set.of("pid_zhang"));
+
+        service.updateLocal("el_mine", "emp_1", Map.of(
+                "projectName", " 世纪大厦 ", "address", "渝北区龙山一路", "brand", "奥的斯", "ratedLoad", "1000"));
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<LambdaUpdateWrapper<Elevator>> cap = ArgumentCaptor.forClass(LambdaUpdateWrapper.class);
+        verify(elevatorMapper).update(isNull(), cap.capture());
+        String sql = cap.getValue().getSqlSet();
+        assertTrue(sql.contains("project_name"), "应更新项目名称");
+        assertTrue(sql.contains("elevator_name"), "项目名称变更应同步电梯名称（电梯名称=项目名称合并）");
+        assertTrue(sql.contains("location"), "安装地址（address）应映射落库到 location");
+    }
+
+    @Test
+    void updateLocalRejectsOtherWorkersElevator() {
+        ElevatorMapper elevatorMapper = mock(ElevatorMapper.class);
+        EmployeeScopeService scopeService = mock(EmployeeScopeService.class);
+        ElevatorService service = new ElevatorService(elevatorMapper, mock(UseUnitMapper.class), scopeService);
+
+        Elevator other = elevator("el_other", null);
+        other.workerPlatformId = "pid_other";
+        other.assistantPlatformId = null;
+        when(elevatorMapper.selectById("el_other")).thenReturn(other);
+        when(scopeService.require("emp_1")).thenReturn(new Employee());
+        when(scopeService.visibleWorkerPlatformIds(any())).thenReturn(Set.of("pid_zhang"));
+
+        BizException e = assertThrows(BizException.class,
+                () -> service.updateLocal("el_other", "emp_1", Map.of("brand", "X")));
+        assertEquals(1403, e.getCode(), "仅可维护本人负责的电梯");
+        verify(elevatorMapper, never()).update(any(), any(LambdaUpdateWrapper.class));
+    }
+
+    @Test
+    void updateLocalRejectsBlankProjectName() {
+        ElevatorMapper elevatorMapper = mock(ElevatorMapper.class);
+        EmployeeScopeService scopeService = mock(EmployeeScopeService.class);
+        ElevatorService service = new ElevatorService(elevatorMapper, mock(UseUnitMapper.class), scopeService);
+
+        when(elevatorMapper.selectById("el_mine")).thenReturn(elevator("el_mine", null));
+        when(scopeService.require("emp_1")).thenReturn(new Employee());
+        when(scopeService.visibleWorkerPlatformIds(any())).thenReturn(Set.of("pid_zhang"));
+
+        BizException e = assertThrows(BizException.class,
+                () -> service.updateLocal("el_mine", "emp_1", Map.of("projectName", "   ")));
+        assertEquals(422, e.getCode(), "项目名称留空应拒绝");
+        verify(elevatorMapper, never()).update(any(), any(LambdaUpdateWrapper.class));
+    }
+
+    @Test
+    void updateLocalRejectsEmptyBody() {
+        ElevatorMapper elevatorMapper = mock(ElevatorMapper.class);
+        EmployeeScopeService scopeService = mock(EmployeeScopeService.class);
+        ElevatorService service = new ElevatorService(elevatorMapper, mock(UseUnitMapper.class), scopeService);
+
+        when(elevatorMapper.selectById("el_mine")).thenReturn(elevator("el_mine", null));
+        when(scopeService.require("emp_1")).thenReturn(new Employee());
+        when(scopeService.visibleWorkerPlatformIds(any())).thenReturn(Set.of("pid_zhang"));
+
+        BizException e = assertThrows(BizException.class,
+                () -> service.updateLocal("el_mine", "emp_1", Map.of()));
+        assertEquals(422, e.getCode(), "无可更新字段应拒绝");
+        verify(elevatorMapper, never()).update(any(), any(LambdaUpdateWrapper.class));
     }
 }

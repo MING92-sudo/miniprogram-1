@@ -1,6 +1,7 @@
 package com.cqwlw.maintenance.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.cqwlw.maintenance.common.BizException;
 import com.cqwlw.maintenance.entity.Elevator;
 import com.cqwlw.maintenance.entity.UseUnit;
@@ -9,6 +10,7 @@ import com.cqwlw.maintenance.mapper.UseUnitMapper;
 import com.cqwlw.maintenance.util.TimeUtil;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -160,6 +162,115 @@ public class ElevatorService {
         patch.id = el.id;
         patch.projectName = v;
         elevatorMapper.updateById(patch);
+    }
+
+    /** 维保人员现场维护设备本地信息（docs/01 §3.4.1）。仅本人负责的电梯，越权 1403。
+     *  可改：项目名称/安装地址/品牌/制造单位/产品编号/驱动方式/额定载重/额定速度/层站门/下次检验、维保日期。
+     *  不开放：经纬度（签到围栏，严禁伪造坐标）、使用单位负责人（属使用单位档案，非设备信息）。
+     *  项目名称变更时同步 elevatorName（电梯名称 = 项目名称，合并，用户需求 2026-11-11）。 */
+    public void updateLocal(String id, String empId, Map<String, Object> body) {
+        Elevator el = get(id);
+        if (el == null) {
+            throw new BizException(1404, "电梯不存在");
+        }
+        Set<String> ids = scopeService.visibleWorkerPlatformIds(scopeService.require(empId));
+        if (ids != null
+                && (el.workerPlatformId == null || !ids.contains(el.workerPlatformId))
+                && (el.assistantPlatformId == null || !ids.contains(el.assistantPlatformId))) {
+            throw new BizException(1403, "仅可维护本人负责的电梯");
+        }
+
+        LambdaUpdateWrapper<Elevator> uw = new LambdaUpdateWrapper<Elevator>().eq(Elevator::getId, id);
+        boolean any = false;
+        if (body != null && body.containsKey("projectName")) {
+            String v = str(body, "projectName").trim();
+            if (v.isEmpty()) {
+                throw new BizException(422, "项目名称不能为空");
+            }
+            // 电梯名称 = 项目名称（小区），合并维护（docs/01 §3.4.1）
+            uw.set(Elevator::getProjectName, v).set(Elevator::getElevatorName, v);
+            any = true;
+        }
+        if (body != null && body.containsKey("address")) {
+            uw.set(Elevator::getLocation, str(body, "address"));
+            any = true;
+        }
+        if (body != null && body.containsKey("brand")) {
+            uw.set(Elevator::getBrand, str(body, "brand"));
+            any = true;
+        }
+        if (body != null && body.containsKey("manufacturer")) {
+            uw.set(Elevator::getManufacturer, str(body, "manufacturer"));
+            any = true;
+        }
+        if (body != null && body.containsKey("productNo")) {
+            uw.set(Elevator::getProductNo, str(body, "productNo"));
+            any = true;
+        }
+        if (body != null && body.containsKey("driveMode")) {
+            uw.set(Elevator::getDriveMode, str(body, "driveMode"));
+            any = true;
+        }
+        if (body != null && body.containsKey("ratedLoad")) {
+            uw.set(Elevator::getRatedLoad, intOrNull(str(body, "ratedLoad")));
+            any = true;
+        }
+        if (body != null && body.containsKey("ratedLoadUnit")) {
+            uw.set(Elevator::getRatedLoadUnit, str(body, "ratedLoadUnit"));
+            any = true;
+        }
+        if (body != null && body.containsKey("ratedSpeed")) {
+            String s = str(body, "ratedSpeed");
+            uw.set(Elevator::getRatedSpeed, s.isBlank() ? null : decimalOrNull(s));
+            any = true;
+        }
+        if (body != null && body.containsKey("ratedSpeedUnit")) {
+            uw.set(Elevator::getRatedSpeedUnit, str(body, "ratedSpeedUnit"));
+            any = true;
+        }
+        if (body != null && body.containsKey("stationsDoors")) {
+            uw.set(Elevator::getStationsDoors, str(body, "stationsDoors"));
+            any = true;
+        }
+        if (body != null && body.containsKey("nextCheckDate")) {
+            uw.set(Elevator::getNextCheckDate, TimeUtil.parseDate(str(body, "nextCheckDate")));
+            any = true;
+        }
+        if (body != null && body.containsKey("nextMaintenanceDate")) {
+            uw.set(Elevator::getNextMaintenanceDate, TimeUtil.parseDate(str(body, "nextMaintenanceDate")));
+            any = true;
+        }
+        if (!any) {
+            throw new BizException(422, "无可更新的设备信息");
+        }
+        elevatorMapper.update(null, uw);
+    }
+
+    private static Integer intOrNull(String s) {
+        if (s == null || s.isBlank()) {
+            return null;
+        }
+        try {
+            return Integer.parseInt(s.trim());
+        } catch (NumberFormatException e) {
+            throw new BizException(422, "额定载重必须为整数");
+        }
+    }
+
+    private static BigDecimal decimalOrNull(String s) {
+        if (s == null || s.isBlank()) {
+            return null;
+        }
+        try {
+            return new BigDecimal(s.trim());
+        } catch (NumberFormatException e) {
+            throw new BizException(422, "额定速度必须为数字");
+        }
+    }
+
+    private static String str(Map<String, Object> body, String key) {
+        Object v = body.get(key);
+        return v == null ? "" : String.valueOf(v);
     }
 
     static String nz(String s) {
