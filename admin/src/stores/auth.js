@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import * as authApi from '../api/auth'
 import { onUnauthorized } from '../api/client'
+import { can as canPerm } from '../utils/permission'
 import router from '../router'
 
 /** 管理端角色口径（与后端 auth/AdminRoles.java 对齐，docs/09 §三） */
@@ -30,6 +31,8 @@ export const useAuthStore = defineStore('auth', {
     canWrite: (s) => ADMIN_WRITE_ROLES.includes(s.role),
     isSysAdmin: (s) => s.role === 'SYS_ADMIN',
     canRead: (s) => ADMIN_READ_ROLES.includes(s.role),
+    // 细粒度能力判定（docs/14 §6 矩阵）：菜单/路由/按钮统一用它，不再新增角色白名单
+    can: (s) => (capability) => canPerm(s.role, capability),
     userName: (s) => (s.user && s.user.name) || s.role || ''
   },
   actions: {

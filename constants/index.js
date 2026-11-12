@@ -7,7 +7,14 @@ const ROLE = {
   LEADER: 'LEADER', // 班组长
   UNIT_ADMIN: 'UNIT_ADMIN', // 使用单位安全管理员
   ADMIN: 'ADMIN', // 维保部管理员
-  SYS_ADMIN: 'SYS_ADMIN' // 系统管理员
+  SYS_ADMIN: 'SYS_ADMIN', // 系统管理员
+  // docs/14 §3 角色码表：三平级部门岗位（本次仅新增码值，既有码值语义不变）
+  INSTALL_MANAGER: 'INSTALL_MANAGER', // 安装项目经理
+  INSTALL_CLERK: 'INSTALL_CLERK', // 安装文员
+  INSTALL_WORKER: 'INSTALL_WORKER', // 安装员
+  MAINT_MANAGER: 'MAINT_MANAGER', // 维保经理
+  MAINT_BIZ: 'MAINT_BIZ', // 维保商务
+  MAINT_QUALITY: 'MAINT_QUALITY' // 维保质量负责人
 }
 
 // 工单状态

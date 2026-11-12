@@ -7,39 +7,17 @@
       </div>
       <el-menu :default-active="active" :default-openeds="openMenus" router background-color="#001529"
                text-color="#a6adb4" active-text-color="#ffffff" class="admin-menu">
-        <el-menu-item index="/dashboard">
-          <el-icon><Odometer /></el-icon><span>监控看板</span>
-        </el-menu-item>
-        <el-menu-item index="/schedule">
-          <el-icon><Tickets /></el-icon><span>计划调度</span>
-        </el-menu-item>
-        <el-menu-item index="/ledger">
-          <el-icon><Notebook /></el-icon><span>电梯台账</span>
-        </el-menu-item>
-        <el-menu-item index="/templates">
-          <el-icon><List /></el-icon><span>模板管理</span>
-        </el-menu-item>
-        <el-sub-menu index="monitor">
-          <template #title><el-icon><Refresh /></el-icon><span>工单监控</span></template>
-          <el-menu-item index="/orders"><span>工单列表</span></el-menu-item>
-          <el-menu-item index="/faults"><span>急修单</span></el-menu-item>
-          <el-menu-item index="/reports/failed"><span>上报异常清单</span></el-menu-item>
-        </el-sub-menu>
-        <el-sub-menu index="archive">
-          <template #title><el-icon><Tickets /></el-icon><span>档案管理</span></template>
-          <el-menu-item index="/archive/company"><span>维保单位</span></el-menu-item>
-          <el-menu-item index="/archive/use-units"><span>使用单位</span></el-menu-item>
-          <el-menu-item index="/archive/employees"><span>人员</span></el-menu-item>
-          <el-menu-item index="/archive/elevators"><span>电梯档案</span></el-menu-item>
-        </el-sub-menu>
-        <el-sub-menu index="register">
-          <template #title><el-icon><Notebook /></el-icon><span>平台登记</span></template>
-          <el-menu-item index="/register/workers"><span>人员管理</span></el-menu-item>
-        </el-sub-menu>
-        <el-sub-menu index="logs">
-          <template #title><el-icon><Notebook /></el-icon><span>上报日志</span></template>
-          <el-menu-item index="/reports/logs"><span>上报日志</span></el-menu-item>
-        </el-sub-menu>
+        <template v-for="item in menus" :key="item.index">
+          <el-menu-item v-if="!item.children" :index="item.index">
+            <el-icon><component :is="item.icon" /></el-icon><span>{{ item.title }}</span>
+          </el-menu-item>
+          <el-sub-menu v-else :index="item.index">
+            <template #title><el-icon><component :is="item.icon" /></el-icon><span>{{ item.title }}</span></template>
+            <el-menu-item v-for="child in item.children" :key="child.index" :index="child.index">
+              <span>{{ child.title }}</span>
+            </el-menu-item>
+          </el-sub-menu>
+        </template>
       </el-menu>
     </el-aside>
 
@@ -62,15 +40,101 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import {
 Odometer, Tickets, Refresh, Notebook, List
 } from '@element-plus/icons-vue'
 import { useAuthStore } from '../stores/auth'
+import * as authApi from '../api/auth'
+import { filterMenus, attachIcons } from '../utils/menu'
 import { ROLE_TEXT } from '../constants'
 
 const route = useRoute()
+
+/**
+ * 菜单清单与所需能力码（docs/14 §6 管理端权限矩阵；与 router meta.perm 同源同码）。
+ * 菜单按角色过滤只是体验优化，后端 PermissionMatrix 才是权威（docs/14 §12.2）。
+ * 移交单/外接建档/维保合同/区域主数据 等菜单待对应视图落地后按矩阵追加：
+ * handover:read、filing:read、contract:read、region:write。
+ */
+const MENUS = [
+  { index: '/dashboard', title: '监控看板', icon: Odometer, perm: 'console:read' },
+  { index: '/schedule', title: '计划调度', icon: Tickets, perm: 'plan:write' },
+  { index: '/ledger', title: '电梯台账', icon: Notebook, perm: 'ledger:read' },
+  { index: '/templates', title: '模板管理', icon: List, perm: 'template:write' },
+  {
+    index: 'monitor',
+    title: '工单监控',
+    icon: Refresh,
+    children: [
+      { index: '/orders', title: '工单列表', perm: 'order:read' },
+      { index: '/faults', title: '急修单', perm: 'fault:read' },
+      { index: '/reports/failed', title: '上报异常清单', perm: 'order:read' }
+    ]
+  },
+  {
+    index: 'archive',
+    title: '档案管理',
+    icon: Tickets,
+    children: [
+      { index: '/archive/company', title: '维保单位', perm: 'employee:read' },
+      { index: '/archive/use-units', title: '使用单位', perm: 'useunit:read' },
+      { index: '/archive/employees', title: '人员', perm: 'employee:read' },
+      { index: '/archive/elevators', title: '电梯档案', perm: 'ledger:read' }
+    ]
+  },
+  {
+    index: 'register',
+    title: '平台登记',
+    icon: Notebook,
+    children: [
+      { index: '/register/workers', title: '人员管理', perm: 'employee:read' }
+    ]
+  },
+  {
+    index: 'logs',
+    title: '上报日志',
+    icon: Notebook,
+    children: [
+      { index: '/reports/logs', title: '上报日志', perm: 'record:read' }
+    ]
+  }
+]
+
+const auth = useAuthStore()
+
+/** 图标表：接口只下发 index/title/perm，图标组件留在前端按 index 取（未知 index 用 Notebook 兜底） */
+const MENU_ICONS = {
+  '/dashboard': Odometer,
+  '/schedule': Tickets,
+  '/ledger': Notebook,
+  '/templates': List,
+  monitor: Refresh,
+  archive: Tickets,
+  register: Notebook,
+  logs: Notebook
+}
+
+/** 服务端下发结果（docs/14 §9.3）；为空表示未拿到/不可登录，退回本地表 */
+const remoteMenus = ref([])
+
+onMounted(async () => {
+  try {
+    const res = await authApi.getMenus()
+    remoteMenus.value = (res && res.menus) || []
+  } catch (e) {
+    // 接口不可用（旧后端/离线）不阻塞管理端：退回本地表 + 能力过滤
+    remoteMenus.value = []
+  }
+})
+
+/** 菜单来源：服务端下发优先，失败退回本地 MENUS；两条路径都过能力过滤 */
+const menus = computed(() => {
+  const source = remoteMenus.value.length ? remoteMenus.value : MENUS
+  return attachIcons(filterMenus(source, auth.can), MENU_ICONS, Notebook)
+})
+
 /** 当前路由所在模块默认展开，其余折叠 */
 const openMenus = computed(() => {
   const p = route.path
@@ -80,7 +144,6 @@ const openMenus = computed(() => {
   if (p.startsWith('/reports/logs')) return ['logs']
   return ['monitor']
 })
-const auth = useAuthStore()
 
 const active = computed(() => '/' + route.path.split('/').filter(Boolean).slice(0, 2).join('/'))
 const title = computed(() => (route.meta && route.meta.title) || '电梯维保管理端')

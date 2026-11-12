@@ -37,12 +37,15 @@ public class AuthController {
     private final EmployeeMapper employeeMapper;
     private final JwtService jwtService;
     private final WxAuthService wxAuthService;
+    private final MenuService menuService;
     private final BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
 
-    public AuthController(EmployeeMapper employeeMapper, JwtService jwtService, WxAuthService wxAuthService) {
+    public AuthController(EmployeeMapper employeeMapper, JwtService jwtService, WxAuthService wxAuthService,
+                          MenuService menuService) {
         this.employeeMapper = employeeMapper;
         this.jwtService = jwtService;
         this.wxAuthService = wxAuthService;
+        this.menuService = menuService;
     }
 
     @PostMapping("/auth/login")
@@ -158,6 +161,19 @@ public class AuthController {
         }
         String role = String.valueOf(request.getAttribute(AuthInterceptor.ATTR_ROLE));
         return ApiResponse.ok(Map.of("userInfo", userInfo(user), "role", role));
+    }
+
+    /**
+     * 管理端菜单（docs/14 §9.3、§11 P2）：按登录角色能力过滤后下发，前端只渲染下发的项。
+     * 不可登录管理端的角色（WORKER/INSTALL_WORKER/USE_UNIT 等）返回空列表，由前端提示走小程序。
+     */
+    @GetMapping("/auth/menus")
+    public ApiResponse<Map<String, Object>> menus(HttpServletRequest request) {
+        String role = String.valueOf(request.getAttribute(AuthInterceptor.ATTR_ROLE));
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("role", role);
+        body.put("menus", menuService.menusOf(role));
+        return ApiResponse.ok(body);
     }
 
     private Map<String, Object> roleLogin(HttpServletRequest request, String requestedRole,
