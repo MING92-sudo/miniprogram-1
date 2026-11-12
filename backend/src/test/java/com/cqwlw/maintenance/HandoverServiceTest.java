@@ -2,11 +2,15 @@ package com.cqwlw.maintenance;
 
 import com.cqwlw.maintenance.common.BizException;
 import com.cqwlw.maintenance.entity.HandoverOrder;
+import com.cqwlw.maintenance.mapper.ElevatorMapper;
+import com.cqwlw.maintenance.mapper.EmployeeMapper;
 import com.cqwlw.maintenance.mapper.HandoverCheckItemMapper;
 import com.cqwlw.maintenance.mapper.HandoverCheckMapper;
 import com.cqwlw.maintenance.mapper.HandoverOrderMapper;
 import com.cqwlw.maintenance.mapper.HandoverRectificationMapper;
 import com.cqwlw.maintenance.mapper.HandoverSignMapper;
+import com.cqwlw.maintenance.mapper.WorkOrderMapper;
+import com.cqwlw.maintenance.service.DispatchService;
 import com.cqwlw.maintenance.service.HandoverService;
 import org.junit.jupiter.api.Test;
 
@@ -29,7 +33,9 @@ class HandoverServiceTest {
                                            HandoverCheckItemMapper checkItemMapper,
                                            HandoverRectificationMapper rectificationMapper,
                                            HandoverSignMapper signMapper) {
-        return new HandoverService(orderMapper, checkMapper, checkItemMapper, rectificationMapper, signMapper);
+        return new HandoverService(orderMapper, checkMapper, checkItemMapper, rectificationMapper, signMapper,
+                mock(ElevatorMapper.class), mock(EmployeeMapper.class), mock(WorkOrderMapper.class),
+                mock(DispatchService.class));
     }
 
     /** init 后 submitDocs 缺整机质量证明 → 422 拦截（3 必传资料卡点） */

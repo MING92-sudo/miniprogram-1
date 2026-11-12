@@ -8,8 +8,10 @@ import com.cqwlw.maintenance.mapper.CompanyMapper;
 import com.cqwlw.maintenance.mapper.ElevatorMapper;
 import com.cqwlw.maintenance.mapper.EmployeeMapper;
 import com.cqwlw.maintenance.mapper.FaultMapper;
+import com.cqwlw.maintenance.mapper.HandoverOrderMapper;
 import com.cqwlw.maintenance.mapper.InspectRecordMapper;
 import com.cqwlw.maintenance.mapper.MaintainRecordMapper;
+import com.cqwlw.maintenance.mapper.MessageMapper;
 import com.cqwlw.maintenance.mapper.SysParamMapper;
 import com.cqwlw.maintenance.mapper.UseUnitMapper;
 import com.cqwlw.maintenance.mapper.WorkOrderMapper;
@@ -64,7 +66,8 @@ class WorkOrderSignatureTest {
         ElevatorMapper elevatorMapper = mock(ElevatorMapper.class);
         service = new WorkOrderService(orderMapper, elevatorMapper, mock(UseUnitMapper.class),
                 employeeMapper, mock(CompanyMapper.class), mock(MaintainRecordMapper.class), mock(FaultMapper.class),
-                mock(InspectRecordMapper.class), mock(ChecklistService.class),
+                mock(InspectRecordMapper.class),
+                mock(HandoverOrderMapper.class), mock(MessageMapper.class), mock(ChecklistService.class),
                 mock(PlatformReportService.class), new EmployeeScopeService(employeeMapper),
                 new CheckinThresholdService(mock(SysParamMapper.class), new AppProperties()), mock(FileStorageService.class), TxTestSupport.noopTx(), new AppProperties());
 

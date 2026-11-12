@@ -23,6 +23,8 @@ public class HandoverOrder {
     public String status;
     /** 归档建梯后回填（1:1） */
     public String elevatorId;
+    /** 首保签退回写的遗留问题标记（默认 false，V28 迁移） */
+    public Boolean handoverIssue;
     public String projectName;
     public LocalDate supervisionPassDate;
     /** 发起人=安装部项目经理 */

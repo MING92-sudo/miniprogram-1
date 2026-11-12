@@ -3,16 +3,23 @@ package com.cqwlw.maintenance.service;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.cqwlw.maintenance.common.BizException;
 import com.cqwlw.maintenance.common.Ids;
+import com.cqwlw.maintenance.entity.Elevator;
+import com.cqwlw.maintenance.entity.Employee;
 import com.cqwlw.maintenance.entity.HandoverCheck;
 import com.cqwlw.maintenance.entity.HandoverCheckItem;
 import com.cqwlw.maintenance.entity.HandoverOrder;
 import com.cqwlw.maintenance.entity.HandoverRectification;
+import com.cqwlw.maintenance.entity.WorkOrder;
+import com.cqwlw.maintenance.mapper.ElevatorMapper;
+import com.cqwlw.maintenance.mapper.EmployeeMapper;
 import com.cqwlw.maintenance.mapper.HandoverCheckItemMapper;
 import com.cqwlw.maintenance.mapper.HandoverCheckMapper;
 import com.cqwlw.maintenance.mapper.HandoverOrderMapper;
 import com.cqwlw.maintenance.mapper.HandoverRectificationMapper;
 import com.cqwlw.maintenance.mapper.HandoverSignMapper;
+import com.cqwlw.maintenance.mapper.WorkOrderMapper;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -54,17 +61,29 @@ public class HandoverService {
     private final HandoverCheckItemMapper checkItemMapper;
     private final HandoverRectificationMapper rectificationMapper;
     private final HandoverSignMapper signMapper;
+    private final ElevatorMapper elevatorMapper;
+    private final EmployeeMapper employeeMapper;
+    private final WorkOrderMapper workOrderMapper;
+    private final DispatchService dispatchService;
 
     public HandoverService(HandoverOrderMapper orderMapper,
                            HandoverCheckMapper checkMapper,
                            HandoverCheckItemMapper checkItemMapper,
                            HandoverRectificationMapper rectificationMapper,
-                           HandoverSignMapper signMapper) {
+                           HandoverSignMapper signMapper,
+                           ElevatorMapper elevatorMapper,
+                           EmployeeMapper employeeMapper,
+                           WorkOrderMapper workOrderMapper,
+                           DispatchService dispatchService) {
         this.orderMapper = orderMapper;
         this.checkMapper = checkMapper;
         this.checkItemMapper = checkItemMapper;
         this.rectificationMapper = rectificationMapper;
         this.signMapper = signMapper; // Task 6 signNode 用
+        this.elevatorMapper = elevatorMapper;
+        this.employeeMapper = employeeMapper;
+        this.workOrderMapper = workOrderMapper;
+        this.dispatchService = dispatchService;
     }
 
     /** 安装部发起移交：创建移交单并直接进入 DOC_SUBMITTING（INIT 仅作枚举默认值，无独立「开始」动作） */
@@ -233,7 +252,9 @@ public class HandoverService {
         return o;
     }
 
-    /** 维保部经理确认：PENDING_CONFIRM → ARCHIVED，记录确认人/时间。纯状态流转，无电梯/首保副作用（Task 5 archive()） */
+    /** 维保部经理确认：PENDING_CONFIRM → ARCHIVED，记录确认人/时间。
+     *  确认=归档一步到位：状态流转后随即调用 archive() 执行建电梯/责任人/首保工单副作用，整体一个事务。 */
+    @Transactional(rollbackFor = Exception.class)
     public HandoverOrder confirm(String id, Map<String, Object> body) {
         HandoverOrder o = requireOrder(id);
         requireStatus(o, PENDING_CONFIRM, "确认");
@@ -242,7 +263,58 @@ public class HandoverService {
         o.confirmedAt = LocalDateTime.now();
         o.status = ARCHIVED;
         orderMapper.updateById(o);
-        return o;
+        return archive(o.id);
+    }
+
+    /**
+     * 归档副作用（Task 5 前半）：把移交单电梯信息快照建为电梯档案（archiveSource=1）、
+     * 责任人=接收工程师（按 receiverId 查 sys_employee 的 platformId；查不到则只记姓名不阻断）、
+     * 并预建首保（HM）工单（sourceHandoverId 回指移交单，planTime=归档日+15 自然日）。
+     * 幂等：已归档（elevatorId 非空）直接返回，不重复建电梯/首保工单。
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public HandoverOrder archive(String handoverId) {
+        HandoverOrder order = requireOrder(handoverId);
+        if (order.elevatorId != null) {
+            return order; // 已归档，幂等守卫
+        }
+        Elevator el = new Elevator();
+        el.id = Ids.next("el");
+        el.elevatorCode = order.elevatorCode;
+        el.elevatorName = order.elevatorName;
+        el.category = order.category;
+        el.location = order.location;
+        el.regCode = order.regCode;
+        el.deviceCode = order.deviceCode;
+        el.insideNumber = order.insideNumber;
+        el.model = order.model;
+        el.brand = order.brand;
+        el.manufacturer = order.manufacturer;
+        el.productNo = order.productNo;
+        el.driveMode = order.driveMode;
+        el.ratedLoad = order.ratedLoad;
+        el.ratedLoadUnit = order.ratedLoadUnit;
+        el.ratedSpeed = order.ratedSpeed;
+        el.ratedSpeedUnit = order.ratedSpeedUnit;
+        el.stationsDoors = order.stationsDoors;
+        el.workTypeCode = order.workTypeCode;
+        el.projectName = order.projectName;
+        el.supervisionPassDate = order.supervisionPassDate;
+        el.archiveSource = 1;
+        el.handoverAt = LocalDateTime.now();
+        // 责任人=接收工程师；配合人安装移交时未定，留空
+        el.workerName = order.receiverName;
+        Employee receiver = order.receiverId == null ? null : employeeMapper.selectById(order.receiverId);
+        el.workerPlatformId = receiver == null ? null : receiver.platformId;
+        elevatorMapper.insert(el);
+        order.elevatorId = el.id;
+        orderMapper.updateById(order);
+        WorkOrder first = dispatchService.precreateFirstOrder(el, LocalDate.now().plusDays(15));
+        if (first != null) {
+            first.sourceHandoverId = order.id;
+            workOrderMapper.updateById(first);
+        }
+        return order;
     }
 
     /** 移交单详情，不存在 1404 */

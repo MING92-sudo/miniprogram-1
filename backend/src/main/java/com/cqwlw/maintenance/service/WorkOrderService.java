@@ -7,21 +7,27 @@ import com.cqwlw.maintenance.entity.Company;
 import com.cqwlw.maintenance.entity.Employee;
 import com.cqwlw.maintenance.entity.Elevator;
 import com.cqwlw.maintenance.entity.Fault;
+import com.cqwlw.maintenance.entity.HandoverOrder;
 import com.cqwlw.maintenance.entity.InspectRecord;
 import com.cqwlw.maintenance.entity.MaintainRecord;
+import com.cqwlw.maintenance.entity.Message;
 import com.cqwlw.maintenance.entity.UseUnit;
 import com.cqwlw.maintenance.entity.WorkOrder;
 import com.cqwlw.maintenance.mapper.CompanyMapper;
 import com.cqwlw.maintenance.mapper.FaultMapper;
 import com.cqwlw.maintenance.mapper.EmployeeMapper;
 import com.cqwlw.maintenance.mapper.ElevatorMapper;
+import com.cqwlw.maintenance.mapper.HandoverOrderMapper;
 import com.cqwlw.maintenance.mapper.InspectRecordMapper;
 import com.cqwlw.maintenance.mapper.MaintainRecordMapper;
+import com.cqwlw.maintenance.mapper.MessageMapper;
 import com.cqwlw.maintenance.mapper.UseUnitMapper;
 import com.cqwlw.maintenance.mapper.WorkOrderMapper;
 import com.cqwlw.maintenance.util.GeoUtil;
 import com.cqwlw.maintenance.util.JsonUtil;
 import com.cqwlw.maintenance.util.TimeUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.stereotype.Service;
 
@@ -44,6 +50,8 @@ import java.util.stream.Collectors;
  */
 @Service
 public class WorkOrderService {
+
+    private static final Logger log = LoggerFactory.getLogger(WorkOrderService.class);
 
     /** 业务规则：签到—签退间隔不少于 N 分钟（app.work-duration-minutes 默认 30，业主补充规则，上线前待确认） */
     private static final int DEFAULT_MIN_WORK_DURATION_MINUTES = 30;
@@ -72,6 +80,8 @@ public class WorkOrderService {
     private final MaintainRecordMapper recordMapper;
     private final FaultMapper faultMapper;
     private final InspectRecordMapper inspectMapper;
+    private final HandoverOrderMapper handoverOrderMapper;
+    private final MessageMapper messageMapper;
     private final ChecklistService checklistService;
     private final PlatformReportService reportService;
     private final EmployeeScopeService scopeService;
@@ -84,6 +94,7 @@ public class WorkOrderService {
                             UseUnitMapper useUnitMapper, EmployeeMapper employeeMapper,
                             CompanyMapper companyMapper, MaintainRecordMapper recordMapper,
                             FaultMapper faultMapper, InspectRecordMapper inspectMapper,
+                            HandoverOrderMapper handoverOrderMapper, MessageMapper messageMapper,
                             ChecklistService checklistService,
                             PlatformReportService reportService,
                             EmployeeScopeService scopeService,
@@ -99,6 +110,8 @@ public class WorkOrderService {
         this.recordMapper = recordMapper;
         this.faultMapper = faultMapper;
         this.inspectMapper = inspectMapper;
+        this.handoverOrderMapper = handoverOrderMapper;
+        this.messageMapper = messageMapper;
         this.checklistService = checklistService;
         this.reportService = reportService;
         this.scopeService = scopeService;
@@ -814,6 +827,11 @@ public class WorkOrderService {
                 elevatorMapper.updateById(el);
             }
         });
+        // 首保签退回写遗留问题（Task 5 后半）：来源移交单 + handoverIssue=true → 标记移交单并通知安装部。
+        // 放主事务之后、平台上报之前；回写失败不阻断签退合规链（内部防御 try/catch）。
+        if (o.sourceHandoverId != null && Boolean.TRUE.equals(o.handoverIssue)) {
+            writeBackHandoverIssue(o);
+        }
         // P3：签退成功后自动转发平台 2.6（失败不自动重试，AGENTS §2.3；
         // 平台凭证未配置时保持 SUBMITTED=待上报，本地/演示流程不受影响）
         r.reportStatus = reportService.attemptUpload(r);
@@ -828,6 +846,32 @@ public class WorkOrderService {
                 "reportStatus", r.reportStatus,
                 "recordId", r.id,
                 "shareToken", r.shareToken);
+    }
+
+    /**
+     * 首保签退回写来源移交单遗留问题标记 + 消息中心通知安装部（Task 5 后半）。
+     * 防御：来源移交单查不到只记日志跳过，任何异常都不抛出——回写失败不得回滚签退合规链。
+     */
+    private void writeBackHandoverIssue(WorkOrder o) {
+        try {
+            HandoverOrder ho = handoverOrderMapper.selectById(o.sourceHandoverId);
+            if (ho == null) {
+                log.warn("首保签退回写遗留问题：来源移交单 {} 不存在，跳过", o.sourceHandoverId);
+                return;
+            }
+            ho.handoverIssue = true;
+            handoverOrderMapper.updateById(ho);
+            Message msg = new Message();
+            msg.id = Ids.next("msg");
+            msg.title = "移交遗留问题通知";
+            msg.content = "首保工单 " + nz(o.orderNo) + " 已签退并记录移交遗留问题，请安装部（发起人："
+                    + nz(ho.initiatorName) + "）跟进处理。";
+            msg.createdAt = TimeUtil.now();
+            msg.readFlag = false;
+            messageMapper.insert(msg);
+        } catch (Exception e) {
+            log.warn("首保签退回写遗留问题失败（不阻断签退）：{}", e.getMessage());
+        }
     }
 
     /**

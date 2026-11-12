@@ -15,6 +15,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -227,6 +228,19 @@ public class DispatchService {
         }
         return createOrder(el, el.workTypeCode, TimeUtil.parse(TimeUtil.date(TimeUtil.now()) + " 09:00:00"),
                 "手动派单通知", "首保/手动派单", false);
+    }
+
+    /** 首保预建（安装移交/外接建档归档用）：按指定计划日 09:00 预建半月保（HM）工单，绑定电梯当前维保人员。
+     *  幂等守卫：该电梯已有未完成（ne DONE）工单时不重复建单，返回 null（调用方据此只回填来源单号），
+     *  以免预建首保与定时派单/手动派单叠加出两张并行工单。 */
+    public WorkOrder precreateFirstOrder(Elevator elevator, LocalDate planDate) {
+        Long active = orderMapper.selectCount(new LambdaQueryWrapper<WorkOrder>()
+                .eq(WorkOrder::getElevatorId, elevator.id).ne(WorkOrder::getStatus, "DONE"));
+        if (active != null && active > 0) {
+            return null;
+        }
+        LocalDateTime planTime = TimeUtil.parse(planDate + " 09:00:00");
+        return createOrder(elevator, "HM", planTime, "首保派单通知", "安装移交首保（半月保）", false);
     }
 
     private LocalDateTime lastMaintenance(String elevatorId, String workTypeCode) {
