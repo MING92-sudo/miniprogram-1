@@ -61,3 +61,6 @@ AGENTS.md.backup.*
 
 # admin 本地构建缓存
 admin/.tmp-build/
+
+# 后端打包时把 admin/dist 拷进 jar 的 static 目录（Dockerfile 构建产物，不入库）
+backend/src/main/resources/static/
