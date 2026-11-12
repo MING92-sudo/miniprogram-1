@@ -1,7 +1,7 @@
 //
 const { resolveByElevatorCode } = require('../../services/order')
 const { getHomeSummary } = require('../../services/home')
-const { ensureLogin } = require('../../utils/guard')
+const { isLoggedIn } = require('../../utils/auth')
 const { refreshUnreadBadge } = require('../../utils/badge')
 const { getQueue } = require('../../utils/offline')
 
@@ -25,7 +25,17 @@ function greet() {
 
 Page({
   data: {
+    guest: false,
     userInfo: null,
+    // 未登录首页功能介绍（登录规范：先浏览功能，后自行选择登录）
+    features: [
+      { title: '维保工单', desc: '派单、执行、跟踪，全流程电子化' },
+      { title: '现场签到', desc: '扫码到场，定位打卡留痕' },
+      { title: '拍照留证', desc: '水印相机，作业过程可追溯' },
+      { title: '电子签名', desc: '维保与使用单位双人确认' },
+      { title: '设备信息', desc: '电梯档案、项目信息查询' },
+      { title: '故障急修', desc: '现场登记、闭环跟踪' }
+    ],
     roleText: '',
     greeting: '',
     summary: {
@@ -43,23 +53,24 @@ Page({
   },
 
   onShow() {
-    // 冷启动首次 onShow 时初始路由可能尚未完成，此时守卫发起 reLaunch 在真机上会丢失导航
-    if (this._authReady) {
-      if (!ensureLogin()) return
-      this.refresh()
-    }
+    if (this._authReady) this.refresh()
   },
 
   onReady() {
     this._authReady = true
-    if (!ensureLogin()) return
     this.refresh()
   },
 
   refresh() {
+    // 未登录不强制跳转：展示登录引导空状态（登录规范：允许取消/暂不登录浏览）
+    if (!isLoggedIn()) {
+      this.setData({ guest: true })
+      return
+    }
     const app = getApp()
     const u = app.globalData.userInfo || {}
     this.setData({
+      guest: false,
       userInfo: u,
       roleText: u.roleText || '',
       greeting: greet() + (u.name ? '，' + u.name : ''),
@@ -67,6 +78,11 @@ Page({
     })
     this.fetchSummary()
     refreshUnreadBadge()
+  },
+
+  // 未登录引导 → 去登录页（navigateTo 保留返回，可退回首页）
+  goLogin() {
+    wx.navigateTo({ url: '/pages/login/index' })
   },
 
   async fetchSummary() {

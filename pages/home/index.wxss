@@ -5,6 +5,89 @@
   padding-bottom: 40rpx;
 }
 
+/* ── 未登录首页：功能介绍（登录规范：先浏览功能，后自行选择登录） ── */
+.guest-view {
+  padding: 48rpx 32rpx 40rpx;
+}
+
+.guest-head {
+  padding: 16rpx 8rpx 32rpx;
+}
+
+.guest-logo {
+  font-size: 44rpx;
+  font-weight: 700;
+  color: var(--em-text-primary);
+}
+
+.guest-slogan {
+  font-size: 26rpx;
+  color: var(--em-text-secondary);
+  margin-top: 12rpx;
+}
+
+.feature-list {
+  background: var(--em-bg-card);
+  border-radius: 16rpx;
+  padding: 12rpx 24rpx;
+  box-shadow: 0 2rpx 8rpx rgba(26, 30, 38, 0.03);
+}
+
+.feature-item {
+  display: flex;
+  align-items: flex-start;
+  padding: 24rpx 0;
+  border-bottom: 2rpx solid var(--em-bg-page);
+}
+.feature-item:last-child {
+  border-bottom: none;
+}
+
+.feature-dot {
+  width: 12rpx;
+  height: 12rpx;
+  border-radius: 50%;
+  background: var(--em-brand);
+  margin: 10rpx 20rpx 0 0;
+  flex-shrink: 0;
+}
+
+.feature-body {
+  flex: 1;
+}
+
+.feature-title {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: var(--em-text-primary);
+}
+
+.feature-desc {
+  font-size: 24rpx;
+  color: var(--em-text-secondary);
+  margin-top: 6rpx;
+}
+
+.guest-btn {
+  margin-top: 48rpx;
+  background: var(--em-brand);
+  color: #ffffff;
+  font-size: 32rpx;
+  font-weight: 600;
+  border-radius: 999rpx;
+  line-height: 2.6;
+}
+.guest-btn::after {
+  border: none;
+}
+
+.guest-tip {
+  margin-top: 24rpx;
+  text-align: center;
+  font-size: 24rpx;
+  color: var(--em-text-disabled);
+}
+
 /* ── 顶部 Banner：到场签到记忆点 ── */
 .banner {
   position: relative;

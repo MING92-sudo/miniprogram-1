@@ -6,7 +6,7 @@ Page({
   data: { oldPassword: '', newPassword: '', confirm: '', submitting: false },
 
   onLoad() {
-    ensureLogin()
+    if (!ensureLogin()) return
   },
 
   onOld(e) { this.setData({ oldPassword: e.detail.value }) },

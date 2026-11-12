@@ -53,3 +53,37 @@ page {
   color: var(--em-text-secondary);
   font-size: 24rpx;
 }
+
+/* 未登录空状态（登录规范：先浏览功能，后自行选择登录） */
+.guest-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 200rpx 64rpx 0;
+}
+
+.guest-empty-title {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: var(--em-text-primary);
+}
+
+.guest-empty-sub {
+  font-size: 26rpx;
+  color: var(--em-text-secondary);
+  margin-top: 16rpx;
+}
+
+.guest-empty-btn {
+  margin-top: 64rpx;
+  width: 320rpx;
+  background: var(--em-brand);
+  color: #ffffff;
+  font-size: 30rpx;
+  font-weight: 600;
+  border-radius: 999rpx;
+  line-height: 2.6;
+}
+.guest-empty-btn::after {
+  border: none;
+}

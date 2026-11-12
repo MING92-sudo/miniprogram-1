@@ -21,6 +21,7 @@
     "pages/mine/offline",
     "pages/unit/sign",
     "pages/login/index",
+    "pages/login/agreement",
     "pages/mine/password"
   ],
   "window": {

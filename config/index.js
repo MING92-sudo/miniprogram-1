@@ -11,12 +11,12 @@ const API_BASE_URL = {
   prod: 'https://springboot-l1ws-321794-10-1498557567.sh.run.tcloudbase.com'
 }
 
-// 云托管（微信云开发）：小程序经 wx.cloud.callContainer 调容器，免配 request 合法域名。
-// env   = 云开发环境 ID（环境名 cloud1）；service = 云托管服务名（控制台「环境/服务」页可查）。
+// 云托管（微信云开发）：小程序经 wx.cloud.callContainer 调容器，走微信↔腾讯私有链路，免配 request 合法域名。
+// env   = 云开发环境 ID（环境名 prod，微信云托管）；service = 云托管服务名（控制台「环境/服务」页可查）。
 // 上传仍走 wx.uploadFile（callContainer 只收 JSON），该域名需配到「uploadFile 合法域名」。
 const CLOUD = {
-  enabled: false, // ★ 临时诊断：关闭 callContainer，回退 wx.request 直连验证（定位到正确 env/service 后恢复 ENV === 'prod'）
-  env: 'cloud1-d8g6d6byy3ff0c74d',
+  enabled: ENV === 'prod', // ★ callContainer 私有链路：免域名、免备案、免配 request 合法域名
+  env: 'prod-d3gg6nba2f3160af9',
   service: 'springboot-l1ws'
 }
 

@@ -1,0 +1,32 @@
+/* 协议页：居中标题 + 分区标题 + 段落正文 */
+.agreement-page {
+  padding: 24rpx 0;
+}
+
+.agr-title {
+  font-size: 36rpx;
+  font-weight: 700;
+  text-align: center;
+  color: var(--em-text-primary);
+}
+
+.agr-updated {
+  font-size: 24rpx;
+  color: var(--em-text-secondary);
+  text-align: center;
+  margin: 12rpx 0 8rpx;
+}
+
+.agr-h {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: var(--em-text-primary);
+  margin: 28rpx 0 12rpx;
+}
+
+.agr-p {
+  font-size: 26rpx;
+  color: var(--em-text-primary);
+  line-height: 1.7;
+  margin-bottom: 10rpx;
+}

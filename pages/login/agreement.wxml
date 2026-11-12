@@ -1,0 +1,10 @@
+<view class="em-page agreement-page">
+  <view class="em-card">
+    <view class="agr-title">{{title}}</view>
+    <view class="agr-updated">{{updated}}</view>
+    <block wx:for="{{sections}}" wx:key="h">
+      <view class="agr-h">{{item.h}}</view>
+      <view wx:for="{{item.ps}}" wx:for-item="p" wx:key="*this" class="agr-p">{{p}}</view>
+    </block>
+  </view>
+</view>

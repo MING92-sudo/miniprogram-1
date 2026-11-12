@@ -36,14 +36,16 @@
       <view class="forgot" bindtap="forgotPassword">忘记密码？</view>
     </view>
 
+    <view class="agreement">
+      <view class="checkbox {{agreed ? 'checked' : ''}}" bindtap="toggleAgreed">{{agreed ? '✓' : ''}}</view>
+      <view class="agreement-text">登录代表您已同意<text class="link" bindtap="openAgreement">《用户协议》</text>和<text class="link" bindtap="openPrivacy">《隐私政策》</text></view>
+    </view>
+
     <button class="login-btn" disabled="{{logging}}" bindtap="onSubmit">
       {{logging ? '登录中...' : '立即登录'}}
       <text wx:if="{{!logging}}" class="login-arrow">→</text>
     </button>
-  </view>
 
-  <view class="agreement">
-    <view class="checkbox {{agreed ? 'checked' : ''}}" bindtap="toggleAgreed">{{agreed ? '✓' : ''}}</view>
-    <view class="agreement-text">登录代表您已同意<text class="link">《用户协议》</text>和<text class="link">《隐私政策》</text></view>
+    <view class="skip-login" bindtap="skipLogin">暂不登录，先看看</view>
   </view>
 </view>

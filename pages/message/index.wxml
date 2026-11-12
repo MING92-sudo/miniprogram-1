@@ -1,28 +1,37 @@
 <view class="em-page">
-  <view class="mark-all" bindtap="onMarkAll" wx:if="{{unreadCount > 0}}">
-    全部已读（{{unreadCount}} 条未读）
+  <!-- 未登录：登录引导空状态（登录规范：先浏览功能，后自行选择登录） -->
+  <view wx:if="{{guest}}" class="guest-empty">
+    <view class="guest-empty-title">登录后查看消息通知</view>
+    <view class="guest-empty-sub">账号由维保单位统一分配</view>
+    <button class="guest-empty-btn" bindtap="goLogin">去登录</button>
   </view>
 
-  <view wx:if="{{list.length === 0}}" class="em-card em-text-secondary empty">{{emptyText.MESSAGE}}</view>
+  <block wx:else>
+    <view class="mark-all" bindtap="onMarkAll" wx:if="{{unreadCount > 0}}">
+      全部已读（{{unreadCount}} 条未读）
+    </view>
 
-  <view
-    wx:for="{{list}}"
-    wx:key="id"
-    class="em-card msg-item {{item.read ? 'read' : ''}}"
-    data-id="{{item.id}}"
-    bindtap="onItemTap"
-  >
-    <view class="msg-head">
-      <view class="msg-title">{{item.title || '消息'}}</view>
-      <view wx:if="{{!item.read}}" class="dot"></view>
+    <view wx:if="{{list.length === 0}}" class="em-card em-text-secondary empty">{{emptyText.MESSAGE}}</view>
+
+    <view
+      wx:for="{{list}}"
+      wx:key="id"
+      class="em-card msg-item {{item.read ? 'read' : ''}}"
+      data-id="{{item.id}}"
+      bindtap="onItemTap"
+    >
+      <view class="msg-head">
+        <view class="msg-title">{{item.title || '消息'}}</view>
+        <view wx:if="{{!item.read}}" class="dot"></view>
+      </view>
+      <view class="em-text-secondary">{{item.content || ''}}</view>
+      <view wx:if="{{expandedId === item.id}}" class="msg-detail">
+        <view class="msg-detail-row"><text class="msg-detail-label">标题</text><text>{{item.title || '—'}}</text></view>
+        <view class="msg-detail-row"><text class="msg-detail-label">时间</text><text>{{item.createdAt || '—'}}</text></view>
+        <view class="msg-detail-row"><text class="msg-detail-label">类型</text><text>{{item.type || '—'}}</text></view>
+        <view class="msg-detail-row msg-detail-full"><text class="msg-detail-label">详细内容</text><text>{{item.content || '（无正文）'}}</text></view>
+      </view>
+      <view class="em-text-secondary msg-time">{{item.createdAt || ''}}</view>
     </view>
-    <view class="em-text-secondary">{{item.content || ''}}</view>
-    <view wx:if="{{expandedId === item.id}}" class="msg-detail">
-      <view class="msg-detail-row"><text class="msg-detail-label">标题</text><text>{{item.title || '—'}}</text></view>
-      <view class="msg-detail-row"><text class="msg-detail-label">时间</text><text>{{item.createdAt || '—'}}</text></view>
-      <view class="msg-detail-row"><text class="msg-detail-label">类型</text><text>{{item.type || '—'}}</text></view>
-      <view class="msg-detail-row msg-detail-full"><text class="msg-detail-label">详细内容</text><text>{{item.content || '（无正文）'}}</text></view>
-    </view>
-    <view class="em-text-secondary msg-time">{{item.createdAt || ''}}</view>
-  </view>
+  </block>
 </view>

@@ -1,11 +1,12 @@
 // 消息中心
 const { getMessageList, markRead, markAllRead } = require('../../services/message')
-const { ensureLogin } = require('../../utils/guard')
+const { isLoggedIn } = require('../../utils/auth')
 const { refreshUnreadBadge } = require('../../utils/badge')
 const { TOAST_TEXT, EMPTY_TEXT } = require('../../constants/index')
 
 Page({
   data: {
+    guest: false,
     list: [],
     page: 1,
     size: 20,
@@ -16,19 +17,31 @@ Page({
   },
 
   onShow() {
-    // 首次 onShow 发生在 tab 路由进行中，守卫 reLaunch 会与其竞态
-    // （routeDone with a webviewId xxx is not found），首次守卫延迟到 onReady
     if (!this._authReady) return
-    if (!ensureLogin()) return
+    if (!this.guard()) return
     this.fetchList(true)
     this.syncUnread()
   },
 
   onReady() {
     this._authReady = true
-    if (!ensureLogin()) return
+    if (!this.guard()) return
     this.fetchList(true)
     this.syncUnread()
+  },
+
+  // 未登录：展示登录引导空状态，不强制跳转（登录规范：先浏览后登录）
+  guard() {
+    if (isLoggedIn()) {
+      this.setData({ guest: false })
+      return true
+    }
+    this.setData({ guest: true })
+    return false
+  },
+
+  goLogin() {
+    wx.navigateTo({ url: '/pages/login/index' })
   },
 
   onPullDownRefresh() {

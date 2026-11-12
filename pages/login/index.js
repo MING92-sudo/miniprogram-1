@@ -37,7 +37,8 @@ Page({
 
   onReady() {
     if (this._signedIn) {
-      wx.switchTab({ url: '/pages/home/index' })
+      // 延迟到路由稳定后再切换，避免 routeDone 竞态
+      setTimeout(() => wx.switchTab({ url: '/pages/home/index' }), 300)
     }
   },
 
@@ -55,6 +56,19 @@ Page({
 
   toggleAgreed() {
     this.setData({ agreed: !this.data.agreed })
+  },
+
+  openAgreement() {
+    wx.navigateTo({ url: '/pages/login/agreement?type=agreement' })
+  },
+
+  openPrivacy() {
+    wx.navigateTo({ url: '/pages/login/agreement?type=privacy' })
+  },
+
+  // 暂不登录：进入首页以未登录状态浏览（登录规范：须提供取消/暂不登录入口，不得强制登录）
+  skipLogin() {
+    setTimeout(() => wx.switchTab({ url: '/pages/home/index' }), 300)
   },
 
   forgotPassword() {
@@ -93,7 +107,8 @@ Page({
         // 微信绑定失败不阻断登录，可稍后重试
       }
       wx.showToast({ title: '登录成功', icon: 'success' })
-      wx.reLaunch({ url: '/pages/home/index' })
+      // 回首页 tab：switchTab 比 reLaunch 稳定（首页是 tabBar 页），延迟避开路由竞态
+      setTimeout(() => wx.switchTab({ url: '/pages/home/index' }), 300)
     } catch (err) {
       wx.showToast({ title: err.message || TOAST_TEXT.LOGIN_FAILED, icon: 'none' })
     }

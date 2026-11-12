@@ -1,7 +1,7 @@
 // 我的：用户信息 + 按角色显隐的功能入口
 const { ROLE } = require('../../constants/index')
 const auth = require('../../services/auth')
-const { ensureLogin } = require('../../utils/guard')
+const { isLoggedIn } = require('../../utils/auth')
 
 const ROLE_TEXT = {
   WORKER: '维保人员',
@@ -40,6 +40,7 @@ function buildMenus(role) {
 
 Page({
   data: {
+    guest: false,
     userInfo: null,
     roleText: '',
     versionText: '',
@@ -49,17 +50,29 @@ Page({
   },
 
   onShow() {
-    // 首次 onShow 发生在 tab 路由进行中，此时守卫 reLaunch 会与当前路由竞态
-    // （routeDone with a webviewId xxx is not found / 真机白屏），首次守卫延迟到 onReady
     if (!this._authReady) return
-    if (!ensureLogin()) return
+    if (!this.guard()) return
     this.refresh()
   },
 
   onReady() {
     this._authReady = true
-    if (!ensureLogin()) return
+    if (!this.guard()) return
     this.refresh()
+  },
+
+  // 未登录：展示登录引导空状态，不强制跳转（登录规范：先浏览后登录）
+  guard() {
+    if (isLoggedIn()) {
+      this.setData({ guest: false })
+      return true
+    }
+    this.setData({ guest: true })
+    return false
+  },
+
+  goLogin() {
+    wx.navigateTo({ url: '/pages/login/index' })
   },
 
   refresh() {
@@ -97,6 +110,7 @@ Page({
       // 本地清理不依赖接口成功
     }
     getApp().logout()
-    wx.reLaunch({ url: '/pages/login/index' })
+    // 延迟 reLaunch 避开路由竞态（routeDone with webviewId is not found）
+    setTimeout(() => wx.reLaunch({ url: '/pages/login/index' }), 300)
   }
 })
