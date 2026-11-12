@@ -1,0 +1,84 @@
+.section-title {
+  font-size: 30rpx;
+  font-weight: 600;
+  margin-bottom: 8rpx;
+}
+
+.item {
+  padding: 20rpx 0;
+  border-bottom: 2rpx solid var(--em-border);
+}
+
+.item:last-child {
+  border-bottom: none;
+}
+
+.item-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.item-label {
+  font-size: 28rpx;
+  font-weight: 500;
+}
+
+.item-req {
+  font-size: 22rpx;
+  color: var(--em-text-secondary);
+}
+
+.item-results {
+  display: flex;
+  gap: 32rpx;
+  margin-top: 16rpx;
+}
+
+.item-radio {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  font-size: 26rpx;
+}
+
+.res-PASS {
+  color: var(--em-success);
+}
+
+.res-FAIL {
+  color: var(--em-error);
+}
+
+.res-NA {
+  color: var(--em-text-secondary);
+}
+
+.resp-picker {
+  margin-top: 16rpx;
+  padding: 16rpx 20rpx;
+  font-size: 26rpx;
+  color: var(--em-warning);
+  background: var(--em-warning-bg);
+  border-radius: var(--em-radius);
+}
+
+.resp-picker.is-todo {
+  color: var(--em-error);
+  background: var(--em-error-bg);
+}
+
+.field-arrow {
+  margin-left: 8rpx;
+  color: var(--em-text-disabled);
+}
+
+.item-remark {
+  margin-top: 16rpx;
+  padding: 12rpx 20rpx;
+  height: 72rpx;
+  line-height: 72rpx;
+  background: var(--em-bg-page);
+  border-radius: var(--em-radius);
+  font-size: 26rpx;
+}

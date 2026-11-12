@@ -1,0 +1,46 @@
+<view class="em-page">
+  <view class="filter-bar">
+    <view
+      wx:for="{{windows}}"
+      wx:key="months"
+      class="filter-chip {{months === item.months ? 'is-active' : ''}}"
+      data-months="{{item.months}}"
+      bindtap="onWindowChange"
+    >{{item.label}}</view>
+  </view>
+
+  <view class="em-card head-card">
+    <view class="em-text-secondary">{{text.TIP}}</view>
+    <view wx:if="{{from}}" class="em-text-secondary range">{{from}} 至 {{to}} · 共 {{total}} 条排期</view>
+  </view>
+
+  <view wx:if="{{loading}}" class="em-card em-text-secondary">加载中...</view>
+
+  <view wx:if="{{failed}}" class="em-card">
+    <view class="em-text-secondary">{{text.FAILED}}</view>
+    <button class="em-btn-ghost retry" bindtap="onRetry">重试</button>
+  </view>
+
+  <view wx:if="{{!loading && !failed && !groups.length}}" class="em-card em-text-secondary">{{text.EMPTY}}</view>
+
+  <block wx:for="{{groups}}" wx:key="month" wx:for-item="g">
+    <view class="month-title">{{g.label}}</view>
+    <view wx:for="{{g.days}}" wx:key="date" wx:for-item="day" class="em-card day-card">
+      <view class="day-head">
+        <text class="day-date">{{day.dayLabel}}</text>
+        <text class="day-week">{{day.week}}</text>
+      </view>
+      <view wx:for="{{day.entries}}" wx:key="elevatorCode" wx:for-item="e" class="entry">
+        <view class="entry-main">
+          <view class="entry-title">{{e.elevatorName}}</view>
+          <view class="em-text-secondary">{{e.elevatorCode || '-'}}{{e.projectName ? ' · ' + e.projectName : ''}}</view>
+        </view>
+        <text class="type-tag type-{{e.workTypeCode}}">{{e.workType}}</text>
+      </view>
+    </view>
+  </block>
+
+  <view class="em-card">
+    <view class="em-text-secondary">{{text.SCOPE_TIP}}</view>
+  </view>
+</view>

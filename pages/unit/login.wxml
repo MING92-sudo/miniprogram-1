@@ -1,0 +1,28 @@
+<view class="em-page">
+  <view class="portal-head">
+    <view class="portal-title">{{text.LOGIN_TITLE}}</view>
+    <view class="portal-sub">{{text.LOGIN_TIP}}</view>
+  </view>
+
+  <view class="em-card">
+    <view class="field">
+      <view class="field-label">账号</view>
+      <input class="field-input" value="{{account}}" data-field="account" bindinput="onInput" placeholder="使用单位门户账号" />
+    </view>
+    <view class="field">
+      <view class="field-label">密码</view>
+      <input class="field-input" value="{{password}}" data-field="password" password bindinput="onInput" placeholder="登录口令" />
+    </view>
+    <button class="em-btn-primary login-btn" disabled="{{submitting}}" bindtap="onLogin">登录</button>
+  </view>
+
+  <view class="em-card">
+    <view class="section-title">{{text.BIND_TITLE}}</view>
+    <view class="em-text-secondary">{{text.BIND_TIP}}</view>
+    <view class="field">
+      <view class="field-label">邀请码</view>
+      <input class="field-input" value="{{inviteCode}}" data-field="inviteCode" bindinput="onInput" placeholder="8 位邀请码" />
+    </view>
+    <button class="em-btn-ghost bind-btn" disabled="{{binding}}" bindtap="onBind">绑定微信</button>
+  </view>
+</view>

@@ -1,0 +1,89 @@
+.portal-head {
+  padding: 40rpx 32rpx 8rpx;
+}
+
+.portal-title {
+  font-size: 38rpx;
+  font-weight: 600;
+}
+
+.portal-sub {
+  margin-top: 10rpx;
+  font-size: 24rpx;
+  color: var(--em-text-secondary);
+}
+
+.stat-row {
+  display: flex;
+  gap: 16rpx;
+  padding: 24rpx 24rpx 0;
+}
+
+.stat-card {
+  flex: 1;
+  padding: 24rpx 16rpx;
+  text-align: center;
+  background: var(--em-bg-card);
+  border-radius: var(--em-radius);
+}
+
+.stat-num {
+  font-size: 44rpx;
+  font-weight: 600;
+  color: var(--em-brand);
+}
+
+.stat-label {
+  margin-top: 6rpx;
+  font-size: 24rpx;
+  color: var(--em-text-secondary);
+}
+
+.entry {
+  display: flex;
+  align-items: center;
+  padding: 20rpx 0;
+  border-bottom: 2rpx solid var(--em-border);
+}
+
+.entry:last-child {
+  border-bottom: none;
+}
+
+.entry-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.entry-title {
+  font-size: 30rpx;
+  font-weight: 500;
+  margin-bottom: 6rpx;
+}
+
+.entry-arrow {
+  color: var(--em-text-disabled);
+  font-size: 32rpx;
+}
+
+.tip {
+  margin-top: 12rpx;
+  text-align: center;
+}
+
+.em-btn-ghost {
+  margin-top: 16rpx;
+  background: var(--em-brand-light);
+  color: var(--em-brand);
+  border-radius: var(--em-radius);
+}
+
+.retry {
+  margin-top: 16rpx;
+}
+
+.logout {
+  text-align: center;
+  color: var(--em-text-secondary);
+  font-size: 28rpx;
+}

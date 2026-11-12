@@ -1,0 +1,41 @@
+.row-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8rpx;
+}
+
+.row-title {
+  font-size: 30rpx;
+  font-weight: 600;
+}
+
+.row-code {
+  font-size: 24rpx;
+  color: var(--em-text-secondary);
+}
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 8rpx 0;
+  color: var(--em-text-secondary);
+  font-size: 26rpx;
+}
+
+.info-row text:first-child {
+  color: var(--em-text-primary);
+  flex-shrink: 0;
+  margin-right: 24rpx;
+}
+
+.info-row text:last-child {
+  text-align: right;
+}
+
+.em-btn-ghost {
+  margin-top: 16rpx;
+  background: var(--em-brand-light);
+  color: var(--em-brand);
+  border-radius: var(--em-radius);
+}

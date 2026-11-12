@@ -1,0 +1,57 @@
+<view class="em-page">
+  <view wx:if="{{loading}}" class="em-card em-text-secondary">{{loadingText}}</view>
+
+  <block wx:if="{{filing}}">
+    <view class="em-card">
+      <view class="section-title">{{filing.filingNo}}</view>
+      <view class="em-text-secondary">{{filing.projectName || '-'}} · {{filing.elevatorName || filing.elevatorCode || '未填电梯名称'}}</view>
+      <view class="em-text-secondary">6 项逐项判定；不合格项不阻塞建档，但须写明责任归属</view>
+    </view>
+
+    <view wx:if="{{locked}}" class="em-card">
+      <view class="em-text-secondary">当前状态或岗位不可提交接管查验（需「接管查验」状态 + 安装部/维保经理及以上岗位）</view>
+    </view>
+
+    <view wx:if="{{!locked}}" class="em-card">
+      <view wx:for="{{items}}" wx:key="itemType" class="item">
+        <view class="item-head">
+          <text class="item-label">{{index + 1}}. {{item.label}}</text>
+          <text class="item-req">必填</text>
+        </view>
+        <radio-group class="item-results" data-index="{{index}}" bindchange="onResult">
+          <label wx:for="{{results}}" wx:for-item="r" wx:key="*this" class="item-radio">
+            <radio value="{{r}}" checked="{{item.result === r}}" color="#0A5BD3" />
+            <text class="res-{{r}}">{{resultText[r]}}</text>
+          </label>
+        </radio-group>
+
+        <block wx:if="{{item.result === 'FAIL'}}">
+          <picker
+            mode="selector"
+            range="{{respLabels}}"
+            value="{{item.respIndex}}"
+            data-index="{{index}}"
+            bindchange="onResponsibility"
+          >
+            <view class="resp-picker {{item.responsibility ? '' : 'is-todo'}}">
+              {{item.respIndex > -1 ? respLabels[item.respIndex] : '选择责任归属（必填）'}}
+              <text class="field-arrow">›</text>
+            </view>
+          </picker>
+        </block>
+
+        <input
+          class="item-remark"
+          value="{{item.remark}}"
+          data-index="{{index}}"
+          bindinput="onRemark"
+          placeholder="备注（不合格项请写明问题）"
+        />
+      </view>
+    </view>
+
+    <view wx:if="{{!locked}}" class="em-card">
+      <button class="em-btn-primary" disabled="{{submitting}}" bindtap="onSubmit">提交查验</button>
+    </view>
+  </block>
+</view>

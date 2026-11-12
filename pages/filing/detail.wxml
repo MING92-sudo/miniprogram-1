@@ -1,0 +1,119 @@
+<view class="em-page">
+  <view wx:if="{{forbidden}}" class="em-card">
+    <view class="section-title">外接建档单</view>
+    <view class="em-text-secondary">{{text.READONLY_TIP}}</view>
+  </view>
+
+  <view wx:if="{{loading}}" class="em-card em-text-secondary">{{loadingText}}</view>
+
+  <block wx:if="{{filing}}">
+    <view class="em-card">
+      <view class="head-row">
+        <view>
+          <view class="order-no">{{filing.filingNo}}</view>
+          <view class="em-text-secondary">{{filing.projectName || '未填项目名称'}}</view>
+        </view>
+        <view class="tag tag-{{filing.status}}">{{statusText}}</view>
+      </view>
+      <view class="em-text-secondary head-tip">使用单位 {{filing.useUnitId || '-'}} · 合同 {{filing.contractId || '-'}}</view>
+    </view>
+
+    <view class="em-card">
+      <view class="section-title">流程进度</view>
+      <view class="steps">
+        <view wx:for="{{steps}}" wx:key="key" class="step step-{{item.state}}">
+          <view class="step-dot">{{item.state === 'done' ? '✓' : index + 1}}</view>
+          <view class="step-label">{{item.label}}</view>
+        </view>
+      </view>
+    </view>
+
+    <view class="em-card">
+      <view class="section-title">电梯信息快照</view>
+      <view class="info-row"><text>电梯代码</text><text>{{filing.elevatorCode || '-'}}</text></view>
+      <view class="info-row"><text>电梯名称</text><text>{{filing.elevatorName || '-'}}</text></view>
+      <view class="info-row"><text>电梯品种</text><text>{{filing.category || '-'}}</text></view>
+      <view class="info-row"><text>安装地址</text><text>{{filing.location || '-'}}</text></view>
+      <view class="info-row"><text>注册代码</text><text>{{filing.regCode || '-'}}</text></view>
+      <view class="info-row"><text>设备代码</text><text>{{filing.deviceCode || '-'}}</text></view>
+      <view class="info-row"><text>内部编号</text><text>{{filing.insideNumber || '-'}}</text></view>
+      <view class="info-row"><text>型号 / 品牌</text><text>{{filing.model || '-'}} / {{filing.brand || '-'}}</text></view>
+      <view class="info-row"><text>制造单位</text><text>{{filing.manufacturer || '-'}}</text></view>
+      <view class="info-row"><text>产品编号</text><text>{{filing.productNo || '-'}}</text></view>
+      <view class="info-row"><text>驱动方式</text><text>{{filing.driveMode || '-'}}</text></view>
+      <view class="info-row"><text>额定载重</text><text>{{filing.ratedLoad ? filing.ratedLoad + (filing.ratedLoadUnit || '') : '-'}}</text></view>
+      <view class="info-row"><text>额定速度</text><text>{{filing.ratedSpeed ? filing.ratedSpeed + (filing.ratedSpeedUnit || '') : '-'}}</text></view>
+      <view class="info-row"><text>层站/门</text><text>{{filing.stationsDoors || '-'}}</text></view>
+      <view class="info-row"><text>维保类别</text><text>{{workTypeText || '-'}}</text></view>
+      <view class="info-row"><text>监督检验合格日</text><text>{{filing.supervisionPassDate || '-'}}</text></view>
+    </view>
+
+    <view class="em-card">
+      <view class="section-title">建档资料</view>
+      <view wx:for="{{docs}}" wx:key="code" class="doc-row">
+        <view class="doc-main">
+          <view class="doc-label">{{item.label}}</view>
+          <view wx:if="{{item.missing}}" class="doc-missing">缺件待补办</view>
+          <view wx:elif="{{item.uploaded}}" class="em-text-secondary">已上传</view>
+          <view wx:else class="em-text-secondary">待上传</view>
+        </view>
+        <block wx:if="{{canDocs}}">
+          <view class="doc-action" data-code="{{item.code}}" bindtap="onPickDoc">
+            {{uploadingCode === item.code ? '上传中…' : (item.uploaded ? '重新上传' : '上传')}}
+          </view>
+          <view
+            class="doc-flag {{item.missing ? 'is-missing' : ''}}"
+            data-index="{{index}}"
+            bindtap="onToggleMissing"
+          >{{item.missing ? '取消缺件' : '标缺件'}}</view>
+        </block>
+        <view wx:else class="doc-state {{item.uploaded ? 'is-ok' : (item.missing ? 'is-missing' : 'is-todo')}}">
+          {{item.uploaded ? '✓' : (item.missing ? '缺' : '—')}}
+        </view>
+      </view>
+      <button wx:if="{{canDocs}}" class="em-btn-primary doc-submit" disabled="{{submitting}}" bindtap="onSubmitDocs">提交资料</button>
+      <view wx:if="{{canDocs}}" class="em-text-secondary doc-tip">{{text.DOC_TIP}}</view>
+    </view>
+
+    <view class="em-card">
+      <view class="section-title">接管查验结果</view>
+      <view wx:if="{{!checks.length}}" class="em-text-secondary">尚未提交接管查验</view>
+      <view wx:for="{{checks}}" wx:key="id" class="check-block">
+        <view class="em-text-secondary">查验人 {{item.checkerName || '-'}} · {{item.checkedAt || '-'}}</view>
+        <view wx:for="{{item.items}}" wx:for-item="it" wx:key="itemType" class="check-item">
+          <view class="check-main">
+            <text class="check-label">{{it.label}}</text>
+            <text class="res-{{it.result}}">{{it.resultText}}</text>
+          </view>
+          <view wx:if="{{it.responsibilityText}}" class="check-resp">责任归属：{{it.responsibilityText}}</view>
+          <view wx:if="{{it.remark}}" class="em-text-secondary">{{it.remark}}</view>
+        </view>
+      </view>
+    </view>
+
+    <view class="em-card">
+      <view class="section-title">交接确认</view>
+      <view wx:if="{{!confirmation}}" class="em-text-secondary">尚未提交交接确认</view>
+      <block wx:else>
+        <view class="info-row"><text>对方签字人</text><text>{{confirmation.counterpartSignName || '-'}}</text></view>
+        <view class="info-row"><text>钥匙工具核对</text><text>{{confirmation.keyToolCheck || '-'}}</text></view>
+        <view class="info-row"><text>遗留问题</text><text>{{confirmation.leftoverIssue || '-'}}</text></view>
+        <view class="info-row"><text>我方确认人</text><text>{{confirmation.confirmedByName || '-'}}</text></view>
+        <view class="info-row"><text>确认时间</text><text>{{confirmation.at || '-'}}</text></view>
+      </block>
+    </view>
+
+    <view class="em-card">
+      <view class="section-title">关键记录</view>
+      <view class="info-row"><text>发起时间</text><text>{{filing.createdAt || '-'}}</text></view>
+      <view class="info-row"><text>发起人</text><text>{{filing.initiatorName || '-'}}</text></view>
+      <view class="info-row" wx:if="{{filing.elevatorId}}"><text>归档电梯 ID</text><text>{{filing.elevatorId}}</text></view>
+      <view class="em-text-secondary doc-tip">{{text.DETAIL_GAP_TIP}}</view>
+    </view>
+
+    <view class="em-card" wx:if="{{canInspect || canConfirm}}">
+      <button wx:if="{{canInspect}}" class="em-btn-primary" bindtap="goInspect">接管查验</button>
+      <button wx:if="{{canConfirm}}" class="em-btn-primary" bindtap="goConfirm">交接确认</button>
+    </view>
+  </block>
+</view>

@@ -1,0 +1,59 @@
+<view class="em-page">
+  <view class="portal-head">
+    <view class="portal-title">{{unitName || '使用单位门户'}}</view>
+    <view class="portal-sub">{{text.READONLY_TIP}}</view>
+  </view>
+
+  <view class="stat-row">
+    <view class="stat-card" bindtap="goElevators">
+      <view class="stat-num">{{elevatorCount}}</view>
+      <view class="stat-label">本单位电梯</view>
+    </view>
+    <view class="stat-card" bindtap="goRecords">
+      <view class="stat-num">{{pendingSignCount}}</view>
+      <view class="stat-label">待签字记录</view>
+    </view>
+    <view class="stat-card" bindtap="goFaults">
+      <view class="stat-num">{{openFaultCount}}</view>
+      <view class="stat-label">未闭环急修</view>
+    </view>
+  </view>
+
+  <view wx:if="{{loading}}" class="em-card em-text-secondary">加载中...</view>
+
+  <view wx:if="{{failed}}" class="em-card">
+    <view class="em-text-secondary">数据暂不可用，请稍后重试</view>
+    <button class="em-btn-ghost retry" bindtap="onRetry">重试</button>
+  </view>
+
+  <view class="em-card">
+    <view class="entry" bindtap="goElevators">
+      <view class="entry-main">
+        <view class="entry-title">电梯清单</view>
+        <view class="em-text-secondary">本单位登记电梯与下次维保日期</view>
+      </view>
+      <view class="entry-arrow">›</view>
+    </view>
+    <view class="entry" bindtap="goRecords">
+      <view class="entry-main">
+        <view class="entry-title">维保记录</view>
+        <view class="em-text-secondary">历次维保时间、作业人员与确认状态</view>
+      </view>
+      <view class="entry-arrow">›</view>
+    </view>
+    <view class="entry" bindtap="goFaults">
+      <view class="entry-main">
+        <view class="entry-title">急修记录</view>
+        <view class="em-text-secondary">报修进度与处理结果</view>
+      </view>
+      <view class="entry-arrow">›</view>
+    </view>
+  </view>
+
+  <view class="em-card">
+    <button class="em-btn-primary" bindtap="goReport">报修</button>
+    <view class="em-text-secondary tip">{{text.REPORT_TIP}}</view>
+  </view>
+
+  <view class="em-card logout" bindtap="onLogout">退出登录</view>
+</view>

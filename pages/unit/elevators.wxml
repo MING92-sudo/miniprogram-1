@@ -1,0 +1,22 @@
+<view class="em-page">
+  <view wx:if="{{loading}}" class="em-card em-text-secondary">加载中...</view>
+
+  <view wx:if="{{failed}}" class="em-card">
+    <view class="em-text-secondary">{{text.EMPTY_ELEVATOR}}</view>
+    <button class="em-btn-ghost retry" bindtap="onRetry">重试</button>
+  </view>
+
+  <view wx:if="{{!loading && !failed && !list.length}}" class="em-card em-text-secondary">{{text.EMPTY_ELEVATOR}}</view>
+
+  <view wx:for="{{list}}" wx:key="id" class="em-card">
+    <view class="row-head">
+      <text class="row-title">{{item.elevatorName || item.elevatorCode || '未命名电梯'}}</text>
+      <text class="row-code">{{item.elevatorCode || '-'}}</text>
+    </view>
+    <view class="info-row"><text>项目</text><text>{{item.projectName || '-'}}</text></view>
+    <view class="info-row"><text>位置</text><text>{{item.location || '-'}}</text></view>
+    <view class="info-row"><text>内部编号</text><text>{{item.insideNumber || '-'}}</text></view>
+    <view class="info-row"><text>注册代码</text><text>{{item.regCode || '-'}}</text></view>
+    <view class="info-row"><text>下次维保</text><text>{{item.nextMaintenanceDate || '-'}}</text></view>
+  </view>
+</view>

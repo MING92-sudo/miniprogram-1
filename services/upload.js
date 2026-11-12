@@ -6,7 +6,9 @@ const config = require('../config/index')
 const { getToken } = require('../utils/auth')
 
 // 上传单张图片，返回可访问 fileId/url
-function uploadImage(filePath, formData) {
+// token 可选：传入门户令牌（use_unit 账号）时用它，否则取员工令牌（默认）。
+// 上传路径只有这一处（AGENTS §1.1：照片/签名统一走 services/upload.js）。
+function uploadImage(filePath, formData, token) {
   // Mock 模式：不真实上传，本地路径可直接用于预览
   if (config.useMock) {
     return Promise.resolve({ fileId: 'mock_file_' + Date.now(), url: filePath })
@@ -18,7 +20,7 @@ function uploadImage(filePath, formData) {
       name: 'file',
       formData: formData || {},
       header: {
-        Authorization: `Bearer ${getToken()}`
+        Authorization: `Bearer ${token || getToken()}`
       },
       timeout: config.uploadTimeout,
       success(res) {
