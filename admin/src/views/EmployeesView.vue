@@ -9,6 +9,9 @@
       <el-table-column prop="name" label="姓名" width="100" />
       <el-table-column prop="phone" label="手机号" width="130" />
       <el-table-column prop="account" label="账号" width="130" />
+      <el-table-column prop="departmentText" label="部门" width="100">
+        <template #default="{ row }">{{ row.departmentText || '—' }}</template>
+      </el-table-column>
       <el-table-column prop="roleText" label="角色" width="140" />
       <el-table-column label="班组（可直接调度）" width="170">
         <template #default="{ row }">
@@ -56,10 +59,9 @@
         </el-form-item>
         <el-form-item label="角色">
           <el-select v-model="form.role" style="width: 100%">
-            <el-option label="维保人员（WORKER）" value="WORKER" />
-            <el-option label="班组长（LEADER）" value="LEADER" />
-            <el-option label="维保部管理员（ADMIN）" value="ADMIN" />
-            <el-option label="系统管理员（SYS_ADMIN）" value="SYS_ADMIN" />
+            <el-option-group v-for="g in ROLE_GROUPS" :key="g.label" :label="g.label">
+              <el-option v-for="r in g.roles" :key="r.code" :label="r.name + '（' + r.code + '）'" :value="r.code" />
+            </el-option-group>
           </el-select>
           <div class="tip" v-if="rolePerm">{{ rolePerm }}</div>
         </el-form-item>
@@ -97,14 +99,54 @@ const saving = ref(false)
 const pwdDialog = ref(false)
 const initialPassword = ref('')
 
-/** 权限矩阵（用户需求：角色对应系统权限说明） */
+/**
+ * 角色分组（docs/14 §3）：三个平级部门 + 平台层。键值必须与后端 RoleCatalog 一致，
+ * 使用单位账号不在此处（在「使用单位档案」开通）。
+ */
+const ROLE_GROUPS = [
+  {
+    label: "平台层",
+    roles: [
+      { code: "ADMIN", name: "平台管理员" },
+      { code: "SYS_ADMIN", name: "系统管理员" }
+    ]
+  },
+  {
+    label: "安装部",
+    roles: [
+      { code: "INSTALL_MANAGER", name: "安装项目经理" },
+      { code: "INSTALL_CLERK", name: "安装文员" },
+      { code: "INSTALL_WORKER", name: "安装员" }
+    ]
+  },
+  {
+    label: "维保部",
+    roles: [
+      { code: "MAINT_MANAGER", name: "维保经理" },
+      { code: "MAINT_BIZ", name: "维保商务" },
+      { code: "LEADER", name: "维保班组长" },
+      { code: "MAINT_QUALITY", name: "维保质量负责人" },
+      { code: "WORKER", name: "维保人员" },
+      { code: "ASSISTANT", name: "配合维保人员" }
+    ]
+  }
+]
+
+/** 角色权限说明（docs/14 §6 管理端矩阵 / §7 小程序矩阵的通俗版） */
 const ROLE_PERM = {
-  WORKER: '小程序作业（签到/清单/签退/台账）＋管理端只读',
-  LEADER: '同维保人员＋管理端全部数据只读',
-  ADMIN: '管理端全部业务写操作（档案/重报/登记/派单）',
-  SYS_ADMIN: '账号启停/重置密码/审计日志（系统级）'
+  ADMIN: "平台兜底：三部门数据全量可读，档案维护/重报/账号管理可用",
+  SYS_ADMIN: "与平台管理员同权（保留角色）",
+  INSTALL_MANAGER: "小程序/管理端：移交与外接建档发起、指派、资料提交",
+  INSTALL_CLERK: "管理端：本部门人员只读 + 移交/建档资料上传",
+  INSTALL_WORKER: "小程序：现场查验、整改前后照片",
+  MAINT_MANAGER: "管理端：维保部全部业务写（派单/模板/重报/人员/账号）",
+  MAINT_BIZ: "管理端：合同与使用单位档案读写，不见现场作业数据",
+  LEADER: "管理端只读 + 小程序本班组作业（延期/转派）",
+  MAINT_QUALITY: "管理端：全维保部只读，模板启停，不可重报/签退",
+  WORKER: "小程序：本人工单签到/清单/签退、急修登记",
+  ASSISTANT: "小程序：配合人员，本人签字与作业留痕"
 }
-const rolePerm = computed(() => ROLE_PERM[form.role] || '')
+const rolePerm = computed(() => ROLE_PERM[form.role] || "")
 const groupOptions = computed(() => {
   const set = new Set(['维保一组', '维保二组'])
   rows.value.forEach((r) => { if (r.groupName) set.add(r.groupName) })

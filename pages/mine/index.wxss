@@ -46,6 +46,14 @@
   margin-bottom: 8rpx;
 }
 
+/* 角色可见范围说明（docs/14 §7）：让管理员/商务一眼看出自己不是作业身份 */
+.scope-tip {
+  margin-top: 8rpx;
+  font-size: 22rpx;
+  line-height: 1.5;
+  color: #86909c;
+}
+
 .role-badge {
   display: inline-block;
   font-size: 22rpx;

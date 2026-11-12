@@ -4,6 +4,7 @@ const { getHomeSummary } = require('../../services/home')
 const { isLoggedIn } = require('../../utils/auth')
 const { refreshUnreadBadge } = require('../../utils/badge')
 const { getQueue } = require('../../utils/offline')
+const { viewOf } = require('../../utils/role-view')
 
 // tab 页不能用 navigateTo，宫格里命中 tab 时走 switchTab
 const TAB_PAGES = [
@@ -37,6 +38,8 @@ Page({
       { title: '故障急修', desc: '现场登记、闭环跟踪' }
     ],
     roleText: '',
+    scopeText: '',
+    canOperate: false, // 现场作业岗才显示扫码签到；巡视/管理岗不显示
     greeting: '',
     summary: {
       dueToday: 0, dueSoon: 0, overdue: 0,
@@ -44,12 +47,8 @@ Page({
       openFaults: 0, overdueInspects: 0, warnCount: 0
     },
     offlineCount: 0, // 离线待补传条数（docs/03 §3.2 项2：离线补传提示条）
-    queryMenus: [
-      { title: '急修单', iconClass: 'icon-emergency', url: '/pages/fault/list' },
-      { title: '维保记录', iconClass: 'icon-record', url: '/pages/order/list', tab: true },
-      { title: '消息通知', iconClass: 'icon-message', url: '/pages/message/index', tab: true },
-      { title: '设备信息', iconClass: 'icon-device', url: '/pages/elevator/list' }
-    ],
+    // 宫格按角色生成（docs/14 §7）：登录前为空，登录后由 refresh() 填充
+    queryMenus: [],
   },
 
   onShow() {
@@ -69,10 +68,14 @@ Page({
     }
     const app = getApp()
     const u = app.globalData.userInfo || {}
+    const v = viewOf(app.globalData.role)
     this.setData({
       guest: false,
       userInfo: u,
-      roleText: u.roleText || '',
+      roleText: v.roleText,
+      scopeText: v.scope,
+      canOperate: v.canOperate,
+      queryMenus: v.tiles.map(t => Object.assign({}, t)),
       greeting: greet() + (u.name ? '，' + u.name : ''),
       offlineCount: getQueue().length
     })
@@ -89,7 +92,7 @@ Page({
     try {
       const s = await getHomeSummary()
       // 综合查询宫格：急修单角标 = 未闭环故障数
-      const qi = this.data.queryMenus.findIndex(m => m.title === '急修单')
+      const qi = this.data.queryMenus.findIndex(m => m.url === '/pages/fault/list')
       this.setData({
         summary: s,
         ...(qi > -1 ? { [`queryMenus[${qi}].badge`]: s.openFaults } : {})

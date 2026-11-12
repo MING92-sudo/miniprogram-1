@@ -1,16 +1,7 @@
-// 我的：用户信息 + 按角色显隐的功能入口
-const { ROLE } = require('../../constants/index')
+// 我的：用户信息 + 按角色显隐的功能入口（docs/14 §7 小程序权限矩阵）
 const auth = require('../../services/auth')
 const { isLoggedIn } = require('../../utils/auth')
-
-const ROLE_TEXT = {
-  WORKER: '维保人员',
-  ASSISTANT: '配合维保人员',
-  LEADER: '班组长',
-  UNIT_ADMIN: '使用单位安全管理员',
-  ADMIN: '维保部管理员',
-  SYS_ADMIN: '系统管理员'
-}
+const { viewOf } = require('../../utils/role-view')
 
 // 证件有效期提醒（docs/03 §3.2 项18）：已过期 / 60 天内到期 置顶提示，其余仅展示有效期
 function certReminder(user) {
@@ -24,15 +15,17 @@ function certReminder(user) {
   return { text: '证件有效期至 ' + end, level: 'ok' }
 }
 
-// 角色可见菜单（用户需求：取消独立使用单位端，签字确认走分享链接/本机代签）；
-// ADMIN/SYS_ADMIN 登录小程序视为管理巡视：可见全部菜单且后端数据权限不限班组
-const STAFF_ROLES = [ROLE.WORKER, ROLE.ASSISTANT, ROLE.LEADER, ROLE.ADMIN, ROLE.SYS_ADMIN]
-
+// 角色可见菜单：作业入口按角色给（管理员/商务等巡视岗没有现场作业入口），
+// 离线补传与改密对所有人保留；真正的数据范围由后端谓词收敛，这里只决定“看不看得见入口”。
 function buildMenus(role) {
-  const menus = []
-  if (STAFF_ROLES.indexOf(role) > -1) {
-    menus.push({ title: '急修单', url: '/pages/fault/list', desc: '现场登记、闭环跟踪' })
-  }
+  const v = viewOf(role)
+  const menus = v.menus.map(function (tile) {
+    return {
+      title: tile.title,
+      url: tile.url,
+      desc: tile.title.indexOf('急修') > -1 ? '现场登记、闭环跟踪' : ''
+    }
+  })
   menus.push({ title: '离线缓存管理', url: '/pages/mine/offline', desc: '弱网数据补传' })
   menus.push({ title: '修改密码', url: '/pages/mine/password', desc: '随机初始密码首次登录后修改' })
   return menus
@@ -43,6 +36,7 @@ Page({
     guest: false,
     userInfo: null,
     roleText: '',
+    scopeText: '',
     versionText: '',
     menus: [],
     certText: '',
@@ -85,10 +79,12 @@ Page({
     } catch (e) {
       versionText = ''
     }
+    const v = viewOf(role)
     const cert = certReminder(app.globalData.userInfo)
     this.setData({
       userInfo: app.globalData.userInfo,
-      roleText: ROLE_TEXT[role] || ROLE[role] || '未登录',
+      roleText: v.dept ? v.dept + ' · ' + v.roleText : v.roleText,
+      scopeText: v.scope,
       versionText,
       menus: buildMenus(role),
       certText: cert.text,

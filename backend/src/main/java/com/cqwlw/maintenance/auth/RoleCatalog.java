@@ -99,4 +99,26 @@ public final class RoleCatalog {
     public static boolean known(String role) {
         return role(role) != null;
     }
+
+    /**
+     * 建档可分配的角色（管理端「新建人员」下拉）：除使用单位外的全部角色。
+     * 使用单位账号不建在员工目录（走 use_unit 账号，docs/14 §9.1），故不可选。
+     */
+    public static java.util.List<Role> assignableRoles() {
+        return ROLES.values().stream().filter(r -> !UNIT.equals(r.department())).toList();
+    }
+
+    /** 部门中文名（前端/接口展示用）：PLATFORM 平台层、INSTALL 安装部、MAINT 维保部、UNIT 使用单位 */
+    public static String departmentName(String department) {
+        if (department == null) {
+            return "";
+        }
+        return switch (department) {
+            case PLATFORM -> "平台层";
+            case INSTALL -> "安装部";
+            case MAINT -> "维保部";
+            case UNIT -> "使用单位";
+            default -> department;
+        };
+    }
 }

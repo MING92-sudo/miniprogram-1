@@ -17,10 +17,6 @@ public final class AdminRoles {
     public static final String ADMIN = RoleCatalog.ADMIN;
     public static final String SYS_ADMIN = RoleCatalog.SYS_ADMIN;
 
-    /** 建档允许分配的角色（管理端建档不含 UNIT_ADMIN——使用单位账号走小程序绑定）；
-     *  安装部/维保部新角色的建档口径随 docs/14 §11 P3 放开，P1 不改 */
-    private static final Set<String> ASSIGNABLE = Set.of(WORKER, LEADER, ADMIN, SYS_ADMIN);
-
     private AdminRoles() {
     }
 
@@ -39,9 +35,9 @@ public final class AdminRoles {
         return RoleCatalog.canUseAdminConsole(role);
     }
 
-    /** 建档允许分配的角色 */
+    /** 建档允许分配的角色（docs/14 §3）：除使用单位外的全部角色，规则见 RoleCatalog.assignableRoles */
     public static boolean assignable(String role) {
-        return role != null && ASSIGNABLE.contains(role);
+        return RoleCatalog.assignableRoles().stream().anyMatch(r -> r.code().equals(role));
     }
 
     public static boolean known(String role) {

@@ -115,6 +115,14 @@
   margin-top: 10rpx;
 }
 
+/* 角色可见范围说明（docs/14 §7）：管理员/商务等非作业岗显示，替代扫码按钮 */
+.banner-scope {
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 22rpx;
+  line-height: 1.5;
+  margin: 12rpx 0 4rpx;
+}
+
 /* 白底扫描主按钮（touch 目标 ≥ 88rpx） */
 .banner-scan {
   display: flex;

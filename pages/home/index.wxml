@@ -25,7 +25,8 @@
         <view class="banner-greet">{{greeting}}</view>
         <view class="banner-role">{{roleText}}{{userInfo.groupName ? ' · ' + userInfo.groupName : ''}}</view>
       </view>
-      <button class="banner-scan" bindtap="onScanTap">
+      <view wx:if="{{scopeText}}" class="banner-scope">{{scopeText}}</view>
+      <button wx:if="{{canOperate}}" class="banner-scan" bindtap="onScanTap">
         <view class="scan-glyph"></view>
         <view class="scan-text">
           <view class="scan-title">扫码到场签到</view>

@@ -3,6 +3,7 @@ package com.cqwlw.maintenance.service;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.cqwlw.maintenance.auth.AdminRoles;
+import com.cqwlw.maintenance.auth.RoleCatalog;
 import com.cqwlw.maintenance.common.BizException;
 import com.cqwlw.maintenance.common.Ids;
 import com.cqwlw.maintenance.entity.Company;
@@ -149,7 +150,7 @@ public class AdminArchiveService {
             throw new BizException(422, "姓名与手机号必填");
         }
         if (!AdminRoles.assignable(role)) {
-            throw new BizException(422, "角色仅允许 WORKER/LEADER/ADMIN/SYS_ADMIN");
+            throw new BizException(422, "角色不合法：" + role + "（使用单位账号在「使用单位档案」开通，不建在人员目录）");
         }
         String account = str(body, "account").isBlank() ? phone : str(body, "account");
         Long dup = employeeMapper.selectCount(new LambdaQueryWrapper<Employee>()
@@ -164,6 +165,7 @@ public class AdminArchiveService {
         e.phone = phone;
         e.account = account;
         e.role = role;
+        e.department = RoleCatalog.departmentOf(role); // V31：部门由角色派生，供部门数据域谓词使用
         e.roleText = str(body, "roleText").isBlank() ? defaultRoleText(role) : str(body, "roleText");
         e.groupName = str(body, "groupName");
         String password = str(body, "password");
@@ -300,9 +302,10 @@ public class AdminArchiveService {
         }
         if (body.get("role") != null) {
             if (!AdminRoles.assignable(str(body, "role"))) {
-                throw new BizException(422, "角色仅允许 WORKER/LEADER/ADMIN/SYS_ADMIN");
+                throw new BizException(422, "角色不合法：" + str(body, "role") + "（使用单位账号在「使用单位档案」开通）");
             }
             e.role = str(body, "role");
+            e.department = RoleCatalog.departmentOf(e.role); // 改角色同步部门，避免旧部门谓词残留
             e.roleText = str(body, "roleText").isBlank() ? defaultRoleText(e.role) : str(body, "roleText");
         } else if (body.get("roleText") != null) {
             e.roleText = str(body, "roleText");
@@ -588,6 +591,8 @@ public class AdminArchiveService {
         m.put("account", nz(e.account));
         m.put("role", nz(e.role));
         m.put("roleText", nz(e.roleText));
+        m.put("department", nz(e.department));
+        m.put("departmentText", RoleCatalog.departmentName(e.department));
         m.put("groupName", nz(e.groupName));
         m.put("platformId", nz(e.platformId));
         m.put("certificate", nz(e.certificate));
@@ -881,14 +886,10 @@ public class AdminArchiveService {
         }
     }
 
+    /** 角色中文名统一取 RoleCatalog（docs/14 §3），避免两处维护漂移 */
     private static String defaultRoleText(String role) {
-        return switch (role) {
-            case AdminRoles.WORKER -> "维保人员";
-            case AdminRoles.LEADER -> "班组长";
-            case AdminRoles.ADMIN -> "维保部管理员";
-            case AdminRoles.SYS_ADMIN -> "系统管理员";
-            default -> role;
-        };
+        String name = RoleCatalog.nameOf(role);
+        return name == null ? role : name;
     }
 
     private static String str(Map<String, Object> body, String key) {
