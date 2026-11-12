@@ -1,0 +1,217 @@
+package com.cqwlw.maintenance.service;
+
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.cqwlw.maintenance.common.BizException;
+import com.cqwlw.maintenance.entity.Elevator;
+import com.cqwlw.maintenance.entity.Employee;
+import com.cqwlw.maintenance.entity.Fault;
+import com.cqwlw.maintenance.entity.MaintainRecord;
+import com.cqwlw.maintenance.mapper.ElevatorMapper;
+import com.cqwlw.maintenance.mapper.EmployeeMapper;
+import com.cqwlw.maintenance.mapper.FaultMapper;
+import com.cqwlw.maintenance.mapper.MaintainRecordMapper;
+import com.cqwlw.maintenance.util.TimeUtil;
+import org.springframework.stereotype.Service;
+
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+/**
+ * 使用单位门户（W3，Task 10，docs/14 §4）：数据域 = 本 useUnitId 名下的电梯，
+ * 以及这些电梯的维保记录与急修单。列表在内存里再按电梯编码过滤一次——
+ * 谓词写在查询条件上的同时保留这层防御，避免将来改查询时漏条件（AGENTS §3.1 越权无副作用）。
+ * 报修复用急修链路（DirectoryService.createFault），并派给该梯责任人；无责任人留 OPEN 待调度。
+ */
+@Service
+public class UnitPortalService {
+
+    /** 使用单位报修的登记人前缀：员工端列表据此显示“使用单位报修”而不是陌生的 id */
+    public static final String REPORTER_PREFIX = "unit:";
+    /** 门户列表上限：先给固定窗口，分页等门户页落地后再补 */
+    private static final int LIST_LIMIT = 50;
+
+    private final ElevatorMapper elevatorMapper;
+    private final MaintainRecordMapper recordMapper;
+    private final FaultMapper faultMapper;
+    private final EmployeeMapper employeeMapper;
+    private final DirectoryService directoryService;
+
+    public UnitPortalService(ElevatorMapper elevatorMapper, MaintainRecordMapper recordMapper,
+                             FaultMapper faultMapper, EmployeeMapper employeeMapper,
+                             DirectoryService directoryService) {
+        this.elevatorMapper = elevatorMapper;
+        this.recordMapper = recordMapper;
+        this.faultMapper = faultMapper;
+        this.employeeMapper = employeeMapper;
+        this.directoryService = directoryService;
+    }
+
+    /** 本单位电梯（停用的不展示） */
+    public List<Map<String, Object>> elevators(String useUnitId) {
+        List<Map<String, Object>> out = new ArrayList<>();
+        for (Elevator el : ownElevators(useUnitId)) {
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("id", el.id);
+            m.put("elevatorCode", el.elevatorCode);
+            m.put("elevatorName", el.elevatorName);
+            m.put("projectName", el.projectName);
+            m.put("location", el.location);
+            m.put("insideNumber", el.insideNumber);
+            m.put("regCode", el.regCode);
+            m.put("deviceCode", el.deviceCode);
+            m.put("nextMaintenanceDate", TimeUtil.formatDate(el.nextMaintenanceDate));
+            m.put("nextCheckDate", TimeUtil.formatDate(el.nextCheckDate));
+            out.add(m);
+        }
+        return out;
+    }
+
+    /** 本单位维保记录（按签退时间倒序） */
+    public List<Map<String, Object>> records(String useUnitId) {
+        Set<String> codes = ownCodes(useUnitId);
+        if (codes.isEmpty()) {
+            return List.of();
+        }
+        List<MaintainRecord> list = recordMapper.selectList(new LambdaQueryWrapper<MaintainRecord>()
+                .in(MaintainRecord::getElevatorCode, codes)
+                .orderByDesc(MaintainRecord::getCheckoutTime)
+                .last("LIMIT " + LIST_LIMIT));
+        List<Map<String, Object>> out = new ArrayList<>();
+        for (MaintainRecord r : list == null ? List.<MaintainRecord>of() : list) {
+            if (!codes.contains(r.elevatorCode)) {
+                continue;
+            }
+            out.add(recordRow(r));
+        }
+        return out;
+    }
+
+    /** 待确认签字：本单位电梯中 confirmStatus != CONFIRMED 的记录 */
+    public List<Map<String, Object>> pendingSigns(String useUnitId) {
+        return records(useUnitId).stream()
+                .filter(r -> !"CONFIRMED".equals(r.get("confirmStatus")))
+                .toList();
+    }
+
+    /** 本单位急修单（按报修时间倒序） */
+    public List<Map<String, Object>> faults(String useUnitId) {
+        Set<String> codes = ownCodes(useUnitId);
+        if (codes.isEmpty()) {
+            return List.of();
+        }
+        List<Fault> list = faultMapper.selectList(new LambdaQueryWrapper<Fault>()
+                .in(Fault::getElevatorCode, codes)
+                .orderByDesc(Fault::getCreatedAt)
+                .last("LIMIT " + LIST_LIMIT));
+        List<Map<String, Object>> out = new ArrayList<>();
+        for (Fault f : list == null ? List.<Fault>of() : list) {
+            if (!codes.contains(f.elevatorCode)) {
+                continue;
+            }
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("id", f.id);
+            m.put("faultNo", f.faultNo);
+            m.put("elevatorCode", f.elevatorCode);
+            m.put("faultType", f.faultType);
+            m.put("desc", f.descr);
+            m.put("status", f.status);
+            m.put("createdAt", TimeUtil.format(f.createdAt));
+            m.put("finishedAt", TimeUtil.format(f.finishedAt));
+            m.put("result", f.handleDesc);
+            out.add(m);
+        }
+        return out;
+    }
+
+    /**
+     * 使用单位报修：电梯必须属本单位（越权 1403 且不落单），复用急修链路建单后派给该梯责任人。
+     * 登记人记为 unit:{useUnitId}，员工端展示为“使用单位报修”（DirectoryService.enrichFaultViews）。
+     */
+    public Map<String, Object> reportFault(String useUnitId, Map<String, Object> body) {
+        String code = body == null ? null : str(body, "elevatorCode");
+        if (code == null || code.isBlank()) {
+            throw new BizException(422, "请选择电梯");
+        }
+        String desc = str(body, "desc");
+        if (desc == null || desc.isBlank()) {
+            throw new BizException(422, "请填写故障描述");
+        }
+        Elevator target = ownElevators(useUnitId).stream()
+                .filter(el -> code.equals(el.elevatorCode))
+                .findFirst().orElse(null);
+        if (target == null) {
+            throw new BizException(1403, "仅可为本单位电梯报修");
+        }
+        Map<String, Object> payload = new LinkedHashMap<>(body);
+        payload.put("elevatorCode", code);
+        payload.put("desc", desc);
+        Map<String, Object> view = directoryService.createFault(payload, REPORTER_PREFIX + useUnitId);
+        String faultId = view.get("id") == null ? null : String.valueOf(view.get("id"));
+        Employee worker = responsibleWorker(target);
+        if (faultId == null || worker == null) {
+            return view; // 无责任人：留 OPEN 待管理端派单
+        }
+        return directoryService.dispatchFault(faultId, worker.id);
+    }
+
+    /** 该梯责任人：workerPlatformId → sys_employee（派单口径，见 docs/14 §4） */
+    private Employee responsibleWorker(Elevator el) {
+        if (el.workerPlatformId == null || el.workerPlatformId.isBlank()) {
+            return null;
+        }
+        List<Employee> list = employeeMapper.selectList(new LambdaQueryWrapper<Employee>()
+                .eq(Employee::getPlatformId, el.workerPlatformId));
+        return list == null || list.isEmpty() ? null : list.get(0);
+    }
+
+    private List<Elevator> ownElevators(String useUnitId) {
+        if (useUnitId == null || useUnitId.isBlank()) {
+            return List.of();
+        }
+        List<Elevator> list = elevatorMapper.selectList(new LambdaQueryWrapper<Elevator>()
+                .eq(Elevator::getUseUnitId, useUnitId));
+        if (list == null) {
+            return List.of();
+        }
+        return list.stream()
+                .filter(el -> !"INACTIVE".equals(el.status))
+                .filter(el -> useUnitId.equals(el.useUnitId))
+                .sorted(Comparator.comparing(el -> el.id == null ? "" : el.id))
+                .toList();
+    }
+
+    private Set<String> ownCodes(String useUnitId) {
+        Set<String> codes = new LinkedHashSet<>();
+        for (Elevator el : ownElevators(useUnitId)) {
+            if (el.elevatorCode != null) {
+                codes.add(el.elevatorCode);
+            }
+        }
+        return codes;
+    }
+
+    private static Map<String, Object> recordRow(MaintainRecord r) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("id", r.id);
+        m.put("elevatorCode", r.elevatorCode);
+        m.put("elevatorName", r.elevatorName);
+        m.put("workType", r.workType);
+        m.put("workerName", r.workerName);
+        m.put("assistantName", r.assistantName);
+        m.put("checkinTime", TimeUtil.format(r.checkinTime));
+        m.put("checkoutTime", TimeUtil.format(r.checkoutTime));
+        m.put("duration", r.duration);
+        m.put("confirmStatus", r.confirmStatus == null ? "PENDING" : r.confirmStatus);
+        return m;
+    }
+
+    private static String str(Map<String, Object> body, String key) {
+        Object v = body == null ? null : body.get(key);
+        return v == null ? null : String.valueOf(v);
+    }
+}

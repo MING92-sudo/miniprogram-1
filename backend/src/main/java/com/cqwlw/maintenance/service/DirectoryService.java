@@ -291,8 +291,15 @@ public class DirectoryService {
         }
         for (Map<String, Object> v : views) {
             String by = String.valueOf(v.get("createdBy"));
-            v.put("createdByName", by.isEmpty() ? "" : names.getOrDefault(by, by));
-            v.put("reporterPhone", by.isEmpty() ? "" : phones.getOrDefault(by, ""));
+            if (by.startsWith(UnitPortalService.REPORTER_PREFIX)) {
+                // 使用单位门户报修（Task 10）：登记人是 use_unit，不是员工
+                String unitId = by.substring(UnitPortalService.REPORTER_PREFIX.length());
+                v.put("createdByName", "使用单位报修（" + useUnitName(unitId) + "）");
+                v.put("reporterPhone", "");
+            } else {
+                v.put("createdByName", by.isEmpty() ? "" : names.getOrDefault(by, by));
+                v.put("reporterPhone", by.isEmpty() ? "" : phones.getOrDefault(by, ""));
+            }
             // 派单信息（V20 派单系统）
             String dispatchId = String.valueOf(v.get("dispatchWorkerId"));
             v.put("dispatchedWorkerName", "null".equals(dispatchId) || dispatchId.isEmpty()
