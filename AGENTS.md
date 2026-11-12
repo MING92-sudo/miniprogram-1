@@ -1,4 +1,4 @@
-﻿# 项目规则（AGENTS.md）
+# 项目规则（AGENTS.md）
 
 > 电梯无纸化维保系统——编码与协作规则。AI 助手与人工开发者均须遵守。
 > 创建：2026-09-30。V3.0 重写：2026-11-10（规则变更须在 §10 追加修订记录）。
@@ -14,9 +14,11 @@
 | 还剩什么没完成 | `docs/12-未完成事项清单.md` | **待办唯一清单**（含 P0 上线门禁） |
 | 当前阶段与历史 | `docs/08-项目审查与开发计划.md` | 只作背景与追溯，不当作待办 |
 | 管理端设计与验收 | `docs/09-管理端设计.md`、`docs/10-管理端验收清单.md` | 角色矩阵与人工验收证据 |
+| 维保记录/急修单表单版式 | `docs/13-维保与急修记录表单设计.md` | 两张导出 PDF 的逐格版面口径、字段来源与采集缺口 |
+| 账号与数据权限 | `docs/14-账号权限与组织角色设计.md` | 三平级部门（安装/维保/使用单位）角色码、数据域与权限矩阵 |
 | 测试与上线检查 | `docs/05-测试与验收方案.md`、`docs/11-云托管部署手册.md` | 人工验收结论写回 docs/05、docs/10 |
 
-**当前基线（2026-11-11 机审）**：小程序 22 页（tabBar 4）；`services/` 9 个模块；`mock/server.js` 48 条路由；后端 105 个 Web 映射注解（102 条业务路由 + 3 个探针）、Flyway V1—V23、216 个单测；管理端 17 个视图；文档 01—12。计数用于快速定位，提交前以代码实测为准；文档数字滞后时改文档，不要为迁就旧数字改代码。
+**当前基线（2026-11-12 机审）**：小程序 22 页（tabBar 4）；`services/` 9 个模块；`mock/server.js` 48 条路由；后端 105 个 Web 映射注解（102 条业务路由 + 3 个探针）、Flyway V1—V31、284 个单测；管理端 17 个视图；文档 01—14。计数用于快速定位，提交前以代码实测为准；文档数字滞后时改文档，不要为迁就旧数字改代码。
 
 ## 1. 系统组成与分层
 
@@ -29,11 +31,11 @@
 ├─ config/index.js                环境配置（ENV、useMock、apiBaseUrl、cloud.env/service、LBS key 留空）
 ├─ constants/index.js             枚举/错误码/业务常量（文案统一从这里取）
 ├─ mock/                          mock 契约层（server.js 路由 = docs/04 A 部分）
-├─ backend/                       Spring Boot 3.3.4 后端（Flyway V1—V23、JWT/BCrypt、平台转发、216 单测）
+├─ backend/                       Spring Boot 3.3.4 后端（Flyway V1—V31、JWT/BCrypt、平台转发、284 单测）
 ├─ admin/                         Vue3 + Vite + Element Plus 管理端（17 视图；lint/vitest/build）
 ├─ scripts/                       平台联调脚本与回归脚本（fixtures/ 合成测试件；tmp/ 已 gitignore）
 ├─ doc_text.txt                   平台规范 V1.5 原文提取（docs/04 B 部分核对来源，只读）
-├─ docs/                          01—12 编号文档（见 §8）
+├─ docs/                          01—14 编号文档（见 §8）
 └─ miniapp/                       微信开发者工具多端生成物（本地，已 gitignore，不属于交付物）
 ```
 
@@ -175,6 +177,9 @@
 | V3.1 | 2026-11-10 | 后端启动新增**迁移失败自愈**：`migrate()` 前按主键删除 `flyway_schema_history` 中 `success=0` 的失败行后重跑该迁移，只删失败行、不重写已成功迁移的 checksum（`FLYWAY_REPAIR` 的 M6 语义不变）；背景是云托管 MySQL 5.7 上 V22 迁移中断导致容器崩溃重启循环、且环境拿不到数据库写权限。补 `FlywayRepairConfigTest` 4 例（后端 200 单测），docs/11 新增 §8「迁移中断自愈与排查」 |
 | V3.2 | 2026-11-10 | 打包完整性护栏：新增 `MigrationIntegrityTest`，classpath 下出现同版本迁移脚本即失败（云端 133 版本曾因 `backend/target/classes` 残留 2026-10-01 的 `V1__init.sql` 被打进 jar，Flyway 报 "Found more than one migration with version 1" 拒绝启动）；后端打包必须 `mvn clean package`，基线 201 单测 |
 | V3.3 | 2026-11-11 | 双人维保协同：签字各自手机签（用户需求）——①§3 业务不变量新增「签字严格各签各的 + 签退仅主维保」：`work_order` 增 `worker_signature_file_id/worker_signature_at/assistant_signature_file_id/assistant_signature_at` 四列（V23 迁移），新增 `POST /work-orders/{id}/signature`（普通作业人员仅可签本人角色，组长/管理员可代签，越权/代签 `1403`），签退改为仅主维保可操作、签字取工单字段（兼容旧客户端签退体直传）；②前端签字入口移到工单详情页，签退页由「两个签字位」改「签字状态展示」；③计数更新（Flyway V1—V23、102 条业务路由、216 单测、mock 48 条）。docs/01 V3.8、docs/03 V2.10、docs/04 V2.41 同步 |
+| V3.4 | 2026-11-12 | 导出表单标准化：新增 `docs/13-维保与急修记录表单设计.md`（§0 导航新增一行、docs 范围 01—13），《电梯维护保养记录》与《电梯急修记录单》按 TSG T5002—2017 第七条/第八条/第十条/附件 A—D 定为标准表格版式（六列项目表、品种×附件表号副标题、分页重复表头、页脚页码、签字确认区）；`RecordPdfService` 全量重排，`DirectoryService.enrichFaultViews` 补急修单设备字段与 `dispatchedAt`（docs/04 V2.45，只增不改）；新增采集缺口 C-08—C-10 入 docs/12。计数更新（Flyway V1—V27、231 单测） |
+| V3.5 | 2026-11-12 | 账号权限体系设计：新增 `docs/14-账号权限与组织角色设计.md`（docs 范围 01—14）——系统权限下设**安装部/维保部/使用单位三个平级部门**，9 个组织角色 + 2 个平台角色，部门域互斥、部门内五类数据谓词、管理端与小程序两张权限矩阵、10 条硬规则、四层鉴权链（Auth→RoleCatalog→PermissionMatrix→DeptScope）、V28 迁移（`sys_employee` 增 `department/manager_id/job_title`）、现有 5 角色迁移路径与 12 条越权验收用例。本期仅设计，P1—P4 落地排期见该文 §11 |
+| V3.6 | 2026-11-12 | 三工作流并行落地：①**权限底座 P1**——`RoleCatalog`/`PermissionMatrix`/`RequirePerm`/`DeptScopeService` + V31 迁移（`sys_employee` 三列），`AdminRoleInterceptor` 改走能力码，现有 5 角色放行结果逐条不变（`AdminRoleInterceptorCompatTest`）；②**管理端权限前端**（P2 半边）——`admin/src/utils/permission.js` 与后端逐字同名 24 个能力码、14 条路由 `meta.perm`、菜单数据驱动过滤；③**外接建档 W2（Task 7）**——V29 五表 + 5 端点，合同前置/缺件待补办/接管查验责任归属必填/归档 `archive_source=2` + 首保 +3 日；④**维保日历（Task 11）**——`GET /maintenance-calendar` 只读投影；⑤**区域可见范围（Task 8）**——新增 `visibleReadPlatformIds`（区域∪本班组∪本人，仅列表），写谓词保持严格（防代签到）。计数更新（Flyway V1—V31、284 单测、admin 39 用例）；⑥**管理端菜单下发**（docs/14 P2 收尾）——`GET /auth/menus` + `MenuService` 按角色能力过滤菜单树，前端接口驱动 + 本地兜底 |
 
 <!-- aoci:begin -->
 ## AOCI Repository Cognition

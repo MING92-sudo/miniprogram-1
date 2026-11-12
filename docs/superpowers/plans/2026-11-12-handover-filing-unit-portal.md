@@ -165,12 +165,12 @@
 - Consumes: Task 3 合同校验。
 - Produces: `ExternalFilingService.init()`（校验已生效合同）、`submitDocs()`（缺资料可标 missing 待补办）、`submitTakeoverCheck()`（不合格不阻塞、责任归属必填）、`confirm()`（交接确认双方签字）、`archive()`（`archiveSource=2`，首保 planTime=接收日+3日）。
 
-- [ ] **Step 1: 写迁移与实体**：`external_filing_order`、`external_filing_doc`、`external_takeover_check`、`external_takeover_check_item`、`handover_confirmation`。
-- [ ] **Step 2: 写失败测试**：`ExternalFilingServiceTest.initRequiresActiveContract`（无合同 → 422）；`takeoverCheckRecordsResponsibilityWithoutBlocking`（不合格项记录责任方、不阻塞到待确认）；`missingDocGeneratesBackfillTask`（标缺失 → 生成补办任务）。
-- [ ] **Step 3: 跑测试确认失败** → FAIL。
-- [ ] **Step 4: 实现** `ExternalFilingService` + `ExternalFilingController` + 归档事件（复用 Task 5 公共方法）。
-- [ ] **Step 5: 跑测试确认通过** → PASS。
-- [ ] **Step 6: Commit**：`feat: 外接建档状态机与合同前置/接管查验/交接确认`。
+- [x] **Step 1: 写迁移与实体**：`external_filing_order`、`external_filing_doc`、`external_takeover_check`、`external_takeover_check_item`、`handover_confirmation`。
+- [x] **Step 2: 写失败测试**：`ExternalFilingServiceTest.initRequiresActiveContract`（无合同 → 422）；`takeoverCheckRecordsResponsibilityWithoutBlocking`（不合格项记录责任方、不阻塞到待确认）；`missingDocGeneratesBackfillTask`（标缺失 → 生成补办任务）。
+- [x] **Step 3: 跑测试确认失败** → FAIL。
+- [x] **Step 4: 实现** `ExternalFilingService` + `ExternalFilingController` + 归档事件（复用 Task 5 公共方法）。
+- [x] **Step 5: 跑测试确认通过** → PASS。
+- [x] **Step 6: Commit**：`feat: 外接建档状态机与合同前置/接管查验/交接确认`。
 
 ## Task 8: 区域可见范围权限谓词
 
@@ -180,12 +180,13 @@
 **Interfaces:**
 - Consumes: Task 1 `region_id`。
 - Produces: 维保人员列表/详情谓词 = 本区域电梯（`elevator.region_id = 本人 region_id`）；组长额外本班组；使用单位按 `useUnitId`。
+- **落地口径（2026-11-12）**：读谓词 `EmployeeScopeService.visibleReadPlatformIds`（区域 ∪ 本班组 ∪ 本人，仅电梯列表与工单列表）；写谓词 `visibleWorkerPlatformIds` 保持严格——区域不得扩到签到/清单/签退/签字，否则等于代签到（AGENTS §3.1）。电梯档案详情与工单详情因暴露管理员电话/签字照片，仍走严格谓词；角色扩展由 P1 的 `PermissionMatrix` 承接。
 
-- [ ] **Step 1: 写失败测试**：`RegionScopeTest.workerSeesOnlyOwnRegionElevators`（区域 A 员工查不到区域 B 电梯）；`leaderSeesRegionPlusGroup`（组长可见本区域 + 本班组）。
-- [ ] **Step 2: 跑测试确认失败** → FAIL。
-- [ ] **Step 3: 实现** 区域谓词 + 拦截器角色扩展（INSTALLER/USE_UNIT）。
-- [ ] **Step 4: 跑测试确认通过** → PASS。
-- [ ] **Step 5: Commit**：`feat: 区域可见范围权限谓词与角色扩展`。
+- [x] **Step 1: 写失败测试**：`RegionScopeTest.workerSeesOnlyOwnRegionElevators`（区域 A 员工查不到区域 B 电梯）；`leaderSeesRegionPlusGroup`（组长可见本区域 + 本班组）。
+- [x] **Step 2: 跑测试确认失败** → FAIL。
+- [x] **Step 3: 实现** 区域谓词 + 拦截器角色扩展（INSTALLER/USE_UNIT）。
+- [x] **Step 4: 跑测试确认通过** → PASS。
+- [x] **Step 5: Commit**：`feat: 区域可见范围权限谓词与角色扩展`。
 
 ## Task 9: 使用单位账号 + 登录
 
@@ -228,11 +229,11 @@
 **Interfaces:**
 - Produces: `GET /maintenance-calendar`（按本人/本区域，投影未来 12 个月半月/季度/半年/年度排期）。
 
-- [ ] **Step 1: 写失败测试**：`MaintenanceCalendarServiceTest.projectsQuarterlyAndSemiannual`（从首保日起，第 90 天投影为季度 TM、第 180 天为半年 SM、第 365 天为年度 OY、其余为半月 HM）。
-- [ ] **Step 2: 跑测试确认失败** → FAIL。
-- [ ] **Step 3: 实现** 前向投影算法（逐日累加式判定，不落库）。
-- [ ] **Step 4: 跑测试确认通过** → PASS。
-- [ ] **Step 5: Commit**：`feat: 维保日历只读投影（未来12个月）`。
+- [x] **Step 1: 写失败测试**：`MaintenanceCalendarServiceTest.projectsQuarterlyAndSemiannual`（从首保日起，第 90 天投影为季度 TM、第 180 天为半年 SM、第 365 天为年度 OY、其余为半月 HM）。
+- [x] **Step 2: 跑测试确认失败** → FAIL。
+- [x] **Step 3: 实现** 前向投影算法（逐日累加式判定，不落库）。
+- [x] **Step 4: 跑测试确认通过** → PASS。
+- [x] **Step 5: Commit**：`feat: 维保日历只读投影（未来12个月）`。
 
 ## Task 12: 小程序——移交与外接建档页面
 
