@@ -21,6 +21,12 @@ public class Elevator {
     public String projectName;
     /** 所属区域（region.id，可空；移交/外接建档/使用单位门户可见性范围谓词，V24 迁移） */
     public String regionId;
+    /** 建档来源：0=存量直建（默认）/1=移交/2=外接（V25 迁移） */
+    public Integer archiveSource;
+    /** 监督检验合格日（移交路径首保基线锚点，V25 迁移） */
+    public LocalDate supervisionPassDate;
+    /** 归档时间 = 维保责任起始时间（移交/外接共用，V25 迁移） */
+    public LocalDateTime handoverAt;
     public String location;
     public String regCode;
     public String deviceCode;
