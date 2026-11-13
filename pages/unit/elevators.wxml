@@ -1,4 +1,8 @@
 <view class="em-page">
+  <view class="page-head">
+    <view class="page-head-title">电梯清单</view>
+    <view class="page-head-sub">本单位登记电梯与维保/检验日期</view>
+  </view>
   <view wx:if="{{loading}}" class="em-card em-text-secondary">加载中...</view>
 
   <view wx:if="{{failed}}" class="em-card">

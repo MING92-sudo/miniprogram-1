@@ -1,20 +1,174 @@
-/* 使用单位个人中心：仅单位信息 + 设置项（绑定微信 / 修改口令 / 退出） */
-.unit-card { margin-bottom: 20rpx; }
-.unit-label { font-size: 24rpx; color: #86909c; }
-.unit-name { margin-top: 6rpx; font-size: 34rpx; font-weight: 600; }
-.unit-row { display: flex; margin-top: 16rpx; font-size: 26rpx; }
-.unit-row-label { width: 140rpx; color: #86909c; }
-.unit-row-value { flex: 1; color: var(--em-text, #1d2129); }
-.unit-tip { margin-top: 16rpx; font-size: 22rpx; line-height: 1.6; color: #86909c; }
-.portal-btn { margin-top: 20rpx; }
+/* 使用单位个人中心：单位身份卡 + 两个设置面板（与门户首页同一套视觉） */
+.unit-mine {
+  padding-bottom: 40rpx;
+}
 
-.section-title { font-size: 28rpx; font-weight: 600; }
+/* ── 身份卡 ── */
+.hero {
+  margin: 24rpx 24rpx 0;
+  padding: 36rpx 32rpx 28rpx;
+  border-radius: 24rpx;
+  background: linear-gradient(135deg, #0a5bd3 0%, #3b82f6 100%);
+  box-shadow: 0 8rpx 24rpx rgba(10, 91, 211, 0.22);
+}
 
-.bind-box { margin-top: 16rpx; }
-.bind-input { height: 76rpx; padding: 0 20rpx; background: #f7f8fa; border-radius: 12rpx; font-size: 26rpx; }
-.pwd-input { margin-top: 16rpx; }
-.bind-btn { margin-top: 16rpx; }
-.bind-tip { margin-top: 12rpx; font-size: 22rpx; line-height: 1.6; }
-.bind-state { margin-top: 16rpx; font-size: 24rpx; color: #00b42a; }
+.hero-kicker {
+  font-size: 22rpx;
+  letter-spacing: 2rpx;
+  color: rgba(255, 255, 255, 0.72);
+}
 
-.version-line { text-align: center; padding: 24rpx 0; font-size: 24rpx; }
+.hero-title {
+  margin-top: 10rpx;
+  font-size: 40rpx;
+  font-weight: 600;
+  color: #ffffff;
+  line-height: 1.35;
+}
+
+.hero-meta {
+  margin-top: 12rpx;
+  font-size: 24rpx;
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.meta-dot {
+  margin: 0 10rpx;
+}
+
+.hero-btn {
+  margin-top: 28rpx;
+  height: 76rpx;
+  line-height: 76rpx;
+  font-size: 28rpx;
+  font-weight: 500;
+  color: var(--em-brand);
+  background: #ffffff;
+  border-radius: 999rpx;
+}
+
+.hero-btn::after {
+  border: none;
+}
+
+.section-note {
+  padding: 16rpx 32rpx 0;
+  font-size: 22rpx;
+  color: var(--em-text-secondary);
+  line-height: 1.6;
+}
+
+/* ── 设置面板 ── */
+.panel {
+  margin: 20rpx 24rpx 0;
+  padding: 28rpx 24rpx;
+  background: var(--em-bg-card);
+  border-radius: var(--em-radius);
+}
+
+.panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.panel-title {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: var(--em-text-primary);
+}
+
+.panel-state {
+  font-size: 22rpx;
+  color: var(--em-text-secondary);
+  background: var(--em-neutral-bg);
+  padding: 4rpx 16rpx;
+  border-radius: 999rpx;
+}
+
+.state-on {
+  color: var(--em-success);
+  background: var(--em-success-bg);
+}
+
+.panel-desc {
+  margin-top: 12rpx;
+  font-size: 24rpx;
+  color: var(--em-text-secondary);
+  line-height: 1.7;
+}
+
+.field-row {
+  display: flex;
+  align-items: center;
+  margin-top: 20rpx;
+}
+
+.field-input {
+  flex: 1;
+  height: 80rpx;
+  padding: 0 24rpx;
+  font-size: 28rpx;
+  background: #f7f8fa;
+  border-radius: var(--em-radius);
+  box-sizing: border-box;
+}
+
+.field-btn {
+  flex: none;
+  width: 140rpx;
+  height: 80rpx;
+  margin-left: 16rpx;
+  line-height: 80rpx;
+  text-align: center;
+  font-size: 28rpx;
+  color: #ffffff;
+  background: var(--em-brand);
+  border-radius: var(--em-radius);
+}
+
+.field-btn.is-disabled {
+  background: var(--em-brand-light);
+  color: var(--em-brand);
+}
+
+.block-input {
+  width: 100%;
+  margin-top: 20rpx;
+}
+
+.save-btn {
+  margin-top: 28rpx;
+  height: 84rpx;
+  line-height: 84rpx;
+  font-size: 28rpx;
+  font-weight: 500;
+  color: #ffffff;
+  background: var(--em-brand);
+  border-radius: 999rpx;
+}
+
+.save-btn::after {
+  border: none;
+}
+
+.save-btn[disabled] {
+  background: var(--em-brand-light);
+  color: var(--em-brand);
+}
+
+/* ── 底部 ── */
+.footer-logout {
+  margin-top: 40rpx;
+  padding: 24rpx 0;
+  text-align: center;
+  font-size: 26rpx;
+  color: var(--em-text-secondary);
+}
+
+.version-line {
+  padding-bottom: 32rpx;
+  text-align: center;
+  font-size: 22rpx;
+  color: var(--em-text-disabled);
+}

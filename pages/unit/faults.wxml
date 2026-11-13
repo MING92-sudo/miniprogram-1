@@ -1,4 +1,8 @@
 <view class="em-page">
+  <view class="page-head">
+    <view class="page-head-title">急修记录</view>
+    <view class="page-head-sub">报修进度与处理结果</view>
+  </view>
   <view wx:if="{{loading}}" class="em-card em-text-secondary">加载中...</view>
 
   <view wx:if="{{failed}}" class="em-card">

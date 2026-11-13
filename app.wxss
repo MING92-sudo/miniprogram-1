@@ -87,3 +87,21 @@ page {
 .guest-empty-btn::after {
   border: none;
 }
+
+/* 列表/表单页统一页头（门户内页与员工页共用，避免每页各写一套） */
+.page-head {
+  padding: 32rpx 32rpx 8rpx;
+}
+
+.page-head-title {
+  font-size: 36rpx;
+  font-weight: 600;
+  color: var(--em-text-primary);
+}
+
+.page-head-sub {
+  margin-top: 8rpx;
+  font-size: 24rpx;
+  color: var(--em-text-secondary);
+  line-height: 1.6;
+}

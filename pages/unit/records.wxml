@@ -1,4 +1,8 @@
 <view class="em-page">
+  <view class="page-head">
+    <view class="page-head-title">维保记录</view>
+    <view class="page-head-sub">本单位历次维保与确认状态</view>
+  </view>
   <view class="em-card tip-card">
     <view class="em-text-secondary">{{text.SIGN_HINT}}</view>
   </view>

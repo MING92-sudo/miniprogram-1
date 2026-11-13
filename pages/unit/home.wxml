@@ -1,62 +1,85 @@
-<view class="em-page">
-  <view class="portal-head">
-    <view class="portal-head-main">
-      <view class="portal-title">{{unitName || '使用单位门户'}}</view>
-      <view class="portal-sub">{{text.READONLY_TIP}}</view>
-    </view>
-    <view class="portal-mine" bindtap="goMine">我的</view>
-  </view>
-
-  <view class="stat-row">
-    <view class="stat-card" bindtap="goElevators">
-      <view class="stat-num">{{elevatorCount}}</view>
-      <view class="stat-label">本单位电梯</view>
-    </view>
-    <view class="stat-card" bindtap="goRecords">
-      <view class="stat-num">{{pendingSignCount}}</view>
-      <view class="stat-label">待签字记录</view>
-    </view>
-    <view class="stat-card" bindtap="goFaults">
-      <view class="stat-num">{{openFaultCount}}</view>
-      <view class="stat-label">未闭环急修</view>
-    </view>
-  </view>
-
-  <view wx:if="{{loading}}" class="em-card em-text-secondary">加载中...</view>
-
-  <view wx:if="{{failed}}" class="em-card">
-    <view class="em-text-secondary">数据暂不可用，请稍后重试</view>
-    <button class="em-btn-ghost retry" bindtap="onRetry">重试</button>
-  </view>
-
-  <view class="em-card">
-    <view class="entry" bindtap="goElevators">
-      <view class="entry-main">
-        <view class="entry-title">电梯清单</view>
-        <view class="em-text-secondary">本单位登记电梯与下次维保日期</view>
+<view class="em-page portal-page">
+  <!-- 品牌头：单位身份 + 三项关键指标（半透明块），右上角进入个人中心 -->
+  <view class="hero">
+    <view class="hero-top">
+      <view class="hero-main">
+        <view class="hero-kicker">使用单位门户</view>
+        <view class="hero-title">{{unitName || '使用单位门户'}}</view>
       </view>
-      <view class="entry-arrow">›</view>
+      <view class="hero-mine" bindtap="goMine">我的</view>
     </view>
-    <view class="entry" bindtap="goRecords">
-      <view class="entry-main">
-        <view class="entry-title">维保记录</view>
-        <view class="em-text-secondary">历次维保时间、作业人员与确认状态</view>
+    <view class="hero-stats">
+      <view class="hero-stat" bindtap="goElevators">
+        <view class="hero-stat-num">{{elevatorCount}}</view>
+        <view class="hero-stat-label">本单位电梯</view>
       </view>
-      <view class="entry-arrow">›</view>
-    </view>
-    <view class="entry" bindtap="goFaults">
-      <view class="entry-main">
-        <view class="entry-title">急修记录</view>
-        <view class="em-text-secondary">报修进度与处理结果</view>
+      <view class="hero-divider"></view>
+      <view class="hero-stat" bindtap="goRecords">
+        <view class="hero-stat-num">{{pendingSignCount}}</view>
+        <view class="hero-stat-label">待签字记录</view>
       </view>
-      <view class="entry-arrow">›</view>
+      <view class="hero-divider"></view>
+      <view class="hero-stat" bindtap="goFaults">
+        <view class="hero-stat-num">{{openFaultCount}}</view>
+        <view class="hero-stat-label">未闭环急修</view>
+      </view>
     </view>
   </view>
 
-  <view class="em-card">
-    <button class="em-btn-primary" bindtap="goReport">报修</button>
-    <view class="em-text-secondary tip">{{text.REPORT_TIP}}</view>
+  <view class="scope-line">{{text.READONLY_TIP}}</view>
+
+  <!-- 待办提醒：仅在有待签字记录时出现，避免空占位 -->
+  <view wx:if="{{pendingSignCount > 0}}" class="notice" bindtap="goRecords">
+    <view class="notice-dot"></view>
+    <view class="notice-text">有 {{pendingSignCount}} 条维保记录待确认签字</view>
+    <view class="notice-go">去确认 ›</view>
   </view>
 
-  <view class="em-card logout" bindtap="onLogout">退出登录</view>
+  <view wx:if="{{loading}}" class="panel">
+    <view class="panel-empty">正在加载本单位数据…</view>
+  </view>
+
+  <view wx:if="{{failed}}" class="panel">
+    <view class="panel-empty">数据暂不可用，请检查网络后重试</view>
+    <button class="ghost-btn" bindtap="onRetry">重新加载</button>
+  </view>
+
+  <!-- 功能入口：图标块 + 标题 + 说明 -->
+  <view class="panel">
+    <view class="menu-row" bindtap="goElevators">
+      <view class="menu-icon icon-brand">梯</view>
+      <view class="menu-body">
+        <view class="menu-title">电梯清单</view>
+        <view class="menu-desc">本单位登记电梯、下次维保与检验日期</view>
+      </view>
+      <view class="menu-arrow">›</view>
+    </view>
+    <view class="menu-row" bindtap="goRecords">
+      <view class="menu-icon icon-success">单</view>
+      <view class="menu-body">
+        <view class="menu-title">维保记录</view>
+        <view class="menu-desc">历次维保时间、作业人员与确认状态</view>
+      </view>
+      <view class="menu-arrow">›</view>
+    </view>
+    <view class="menu-row" bindtap="goFaults">
+      <view class="menu-icon icon-warning">修</view>
+      <view class="menu-body">
+        <view class="menu-title">急修记录</view>
+        <view class="menu-desc">报修进度与处理结果</view>
+      </view>
+      <view class="menu-arrow">›</view>
+    </view>
+  </view>
+
+  <!-- 报修：主操作区（门户唯一写操作） -->
+  <view class="report-panel">
+    <view class="report-head">
+      <view class="report-title">电梯故障？立即报修</view>
+      <view class="report-desc">{{text.REPORT_TIP}}</view>
+    </view>
+    <button class="report-btn" bindtap="goReport">我要报修</button>
+  </view>
+
+  <view class="footer-logout" bindtap="onLogout">退出登录</view>
 </view>

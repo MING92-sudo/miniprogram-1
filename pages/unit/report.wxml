@@ -1,4 +1,8 @@
 <view class="em-page">
+  <view class="page-head">
+    <view class="page-head-title">报修</view>
+    <view class="page-head-sub">选择电梯并填写故障情况</view>
+  </view>
   <view wx:if="{{loading}}" class="em-card em-text-secondary">加载中...</view>
 
   <view wx:if="{{!loading && !elevators.length}}" class="em-card em-text-secondary">{{text.EMPTY_ELEVATOR}}</view>

@@ -1,106 +1,250 @@
-.portal-head {
+/* 使用单位门户首页：品牌色头部 + 指标 + 入口卡 + 报修主操作 */
+.portal-page {
+  padding: 0 0 40rpx;
+}
+
+/* ── 品牌头 ── */
+.hero {
+  margin: 24rpx 24rpx 0;
+  padding: 36rpx 32rpx 28rpx;
+  border-radius: 24rpx;
+  background: linear-gradient(135deg, #0a5bd3 0%, #3b82f6 100%);
+  box-shadow: 0 8rpx 24rpx rgba(10, 91, 211, 0.22);
+}
+
+.hero-top {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  padding: 40rpx 32rpx 8rpx;
 }
 
-.portal-head-main {
+.hero-main {
   flex: 1;
   min-width: 0;
 }
 
-/* 我的（门户身份下唯一的个人中心入口：微信绑定 / 退出门户） */
-.portal-mine {
-  flex: none;
-  margin-left: 24rpx;
-  padding: 8rpx 0 8rpx 24rpx;
-  font-size: 26rpx;
-  color: var(--em-primary, #1f6feb);
+.hero-kicker {
+  font-size: 22rpx;
+  letter-spacing: 2rpx;
+  color: rgba(255, 255, 255, 0.72);
 }
 
-.portal-title {
-  font-size: 38rpx;
-  font-weight: 600;
-}
-
-.portal-sub {
+.hero-title {
   margin-top: 10rpx;
+  font-size: 40rpx;
+  font-weight: 600;
+  color: #ffffff;
+  line-height: 1.35;
+}
+
+.hero-mine {
+  flex: none;
+  margin-left: 20rpx;
+  padding: 6rpx 20rpx;
   font-size: 24rpx;
-  color: var(--em-text-secondary);
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: 999rpx;
 }
 
-.stat-row {
+.hero-stats {
   display: flex;
-  gap: 16rpx;
-  padding: 24rpx 24rpx 0;
+  align-items: center;
+  margin-top: 32rpx;
+  padding-top: 24rpx;
+  border-top: 1rpx solid rgba(255, 255, 255, 0.2);
 }
 
-.stat-card {
+.hero-stat {
   flex: 1;
-  padding: 24rpx 16rpx;
   text-align: center;
+}
+
+.hero-stat-num {
+  font-size: 48rpx;
+  font-weight: 600;
+  color: #ffffff;
+  line-height: 1.1;
+}
+
+.hero-stat-label {
+  margin-top: 6rpx;
+  font-size: 22rpx;
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.hero-divider {
+  width: 1rpx;
+  height: 48rpx;
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.scope-line {
+  padding: 16rpx 32rpx 0;
+  font-size: 22rpx;
+  color: var(--em-text-secondary);
+  line-height: 1.6;
+}
+
+/* ── 待办提醒 ── */
+.notice {
+  display: flex;
+  align-items: center;
+  margin: 20rpx 24rpx 0;
+  padding: 20rpx 24rpx;
+  background: var(--em-warning-bg);
+  border-radius: var(--em-radius);
+}
+
+.notice-dot {
+  width: 12rpx;
+  height: 12rpx;
+  margin-right: 14rpx;
+  border-radius: 50%;
+  background: var(--em-warning);
+}
+
+.notice-text {
+  flex: 1;
+  font-size: 26rpx;
+  color: var(--em-warning);
+}
+
+.notice-go {
+  font-size: 24rpx;
+  color: var(--em-warning);
+}
+
+/* ── 通用面板 ── */
+.panel {
+  margin: 20rpx 24rpx 0;
+  padding: 4rpx 24rpx;
   background: var(--em-bg-card);
   border-radius: var(--em-radius);
 }
 
-.stat-num {
-  font-size: 44rpx;
+.panel-empty {
+  padding: 40rpx 0;
+  text-align: center;
+  font-size: 26rpx;
+  color: var(--em-text-secondary);
+}
+
+.ghost-btn {
+  margin: 0 0 32rpx;
+  background: var(--em-brand-light);
+  color: var(--em-brand);
+  border-radius: var(--em-radius);
+  font-size: 28rpx;
+}
+
+/* ── 功能入口 ── */
+.menu-row {
+  display: flex;
+  align-items: center;
+  padding: 26rpx 0;
+  border-bottom: 1rpx solid var(--em-border);
+}
+
+.menu-row:last-child {
+  border-bottom: none;
+}
+
+.menu-icon {
+  flex: none;
+  width: 72rpx;
+  height: 72rpx;
+  margin-right: 20rpx;
+  border-radius: 18rpx;
+  text-align: center;
+  line-height: 72rpx;
+  font-size: 32rpx;
   font-weight: 600;
+}
+
+.icon-brand {
+  background: var(--em-brand-light);
   color: var(--em-brand);
 }
 
-.stat-label {
+.icon-success {
+  background: var(--em-success-bg);
+  color: var(--em-success);
+}
+
+.icon-warning {
+  background: var(--em-warning-bg);
+  color: var(--em-warning);
+}
+
+.menu-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.menu-title {
+  font-size: 30rpx;
+  font-weight: 500;
+  color: var(--em-text-primary);
+}
+
+.menu-desc {
   margin-top: 6rpx;
   font-size: 24rpx;
   color: var(--em-text-secondary);
 }
 
-.entry {
-  display: flex;
-  align-items: center;
-  padding: 20rpx 0;
-  border-bottom: 2rpx solid var(--em-border);
-}
-
-.entry:last-child {
-  border-bottom: none;
-}
-
-.entry-main {
-  flex: 1;
-  min-width: 0;
-}
-
-.entry-title {
-  font-size: 30rpx;
-  font-weight: 500;
-  margin-bottom: 6rpx;
-}
-
-.entry-arrow {
-  color: var(--em-text-disabled);
+.menu-arrow {
+  flex: none;
+  margin-left: 12rpx;
   font-size: 32rpx;
+  color: var(--em-text-disabled);
 }
 
-.tip {
-  margin-top: 12rpx;
-  text-align: center;
-}
-
-.em-btn-ghost {
-  margin-top: 16rpx;
-  background: var(--em-brand-light);
-  color: var(--em-brand);
+/* ── 报修主操作 ── */
+.report-panel {
+  margin: 20rpx 24rpx 0;
+  padding: 28rpx 24rpx 24rpx;
+  background: var(--em-bg-card);
   border-radius: var(--em-radius);
 }
 
-.retry {
-  margin-top: 16rpx;
+.report-head {
+  margin-bottom: 24rpx;
 }
 
-.logout {
-  text-align: center;
+.report-title {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: var(--em-text-primary);
+}
+
+.report-desc {
+  margin-top: 8rpx;
+  font-size: 24rpx;
   color: var(--em-text-secondary);
-  font-size: 28rpx;
+  line-height: 1.6;
+}
+
+.report-btn {
+  height: 88rpx;
+  line-height: 88rpx;
+  font-size: 30rpx;
+  font-weight: 500;
+  color: #ffffff;
+  background: var(--em-brand);
+  border-radius: 999rpx;
+}
+
+.report-btn::after {
+  border: none;
+}
+
+/* ── 退出登录 ── */
+.footer-logout {
+  margin-top: 40rpx;
+  padding: 24rpx 0;
+  text-align: center;
+  font-size: 26rpx;
+  color: var(--em-text-secondary);
 }

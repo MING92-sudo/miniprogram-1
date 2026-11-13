@@ -1,70 +1,72 @@
-<view class="em-page">
-  <!-- 单位信息（只读） -->
-  <view class="em-card unit-card">
-    <view class="unit-label">使用单位</view>
-    <view class="unit-name">{{unitName || '使用单位'}}</view>
-    <view class="unit-row" wx:if="{{account}}">
-      <text class="unit-row-label">登录账号</text>
-      <text class="unit-row-value">{{account}}</text>
+<view class="em-page unit-mine">
+  <!-- 单位身份卡：与门户首页同一套品牌色头部 -->
+  <view class="hero">
+    <view class="hero-kicker">使用单位</view>
+    <view class="hero-title">{{unitName || '使用单位'}}</view>
+    <view class="hero-meta">
+      <text wx:if="{{account}}">账号 {{account}}</text>
+      <text wx:if="{{account}}" class="meta-dot">·</text>
+      <text>安全管理员</text>
     </view>
-    <view class="unit-row">
-      <text class="unit-row-label">角色</text>
-      <text class="unit-row-value">安全管理员</text>
-    </view>
-    <view class="unit-tip">{{text.READONLY_TIP}}</view>
-    <button class="em-btn-primary portal-btn" bindtap="goPortal">进入门户</button>
+    <button class="hero-btn" bindtap="goPortal">进入门户</button>
   </view>
 
+  <view class="section-note">{{text.READONLY_TIP}}</view>
+
   <!-- 设置项：微信一键登录（可选） -->
-  <view class="em-card">
-    <view class="section-title">微信一键登录</view>
-    <view wx:if="{{!wechatBound}}" class="bind-box">
-      <input
-        class="bind-input"
-        placeholder="输入邀请码"
-        value="{{inviteCode}}"
-        bindinput="onInviteInput"
-      />
-      <button class="em-btn-ghost bind-btn" disabled="{{binding}}" bindtap="onBindWechat">
-        {{binding ? '绑定中...' : '绑定微信'}}
-      </button>
-      <view class="em-text-secondary bind-tip">绑定后可在登录页用微信免密进入门户；邀请码由维保单位提供</view>
+  <view class="panel">
+    <view class="panel-head">
+      <view class="panel-title">微信一键登录</view>
+      <view class="panel-state {{wechatBound ? 'state-on' : ''}}">{{wechatBound ? '已开启' : '未开启'}}</view>
     </view>
-    <view wx:else class="bind-state">微信已绑定，可用微信免密登录</view>
+    <view wx:if="{{wechatBound}}" class="panel-desc">已绑定当前微信，可在登录页用微信免密进入门户。</view>
+    <block wx:else>
+      <view class="panel-desc">开启后无需输入账号口令即可进入门户；邀请码由维保单位提供。</view>
+      <view class="field-row">
+        <input
+          class="field-input"
+          placeholder="输入邀请码"
+          value="{{inviteCode}}"
+          bindinput="onInviteInput"
+        />
+        <view class="field-btn {{binding ? 'is-disabled' : ''}}" bindtap="onBindWechat">
+          {{binding ? '绑定中' : '绑定'}}
+        </view>
+      </view>
+    </block>
   </view>
 
   <!-- 设置项：修改口令 -->
-  <view class="em-card">
-    <view class="section-title">修改口令</view>
+  <view class="panel">
+    <view class="panel-head">
+      <view class="panel-title">修改口令</view>
+    </view>
     <input
-      class="bind-input pwd-input"
+      class="field-input block-input"
       password
       placeholder="原口令"
       value="{{oldPassword}}"
       bindinput="onOldPasswordInput"
     />
     <input
-      class="bind-input pwd-input"
+      class="field-input block-input"
       password
       placeholder="新口令（至少 6 位）"
       value="{{newPassword}}"
       bindinput="onNewPasswordInput"
     />
     <input
-      class="bind-input pwd-input"
+      class="field-input block-input"
       password
       placeholder="再次输入新口令"
       value="{{confirmPassword}}"
       bindinput="onConfirmPasswordInput"
     />
-    <button class="em-btn-primary bind-btn" disabled="{{saving}}" bindtap="onChangePassword">
-      {{saving ? '保存中...' : '保存'}}
+    <button class="save-btn" disabled="{{saving}}" bindtap="onChangePassword">
+      {{saving ? '保存中…' : '保存新口令'}}
     </button>
   </view>
 
-  <view class="em-card">
-    <view class="menu-item logout" bindtap="onLogout">退出登录</view>
-  </view>
-
-  <view wx:if="{{versionText}}" class="em-text-secondary version-line">{{versionText}}</view>
+  <view class="footer-logout" bindtap="onLogout">退出登录</view>
+  <view wx:if="{{versionText}}" class="version-line">{{versionText}}</view>
 </view>
