@@ -40,6 +40,12 @@ public class UnitAccountController {
         return ApiResponse.ok(accountService.login(str(body, "account"), str(body, "password")));
     }
 
+    /** 微信免密登录（已绑定邀请码的使用单位）：{code}（wx.login）→ 门户令牌 */
+    @PostMapping("/unit/login-by-wechat")
+    public ApiResponse<Map<String, Object>> loginByWechat(@RequestBody(required = false) Map<String, Object> body) {
+        return ApiResponse.ok(accountService.loginByWechat(str(body, "code")));
+    }
+
     /** 邀请码绑定微信（openid 由服务端用 wx.login code 换取） */
     @PostMapping("/unit/bind-wechat")
     public ApiResponse<Map<String, Object>> bindWechat(@RequestBody(required = false) Map<String, Object> body) {

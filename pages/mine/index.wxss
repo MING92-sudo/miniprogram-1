@@ -95,3 +95,10 @@
   padding: 24rpx 0;
   font-size: 24rpx;
 }
+
+/* 使用单位门户卡片（W3）：门户登录态独立于员工登录态 */
+.unit-card { margin-bottom: 20rpx; }
+.unit-title { font-size: 28rpx; font-weight: 600; }
+.unit-name { margin-top: 8rpx; font-size: 26rpx; color: #86909c; }
+.unit-actions { margin-top: 16rpx; display: flex; gap: 16rpx; }
+.unit-btn { flex: 1; }

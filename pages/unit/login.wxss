@@ -48,3 +48,8 @@
   color: var(--em-brand);
   border-radius: var(--em-radius);
 }
+
+/* 微信一键登录：绑过邀请码的账号免密进入 */
+.wx-login-btn {
+  margin-top: 16rpx;
+}

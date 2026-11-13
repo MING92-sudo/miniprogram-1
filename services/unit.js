@@ -147,12 +147,19 @@ function getMaintenanceCalendar(params) {
   return get('/maintenance-calendar', params)
 }
 
+
+// 微信免密登录（已绑定邀请码）：wx.login 的 code → 门户令牌；未绑定由后端 422 提示
+function unitLoginByWechat(data) {
+  return post('/unit/login-by-wechat', data, { needAuth: false })
+}
+
 module.exports = {
   getRecord,
   getSignView,
   confirmByToken,
   // ── 使用单位门户（W3，docs/04 A.11；Task 13）──
   unitLogin,
+  unitLoginByWechat,
   bindUnitWechat,
   getUnitElevators,
   getUnitRecords,

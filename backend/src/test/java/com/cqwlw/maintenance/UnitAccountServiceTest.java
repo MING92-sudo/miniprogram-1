@@ -162,4 +162,29 @@ class UnitAccountServiceTest {
                 () -> service.createAccount("ADMIN", "nope", "U1", "Passw0rd!23"));
         assertEquals(1404, ex.getCode());
     }
+
+    /** 微信免密登录：绑过的 openid 直接换门户令牌 */
+    @Test
+    void loginByWechatIssuesToken() {
+        UseUnit u = unit();
+        u.openid = "openid_abc";
+        when(useUnitMapper.selectOne(any())).thenReturn(u);
+        when(wxAuthService.openidFromCode("wx-code-2")).thenReturn("openid_abc");
+
+        Map<String, Object> out = service.loginByWechat("wx-code-2");
+        Claims claims = jwtService.verify(String.valueOf(out.get("token")));
+        assertEquals("uu_1", claims.getSubject());
+        assertEquals("1", claims.get("ut", String.class));
+        assertEquals(true, out.get("wechatBound"));
+    }
+
+    /** 未绑定的微信 → 422，且不泄露单位信息 */
+    @Test
+    void loginByWechatRejectsUnbound() {
+        when(useUnitMapper.selectOne(any())).thenReturn(null);
+        when(wxAuthService.openidFromCode("wx-code-3")).thenReturn("openid_unknown");
+        BizException ex = assertThrows(BizException.class, () -> service.loginByWechat("wx-code-3"));
+        assertEquals(422, ex.getCode());
+        assertTrue(ex.getMessage().contains("绑定"));
+    }
 }

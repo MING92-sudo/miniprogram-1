@@ -91,6 +91,28 @@ public class UnitAccountService {
                 || password == null || !encoder.matches(password, unit.passwordHash)) {
             throw new BizException(401, "账号或密码错误");
         }
+        return sessionOf(unit);
+    }
+
+    /**
+     * 微信免密登录（已绑定的使用单位）：wx.login code → 服务端换 openid → 反查 use_unit。
+     * 未绑定/绑定被重置一律 422，不泄露“哪些单位绑了微信”。
+     */
+    public Map<String, Object> loginByWechat(String wxCode) {
+        if (wxCode == null || wxCode.isBlank()) {
+            throw new BizException(422, "缺少微信登录凭证，请重试");
+        }
+        String openid = wxAuthService.openidFromCode(wxCode);
+        UseUnit unit = useUnitMapper.selectOne(new LambdaQueryWrapper<UseUnit>()
+                .eq(UseUnit::getOpenid, openid).last("LIMIT 1"));
+        if (unit == null) {
+            throw new BizException(422, "该微信尚未绑定使用单位，请先用邀请码绑定或使用账号口令登录");
+        }
+        return sessionOf(unit);
+    }
+
+    /** 门户会话返回体（账号登录与微信免密登录共用同一口径） */
+    private Map<String, Object> sessionOf(UseUnit unit) {
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("token", jwtService.issueUnit(unit.id, "mp"));
         out.put("useUnitId", unit.id);

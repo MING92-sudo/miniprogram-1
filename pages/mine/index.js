@@ -2,6 +2,7 @@
 const auth = require('../../services/auth')
 const { isLoggedIn } = require('../../utils/auth')
 const { viewOf } = require('../../utils/role-view')
+const { isUnitLoggedIn, getUnitSession, clearUnitSession } = require('../../services/unit')
 
 // 证件有效期提醒（docs/03 §3.2 项18）：已过期 / 60 天内到期 置顶提示，其余仅展示有效期
 function certReminder(user) {
@@ -36,6 +37,8 @@ Page({
     guest: false,
     userInfo: null,
     roleText: '',
+    unitLogged: false,
+    unitName: '',
     scopeText: '',
     versionText: '',
     menus: [],
@@ -56,12 +59,36 @@ Page({
   },
 
   // 未登录：展示登录引导空状态，不强制跳转（登录规范：先浏览后登录）
+  // 门户登录态（与员工登录态无关）：决定是否显示「使用单位门户」卡片
+  refreshUnitState() {
+    const logged = isUnitLoggedIn()
+    const session = logged ? (getUnitSession() || {}) : {}
+    this.setData({ unitLogged: logged, unitName: session.unitName || '' })
+    return logged
+  },
+
+  goUnitHome() {
+    wx.navigateTo({ url: '/pages/unit/home' })
+  },
+
+  goUnitLogin() {
+    wx.navigateTo({ url: '/pages/unit/login' })
+  },
+
+  async logoutUnit() {
+    clearUnitSession()
+    this.setData({ unitLogged: false, unitName: '' })
+    wx.showToast({ title: '已退出门户', icon: 'none' })
+  },
+
   guard() {
     if (isLoggedIn()) {
       this.setData({ guest: false })
+      this.refreshUnitState()
       return true
     }
     this.setData({ guest: true })
+    this.refreshUnitState()
     return false
   },
 

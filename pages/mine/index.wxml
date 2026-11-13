@@ -1,9 +1,20 @@
 <view class="em-page">
   <!-- 未登录：登录引导空状态（登录规范：先浏览功能，后自行选择登录） -->
+  <!-- 使用单位门户（W3）：门户登录态与员工登录态分开，门户用户也能从「我的」进门户 -->
+  <view wx:if="{{unitLogged}}" class="em-card unit-card">
+    <view class="unit-title">使用单位门户</view>
+    <view class="unit-name">{{unitName || '已登录'}}</view>
+    <view class="unit-actions">
+      <button class="em-btn-primary unit-btn" bindtap="goUnitHome">进入门户</button>
+      <button class="em-btn-ghost unit-btn" bindtap="logoutUnit">退出门户</button>
+    </view>
+  </view>
+
   <view wx:if="{{guest}}" class="guest-empty">
     <view class="guest-empty-title">登录后查看个人信息</view>
     <view class="guest-empty-sub">账号由维保单位统一分配</view>
     <button class="guest-empty-btn" bindtap="goLogin">去登录</button>
+    <view wx:if="{{!unitLogged}}" class="guest-empty-sub" bindtap="goUnitLogin">使用单位安全管理员？门户登录 / 绑定微信</view>
   </view>
 
   <block wx:else>
