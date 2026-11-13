@@ -524,6 +524,10 @@ const routes = [
     return { token: 'mock-unit-token', useUnitId: unit.id, unitName: unit.unitName, role: 'UNIT_ADMIN', wechatBound: false }
   }],
   ['POST', '/unit/bind-wechat', () => ({ bound: true })],
+  ['POST', '/unit/login-by-wechat', () => {
+    const unit = (d.db.useUnits || [])[0] || { id: 'uu_1', unitName: '演示使用单位' }
+    return { token: 'mock-unit-token', useUnitId: unit.id, unitName: unit.unitName, role: 'UNIT_ADMIN', wechatBound: true }
+  }],
   ['GET', '/unit/elevators', () => {
     const unit = (d.db.useUnits || [])[0] || {}
     return (d.db.elevators || []).filter((el) => el.useUnitId === unit.id && el.status !== 'INACTIVE').map((el) => ({
