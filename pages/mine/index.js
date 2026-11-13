@@ -2,7 +2,22 @@
 const auth = require('../../services/auth')
 const { isLoggedIn } = require('../../utils/auth')
 const { viewOf } = require('../../utils/role-view')
-const { isUnitLoggedIn, getUnitSession, clearUnitSession } = require('../../services/unit')
+const {
+  isUnitLoggedIn,
+  getUnitSession,
+  clearUnitSession,
+  bindUnitWechat
+} = require('../../services/unit')
+const { UNIT_PORTAL_TEXT, TOAST_TEXT } = require('../../constants/index')
+
+// 本机记录「已开启微信绑定」：登录页据此决定是否显示微信一键登录入口（未开启不占位）
+const WECHAT_BOUND_KEY = 'em_wechat_bound'
+
+function wxLoginCode() {
+  return new Promise((resolve, reject) => {
+    wx.login({ success: (r) => resolve(r.code || ''), fail: reject })
+  })
+}
 
 // 证件有效期提醒（docs/03 §3.2 项18）：已过期 / 60 天内到期 置顶提示，其余仅展示有效期
 function certReminder(user) {
@@ -39,6 +54,10 @@ Page({
     roleText: '',
     unitLogged: false,
     unitName: '',
+    unitWechatBound: false,
+    inviteCode: '',
+    binding: false,
+    wechatBound: false,
     scopeText: '',
     versionText: '',
     menus: [],
@@ -63,8 +82,67 @@ Page({
   refreshUnitState() {
     const logged = isUnitLoggedIn()
     const session = logged ? (getUnitSession() || {}) : {}
-    this.setData({ unitLogged: logged, unitName: session.unitName || '' })
+    this.setData({
+      unitLogged: logged,
+      unitName: session.unitName || '',
+      unitWechatBound: !!session.wechatBound
+    })
     return logged
+  },
+
+  onInviteInput(e) {
+    this.setData({ inviteCode: e.detail.value })
+  },
+
+  // 员工微信绑定（POST /auth/bind-wechat，需 Bearer）：绑定后登录页出现「微信一键登录」
+  async onBindWechat() {
+    if (this.data.binding) return
+    if (this.data.wechatBound) {
+      wx.showModal({
+        title: '微信一键登录',
+        content: '当前微信已绑定，可在登录页用微信免密登录。',
+        showCancel: false,
+        confirmText: '知道了'
+      })
+      return
+    }
+    this.setData({ binding: true })
+    try {
+      const code = await wxLoginCode()
+      if (!code) throw new Error('微信授权失败，请重试')
+      await auth.bindWeChat(code)
+      wx.setStorageSync(WECHAT_BOUND_KEY, true)
+      this.setData({ wechatBound: true })
+      wx.showToast({ title: '微信已绑定', icon: 'success' })
+    } catch (err) {
+      wx.showToast({ title: err.message || TOAST_TEXT.OPERATE_FAILED, icon: 'none' })
+    }
+    this.setData({ binding: false })
+  },
+
+  // 使用单位微信免密绑定（邀请码 + wx.login code）：绑定后可微信免密进门户
+  async onUnitWechatBind() {
+    if (this.data.binding) return
+    const inviteCode = String(this.data.inviteCode || '').trim()
+    if (!inviteCode) {
+      wx.showToast({ title: UNIT_PORTAL_TEXT.INVITE_REQUIRED, icon: 'none' })
+      return
+    }
+    this.setData({ binding: true })
+    try {
+      const code = await wxLoginCode()
+      if (!code) throw new Error('微信授权失败，请重试')
+      await bindUnitWechat({ inviteCode: inviteCode, code: code })
+      const session = getUnitSession() || {}
+      session.wechatBound = true
+      wx.setStorageSync('unit_info', session)
+      wx.setStorageSync(WECHAT_BOUND_KEY, true)
+      this.setData({ unitWechatBound: true, inviteCode: '' })
+      wx.showToast({ title: UNIT_PORTAL_TEXT.BIND_SUCCESS, icon: 'success' })
+    } catch (err) {
+      wx.showToast({ title: err.message || TOAST_TEXT.OPERATE_FAILED, icon: 'none' })
+    }
+    this.setData({ binding: false })
   },
 
   goUnitHome() {
@@ -111,7 +189,8 @@ Page({
       versionText,
       menus: buildMenus(role),
       certText: cert.text,
-      certLevel: cert.level
+      certLevel: cert.level,
+      wechatBound: !!wx.getStorageSync(WECHAT_BOUND_KEY)
     })
   },
 

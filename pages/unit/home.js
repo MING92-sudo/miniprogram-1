@@ -1,5 +1,6 @@
 // 使用单位门户首页（W3，docs/04 A.11）：本单位电梯数 / 待签字记录数 / 未闭环急修数 + 三个查看入口 + 报修。
 // 门户身份来自 unit_token（与员工登录态分开存），数据域一律由后端按 useUnitId 收敛。
+// 微信免密绑定入口不在此页，统一放「我的」页（用户需求：由账号本人自行选择是否开启）
 const {
   getUnitElevators,
   getUnitPendingSigns,
@@ -8,10 +9,9 @@ const {
   isUnitLoggedIn,
   clearUnitSession
 } = require('../../services/unit')
-const { bindUnitWechat } = require('../../services/unit')
 const { UNIT_PORTAL_TEXT, TOAST_TEXT } = require('../../constants/index')
 
-const LOGIN_PAGE = '/pages/login'
+const LOGIN_PAGE = '/pages/login/index'
 
 Page({
   data: {
@@ -21,14 +21,11 @@ Page({
     openFaultCount: 0,
     loading: true,
     failed: false,
-    wechatBound: false,
-    inviteCode: '',
-    bindingWechat: false,
     text: UNIT_PORTAL_TEXT
   },
 
   onShow() {
-    // 令牌缺失/已过期 → 回门户登录（request.js 的 401 分支会跳员工登录，门户无入口，故本地先拦）
+    // 令牌缺失/已过期 → 回统一登录页（门户账号也走同一表单，后端按账号类型分流）
     if (!isUnitLoggedIn()) {
       wx.reLaunch({ url: LOGIN_PAGE })
       return
@@ -76,45 +73,6 @@ Page({
 
   goFaults() {
     wx.navigateTo({ url: '/pages/unit/faults' })
-  },
-
-  onInviteInput(e) {
-    this.setData({ inviteCode: e.detail.value })
-  },
-
-  // 绑定微信：邀请码 + wx.login code（绑定后统一登录页可「微信一键登录」免密进入）
-  onBindWechat() {
-    const code = (this.data.inviteCode || '').trim()
-    if (!code) {
-      wx.showToast({ title: UNIT_PORTAL_TEXT.INVITE_REQUIRED, icon: 'none' })
-      return
-    }
-    if (this.data.bindingWechat) return
-    this.setData({ bindingWechat: true })
-    wx.login({
-      success: async (res) => {
-        if (!res.code) {
-          this.setData({ bindingWechat: false })
-          wx.showToast({ title: TOAST_TEXT.OPERATE_FAILED, icon: 'none' })
-          return
-        }
-        try {
-          await bindUnitWechat({ inviteCode: code, code: res.code })
-          const session = getUnitSession() || {}
-          session.wechatBound = true
-          wx.setStorageSync('unit_info', session)
-          this.setData({ wechatBound: true, inviteCode: '' })
-          wx.showToast({ title: UNIT_PORTAL_TEXT.BIND_SUCCESS, icon: 'success' })
-        } catch (e) {
-          wx.showToast({ title: e.message || TOAST_TEXT.OPERATE_FAILED, icon: 'none' })
-        }
-        this.setData({ bindingWechat: false })
-      },
-      fail: () => {
-        this.setData({ bindingWechat: false })
-        wx.showToast({ title: TOAST_TEXT.OPERATE_FAILED, icon: 'none' })
-      }
-    })
   },
 
   goReport() {

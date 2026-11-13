@@ -6,12 +6,12 @@
   </view>
 
   <view class="form-area">
+    <!-- 唯一登录入口：员工账号（手机号）与使用单位账号同一表单，后端按账号类型分流（docs/04 A.0.1） -->
     <view class="input-row">
       <input
         class="input-field"
-        type="number"
-        maxlength="11"
-        placeholder="请输入账号（手机号）"
+        type="text"
+        placeholder="请输入账号"
         value="{{phone}}"
         bindinput="onPhoneInput"
       />
@@ -46,7 +46,9 @@
       <text wx:if="{{!logging}}" class="login-arrow">→</text>
     </button>
 
+    <!-- 微信一键登录：仅在「我的」页自行开启过绑定时出现，未开启不占位（用户需求） -->
+    <view wx:if="{{wechatBound}}" class="skip-login" bindtap="onWechatLogin">微信一键登录</view>
+
     <view class="skip-login" bindtap="skipLogin">暂不登录，先看看</view>
-    <view class="unit-entry" bindtap="goUnitLogin">使用单位安全管理员？点此登录 / 绑定微信</view>
   </view>
 </view>

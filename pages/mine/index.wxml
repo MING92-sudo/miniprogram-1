@@ -8,6 +8,20 @@
       <button class="em-btn-primary unit-btn" bindtap="goUnitHome">进入门户</button>
       <button class="em-btn-ghost unit-btn" bindtap="logoutUnit">退出门户</button>
     </view>
+    <!-- 微信免密登录（用户需求）：自行选择是否开启，不开启一律走账号口令 -->
+    <view wx:if="{{!unitWechatBound}}" class="bind-box">
+      <input
+        class="bind-input"
+        placeholder="输入邀请码"
+        value="{{inviteCode}}"
+        bindinput="onInviteInput"
+      />
+      <button class="em-btn-ghost bind-btn" disabled="{{binding}}" bindtap="onUnitWechatBind">
+        {{binding ? '绑定中...' : '绑定微信'}}
+      </button>
+      <view class="em-text-secondary bind-tip">绑定后可在登录页用微信免密进入门户；邀请码由维保单位提供</view>
+    </view>
+    <view wx:else class="bind-state">微信已绑定，可用微信免密登录</view>
   </view>
 
   <view wx:if="{{guest}}" class="guest-empty">
@@ -40,6 +54,14 @@
         <view class="menu-main">
           <view>{{item.title}}</view>
           <view class="em-text-secondary menu-desc">{{item.desc}}</view>
+        </view>
+        <view class="menu-arrow">›</view>
+      </view>
+      <!-- 微信一键登录（用户需求）：员工自行选择是否开启，未开启不强制、不影响账号密码登录 -->
+      <view class="menu-item" bindtap="onBindWechat">
+        <view class="menu-main">
+          <view>微信一键登录</view>
+          <view class="em-text-secondary menu-desc">{{wechatBound ? '已开启，可在登录页用微信免密登录' : '未开启，点击绑定当前微信'}}</view>
         </view>
         <view class="menu-arrow">›</view>
       </view>

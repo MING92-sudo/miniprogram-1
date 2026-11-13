@@ -102,3 +102,10 @@
 .unit-name { margin-top: 8rpx; font-size: 26rpx; color: #86909c; }
 .unit-actions { margin-top: 16rpx; display: flex; gap: 16rpx; }
 .unit-btn { flex: 1; }
+
+/* 微信绑定（用户需求）：员工与使用单位各自可选，未开启不影响账号密码登录 */
+.bind-box { margin-top: 20rpx; padding-top: 20rpx; border-top: 1rpx solid #f2f3f5; }
+.bind-input { height: 72rpx; padding: 0 20rpx; background: #f7f8fa; border-radius: 12rpx; font-size: 26rpx; }
+.bind-btn { margin-top: 16rpx; }
+.bind-tip { margin-top: 12rpx; font-size: 22rpx; line-height: 1.6; }
+.bind-state { margin-top: 20rpx; font-size: 24rpx; color: #00b42a; }
