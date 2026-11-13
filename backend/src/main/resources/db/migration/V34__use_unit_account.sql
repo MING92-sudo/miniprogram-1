@@ -1,4 +1,7 @@
 -- 使用单位门户账号（W3，Task 9）
+-- 编号说明：原计划写 V30，但 V31（权限底座）已先于本迁移执行过；V30 留空会让 Flyway
+--          校验报 "Detected resolved migration not applied to database: 30" 并拒绝启动，
+--          故按“只追加、版本单调”重编为 V34（V31→V33 已占用，V32 为检查清单提案预留）。
 --
 -- 背景：使用单位是三个平级部门之一，但账号不建在 sys_employee（不属维保单位员工目录），
 --       直接挂在 use_unit 上，一间单位一个账号，角色固定 UNIT_ADMIN（docs/14 §3）。

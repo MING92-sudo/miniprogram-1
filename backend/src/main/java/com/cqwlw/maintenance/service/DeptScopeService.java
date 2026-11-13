@@ -20,7 +20,7 @@ import java.util.Set;
 @Service
 public class DeptScopeService {
 
-    /** 使用单位账号与 use_unit 的绑定来源；V30 落 use_unit.openid 后由使用单位门户模块提供实现 */
+    /** 使用单位账号与 use_unit 的绑定来源；V34 落 use_unit.openid 后由使用单位门户模块提供实现 */
     @FunctionalInterface
     public interface UseUnitBinding {
         String useUnitIdOf(Employee employee);
@@ -34,7 +34,7 @@ public class DeptScopeService {
     private final EmployeeMapper employeeMapper;
     private final UseUnitBinding useUnitBinding;
 
-    /** Spring 装配：P1 尚无 use_unit 账号绑定（在飞计划 V30），使用单位作用域暂时返回 null */
+    /** Spring 装配：P1 尚无 use_unit 账号绑定（已完成 V34），使用单位作用域暂时返回 null */
     @Autowired
     public DeptScopeService(EmployeeMapper employeeMapper) {
         this(employeeMapper, NO_BINDING);
