@@ -47,6 +47,12 @@ public class AuthInterceptor implements HandlerInterceptor {
             if (!"UNIT_ADMIN".equals(claims.get("role", String.class))) {
                 throw new BizException(401, "登录已过期，请重新登录");
             }
+            // 门户令牌只能打门户与文件接口：/handovers、/filings、/work-orders 等员工端点一律拒绝，
+            // 避免使用单位账号借一个令牌读到全公司单据（docs/14 §4 部门域互斥）。
+            String portalPath = request.getRequestURI();
+            if (!(portalPath.startsWith("/unit/") || portalPath.startsWith("/files/"))) {
+                throw new BizException(403, "使用单位账号仅可访问门户接口");
+            }
             request.setAttribute(ATTR_UNIT_ID, claims.getSubject());
             request.setAttribute(ATTR_ROLE, "UNIT_ADMIN");
             return true;
