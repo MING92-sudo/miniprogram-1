@@ -112,16 +112,17 @@ const VIEWS = {
     roleText: '平台管理员',
     scope: '三部门数据全量可读（巡视）；现场签字请用对应岗位账号',
     canOperate: false,
-    tiles: [TILE.orderAll, TILE.filing, TILE.faultAll, TILE.msg, TILE.deviceAll],
-    menus: [TILE.filing, TILE.faultAll]
+    // 平台兜底：安装部（移交/外接建档）与维保部数据都可见（docs/14 §6 handover:read / filing:read）
+    tiles: [TILE.handover, TILE.filing, TILE.orderAll, TILE.faultAll, TILE.msg, TILE.deviceAll],
+    menus: [TILE.handover, TILE.filing, TILE.faultAll]
   },
   SYS_ADMIN: {
     dept: '平台层',
     roleText: '系统管理员',
     scope: '平台级账号：数据全量可读（巡视），不代做现场作业与签字',
     canOperate: false,
-    tiles: [TILE.orderAll, TILE.filing, TILE.faultAll, TILE.msg, TILE.deviceAll],
-    menus: [TILE.filing, TILE.faultAll]
+    tiles: [TILE.handover, TILE.filing, TILE.orderAll, TILE.faultAll, TILE.msg, TILE.deviceAll],
+    menus: [TILE.handover, TILE.filing, TILE.faultAll]
   },
   UNIT_ADMIN: {
     dept: '使用单位',
