@@ -32,6 +32,7 @@ function saveUnitSession(data) {
   wx.setStorageSync(UNIT_TOKEN_KEY, data.token)
   wx.setStorageSync(UNIT_INFO_KEY, {
     useUnitId: data.useUnitId,
+    account: data.account || '',
     unitName: data.unitName,
     role: data.role || 'UNIT_ADMIN',
     wechatBound: !!data.wechatBound
@@ -112,6 +113,11 @@ function bindUnitWechat(data) {
   return post('/unit/bind-wechat', data, { needAuth: false })
 }
 
+// 自助改口令（门户令牌）：旧口令校验由后端负责，422 = 原口令不正确
+function changeUnitPassword(data) {
+  return portalPost('/unit/account/password', data)
+}
+
 // 本单位电梯
 function getUnitElevators() {
   return portalGet('/unit/elevators')
@@ -163,6 +169,7 @@ module.exports = {
   unitLogin,
   unitLoginByWechat,
   bindUnitWechat,
+  changeUnitPassword,
   getUnitElevators,
   getUnitRecords,
   getUnitPendingSigns,

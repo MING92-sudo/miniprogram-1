@@ -1,14 +1,10 @@
-// 我的：用户信息 + 按角色显隐的功能入口（docs/14 §7 小程序权限矩阵）
+// 我的（员工态）：用户信息 + 按角色显隐的功能入口（docs/14 §7 小程序权限矩阵）。
+// 使用单位门户身份不用本页：门户态的「我的」是 pages/unit/mine（只含单位信息与设置项）。
 const auth = require('../../services/auth')
 const { isLoggedIn } = require('../../utils/auth')
 const { viewOf } = require('../../utils/role-view')
-const {
-  isUnitLoggedIn,
-  getUnitSession,
-  clearUnitSession,
-  bindUnitWechat
-} = require('../../services/unit')
-const { UNIT_PORTAL_TEXT, TOAST_TEXT } = require('../../constants/index')
+const { isUnitLoggedIn } = require('../../services/unit')
+const { TOAST_TEXT } = require('../../constants/index')
 
 // 本机记录「已开启微信绑定」：登录页据此决定是否显示微信一键登录入口（未开启不占位）
 const WECHAT_BOUND_KEY = 'em_wechat_bound'
@@ -52,12 +48,8 @@ Page({
     guest: false,
     userInfo: null,
     roleText: '',
-    unitLogged: false,
-    unitName: '',
-    unitWechatBound: false,
-    inviteCode: '',
-    binding: false,
     wechatBound: false,
+    binding: false,
     scopeText: '',
     versionText: '',
     menus: [],
@@ -75,13 +67,13 @@ Page({
     this.enterState()
   },
 
-  // 单身份：门户态 → 门户卡片；员工态 → 个人信息与功能入口；都没有 → 登录引导
+  // 单身份：门户身份不进本页（回门户首页）；员工态展示个人信息；都没有则登录引导
   enterState() {
-    if (this.refreshUnitState()) {
-      this.setData({ guest: false, versionText: this.readVersion() })
-      return
-    }
     if (!isLoggedIn()) {
+      if (isUnitLoggedIn()) {
+        wx.reLaunch({ url: '/pages/unit/home' })
+        return
+      }
       this.setData({ guest: true, versionText: this.readVersion() })
       return
     }
@@ -98,20 +90,25 @@ Page({
     }
   },
 
-  // 门户登录态（与员工登录态互斥）：决定是否显示「使用单位门户」卡片
-  refreshUnitState() {
-    const logged = isUnitLoggedIn()
-    const session = logged ? (getUnitSession() || {}) : {}
-    this.setData({
-      unitLogged: logged,
-      unitName: session.unitName || '',
-      unitWechatBound: !!session.wechatBound
-    })
-    return logged
+  goLogin() {
+    wx.navigateTo({ url: '/pages/login/index' })
   },
 
-  onInviteInput(e) {
-    this.setData({ inviteCode: e.detail.value })
+  refresh() {
+    const app = getApp()
+    const role = app.globalData.role
+    const v = viewOf(role)
+    const cert = certReminder(app.globalData.userInfo)
+    this.setData({
+      userInfo: app.globalData.userInfo,
+      roleText: v.dept ? v.dept + ' · ' + v.roleText : v.roleText,
+      scopeText: v.scope,
+      versionText: this.readVersion(),
+      menus: buildMenus(role),
+      certText: cert.text,
+      certLevel: cert.level,
+      wechatBound: !!wx.getStorageSync(WECHAT_BOUND_KEY)
+    })
   },
 
   // 员工微信绑定（POST /auth/bind-wechat，需 Bearer）：绑定后登录页出现「微信一键登录」
@@ -138,64 +135,6 @@ Page({
       wx.showToast({ title: err.message || TOAST_TEXT.OPERATE_FAILED, icon: 'none' })
     }
     this.setData({ binding: false })
-  },
-
-  // 使用单位微信免密绑定（邀请码 + wx.login code）：绑定后可微信免密进门户
-  async onUnitWechatBind() {
-    if (this.data.binding) return
-    const inviteCode = String(this.data.inviteCode || '').trim()
-    if (!inviteCode) {
-      wx.showToast({ title: UNIT_PORTAL_TEXT.INVITE_REQUIRED, icon: 'none' })
-      return
-    }
-    this.setData({ binding: true })
-    try {
-      const code = await wxLoginCode()
-      if (!code) throw new Error('微信授权失败，请重试')
-      await bindUnitWechat({ inviteCode: inviteCode, code: code })
-      const session = getUnitSession() || {}
-      session.wechatBound = true
-      wx.setStorageSync('unit_info', session)
-      wx.setStorageSync(WECHAT_BOUND_KEY, true)
-      this.setData({ unitWechatBound: true, inviteCode: '' })
-      wx.showToast({ title: UNIT_PORTAL_TEXT.BIND_SUCCESS, icon: 'success' })
-    } catch (err) {
-      wx.showToast({ title: err.message || TOAST_TEXT.OPERATE_FAILED, icon: 'none' })
-    }
-    this.setData({ binding: false })
-  },
-
-  goUnitHome() {
-    wx.navigateTo({ url: '/pages/unit/home' })
-  },
-
-  // 退出门户 = 退出本次登录：清门户令牌后回登录页，避免停留在无身份的空态
-  async logoutUnit() {
-    clearUnitSession()
-    this.setData({ unitLogged: false, unitName: '', unitWechatBound: false })
-    wx.showToast({ title: '已退出门户', icon: 'none' })
-    setTimeout(() => wx.reLaunch({ url: '/pages/login/index' }), 300)
-  },
-
-  goLogin() {
-    wx.navigateTo({ url: '/pages/login/index' })
-  },
-
-  refresh() {
-    const app = getApp()
-    const role = app.globalData.role
-    const v = viewOf(role)
-    const cert = certReminder(app.globalData.userInfo)
-    this.setData({
-      userInfo: app.globalData.userInfo,
-      roleText: v.dept ? v.dept + ' · ' + v.roleText : v.roleText,
-      scopeText: v.scope,
-      versionText: this.readVersion(),
-      menus: buildMenus(role),
-      certText: cert.text,
-      certLevel: cert.level,
-      wechatBound: !!wx.getStorageSync(WECHAT_BOUND_KEY)
-    })
   },
 
   onMenuTap(e) {

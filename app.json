@@ -32,6 +32,7 @@
     "pages/mine/offline",
     "pages/unit/sign",
     "pages/unit/home",
+    "pages/unit/mine/index",
     "pages/unit/elevators",
     "pages/unit/records",
     "pages/unit/faults",

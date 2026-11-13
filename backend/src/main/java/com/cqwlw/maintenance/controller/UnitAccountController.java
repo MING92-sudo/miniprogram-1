@@ -2,6 +2,7 @@ package com.cqwlw.maintenance.controller;
 
 import com.cqwlw.maintenance.auth.AuthInterceptor;
 import com.cqwlw.maintenance.common.ApiResponse;
+import com.cqwlw.maintenance.common.BizException;
 import com.cqwlw.maintenance.service.UnitAccountService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -50,6 +51,18 @@ public class UnitAccountController {
     @PostMapping("/unit/bind-wechat")
     public ApiResponse<Map<String, Object>> bindWechat(@RequestBody(required = false) Map<String, Object> body) {
         return ApiResponse.ok(accountService.bindWechat(str(body, "inviteCode"), str(body, "code")));
+    }
+
+    /** 自助改口令（门户令牌）：旧口令 + 新口令，改完旧令牌不失效、下次登录用新口令 */
+    @PostMapping("/unit/account/password")
+    public ApiResponse<Map<String, Object>> changePassword(@RequestBody(required = false) Map<String, Object> body,
+                                                           HttpServletRequest request) {
+        Object unitId = request.getAttribute(AuthInterceptor.ATTR_UNIT_ID);
+        if (unitId == null) {
+            throw new BizException(403, "请使用使用单位账号登录门户");
+        }
+        return ApiResponse.ok(accountService.changePassword(String.valueOf(unitId),
+                str(body, "oldPassword"), str(body, "newPassword")));
     }
 
     private static String str(Map<String, Object> body, String key) {

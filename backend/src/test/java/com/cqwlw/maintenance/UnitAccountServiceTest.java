@@ -187,4 +187,46 @@ class UnitAccountServiceTest {
         assertEquals(422, ex.getCode());
         assertTrue(ex.getMessage().contains("绑定"));
     }
+
+    /** 自助改口令：旧口令正确 → 只更新哈希，明文不落库 */
+    @Test
+    void changePasswordUpdatesHash() {
+        UseUnit u = unit();
+        when(useUnitMapper.selectById("uu_1")).thenReturn(u);
+
+        Map<String, Object> out = service.changePassword("uu_1", "Passw0rd!23", "NewPass!45");
+
+        assertEquals(true, out.get("ok"));
+        assertTrue(encoder.matches("NewPass!45", u.passwordHash));
+        assertTrue(!encoder.matches("Passw0rd!23", u.passwordHash), "旧口令必须失效");
+        verify(useUnitMapper).updateById(u);
+    }
+
+    /** 旧口令错误 → 422，且不落库 */
+    @Test
+    void changePasswordRejectsWrongOld() {
+        when(useUnitMapper.selectById("uu_1")).thenReturn(unit());
+        BizException ex = assertThrows(BizException.class,
+                () -> service.changePassword("uu_1", "wrong", "NewPass!45"));
+        assertEquals(422, ex.getCode());
+        verify(useUnitMapper, org.mockito.Mockito.never()).updateById(any(UseUnit.class));
+    }
+
+    /** 新口令不足 6 位 / 与原口令相同 → 422 */
+    @Test
+    void changePasswordValidatesNewPassword() {
+        when(useUnitMapper.selectById("uu_1")).thenReturn(unit());
+        assertEquals(422, assertThrows(BizException.class,
+                () -> service.changePassword("uu_1", "Passw0rd!23", "12345")).getCode());
+        assertEquals(422, assertThrows(BizException.class,
+                () -> service.changePassword("uu_1", "Passw0rd!23", "Passw0rd!23")).getCode());
+    }
+
+    /** 单位不存在 / 未开通口令 → 401（不给改） */
+    @Test
+    void changePasswordRejectsUnknownUnit() {
+        when(useUnitMapper.selectById("nope")).thenReturn(null);
+        assertEquals(401, assertThrows(BizException.class,
+                () -> service.changePassword("nope", "x", "NewPass!45")).getCode());
+    }
 }

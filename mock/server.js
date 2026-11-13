@@ -521,12 +521,17 @@ const routes = [
   ['POST', '/unit/login', ({ body }) => {
     if (!body.account || !body.password) throw { code: 422, message: '请填写账号与密码' }
     const unit = (d.db.useUnits || [])[0] || { id: 'uu_1', unitName: '演示使用单位' }
-    return { token: 'mock-unit-token', useUnitId: unit.id, unitName: unit.unitName, role: 'UNIT_ADMIN', wechatBound: false }
+    return { token: 'mock-unit-token', account: body.account, useUnitId: unit.id, unitName: unit.unitName, role: 'UNIT_ADMIN', wechatBound: false }
   }],
   ['POST', '/unit/bind-wechat', () => ({ bound: true })],
   ['POST', '/unit/login-by-wechat', () => {
     const unit = (d.db.useUnits || [])[0] || { id: 'uu_1', unitName: '演示使用单位' }
     return { token: 'mock-unit-token', useUnitId: unit.id, unitName: unit.unitName, role: 'UNIT_ADMIN', wechatBound: true }
+  }],
+  ['POST', '/unit/account/password', ({ body }) => {
+    if (!body.oldPassword) throw { code: 422, message: '原口令不正确' }
+    if (!body.newPassword || String(body.newPassword).length < 6) throw { code: 422, message: '新口令至少 6 位' }
+    return { ok: true }
   }],
   ['GET', '/unit/elevators', () => {
     const unit = (d.db.useUnits || [])[0] || {}

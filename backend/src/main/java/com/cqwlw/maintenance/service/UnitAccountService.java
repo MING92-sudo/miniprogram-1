@@ -111,10 +111,32 @@ public class UnitAccountService {
         return sessionOf(unit);
     }
 
+    /** 自助改口令（门户令牌）：旧口令校验通过才允许改，新口令 ≥6 位且不得与原口令相同 */
+    public Map<String, Object> changePassword(String unitId, String oldPassword, String newPassword) {
+        UseUnit unit = unitId == null ? null : useUnitMapper.selectById(unitId);
+        if (unit == null || unit.passwordHash == null) {
+            throw new BizException(401, "登录已过期，请重新登录");
+        }
+        if (oldPassword == null || oldPassword.isBlank()
+                || !encoder.matches(oldPassword, unit.passwordHash)) {
+            throw new BizException(422, "原口令不正确");
+        }
+        if (newPassword == null || newPassword.length() < 6) {
+            throw new BizException(422, "新口令至少 6 位");
+        }
+        if (newPassword.equals(oldPassword)) {
+            throw new BizException(422, "新口令不能与原口令相同");
+        }
+        unit.passwordHash = encoder.encode(newPassword);
+        useUnitMapper.updateById(unit);
+        return Map.of("ok", true);
+    }
+
     /** 门户会话返回体（账号登录与微信免密登录共用同一口径） */
     private Map<String, Object> sessionOf(UseUnit unit) {
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("token", jwtService.issueUnit(unit.id, "mp"));
+        out.put("account", unit.account);
         out.put("useUnitId", unit.id);
         out.put("unitName", unit.unitName);
         out.put("role", "UNIT_ADMIN");

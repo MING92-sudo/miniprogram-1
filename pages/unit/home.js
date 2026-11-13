@@ -83,9 +83,9 @@ Page({
     this.fetch()
   },
 
-  // 门户身份下的个人中心（tab 页，需 switchTab）：微信绑定与退出门户都在「我的」
+  // 门户个人中心：单位信息 + 设置项（绑定微信 / 改口令 / 退出），不含维保内容
   goMine() {
-    wx.switchTab({ url: '/pages/mine/index' })
+    wx.navigateTo({ url: '/pages/unit/mine/index' })
   },
 
   onLogout() {
