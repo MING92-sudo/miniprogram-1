@@ -47,5 +47,6 @@
     </button>
 
     <view class="skip-login" bindtap="skipLogin">暂不登录，先看看</view>
+    <view class="unit-entry" bindtap="goUnitLogin">使用单位安全管理员？点此登录 / 绑定微信</view>
   </view>
 </view>

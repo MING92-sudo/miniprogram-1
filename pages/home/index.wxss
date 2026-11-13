@@ -81,6 +81,16 @@
   border: none;
 }
 
+/* 使用单位门户入口（W3）：游客态可直接进门户登录/绑定 */
+.guest-unit {
+  margin-top: 16rpx;
+  text-align: center;
+  font-size: 26rpx;
+  color: var(--em-primary, #1f6feb);
+  min-height: 88rpx;
+  line-height: 88rpx;
+}
+
 .guest-tip {
   margin-top: 24rpx;
   text-align: center;

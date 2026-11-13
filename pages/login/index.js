@@ -71,6 +71,11 @@ Page({
     setTimeout(() => wx.switchTab({ url: '/pages/home/index' }), 300)
   },
 
+  // 使用单位门户入口（W3）：安全管理员不属员工目录，必须从这里登录/绑定微信
+  goUnitLogin() {
+    wx.navigateTo({ url: '/pages/unit/login' })
+  },
+
   forgotPassword() {
     wx.showModal({
       title: '忘记密码',

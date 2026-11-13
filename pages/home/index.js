@@ -84,6 +84,11 @@ Page({
   },
 
   // 未登录引导 → 去登录页（navigateTo 保留返回，可退回首页）
+  // 使用单位门户入口（W3）：游客态也能进，门户令牌独立于员工登录
+  goUnitLogin() {
+    wx.navigateTo({ url: '/pages/unit/login' })
+  },
+
   goLogin() {
     wx.navigateTo({ url: '/pages/login/index' })
   },
