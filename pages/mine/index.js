@@ -71,10 +71,6 @@ Page({
     wx.navigateTo({ url: '/pages/unit/home' })
   },
 
-  goUnitLogin() {
-    wx.navigateTo({ url: '/pages/unit/login' })
-  },
-
   async logoutUnit() {
     clearUnitSession()
     this.setData({ unitLogged: false, unitName: '' })

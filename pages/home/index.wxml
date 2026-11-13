@@ -16,7 +16,6 @@
     </view>
     <button class="guest-btn" bindtap="goLogin">登录使用</button>
     <view class="guest-tip">账号由维保单位统一分配，登录后查看维保工单与设备信息</view>
-    <view class="guest-unit" bindtap="goUnitLogin">使用单位安全管理员入口（查看本梯记录 / 报修）</view>
   </view>
 
   <block wx:else>

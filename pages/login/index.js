@@ -1,6 +1,7 @@
 // 登录页：账号密码登录（账号由维保单位系统分配，手机号为账号）
 // 登录成功后绑定微信（wx.login → /auth/bind-wechat），下次可微信一键登录（P2）
 const auth = require('../../services/auth')
+const { saveUnitSession } = require('../../services/unit')
 const { isLoggedIn } = require('../../utils/auth')
 const { TOAST_TEXT } = require('../../constants/index')
 
@@ -69,11 +70,6 @@ Page({
   // 暂不登录：进入首页以未登录状态浏览（登录规范：须提供取消/暂不登录入口，不得强制登录）
   skipLogin() {
     setTimeout(() => wx.switchTab({ url: '/pages/home/index' }), 300)
-  },
-
-  // 使用单位门户入口（W3）：安全管理员不属员工目录，必须从这里登录/绑定微信
-  goUnitLogin() {
-    wx.navigateTo({ url: '/pages/unit/login' })
   },
 
   forgotPassword() {

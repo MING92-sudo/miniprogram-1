@@ -31,7 +31,6 @@
     "pages/calendar/index",
     "pages/mine/offline",
     "pages/unit/sign",
-    "pages/unit/login",
     "pages/unit/home",
     "pages/unit/elevators",
     "pages/unit/records",

@@ -8,9 +8,10 @@ const {
   isUnitLoggedIn,
   clearUnitSession
 } = require('../../services/unit')
+const { bindUnitWechat } = require('../../services/unit')
 const { UNIT_PORTAL_TEXT, TOAST_TEXT } = require('../../constants/index')
 
-const LOGIN_PAGE = '/pages/unit/login'
+const LOGIN_PAGE = '/pages/login'
 
 Page({
   data: {
@@ -20,6 +21,9 @@ Page({
     openFaultCount: 0,
     loading: true,
     failed: false,
+    wechatBound: false,
+    inviteCode: '',
+    bindingWechat: false,
     text: UNIT_PORTAL_TEXT
   },
 
@@ -72,6 +76,45 @@ Page({
 
   goFaults() {
     wx.navigateTo({ url: '/pages/unit/faults' })
+  },
+
+  onInviteInput(e) {
+    this.setData({ inviteCode: e.detail.value })
+  },
+
+  // 绑定微信：邀请码 + wx.login code（绑定后统一登录页可「微信一键登录」免密进入）
+  onBindWechat() {
+    const code = (this.data.inviteCode || '').trim()
+    if (!code) {
+      wx.showToast({ title: UNIT_PORTAL_TEXT.INVITE_REQUIRED, icon: 'none' })
+      return
+    }
+    if (this.data.bindingWechat) return
+    this.setData({ bindingWechat: true })
+    wx.login({
+      success: async (res) => {
+        if (!res.code) {
+          this.setData({ bindingWechat: false })
+          wx.showToast({ title: TOAST_TEXT.OPERATE_FAILED, icon: 'none' })
+          return
+        }
+        try {
+          await bindUnitWechat({ inviteCode: code, code: res.code })
+          const session = getUnitSession() || {}
+          session.wechatBound = true
+          wx.setStorageSync('unit_info', session)
+          this.setData({ wechatBound: true, inviteCode: '' })
+          wx.showToast({ title: UNIT_PORTAL_TEXT.BIND_SUCCESS, icon: 'success' })
+        } catch (e) {
+          wx.showToast({ title: e.message || TOAST_TEXT.OPERATE_FAILED, icon: 'none' })
+        }
+        this.setData({ bindingWechat: false })
+      },
+      fail: () => {
+        this.setData({ bindingWechat: false })
+        wx.showToast({ title: TOAST_TEXT.OPERATE_FAILED, icon: 'none' })
+      }
+    })
   },
 
   goReport() {

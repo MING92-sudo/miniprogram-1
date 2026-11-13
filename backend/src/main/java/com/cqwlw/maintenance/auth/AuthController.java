@@ -38,14 +38,18 @@ public class AuthController {
     private final JwtService jwtService;
     private final WxAuthService wxAuthService;
     private final MenuService menuService;
+    /** 同一登录页的使用单位门户分支（W3）：员工账号查不到时再试门户账号 */
+    private final com.cqwlw.maintenance.service.UnitAccountService unitAccountService;
     private final BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
 
     public AuthController(EmployeeMapper employeeMapper, JwtService jwtService, WxAuthService wxAuthService,
-                          MenuService menuService) {
+                          MenuService menuService,
+                          com.cqwlw.maintenance.service.UnitAccountService unitAccountService) {
         this.employeeMapper = employeeMapper;
         this.jwtService = jwtService;
         this.wxAuthService = wxAuthService;
         this.menuService = menuService;
+        this.unitAccountService = unitAccountService;
     }
 
     @PostMapping("/auth/login")
@@ -55,7 +59,8 @@ public class AuthController {
         Employee user = employeeMapper.selectOne(new LambdaQueryWrapper<Employee>()
                 .eq(Employee::getAccount, phone).last("LIMIT 1"));
         if (user == null) {
-            throw new BizException(401, "账号不存在，请联系维保单位管理员分配");
+            // 同一登录页：员工目录查不到时按使用单位门户账号再试（W3），前端据 portal=true 分流
+            return ApiResponse.ok(unitLoginResult(phone, password, body));
         }
         if (!encoder.matches(password, user.passwordHash)) {
             throw new BizException(401, "账号或密码错误");
@@ -72,6 +77,18 @@ public class AuthController {
         }
         String client = "admin".equals(String.valueOf(body.get("client"))) ? "admin" : "mp";
         return ApiResponse.ok(loginResult(user, null, client));
+    }
+
+    /** 使用单位门户账号登录（同一登录页的分支）：门户令牌 + portal=true，供前端跳门户首页 */
+    private Map<String, Object> unitLoginResult(String account, String password, Map<String, Object> body) {
+        if ("admin".equals(String.valueOf(body.get("client")))) {
+            throw new BizException(403, "使用单位账号请使用小程序登录");
+        }
+        Map<String, Object> portal = unitAccountService.login(account, password);
+        Map<String, Object> out = new java.util.LinkedHashMap<>(portal);
+        out.put("portal", true);
+        out.put("userInfo", Map.of("name", portal.get("unitName") == null ? "" : portal.get("unitName")));
+        return out;
     }
 
     /**

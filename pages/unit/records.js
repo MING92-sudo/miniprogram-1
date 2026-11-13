@@ -24,7 +24,7 @@ Page({
 
   onShow() {
     if (!isUnitLoggedIn()) {
-      wx.reLaunch({ url: '/pages/unit/login' })
+      wx.reLaunch({ url: '/pages/login' })
       return
     }
     this.fetch()

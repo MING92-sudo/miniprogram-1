@@ -14,7 +14,6 @@
     <view class="guest-empty-title">登录后查看个人信息</view>
     <view class="guest-empty-sub">账号由维保单位统一分配</view>
     <button class="guest-empty-btn" bindtap="goLogin">去登录</button>
-    <view wx:if="{{!unitLogged}}" class="guest-empty-sub" bindtap="goUnitLogin">使用单位安全管理员？门户登录 / 绑定微信</view>
   </view>
 
   <block wx:else>
