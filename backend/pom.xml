@@ -114,6 +114,13 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <!-- 分层 jar（云托管发布必配，docs/11 §0）：把依赖层与业务层拆开，
+                         后续发布只需拉取几 MB 的业务层，避免镜像拉取超过探针窗口（初始延迟固定 2s）。 -->
+                    <layers>
+                        <enabled>true</enabled>
+                    </layers>
+                </configuration>
             </plugin>
             <!-- 单测可复现性：Mockito inline mock maker 依赖 Byte Buddy 自附加 JVM agent。
                  受限环境（Windows 沙箱/部分 CI）会以外部进程自附加失败，报
