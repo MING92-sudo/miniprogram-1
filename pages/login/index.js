@@ -1,7 +1,12 @@
 // 登录页：唯一登录入口（账号密码）。员工账号=手机号；使用单位账号由管理端开通，同一表单登录，
 // 后端按账号类型分流（portal=true → 门户首页）。微信绑定为可选能力，入口在「我的」页（用户需求）。
 const auth = require('../../services/auth')
-const { saveUnitSession, unitLoginByWechat } = require('../../services/unit')
+const {
+  saveUnitSession,
+  unitLoginByWechat,
+  isUnitLoggedIn,
+  clearUnitSession
+} = require('../../services/unit')
 const { isLoggedIn } = require('../../utils/auth')
 const { TOAST_TEXT } = require('../../constants/index')
 
@@ -31,6 +36,9 @@ Page({
   onLoad() {
     // 已登录直接进首页。onLoad 阶段发起 switchTab 会与初始路由竞态（routeDone 错误），延迟到 onReady
     this._signedIn = isLoggedIn()
+    // 门户身份仍有效（门户用户从 tab 页误闯登录页）→ 直接回门户首页，不要求重复登录
+    this._portal = !this._signedIn && isUnitLoggedIn()
+    if (this._portal) return
     // 记住账号：回填本机保存的账号（密码不落盘）
     const saved = wx.getStorageSync(REMEMBER_KEY)
     if (saved && saved.phone) {
@@ -50,6 +58,10 @@ Page({
     if (this._signedIn) {
       // 延迟到路由稳定后再切换，避免 routeDone 竞态
       setTimeout(() => wx.switchTab({ url: '/pages/home/index' }), 300)
+      return
+    }
+    if (this._portal) {
+      setTimeout(() => wx.reLaunch({ url: '/pages/unit/home' }), 300)
     }
   },
 
@@ -119,6 +131,8 @@ Page({
         this.enterPortal(data)
         return
       }
+      // 单身份：员工登录即清掉门户会话，两个账号不能同时在线（用户需求）
+      clearUnitSession()
       auth.applyLoginResult(data)
       getApp().setAuth(data)
       wx.showToast({ title: '登录成功', icon: 'success' })
@@ -151,6 +165,8 @@ Page({
         this.enterPortal(data)
         return
       }
+      // 单身份：员工登录即清掉门户会话（用户需求）
+      clearUnitSession()
       auth.applyLoginResult(data)
       getApp().setAuth(data)
       wx.showToast({ title: '登录成功', icon: 'success' })

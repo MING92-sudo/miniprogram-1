@@ -64,10 +64,14 @@ App({
     this.globalData.token = getToken() || ''
     this.globalData.userInfo = getUserInfo() || null
     this.globalData.role = getRole() || ''
+    // 单身份登录：旧版本允许员工态与门户态并存，冷启动时若两套都在，保留员工态、
+    // 清掉门户态（同一时刻只允许一个账号在线）。纯门户用户没有员工令牌，不受影响。
+    if (this.globalData.token) require('./services/unit').clearUnitSession()
   },
 
-  // 登录成功后写入全局态
+  // 登录成功后写入全局态（单身份：员工态与使用单位门户态互斥，员工登录即清掉门户会话）
   setAuth({ token, userInfo, role }) {
+    require('./services/unit').clearUnitSession()
     this.globalData.token = token
     this.globalData.userInfo = userInfo
     this.globalData.role = role

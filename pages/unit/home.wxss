@@ -1,5 +1,22 @@
 .portal-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
   padding: 40rpx 32rpx 8rpx;
+}
+
+.portal-head-main {
+  flex: 1;
+  min-width: 0;
+}
+
+/* 我的（门户身份下唯一的个人中心入口：微信绑定 / 退出门户） */
+.portal-mine {
+  flex: none;
+  margin-left: 24rpx;
+  padding: 8rpx 0 8rpx 24rpx;
+  font-size: 26rpx;
+  color: var(--em-primary, #1f6feb);
 }
 
 .portal-title {

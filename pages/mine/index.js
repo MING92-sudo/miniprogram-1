@@ -67,18 +67,38 @@ Page({
 
   onShow() {
     if (!this._authReady) return
-    if (!this.guard()) return
-    this.refresh()
+    this.enterState()
   },
 
   onReady() {
     this._authReady = true
-    if (!this.guard()) return
+    this.enterState()
+  },
+
+  // 单身份：门户态 → 门户卡片；员工态 → 个人信息与功能入口；都没有 → 登录引导
+  enterState() {
+    if (this.refreshUnitState()) {
+      this.setData({ guest: false, versionText: this.readVersion() })
+      return
+    }
+    if (!isLoggedIn()) {
+      this.setData({ guest: true, versionText: this.readVersion() })
+      return
+    }
+    this.setData({ guest: false })
     this.refresh()
   },
 
-  // 未登录：展示登录引导空状态，不强制跳转（登录规范：先浏览后登录）
-  // 门户登录态（与员工登录态无关）：决定是否显示「使用单位门户」卡片
+  readVersion() {
+    try {
+      const mp = wx.getAccountInfoSync().miniProgram
+      return mp.version ? '版本 ' + mp.version : mp.envVersion === 'trial' ? '体验版' : '开发版'
+    } catch (e) {
+      return ''
+    }
+  },
+
+  // 门户登录态（与员工登录态互斥）：决定是否显示「使用单位门户」卡片
   refreshUnitState() {
     const logged = isUnitLoggedIn()
     const session = logged ? (getUnitSession() || {}) : {}
@@ -149,21 +169,12 @@ Page({
     wx.navigateTo({ url: '/pages/unit/home' })
   },
 
+  // 退出门户 = 退出本次登录：清门户令牌后回登录页，避免停留在无身份的空态
   async logoutUnit() {
     clearUnitSession()
-    this.setData({ unitLogged: false, unitName: '' })
+    this.setData({ unitLogged: false, unitName: '', unitWechatBound: false })
     wx.showToast({ title: '已退出门户', icon: 'none' })
-  },
-
-  guard() {
-    if (isLoggedIn()) {
-      this.setData({ guest: false })
-      this.refreshUnitState()
-      return true
-    }
-    this.setData({ guest: true })
-    this.refreshUnitState()
-    return false
+    setTimeout(() => wx.reLaunch({ url: '/pages/login/index' }), 300)
   },
 
   goLogin() {
@@ -173,20 +184,13 @@ Page({
   refresh() {
     const app = getApp()
     const role = app.globalData.role
-    let versionText = ''
-    try {
-      const mp = wx.getAccountInfoSync().miniProgram
-      versionText = mp.version ? '版本 ' + mp.version : mp.envVersion === 'trial' ? '体验版' : '开发版'
-    } catch (e) {
-      versionText = ''
-    }
     const v = viewOf(role)
     const cert = certReminder(app.globalData.userInfo)
     this.setData({
       userInfo: app.globalData.userInfo,
       roleText: v.dept ? v.dept + ' · ' + v.roleText : v.roleText,
       scopeText: v.scope,
-      versionText,
+      versionText: this.readVersion(),
       menus: buildMenus(role),
       certText: cert.text,
       certLevel: cert.level,

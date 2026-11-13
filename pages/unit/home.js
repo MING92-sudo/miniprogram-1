@@ -83,6 +83,11 @@ Page({
     this.fetch()
   },
 
+  // 门户身份下的个人中心（tab 页，需 switchTab）：微信绑定与退出门户都在「我的」
+  goMine() {
+    wx.switchTab({ url: '/pages/mine/index' })
+  },
+
   onLogout() {
     wx.showModal({
       title: UNIT_PORTAL_TEXT.LOGOUT_CONFIRM_TITLE,

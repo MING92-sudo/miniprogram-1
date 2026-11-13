@@ -27,6 +27,8 @@ const UNIT_INFO_KEY = 'unit_info'
 
 // 登录成功后的门户会话（token + 单位信息，页面头部展示与守卫都用它）
 function saveUnitSession(data) {
+  // 单身份登录：门户态与员工态互斥，进入门户即清掉员工登录态，避免两个账号同时在线（用户需求）
+  require('../utils/auth').clearAuth()
   wx.setStorageSync(UNIT_TOKEN_KEY, data.token)
   wx.setStorageSync(UNIT_INFO_KEY, {
     useUnitId: data.useUnitId,

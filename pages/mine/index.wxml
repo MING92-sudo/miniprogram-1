@@ -1,32 +1,36 @@
 <view class="em-page">
-  <!-- 未登录：登录引导空状态（登录规范：先浏览功能，后自行选择登录） -->
-  <!-- 使用单位门户（W3）：门户登录态与员工登录态分开，门户用户也能从「我的」进门户 -->
-  <view wx:if="{{unitLogged}}" class="em-card unit-card">
-    <view class="unit-title">使用单位门户</view>
-    <view class="unit-name">{{unitName || '已登录'}}</view>
-    <view class="unit-actions">
-      <button class="em-btn-primary unit-btn" bindtap="goUnitHome">进入门户</button>
-      <button class="em-btn-ghost unit-btn" bindtap="logoutUnit">退出门户</button>
+  <!-- 单身份登录：使用单位门户态与员工态互斥（登录任一方即清掉另一方），此处只会命中一个分支 -->
+  <block wx:if="{{unitLogged}}">
+    <view class="em-card unit-card">
+      <view class="unit-title">使用单位门户</view>
+      <view class="unit-name">{{unitName || '已登录'}}</view>
+      <view class="unit-scope">仅可查看本单位电梯、维保记录与急修单，并报修</view>
+      <view class="unit-actions">
+        <button class="em-btn-primary unit-btn" bindtap="goUnitHome">进入门户</button>
+        <button class="em-btn-ghost unit-btn" bindtap="logoutUnit">退出门户</button>
+      </view>
+      <!-- 微信免密登录（用户需求）：自行选择是否开启，未开启一律走账号口令 -->
+      <view wx:if="{{!unitWechatBound}}" class="bind-box">
+        <input
+          class="bind-input"
+          placeholder="输入邀请码"
+          value="{{inviteCode}}"
+          bindinput="onInviteInput"
+        />
+        <button class="em-btn-ghost bind-btn" disabled="{{binding}}" bindtap="onUnitWechatBind">
+          {{binding ? '绑定中...' : '绑定微信'}}
+        </button>
+        <view class="em-text-secondary bind-tip">绑定后可在登录页用微信免密进入门户；邀请码由维保单位提供</view>
+      </view>
+      <view wx:else class="bind-state">微信已绑定，可用微信免密登录</view>
     </view>
-    <!-- 微信免密登录（用户需求）：自行选择是否开启，不开启一律走账号口令 -->
-    <view wx:if="{{!unitWechatBound}}" class="bind-box">
-      <input
-        class="bind-input"
-        placeholder="输入邀请码"
-        value="{{inviteCode}}"
-        bindinput="onInviteInput"
-      />
-      <button class="em-btn-ghost bind-btn" disabled="{{binding}}" bindtap="onUnitWechatBind">
-        {{binding ? '绑定中...' : '绑定微信'}}
-      </button>
-      <view class="em-text-secondary bind-tip">绑定后可在登录页用微信免密进入门户；邀请码由维保单位提供</view>
-    </view>
-    <view wx:else class="bind-state">微信已绑定，可用微信免密登录</view>
-  </view>
+    <view wx:if="{{versionText}}" class="em-text-secondary version-line">{{versionText}}</view>
+  </block>
 
-  <view wx:if="{{guest}}" class="guest-empty">
+  <!-- 未登录：登录引导空状态（登录规范：先浏览功能，后自行选择登录） -->
+  <view wx:elif="{{guest}}" class="guest-empty">
     <view class="guest-empty-title">登录后查看个人信息</view>
-    <view class="guest-empty-sub">账号由维保单位统一分配</view>
+    <view class="guest-empty-sub">账号由本单位管理员统一分配</view>
     <button class="guest-empty-btn" bindtap="goLogin">去登录</button>
   </view>
 

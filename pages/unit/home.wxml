@@ -1,7 +1,10 @@
 <view class="em-page">
   <view class="portal-head">
-    <view class="portal-title">{{unitName || '使用单位门户'}}</view>
-    <view class="portal-sub">{{text.READONLY_TIP}}</view>
+    <view class="portal-head-main">
+      <view class="portal-title">{{unitName || '使用单位门户'}}</view>
+      <view class="portal-sub">{{text.READONLY_TIP}}</view>
+    </view>
+    <view class="portal-mine" bindtap="goMine">我的</view>
   </view>
 
   <view class="stat-row">
