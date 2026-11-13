@@ -15,15 +15,16 @@
 | 当前阶段与历史 | `docs/08-项目审查与开发计划.md` | 只作背景与追溯，不当作待办 |
 | 管理端设计与验收 | `docs/09-管理端设计.md`、`docs/10-管理端验收清单.md` | 角色矩阵与人工验收证据 |
 | 维保记录/急修单表单版式 | `docs/13-维保与急修记录表单设计.md` | 两张导出 PDF 的逐格版面口径、字段来源与采集缺口 |
+| 安装移交检查清单/整改清单版式 | `docs/15-安装移交维保检查清单表单设计.md` | GB/T 10060—2023 表 1 的 74 项检查表、不合格项 1:1 自动映射整改、判定规则、签字审批与一梯一档归档目录 |
 | 账号与数据权限 | `docs/14-账号权限与组织角色设计.md` | 三平级部门（安装/维保/使用单位）角色码、数据域与权限矩阵 |
 | 测试与上线检查 | `docs/05-测试与验收方案.md`、`docs/11-云托管部署手册.md` | 人工验收结论写回 docs/05、docs/10 |
 
-**当前基线（2026-11-12 机审）**：小程序 22 页（tabBar 4）；`services/` 9 个模块；`mock/server.js` 48 条路由；后端 105 个 Web 映射注解（102 条业务路由 + 3 个探针）、Flyway V1—V31、284 个单测；管理端 17 个视图；文档 01—14。计数用于快速定位，提交前以代码实测为准；文档数字滞后时改文档，不要为迁就旧数字改代码。
+**当前基线（2026-11-12 机审）**：小程序 40 页（tabBar 4）；`services/` 11 个模块；`mock/server.js` 73 条路由；后端 105 个 Web 映射注解（102 条业务路由 + 3 个探针）、Flyway V1—V34、313 个单测；管理端 21 个视图；文档 01—15。计数用于快速定位，提交前以代码实测为准；文档数字滞后时改文档，不要为迁就旧数字改代码。
 
 ## 1. 系统组成与分层
 
 ```
-├─ app.js / app.json / app.wxss   小程序入口（22 页，tabBar 4 个；页面口径见 docs/03 §3.2）
+├─ app.js / app.json / app.wxss   小程序入口（40 页，tabBar 4 个；页面口径见 docs/03 §3.2）
 ├─ pages/                         页面（每页 .js/.json/.wxml/.wxss 四件套）
 ├─ services/                      业务接口层：页面只调 services，禁止直接 wx.request / wx.uploadFile
 ├─ utils/request.js               唯一请求封装（Bearer、X-Idempotency-Key、401、callContainer/wx.request 分流）
@@ -31,11 +32,11 @@
 ├─ config/index.js                环境配置（ENV、useMock、apiBaseUrl、cloud.env/service、LBS key 留空）
 ├─ constants/index.js             枚举/错误码/业务常量（文案统一从这里取）
 ├─ mock/                          mock 契约层（server.js 路由 = docs/04 A 部分）
-├─ backend/                       Spring Boot 3.3.4 后端（Flyway V1—V31、JWT/BCrypt、平台转发、284 单测）
-├─ admin/                         Vue3 + Vite + Element Plus 管理端（17 视图；lint/vitest/build）
+├─ backend/                       Spring Boot 3.3.4 后端（Flyway V1—V34、JWT/BCrypt、平台转发、313 单测）
+├─ admin/                         Vue3 + Vite + Element Plus 管理端（21 视图；lint/vitest/build）
 ├─ scripts/                       平台联调脚本与回归脚本（fixtures/ 合成测试件；tmp/ 已 gitignore）
 ├─ doc_text.txt                   平台规范 V1.5 原文提取（docs/04 B 部分核对来源，只读）
-├─ docs/                          01—14 编号文档（见 §8）
+├─ docs/                          01—15 编号文档（见 §8）
 └─ miniapp/                       微信开发者工具多端生成物（本地，已 gitignore，不属于交付物）
 ```
 
@@ -180,6 +181,8 @@
 | V3.4 | 2026-11-12 | 导出表单标准化：新增 `docs/13-维保与急修记录表单设计.md`（§0 导航新增一行、docs 范围 01—13），《电梯维护保养记录》与《电梯急修记录单》按 TSG T5002—2017 第七条/第八条/第十条/附件 A—D 定为标准表格版式（六列项目表、品种×附件表号副标题、分页重复表头、页脚页码、签字确认区）；`RecordPdfService` 全量重排，`DirectoryService.enrichFaultViews` 补急修单设备字段与 `dispatchedAt`（docs/04 V2.45，只增不改）；新增采集缺口 C-08—C-10 入 docs/12。计数更新（Flyway V1—V27、231 单测） |
 | V3.5 | 2026-11-12 | 账号权限体系设计：新增 `docs/14-账号权限与组织角色设计.md`（docs 范围 01—14）——系统权限下设**安装部/维保部/使用单位三个平级部门**，9 个组织角色 + 2 个平台角色，部门域互斥、部门内五类数据谓词、管理端与小程序两张权限矩阵、10 条硬规则、四层鉴权链（Auth→RoleCatalog→PermissionMatrix→DeptScope）、V28 迁移（`sys_employee` 增 `department/manager_id/job_title`）、现有 5 角色迁移路径与 12 条越权验收用例。本期仅设计，P1—P4 落地排期见该文 §11 |
 | V3.6 | 2026-11-12 | 三工作流并行落地：①**权限底座 P1**——`RoleCatalog`/`PermissionMatrix`/`RequirePerm`/`DeptScopeService` + V31 迁移（`sys_employee` 三列），`AdminRoleInterceptor` 改走能力码，现有 5 角色放行结果逐条不变（`AdminRoleInterceptorCompatTest`）；②**管理端权限前端**（P2 半边）——`admin/src/utils/permission.js` 与后端逐字同名 24 个能力码、14 条路由 `meta.perm`、菜单数据驱动过滤；③**外接建档 W2（Task 7）**——V29 五表 + 5 端点，合同前置/缺件待补办/接管查验责任归属必填/归档 `archive_source=2` + 首保 +3 日；④**维保日历（Task 11）**——`GET /maintenance-calendar` 只读投影；⑤**区域可见范围（Task 8）**——新增 `visibleReadPlatformIds`（区域∪本班组∪本人，仅列表），写谓词保持严格（防代签到）。计数更新（Flyway V1—V31、284 单测、admin 39 用例）；⑥**管理端菜单下发**（docs/14 P2 收尾）——`GET /auth/menus` + `MenuService` 按角色能力过滤菜单树，前端接口驱动 + 本地兜底 |
+| V3.8 | 2026-11-13 | 移交/外接建档/门户全链路落地与上线：①Task 9—14 完成（使用单位账号 V34、门户接口、小程序 17 页、管理端 4 视图）；②云托管发布失败定位为 **Flyway 校验（V30 缺口）** 而非探针，修复方式：V30 重编为 V34，根因与排查顺序写入 docs/11 §0；③镜像改分层 jar（依赖层/业务层分离）；④新增使用单位微信免密登录 `POST /unit/login-by-wechat` 与门户入口。计数更新（40 页、73 mock 路由、V1—V34、313 单测、21 视图） |
+| V3.7 | 2026-11-12 | 安装移交维保检查清单定型：新增 `docs/15-安装移交维保检查清单表单设计.md`（§0 导航新增一行、docs 范围 01—15）——按 GB/T 10060—2023 表 1 定 74 项 / 13 项类 / ☆49 重要项的标准检查表，不合格项按 `item_no` 1:1 自动生成整改清单（不可增删、逐条复验），判定照 7.2/7.3 分 5 条路径，配 20 项资料核对 D1—D20（含既有 3 项强制卡点）、NA 原因码、5 节点签字审批、逐项照片与一梯一档归档目录（COS + `?s=` 重签 + SHA-256 + 4 年留存）；列表单落地提案（V32 迁移 + 9 端点，本期仅设计）与现状 7 项差异（**任一不合格即整改**、**逐条复验**两处行为变更待实施）。§3 业务不变量与红线不变 |
 
 <!-- aoci:begin -->
 ## AOCI Repository Cognition
