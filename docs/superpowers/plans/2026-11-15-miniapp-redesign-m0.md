@@ -126,14 +126,14 @@ function section(n) {
   const m = M0.match(re)
   return m ? m[1] : ''
 }
-// 1 记录域：旧态全覆盖（单捕获组，匹配 status = "X" 与 "X".equals(o.status) 两形态）
+// 1 记录域：旧态全覆盖（严格双形态：status 赋值 或 "X".equals(o.status)；双捕获组归一）
 const woSrc = fs.readFileSync(path.join(ROOT, 'backend/src/main/java/com/cqwlw/maintenance/service/WorkOrderService.java'), 'utf8')
-const recordStates = [...new Set([...woSrc.matchAll(/(?:status = "|")([A-Z_]+)(?:"\.equals\(o\.status\)|")/g)].map(m => m[1]))]
+const recordStates = [...new Set([...woSrc.matchAll(/status = "([A-Z_]+)"|"([A-Z_]+)"\.equals\(o\.status\)/g)].map(m => m[1] || m[2]))]
 check('record-states', recordStates.filter(s => !section(1).includes('| ' + s + ' ')), recordStates.length)
 console.log(JSON.stringify(results, null, 2))
 ```
 
-正则说明：`(?:status = "|")` 起、`(?:"\.equals\(o\.status\)|")` 止，中间单捕获组取状态值；`status = "PROCESSING"` 与 `"PROCESSING".equals(o.status)` 均命中，普通大写串（如单号前缀）因后接形态不符不会误命中。
+正则说明：仅匹配 `status = "X"` 赋值与 `"X".equals(o.status)` 比较两形态。文件内其余大写串（S0–S7/FM/HM/TM/SM/OY/ASSISTANT/PRINCIPAL/UNKNOWN/SELF_COLLECTED/NA/ABNORMAL 及 Fault 查询的 OPEN）均不命中，避免误报（2026-11-15 预检实测）。
 
 - [ ] **Step 4: 运行守卫验证记录域检查生效**
 
@@ -246,10 +246,10 @@ Expected: OPEN/ASSIGNED/CLOSED 三值（181/209/414）。
 - [ ] **Step 3: 守卫追加急修检查**
 
 ```js
-// 3 急修域：旧态全覆盖 + 漂移检测（仅匹配状态赋值/比较两形态，避免单号前缀等大写串误报）
+// 3 急修域：旧态全覆盖 + 漂移检测（严格双形态，排除 BWJX 单号前缀等大写串误报）
 const faultStates = ['OPEN', 'ASSIGNED', 'CLOSED']
 const faultSrc = fs.readFileSync(path.join(ROOT, 'backend/src/main/java/com/cqwlw/maintenance/service/DirectoryService.java'), 'utf8')
-const faultFound = [...new Set([...faultSrc.matchAll(/(?:status = "|")([A-Z_]+)(?:"\.equals\(f\.status\)|")/g)].map(m => m[1]))]
+const faultFound = [...new Set([...faultSrc.matchAll(/status = "([A-Z_]+)"|"([A-Z_]+)"\.equals\(f\.status\)/g)].map(m => m[1] || m[2]))]
 check('fault-states', faultStates.filter(s => !section(3).includes('| ' + s + ' ')), faultStates.length)
 check('fault-drift', faultFound.filter(s => !faultStates.includes(s)), faultFound.length)
 ```
