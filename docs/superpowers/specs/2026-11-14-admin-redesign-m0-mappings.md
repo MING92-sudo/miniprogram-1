@@ -132,7 +132,7 @@
 
 #### 1.2.3 生产迁移脚本骨架（Flyway V35+ 数据迁移，只追加）
 
-> 以下为**骨架**。**重要（P-1 裁决附带约束）**：当前全部为测试账号，正式上线生产前清空数据库全部业务数据（账号/工单/记录等），生产账号从零 provisioning——故步骤 2—5 的存量回填仅用于 dev/test 过渡，生产空库下为 no-op。schema 迁移（Flyway）正常建立，`SEED_DEMO_DATA=false` 不写演示数据。**清库是一次性人工上线步骤，须先备份并经用户确认，严禁写成自动 TRUNCATE/DELETE 数据迁移**（AGENTS §6 破坏性操作红线；Flyway 只追加 schema，不自动清数据）。P-1 主管=张工已裁决（test 新建张工账号）；P-2 归属不变、P-3 对接人兼任已裁决。实际脚本在 M1 spec→plan 中细化并补单测。
+> 以下为**骨架**。**重要（P-1 裁决附带约束）**：当前全部为测试账号，正式上线生产前清空数据库全部业务数据（账号/工单/记录等），生产账号从零 provisioning——故步骤 2—5 的存量回填仅用于 dev/test 过渡，生产空库下为 no-op。schema 迁移（Flyway）正常建立，`SEED_DEMO_DATA=false` 不写演示数据。**清库是一次性人工上线步骤，须先备份并经用户确认，严禁写成自动 TRUNCATE/DELETE 数据迁移**（AGENTS §6 破坏性操作红线；Flyway 只追加 schema，不自动清数据）。P-1 主管=张工已裁决（test 新建张工账号）；P-2 归属不变、P-3 对接人兼任已裁决。实际脚本在 M1 spec→plan 中细化并补单测。**M1 已细化（见 `2026-11-14-admin-redesign-m1-permission-design.md` §6/§8）**：①M1 **不改 `sys_employee.role` 旧码值**（步骤1 改名推迟 M5 兼容期结束，避免击穿硬编码旧角色字面量的 V7 谓词），新码只落 `sys_user_role`；②拆 **V35 schema+配置 / V36 数据回填**（空库 no-op）；③**张工 INST_MGR 归 DemoDataSeeder**（SEED_DEMO_DATA 守卫），绝不进 Flyway（防生产凭空造账号）。
 
 ```sql
 -- V35__role_model_v2_data.sql（示意，M1 细化）
@@ -197,7 +197,7 @@ INSERT INTO sys_user_role(user_id,user_type,role_code) SELECT id,'UNIT','CLIENT_
 
 | # | 旧码 | 旧授权角色 | 新码（主映射） | 授权差异 / 范围变化 | 兼容期处理 |
 |---|---|---|---|---|---|
-| 1 | `console:read` | ADMIN,SA,IM,IC,MM,MB,LD,MQ | 工作台登录态（无独立码，dashboard 按角色聚合） | 新设计工作台=登录即可见，按范围聚合 KPI；旧"控制台读"语义被各域 view 码吸收 | 旧码翻译为"持有任一域 view 码" |
+| 1 | `console:read` | ADMIN,SA,IM,IC,MM,MB,LD,MQ | 工作台登录态（无独立码，dashboard 按角色聚合） | 新设计工作台=登录即可见，按范围聚合 KPI；旧"控制台读"语义被各域 view 码吸收 | 旧码翻译为"持有任一域 view 码"。**M1 精化（M1-4）：须加 adminConsole 门控** `console:read(role)=adminConsole(role) ∧ 任一域 view∈{Y,C}`，否则 MT/IW/CS 的小程序 view 码会误授管理端入口、破坏"worker 登录即 403" |
 | 2 | `console:write` | ADMIN,SA | `config:manage`（平台）+ 各域 write | 旧"控制台写"=平台运维写；新拆为 config:manage + 域写码 | 翻译为 config:manage |
 | 3 | `order:read` | ADMIN,SA,MM,LD,MQ,WK,AS,UA | `plan:view`+`record:view`+`task`读 | **语义=维保工单**（见 2.0）；WK/AS→MT 小程序侧；UA→CA 仅 record:view△ | 翻译为 plan:view∥record:view |
 | 4 | `order:write` | ADMIN,SA,MM,LD,WK,AS | `task:accept`+`checklist:fill`+`record:submit`+`record:sign_tech` | **语义=维保作业写**；MM/LD 不直接作业（新设计作业=MT），管理写转 record:review/plan:generate | 按操作拆分翻译 |
@@ -667,3 +667,4 @@ ARCHIVED        → 已归档
 | V1.3 | 2026-11-14 | M0 评审裁决 P-4：新工单强制双人（必须配配合人，双签三条件全满足才可复核/归档）+ 存量单人记录加"单人豁免"标记按原样归档不追溯补签；表4 §4.2.1（待配合人签字为必经态/存量豁免跳过）/§4.2.2（条件2 改新工单强制 + 裁决说明）同步；收紧 AGENTS §3.4「有配合人时双签」→「新工单强制双人」，标注 AGENTS §3.4 + docs/01 将于 M4 同步修订，与平台 2.6 workMan2Id 必填一致；spec §5.2 maintain_record 加列（单人豁免标记，V35+） |
 | V1.4 | 2026-11-14 | M0 评审裁决 P-1：INST_MGR 主管定为张工（M1 人事前置全部裁决完毕）；附带约束——当前全部测试账号，生产上线前清空数据库全部业务数据、账号从零 provisioning，§1.2 存量回填仅 dev/test 过渡（生产空库 no-op）；§1.2.3 注明确清库为一次性人工上线步骤须备份+确认、严禁自动 TRUNCATE/DELETE 迁移（AGENTS §6）；表1 §1.1/§0.3/§0.5/步骤3 同步；种子无「张工」同名账号（唯一张姓=张伟 emp_1 WORKER），test 落点待确认；spec §4.1/§5.3/§9/§10 风险1 同步 |
 | V1.5 | 2026-11-14 | **M0 评审全部裁决完毕**（P-1—P-5 + D-1—D-4）：①P-1 test 落点确认为**新建张工账号**（不升任张伟 emp_1），§0.3/§0.5/§1.1/步骤3 同步；②P-5 采纳 interim——修订 v2 只生成内部新版本+新哈希、**不重报 2.6**（平台口径仍列 docs/06 §十四 待确认，若要求重报须人工逐条），§3.2/§4.2.1/§4.2.3 同步；③D-2/D-3/D-4 默认采纳（MAINTENANCE_CONFIRM 收敛 MAINT_MGR / 小程序补 ASSIGNED 文案 / FaultsView 派单按钮补 PermButton 门控），§0.4/§0.5/§4.1/§4.3 同步。M0 出口达成，M1 可启动 spec→plan |
+| V1.6 | 2026-11-14 | M1 设计定稿回写补注（不改 M0 裁决，仅细化落地）：①§1.2.3 注明 M1 不改 sys_employee.role 旧码值（步骤1 改名推迟 M5）、V35 schema/V36 backfill 拆分、张工归 DemoDataSeeder 不进 Flyway；②§2.1 row1 console:read 翻译补 adminConsole 门控精化（M1-4，防 worker 误授管理端入口）。详见 M1 spec §6/§8 |

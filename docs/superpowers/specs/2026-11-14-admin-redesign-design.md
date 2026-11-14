@@ -239,7 +239,7 @@ AuthInterceptor（JWT → userId/roles/useUnitId/scopeVersion）
 | 期 | 交付 | 门禁 |
 |---|---|---|
 | **M0** 设计定稿 | 本设计文档 + **四张对照表**（见下）+ 偏离记录维护 | 用户评审 |
-| **M1** 后端权限底座 | V35+ 迁移（§5 九表+加列）、RoleCatalog/PermissionMatrix v2、ScopeResolver 读写双谓词、限时授权到期回收、旧码兼容层、存量账号回填 | `mvn test` 全绿 + 兼容测试证明旧端点行为不变 + 越权用例逐条留证 |
+| **M1** 后端权限底座 | V35/V36 迁移（**权限核心五表** sys_org/sys_user_role/sys_role_scope/sys_grant/sys_audit_log + sys_employee.scope_version；域表 sys_invite/sys_config/biz_export_approval/biz_elevator_change 与 §5.2 域加列推迟 M3/M4/M5）、RoleCatalog/PermissionMatrix v2（三态+旧码翻译）、ScopeResolver 读写双谓词（只建+证 V7 等价，不改业务查询）、限时授权到期回收、旧码兼容层、存量账号回填（dev/test，生产空库 no-op）。详见 `2026-11-14-admin-redesign-m1-permission-design.md` | `mvn test` 全绿 + 兼容测试证明旧端点行为不变 + 越权用例逐条留证 |
 | **M2** 组件库+壳 | token + §7 组件、登录/工作台/403/四态、组件测试 | admin `lint && test && build` + 1440×900 对照原型走查 |
 | **M3** 台账域 | org/users/roles/grants/projects/contracts/elevators 7 视图 + 配套端点（组织树 CRUD、邀请、授权、合同脱敏、电梯双人确认） | admin-spec §11 对应场景 + 脱敏/双人确认验收 + 越权用例 |
 | **M4** 作业域 | handovers/plans/records/dispatch/order 5 视图 + 合规组 6 视图并入；记录修订、代报修、SLA | 状态机转移测试 + **上报链路合规回归（2.6 快照/无自动重试不变）** |
@@ -307,3 +307,4 @@ AuthInterceptor（JWT → userId/roles/useUnitId/scopeVersion）
 | V1.5 | 2026-11-14 | M0 评审裁决 P-4：新工单强制双人（必须配配合人，双签三条件全满足才可复核/归档）+ 存量单人记录加 solo_exempt 豁免标记按原样归档不追溯补签；§5.2 maintain_record 加列同步；收紧 AGENTS §3.4「有配合人时双签」→「新工单强制双人」，标注 AGENTS §3.4 + docs/01 将于 M4 同步修订，与平台 2.6 workMan2Id 必填一致；对照表 §4.2.1/4.2.2 + §0.3/0.5 回写 |
 | V1.6 | 2026-11-14 | M0 评审裁决 P-1：INST_MGR 主管定为张工，M1 人事前置（P-1/P-2/P-3）全部裁决完毕；附带约束——当前全部测试账号，生产上线前清空数据库全部业务数据、账号从零 provisioning，存量回填仅 dev/test 过渡（生产空库 no-op）；§4.1/§5.3/§9/§10 风险1 解除 + 新增风险9（生产清库上线门禁：备份+确认+严禁自动 TRUNCATE/DELETE 迁移，AGENTS §6）；对照表 §0.3/0.5/§1.1/§1.2.3 同步；种子无「张工」同名账号（唯一张姓=张伟 emp_1 WORKER），test 落点待确认 |
 | V1.7 | 2026-11-14 | **M0 评审全部裁决完毕**（P-1—P-5 + D-1—D-4）：①P-1 test 落点确认新建张工账号（不升任张伟 emp_1），§10 风险1 同步；②P-5 采纳 interim——修订 v2 只生成内部新版本+新哈希、不重报 2.6（平台口径仍列 docs/06 §十四 待确认，若要求重报须人工逐条），§10 风险4 同步；③D-2/D-3/D-4 默认采纳（MAINTENANCE_CONFIRM 收敛 MAINT_MGR / 小程序补 ASSIGNED 文案 / FaultsView 派单按钮补 PermButton 门控，分别 M4/M5/M3-M4 落地）。M0 出口达成，M1 解除阻塞可启动 spec→plan；对照表 V1.5 同步 |
+| V1.8 | 2026-11-14 | M1 设计定稿（`2026-11-14-admin-redesign-m1-permission-design.md` V1.0）：§9 M1 建表范围由「九表+加列」**收窄为权限核心五表**（Q1 裁决，域表/域加列推迟 M3/M4/M5）；ScopeResolver 只建+证 V7 等价、不改业务查询（Q2）；方案 1 单一新矩阵+旧码翻译；M1 不改 sys_employee.role 旧码值（DB 改名推迟 M5）、V35 schema/V36 backfill 拆分、张工归 DemoDataSeeder 不进 Flyway。M1 spec §8 记录 6 条偏离精化 |
