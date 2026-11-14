@@ -1,7 +1,21 @@
 <template>
-  <el-result icon="warning" title="403" sub-title="该账号无权访问此页面（管理端写操作需维保部管理员权限）">
-    <template #extra>
-      <el-button type="primary" @click="$router.push('/dashboard')">返回看板</el-button>
-    </template>
-  </el-result>
+  <div class="ui-scope fb-page">
+    <ForbiddenState :code="code" :allowed-roles="allowedRoles" :current-role="auth.role" />
+    <router-link to="/dashboard" class="fb-back">返回工作台</router-link>
+  </div>
 </template>
+<script setup>
+// M2 403 页：所需码 + 允许角色 + 当前角色（spec §5.3）
+import { computed } from 'vue'
+import { useRoute } from 'vue-router'
+import ForbiddenState from '../ui/states/ForbiddenState.vue'
+import { useAuthStore } from '../stores/auth'
+const route = useRoute()
+const auth = useAuthStore()
+const code = computed(() => route.query.code || '')
+const allowedRoles = computed(() => (route.query.roles ? String(route.query.roles).split(',') : []))
+</script>
+<style scoped>
+.fb-page { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.fb-back { color: var(--amber); font-size: 13px; margin-top: 16px; }
+</style>
