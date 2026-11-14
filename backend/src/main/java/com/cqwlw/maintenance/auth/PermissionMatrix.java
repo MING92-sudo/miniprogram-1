@@ -192,14 +192,16 @@ public final class PermissionMatrix {
     private PermissionMatrix() {
     }
 
+    /** 冻结旧授权持有者集（兼容期 oracle，RbacMatrixTest 锁定）；未知/null 码抛 IllegalArgumentException。 */
+    public static Set<String> holders(String capability) {
+        requireKnownCapability(capability);
+        return GRANTS.getOrDefault(capability, Set.of());
+    }
+
     /** 角色是否具备能力；未知角色一律拒绝，未知能力码抛异常（拼错不静默放行） */
     public static boolean allows(String role, String capability) {
-        requireKnownCapability(capability);
-        if (role == null) {
-            return false;
-        }
-        Set<String> roles = GRANTS.get(capability);
-        return roles != null && roles.contains(role);
+        requireKnownCapability(capability); // 未知/null 码抛 IllegalArgumentException（保持现状，RbacMatrixTest 锁定）
+        return LegacyCapabilityTranslator.allows(role, capability);
     }
 
     /** 能力码拼写校验：P3 标注 {@code @RequirePerm} 时用同一个常量，写错即抛异常 */
