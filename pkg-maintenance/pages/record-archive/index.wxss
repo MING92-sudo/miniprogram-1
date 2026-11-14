@@ -1,0 +1,2 @@
+page{background:var(--ink);color:var(--text)}
+.ra-hash{font-size:18rpx;word-break:break-all}
