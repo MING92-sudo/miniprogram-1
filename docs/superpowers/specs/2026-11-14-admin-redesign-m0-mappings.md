@@ -1,7 +1,7 @@
 # 管理端重构 M0 四张对照表（角色 / 权限码 / 视图 / 状态机）
 
 **日期**：2026-11-14
-**状态**：M0 出口交付物（草案，待用户评审；含 5 项待裁决人事/兼容决策与 4 项现存缺陷登记）
+**状态**：M0 出口交付物（**评审完成 2026-11-14**：P-1—P-5 + D-1—D-4 全部裁决，见 §0.5；M1 解除阻塞）。裁决逐项回写中，历史草案口径以 §0.5 为准
 **上位文件**：`docs/superpowers/specs/2026-11-14-admin-redesign-design.md`（程序级总体设计 V1.0，commit 373ae99）§9「M0 出口四张对照表」
 **用途**：M1（后端权限底座）启动前的唯一迁移事实源。本文件定稿前，M1 数据迁移脚本不得执行。
 
@@ -34,24 +34,24 @@
 | 21 旧视图路由 + meta.perm | `admin/src/router/index.js` |
 | 使用单位账号挂在 use_unit（非 sys_employee） | `backend/.../db/migration/V34__use_unit_account.sql` |
 
-### 0.3 待裁决登记（M1 前置，代码不猜）
+### 0.3 裁决登记（M1 前置，代码不猜；P-1—P-5 已全部裁决）
 
 | # | 待裁决项 | 影响表 | 处置 |
 |---|---|---|---|
-| P-1 | **INST_MGR 主管人选**：安装部新增主管层级，存量安装账号的上级 | 表1 | **已裁决（2026-11-14）**：主管定为**张工**。附带约束：当前全部为测试账号，生产上线前清空数据库、账号从零 provisioning（§1.2.3 注 + spec §5.3）。种子无「张工」同名账号（唯一张姓=张伟 emp_1 WORKER），test 落点待确认 |
+| P-1 | **INST_MGR 主管人选**：安装部新增主管层级，存量安装账号的上级 | 表1 | **已裁决（2026-11-14）**：主管定为**张工**，test 环境**新建张工账号**（不升任张伟 emp_1）。附带约束：当前全部为测试账号，生产上线前清空数据库、账号从零 provisioning（§1.2.3 注 + spec §5.3） |
 | P-2 | **LEADER→MAINT_SUP 项目部归属** | 表1/表4 | **已裁决（2026-11-14）**：按现有组织架构不变——不新增"项目部"层级，MAINT_SUP 沿用现有班组归属，范围按班组（TEAM）解析（偏离 D-A9） |
 | P-3 | **CLIENT_SIGNER 兼任授予名单** | 表1/表2 | **已裁决（2026-11-14）**：按现有客户对接人不变——现有 use_unit 门户账号持有人（电梯管理员/对接人）加挂 CLIENT_SIGNER，与 CLIENT_ADMIN 同账号兼任；不新增/变更对接人 |
 | P-4 | **存量单人作业记录的双签兼容**：旧单人记录（无配合人）vs 新强制双签核验三条件 | 表4 | **已裁决（2026-11-14）**：新工单强制双人（必须配配合人，双签三条件全满足才可复核/归档）；存量单人记录加"单人豁免"标记按原样归档，不追溯补签。**收紧 AGENTS §3.4**（"有配合人时双签"→新工单强制双人），M4 同步修订 AGENTS §3.4 + docs/01；与平台 2.6 workMan2Id 必填一致 |
-| P-5 | **修订 v2 是否需重报 2.6**：归档后修订生成新版本是否触发监管上报 | 表4 | 已列 docs/06 待确认；**确认前修订只生成内部新版本，不触发任何上报**（AGENTS §2.4 无自动重试红线） |
+| P-5 | **修订 v2 是否需重报 2.6**：归档后修订生成新版本是否触发监管上报 | 表4 | **已裁决（2026-11-14）**：采纳 interim 策略——修订 v2 只生成内部新版本+新哈希，**不触发任何 2.6 上报**（AGENTS §2.4 无自动重试红线）。平台是否要求重报仍列 docs/06 §十四 待书面确认；若平台后续要求重报，须人工逐条、不得自动，届时另议 |
 
 ### 0.4 现存缺陷登记（本次只登记，不在 M0 修复）
 
 | # | 缺陷 | 证据 | 风险 | 建议落点 |
 |---|---|---|---|---|
 | D-1 | `HandoverService.NODE_ROLES` 的 `INSTALLER_HANDOVER` 节点要求角色 `"INSTALLER"`，该码已不在 RoleCatalog（现为 INSTALL_MANAGER/INSTALL_CLERK/INSTALL_WORKER）→ **无任何账号能签该节点** | HandoverService.java L67-71 | 移交安装方签字链断裂 | **已裁决（2026-11-14）**：保留 INSTALLER 角色（INSTALL_WORKER 统一改名 INSTALLER）专司移交安装方签字，NODE_ROLES 的 INSTALLER 直接生效；M4 补 RoleCatalog 注册 + 迁移 |
-| D-2 | `MAINTENANCE_CONFIRM` 节点允许 LEADER 签字，但 docs/14 §10 用例 8 要求 confirmed_by 必须是维保经理 | HandoverService.java NODE_ROLES vs docs/14 | 归档确认越权 | M4 收敛为 MAINT_MGR（PLATFORM_ADMIN 审计） |
-| D-3 | 小程序 `UNIT_FAULT_STATUS_TEXT` 只有 OPEN/CLOSED，缺 ASSIGNED → 已派单急修单在门户显示为"处理中" | constants/index.js L334-337 vs DirectoryService L209 | 门户口径失真（非安全） | M5 小程序对齐时补 ASSIGNED 文案 |
-| D-4 | 管理端 `FaultsView` 派单按钮无前端权限门控（后端已强校验） | admin FaultsView 派单按钮 | 体验问题，非越权（后端兜底） | M3/M4 重写时按 PermButton 两档门控补齐 |
+| D-2 | `MAINTENANCE_CONFIRM` 节点允许 LEADER 签字，但 docs/14 §10 用例 8 要求 confirmed_by 必须是维保经理 | HandoverService.java NODE_ROLES vs docs/14 | 归档确认越权 | **已裁决（2026-11-14，默认采纳）**：M4 收敛为 MAINT_MGR（PLATFORM_ADMIN 审计） |
+| D-3 | 小程序 `UNIT_FAULT_STATUS_TEXT` 只有 OPEN/CLOSED，缺 ASSIGNED → 已派单急修单在门户显示为"处理中" | constants/index.js L334-337 vs DirectoryService L209 | 门户口径失真（非安全） | **已裁决（2026-11-14，默认采纳）**：M5 小程序对齐时补 ASSIGNED 文案 |
+| D-4 | 管理端 `FaultsView` 派单按钮无前端权限门控（后端已强校验） | admin FaultsView 派单按钮 | 体验问题，非越权（后端兜底） | **已裁决（2026-11-14，默认采纳）**：M3/M4 重写时按 PermButton 两档门控补齐 |
 
 ---
 
@@ -62,14 +62,14 @@
 | 项 | 结论 | 裁决日期 | 影响 / 回写位置 |
 |---|---|---|---|
 | D-1 | **保留 INSTALLER 角色用于移交节点**；INSTALL_WORKER 统一改名 INSTALLER，安装员兼做现场查验/整改与移交安装方签字；角色总数不变（13），NODE_ROLES 的 INSTALLER 直接生效 | 2026-11-14 | 表1 §1.1、表2 §2.1/2.2（补 handover:sign_install 扩展授权）、表4 §4.1.1；新增偏离 D-A8 |
-| P-1 | **主管定为张工**（INST_MGR）。附带约束：当前全部为测试账号，正式上线生产前清空数据库全部业务数据、账号从零 provisioning；§1.2 存量回填仅 dev/test 过渡，生产空库下为 no-op。种子唯一张姓=张伟 emp_1（WORKER），test 环境 INST_MGR 落点（张伟升任/新建张工账号）待用户确认；生产按真实人事 provisioning 张工 | 2026-11-14 | 表1 §1.1/1.2.3 步骤3；spec §5.3 生产清库约束 + §10 风险1 解除（M1 人事前置全部裁决） |
+| P-1 | **主管定为张工**（INST_MGR），test 环境**新建张工账号**（不升任张伟 emp_1，张伟保持 WORKER→MAINT_TECH）。附带约束：当前全部为测试账号，正式上线生产前清空数据库全部业务数据、账号从零 provisioning；§1.2 存量回填仅 dev/test 过渡，生产空库下为 no-op；生产按真实人事 provisioning 张工 | 2026-11-14 | 表1 §1.1/1.2.3 步骤3；spec §5.3 生产清库约束 + §10 风险1 解除（M1 人事前置全部裁决） |
 | P-2 | **按现有组织架构不变**：不新增"项目部"组织层级，sys_org 按现有 公司→部门→班组 建立；MAINT_SUP 沿用现有班组归属，数据范围按班组（TEAM）解析（与旧 LEADER 班组谓词一致）；新设计 PROJECT 层本期不强制引入 | 2026-11-14 | 表1 §1.1/1.2.1/1.2.3、#/org 树；新增偏离 D-A9 |
 | P-3 | **按现有客户对接人不变**：现有 use_unit 门户账号持有人（客户对接人=elevatorAdminister 电梯管理员）自动加挂 CLIENT_SIGNER（与 CLIENT_ADMIN 同账号兼任，sys_user_role 多行）；不新增账号/不变更对接人；无账号单位（如 uu_2）待开通时按同规则授予。注：对接人指电梯管理员/账号持有人，非单位负责人 unitPrincipal | 2026-11-14 | 表1 §1.1/1.2.1/1.2.3 步骤5 |
 | P-4 | **新工单强制双人 + 存量单人豁免**：新工单必须配配合人，双签三条件（主检签名 + 配合人签名 + 作业时长≥30min）全满足才可复核/归档；存量单人记录（无配合人）加"单人豁免"标记（maintain_record 加列，V35+）按原样归档，不追溯补签。收紧现状"有配合人时双签"为新工单强制双人；与平台 2.6 workMan2Id 必填一致 | 2026-11-14 | 表4 §4.2.1/4.2.2；spec §5.2 maintain_record 加列；**AGENTS §3.4 + docs/01 将于 M4 同步修订** |
-| P-5 | 待裁决（修订 v2 是否重报 2.6；已列 docs/06 §十四） | — | — |
-| D-2 | 待裁决（MAINTENANCE_CONFIRM 收敛 MAINT_MGR，建议默认采纳） | — | — |
-| D-3 | 待裁决（小程序急修文案补 ASSIGNED，建议默认采纳） | — | — |
-| D-4 | 待裁决（FaultsView 派单按钮补门控，建议默认采纳） | — | — |
+| P-5 | **采纳 interim：修订 v2 不重报 2.6**——归档后修订只生成内部新版本+新哈希，不触发任何上报（AGENTS §2.4 无自动重试红线）；v1 与签名永久保留。平台是否要求重报仍列 docs/06 §十四 待书面确认，若要求重报须人工逐条不得自动，届时另议 | 2026-11-14 | 表4 §4.2.1 修订行/§4.2.3；spec §10 风险4；docs/06 §十四 14-1 补裁决 |
+| D-2 | **默认采纳**：MAINTENANCE_CONFIRM 节点签字角色 M4 收敛为 MAINT_MGR（维保经理），PLATFORM_ADMIN 审计；移除 LEADER 签字权（对齐 docs/14 §10 用例 8） | 2026-11-14 | 表4 §4.1 移交节点；M4 转移测试兜底 |
+| D-3 | **默认采纳**：M5 小程序对齐时 UNIT_FAULT_STATUS_TEXT 补 ASSIGNED=已派单 文案，消除门户已派单急修单误显"处理中" | 2026-11-14 | 表4 §4.3；constants/index.js（M5 落地） |
+| D-4 | **默认采纳**：M3/M4 重写 FaultsView 时派单按钮按 PermButton 两档门控补齐（order:dispatch）；后端强校验不变，前端门控仅体验优化 | 2026-11-14 | 表3 FaultsView 操作；M3/M4 落地 |
 
 **新增偏离 D-A8**（相对新设计蓝图）：移交安装方签字节点（INSTALLER_HANDOVER / handover:sign_install）由 **INSTALLER** 签字，新设计原授 INST_MGR（安装主管）。原因：用户裁决保留安装员角色专司移交签字（D-1），安装主管负责审核（review/review_return）而非现场移交签字。
 
@@ -91,7 +91,7 @@
 | `INSTALL_MANAGER` | INSTALL | `INST_PM` | INSTALL | 安装部项目负责人 | 是（移交为主，兼容保留） | 码值改名 |
 | `INSTALL_CLERK` | INSTALL | `INST_CLERK` | INSTALL | 安装部资料员（仅资料与整改证据） | 是（移交为主，兼容保留） | 码值改名 |
 | `INSTALL_WORKER` | INSTALL | `INSTALLER`（扩展） | INSTALL | 新设计无安装员；保留现场查验/整改照片 + **移交安装方签字**职能（D-1 裁决） | 否（小程序） | 码值改名 INSTALL_WORKER→INSTALLER + 补扩展码 |
-| —（新增） | — | `INST_MGR` | INSTALL | 安装部主管，INST_PM 新上级 | 是 | **新建 + P-1 已裁决：张工**（生产清库后 provisioning） |
+| —（新增） | — | `INST_MGR` | INSTALL | 安装部主管，INST_PM 新上级 | 是 | **新建 + P-1 已裁决：张工**（test 新建张工账号；生产清库后 provisioning） |
 | `MAINT_MANAGER` | MAINT | `MAINT_MGR` | MAINT | 维保部经理：合同/跨项目调度/修订审批 | 是 | 码值改名 |
 | `LEADER` | MAINT | `MAINT_SUP` | MAINT | 班组长→维保主管；**沿用现有班组归属与 TEAM 范围**（P-2 裁决：不新增项目部层级，D-A9） | 是 | 码值改名（归属不变） |
 | `WORKER` | MAINT | `MAINT_TECH` | MAINT | 维保人员（主检/配合人均为 MAINT_TECH 账号） | 否（小程序） | 码值改名 |
@@ -132,7 +132,7 @@
 
 #### 1.2.3 生产迁移脚本骨架（Flyway V35+ 数据迁移，只追加）
 
-> 以下为**骨架**。**重要（P-1 裁决附带约束）**：当前全部为测试账号，正式上线生产前清空数据库全部业务数据（账号/工单/记录等），生产账号从零 provisioning——故步骤 2—5 的存量回填仅用于 dev/test 过渡，生产空库下为 no-op。schema 迁移（Flyway）正常建立，`SEED_DEMO_DATA=false` 不写演示数据。**清库是一次性人工上线步骤，须先备份并经用户确认，严禁写成自动 TRUNCATE/DELETE 数据迁移**（AGENTS §6 破坏性操作红线；Flyway 只追加 schema，不自动清数据）。P-1 主管=张工已裁决（test 账号落点待确认）；P-2 归属不变、P-3 对接人兼任已裁决。实际脚本在 M1 spec→plan 中细化并补单测。
+> 以下为**骨架**。**重要（P-1 裁决附带约束）**：当前全部为测试账号，正式上线生产前清空数据库全部业务数据（账号/工单/记录等），生产账号从零 provisioning——故步骤 2—5 的存量回填仅用于 dev/test 过渡，生产空库下为 no-op。schema 迁移（Flyway）正常建立，`SEED_DEMO_DATA=false` 不写演示数据。**清库是一次性人工上线步骤，须先备份并经用户确认，严禁写成自动 TRUNCATE/DELETE 数据迁移**（AGENTS §6 破坏性操作红线；Flyway 只追加 schema，不自动清数据）。P-1 主管=张工已裁决（test 新建张工账号）；P-2 归属不变、P-3 对接人兼任已裁决。实际脚本在 M1 spec→plan 中细化并补单测。
 
 ```sql
 -- V35__role_model_v2_data.sql（示意，M1 细化）
@@ -150,10 +150,10 @@ INSERT INTO sys_user_role(user_id,user_type,role_code,scope_ref,version)
 SELECT id,'EMPLOYEE',role,NULL,1 FROM sys_employee WHERE enabled=1;
 -- use_unit 账号：user_type='UNIT'，role='CLIENT_ADMIN'
 
--- 步骤 3：INST_MGR 新建（P-1 已裁决：主管=张工）
+-- 步骤 3：INST_MGR 新建（P-1 已裁决：主管=张工，test 新建张工账号）
 -- 生产：清库后从零 provisioning 张工为 INST_MGR（真实人事），不依赖存量回填
--- test：种子唯一张姓=张伟 emp_1（WORKER），落点待确认（张伟升任 INST_MGR / 新建张工账号）
--- INSERT INTO sys_employee(... role='INST_MGR' ...) VALUES (<张工，test 落点待确认>);
+-- test：新建张工账号 role='INST_MGR'（不升任张伟 emp_1，张伟保持 WORKER→MAINT_TECH）
+-- INSERT INTO sys_employee(id,name,phone,role,...) VALUES ('emp_inst_mgr','张工','<test手机号>','INST_MGR',...);
 
 -- 步骤 4：MAINT_SUP 归属（P-2 已裁决：按现有组织架构不变）
 -- 沿用现有班组 org_id 回填 scope_ref（TEAM），不新增项目部层级；org_id 取自 sys_org 现有班组种子
@@ -479,7 +479,7 @@ spec §6.2 的"OrderListView + FaultsView → #/dispatch 合并"是**简化表�
 | 双签三条件核验 | record:review | 主检签+配合签+时长≥30min |
 | 退回 | record:review | |
 | 抽查标 | record:spotcheck | MQ 扩展；比例读 sys_config |
-| 归档后修订 v2+哈希 | record:amend | MM 发起+PA 确认；**不触发上报**（P-5） |
+| 归档后修订 v2+哈希 | record:amend | MM 发起+PA 确认；**不触发上报**（P-5 已裁决） |
 
 #### 3.2.3 数据与系统域（M5）
 
@@ -531,7 +531,7 @@ spec §6.2 的"OrderListView + FaultsView → #/dispatch 合并"是**简化表�
 | DOC_SUBMITTING | 资料移交中 | 待安装部审核 | 旧 3 类必传文件→新 6 类必传+哈希；新增容缺受理分支 | 资料完整性卡点保留（3 强制项不变） |
 | INSPECTING | 现场查验 | 验收中 | 旧 submitInspect 按 SAFETY_DEVICE/BRAKE FAIL 分流→新验收判定 | 现场查验责任归属必填保留 |
 | RECTIFYING | 整改复验中 | 退回整改 | 旧 recheckRectify PASS→PENDING_CONFIRM；新逐条复验（docs/15 行为变更） | **任一不合格即整改 + 逐条复验**（docs/15 待实施） |
-| PENDING_CONFIRM | 待确认归档 | 待双方签字 → 待维保签字 | 旧单步 confirm→新双签链（安装方签+维保方签） | **D-1 已裁决**：INSTALLER_HANDOVER 由保留的 INSTALLER 角色签字；**D-2**：MAINTENANCE_CONFIRM 收敛 MAINT_MGR |
+| PENDING_CONFIRM | 待确认归档 | 待双方签字 → 待维保签字 | 旧单步 confirm→新双签链（安装方签+维保方签） | **D-1 已裁决**：INSTALLER_HANDOVER 由保留的 INSTALLER 角色签字；**D-2 已裁决**：MAINTENANCE_CONFIRM 收敛 MAINT_MGR（移除 LEADER） |
 | ARCHIVED | 已归档 | 已生效 → 已归档 | 旧 confirm+archive 单事务→新"已生效"触发 archive() 副作用 | **archive() 副作用必须保留**：建档 archiveSource=1 + 预创建 HM 首保工单+15天 + elevatorId 幂等 |
 | —（新增） | — | 已作废 | 三段链：安装主管发起→维保经理确认→平台审计 | 作废不可逆，全程审计 |
 
@@ -568,7 +568,7 @@ ARCHIVED        → 已归档
 | confirmStatus CONFIRMED | 已签署 → 已归档 | 归档 | 旧 CONFIRMED 为本地终态不上报；新归档同样不触发额外上报 |
 | reportStatus FAILED | （并行上报子态） | 上报失败标记 | **仅逐条人工重报，无自动重试**（§2.4）；上报子态与记录主态解耦 |
 | —（新增） | 待整改 | 复核退回 | 异常项 S0—S7 显式判定不变（§3.4） |
-| —（新增） | 修订 v2 | 归档后修订 | **v1 与签名永久保留**；MM 发起+PA 确认；**不触发任何上报**（P-5，docs/06 待确认） |
+| —（新增） | 修订 v2 | 归档后修订 | **v1 与签名永久保留**；MM 发起+PA 确认；**不触发任何上报**（P-5 已裁决：不重报；平台口径 docs/06 §十四 待确认） |
 
 #### 4.2.2 双签核验三条件（新 record:review）
 
@@ -585,12 +585,12 @@ ARCHIVED        → 已归档
 
 - 签退时冻结检查项与 reportPayload 快照，2.6 使用快照上报，不重新组装（AGENTS §3.5）。
 - 新"待使用单位签署/已签署/已归档"链**不得改变 2.6 上报时点**——上报发生在主检签名提交（作业完成）时，使用单位签署是后置本地确认，不重报、不延迟上报。
-- 修订 v2 只生成内部新版本+新哈希，**不触发 2.6**（P-5 确认前）。
+- 修订 v2 只生成内部新版本+新哈希，**不触发 2.6**（P-5 已裁决：不重报；平台若要求重报须人工逐条、不得自动，docs/06 §十四 待确认）。
 
 ### 4.3 急修/报修工单状态机
 
 **旧（Fault，3 态）**：OPEN（处理中）→ ASSIGNED（已派单）→ CLOSED（已闭环）
-（前端 UNIT_FAULT_STATUS_TEXT 缺 ASSIGNED，D-3；编号 BWJX+yyyyMMddHHmm+3位=19位）
+（前端 UNIT_FAULT_STATUS_TEXT 缺 ASSIGNED，D-3 已裁决 M5 补「已派单」文案；编号 BWJX+yyyyMMddHHmm+3位=19位）
 
 **新（roles §6，7 态）**：待接单 → 已接单 → 处置中 → 待使用单位确认 →（待整改 ⇄）→ 已闭环；已取消。SLA 倒计时 + 抢单 + 代报修。
 
@@ -666,3 +666,4 @@ ARCHIVED        → 已归档
 | V1.2 | 2026-11-14 | M0 评审裁决 P-3：CLIENT_SIGNER 兼任按现有客户对接人不变——现有 use_unit 门户账号持有人（电梯管理员/对接人）加挂 CLIENT_SIGNER，与 CLIENT_ADMIN 同账号兼任，不新增/变更对接人；表1 §1.1/1.2.1（unit_1 王芳兼任）/1.2.3 步骤5 回填脚本同步 |
 | V1.3 | 2026-11-14 | M0 评审裁决 P-4：新工单强制双人（必须配配合人，双签三条件全满足才可复核/归档）+ 存量单人记录加"单人豁免"标记按原样归档不追溯补签；表4 §4.2.1（待配合人签字为必经态/存量豁免跳过）/§4.2.2（条件2 改新工单强制 + 裁决说明）同步；收紧 AGENTS §3.4「有配合人时双签」→「新工单强制双人」，标注 AGENTS §3.4 + docs/01 将于 M4 同步修订，与平台 2.6 workMan2Id 必填一致；spec §5.2 maintain_record 加列（单人豁免标记，V35+） |
 | V1.4 | 2026-11-14 | M0 评审裁决 P-1：INST_MGR 主管定为张工（M1 人事前置全部裁决完毕）；附带约束——当前全部测试账号，生产上线前清空数据库全部业务数据、账号从零 provisioning，§1.2 存量回填仅 dev/test 过渡（生产空库 no-op）；§1.2.3 注明确清库为一次性人工上线步骤须备份+确认、严禁自动 TRUNCATE/DELETE 迁移（AGENTS §6）；表1 §1.1/§0.3/§0.5/步骤3 同步；种子无「张工」同名账号（唯一张姓=张伟 emp_1 WORKER），test 落点待确认；spec §4.1/§5.3/§9/§10 风险1 同步 |
+| V1.5 | 2026-11-14 | **M0 评审全部裁决完毕**（P-1—P-5 + D-1—D-4）：①P-1 test 落点确认为**新建张工账号**（不升任张伟 emp_1），§0.3/§0.5/§1.1/步骤3 同步；②P-5 采纳 interim——修订 v2 只生成内部新版本+新哈希、**不重报 2.6**（平台口径仍列 docs/06 §十四 待确认，若要求重报须人工逐条），§3.2/§4.2.1/§4.2.3 同步；③D-2/D-3/D-4 默认采纳（MAINTENANCE_CONFIRM 收敛 MAINT_MGR / 小程序补 ASSIGNED 文案 / FaultsView 派单按钮补 PermButton 门控），§0.4/§0.5/§4.1/§4.3 同步。M0 出口达成，M1 可启动 spec→plan |
