@@ -90,7 +90,7 @@
 | `MAINT_BIZ` | `MAINT_BIZ`（扩展） | 商务：合同/客户域写；不见现场照片/定位/签字（docs/14 R4） |
 | `MAINT_QUALITY` | `MAINT_QUALITY`（扩展） | 质量：跨班组只读 + 抽检写；不得签退/重报/改工单（docs/14 R3） |
 | `UNIT_ADMIN` | `CLIENT_ADMIN` | use_unit 账号，组织单级 |
-| —（新增） | `CLIENT_SIGNER` | use_unit 账号；管理员可兼任，签字按签字人身份独立留痕 |
+| —（新增） | `CLIENT_SIGNER` | use_unit 账号；现有客户对接人（账号持有人/电梯管理员）兼任（P-3 裁决），签字按签字人身份独立留痕 |
 
 码值迁移原则：角色码字符串变更经兼容层映射（旧码注解/旧 token 在兼容期内自动翻译），存量账号按映射表批量回填；`sys_employee.role` 单列过渡为 `sys_user_role` 多行。
 
@@ -161,7 +161,7 @@ AuthInterceptor（JWT → userId/roles/useUnitId/scopeVersion）
 
 ### 5.3 迁移与兼容
 
-- 存量账号按 §4.1 映射回填角色与部门；MAINT_SUP 沿用现有班组归属（P-2 已裁决）；INST_MGR 主管人选待人事决策（P-1）后执行。
+- 存量账号按 §4.1 映射回填角色与部门；MAINT_SUP 沿用现有班组归属（P-2 已裁决）；CLIENT_SIGNER 由现有对接人账号兼任（P-3 已裁决）；INST_MGR 主管人选待人事决策（P-1）后执行。
 - 旧 24 码注解经兼容层翻译到新矩阵，兼容期内旧端点行为逐条不变（兼容性测试证明）。
 - 迁移失败自愈沿用 AGENTS V3.1 机制；打包必须 `mvn clean package`（V3.2 护栏）。
 
@@ -301,3 +301,4 @@ AuthInterceptor（JWT → userId/roles/useUnitId/scopeVersion）
 | V1.1 | 2026-11-14 | M0 出口：§6.2 修正 OrderListView/OrderDetailView 混合域拆分（维保工单 HM/TM/SM/OY→#/plans+#/records，救援 FM+急修单→#/dispatch+#/order/:id），消除"维保工单误入急修 7 态机"陷阱；四张对照表落地 `2026-11-14-admin-redesign-m0-mappings.md`；三份外部设计 md 归档 `docs/16-梯维通设计输入/`；docs/06 追加 §十四 修订上报口径确认项（14-1） |
 | V1.2 | 2026-11-14 | M0 评审裁决 D-1：INSTALL_WORKER 统一改名 INSTALLER（扩展角色），保留安装员专司移交安装方签字（INSTALLER_HANDOVER 节点），角色总数不变；§4.1 角色行同步、新增偏离 D-A8（handover:sign_install 由 INSTALLER 而非新设计的 INST_MGR 签字）；对照表新增 §0.5 裁决记录区 |
 | V1.3 | 2026-11-14 | M0 评审裁决 P-2：MAINT_SUP 项目部归属按现有组织架构不变——不新增项目部组织层级，sys_org 按现有 公司→部门→班组 建立，MAINT_SUP 沿用现有班组归属、范围落 TEAM；§4.1/§4.4/§5.1/§5.3/§9/§10 同步，新增偏离 D-A9（PROJECT→TEAM）；M1 前置人事决策仅剩 P-1（INST_MGR 人选） |
+| V1.4 | 2026-11-14 | M0 评审裁决 P-3：CLIENT_SIGNER 兼任按现有客户对接人不变——现有 use_unit 门户账号持有人（电梯管理员/对接人，非单位负责人 unitPrincipal）加挂 CLIENT_SIGNER，与 CLIENT_ADMIN 同账号兼任，不新增/变更对接人；§4.1/§5.3 同步；M1 前置人事决策仅剩 P-1 |

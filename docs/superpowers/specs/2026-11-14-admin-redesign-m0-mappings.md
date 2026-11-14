@@ -40,7 +40,7 @@
 |---|---|---|---|
 | P-1 | **INST_MGR 主管人选**：安装部新增主管层级，存量安装账号的上级 | 表1 | 用户指定；未决前迁移脚本 INST_MGR 段不执行 |
 | P-2 | **LEADER→MAINT_SUP 项目部归属** | 表1/表4 | **已裁决（2026-11-14）**：按现有组织架构不变——不新增"项目部"层级，MAINT_SUP 沿用现有班组归属，范围按班组（TEAM）解析（偏离 D-A9） |
-| P-3 | **CLIENT_SIGNER 兼任授予名单**：哪些使用单位管理员兼任签字人 | 表1/表2 | 用户指定；默认不自动授予 |
+| P-3 | **CLIENT_SIGNER 兼任授予名单** | 表1/表2 | **已裁决（2026-11-14）**：按现有客户对接人不变——现有 use_unit 门户账号持有人（电梯管理员/对接人）加挂 CLIENT_SIGNER，与 CLIENT_ADMIN 同账号兼任；不新增/变更对接人 |
 | P-4 | **存量单人作业记录的双签兼容**：旧单人记录（无配合人）vs 新强制双签核验三条件 | 表4 | 建议：存量记录按"单人豁免"标记归档，不追溯补签；新记录强制双签。待用户确认 |
 | P-5 | **修订 v2 是否需重报 2.6**：归档后修订生成新版本是否触发监管上报 | 表4 | 已列 docs/06 待确认；**确认前修订只生成内部新版本，不触发任何上报**（AGENTS §2.4 无自动重试红线） |
 
@@ -64,7 +64,7 @@
 | D-1 | **保留 INSTALLER 角色用于移交节点**；INSTALL_WORKER 统一改名 INSTALLER，安装员兼做现场查验/整改与移交安装方签字；角色总数不变（13），NODE_ROLES 的 INSTALLER 直接生效 | 2026-11-14 | 表1 §1.1、表2 §2.1/2.2（补 handover:sign_install 扩展授权）、表4 §4.1.1；新增偏离 D-A8 |
 | P-1 | 待裁决（INST_MGR 主管人选） | — | — |
 | P-2 | **按现有组织架构不变**：不新增"项目部"组织层级，sys_org 按现有 公司→部门→班组 建立；MAINT_SUP 沿用现有班组归属，数据范围按班组（TEAM）解析（与旧 LEADER 班组谓词一致）；新设计 PROJECT 层本期不强制引入 | 2026-11-14 | 表1 §1.1/1.2.1/1.2.3、#/org 树；新增偏离 D-A9 |
-| P-3 | 待裁决（CLIENT_SIGNER 兼任名单） | — | — |
+| P-3 | **按现有客户对接人不变**：现有 use_unit 门户账号持有人（客户对接人=elevatorAdminister 电梯管理员）自动加挂 CLIENT_SIGNER（与 CLIENT_ADMIN 同账号兼任，sys_user_role 多行）；不新增账号/不变更对接人；无账号单位（如 uu_2）待开通时按同规则授予。注：对接人指电梯管理员/账号持有人，非单位负责人 unitPrincipal | 2026-11-14 | 表1 §1.1/1.2.1/1.2.3 步骤5 |
 | P-4 | 待裁决（存量单人记录双签兼容） | — | — |
 | P-5 | 待裁决（修订 v2 是否重报 2.6；已列 docs/06 §十四） | — | — |
 | D-2 | 待裁决（MAINTENANCE_CONFIRM 收敛 MAINT_MGR，建议默认采纳） | — | — |
@@ -99,7 +99,7 @@
 | `MAINT_BIZ` | MAINT | `MAINT_BIZ`（扩展） | MAINT | 商务：合同/客户域写；不见现场照片/定位/签字（R4） | 是 | 不变 + 补扩展码 |
 | `MAINT_QUALITY` | MAINT | `MAINT_QUALITY`（扩展） | MAINT | 质量：跨班组只读 + 抽检写；不得签退/重报/改工单（R3） | 是 | 不变 + 补扩展码 |
 | `UNIT_ADMIN` | UNIT | `CLIENT_ADMIN` | UNIT | use_unit 账号，组织单级 | 是（**M5 新能力**） | 码值改名 |
-| —（新增） | — | `CLIENT_SIGNER` | UNIT | use_unit 账号；管理员可兼任，签字按签字人身份独立留痕 | 小程序为主 | **新建 + P-3 兼任名单** |
+| —（新增） | — | `CLIENT_SIGNER` | UNIT | use_unit 账号；现有客户对接人（账号持有人）兼任，签字按签字人身份独立留痕 | 小程序为主 | 新建角色 + P-3 裁决：现有对接人账号加挂 |
 
 **码值迁移原则**（spec §4.1）：
 1. 角色码字符串变更经**兼容层映射**——旧码注解（`@RequirePerm`/`RoleCatalog` 引用）与旧 token 的 role claim 在兼容期内自动翻译到新码；兼容期内旧端点行为逐条不变（兼容性测试证明）。
@@ -116,7 +116,7 @@
 | emp_1 | 张伟 | 13800000001 | WORKER | MAINT_TECH | 维保一班（TEAM） | PID=6901282369105174537；主检/配合人属性按工单 |
 | emp_2 | 陈刚 | 13800000002 | LEADER | MAINT_SUP | 维保一班（**归属不变**，TEAM） | PID=990002；P-2 裁决按现有班组 |
 | emp_3 | 李强 | 13800000004 | WORKER | MAINT_TECH | 维保一班（TEAM） | PID=6901284774286860288 |
-| unit_1 | 王芳 | 13800000003 | UNIT_ADMIN | CLIENT_ADMIN | 重庆世纪物业（uu_1，ORG_FLAT） | use_unit 账号；CLIENT_SIGNER 兼任待 P-3 |
+| unit_1 | 王芳 | 13800000003 | UNIT_ADMIN | CLIENT_ADMIN + CLIENT_SIGNER | 重庆世纪物业（uu_1，ORG_FLAT） | use_unit 账号；P-3 裁决：现有对接人王芳兼任签字人 |
 | emp_admin | 郑浩 | 13800000009 | ADMIN | PLATFORM_ADMIN | 平台（ALL 运维只读） | — |
 | emp_sys | 系统管理员 | 13800000010 | SYS_ADMIN | SYS_ADMIN | 平台 | 保留不启用 |
 
@@ -132,7 +132,7 @@
 
 #### 1.2.3 生产迁移脚本骨架（Flyway V35+ 数据迁移，只追加）
 
-> 以下为**骨架**，P-1/P-3 未决前对应段以注释占位，不得执行（P-2 已裁决：归属不变）。实际脚本在 M1 spec→plan 中细化并补单测。
+> 以下为**骨架**，P-1 未决前对应段以注释占位，不得执行（P-2 归属不变、P-3 现有对接人兼任已裁决）。实际脚本在 M1 spec→plan 中细化并补单测。
 
 ```sql
 -- V35__role_model_v2_data.sql（示意，M1 细化）
@@ -157,8 +157,9 @@ SELECT id,'EMPLOYEE',role,NULL,1 FROM sys_employee WHERE enabled=1;
 -- 沿用现有班组 org_id 回填 scope_ref（TEAM），不新增项目部层级；org_id 取自 sys_org 现有班组种子
 UPDATE sys_user_role SET scope_ref=<现有班组org_id> WHERE role_code='MAINT_SUP';
 
--- 步骤 5：CLIENT_SIGNER 兼任（P-3 待裁决，占位不执行）
--- INSERT INTO sys_user_role(user_id,user_type,role_code) VALUES (<unit_id>,'UNIT','CLIENT_SIGNER');
+-- 步骤 5：CLIENT_SIGNER 兼任（P-3 已裁决：按现有客户对接人不变）
+-- 现有门户账号持有人（对接人/电梯管理员）加挂 CLIENT_SIGNER，与 CLIENT_ADMIN 同账号兼任
+INSERT INTO sys_user_role(user_id,user_type,role_code) SELECT id,'UNIT','CLIENT_SIGNER' FROM use_unit WHERE account IS NOT NULL;
 ```
 
 ### 1.3 执行约束
@@ -657,3 +658,4 @@ ARCHIVED        → 已归档
 |---|---|---|
 | V1.0 | 2026-11-14 | 首版：M0 四张对照表（角色映射+账号迁移、24→71+ 权限码映射+扩展码+导航推导、21→23 视图操作级映射、三套状态机+计划池+外接建档对照）；登记 5 项待裁决（P-1—P-5）与 4 项现存缺陷（D-1—D-4）；标注 order/fault 语义冲突与 OrderListView 混合域拆分两处迁移陷阱 |
 | V1.1 | 2026-11-14 | M0 评审裁决回写：①D-1 保留 INSTALLER 角色（INSTALL_WORKER 统一改名 INSTALLER）专司移交安装方签字，补 handover:sign_install 扩展授权，新增偏离 D-A8；②P-2 MAINT_SUP 归属按现有组织架构不变（不新增项目部层，范围落 TEAM），新增偏离 D-A9 并经用户确认采纳；③新增 §0.5 裁决记录区逐条追踪 |
+| V1.2 | 2026-11-14 | M0 评审裁决 P-3：CLIENT_SIGNER 兼任按现有客户对接人不变——现有 use_unit 门户账号持有人（电梯管理员/对接人）加挂 CLIENT_SIGNER，与 CLIENT_ADMIN 同账号兼任，不新增/变更对接人；表1 §1.1/1.2.1（unit_1 王芳兼任）/1.2.3 步骤5 回填脚本同步 |
