@@ -16,7 +16,7 @@ WORKDIR /app
 COPY backend/src /app/src
 COPY --from=admin-build /admin/dist /app/src/main/resources/static
 COPY backend/settings.xml backend/pom.xml /app/
-RUN mvn -s /app/settings.xml -f /app/pom.xml clean package -DskipTests
+RUN mvn -s /app/settings.xml -f /app/pom.xml clean package -Dmaven.test.skip=true
 
 # 解包分层：dependencies / spring-boot-loader / snapshot-dependencies / application
 FROM eclipse-temurin:17-jre-alpine AS extract
