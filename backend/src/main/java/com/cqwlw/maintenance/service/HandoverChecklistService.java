@@ -297,6 +297,17 @@ public class HandoverChecklistService {
         return out;
     }
 
+    /** 一梯一档：按电梯 id 取其最近移交单的归档目录（电梯档案抽屉用）。 */
+    public List<HandoverArchive> archiveByElevator(String elevatorId) {
+        List<HandoverOrder> orders = orderMapper.selectList(
+                new LambdaQueryWrapper<HandoverOrder>().eq(HandoverOrder::getElevatorId, elevatorId)
+                        .orderByDesc(HandoverOrder::getCreatedAt));
+        if (orders.isEmpty()) {
+            return new ArrayList<>();
+        }
+        return archive(orders.get(0).id);
+    }
+
     private HandoverCheck latestCheck(String handoverId) {
         List<HandoverCheck> checks = checkMapper.selectList(
                 new LambdaQueryWrapper<HandoverCheck>().eq(HandoverCheck::getHandoverId, handoverId)

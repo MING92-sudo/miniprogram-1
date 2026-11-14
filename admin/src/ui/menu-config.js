@@ -37,19 +37,10 @@ export const MENU_GROUPS = [
     { path: '/register/workers', title: '平台登记人员', perm: 'platform:worker_view', icon: 'compliance' }
   ] }
 ]
-// 过渡组：旧版视图入口（M2 列出，每迁一个删一个；M5 清空）；perm=null 无条件可见，访问由旧路由守卫判
-export const LEGACY_GROUP = { title: '旧版（过渡）', legacy: true, items: [
-  { path: '/legacy/orders', title: '工单列表（旧）', perm: null },
-  { path: '/legacy/ledger', title: '电梯台账（旧）', perm: null },
-  { path: '/legacy/schedule', title: '计划调度（旧）', perm: null }
-] }
 function visible(i, role) { return i.perm == null || state(role, i.perm) !== 'DENY' }
 export function visibleMenus(role, implementedPaths) {
   const impl = new Set(implementedPaths)
-  const groups = MENU_GROUPS.map(g => ({
+  return MENU_GROUPS.map(g => ({
     ...g, items: g.items.filter(i => impl.has(i.path) && visible(i, role))
   })).filter(g => g.items.length)
-  const legacy = { ...LEGACY_GROUP, items: LEGACY_GROUP.items.filter(i => visible(i, role)) }
-  if (legacy.items.length) groups.push(legacy)
-  return groups
 }

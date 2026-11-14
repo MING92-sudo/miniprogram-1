@@ -16,7 +16,7 @@ const cols = [
   { key: 'name', label: '姓名', sortable: true },
   { key: 'certificateNo', label: '证书编号' },
   { key: 'phone', label: '手机号' },
-  { key: 'bindStatus', label: '绑定状态' }
+  { key: 'bindStatus', label: '绑定状态', format: (v) => ({ BOUND: '已绑定', UNBOUND: '未绑定' }[String(v || '').toUpperCase()] || v || '—') }
 ]
 onMounted(async () => { loading.value = true; try { rows.value = await http.get('/platform/workers') } finally { loading.value = false } })
 </script>

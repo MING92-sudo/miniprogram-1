@@ -67,6 +67,16 @@ export function dispatchElevator(id) {
   return http.post(`/elevators/${id}/dispatch`, {})
 }
 
+/** 电梯档案详情（一梯一档：本地信息 + 平台同步字段） */
+export function elevatorProfile(id) {
+  return http.get(`/elevators/${id}/profile`)
+}
+
+/** 一梯一档归档目录（按电梯取最近移交归档，7 条 + SHA-256，只读不可篡改） */
+export function elevatorArchive(id) {
+  return http.get(`/elevators/${id}/archive`)
+}
+
 // ── 范围收敛新增（docs/04 V2.9 A.9.0 / docs/09 V3.3）──
 
 /** 批量绑定维保人员与电梯（docs/04 A.9.0）：返回 {success[], failed[]} 逐台明细 */
