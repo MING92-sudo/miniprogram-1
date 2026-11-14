@@ -12,6 +12,7 @@
 import { computed } from 'vue'
 import { state } from './permission-v2'
 import { permLabel } from './labels'
+import { useAuthStore } from '../stores/auth'
 const props = defineProps({
   code: { type: String, required: true },
   role: { type: String, default: '' },
@@ -19,8 +20,9 @@ const props = defineProps({
   variant: { type: String, default: 'primary' }
 })
 const emit = defineEmits(['click', 'blocked'])
+const auth = useAuthStore()
 const gate = computed(() => {
-  const s = state(props.role, props.code)
+  const s = state(props.role || auth.role, props.code)
   return s === 'Y' ? 'allow' : s === 'C' ? 'conditional' : 'deny'
 })
 function onClick(e) {

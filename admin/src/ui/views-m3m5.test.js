@@ -8,7 +8,8 @@ vi.mock('../api/client', () => ({
     get: vi.fn(() => Promise.resolve([])),
     post: vi.fn(() => Promise.resolve({})),
     put: vi.fn(() => Promise.resolve({}))
-  }
+  },
+  onUnauthorized: vi.fn()
 }))
 
 import OrgView from '../views/OrgView.vue'

@@ -1,8 +1,10 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, beforeEach } from 'vitest'
 import { mount } from '@vue/test-utils'
+import { setActivePinia, createPinia } from 'pinia'
 import PermButton from './PermButton.vue'
 
 describe('PermButton two-tier gate', () => {
+  beforeEach(() => setActivePinia(createPinia()))
   it('Y renders enabled and emits click', async () => {
     const w = mount(PermButton, { props: { code: 'handover:review', role: 'INST_MGR', label: '审核' } })
     expect(w.find('button').attributes('disabled')).toBeUndefined()

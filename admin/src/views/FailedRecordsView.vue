@@ -13,7 +13,7 @@
         </span>
       </li>
     </ul>
-    <p class="hint">仅逐条人工重报，禁止批量自动重试（AGENTS §2.4）；重报使用签退冻结快照。</p>
+    <p class="hint">仅逐条人工重报，禁止批量自动重试；重报使用签退冻结快照。</p>
   </div>
 </template>
 <script setup>

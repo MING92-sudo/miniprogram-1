@@ -1,27 +1,35 @@
 <template>
   <div class="page">
     <div class="page-head"><h1>平台登记人员</h1></div>
+    <p v-if="error" class="err">{{ error }}</p>
     <DataTable :columns="cols" :rows="rows" :loading="loading" :search-keys="['name', 'certificateNo']" />
-    <p class="hint">监管平台人员登记（接口 2.3/2.4）。</p>
+    <p class="hint">监管平台人员登记（接口 2.3/2.4），数据来自智慧平台实时查询。</p>
   </div>
 </template>
 <script setup>
-// M5 平台登记人员：列表（platform:worker_view）
+// 平台登记人员：GET /platform/workers（平台 2.5 实时查询，platform:worker_view）
 import { ref, onMounted } from 'vue'
 import http from '../api/client'
 import DataTable from '../ui/DataTable.vue'
 const rows = ref([])
 const loading = ref(false)
+const error = ref('')
 const cols = [
   { key: 'name', label: '姓名', sortable: true },
   { key: 'certificateNo', label: '证书编号' },
   { key: 'phone', label: '手机号' },
   { key: 'bindStatus', label: '绑定状态', format: (v) => ({ BOUND: '已绑定', UNBOUND: '未绑定' }[String(v || '').toUpperCase()] || v || '—') }
 ]
-onMounted(async () => { loading.value = true; try { rows.value = await http.get('/platform/workers') } finally { loading.value = false } })
+onMounted(async () => {
+  loading.value = true; error.value = ''
+  try { rows.value = await http.get('/platform/workers') }
+  catch (e) { error.value = '平台人员查询失败：' + (e.message || '监管平台暂不可达') + '（需平台凭证有效且服务器 IP 已加白名单）' }
+  finally { loading.value = false }
+})
 </script>
 <style scoped>
 .page-head { margin-bottom: 16px; }
 .page-head h1 { font-size: 20px; }
 .hint { color: var(--dim); font-size: 12px; margin-top: 10px; }
+.err { color: var(--signal); font-size: 13px; background: var(--panel); border: 1px solid var(--signal); border-radius: 6px; padding: 10px 12px; margin-bottom: 12px; }
 </style>

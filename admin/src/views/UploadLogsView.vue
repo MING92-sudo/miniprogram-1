@@ -15,7 +15,7 @@ const loading = ref(false)
 const cols = [
   { key: 'createdAt', label: '时间', sortable: true },
   { key: 'originalRecordId', label: '平台记录ID' },
-  { key: 'action', label: '接口' },
+  { key: 'action', label: '接口', format: (v) => ({ UPLOAD: '上报', REUPLOAD: '重报' }[String(v || '').toUpperCase()] || v || '—') },
   { key: 'status', label: '状态' },
   { key: 'platformCode', label: '平台码' },
   { key: 'platformMessage', label: '平台返回' }

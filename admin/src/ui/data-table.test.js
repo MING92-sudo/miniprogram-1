@@ -1,11 +1,13 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, beforeEach } from 'vitest'
 import { mount } from '@vue/test-utils'
+import { setActivePinia, createPinia } from 'pinia'
 import DataTable from './DataTable.vue'
 
 const columns = [{ key: 'name', label: '名称', sortable: true }, { key: 'status', label: '状态' }]
 const rows = [{ id: 1, name: 'alpha', status: 'ACTIVE' }, { id: 2, name: 'beta', status: 'DISABLED' }]
 
 describe('DataTable', () => {
+  beforeEach(() => setActivePinia(createPinia()))
   it('renders rows and headers', () => {
     const w = mount(DataTable, { props: { columns, rows } })
     expect(w.findAll('tbody tr').length).toBe(2)
