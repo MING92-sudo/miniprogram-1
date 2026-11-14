@@ -38,7 +38,7 @@
 
 | # | 待裁决项 | 影响表 | 处置 |
 |---|---|---|---|
-| P-1 | **INST_MGR 主管人选**：安装部新增主管层级，存量安装账号的上级 | 表1 | 用户指定；未决前迁移脚本 INST_MGR 段不执行 |
+| P-1 | **INST_MGR 主管人选**：安装部新增主管层级，存量安装账号的上级 | 表1 | **已裁决（2026-11-14）**：主管定为**张工**。附带约束：当前全部为测试账号，生产上线前清空数据库、账号从零 provisioning（§1.2.3 注 + spec §5.3）。种子无「张工」同名账号（唯一张姓=张伟 emp_1 WORKER），test 落点待确认 |
 | P-2 | **LEADER→MAINT_SUP 项目部归属** | 表1/表4 | **已裁决（2026-11-14）**：按现有组织架构不变——不新增"项目部"层级，MAINT_SUP 沿用现有班组归属，范围按班组（TEAM）解析（偏离 D-A9） |
 | P-3 | **CLIENT_SIGNER 兼任授予名单** | 表1/表2 | **已裁决（2026-11-14）**：按现有客户对接人不变——现有 use_unit 门户账号持有人（电梯管理员/对接人）加挂 CLIENT_SIGNER，与 CLIENT_ADMIN 同账号兼任；不新增/变更对接人 |
 | P-4 | **存量单人作业记录的双签兼容**：旧单人记录（无配合人）vs 新强制双签核验三条件 | 表4 | **已裁决（2026-11-14）**：新工单强制双人（必须配配合人，双签三条件全满足才可复核/归档）；存量单人记录加"单人豁免"标记按原样归档，不追溯补签。**收紧 AGENTS §3.4**（"有配合人时双签"→新工单强制双人），M4 同步修订 AGENTS §3.4 + docs/01；与平台 2.6 workMan2Id 必填一致 |
@@ -62,7 +62,7 @@
 | 项 | 结论 | 裁决日期 | 影响 / 回写位置 |
 |---|---|---|---|
 | D-1 | **保留 INSTALLER 角色用于移交节点**；INSTALL_WORKER 统一改名 INSTALLER，安装员兼做现场查验/整改与移交安装方签字；角色总数不变（13），NODE_ROLES 的 INSTALLER 直接生效 | 2026-11-14 | 表1 §1.1、表2 §2.1/2.2（补 handover:sign_install 扩展授权）、表4 §4.1.1；新增偏离 D-A8 |
-| P-1 | 待裁决（INST_MGR 主管人选） | — | — |
+| P-1 | **主管定为张工**（INST_MGR）。附带约束：当前全部为测试账号，正式上线生产前清空数据库全部业务数据、账号从零 provisioning；§1.2 存量回填仅 dev/test 过渡，生产空库下为 no-op。种子唯一张姓=张伟 emp_1（WORKER），test 环境 INST_MGR 落点（张伟升任/新建张工账号）待用户确认；生产按真实人事 provisioning 张工 | 2026-11-14 | 表1 §1.1/1.2.3 步骤3；spec §5.3 生产清库约束 + §10 风险1 解除（M1 人事前置全部裁决） |
 | P-2 | **按现有组织架构不变**：不新增"项目部"组织层级，sys_org 按现有 公司→部门→班组 建立；MAINT_SUP 沿用现有班组归属，数据范围按班组（TEAM）解析（与旧 LEADER 班组谓词一致）；新设计 PROJECT 层本期不强制引入 | 2026-11-14 | 表1 §1.1/1.2.1/1.2.3、#/org 树；新增偏离 D-A9 |
 | P-3 | **按现有客户对接人不变**：现有 use_unit 门户账号持有人（客户对接人=elevatorAdminister 电梯管理员）自动加挂 CLIENT_SIGNER（与 CLIENT_ADMIN 同账号兼任，sys_user_role 多行）；不新增账号/不变更对接人；无账号单位（如 uu_2）待开通时按同规则授予。注：对接人指电梯管理员/账号持有人，非单位负责人 unitPrincipal | 2026-11-14 | 表1 §1.1/1.2.1/1.2.3 步骤5 |
 | P-4 | **新工单强制双人 + 存量单人豁免**：新工单必须配配合人，双签三条件（主检签名 + 配合人签名 + 作业时长≥30min）全满足才可复核/归档；存量单人记录（无配合人）加"单人豁免"标记（maintain_record 加列，V35+）按原样归档，不追溯补签。收紧现状"有配合人时双签"为新工单强制双人；与平台 2.6 workMan2Id 必填一致 | 2026-11-14 | 表4 §4.2.1/4.2.2；spec §5.2 maintain_record 加列；**AGENTS §3.4 + docs/01 将于 M4 同步修订** |
@@ -91,7 +91,7 @@
 | `INSTALL_MANAGER` | INSTALL | `INST_PM` | INSTALL | 安装部项目负责人 | 是（移交为主，兼容保留） | 码值改名 |
 | `INSTALL_CLERK` | INSTALL | `INST_CLERK` | INSTALL | 安装部资料员（仅资料与整改证据） | 是（移交为主，兼容保留） | 码值改名 |
 | `INSTALL_WORKER` | INSTALL | `INSTALLER`（扩展） | INSTALL | 新设计无安装员；保留现场查验/整改照片 + **移交安装方签字**职能（D-1 裁决） | 否（小程序） | 码值改名 INSTALL_WORKER→INSTALLER + 补扩展码 |
-| —（新增） | — | `INST_MGR` | INSTALL | 安装部主管，INST_PM 新上级 | 是 | **新建 + P-1 人事指定** |
+| —（新增） | — | `INST_MGR` | INSTALL | 安装部主管，INST_PM 新上级 | 是 | **新建 + P-1 已裁决：张工**（生产清库后 provisioning） |
 | `MAINT_MANAGER` | MAINT | `MAINT_MGR` | MAINT | 维保部经理：合同/跨项目调度/修订审批 | 是 | 码值改名 |
 | `LEADER` | MAINT | `MAINT_SUP` | MAINT | 班组长→维保主管；**沿用现有班组归属与 TEAM 范围**（P-2 裁决：不新增项目部层级，D-A9） | 是 | 码值改名（归属不变） |
 | `WORKER` | MAINT | `MAINT_TECH` | MAINT | 维保人员（主检/配合人均为 MAINT_TECH 账号） | 否（小程序） | 码值改名 |
@@ -132,7 +132,7 @@
 
 #### 1.2.3 生产迁移脚本骨架（Flyway V35+ 数据迁移，只追加）
 
-> 以下为**骨架**，P-1 未决前对应段以注释占位，不得执行（P-2 归属不变、P-3 现有对接人兼任已裁决）。实际脚本在 M1 spec→plan 中细化并补单测。
+> 以下为**骨架**。**重要（P-1 裁决附带约束）**：当前全部为测试账号，正式上线生产前清空数据库全部业务数据（账号/工单/记录等），生产账号从零 provisioning——故步骤 2—5 的存量回填仅用于 dev/test 过渡，生产空库下为 no-op。schema 迁移（Flyway）正常建立，`SEED_DEMO_DATA=false` 不写演示数据。**清库是一次性人工上线步骤，须先备份并经用户确认，严禁写成自动 TRUNCATE/DELETE 数据迁移**（AGENTS §6 破坏性操作红线；Flyway 只追加 schema，不自动清数据）。P-1 主管=张工已裁决（test 账号落点待确认）；P-2 归属不变、P-3 对接人兼任已裁决。实际脚本在 M1 spec→plan 中细化并补单测。
 
 ```sql
 -- V35__role_model_v2_data.sql（示意，M1 细化）
@@ -150,8 +150,10 @@ INSERT INTO sys_user_role(user_id,user_type,role_code,scope_ref,version)
 SELECT id,'EMPLOYEE',role,NULL,1 FROM sys_employee WHERE enabled=1;
 -- use_unit 账号：user_type='UNIT'，role='CLIENT_ADMIN'
 
--- 步骤 3：INST_MGR 新建（P-1 待裁决，占位不执行）
--- INSERT INTO sys_employee(... role='INST_MGR' ...) VALUES (<人事指定>);
+-- 步骤 3：INST_MGR 新建（P-1 已裁决：主管=张工）
+-- 生产：清库后从零 provisioning 张工为 INST_MGR（真实人事），不依赖存量回填
+-- test：种子唯一张姓=张伟 emp_1（WORKER），落点待确认（张伟升任 INST_MGR / 新建张工账号）
+-- INSERT INTO sys_employee(... role='INST_MGR' ...) VALUES (<张工，test 落点待确认>);
 
 -- 步骤 4：MAINT_SUP 归属（P-2 已裁决：按现有组织架构不变）
 -- 沿用现有班组 org_id 回填 scope_ref（TEAM），不新增项目部层级；org_id 取自 sys_org 现有班组种子
@@ -663,3 +665,4 @@ ARCHIVED        → 已归档
 | V1.1 | 2026-11-14 | M0 评审裁决回写：①D-1 保留 INSTALLER 角色（INSTALL_WORKER 统一改名 INSTALLER）专司移交安装方签字，补 handover:sign_install 扩展授权，新增偏离 D-A8；②P-2 MAINT_SUP 归属按现有组织架构不变（不新增项目部层，范围落 TEAM），新增偏离 D-A9 并经用户确认采纳；③新增 §0.5 裁决记录区逐条追踪 |
 | V1.2 | 2026-11-14 | M0 评审裁决 P-3：CLIENT_SIGNER 兼任按现有客户对接人不变——现有 use_unit 门户账号持有人（电梯管理员/对接人）加挂 CLIENT_SIGNER，与 CLIENT_ADMIN 同账号兼任，不新增/变更对接人；表1 §1.1/1.2.1（unit_1 王芳兼任）/1.2.3 步骤5 回填脚本同步 |
 | V1.3 | 2026-11-14 | M0 评审裁决 P-4：新工单强制双人（必须配配合人，双签三条件全满足才可复核/归档）+ 存量单人记录加"单人豁免"标记按原样归档不追溯补签；表4 §4.2.1（待配合人签字为必经态/存量豁免跳过）/§4.2.2（条件2 改新工单强制 + 裁决说明）同步；收紧 AGENTS §3.4「有配合人时双签」→「新工单强制双人」，标注 AGENTS §3.4 + docs/01 将于 M4 同步修订，与平台 2.6 workMan2Id 必填一致；spec §5.2 maintain_record 加列（单人豁免标记，V35+） |
+| V1.4 | 2026-11-14 | M0 评审裁决 P-1：INST_MGR 主管定为张工（M1 人事前置全部裁决完毕）；附带约束——当前全部测试账号，生产上线前清空数据库全部业务数据、账号从零 provisioning，§1.2 存量回填仅 dev/test 过渡（生产空库 no-op）；§1.2.3 注明确清库为一次性人工上线步骤须备份+确认、严禁自动 TRUNCATE/DELETE 迁移（AGENTS §6）；表1 §1.1/§0.3/§0.5/步骤3 同步；种子无「张工」同名账号（唯一张姓=张伟 emp_1 WORKER），test 落点待确认；spec §4.1/§5.3/§9/§10 风险1 同步 |
