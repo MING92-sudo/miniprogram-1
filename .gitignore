@@ -64,3 +64,7 @@ admin/.tmp-build/
 
 # 后端打包时把 admin/dist 拷进 jar 的 static 目录（Dockerfile 构建产物，不入库）
 backend/src/main/resources/static/
+
+# Superpowers 子代理驱动开发：隔离 worktree 与计划工作区（本地 scratch，不入库）
+/.worktrees/
+/.superpowers/
