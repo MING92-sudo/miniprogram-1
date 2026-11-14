@@ -229,7 +229,8 @@ public class AuthController {
             user.sessionId = sid;
         }
         employeeMapper.updateById(user);
-        return jwtService.issue(user.id, role, openid, client, sid);
+        int sv = user.scopeVersion == null ? 0 : user.scopeVersion;
+        return jwtService.issue(user.id, role, openid, client, sid, sv);
     }
 
     private Map<String, Object> userInfo(Employee user) {

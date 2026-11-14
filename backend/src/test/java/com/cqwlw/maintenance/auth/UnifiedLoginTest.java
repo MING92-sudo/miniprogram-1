@@ -14,6 +14,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -60,7 +61,8 @@ class UnifiedLoginTest {
         e.passwordHash = enc.encode("Passw0rd!23");
         e.enabled = true;
         when(employeeMapper.selectOne(any())).thenReturn(e);
-        when(jwtService.issue(anyString(), anyString(), any(), anyString(), anyString())).thenReturn("emp-token");
+        when(jwtService.issue(anyString(), anyString(), any(), anyString(), anyString(), anyInt()))
+                .thenReturn("emp-token");
 
         Map<String, Object> data = controller().login(Map.of("phone", "13800000001", "password", "Passw0rd!23")).getData();
         assertEquals("WORKER", data.get("role"));

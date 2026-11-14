@@ -37,11 +37,17 @@ public class JwtService {
         this.expireHours = props.getJwtExpireHours();
     }
 
+    /** 5 参兼容重载（JwtServiceTest 锁定）：scopeVersion 默认 0，与 pre-M1 旧 token 兼容口径一致。 */
     public String issue(String employeeId, String role, String openid, String client, String sessionId) {
+        return issue(employeeId, role, openid, client, sessionId, 0);
+    }
+
+    public String issue(String employeeId, String role, String openid, String client, String sessionId, int scopeVersion) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("role", role);
         claims.put("client", client);
         claims.put("sid", sessionId);
+        claims.put("sv", scopeVersion);
         if (openid != null) {
             claims.put("openid", openid);
         }
