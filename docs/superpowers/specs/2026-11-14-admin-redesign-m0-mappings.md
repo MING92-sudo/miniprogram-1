@@ -48,10 +48,30 @@
 
 | # | 缺陷 | 证据 | 风险 | 建议落点 |
 |---|---|---|---|---|
-| D-1 | `HandoverService.NODE_ROLES` 的 `INSTALLER_HANDOVER` 节点要求角色 `"INSTALLER"`，该码已不在 RoleCatalog（现为 INSTALL_MANAGER/INSTALL_CLERK/INSTALL_WORKER）→ **无任何账号能签该节点** | HandoverService.java L67-71 | 移交安装方签字链断裂 | M4 移交状态机重排时修正为 INST_PM/INST_CLERK |
+| D-1 | `HandoverService.NODE_ROLES` 的 `INSTALLER_HANDOVER` 节点要求角色 `"INSTALLER"`，该码已不在 RoleCatalog（现为 INSTALL_MANAGER/INSTALL_CLERK/INSTALL_WORKER）→ **无任何账号能签该节点** | HandoverService.java L67-71 | 移交安装方签字链断裂 | **已裁决（2026-11-14）**：保留 INSTALLER 角色（INSTALL_WORKER 统一改名 INSTALLER）专司移交安装方签字，NODE_ROLES 的 INSTALLER 直接生效；M4 补 RoleCatalog 注册 + 迁移 |
 | D-2 | `MAINTENANCE_CONFIRM` 节点允许 LEADER 签字，但 docs/14 §10 用例 8 要求 confirmed_by 必须是维保经理 | HandoverService.java NODE_ROLES vs docs/14 | 归档确认越权 | M4 收敛为 MAINT_MGR（PLATFORM_ADMIN 审计） |
 | D-3 | 小程序 `UNIT_FAULT_STATUS_TEXT` 只有 OPEN/CLOSED，缺 ASSIGNED → 已派单急修单在门户显示为"处理中" | constants/index.js L334-337 vs DirectoryService L209 | 门户口径失真（非安全） | M5 小程序对齐时补 ASSIGNED 文案 |
 | D-4 | 管理端 `FaultsView` 派单按钮无前端权限门控（后端已强校验） | admin FaultsView 派单按钮 | 体验问题，非越权（后端兜底） | M3/M4 重写时按 PermButton 两档门控补齐 |
+
+---
+
+### 0.5 裁决记录（用户逐条回写，M1 启动前累积）
+
+> 缩写约定：IW 自此指 **INSTALLER**（原 INSTALL_WORKER 统一改名，D-1 裁决）；其余缩写见各表内联定义。
+
+| 项 | 结论 | 裁决日期 | 影响 / 回写位置 |
+|---|---|---|---|
+| D-1 | **保留 INSTALLER 角色用于移交节点**；INSTALL_WORKER 统一改名 INSTALLER，安装员兼做现场查验/整改与移交安装方签字；角色总数不变（13），NODE_ROLES 的 INSTALLER 直接生效 | 2026-11-14 | 表1 §1.1、表2 §2.1/2.2（补 handover:sign_install 扩展授权）、表4 §4.1.1；新增偏离 D-A8 |
+| P-1 | 待裁决（INST_MGR 主管人选） | — | — |
+| P-2 | 待裁决（MAINT_SUP 项目部归属） | — | — |
+| P-3 | 待裁决（CLIENT_SIGNER 兼任名单） | — | — |
+| P-4 | 待裁决（存量单人记录双签兼容） | — | — |
+| P-5 | 待裁决（修订 v2 是否重报 2.6；已列 docs/06 §十四） | — | — |
+| D-2 | 待裁决（MAINTENANCE_CONFIRM 收敛 MAINT_MGR，建议默认采纳） | — | — |
+| D-3 | 待裁决（小程序急修文案补 ASSIGNED，建议默认采纳） | — | — |
+| D-4 | 待裁决（FaultsView 派单按钮补门控，建议默认采纳） | — | — |
+
+**新增偏离 D-A8**（相对新设计蓝图）：移交安装方签字节点（INSTALLER_HANDOVER / handover:sign_install）由 **INSTALLER** 签字，新设计原授 INST_MGR（安装主管）。原因：用户裁决保留安装员角色专司移交签字（D-1），安装主管负责审核（review/review_return）而非现场移交签字。
 
 ---
 
@@ -68,7 +88,7 @@
 | `SYS_ADMIN` | PLATFORM | `SYS_ADMIN` | PLATFORM | 保留不启用，与 PLATFORM_ADMIN 同权 | 是 | 不变 |
 | `INSTALL_MANAGER` | INSTALL | `INST_PM` | INSTALL | 安装部项目负责人 | 是（移交为主，兼容保留） | 码值改名 |
 | `INSTALL_CLERK` | INSTALL | `INST_CLERK` | INSTALL | 安装部资料员（仅资料与整改证据） | 是（移交为主，兼容保留） | 码值改名 |
-| `INSTALL_WORKER` | INSTALL | `INSTALL_WORKER`（扩展） | INSTALL | 新设计无安装员；保留现场查验/整改照片职能 | 否（小程序） | 不变 + 补扩展码 |
+| `INSTALL_WORKER` | INSTALL | `INSTALLER`（扩展） | INSTALL | 新设计无安装员；保留现场查验/整改照片 + **移交安装方签字**职能（D-1 裁决） | 否（小程序） | 码值改名 INSTALL_WORKER→INSTALLER + 补扩展码 |
 | —（新增） | — | `INST_MGR` | INSTALL | 安装部主管，INST_PM 新上级 | 是 | **新建 + P-1 人事指定** |
 | `MAINT_MANAGER` | MAINT | `MAINT_MGR` | MAINT | 维保部经理：合同/跨项目调度/修订审批 | 是 | 码值改名 |
 | `LEADER` | MAINT | `MAINT_SUP` | MAINT | **语义升级**：班组长→项目部主管；班组保留为 TEAM 范围 | 是 | 码值改名 + **P-2 项目部归属** |
@@ -176,7 +196,7 @@ SELECT id,'EMPLOYEE',role,NULL,1 FROM sys_employee WHERE enabled=1;
 | 3 | `order:read` | ADMIN,SA,MM,LD,MQ,WK,AS,UA | `plan:view`+`record:view`+`task`读 | **语义=维保工单**（见 2.0）；WK/AS→MT 小程序侧；UA→CA 仅 record:view△ | 翻译为 plan:view∥record:view |
 | 4 | `order:write` | ADMIN,SA,MM,LD,WK,AS | `task:accept`+`checklist:fill`+`record:submit`+`record:sign_tech` | **语义=维保作业写**；MM/LD 不直接作业（新设计作业=MT），管理写转 record:review/plan:generate | 按操作拆分翻译 |
 | 5 | `fault:read` | ADMIN,SA,MM,LD,MQ,WK,AS,UA | `order:view_pool`+`order:view_own` | **语义=急修单**；UA→CA order:view_own（ORG_FLAT） | 翻译为 order:view_pool∥view_own |
-| 6 | `fault:write` | ADMIN,SA,MM,LD,WK,AS,IW,UA | `order:create`/`dispatch`/`arrive`/`process`/`submit`/`confirm`/`close`/`cancel` | IW 旧有 fault:write→新 INSTALL_WORKER 无 order 域（仅 handover），**收敛**；UA→CA order:confirm/client:report | 按操作拆分；IW 段移除 |
+| 6 | `fault:write` | ADMIN,SA,MM,LD,WK,AS,IW,UA | `order:create`/`dispatch`/`arrive`/`process`/`submit`/`confirm`/`close`/`cancel` | IW 旧有 fault:write→新 INSTALLER 无 order 域（仅 handover），**收敛**；UA→CA order:confirm/client:report | 按操作拆分；IW 段移除 |
 | 7 | `record:read` | ADMIN,SA,MM,LD,MQ,WK,AS,UA | `record:view` | MQ 跨班组只读（ORG）；UA→CA **无 record:view**（新设计⑫records 隐藏 CA），门户走 client:download | CA 段移除，改 client:download |
 | 8 | `report:retry` | ADMIN,SA,MM | `report:retry`（**扩展码保留**） | 不变；逐条人工重报，禁批量（AGENTS §2.4） | 扩展码原样保留 |
 | 9 | `plan:write` | ADMIN,SA,MM,LD | `plan:generate`+`task:assign_partner` | **D-A1**：plan:generate 落地为手动派单/延期，不做批量生成；LD→MS | 翻译为 plan:generate（手动语义） |
@@ -190,7 +210,7 @@ SELECT id,'EMPLOYEE',role,NULL,1 FROM sys_employee WHERE enabled=1;
 | 17 | `useunit:read` | ADMIN,SA,MM,MB,UA | `org`（单位节点）+`client:elevator_view` | 使用单位=组织单级节点；UA→CA 仅本单位 | 翻译为 org 节点读 |
 | 18 | `useunit:write` | ADMIN,SA,MB | `client:edit`（**扩展码**） | MB 扩展获 client:edit（使用单位档案写）；平台 org 编辑 | 扩展码新增 |
 | 19 | `handover:read` | ADMIN,SA,IM,IC,MM,MQ | `handover:view` | IM→IP△、IC△、MM✔、MQ△；新增 INST_MGR✔、CA△（生效后） | 翻译为 handover:view |
-| 20 | `handover:write` | ADMIN,SA,IM,IC,IW,MM | `handover:create`/`edit`/`submit`/`doc_upload`/`doc_delete`/`review`/`receive`/`inspect`/`rectify`/`sign_*`/`void` | **按操作细分 16 码**；IW→handover:inspect/rectify（扩展）；D-1/D-2 节点角色修正 | 按操作拆分翻译 |
+| 20 | `handover:write` | ADMIN,SA,IM,IC,IW,MM | `handover:create`/`edit`/`submit`/`doc_upload`/`doc_delete`/`review`/`receive`/`inspect`/`rectify`/`sign_*`/`void` | **按操作细分 16 码**；IW→handover:inspect/rectify/sign_install（扩展）；D-1 保留 INSTALLER 签字、D-2 收敛 MAINT_MGR | 按操作拆分翻译 |
 | 21 | `filing:read` | ADMIN,SA,IM,IC,MM,MQ | `filing:view`（**扩展码**） | 外接建档保留；MQ△ | 扩展码新增 |
 | 22 | `filing:write` | ADMIN,SA,IM,IC,MM | `filing:write`（**扩展码**） | 不变 | 扩展码新增 |
 | 23 | `region:write` | ADMIN,SA | `region:view`+`region:write`（**扩展码**） | 区域主数据保留；仅平台 | 扩展码新增 |
@@ -217,8 +237,9 @@ SELECT id,'EMPLOYEE',role,NULL,1 FROM sys_employee WHERE enabled=1;
 | `record:spotcheck` | 维保 | MQ✔ | 抽查标记/抽检写（比例读 sys_config） | MQ 扩展补码 |
 | `client:edit` | 客户 | PA✔ MB✔ | 使用单位档案写 | MB 扩展补码（旧 useunit:write） |
 | `user:reset_password` | 组织 | PA✔ SA✔ MM✔ IM✔ | 重置账号口令 | 旧 employee:write 派生 |
-| `handover:inspect`（IW 扩展授权） | 移交 | IW✔（仅被指派） | 安装员现场查验 | IW 扩展（新设计原授 MT） |
-| `handover:rectify`（IW 扩展授权） | 移交 | IW✔ | 安装员整改照片 | IW 扩展（新设计原授 IP/IC） |
+| `handover:inspect`（INSTALLER 扩展授权） | 移交 | IW✔（仅被指派） | 安装员现场查验 | INSTALLER 扩展（新设计原授 MT） |
+| `handover:rectify`（INSTALLER 扩展授权） | 移交 | IW✔ | 安装员整改照片 | INSTALLER 扩展（新设计原授 IP/IC） |
+| `handover:sign_install`（INSTALLER 扩展授权） | 移交 | IW✔ | 移交安装方签字（INSTALLER_HANDOVER 节点） | INSTALLER 扩展（D-1 裁决；新设计原授 INST_MGR，偏离 D-A8） |
 
 ### 2.3 每角色导航可见性推导
 
@@ -290,7 +311,7 @@ SELECT id,'EMPLOYEE',role,NULL,1 FROM sys_employee WHERE enabled=1;
 | 角色 | 小程序工作台 | 关键码 |
 |---|---|---|
 | MAINT_TECH(MT) | 维保作业（本人派工 SELF + 班组共享池 TEAM） | task:accept/checklist:fill/record:submit/record:sign_tech/order:view_own/arrive/process |
-| INSTALL_WORKER(IW) | 安装移交（现场查验/整改照片） | handover:inspect/rectify（扩展） |
+| INSTALLER(IW) | 安装移交（现场查验/整改照片 + 安装方签字） | handover:inspect/rectify/sign_install（扩展） |
 | CLIENT_SIGNER(CS) | 使用单位签署（待签合并） | client:sign/record:view△/order:view_own |
 
 ---
@@ -504,7 +525,7 @@ spec §6.2 的"OrderListView + FaultsView → #/dispatch 合并"是**简化表�
 | DOC_SUBMITTING | 资料移交中 | 待安装部审核 | 旧 3 类必传文件→新 6 类必传+哈希；新增容缺受理分支 | 资料完整性卡点保留（3 强制项不变） |
 | INSPECTING | 现场查验 | 验收中 | 旧 submitInspect 按 SAFETY_DEVICE/BRAKE FAIL 分流→新验收判定 | 现场查验责任归属必填保留 |
 | RECTIFYING | 整改复验中 | 退回整改 | 旧 recheckRectify PASS→PENDING_CONFIRM；新逐条复验（docs/15 行为变更） | **任一不合格即整改 + 逐条复验**（docs/15 待实施） |
-| PENDING_CONFIRM | 待确认归档 | 待双方签字 → 待维保签字 | 旧单步 confirm→新双签链（安装方签+维保方签） | **D-1**：INSTALLER_HANDOVER 节点角色失效需修正；**D-2**：MAINTENANCE_CONFIRM 收敛 MAINT_MGR |
+| PENDING_CONFIRM | 待确认归档 | 待双方签字 → 待维保签字 | 旧单步 confirm→新双签链（安装方签+维保方签） | **D-1 已裁决**：INSTALLER_HANDOVER 由保留的 INSTALLER 角色签字；**D-2**：MAINTENANCE_CONFIRM 收敛 MAINT_MGR |
 | ARCHIVED | 已归档 | 已生效 → 已归档 | 旧 confirm+archive 单事务→新"已生效"触发 archive() 副作用 | **archive() 副作用必须保留**：建档 archiveSource=1 + 预创建 HM 首保工单+15天 + elevatorId 幂等 |
 | —（新增） | — | 已作废 | 三段链：安装主管发起→维保经理确认→平台审计 | 作废不可逆，全程审计 |
 

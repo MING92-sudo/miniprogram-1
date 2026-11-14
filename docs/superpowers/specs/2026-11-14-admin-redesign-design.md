@@ -81,7 +81,7 @@
 | `SYS_ADMIN` | `SYS_ADMIN` | 保留不启用，与 PLATFORM_ADMIN 同权（沿用 docs/14 口径） |
 | `INSTALL_MANAGER` | `INST_PM` | 安装部项目负责人 |
 | `INSTALL_CLERK` | `INST_CLERK` | 安装部资料员（仅资料与整改证据） |
-| `INSTALL_WORKER` | `INSTALL_WORKER`（扩展） | 新设计无安装员；保留现场查验/整改照片职能 |
+| `INSTALL_WORKER` | `INSTALLER`（扩展） | 新设计无安装员；保留现场查验/整改照片 + 移交安装方签字职能（D-1 裁决，码值改名 INSTALL_WORKER→INSTALLER，偏离 D-A8） |
 | —（新增） | `INST_MGR` | 安装部主管，INST_PM 的新上级层级；**存量安装账号需指定主管人选**（M1 前置人事决策） |
 | `MAINT_MANAGER` | `MAINT_MGR` | 维保部经理：合同、跨项目调度、修订审批 |
 | `LEADER` | `MAINT_SUP` | **语义升级**：班组长 → 维保项目部主管；组织树补"项目部"节点，班组保留为 TEAM 范围；**项目部归属需人事指定** |
@@ -277,6 +277,7 @@ AuthInterceptor（JWT → userId/roles/useUnitId/scopeVersion）
 | D-A5 | Element Plus → 自建组件库 | 用户决策（2026-11-14）；AGENTS §4.3 与 docs/09 同步修订 |
 | D-A6 | `ASSISTANT` 账号并入 `MAINT_TECH` + 工单角色属性 | 新设计配合人=独立 MAINT_TECH 账号；与现有"各签各的"（V23）一致 |
 | D-A7 | 区域读扩展谓词保留 | 新设计无区域概念，但现有电梯列表/工单列表按区域可见是已落地能力 |
+| D-A8 | 移交安装方签字（handover:sign_install / INSTALLER_HANDOVER 节点）由 INSTALLER 签字，新设计原授 INST_MGR | 用户裁决（2026-11-14，D-1）：保留安装员角色专司移交签字；INSTALL_WORKER 统一改名 INSTALLER，安装主管负责审核而非现场移交签字 |
 
 ## 12. 文档同步计划
 
@@ -297,3 +298,4 @@ AuthInterceptor（JWT → userId/roles/useUnitId/scopeVersion）
 |---|---|---|
 | V1.0 | 2026-11-14 | 首版：五项战略决策、角色/权限目标模型（12+1 角色、71+ 码、6 范围）、数据模型变更（9 新表+加列）、管理端 8 组 23 视图 IA、自建组件库规格、小程序对齐口径、M0—M5 里程碑与门禁、8 项风险、7 条偏离记录、文档同步计划 |
 | V1.1 | 2026-11-14 | M0 出口：§6.2 修正 OrderListView/OrderDetailView 混合域拆分（维保工单 HM/TM/SM/OY→#/plans+#/records，救援 FM+急修单→#/dispatch+#/order/:id），消除"维保工单误入急修 7 态机"陷阱；四张对照表落地 `2026-11-14-admin-redesign-m0-mappings.md`；三份外部设计 md 归档 `docs/16-梯维通设计输入/`；docs/06 追加 §十四 修订上报口径确认项（14-1） |
+| V1.2 | 2026-11-14 | M0 评审裁决 D-1：INSTALL_WORKER 统一改名 INSTALLER（扩展角色），保留安装员专司移交安装方签字（INSTALLER_HANDOVER 节点），角色总数不变；§4.1 角色行同步、新增偏离 D-A8（handover:sign_install 由 INSTALLER 而非新设计的 INST_MGR 签字）；对照表新增 §0.5 裁决记录区 |
