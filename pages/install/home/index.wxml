@@ -1,0 +1,42 @@
+<view class="bw">
+  <nav-bar brand="{{true}}" back="{{false}}"></nav-bar>
+  <view class="page-pad tabbar-pad col gap10">
+    <skeleton wx:if="{{loading}}" rows="{{[{h:120},{h:160},{h:80},{h:80},{h:120}]}}"></skeleton>
+    <error-retry wx:elif="{{error}}" message="{{error}}" bind:retry="onRetry"></error-retry>
+    <block wx:else>
+      <view class="row between mh-greet">
+        <view>
+          <view class="mono fs20 dim ls12">{{greeting.weekday}} · {{greeting.date}}</view>
+          <view class="disp fs44 mt2">早安，{{greeting.name}}</view>
+          <view class="fs20 muted">{{greeting.org}}</view>
+        </view>
+        <view class="shift">
+          <view class="mono fs18 dim">安装部</view>
+          <view class="mono fs20 amber">移交管理</view>
+        </view>
+      </view>
+
+      <kpi-row items="{{kpis}}"></kpi-row>
+
+      <sec-head title="进行中移交" actionText="全部" bind:action="onAllTasks"></sec-head>
+      <block wx:if="{{tasks.length}}">
+        <task-card
+          wx:for="{{tasks}}"
+          wx:key="id"
+          time="{{item.time}}"
+          title="{{item.title}}"
+          desc="{{item.desc}}"
+          tagText="{{item.tagText}}"
+          tagTone="{{item.tagTone}}"
+          data-item="{{item}}"
+          bind:tap="onTaskTap"
+        ></task-card>
+      </block>
+      <empty-state wx:else mode="empty" title="暂无进行中移交" desc="发起移交后会出现在这里。" actionText="发起移交" bind:action="onAllTasks"></empty-state>
+
+      <qa-grid items="{{quickActions}}" bind:action="onQaAction"></qa-grid>
+      <week-strip items="{{week}}"></week-strip>
+    </block>
+  </view>
+  <custom-tabbar></custom-tabbar>
+</view>

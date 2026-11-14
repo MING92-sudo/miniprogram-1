@@ -1,0 +1,66 @@
+<view class="bw">
+  <nav-bar brand="{{true}}" back="{{false}}"></nav-bar>
+  <view class="page-pad tabbar-pad col gap10">
+    <skeleton wx:if="{{loading}}" rows="{{[{h:120},{h:180},{h:120},{h:80},{h:80}]}}"></skeleton>
+    <error-retry wx:elif="{{error}}" message="{{error}}" bind:retry="onRetry"></error-retry>
+    <block wx:else>
+      <view class="row between mh-greet">
+        <view>
+          <view class="mono fs20 dim ls12">{{greeting.weekday}} · {{greeting.date}}</view>
+          <view class="disp fs44 mt2">{{greeting.name}}，您好</view>
+          <view class="fs20 muted">{{greeting.org}}{{greeting.jobTitle ? ' · ' + greeting.jobTitle : ''}}{{greeting.dual ? ' · 管理员兼任签字人' : ''}}</view>
+        </view>
+        <view class="shift">
+          <view class="mono fs18 dim">使用单位</view>
+          <view class="mono fs20 amber">{{greeting.dual ? '管理员 + 签字人' : '管理员'}}</view>
+        </view>
+      </view>
+
+      <view wx:if="{{signAlerts.length}}" class="sign-alert">
+        <view class="row between">
+          <text class="tag tag-amber"><text class="i i-signature fs18"></text> 待签署 {{signAlerts.length}} 项</text>
+          <text class="mono fs20 dim">{{greeting.date}}</text>
+        </view>
+        <view wx:for="{{signAlerts}}" wx:key="id" class="sign-alert-row">
+          <view class="grow">
+            <view class="fs22 w6">{{item.title}}</view>
+            <view class="fs20 dim mt2">{{item.desc}}</view>
+          </view>
+          <button class="btn btn-primary btn-xs" data-item="{{item}}" bindtap="onSignAlert">{{item.action}}</button>
+        </view>
+      </view>
+
+      <qa-grid items="{{quickActions}}" bind:action="onQaAction"></qa-grid>
+      <week-strip items="{{kpis}}"></week-strip>
+
+      <sec-head title="我的电梯" actionText="全部" bind:action="onAllElevators"></sec-head>
+      <block wx:if="{{elevators.length}}">
+        <view wx:for="{{elevators}}" wx:key="id" class="elev-row" data-id="{{item.id}}" bindtap="onElevator" aria-role="button" aria-label="{{item.name}}">
+          <view class="elev-ico"><text class="i i-elevator"></text></view>
+          <view class="grow">
+            <view class="fs22 w6">{{item.name}}</view>
+            <view class="fs20 dim mt2">{{item.desc}}</view>
+          </view>
+          <status-tag text="{{item.tagText}}" tone="{{item.tagTone}}"></status-tag>
+        </view>
+      </block>
+      <empty-state wx:else mode="empty" title="暂无在管电梯" desc="电梯建档后会出现在这里。"></empty-state>
+
+      <sec-head title="最近记录" actionText="更多" bind:action="onMoreRecords"></sec-head>
+      <block wx:if="{{records.length}}">
+        <view wx:for="{{records}}" wx:key="id" class="elev-row">
+          <view class="elev-ico"><text class="i i-file-signature"></text></view>
+          <view class="grow">
+            <view class="fs20 w6">{{item.title}}</view>
+            <view class="fs20 dim mt2">{{item.desc}}</view>
+          </view>
+          <button class="link fs20" data-id="{{item.id}}" bindtap="onRecordSign">{{item.action}}</button>
+        </view>
+      </block>
+      <empty-state wx:else mode="empty" title="暂无记录" desc="维保记录签署后会出现在这里。"></empty-state>
+
+      <view wx:if="{{notice}}" class="notice-strip"><text class="i i-bell-r amber"></text><text>{{notice}}</text></view>
+    </block>
+  </view>
+  <custom-tabbar></custom-tabbar>
+</view>

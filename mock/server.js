@@ -3,9 +3,32 @@
 const d = require('./data')
 const { formatTime, parseTime, distanceMeters } = require('../utils/util')
 const config = require('../config/index')
+const menus = require('../config/menus')
 
 // mock 无 JWT 解析：登录成功后记住当前演示角色，供自助改密等"当前用户"接口使用
 let currentRole = 'WORKER'
+// M2 单账号多角色：当前会话角色集（登录写入），/me/menus 投影用
+let currentRoles = ['MAINT_TECH']
+// 演示口径按钮码投影（19 码，与后端 BUTTON_CODES 同集；真实环境由 PermissionMatrix 计算，mock 仅演示）
+const MOCK_PERMS = {
+  MAINT_TECH: ['order:grab', 'order:arrive', 'order:submit', 'record:sign_tech', 'record:sign_request', 'checklist:fill', 'task:accept', 'handover:inspect'],
+  MAINT_SUP: ['order:grab', 'order:arrive', 'order:submit', 'order:cancel', 'record:sign_tech', 'record:sign_request', 'record:review', 'record:export', 'checklist:fill', 'task:accept', 'handover:inspect'],
+  MAINT_MGR: ['order:cancel', 'record:review', 'record:export', 'project:edit', 'elevator:export'],
+  MAINT_QUALITY: ['record:review', 'record:export'],
+  MAINT_BIZ: ['project:edit'],
+  INSTALLER: ['handover:inspect'],
+  INST_CLERK: ['handover:rectify'],
+  INST_PM: ['handover:create', 'handover:rectify'],
+  INST_MGR: ['handover:review'],
+  CLIENT_ADMIN: ['client:evaluate', 'order:cancel', 'elevator:export'],
+  CLIENT_SIGNER: ['client:sign', 'order:confirm', 'client:evaluate'],
+  PLATFORM_ADMIN: ['project:edit', 'elevator:export']
+}
+function permsOf(roles) {
+  const set = {}
+  roles.forEach((r) => (MOCK_PERMS[r] || []).forEach((c) => { set[c] = true }))
+  return Object.keys(set)
+}
 // 移交/外接建档 mock 状态（模块级，进程重启即清空）
 const mockHandovers = []
 const mockFilings = []
@@ -61,28 +84,35 @@ function handoverArchiveEntries(id) {
 const routes = [
   // ── M1 小程序重构后端底座（docs/04 V2.53 三处同步） ──
   ['GET', '/me/menus', ({ query }) => {
-    const role = query.workspace || currentRole
-    const tabs = {
-      WORKER: [
-        { key: 'maint-home', text: '工作台', icon: 'gauge', path: '/pages/maint/home/index' },
-        { key: 'maint-orders', text: '工单', icon: 'clipboard', path: '/pages/order/list/index', badgeKey: 'pendingOrders' },
-        { key: 'maint-elevators', text: '电梯', icon: 'elevator', path: '/pages/elevator/list/index' },
-        { key: 'profile', text: '我的', icon: 'user', path: '/pages/profile/index' }
-      ],
-      UNIT_ADMIN: [
-        { key: 'client-home', text: '首页', icon: 'home', path: '/pages/client/home/index' },
-        { key: 'client-todo', text: '待办', icon: 'file-signature', path: '/pkg-client/pages/todo/index', badgeKey: 'pendingSigns' },
-        { key: 'client-elevators', text: '电梯', icon: 'elevator', path: '/pages/elevator/list/index' },
-        { key: 'profile', text: '我的', icon: 'user', path: '/pages/profile/index' }
-      ]
-    }
+    // M2：与后端 MiniappMenuService 同投影（require 前端镜像，漂移守卫锁定 ROLE_TABS）
+    const roles = currentRoles.length ? currentRoles : ['MAINT_TECH']
+    const effective = query.workspace && roles.indexOf(query.workspace) > -1 ? [query.workspace] : roles
+    const ws = menus.activeWorkspace(effective)
+    const perms = permsOf(effective)
+    const actions = {}
+    const BUTTON_CODES = require('../services/menu').BUTTON_CODES
+    BUTTON_CODES.forEach((c) => { actions[c] = perms.indexOf(c) > -1 })
+    const quickActions = ws && ws.indexOf('MAINT') === 0 ? [
+      { key: 'scan', text: '扫码开工', icon: 'qrcode', path: '/pages/elevator/detail/index?mode=scan' },
+      { key: 'emergency', text: '急修单', icon: 'bolt', path: '/pages/order/list/index?state=urgent' },
+      { key: 'report', text: '报修接单', icon: 'wrench', path: '/pages/order/list/index?state=pending' },
+      { key: 'handover', text: '移交验收', icon: 'file-signature', path: '/pkg-handover/pages/list/index' }
+    ] : ws && ws.indexOf('CLIENT') === 0 ? [
+      { key: 'report', text: '一键报修', icon: 'wrench', path: '/pages/order/report/index' },
+      { key: 'todo', text: '待办签字', icon: 'file-signature', path: '/pkg-client/pages/todo/index' }
+    ] : ws && ws.indexOf('INST') === 0 ? [
+      { key: 'create', text: '发起移交', icon: 'file-signature', path: '/pkg-handover/pages/create/index' },
+      { key: 'upload', text: '资料上传', icon: 'folder', path: '/pkg-handover/pages/upload/index' }
+    ] : []
+    const badges = { pendingOrders: 0, pendingSigns: 0 }
+    if (effective.some((r) => r.indexOf('MAINT') === 0)) badges.pendingOrders = d.db.faults.filter((f) => f.status === 'OPEN').length
+    if (effective.some((r) => r.indexOf('CLIENT') === 0)) badges.pendingSigns = d.db.unitRecords.filter((r) => r.confirmStatus === 'PENDING').length
     return {
-      user: { roles: [role] },
-      home: role === 'UNIT_ADMIN' ? '/pages/client/home/index' : '/pages/maint/home/index',
-      activeWorkspace: role,
-      tabs: tabs[role] || tabs.WORKER,
-      quickActions: [], actions: {},
-      badges: { pendingOrders: 0, pendingSigns: 0 }
+      user: { roles: effective, activeWorkspace: ws },
+      home: menus.resolveHome(effective),
+      activeWorkspace: ws,
+      tabs: menus.resolveTabs(effective),
+      quickActions, actions, badges
     }
   }],
   ['POST', '/work-orders/:id/signature-refuse', () => ({ ok: true })],
@@ -109,7 +139,7 @@ const routes = [
     if (!user) throw { code: 401, message: '账号不存在，请联系维保单位管理员分配' }
     if (user.password !== password) throw { code: 401, message: '账号或密码错误' }
     currentRole = roleKey
-    // M1 统一登录响应扩展（docs/04 V2.53）：roles/perms/scope/activeWorkspace/home
+    // M1 统一登录响应扩展（docs/04 V2.53）+ M2 多角色并集：roles/perms/scope/activeWorkspace/home
     const canonMap = {
       WORKER: 'MAINT_TECH', ASSISTANT: 'MAINT_TECH', LEADER: 'MAINT_SUP',
       MAINT_MANAGER: 'MAINT_MGR', MAINT_QUALITY: 'MAINT_QUALITY', MAINT_BIZ: 'MAINT_BIZ',
@@ -117,13 +147,16 @@ const routes = [
       INSTALL_WORKER: 'INSTALLER'
     }
     const canon = canonMap[roleKey] || roleKey
-    const home = canon.indexOf('CLIENT') === 0 ? '/pages/client/home/index'
-      : (canon.indexOf('INST') === 0 || canon === 'INSTALLER') ? '/pages/install/home/index'
-        : (canon === 'PLATFORM_ADMIN' || canon === 'SYS_ADMIN') ? '/pkg-admin/pages/users/index'
-          : '/pages/maint/home/index'
+    const roles = user.roles && user.roles.length ? user.roles : [canon]
+    currentRoles = roles
+    const perms = permsOf(roles)
+    const ws = menus.activeWorkspace(roles)
+    const scope = roles.indexOf('PLATFORM_ADMIN') > -1 ? '全部数据'
+      : roles.some((r) => r.indexOf('CLIENT') === 0) ? '本单位全部电梯'
+        : roles.some((r) => r.indexOf('INST') === 0) ? '安装部项目范围' : '本班组维保范围'
     return {
       token: 'mock-token-' + Date.now(), userInfo: user, role: roleKey,
-      roles: [canon], perms: [], scope: '', activeWorkspace: canon, home
+      roles, perms, scope, activeWorkspace: ws, home: menus.resolveHome(roles)
     }
   }],
   // 自助改密（docs/04 A.0.1；与后端 AuthController 同口径：校验原密码、新密码 ≥6 位且不同）

@@ -1,0 +1,2 @@
+page{background:var(--ink);color:var(--text)}
+.mh-greet{padding:4rpx 0}
