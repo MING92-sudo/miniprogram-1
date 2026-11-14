@@ -1,140 +1,50 @@
 <template>
-  <div>
-    <el-row :gutter="12">
-      <el-col :span="6" v-for="card in orderCards" :key="card.label">
-        <el-card shadow="never" class="stat-card" :class="{ warn: card.warn }">
-          <div class="stat-num">{{ card.value }}</div>
-          <div class="stat-label">{{ card.label }}</div>
-        </el-card>
-      </el-col>
-    </el-row>
-
-    <el-row :gutter="12" class="mt12">
-      <el-col :span="8" v-for="card in platformCards" :key="card.label">
-        <el-card shadow="never" class="stat-card">
-          <div class="stat-num sm">{{ card.value }}</div>
-          <div class="stat-label">{{ card.label }}</div>
-        </el-card>
-      </el-col>
-    </el-row>
-
-    <el-row :gutter="12" class="mt12">
-      <el-col :span="16">
-        <el-card shadow="never">
-          <template #header>近 7 日完成工单</template>
-          <div ref="trendEl" class="chart" />
-        </el-card>
-      </el-col>
-      <el-col :span="8">
-        <el-card shadow="never">
-          <template #header>上报状态</template>
-          <div class="kv" v-for="row in reportRows" :key="row.label">
-            <span>{{ row.label }}</span>
-            <b :class="{ danger: row.danger }">{{ row.value }}</b>
-          </div>
-          <el-button type="primary" plain size="small" class="mt12" @click="$router.push('/reports/failed')">
-            处理上报异常
-          </el-button>
-        </el-card>
-      </el-col>
-    </el-row>
+  <div class="workbench">
+    <div class="wb-head">
+      <h1 class="wb-title">工作台</h1>
+      <div class="persp-switch">
+        <button v-for="r in perspective.roleSet" :key="r" :class="['persp-btn', { active: r === perspective.activeRole }]" @click="perspective.setRole(r)">{{ r }}</button>
+      </div>
+    </div>
+    <div v-if="overdue" class="alert-bar">SLA 超时 {{ overdue }} 单，请优先处理</div>
+    <div class="kpi-grid">
+      <div v-for="k in kpis" :key="k.key" class="kpi-card">
+        <p class="kpi-value num">{{ k.value }}</p>
+        <p class="kpi-label label">{{ k.label }}</p>
+      </div>
+    </div>
+    <section class="wb-todos">
+      <h2 class="label">待办</h2>
+      <ul v-if="todos.length">
+        <li v-for="t in todos" :key="t.id">{{ t.text }}</li>
+      </ul>
+      <p v-else class="wb-empty">暂无待办</p>
+    </section>
   </div>
 </template>
-
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
-// echarts 按需引入（docs/09 V3.6 分包）：看板只用折线图 + 网格/提示，
-// 全量 'echarts' 会打进 1 MB 以上的 vendor 块；按需后仅含 LineChart/Grid/Tooltip/Canvas 渲染器。
-import * as echarts from 'echarts/core'
-import { LineChart } from 'echarts/charts'
-import { GridComponent, TooltipComponent } from 'echarts/components'
-import { CanvasRenderer } from 'echarts/renderers'
-import * as adminApi from '../api/admin'
-import { showErr } from '../utils/ui'
-
-echarts.use([LineChart, GridComponent, TooltipComponent, CanvasRenderer])
-
-const dash = ref(null)
-const trendEl = ref(null)
-let chart = null
-
-const orderCards = computed(() => {
-  const o = (dash.value && dash.value.orders) || {}
-  return [
-    { label: '今日到期', value: o.dueToday ?? '-' },
-    { label: '3 日内到期', value: o.dueSoon ?? '-' },
-    { label: '超期未完成', value: o.overdue ?? '-', warn: (o.overdue || 0) > 0 },
-    { label: '进行中', value: o.inProgress ?? '-' }
-  ]
-})
-
-const platformCards = computed(() => {
-  const p = (dash.value && dash.value.platform) || {}
-  return [
-    { label: '待同步人员', value: p.employeePendingSync ?? '-' },
-    { label: '位置待补电梯', value: p.elevatorGeoMissing ?? '-' },
-    { label: '最近平台同步', value: p.lastSyncAt || '从未同步' }
-  ]
-})
-
-const reportRows = computed(() => {
-  const r = (dash.value && dash.value.reports) || {}
-  return [
-    { label: '上报失败（需人工重报）', value: r.failed ?? 0, danger: (r.failed || 0) > 0 },
-    { label: '待上报', value: r.submitted ?? 0 },
-    { label: '已上报', value: r.reported ?? 0 },
-    { label: '待使用单位确认', value: r.unconfirmed ?? 0 },
-    { label: '未闭环故障', value: r.openFaults ?? 0 }
-  ]
-})
-
-async function load() {
-  try {
-    dash.value = await adminApi.dashboard()
-    renderChart()
-  } catch (e) {
-    showErr(e)
-  }
-}
-
-function renderChart() {
-  if (!trendEl.value || !dash.value) return
-  const trend = dash.value.trend || []
-  if (!chart) {
-    chart = echarts.init(trendEl.value)
-  }
-  chart.setOption({
-    grid: { left: 40, right: 16, top: 24, bottom: 28 },
-    xAxis: { type: 'category', data: trend.map((t) => t.date) },
-    yAxis: { type: 'value', minInterval: 1 },
-    series: [{ type: 'line', smooth: true, data: trend.map((t) => t.completed), areaStyle: {} }],
-    tooltip: { trigger: 'axis' }
-  })
-}
-
-function onResize() {
-  if (chart) chart.resize()
-}
-
-onMounted(() => {
-  load()
-  window.addEventListener('resize', onResize)
-})
-
-onBeforeUnmount(() => {
-  window.removeEventListener('resize', onResize)
-  if (chart) chart.dispose()
-})
+// M2 工作台：KPI 7 项 + 预警 + 待办 + 视角切换（spec §5.2）；M2 数据源 mock 基准集
+import { computed } from 'vue'
+import { provider } from '../ui/providers/provider'
+import { usePerspectiveStore } from '../ui/stores/perspective'
+const perspective = usePerspectiveStore()
+const kpis = computed(() => provider.getKPIs(perspective.activeRole))
+const todos = computed(() => provider.getTodos(perspective.activeRole))
+const overdue = computed(() => (kpis.value.find(k => k.key === 'slaOverdue') || {}).value || 0)
 </script>
-
 <style scoped>
-.stat-card { text-align: center; }
-.stat-num { font-size: 30px; font-weight: 700; color: #1d2129; }
-.stat-num.sm { font-size: 20px; }
-.stat-label { color: #86909c; font-size: 13px; margin-top: 4px; }
-.warn .stat-num { color: #f53f3f; }
-.mt12 { margin-top: 12px; }
-.chart { height: 300px; }
-.kv { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px dashed #f0f1f2; }
-.kv b.danger { color: #f53f3f; }
+.wb-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+.wb-title { font-size: 20px; font-weight: 600; }
+.persp-switch { display: flex; gap: 6px; flex-wrap: wrap; }
+.persp-btn { background: var(--panel-2); border: 1px solid var(--line-2); color: var(--muted); padding: 4px 10px; border-radius: 6px; cursor: pointer; font-size: 11px; font-family: var(--font-mono); }
+.persp-btn.active { background: var(--amber); color: var(--accent-on-amber); border-color: var(--amber); }
+.alert-bar { background: var(--signal); color: var(--accent-on-signal); padding: 8px 14px; border-radius: 6px; font-size: 13px; margin-bottom: 16px; }
+.kpi-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; }
+.kpi-card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px; }
+.kpi-value { font-size: 28px; font-weight: 700; color: var(--amber); }
+.kpi-label { margin-top: 6px; }
+.wb-todos { margin-top: 24px; }
+.wb-todos ul { list-style: none; padding: 0; margin: 8px 0; }
+.wb-todos li { padding: 10px 12px; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; margin-bottom: 6px; font-size: 13px; }
+.wb-empty { color: var(--dim); font-size: 13px; }
 </style>
