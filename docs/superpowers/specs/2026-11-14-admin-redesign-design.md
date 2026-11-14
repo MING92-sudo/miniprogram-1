@@ -84,7 +84,7 @@
 | `INSTALL_WORKER` | `INSTALLER`（扩展） | 新设计无安装员；保留现场查验/整改照片 + 移交安装方签字职能（D-1 裁决，码值改名 INSTALL_WORKER→INSTALLER，偏离 D-A8） |
 | —（新增） | `INST_MGR` | 安装部主管，INST_PM 的新上级层级；**存量安装账号需指定主管人选**（M1 前置人事决策） |
 | `MAINT_MANAGER` | `MAINT_MGR` | 维保部经理：合同、跨项目调度、修订审批 |
-| `LEADER` | `MAINT_SUP` | **语义升级**：班组长 → 维保项目部主管；组织树补"项目部"节点，班组保留为 TEAM 范围；**项目部归属需人事指定** |
+| `LEADER` | `MAINT_SUP` | 班组长 → 维保主管；**沿用现有班组归属与 TEAM 范围**（P-2 裁决：不新增项目部层级，偏离 D-A9） |
 | `WORKER` | `MAINT_TECH` | 维保人员（主检/配合人均为 MAINT_TECH 账号） |
 | `ASSISTANT` | 并入 `MAINT_TECH` | 配合人 = MAINT_TECH 账号 + 工单角色属性，不再单独建号（与新设计双签口径一致） |
 | `MAINT_BIZ` | `MAINT_BIZ`（扩展） | 商务：合同/客户域写；不见现场照片/定位/签字（docs/14 R4） |
@@ -115,7 +115,7 @@
 |---|---|---|
 | `SELF` | 本人创建/被指派 | MAINT_TECH（本人派工）、INSTALL_WORKER |
 | `TEAM` | 本班组 | MAINT_TECH（班组共享池） |
-| `PROJECT` | 项目部/被指派项目集 | MAINT_SUP（本项目部）、INST_PM/INST_CLERK（被指派安装项目） |
+| `PROJECT` | 项目部/被指派项目集 | INST_PM/INST_CLERK（被指派安装项目）；MAINT_SUP 本期按现有班组落 TEAM（P-2/D-A9，不强制项目部层） |
 | `ORG` | 本组织及下级（组织树） | INST_MGR（安装部）、MAINT_QUALITY/MAINT_BIZ（维保部，商务限合同客户域） |
 | `ORG_FLAT` | 仅本单位 | CLIENT_ADMIN / CLIENT_SIGNER |
 | `ALL` | 平台全量（运维只读）/ 全部维保项目（department=MAINT 过滤） | PLATFORM_ADMIN / MAINT_MGR（双语义靠过滤条件区分，roles §5.1 决策 14） |
@@ -142,7 +142,7 @@ AuthInterceptor（JWT → userId/roles/useUnitId/scopeVersion）
 
 | 表 | 用途与关键约束 |
 |---|---|
-| `sys_org` | 组织树：公司→部门/项目部→班组；使用单位单级节点（应用层禁止挂子节点）；type/name/code/parent_id/负责人/状态 |
+| `sys_org` | 组织树：公司→部门→班组（按现有结构，不强制项目部层，P-2/D-A9）；使用单位单级节点（应用层禁止挂子节点）；type/name/code/parent_id/负责人/状态 |
 | `sys_user_role` | 用户-角色多对多（user_type=EMPLOYEE/UNIT）；同部门多角色应用层校验 |
 | `sys_role_scope` | 角色默认范围 + scope_ref（org/project/team）+ version |
 | `sys_invite` | 邀请码/组织二维码：类型/目标组织/有效期 1—30 天（默认 7）/状态（有效/已使用/已过期/已撤回）/已加入人数 |
@@ -161,7 +161,7 @@ AuthInterceptor（JWT → userId/roles/useUnitId/scopeVersion）
 
 ### 5.3 迁移与兼容
 
-- 存量账号按 §4.1 映射回填角色与部门；INST_MGR/MAINT_SUP 项目部归属待人事决策后执行。
+- 存量账号按 §4.1 映射回填角色与部门；MAINT_SUP 沿用现有班组归属（P-2 已裁决）；INST_MGR 主管人选待人事决策（P-1）后执行。
 - 旧 24 码注解经兼容层翻译到新矩阵，兼容期内旧端点行为逐条不变（兼容性测试证明）。
 - 迁移失败自愈沿用 AGENTS V3.1 机制；打包必须 `mvn clean package`（V3.2 护栏）。
 
@@ -246,7 +246,7 @@ AuthInterceptor（JWT → userId/roles/useUnitId/scopeVersion）
 
 **M0 出口四张对照表**（独立文件，M1 启动前完成）：
 
-1. **角色映射表**：§4.1 细化到账号级迁移脚本（含 INST_MGR/MAINT_SUP 人事决策结果）。
+1. **角色映射表**：§4.1 细化到账号级迁移脚本（含 INST_MGR 人事决策结果；MAINT_SUP 归属已按 P-2 裁决沿用现有班组）。
 2. **权限码映射表**：24 旧码 → 71+ 新码逐码映射 + 扩展码定义（抽检动作码、template:toggle、商务写码）+ 每角色导航可见性推导。
 3. **视图映射表**：§6.2 细化到字段/操作级（旧视图每个按钮的新落点与权限码）。
 4. **状态机对照表**：移交（现有 docs/15 五节点签字审批 vs 新 10 态）、记录单（现有签退/双签链 vs 新 7 态）、工单（现有急修 V20 链 vs 新 7 态）逐态映射 + 转移差异 + 合规影响评估。
@@ -257,7 +257,7 @@ AuthInterceptor（JWT → userId/roles/useUnitId/scopeVersion）
 
 | # | 风险/决策 | 处置 |
 |---|---|---|
-| 1 | **人事决策（M1 前置）**：INST_MGR 主管人选、LEADER→MAINT_SUP 的项目部归属 | 用户指定，代码不猜；未决前 M1 迁移脚本不执行 |
+| 1 | **人事决策（M1 前置）**：INST_MGR 主管人选（P-1，待定）；MAINT_SUP 归属已裁决按现有班组不变（P-2/D-A9） | 用户指定，代码不猜；P-1 未决前 M1 迁移脚本 INST_MGR 段不执行 |
 | 2 | **状态机差异是最大合规风险**：现有移交/记录/工单链与新设计不完全同构 | M0 对照表逐态映射，M4 转移测试兜底；映射不确定的态标"待裁决"不硬改 |
 | 3 | **上线门禁协调（待用户决策）**：docs/12 B-03 管理端人工验收空白（P0） | 选项 a：先在旧管理端完成 B-03 留证再重构（近期要发布时推荐）；选项 b：等新端 M5 后按 docs/10 重验收。M5 前必须定 |
 | 4 | **归档后修订的监管上报口径未确认**：修订 v2 是否需重报 2.6 | 列入 docs/06 平台确认清单；确认前修订只生成内部新版本，**不触发任何上报**（与无自动重试红线一致） |
@@ -278,6 +278,7 @@ AuthInterceptor（JWT → userId/roles/useUnitId/scopeVersion）
 | D-A6 | `ASSISTANT` 账号并入 `MAINT_TECH` + 工单角色属性 | 新设计配合人=独立 MAINT_TECH 账号；与现有"各签各的"（V23）一致 |
 | D-A7 | 区域读扩展谓词保留 | 新设计无区域概念，但现有电梯列表/工单列表按区域可见是已落地能力 |
 | D-A8 | 移交安装方签字（handover:sign_install / INSTALLER_HANDOVER 节点）由 INSTALLER 签字，新设计原授 INST_MGR | 用户裁决（2026-11-14，D-1）：保留安装员角色专司移交签字；INSTALL_WORKER 统一改名 INSTALLER，安装主管负责审核而非现场移交签字 |
+| D-A9 | MAINT_SUP 数据范围本期落 TEAM（现有班组），新设计默认 PROJECT（项目部）；sys_org 不强制项目部层 | 用户裁决（2026-11-14，P-2）：项目部归属按现有组织架构不变，沿用现有班组（与旧 LEADER 班组谓词一致）；读写谓词分离红线不变 |
 
 ## 12. 文档同步计划
 
@@ -299,3 +300,4 @@ AuthInterceptor（JWT → userId/roles/useUnitId/scopeVersion）
 | V1.0 | 2026-11-14 | 首版：五项战略决策、角色/权限目标模型（12+1 角色、71+ 码、6 范围）、数据模型变更（9 新表+加列）、管理端 8 组 23 视图 IA、自建组件库规格、小程序对齐口径、M0—M5 里程碑与门禁、8 项风险、7 条偏离记录、文档同步计划 |
 | V1.1 | 2026-11-14 | M0 出口：§6.2 修正 OrderListView/OrderDetailView 混合域拆分（维保工单 HM/TM/SM/OY→#/plans+#/records，救援 FM+急修单→#/dispatch+#/order/:id），消除"维保工单误入急修 7 态机"陷阱；四张对照表落地 `2026-11-14-admin-redesign-m0-mappings.md`；三份外部设计 md 归档 `docs/16-梯维通设计输入/`；docs/06 追加 §十四 修订上报口径确认项（14-1） |
 | V1.2 | 2026-11-14 | M0 评审裁决 D-1：INSTALL_WORKER 统一改名 INSTALLER（扩展角色），保留安装员专司移交安装方签字（INSTALLER_HANDOVER 节点），角色总数不变；§4.1 角色行同步、新增偏离 D-A8（handover:sign_install 由 INSTALLER 而非新设计的 INST_MGR 签字）；对照表新增 §0.5 裁决记录区 |
+| V1.3 | 2026-11-14 | M0 评审裁决 P-2：MAINT_SUP 项目部归属按现有组织架构不变——不新增项目部组织层级，sys_org 按现有 公司→部门→班组 建立，MAINT_SUP 沿用现有班组归属、范围落 TEAM；§4.1/§4.4/§5.1/§5.3/§9/§10 同步，新增偏离 D-A9（PROJECT→TEAM）；M1 前置人事决策仅剩 P-1（INST_MGR 人选） |

@@ -39,7 +39,7 @@
 | # | 待裁决项 | 影响表 | 处置 |
 |---|---|---|---|
 | P-1 | **INST_MGR 主管人选**：安装部新增主管层级，存量安装账号的上级 | 表1 | 用户指定；未决前迁移脚本 INST_MGR 段不执行 |
-| P-2 | **LEADER→MAINT_SUP 项目部归属**：班组长升级为项目部主管，需补"项目部"组织节点并指定每人归属 | 表1/表4 | 用户指定；组织树项目部节点先建空壳，归属待填 |
+| P-2 | **LEADER→MAINT_SUP 项目部归属** | 表1/表4 | **已裁决（2026-11-14）**：按现有组织架构不变——不新增"项目部"层级，MAINT_SUP 沿用现有班组归属，范围按班组（TEAM）解析（偏离 D-A9） |
 | P-3 | **CLIENT_SIGNER 兼任授予名单**：哪些使用单位管理员兼任签字人 | 表1/表2 | 用户指定；默认不自动授予 |
 | P-4 | **存量单人作业记录的双签兼容**：旧单人记录（无配合人）vs 新强制双签核验三条件 | 表4 | 建议：存量记录按"单人豁免"标记归档，不追溯补签；新记录强制双签。待用户确认 |
 | P-5 | **修订 v2 是否需重报 2.6**：归档后修订生成新版本是否触发监管上报 | 表4 | 已列 docs/06 待确认；**确认前修订只生成内部新版本，不触发任何上报**（AGENTS §2.4 无自动重试红线） |
@@ -63,7 +63,7 @@
 |---|---|---|---|
 | D-1 | **保留 INSTALLER 角色用于移交节点**；INSTALL_WORKER 统一改名 INSTALLER，安装员兼做现场查验/整改与移交安装方签字；角色总数不变（13），NODE_ROLES 的 INSTALLER 直接生效 | 2026-11-14 | 表1 §1.1、表2 §2.1/2.2（补 handover:sign_install 扩展授权）、表4 §4.1.1；新增偏离 D-A8 |
 | P-1 | 待裁决（INST_MGR 主管人选） | — | — |
-| P-2 | 待裁决（MAINT_SUP 项目部归属） | — | — |
+| P-2 | **按现有组织架构不变**：不新增"项目部"组织层级，sys_org 按现有 公司→部门→班组 建立；MAINT_SUP 沿用现有班组归属，数据范围按班组（TEAM）解析（与旧 LEADER 班组谓词一致）；新设计 PROJECT 层本期不强制引入 | 2026-11-14 | 表1 §1.1/1.2.1/1.2.3、#/org 树；新增偏离 D-A9 |
 | P-3 | 待裁决（CLIENT_SIGNER 兼任名单） | — | — |
 | P-4 | 待裁决（存量单人记录双签兼容） | — | — |
 | P-5 | 待裁决（修订 v2 是否重报 2.6；已列 docs/06 §十四） | — | — |
@@ -72,6 +72,8 @@
 | D-4 | 待裁决（FaultsView 派单按钮补门控，建议默认采纳） | — | — |
 
 **新增偏离 D-A8**（相对新设计蓝图）：移交安装方签字节点（INSTALLER_HANDOVER / handover:sign_install）由 **INSTALLER** 签字，新设计原授 INST_MGR（安装主管）。原因：用户裁决保留安装员角色专司移交签字（D-1），安装主管负责审核（review/review_return）而非现场移交签字。
+
+**新增偏离 D-A9**（相对新设计蓝图）：MAINT_SUP 数据范围本期落地为 **TEAM（现有班组）**，新设计默认 PROJECT（项目部）。原因：用户裁决 P-2「项目部归属按现有组织架构不变」——不新增项目部组织层级，sys_org 按现有 公司→部门→班组 建立，MAINT_SUP 沿用现有班组归属（与旧 LEADER 班组谓词一致）。PROJECT 层不强制引入；读写谓词分离红线不变（范围扩大只进读谓词）。若后续需项目部层再另议。
 
 ---
 
@@ -91,7 +93,7 @@
 | `INSTALL_WORKER` | INSTALL | `INSTALLER`（扩展） | INSTALL | 新设计无安装员；保留现场查验/整改照片 + **移交安装方签字**职能（D-1 裁决） | 否（小程序） | 码值改名 INSTALL_WORKER→INSTALLER + 补扩展码 |
 | —（新增） | — | `INST_MGR` | INSTALL | 安装部主管，INST_PM 新上级 | 是 | **新建 + P-1 人事指定** |
 | `MAINT_MANAGER` | MAINT | `MAINT_MGR` | MAINT | 维保部经理：合同/跨项目调度/修订审批 | 是 | 码值改名 |
-| `LEADER` | MAINT | `MAINT_SUP` | MAINT | **语义升级**：班组长→项目部主管；班组保留为 TEAM 范围 | 是 | 码值改名 + **P-2 项目部归属** |
+| `LEADER` | MAINT | `MAINT_SUP` | MAINT | 班组长→维保主管；**沿用现有班组归属与 TEAM 范围**（P-2 裁决：不新增项目部层级，D-A9） | 是 | 码值改名（归属不变） |
 | `WORKER` | MAINT | `MAINT_TECH` | MAINT | 维保人员（主检/配合人均为 MAINT_TECH 账号） | 否（小程序） | 码值改名 |
 | `ASSISTANT` | MAINT | 并入 `MAINT_TECH` | MAINT | 配合人=MAINT_TECH 账号 + 工单角色属性 | 否 | **账号合并**（见 1.2） |
 | `MAINT_BIZ` | MAINT | `MAINT_BIZ`（扩展） | MAINT | 商务：合同/客户域写；不见现场照片/定位/签字（R4） | 是 | 不变 + 补扩展码 |
@@ -112,7 +114,7 @@
 | 账号 | 姓名 | 手机号 | 旧角色 | 目标角色 | 组织归属 | 迁移备注 |
 |---|---|---|---|---|---|---|
 | emp_1 | 张伟 | 13800000001 | WORKER | MAINT_TECH | 维保一班（TEAM） | PID=6901282369105174537；主检/配合人属性按工单 |
-| emp_2 | 陈刚 | 13800000002 | LEADER | MAINT_SUP | 维保一班→**项目部（P-2 待填）** | PID=990002；升级为项目部主管 |
+| emp_2 | 陈刚 | 13800000002 | LEADER | MAINT_SUP | 维保一班（**归属不变**，TEAM） | PID=990002；P-2 裁决按现有班组 |
 | emp_3 | 李强 | 13800000004 | WORKER | MAINT_TECH | 维保一班（TEAM） | PID=6901284774286860288 |
 | unit_1 | 王芳 | 13800000003 | UNIT_ADMIN | CLIENT_ADMIN | 重庆世纪物业（uu_1，ORG_FLAT） | use_unit 账号；CLIENT_SIGNER 兼任待 P-3 |
 | emp_admin | 郑浩 | 13800000009 | ADMIN | PLATFORM_ADMIN | 平台（ALL 运维只读） | — |
@@ -130,7 +132,7 @@
 
 #### 1.2.3 生产迁移脚本骨架（Flyway V35+ 数据迁移，只追加）
 
-> 以下为**骨架**，P-1/P-2/P-3 未决前对应段以注释占位，不得执行。实际脚本在 M1 spec→plan 中细化并补单测。
+> 以下为**骨架**，P-1/P-3 未决前对应段以注释占位，不得执行（P-2 已裁决：归属不变）。实际脚本在 M1 spec→plan 中细化并补单测。
 
 ```sql
 -- V35__role_model_v2_data.sql（示意，M1 细化）
@@ -151,8 +153,9 @@ SELECT id,'EMPLOYEE',role,NULL,1 FROM sys_employee WHERE enabled=1;
 -- 步骤 3：INST_MGR 新建（P-1 待裁决，占位不执行）
 -- INSERT INTO sys_employee(... role='INST_MGR' ...) VALUES (<人事指定>);
 
--- 步骤 4：MAINT_SUP 项目部归属（P-2 待裁决，占位不执行）
--- UPDATE sys_user_role SET scope_ref=<项目部org_id> WHERE role_code='MAINT_SUP';
+-- 步骤 4：MAINT_SUP 归属（P-2 已裁决：按现有组织架构不变）
+-- 沿用现有班组 org_id 回填 scope_ref（TEAM），不新增项目部层级；org_id 取自 sys_org 现有班组种子
+UPDATE sys_user_role SET scope_ref=<现有班组org_id> WHERE role_code='MAINT_SUP';
 
 -- 步骤 5：CLIENT_SIGNER 兼任（P-3 待裁决，占位不执行）
 -- INSERT INTO sys_user_role(user_id,user_type,role_code) VALUES (<unit_id>,'UNIT','CLIENT_SIGNER');
@@ -413,7 +416,7 @@ spec §6.2 的"OrderListView + FaultsView → #/dispatch 合并"是**简化表�
 
 | 新视图 | 关键操作 | 权限码 |
 |---|---|---|
-| #/org | 组织树 CRUD（公司→部门/项目部→班组；使用单位单级） | role:assign |
+| #/org | 组织树 CRUD（公司→部门→班组，**按现有结构不新增项目部层**，P-2/D-A9；使用单位单级） | role:assign |
 | #/roles | 角色权限矩阵（**只读**，写入口二期） | role:assign |
 | #/grants | 邀请码（1—30 天默认 7）+ 限时授权（到期自动回收） | invite:manage |
 | #/projects | 项目台账 | project:view / project:edit |
