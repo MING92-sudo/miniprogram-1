@@ -1,0 +1,11 @@
+/* 遗留 em-* 浅色类的深色覆盖（.bw 作用域）：M4/M5 迁移页包裹 .bw 后自动深色化，保留旧 WXML 绑定。M6 删旧页后移除。 */
+.bw .em-page{background:transparent;color:var(--text);padding:0}
+.bw .em-card{background:linear-gradient(160deg,#151F25,#0F181D);border:1rpx solid var(--line);border-radius:8rpx;color:var(--text)}
+.bw .em-text-secondary{color:var(--muted)}
+.bw .em-btn-primary{background:var(--amber);color:#1A1203;border-radius:10rpx}
+.bw .page-head-title{color:var(--text)}
+.bw .page-head-sub{color:var(--muted)}
+.bw input,.bw textarea{color:var(--text)}
+.bw .step-title,.bw .section-title,.bw .head-title{color:var(--text)}
+.bw .info-row{color:var(--text);border-bottom:1rpx dashed rgba(38,52,59,.7)}
+.bw .info-row text:first-child{color:var(--dim)}
