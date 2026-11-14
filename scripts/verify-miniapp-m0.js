@@ -19,4 +19,10 @@ function section(n) {
 const woSrc = fs.readFileSync(path.join(ROOT, 'backend/src/main/java/com/cqwlw/maintenance/service/WorkOrderService.java'), 'utf8')
 const recordStates = [...new Set([...woSrc.matchAll(/status = "([A-Z_]+)"|"([A-Z_]+)"\.equals\(o\.status\)/g)].map(m => m[1] || m[2]))]
 check('record-states', recordStates.filter(s => !section(1).includes('| ' + s + ' ')), recordStates.length)
+// 2 移交域：旧态全覆盖（基准六值取自 HandoverService.java:48–53 状态常量块）
+const hoSrc = fs.readFileSync(path.join(ROOT, 'backend/src/main/java/com/cqwlw/maintenance/service/HandoverService.java'), 'utf8')
+const hoBlock = hoSrc.split('\n').slice(47, 53).join('')
+const handoverStates = [...new Set((hoBlock.match(/"([A-Z_]+)"/g) || []).map(s => s.slice(1, -1)))]
+check('handover-states', handoverStates.filter(s => !section(2).includes('| ' + s + ' ')), handoverStates.length)
+check('handover-baseline', handoverStates.length === 6 ? [] : ['expect 6 got ' + handoverStates.length], 6)
 console.log(JSON.stringify(results, null, 2))
