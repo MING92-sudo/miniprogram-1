@@ -1,0 +1,40 @@
+<view class="bw">
+  <nav-bar title="我的维保工单" bind:back="onBack"></nav-bar>
+  <view class="page-pad col gap10">
+    <view class="search">
+      <text class="i i-magnifying-glass"></text>
+      <input class="ol-input" value="{{keyword}}" bindinput="onSearch" placeholder="搜索电梯 / 工单号" placeholder-class="ol-ph" />
+      <text class="i i-qrcode ol-scan" bindtap="onScan"></text>
+    </view>
+
+    <view class="tabs">
+      <button wx:for="{{tabs}}" wx:key="key" class="tab {{activeTab === item.key ? 'on' : ''}}" data-key="{{item.key}}" bindtap="onTabChange">{{item.label}}</button>
+    </view>
+
+    <view wx:if="{{dueLabel}}" class="alert-strip">
+      <text class="i i-clock amber"></text>
+      <text class="grow fs20">{{dueLabel}}</text>
+      <button class="link fs20" bindtap="clearDue">清除</button>
+    </view>
+
+    <skeleton wx:if="{{loading}}" rows="{{[{h:120},{h:120},{h:120}]}}"></skeleton>
+    <error-retry wx:elif="{{error}}" message="{{error}}" bind:retry="onRetry"></error-retry>
+    <block wx:elif="{{list.length}}">
+      <view wx:for="{{list}}" wx:key="id" class="card ol-card" data-id="{{item.id}}" bindtap="goDetail" aria-role="button" aria-label="{{item.elevatorName}}">
+        <view class="row between">
+          <view class="fs24 w7 grow">{{item.elevatorName || item.elevatorCode}}</view>
+          <status-tag text="{{item.statusText}}" tone="{{item.status === 'DONE' ? 'ok' : 'amber'}}"></status-tag>
+        </view>
+        <view class="fs20 dim mt4">{{item.workType || '维保'}} · {{item.projectName || ''}}</view>
+        <view class="row between mt8">
+          <text class="mono fs20 dim">计划 {{item.planTime}}</text>
+          <button class="btn btn-ghost btn-xs" data-id="{{item.id}}" data-status="{{item.status}}" catchtap="onAction">
+            {{item.status === 'PENDING' ? '去签到' : (item.status === 'PROCESSING' ? '继续作业' : '查看')}}
+          </button>
+        </view>
+      </view>
+      <view wx:if="{{list.length < total}}" class="hint">上拉加载更多</view>
+    </block>
+    <empty-state wx:else mode="{{emptyMode}}" title="{{emptyMode === 'filtered' ? '没有匹配的工单' : emptyTitle}}" desc="{{emptyMode === 'filtered' ? '换个筛选条件试试。' : '派单后工单会出现在这里。'}}"></empty-state>
+  </view>
+</view>
