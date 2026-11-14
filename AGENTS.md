@@ -33,7 +33,7 @@
 ├─ constants/index.js             枚举/错误码/业务常量（文案统一从这里取）
 ├─ mock/                          mock 契约层（server.js 路由 = docs/04 A 部分）
 ├─ backend/                       Spring Boot 3.3.4 后端（Flyway V1—V36、JWT/BCrypt、平台转发、362 单测）
-├─ admin/                         Vue3 + Vite + Element Plus 管理端（21 视图；lint/vitest/build）
+├─ admin/                         Vue3 + Vite + 自建组件库（ui/）+ Element Plus（过渡期旧视图，M5 移除）管理端（21 视图；lint/vitest/build）
 ├─ scripts/                       平台联调脚本与回归脚本（fixtures/ 合成测试件；tmp/ 已 gitignore）
 ├─ doc_text.txt                   平台规范 V1.5 原文提取（docs/04 B 部分核对来源，只读）
 ├─ docs/                          01—15 编号文档（见 §8）
@@ -95,7 +95,7 @@
 
 ### 4.3 管理端
 
-- Vue3 + Vite + Element Plus；权限以后端强校验为准，前端隐藏只是体验优化。
+- Vue3 + Vite + 自建组件库（`admin/src/ui/`，M2 起）+ Element Plus（过渡期旧视图，M5 移除）；权限以后端强校验为准，前端隐藏只是体验优化。
 - 角色：`LEADER` 只读；`ADMIN`/`SYS_ADMIN` 可写；`WORKER` 登录即 403。
 - 不新增平台凭证配置页，不新增批量自动重试入口。
 - 改动后在 `admin/` 内跑 `npm run lint && npm test && npm run build`。
@@ -187,6 +187,7 @@
 | V3.9 | 2026-11-13 | 单身份登录（用户需求：两个账号不能同时在线）：①员工态（em_token）与门户态（unit_token）互斥——services/unit.saveUnitSession 内清员工态、app.setAuth 与登录页员工分支清门户态、冷启动 restoreAuth 若两套并存保留员工态；②「我的」页按单一身份渲染（门户态 → 门户卡片 + 微信绑定；员工态 → 个人信息与按角色下发入口；无身份 → 登录引导），不再同时显示两张卡片；③退出门户即退出本次登录并回登录页；门户首页补「我的」入口（switchTab）；④登录页收敛为唯一账号密码表单（删除页面底部使用单位入口、去掉 11 位手机号限制、取消登录后自动绑定微信），微信绑定与免密登录改为「我的」页可选能力；⑤新增 §3.9 业务不变量，docs/03 V2.12 同步 |
 | V3.10 | 2026-11-13 | 使用单位「我的」独立成页（用户需求：门户账号只看单位信息与设置，不渲染维保内容）：①新增 `pages/unit/mine`（小程序 40 页）——单位信息（单位名称/登录账号/角色）+ 绑定微信一键登录 + 修改口令 + 退出登录，不含任何作业入口；②`pages/mine` 只服务员工态，检测到门户身份即回门户首页；门户首页「我的」改 `navigateTo` 该页（非 tab，无维保 tabBar）；③后端新增 `POST /unit/account/password`（门户令牌，原口令校验 + 新口令 ≥6 位且不同于原口令，只更新 BCrypt 哈希），`UnitAccountServiceTest` 补 4 例；会话返回体补 `account`；④mock 与 docs/04（V2.50）三处同步，迁移与种子数据不变 |
 | V3.11 | 2026-11-14 | M1 后端权限底座（管理端重构「梯维通」蓝图，策略 A 底座先行分批；spec/plan 见 docs/superpowers）：①V35 权限核心五表（sys_org/sys_user_role/sys_role_scope/sys_grant/sys_audit_log）+ sys_employee.scope_version + 13 角色默认范围种子；V36 dev/test 由存量旧角色回填（生产空库 no-op，张工归 Seeder，严禁自动 TRUNCATE/DELETE）；②RoleCatalog v2 十三规范角色 + 旧码别名 + 同部门兼任（R7）；PermissionMatrix v2 八十六码三态（Y/C/DENY）唯一事实源，24 旧常量/GRANTS 冻结保留；LegacyCapabilityTranslator 24→71 桥接（adminConsole 门控 + order/fault 语义反转，allows 逐格复现冻结授权，RbacMatrixTest/CompatTest 锁定）；③JWT 增 scopeVersion claim（保留 5 参重载）+ AuthInterceptor v2 多角色集 ATTR_ROLES + sv 校验（旧 token null→0 兼容）；ScopeResolver 读写双谓词与 V7 逐集合等价（写绝不扩区域/部门）；④GrantService 限时授权四态 + 到期回收 bumpScopeVersion + 审计；AuditLogService append-only + 越权 403/1403 BLOCKED 留痕（op_log 并存）；⑤DemoDataSeeder 增张工 INST_MGR（INSTALL）与组织角色锚点。旧端点行为逐条不变，业务查询/admin/小程序零改动；M1 不新增 REST 端点（grant 管理 M3、audit 视图 M5），docs/04 三处同步不触发。计数更新（Flyway V1—V36、362 单测）；门禁全绿（后端 mvn clean test/package、verify-dispatch/templates、admin lint/39 用例/build）。M2—M5 与生产清库见 docs/12 G 组 |
+| V3.12 | 2026-11-14 | M2 自建组件库 + 应用壳（管理端重构「梯维通」，纯前端；spec/plan 见 docs/superpowers）：①`admin/src/ui/` 深色工业风 token 层（admin-spec §8 逐字）+ inline SVG 图标 + 状态色映射；②9 组件（DataTable/Drawer/Modal/Form/Toast/StatusTag/Timeline/PermButton/AppShell）+ 四态 + 4 composables（useTable/usePagination/useForm/usePermission），styled SFC + headless 分离；③permission-v2 前端镜像 M1（13 角色/86 码三态 + canonical 别名 + 漂移守卫）；④双布局共存：新 AppShell 包 login/工作台/403/404，旧 17 视图保留 AdminLayout + EP（/legacy 前缀保活），EP 到 M5 移除；⑤工作台 M2 用 admin-spec §9 mock 基准集 + 真实多角色切换机制（roleSet 接线 M3）；⑥开发态组件廊 + 九不变量自检；⑦移除无引用 exceljs。旧 39 用例零回归 + 新增 66 用例（共 105）全绿，lint/build 通过，浏览器走查登录/组件廊/自检渲染无报错。M2 不新增 REST 端点，docs/04 三处同步不触发。docs/09 V3.17、docs/12 V1.7 同步 |
 
 <!-- aoci:begin -->
 ## AOCI Repository Cognition

@@ -13,7 +13,7 @@ export const provider = {
       { key: 'dualSignPending', label: '双签待补', value: mockData.records.filter(r => r.status === 'SIGNING').length }
     ]
   },
-  getTodos(scope) {
+  getTodos(_scope) {
     return mockData.handovers.filter(h => h.status === 'REVIEWING').slice(0, 5)
       .map(h => ({ id: h.id, text: '移交待审核 ' + h.no, link: '/handovers' }))
   },
