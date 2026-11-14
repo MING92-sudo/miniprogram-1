@@ -40,16 +40,20 @@ public class AuthController {
     private final MenuService menuService;
     /** 同一登录页的使用单位门户分支（W3）：员工账号查不到时再试门户账号 */
     private final com.cqwlw.maintenance.service.UnitAccountService unitAccountService;
+    /** M1：规范角色集（sys_user_role ∪ 旧主角色别名归一） */
+    private final UserRoleService userRoleService;
     private final BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
 
     public AuthController(EmployeeMapper employeeMapper, JwtService jwtService, WxAuthService wxAuthService,
                           MenuService menuService,
-                          com.cqwlw.maintenance.service.UnitAccountService unitAccountService) {
+                          com.cqwlw.maintenance.service.UnitAccountService unitAccountService,
+                          UserRoleService userRoleService) {
         this.employeeMapper = employeeMapper;
         this.jwtService = jwtService;
         this.wxAuthService = wxAuthService;
         this.menuService = menuService;
         this.unitAccountService = unitAccountService;
+        this.userRoleService = userRoleService;
     }
 
     @PostMapping("/auth/login")
@@ -79,7 +83,9 @@ public class AuthController {
         return ApiResponse.ok(loginResult(user, null, client));
     }
 
-    /** 使用单位门户账号登录（同一登录页的分支）：门户令牌 + portal=true，供前端跳门户首页 */
+    /** 使用单位门户账号登录（同一登录页的分支）：门户令牌 + portal=true，供前端跳门户首页。
+     * @deprecated M1 账号统一后仅作为 account_migrated=0 跨部门兜底（裁决 R4），M6 删除。 */
+    @Deprecated
     private Map<String, Object> unitLoginResult(String account, String password, Map<String, Object> body) {
         if ("admin".equals(String.valueOf(body.get("client")))) {
             throw new BizException(403, "使用单位账号请使用小程序登录");
@@ -217,7 +223,35 @@ public class AuthController {
         out.put("token", issueSessionToken(user, user.role, openid, client));
         out.put("userInfo", userInfo(user));
         out.put("role", user.role);
+        // M1 扩展（规格 §3.2）：多角色并集 + 能力码并集 + 范围投影 + 默认工作台；旧字段保留兼容
+        java.util.Set<String> roles = userRoleService.canonicalRolesOf(user.id, user.role);
+        out.put("roles", new java.util.ArrayList<>(roles));
+        out.put("perms", PermissionMatrix.canonicalCapabilities().stream()
+                .filter(c -> roles.stream().anyMatch(r -> PermissionMatrix.allowsNew(r, c)))
+                .collect(java.util.stream.Collectors.toList()));
+        out.put("scope", scopeText(user));
+        out.put("activeWorkspace", MiniappMenuService.activeWorkspace(roles));
+        out.put("home", MiniappMenuService.resolveHome(roles));
         return out;
+    }
+
+    /** 范围一句话投影（部门 + 岗位）；数据范围权威仍是 ScopeResolver 读写谓词 */
+    private static String scopeText(Employee user) {
+        String dept = user.department;
+        if (dept == null || dept.isEmpty()) {
+            String r = user.role == null ? "" : user.role;
+            dept = r.startsWith("MAINT") || r.equals("WORKER") || r.equals("ASSISTANT") || r.equals("LEADER")
+                    ? "MAINT" : r.startsWith("INST") || r.startsWith("INSTALL") ? "INSTALL"
+                    : r.startsWith("CLIENT") || r.equals("UNIT_ADMIN") ? "UNIT" : "PLATFORM";
+        }
+        String deptName = switch (dept) {
+            case "INSTALL" -> "安装部";
+            case "MAINT" -> "维保部";
+            case "UNIT" -> "使用单位";
+            default -> "平台";
+        };
+        String job = user.roleText == null || user.roleText.isEmpty() ? user.role : user.roleText;
+        return deptName + "·" + job;
     }
 
     /** 单端登录（按端隔离）：签发覆盖对应端会话，同端互踢、跨端互不干扰 */

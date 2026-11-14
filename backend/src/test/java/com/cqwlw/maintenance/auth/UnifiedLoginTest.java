@@ -28,10 +28,11 @@ class UnifiedLoginTest {
     private final EmployeeMapper employeeMapper = mock(EmployeeMapper.class);
     private final UnitAccountService unitAccountService = mock(UnitAccountService.class);
     private final JwtService jwtService = mock(JwtService.class);
+    private final UserRoleService userRoleService = mock(UserRoleService.class);
 
     private AuthController controller() {
         return new AuthController(employeeMapper, jwtService, mock(WxAuthService.class),
-                mock(MenuService.class), unitAccountService);
+                mock(MenuService.class), unitAccountService, userRoleService);
     }
 
     /** 员工目录查不到 → 自动按使用单位账号再试，返回 portal=true */
@@ -61,6 +62,7 @@ class UnifiedLoginTest {
         e.passwordHash = enc.encode("Passw0rd!23");
         e.enabled = true;
         when(employeeMapper.selectOne(any())).thenReturn(e);
+        when(userRoleService.canonicalRolesOf(any(), any())).thenReturn(java.util.Set.of("MAINT_TECH"));
         when(jwtService.issue(anyString(), anyString(), any(), anyString(), anyString(), anyInt()))
                 .thenReturn("emp-token");
 
@@ -68,6 +70,55 @@ class UnifiedLoginTest {
         assertEquals("WORKER", data.get("role"));
         assertEquals("emp-token", data.get("token"));
         assertEquals(null, data.get("portal"));
+        // M1 扩展字段（旧字段兼容不变）
+        assertEquals(java.util.List.of("MAINT_TECH"), data.get("roles"));
+        assertEquals("MAINT_TECH", data.get("activeWorkspace"));
+        assertEquals("/pages/maint/home/index", data.get("home"));
+        assertTrue(data.get("perms") instanceof java.util.List);
+        assertTrue(String.valueOf(data.get("scope")).contains("维保"));
+    }
+
+    /** M1：CLIENT 账号登录路由使用单位工作台，无 portal 标记 */
+    @Test
+    void clientAccountLoginRoutesClientWorkspace() {
+        BCryptPasswordEncoder enc = new BCryptPasswordEncoder();
+        Employee e = new Employee();
+        e.id = "emp_9";
+        e.name = "张伟";
+        e.role = "CLIENT_ADMIN";
+        e.department = "UNIT";
+        e.account = "13800000009";
+        e.passwordHash = enc.encode("Passw0rd!23");
+        e.enabled = true;
+        when(employeeMapper.selectOne(any())).thenReturn(e);
+        when(userRoleService.canonicalRolesOf(any(), any()))
+                .thenReturn(java.util.Set.of("CLIENT_ADMIN", "CLIENT_SIGNER"));
+        when(jwtService.issue(anyString(), anyString(), any(), anyString(), anyString(), anyInt()))
+                .thenReturn("client-token");
+
+        Map<String, Object> data = controller().login(Map.of("phone", "13800000009", "password", "Passw0rd!23")).getData();
+        assertEquals("CLIENT_ADMIN", data.get("activeWorkspace"));
+        assertEquals("/pages/client/home/index", data.get("home"));
+        assertEquals(null, data.get("portal"));
+        assertTrue(((java.util.List<?>) data.get("roles")).containsAll(
+                java.util.List.of("CLIENT_ADMIN", "CLIENT_SIGNER")));
+    }
+
+    /** M1：UserRoleService 并集含别名归一后的旧主角色 */
+    @Test
+    void canonicalRolesUnionIncludesAliasedLegacyPrimary() {
+        com.cqwlw.maintenance.mapper.SysUserRoleMapper mapper =
+                mock(com.cqwlw.maintenance.mapper.SysUserRoleMapper.class);
+        com.cqwlw.maintenance.entity.SysUserRole row = new com.cqwlw.maintenance.entity.SysUserRole();
+        row.userId = "e9";
+        row.roleCode = "CLIENT_SIGNER";
+        row.userType = "EMPLOYEE";
+        when(mapper.selectList(any())).thenReturn(java.util.List.of(row));
+        UserRoleService svc = new UserRoleService(mapper);
+
+        java.util.Set<String> roles = svc.canonicalRolesOf("e9", "UNIT_ADMIN");
+
+        assertEquals(java.util.Set.of("CLIENT_ADMIN", "CLIENT_SIGNER"), roles);
     }
 
     /** 管理端登录不接受使用单位账号（client=admin） */
