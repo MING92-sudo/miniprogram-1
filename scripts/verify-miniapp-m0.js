@@ -59,4 +59,10 @@ for (const line of spec14.split('\n')) {
 }
 check('routes-new', [...specRoutes].filter(p => !newCol.has(p)), specRoutes.size)
 check('routes-count', specRoutes.size === 49 && newCol.size === 49 ? [] : ['spec=' + specRoutes.size + ' m0=' + newCol.size], 49)
+// 5 权限码：106 唯一全覆盖
+const pmSrc = fs.readFileSync(path.join(ROOT, 'backend/src/main/java/com/cqwlw/maintenance/auth/PermissionMatrix.java'), 'utf8')
+const codes = [...new Set([...pmSrc.matchAll(/public static final String [A-Z_0-9]+ = "([a-z_]+:[a-z_]+)"/g)].map(m => m[1]))]
+const s5 = section(5)
+check('perm-codes', codes.filter(c => !s5.includes('| ' + c + ' ')), codes.length)
+check('perm-count', codes.length === 106 ? [] : ['expect 106 got ' + codes.length], 106)
 console.log(JSON.stringify(results, null, 2))
