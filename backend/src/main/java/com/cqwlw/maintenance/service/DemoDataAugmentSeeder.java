@@ -115,15 +115,33 @@ public class DemoDataAugmentSeeder implements ApplicationRunner {
             return; // 基础种子尚未就绪，跳过（不阻断启动）
         }
         log.info("SEED_DEMO_DATA=true：按域幂等补全管理端演示数据（不清库、不覆盖已有数据）");
-        seedRegions();
-        String contractId = seedContracts(uu, el);
-        seedProjects(uu, contractId, el);
-        seedHandover(el, admin);
-        seedFiling(uu, contractId, admin);
-        seedInvites(admin);
-        seedGrants(admin);
-        seedExportApprovals(admin);
+        String contractId = safely("合同", () -> seedContracts(uu, el));
+        safely("区域", this::seedRegions);
+        safely("项目", () -> seedProjects(uu, contractId, el));
+        safely("移交", () -> seedHandover(el, admin));
+        safely("外接建档", () -> seedFiling(uu, contractId, admin));
+        safely("邀请码", () -> seedInvites(admin));
+        safely("限时授权", () -> seedGrants(admin));
+        safely("敏感导出审批", () -> seedExportApprovals(admin));
         log.info("管理端演示数据补全完成");
+    }
+
+    /** 单域补全失败仅记日志，不阻断其余域与启动。 */
+    private void safely(String domain, Runnable task) {
+        try {
+            task.run();
+        } catch (Exception e) {
+            log.warn("演示数据补全[{}]失败（跳过，不影响其余域）: {}", domain, e.getMessage());
+        }
+    }
+
+    private String safely(String domain, java.util.function.Supplier<String> task) {
+        try {
+            return task.get();
+        } catch (Exception e) {
+            log.warn("演示数据补全[{}]失败（跳过，不影响其余域）: {}", domain, e.getMessage());
+            return null;
+        }
     }
 
     private static <T> T first(List<T> list) {
@@ -190,8 +208,16 @@ public class DemoDataAugmentSeeder implements ApplicationRunner {
     }
 
     private void seedHandover(Elevator el, Employee admin) {
-        if (!empty(handoverOrderMapper.selectCount(null))) {
-            return;
+        if (handoverCheckItemMapper.selectCount(null) > 0) {
+            return; // 已有完整清单
+        }
+        // 清理上次失败遗留的半成品演示移交（仅演示单号），再整体重建
+        HandoverOrder partial = first(handoverOrderMapper.selectList(
+                new LambdaQueryWrapper<HandoverOrder>().eq(HandoverOrder::getHandoverNo, "YJ-2026-0001").last("LIMIT 1")));
+        if (partial != null) {
+            handoverCheckMapper.delete(new LambdaQueryWrapper<HandoverCheck>().eq(HandoverCheck::getHandoverId, partial.id));
+            handoverRectificationMapper.delete(new LambdaQueryWrapper<HandoverRectification>().eq(HandoverRectification::getHandoverId, partial.id));
+            handoverOrderMapper.deleteById(partial.id);
         }
         HandoverOrder ho = new HandoverOrder();
         ho.id = Ids.next("ho");
@@ -233,6 +259,7 @@ public class DemoDataAugmentSeeder implements ApplicationRunner {
             it.checkId = check.id;
             it.itemNo = t.no();
             it.itemGroup = t.group();
+            it.itemType = t.group(); // 兼容列 item_type NOT NULL（V27）
             it.clauseNo = t.clause();
             it.itemName = t.name();
             it.requirement = t.requirement();

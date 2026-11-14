@@ -88,6 +88,7 @@ public class HandoverChecklistService {
             it.checkId = check.id;
             it.itemNo = t.no();
             it.itemGroup = t.group();
+            it.itemType = t.group(); // 兼容列 item_type NOT NULL（V27），新单以 G01—G13 项类填充
             it.clauseNo = t.clause();
             it.itemName = t.name();
             it.requirement = t.requirement();
