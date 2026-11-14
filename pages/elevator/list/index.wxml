@@ -1,0 +1,24 @@
+<view class="bw">
+  <nav-bar title="电梯" back="{{false}}"></nav-bar>
+  <view class="page-pad tabbar-pad col gap10">
+    <view class="search">
+      <text class="i i-magnifying-glass"></text>
+      <input class="el-search-input" value="{{keyword}}" bindinput="onSearchInput" placeholder="搜索名称 / 编号 / 项目" placeholder-class="el-ph" />
+      <text wx:if="{{keyword}}" class="i i-xmark dim" bindtap="onClearSearch"></text>
+    </view>
+    <skeleton wx:if="{{loading}}" rows="{{[{h:96},{h:96},{h:96},{h:96}]}}"></skeleton>
+    <error-retry wx:elif="{{error}}" message="{{error}}" bind:retry="onRetry"></error-retry>
+    <block wx:elif="{{list.length}}">
+      <view wx:for="{{list}}" wx:key="id" class="elev-row" data-id="{{item.id}}" bindtap="goDetail" aria-role="button" aria-label="{{item.elevatorName}}">
+        <view class="elev-ico"><text class="i i-elevator"></text></view>
+        <view class="grow">
+          <view class="fs22 w6">{{item.elevatorName}}</view>
+          <view class="fs20 dim mt2">{{item.projectName || ''}} · {{item.elevatorCode}}</view>
+        </view>
+        <text class="i i-chevron-right dim"></text>
+      </view>
+    </block>
+    <empty-state wx:else mode="{{emptyMode}}" title="{{emptyTitle}}" desc="{{emptyDesc}}" actionText="{{keyword ? '清空搜索' : ''}}" bind:action="onClearSearch"></empty-state>
+  </view>
+  <custom-tabbar></custom-tabbar>
+</view>
