@@ -134,6 +134,10 @@ public class HandoverService {
         o.ratedSpeedUnit = trimToNull(str(body, "ratedSpeedUnit"));
         o.stationsDoors = trimToNull(str(body, "stationsDoors"));
         o.workTypeCode = trimToNull(str(body, "workTypeCode"));
+        // C-12：表单 §3.3 第 6—7 行表头（安装竣工日期/安装单位名称/特殊类别）
+        o.installCompleteDate = trimToNull(str(body, "installCompleteDate"));
+        o.installUnitName = trimToNull(str(body, "installUnitName"));
+        o.specialType = trimToNull(str(body, "specialType"));
         orderMapper.insert(o);
         return o;
     }

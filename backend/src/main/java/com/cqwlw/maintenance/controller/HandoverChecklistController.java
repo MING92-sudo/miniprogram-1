@@ -103,4 +103,11 @@ public class HandoverChecklistController {
         MultiRoleGate.requireRead(req, PermissionMatrix.HANDOVER_VIEW);
         return ApiResponse.ok(checklist.archive(id));
     }
+
+    /** C-12：按移交单取一梯一档归档目录（管理端移交详情用，幂等生成 7 条 + SHA-256）。 */
+    @GetMapping("/handovers/{id}/archive")
+    public ApiResponse<List<HandoverArchive>> handoverArchive(@PathVariable String id, HttpServletRequest req) {
+        MultiRoleGate.requireRead(req, PermissionMatrix.HANDOVER_VIEW);
+        return ApiResponse.ok(checklist.archive(id));
+    }
 }

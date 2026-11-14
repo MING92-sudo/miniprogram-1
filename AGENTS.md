@@ -19,7 +19,7 @@
 | 账号与数据权限 | `docs/14-账号权限与组织角色设计.md` | 三平级部门（安装/维保/使用单位）角色码、数据域与权限矩阵 |
 | 测试与上线检查 | `docs/05-测试与验收方案.md`、`docs/11-云托管部署手册.md` | 人工验收结论写回 docs/05、docs/10 |
 
-**当前基线（2026-11-14 机审）**：小程序 40 页（tabBar 4）；`services/` 11 个模块；`mock/server.js` 82 条路由；后端 181 个 Web 映射注解、Flyway V1—V40、395 个单测；管理端 23 个视图（自建组件库，Element Plus 已移除）；文档 01—15。计数用于快速定位，提交前以代码实测为准；文档数字滞后时改文档，不要为迁就旧数字改代码。
+**当前基线（2026-11-14 机审）**：小程序 40 页（tabBar 4）；`services/` 11 个模块；`mock/server.js` 83 条路由；后端 182 个 Web 映射注解、Flyway V1—V40、396 个单测；管理端 23 个视图（自建组件库，Element Plus 已移除）；文档 01—15。计数用于快速定位，提交前以代码实测为准；文档数字滞后时改文档，不要为迁就旧数字改代码。
 
 ## 1. 系统组成与分层
 
@@ -32,7 +32,7 @@
 ├─ config/index.js                环境配置（ENV、useMock、apiBaseUrl、cloud.env/service、LBS key 留空）
 ├─ constants/index.js             枚举/错误码/业务常量（文案统一从这里取）
 ├─ mock/                          mock 契约层（server.js 路由 = docs/04 A 部分）
-├─ backend/                       Spring Boot 3.3.4 后端（Flyway V1—V40、JWT/BCrypt、平台转发、395 单测）
+├─ backend/                       Spring Boot 3.3.4 后端（Flyway V1—V40、JWT/BCrypt、平台转发、396 单测）
 ├─ admin/                         Vue3 + Vite + 自建组件库（ui/）管理端（23 视图，Element Plus 已移除；lint/vitest/build）
 ├─ scripts/                       平台联调脚本与回归脚本（fixtures/ 合成测试件；tmp/ 已 gitignore）
 ├─ doc_text.txt                   平台规范 V1.5 原文提取（docs/04 B 部分核对来源，只读）
@@ -190,6 +190,7 @@
 | V3.12 | 2026-11-14 | M2 自建组件库 + 应用壳（管理端重构「梯维通」，纯前端；spec/plan 见 docs/superpowers）：①`admin/src/ui/` 深色工业风 token 层（admin-spec §8 逐字）+ inline SVG 图标 + 状态色映射；②9 组件（DataTable/Drawer/Modal/Form/Toast/StatusTag/Timeline/PermButton/AppShell）+ 四态 + 4 composables（useTable/usePagination/useForm/usePermission），styled SFC + headless 分离；③permission-v2 前端镜像 M1（13 角色/86 码三态 + canonical 别名 + 漂移守卫）；④双布局共存：新 AppShell 包 login/工作台/403/404，旧 17 视图保留 AdminLayout + EP（/legacy 前缀保活），EP 到 M5 移除；⑤工作台 M2 用 admin-spec §9 mock 基准集 + 真实多角色切换机制（roleSet 接线 M3）；⑥开发态组件廊 + 九不变量自检；⑦移除无引用 exceljs。旧 39 用例零回归 + 新增 66 用例（共 105）全绿，lint/build 通过，浏览器走查登录/组件廊/自检渲染无报错。M2 不新增 REST 端点，docs/04 三处同步不触发。docs/09 V3.17、docs/12 V1.7 同步 |
 | V3.13 | 2026-11-14 | M3—M5 视图分批落地与旧管理端下线（管理端重构「梯维通」收尾）：①M3 台账域——V37（sys_invite/biz_project/biz_elevator_change）+ MultiRoleGate 多角色三态门控 + 组织/项目/邀请/限时授权/电梯双人变更/账号/角色矩阵端点 + 7 视图；合同金额服务端分级脱敏；②M4 作业域——V38（记录版本链+solo_exempt、故障代报修+SLA、工单SLA）+ 记录修订 v2+新哈希（不重报，P-5）/代报修端点 + 移交/计划/记录/调度/工单详情 5 视图 + 合规组并入新壳；③M5 数据域——V39（sys_config/biz_export_approval）+ 配置/敏感导出审批/统计/审计只读端点 + 3 视图；移除 Element Plus 与旧 AdminLayout/旧 permission/menu/旧 EP 视图，guard/auth 切 permission-v2；小程序 role-view 对齐 13 规范角色（兼容旧码、单身份互斥不变）。计数更新（Flyway V1—V39、375 单测、173 映射、23 视图）；门禁全绿（后端 mvn test、admin lint/75 用例/build 无 EP 包、verify-dispatch/templates）。生产清库仍为人工上线步骤（docs/12 G 组） |
 | V3.14 | 2026-11-14 | C-12 安装移交维保检查清单后端核心落地（GB/T 10060—2023 表1，docs/15）：①V40 迁移扩 `handover_order`/`handover_check`/`handover_check_item`/`handover_rectification`/`handover_confirmation` + 新增 `handover_doc`/`handover_photo`/`handover_archive`（SHA-256）；②`HandoverChecklistTemplate` 74 项（13 项类/☆49 重要项/试验项 57—74）、`HandoverChecklistService` 7.2/7.3 五路径判定（重要项任一不合格即 DISQUALIFIED、一般项 >8 DISQUALIFIED、1—3 且三条件齐备 CONDITIONAL、其余 RECTIFY、全合格 QUALIFIED）+ 不合格项按 `item_no` 1:1 生成整改（不可增删）+ 逐条复验（全 PASS 才回待确认）+ ☆项 NA 经理审批（`handover_sign` 节点 NA_APPROVE）+ 一梯一档 7 条目录 SHA-256（幂等）；③`HandoverPdfService` 三张表单导出（CHECK/RECT/INDEX，A4 多页重复表头 + 页脚「内部移交把关，不替代监督检验」）；④8 端点经 `MultiRoleGate`（HANDOVER_VIEW/INSPECT/RECTIFY/REVIEW/EXPORT）门控；⑤`HandoverService.submitInspect` 改任一查验项 FAIL 即强制整改（D-2，删除 RECTIFY_ITEM_TYPES 两类限定），`recheckRectify` 增 rectId 逐条复验分支（保留整批兜底）。§3 业务不变量「清单与签退」口径不变（移交清单独立于维保签退）。新增 `HandoverChecklistServiceTest` 20 例；mock/services/docs/04（V2.51）三处同步。计数更新（Flyway V1—V40、395 单测、181 映射、mock 82 路由）；后端 mvn test 全绿、根 lint 通过（worktree 点路径致 `eslint .` 全忽略，改用显式文件 --no-ignore 校验）。剩余前端逐项留证 UI 与管理端清单视图见 docs/12 C-12（部分关闭） |
+| V3.15 | 2026-11-14 | C-12 管理端落地（前后端，小程序不动）：①`HandoversView` 由只读列表重建为主从视图——列表 + 状态筛选 + 行点击抽屉，抽屉三 Tab（74 项检查清单按 G01—G13 分组逐项留证：结果/实测值/不合格描述/NA 原因码 NA-01—05/照片上传，☆与试验项不合格强制照片；1:1 整改清单逐条上传整改 + 逐条复验；一梯一档 7 条目录 SHA-256）；判定结论由后端冻结回显（前端不改写），有条件移交 7.3 三条件输入；②`PermButton` 三态门控 handover:inspect/rectify/review/export，NA 审批/复验/整改走 `Modal`，三张表单 PDF blob 导出，照片复用 `api/upload`→`/files/upload`；③`DataTable` 增可选 `clickable`+`row-click`（向后兼容，旧视图零回归）；④`api/handover.js` +8 方法；⑤后端 `HandoverService.init` 接收表头三字段（installCompleteDate/installUnitName/specialType）+ 新增 `GET /handovers/{id}/archive`（按移交单，幂等）。门禁：admin lint/90 用例（+9）/build 无 EP 包、浏览器壳走查无报错（登录壳渲染正常；移交全流程 E2E 因本地无 MySQL 未跑，由 7 个视图交互测试覆盖）；后端 mvn clean test 396 全绿、根 lint 绿。mock/docs/04（V2.52）/docs/09（V3.20）/docs/12（V1.11）同步；小程序 services/pages 本期不动（C-12 查验页逐项留证 UI 暂缓）。计数更新（182 映射、mock 83 路由、396 单测） |
 
 <!-- aoci:begin -->
 ## AOCI Repository Cognition

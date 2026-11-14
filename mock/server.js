@@ -50,6 +50,13 @@ function judgeHandover(impFail, genFail, cond) {
   if (genFail >= 1 && genFail <= 3 && conditional) return 'CONDITIONAL'
   return 'RECTIFY'
 }
+// C-12：一梯一档 7 条归档目录（按移交单 id，SHA-256 占位，与后端 archive() 同结构）
+function handoverArchiveEntries(id) {
+  const cats = [['01', 'CHECKLIST'], ['02', 'RECTIFICATION'], ['03', 'DOCS'], ['04', 'PHOTOS'],
+    ['05', 'CONFIRMATION'], ['06', 'FIRST_ORDER'], ['07', 'PENDING_DOCS']]
+  return cats.map((c, i) => ({ id: 'ha_' + id + '_' + c[0], handoverId: id,
+    category: c[1], seq: i + 1, sha256: 'mock_sha256_' + c[0], archivedAt: formatTime(new Date()) }))
+}
 
 const routes = [
   // ── 鉴权 ──
@@ -594,11 +601,10 @@ const routes = [
     findOr404(mockHandovers, params.id, '移交单')
     return { form: (query && query.form) || 'CHECK', fileUrl: '', note: 'mock 不生成真实 PDF，真实端点返回二进制 application/pdf' }
   }],
-  ['GET', '/elevators/:id/archive', ({ params }) => {
-    const cats = [['01', 'CHECKLIST'], ['02', 'RECTIFICATION'], ['03', 'DOCS'], ['04', 'PHOTOS'],
-      ['05', 'CONFIRMATION'], ['06', 'FIRST_ORDER'], ['07', 'PENDING_DOCS']]
-    return cats.map((c, i) => ({ id: 'ha_' + params.id + '_' + c[0], handoverId: params.id,
-      category: c[1], seq: i + 1, sha256: 'mock_sha256_' + c[0], archivedAt: formatTime(new Date()) }))
+  ['GET', '/elevators/:id/archive', ({ params }) => handoverArchiveEntries(params.id)],
+  ['GET', '/handovers/:id/archive', ({ params }) => {
+    findOr404(mockHandovers, params.id, '移交单')
+    return handoverArchiveEntries(params.id)
   }],
   ['GET', '/filings', ({ query }) => paginate(mockFilings.filter((f) => !query.status || f.status === query.status), query)],
   ['POST', '/filings', ({ body }) => {

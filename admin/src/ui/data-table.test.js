@@ -30,4 +30,15 @@ describe('DataTable', () => {
     expect(w.find('.dt-bulk').exists()).toBe(true)
     expect(w.text()).toContain('已选 2')
   })
+  it('emits row-click with row when clickable', async () => {
+    const w = mount(DataTable, { props: { columns, rows, clickable: true } })
+    await w.findAll('tbody tr')[1].trigger('click')
+    expect(w.emitted('row-click')).toBeTruthy()
+    expect(w.emitted('row-click')[0][0]).toEqual(rows[1])
+  })
+  it('does not emit row-click when not clickable', async () => {
+    const w = mount(DataTable, { props: { columns, rows } })
+    await w.findAll('tbody tr')[0].trigger('click')
+    expect(w.emitted('row-click')).toBeFalsy()
+  })
 })

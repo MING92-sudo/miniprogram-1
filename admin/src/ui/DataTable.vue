@@ -25,7 +25,7 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="row in t.visibleRows.value" :key="row.id">
+          <tr v-for="row in t.visibleRows.value" :key="row.id" :class="{ 'row-clickable': clickable }" @click="clickable && $emit('row-click', row)">
             <td v-if="selectable"><input type="checkbox" :checked="t.selected.value.has(row.id)" @change="t.toggleSelect(row.id)" :aria-label="'选择 ' + row.id" /></td>
             <td v-for="col in columns" :key="col.key">{{ row[col.key] }}</td>
           </tr>
@@ -52,9 +52,10 @@ import PermButton from './PermButton.vue'
 const props = defineProps({
   columns: { type: Array, required: true }, rows: { type: Array, default: () => [] },
   loading: Boolean, selectable: Boolean, searchKeys: { type: Array, default: () => [] },
-  filters: { type: Array, default: () => [] }, bulkActions: { type: Array, default: () => [] }
+  filters: { type: Array, default: () => [] }, bulkActions: { type: Array, default: () => [] },
+  clickable: Boolean
 })
-defineEmits(['sort', 'search', 'filter', 'page', 'select', 'bulk'])
+defineEmits(['sort', 'search', 'filter', 'page', 'select', 'bulk', 'row-click'])
 const rowsRef = computed(() => props.rows)
 const t = useTable(rowsRef, { searchKeys: props.searchKeys })
 function arrow(key) {
@@ -71,6 +72,8 @@ const activeChips = computed(() => Object.entries(t.filters.value).filter(([, v]
 .dt-table th { text-align: left; padding: 10px 12px; background: var(--panel-2); color: var(--muted); font-size: 11px; font-family: var(--font-mono); letter-spacing: .04em; text-transform: uppercase; border-bottom: 1px solid var(--line-2); }
 .dt-table th.sortable { cursor: pointer; }
 .dt-table td { padding: 0 12px; height: 40px; border-bottom: 1px solid var(--line); font-size: 13px; }
+.dt-table tr.row-clickable { cursor: pointer; }
+.dt-table tr.row-clickable:hover td { background: var(--panel-2); }
 .dt-arrow { margin-left: 4px; color: var(--amber); }
 .dt-pager { display: flex; align-items: center; gap: 10px; margin-top: 12px; font-size: 12px; }
 .dt-pager button { background: var(--panel-2); border: 1px solid var(--line-2); color: var(--text); padding: 4px 10px; border-radius: 6px; cursor: pointer; }

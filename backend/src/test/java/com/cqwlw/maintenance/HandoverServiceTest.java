@@ -39,6 +39,20 @@ class HandoverServiceTest {
                 mock(DispatchService.class));
     }
 
+    /** C-12：init 接收表单 §3.3 表头三字段（安装竣工日期/安装单位名称/特殊类别） */
+    @Test
+    void initCarriesC12HeaderFields() {
+        HandoverOrderMapper orderMapper = mock(HandoverOrderMapper.class);
+        HandoverService svc = service(orderMapper, mock(HandoverCheckMapper.class),
+                mock(HandoverCheckItemMapper.class), mock(HandoverRectificationMapper.class),
+                mock(HandoverSignMapper.class));
+        HandoverOrder o = svc.init(Map.of("projectName", "渝北区某项目",
+                "installCompleteDate", "2026-11-01", "installUnitName", "某安装公司", "specialType", "消防员电梯"));
+        assertEquals("2026-11-01", o.installCompleteDate);
+        assertEquals("某安装公司", o.installUnitName);
+        assertEquals("消防员电梯", o.specialType);
+    }
+
     /** init 后 submitDocs 缺整机质量证明 → 422 拦截（3 必传资料卡点） */
     @Test
     void submitDocsBlocksOnMissingRequired() {
