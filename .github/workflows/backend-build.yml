@@ -41,3 +41,21 @@ jobs:
           cache: maven
       - name: Build and test backend
         run: mvn -s backend/settings.xml -f backend/pom.xml test
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Regression scripts (dispatch / templates)
+        run: |
+          node scripts/verify-dispatch.js
+          node scripts/verify-templates.js
+      - name: Root lint (mini-program)
+        run: |
+          npm ci --no-audit --no-fund
+          npm run lint
+      - name: Admin lint / test / build
+        working-directory: admin
+        run: |
+          npm ci --no-audit --no-fund
+          npm run lint
+          npm test
+          npm run build

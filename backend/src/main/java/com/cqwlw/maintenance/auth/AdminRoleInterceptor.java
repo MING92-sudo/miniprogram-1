@@ -47,6 +47,15 @@ public class AdminRoleInterceptor implements HandlerInterceptor {
         } else if (write && WORKER_WRITABLE_ELEVATOR.matcher(path).matches()) {
             return true; // 维保人员现场更正电梯本地信息，越权由 ElevatorService 归属校验兜底（1403）
         } else if (required != null) {
+            // C-11：端点按能力码授权。新码（86 三态）走多角色门控；旧 24 码走兼容 allows。
+            if (PermissionMatrix.canonicalCapabilities().contains(required)) {
+                if (write) {
+                    MultiRoleGate.requireWrite(request, required);
+                } else {
+                    MultiRoleGate.requireRead(request, required);
+                }
+                return true;
+            }
             allowed = PermissionMatrix.allows(role, required); // docs/14 §9.3：端点按能力码授权
         } else if (write && LEADER_WRITABLE.matcher(path).matches()) {
             allowed = PermissionMatrix.allows(role, PermissionMatrix.PLAN_WRITE); // 班组长及以上（本组范围由 DeptScopeService 收敛）
