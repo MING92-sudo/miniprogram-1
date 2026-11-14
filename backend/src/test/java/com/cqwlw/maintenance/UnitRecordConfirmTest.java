@@ -35,7 +35,8 @@ class UnitRecordConfirmTest {
     @BeforeEach
     void setUp() {
         recordMapper = mock(MaintainRecordMapper.class);
-        service = new UnitRecordService(recordMapper, mock(WorkOrderService.class), mock(FileStorageService.class));
+        service = new UnitRecordService(recordMapper, mock(WorkOrderService.class), mock(FileStorageService.class),
+                mock(com.cqwlw.maintenance.mapper.ElevatorMapper.class));
         record = new MaintainRecord();
         record.id = RECORD_ID;
         record.confirmStatus = "PENDING";

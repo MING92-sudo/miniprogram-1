@@ -62,4 +62,92 @@ class UnitTokenScopeTest {
 
         assertTrue(interceptor("uu_1", true).preHandle(req("/files/upload"), null, null));
     }
+
+    // ── M1：门户读端点改统一令牌 + CLIENT 本单位谓词 ──
+
+    private com.cqwlw.maintenance.service.UnitRecordService recordService(
+            com.cqwlw.maintenance.mapper.MaintainRecordMapper records,
+            com.cqwlw.maintenance.mapper.ElevatorMapper elevators) {
+        com.cqwlw.maintenance.service.WorkOrderService orders =
+                mock(com.cqwlw.maintenance.service.WorkOrderService.class);
+        when(orders.paginate(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
+                .thenAnswer(inv -> {
+                    java.util.List<?> list = inv.getArgument(0);
+                    return Map.of("list", list, "total", list.size());
+                });
+        return new com.cqwlw.maintenance.service.UnitRecordService(records, orders,
+                mock(com.cqwlw.maintenance.service.FileStorageService.class), elevators);
+    }
+
+    private com.cqwlw.maintenance.entity.MaintainRecord record(String id, String elevatorCode) {
+        com.cqwlw.maintenance.entity.MaintainRecord r = new com.cqwlw.maintenance.entity.MaintainRecord();
+        r.id = id;
+        r.elevatorCode = elevatorCode;
+        r.confirmStatus = "PENDING";
+        return r;
+    }
+
+    private void elevator(com.cqwlw.maintenance.mapper.ElevatorMapper elevators, String code, String unitId) {
+        com.cqwlw.maintenance.entity.Elevator el = new com.cqwlw.maintenance.entity.Elevator();
+        el.elevatorCode = code;
+        el.useUnitId = unitId;
+        when(elevators.selectOne(org.mockito.ArgumentMatchers.any())).thenReturn(el);
+    }
+
+    /** 员工令牌（无 CLIENT 角色）读门户记录 → 1403 */
+    @Test
+    void maintTokenCannotReadPortalRecords() {
+        var records = mock(com.cqwlw.maintenance.mapper.MaintainRecordMapper.class);
+        var elevators = mock(com.cqwlw.maintenance.mapper.ElevatorMapper.class);
+        BizException ex = assertThrows(BizException.class,
+                () -> recordService(records, elevators).pendingAs(Map.of(), java.util.Set.of("MAINT_TECH"), "u1"));
+        assertEquals(1403, ex.getCode());
+    }
+
+    /** 统一 CLIENT 令牌：pending 仅本单位记录 */
+    @Test
+    void clientPendingOnlyOwnUnit() {
+        var records = mock(com.cqwlw.maintenance.mapper.MaintainRecordMapper.class);
+        var elevators = mock(com.cqwlw.maintenance.mapper.ElevatorMapper.class);
+        when(records.selectList(org.mockito.ArgumentMatchers.any())).thenReturn(java.util.List.of(
+                record("r1", "DT-1"), record("r2", "DT-2")));
+        elevator(elevators, "DT-1", "u1");
+        // 第二次查询返回另一单位电梯：用 thenReturn 链
+        com.cqwlw.maintenance.entity.Elevator el2 = new com.cqwlw.maintenance.entity.Elevator();
+        el2.elevatorCode = "DT-2";
+        el2.useUnitId = "u2";
+        when(elevators.selectOne(org.mockito.ArgumentMatchers.any()))
+                .thenReturn(elFor("DT-1", "u1"), elFor("DT-2", "u2"));
+        var out = recordService(records, elevators).pendingAs(Map.of(), java.util.Set.of("CLIENT_ADMIN"), "u1");
+        assertEquals(1, ((java.util.List<?>) out.get("list")).size());
+    }
+
+    private com.cqwlw.maintenance.entity.Elevator elFor(String code, String unitId) {
+        com.cqwlw.maintenance.entity.Elevator el = new com.cqwlw.maintenance.entity.Elevator();
+        el.elevatorCode = code;
+        el.useUnitId = unitId;
+        return el;
+    }
+
+    /** 跨单位读记录 → 1403 无副作用 */
+    @Test
+    void crossUnitGetForbidden() {
+        var records = mock(com.cqwlw.maintenance.mapper.MaintainRecordMapper.class);
+        var elevators = mock(com.cqwlw.maintenance.mapper.ElevatorMapper.class);
+        when(records.selectById("r1")).thenReturn(record("r1", "DT-1"));
+        elevator(elevators, "DT-1", "u-other");
+        BizException ex = assertThrows(BizException.class,
+                () -> recordService(records, elevators).getAs("r1", java.util.Set.of("CLIENT_ADMIN"), "u1"));
+        assertEquals(1403, ex.getCode());
+    }
+
+    /** 旧门户令牌（UNIT_ADMIN + 单位锚点）兜底仍可用 */
+    @Test
+    void legacyPortalRoleStillAllowed() {
+        var records = mock(com.cqwlw.maintenance.mapper.MaintainRecordMapper.class);
+        var elevators = mock(com.cqwlw.maintenance.mapper.ElevatorMapper.class);
+        when(records.selectList(org.mockito.ArgumentMatchers.any())).thenReturn(java.util.List.of());
+        var out = recordService(records, elevators).pendingAs(Map.of(), java.util.Set.of("UNIT_ADMIN"), "uu_1");
+        assertEquals(0, ((java.util.List<?>) out.get("list")).size());
+    }
 }

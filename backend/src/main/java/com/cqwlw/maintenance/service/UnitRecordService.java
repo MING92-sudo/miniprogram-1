@@ -32,10 +32,58 @@ public class UnitRecordService {
     }
 
     public UnitRecordService(MaintainRecordMapper recordMapper, WorkOrderService workOrderService,
-                             FileStorageService fileStorageService) {
+                             FileStorageService fileStorageService,
+                             com.cqwlw.maintenance.mapper.ElevatorMapper elevatorMapper) {
         this.recordMapper = recordMapper;
         this.workOrderService = workOrderService;
         this.fileStorageService = fileStorageService;
+        this.elevatorMapper = elevatorMapper;
+    }
+
+    private final com.cqwlw.maintenance.mapper.ElevatorMapper elevatorMapper;
+
+    /** M1：统一令牌 + CLIENT 本单位谓词（旧门户令牌 UNIT_ADMIN 兜底） */
+    public Map<String, Object> pendingAs(Map<String, String> query, java.util.Set<String> roles, String unitId) {
+        requireClient(roles, unitId);
+        List<Map<String, Object>> list = recordMapper.selectList(new LambdaQueryWrapper<MaintainRecord>()
+                        .eq(MaintainRecord::getConfirmStatus, "PENDING")
+                        .orderByDesc(MaintainRecord::getCreatedAt))
+                .stream().filter(r -> unitId.equals(unitOf(r))).map(this::toMap).collect(Collectors.toList());
+        return workOrderService.paginate(list, query);
+    }
+
+    public Map<String, Object> getAs(String id, java.util.Set<String> roles, String unitId) {
+        requireClient(roles, unitId);
+        MaintainRecord r = findOr404(id);
+        if (!unitId.equals(unitOf(r))) {
+            throw new BizException(1403, "仅本单位记录可查看");
+        }
+        return toMap(r);
+    }
+
+    public Map<String, Object> confirmAs(String id, Map<String, Object> body, java.util.Set<String> roles, String unitId) {
+        requireClient(roles, unitId);
+        MaintainRecord r = findOr404(id);
+        if (!unitId.equals(unitOf(r))) {
+            throw new BizException(1403, "仅本单位记录可确认");
+        }
+        return confirm(id, body);
+    }
+
+    private void requireClient(java.util.Set<String> roles, String unitId) {
+        if (roles == null || roles.stream().noneMatch(r -> r.startsWith("CLIENT") || "UNIT_ADMIN".equals(r))) {
+            throw new BizException(1403, "仅使用单位可访问门户记录");
+        }
+        if (unitId == null || unitId.isEmpty()) {
+            throw new BizException(1403, "缺少单位锚点");
+        }
+    }
+
+    private String unitOf(MaintainRecord r) {
+        com.cqwlw.maintenance.entity.Elevator el = elevatorMapper.selectOne(
+                new LambdaQueryWrapper<com.cqwlw.maintenance.entity.Elevator>()
+                        .eq(com.cqwlw.maintenance.entity.Elevator::getElevatorCode, r.elevatorCode).last("LIMIT 1"));
+        return el == null || el.useUnitId == null ? "" : el.useUnitId;
     }
 
     public MaintainRecord findOr404(String id) {
