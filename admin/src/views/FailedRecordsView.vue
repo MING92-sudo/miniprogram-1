@@ -2,7 +2,7 @@
   <div class="page">
     <div class="page-head"><h1>上报异常清单</h1></div>
     <DataTable :columns="cols" :rows="rows" :loading="loading" :search-keys="['elevatorCode']" />
-    <p class="hint">逐条人工重报（report:retry），禁批量（AGENTS §2.4）。</p>
+    <p class="hint">逐条人工重报，禁止批量。</p>
   </div>
 </template>
 <script setup>

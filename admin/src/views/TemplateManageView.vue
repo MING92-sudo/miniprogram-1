@@ -2,7 +2,7 @@
   <div class="page">
     <div class="page-head"><h1>检查项模板</h1></div>
     <DataTable :columns="cols" :rows="rows" :loading="loading" :search-keys="['name', 'category']" />
-    <p class="hint">维保检查项模板（区别于系统配置签字模板）；启停 template:toggle。</p>
+    <p class="hint">维保检查项模板（区别于系统配置签字模板）；可启用/停用。</p>
   </div>
 </template>
 <script setup>

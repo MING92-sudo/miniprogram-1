@@ -9,9 +9,9 @@ describe('StatusTag', () => {
     expect(w.text()).toContain('已归档')
     expect(w.attributes('style')).toContain('var(--ok)')
   })
-  it('falls back to status text when no label', () => {
+  it('falls back to Chinese status label when no label', () => {
     const w = mount(StatusTag, { props: { status: 'PROCESSING' } })
-    expect(w.text()).toContain('PROCESSING')
+    expect(w.text()).toContain('进行中')
   })
 })
 
@@ -21,7 +21,7 @@ describe('Timeline', () => {
       { actor: '李振国', role: 'MAINT_TECH', time: '2026-11-13 09:00', text: '签到' }
     ] } })
     expect(w.text()).toContain('李振国')
-    expect(w.text()).toContain('MAINT_TECH')
+    expect(w.text()).toContain('维保技术员')
     expect(w.text()).toContain('签到')
     expect(w.findAll('.tl-item').length).toBe(1)
   })

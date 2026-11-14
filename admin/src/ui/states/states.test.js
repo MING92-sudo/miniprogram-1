@@ -22,10 +22,10 @@ describe('four states', () => {
     await w.find('.err-retry').trigger('click')
     expect(w.emitted('retry')).toBeTruthy()
   })
-  it('ForbiddenState shows code + allowed roles + current role', () => {
+  it('ForbiddenState shows Chinese permission + allowed roles + current role', () => {
     const w = mount(ForbiddenState, { props: { code: 'contract:view', allowedRoles: ['MAINT_MGR'], currentRole: 'INST_MGR' } })
-    expect(w.text()).toContain('contract:view')
-    expect(w.text()).toContain('MAINT_MGR')
-    expect(w.text()).toContain('INST_MGR')
+    expect(w.text()).toContain('查看合同')
+    expect(w.text()).toContain('维保部经理')
+    expect(w.text()).toContain('安装部经理')
   })
 })

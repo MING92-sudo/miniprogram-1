@@ -8,7 +8,7 @@ export const provider = {
       { key: 'elevators', label: '在管电梯', value: elev },
       { key: 'handoverReview', label: '待审核移交', value: mockData.handovers.filter(h => h.status === 'REVIEWING').length },
       { key: 'recordReview', label: '待复核', value: mockData.records.filter(r => r.status === 'REVIEWING').length },
-      { key: 'slaOverdue', label: 'SLA 超时', value: mockData.orders.filter(o => o.elapsed > o.slaMinutes).length },
+      { key: 'slaOverdue', label: '工单超时', value: mockData.orders.filter(o => o.elapsed > o.slaMinutes).length },
       { key: 'contractExpiring', label: '合同临期≤90天', value: mockData.contracts.filter(c => c.daysLeft <= 90).length },
       { key: 'dualSignPending', label: '双签待补', value: mockData.records.filter(r => r.status === 'SIGNING').length }
     ]

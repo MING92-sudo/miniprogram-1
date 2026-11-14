@@ -2,7 +2,7 @@
   <div class="page">
     <div class="page-head"><h1>维保计划（到期基线只读投影）</h1></div>
     <DataTable :columns="cols" :rows="rows" :loading="loading" :search-keys="['elevatorCode', 'elevatorName']" />
-    <p class="hint">自动派单仅定时任务驱动（AGENTS §3.6）；本页只读投影 + 手动派单/延期入口。</p>
+    <p class="hint">自动派单仅定时任务驱动；本页只读投影 + 手动派单/延期入口。</p>
   </div>
 </template>
 <script setup>

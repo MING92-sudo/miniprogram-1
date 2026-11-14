@@ -9,7 +9,7 @@
       :search-keys="['handoverNo', 'elevatorCode', 'projectName']" :filters="statusFilters"
       @row-click="openDetail" />
 
-    <Drawer :open="detailOpen" :title="'移交单 ' + (detail.handoverNo || '')" :meta="{ role: auth.role, perm: 'handover:view' }" @close="detailOpen = false">
+    <Drawer :open="detailOpen" :title="'移交单 ' + (detail.handoverNo || '')" :meta="{ role: roleLabel(auth.role), perm: permLabel('handover:view') }" @close="detailOpen = false">
       <div v-if="detail.id" class="ho-detail">
         <div class="ho-head">
           <StatusTag :status="detail.status" :label="statusLabel(detail.status)" />
@@ -36,7 +36,7 @@
             <strong>{{ conclusionLabel(check.conclusion) }}</strong>
             <span class="counts">应检 {{ check.totalItems || 74 }} · 合格 {{ check.passCount || 0 }} · 不合格 {{ check.failCount || 0 }} · 不适用 {{ check.naCount || 0 }} · 重要项不合格 {{ check.importantFailCount || 0 }}</span>
           </div>
-          <p v-if="!editable" class="readonly-hint">当前状态或权限下为只读（仅查验中且具 handover:inspect 可逐项填报）。</p>
+          <p v-if="!editable" class="readonly-hint">当前状态或权限下为只读（仅查验中且具现场查验权限可逐项填报）。</p>
           <div v-for="grp in groups" :key="grp.group" class="item-group">
             <h3 class="group-title">{{ grp.group }}</h3>
             <div v-for="it in grp.items" :key="it.id" class="item" :class="{ important: it.important }">
@@ -83,7 +83,7 @@
 
         <!-- 整改清单 -->
         <section v-else-if="tab === 'rectification'" class="tab-body">
-          <p v-if="!rects.length" class="readonly-hint">暂无不合格项整改记录（提交查验判定为整改/不合格时按 item_no 1:1 自动生成）。</p>
+          <p v-if="!rects.length" class="readonly-hint">暂无不合格项整改记录（提交查验判定为整改/不合格时按检查项序号 1:1 自动生成）。</p>
           <div v-for="r in rects" :key="r.id" class="rect">
             <div class="rect-head">
               <span class="item-no">第 {{ r.itemNo }} 项</span>
@@ -107,10 +107,10 @@
         <section v-else class="tab-body">
           <div class="archive-bar">
             <PermButton :role="auth.role" code="handover:view" label="生成/刷新归档目录" @click="loadArchive" @blocked="onBlocked" />
-            <span class="readonly-hint">一梯一档 · SHA-256 校验 · 留存 ≥4 年</span>
+            <span class="readonly-hint">一梯一档 · 校验指纹 · 留存 ≥4 年</span>
           </div>
           <table v-if="archive.length" class="archive-table">
-            <thead><tr><th>序</th><th>类别</th><th>SHA-256</th><th>归档时间</th></tr></thead>
+            <thead><tr><th>序</th><th>类别</th><th>校验指纹</th><th>归档时间</th></tr></thead>
             <tbody>
               <tr v-for="a in archive" :key="a.id">
                 <td>{{ a.seq }}</td><td>{{ archiveLabel(a.category) }}</td>
@@ -145,8 +145,8 @@
     <Modal :open="recheckModal" title="逐条复验（原查验工程师）" confirm-label="提交复验" @close="recheckModal = false" @confirm="confirmRecheck">
       <FormField label="复验结果" required>
         <select v-model="recheckForm.result" class="inp wide">
-          <option value="PASS">合格（PASS）</option>
-          <option value="FAIL">不通过（FAIL）</option>
+          <option value="PASS">合格</option>
+          <option value="FAIL">不通过</option>
         </select>
       </FormField>
       <FormField label="复验人"><input v-model="recheckForm.recheckerName" class="inp wide" /></FormField>
@@ -156,7 +156,7 @@
     <!-- NA 审批 -->
     <Modal :open="naModal" title="☆项不适用审批（维保部经理）" confirm-label="批准" @close="naModal = false" @confirm="confirmNa">
       <FormField label="审批人"><input v-model="naForm.approverName" class="inp wide" /></FormField>
-      <p class="readonly-hint">批准后方可提交含 ☆项 NA 的查验清单（写 handover_sign 节点 NA_APPROVE）。</p>
+      <p class="readonly-hint">批准后方可提交含 ☆项不适用的查验清单（记录审批留痕）。</p>
     </Modal>
   </div>
 </template>
@@ -174,6 +174,7 @@ import FormField from '../ui/FormField.vue'
 import { useToast } from '../ui/stores/ui'
 import { useAuthStore } from '../stores/auth'
 import { uploadFile } from '../api/upload'
+import { roleLabel, permLabel, statusLabel } from '../ui/labels'
 import * as api from '../api/handover'
 
 const auth = useAuthStore()
@@ -189,7 +190,7 @@ const cols = [
   { key: 'installUnitName', label: '安装单位' },
   { key: 'createdAt', label: '创建' }
 ]
-const statusFilters = [{ key: 'status', label: '状态', options: ['DOC_SUBMITTING', 'INSPECTING', 'RECTIFYING', 'PENDING_CONFIRM', 'ARCHIVED'] }]
+const statusFilters = [{ key: 'status', label: '状态', options: ['DOC_SUBMITTING', 'INSPECTING', 'RECTIFYING', 'PENDING_CONFIRM', 'ARCHIVED'].map((c) => ({ value: c, label: statusLabel(c) })) }]
 
 const detailOpen = ref(false)
 const detail = ref({})
@@ -221,9 +222,6 @@ const groups = computed(() => {
 })
 
 function isTest(no) { return no >= 57 && no <= 74 }
-function statusLabel(s) {
-  return { DOC_SUBMITTING: '资料提交', INSPECTING: '查验中', RECTIFYING: '整改中', PENDING_CONFIRM: '待确认', ARCHIVED: '已归档' }[s] || s
-}
 function resultLabel(r) { return { PASS: '合格', FAIL: '不合格', NA: '不适用' }[r] || r }
 function conclusionLabel(c) {
   return { QUALIFIED: '合格，准予移交', RECTIFY: '一般项不合格，须整改复检', DISQUALIFIED: '判定不合格，全面修复后重新验收', CONDITIONAL: '有条件移交（7.3 例外通道）' }[c] || c

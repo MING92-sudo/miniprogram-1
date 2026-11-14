@@ -2,7 +2,7 @@
   <div class="page">
     <div class="page-head"><h1>平台登记人员</h1></div>
     <DataTable :columns="cols" :rows="rows" :loading="loading" :search-keys="['name', 'certificateNo']" />
-    <p class="hint">监管平台 2.3/2.4 人员登记（platform:worker_view / worker_register）。</p>
+    <p class="hint">监管平台人员登记（接口 2.3/2.4）。</p>
   </div>
 </template>
 <script setup>

@@ -9,7 +9,7 @@
       <Form ref="formRef" :rules="rules" v-model="model" v-slot="{ errors }">
         <FormField label="名称" required :error="errors.name"><input v-model="model.name" /></FormField>
         <FormField label="类型" required :error="errors.type">
-          <select v-model="model.type"><option>COMPANY</option><option>DEPT</option><option>TEAM</option><option>UNIT</option></select>
+          <select v-model="model.type"><option value="COMPANY">公司</option><option value="DEPT">部门</option><option value="TEAM">班组</option><option value="UNIT">使用单位</option></select>
         </FormField>
         <FormField label="上级组织"><select v-model="model.parentId"><option value="">无</option><option v-for="o in rows" :key="o.id" :value="o.id">{{ o.name }}</option></select></FormField>
       </Form>
@@ -26,6 +26,7 @@ import Form from '../ui/Form.vue'
 import FormField from '../ui/FormField.vue'
 import PermButton from '../ui/PermButton.vue'
 import { useToast } from '../ui/stores/ui'
+import { orgTypeLabel } from '../ui/labels'
 import { listOrg, createOrg } from '../api/ledger'
 const toast = useToast()
 const rows = ref([])
@@ -36,7 +37,7 @@ const model = ref({ name: '', type: 'DEPT', parentId: '' })
 const rules = { name: [(v) => (v ? '' : '名称必填')], type: [(v) => (v ? '' : '类型必填')] }
 const cols = [
   { key: 'name', label: '组织名称', sortable: true },
-  { key: 'type', label: '类型' },
+  { key: 'type', label: '类型', format: orgTypeLabel },
   { key: 'code', label: '编码' },
   { key: 'status', label: '状态' }
 ]

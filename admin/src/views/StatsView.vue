@@ -13,7 +13,7 @@
         <span class="num">{{ b.value }}</span>
       </div>
     </div>
-    <p class="hint">普通导出脱敏；敏感导出需审批（data:export_sensitive）。</p>
+    <p class="hint">普通导出脱敏；敏感导出需审批。</p>
   </div>
 </template>
 <script setup>

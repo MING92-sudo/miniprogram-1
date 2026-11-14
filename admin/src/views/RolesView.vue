@@ -4,24 +4,25 @@
     <div class="matrix-wrap">
       <table class="matrix">
         <thead>
-          <tr><th class="stick">权限码</th><th v-for="r in roles" :key="r">{{ r }}</th></tr>
+          <tr><th class="stick">权限</th><th v-for="r in roles" :key="r">{{ roleLabel(r) }}</th></tr>
         </thead>
         <tbody>
           <tr v-for="row in rows" :key="row.code">
-            <td class="stick code">{{ row.code }}</td>
-            <td v-for="r in roles" :key="r" :class="'st-' + row.states[r]">{{ row.states[r] }}</td>
+            <td class="stick code">{{ permLabel(row.code) }}</td>
+            <td v-for="r in roles" :key="r" :class="'st-' + row.states[r]" :title="triStateLabel(row.states[r])">{{ triStateSymbol(row.states[r]) }}</td>
           </tr>
         </tbody>
       </table>
     </div>
-    <p class="hint">Y=可操作 C=只读/需审批 -=禁止。写入口二期开放。</p>
+    <p class="hint">✓=可操作 ◐=只读/需审批 ✕=禁止。写入口二期开放。</p>
   </div>
 </template>
 <script setup>
-// M3 角色权限矩阵：9+ 角色 × 86 码三态，只读（role:assign 可见）
+// M3 角色权限矩阵：13 角色 × 86 码三态，只读（role:assign 可见）；中文显示
 import { ref, onMounted } from 'vue'
 import { rolesMatrix } from '../api/ledger'
 import { canonicalRoles } from '../ui/permission-v2'
+import { roleLabel, permLabel, triStateLabel, triStateSymbol } from '../ui/labels'
 const rows = ref([])
 const roles = ref([...canonicalRoles()])
 onMounted(async () => { rows.value = await rolesMatrix() })

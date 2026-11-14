@@ -16,7 +16,8 @@ describe('AppShell', () => {
     const p = usePerspectiveStore(); p.setRoleSet(['MAINT_MGR']); p.setRole('MAINT_MGR')
     const w = mount(AppShell, { global: { plugins: [router] } })
     expect(w.text()).toContain('工作台')
-    expect(w.find('.scope-indicator').text()).toContain('ALL')
+    expect(w.text()).toContain('博威无纸化')
+    expect(w.find('.scope-indicator').text()).toContain('全部')
   })
   it('collapse toggle changes width class', async () => {
     router.push('/dashboard'); await router.isReady()

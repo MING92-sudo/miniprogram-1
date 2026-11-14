@@ -17,8 +17,10 @@
     </Modal>
     <Modal :open="showGrant" title="发起限时授权" @close="showGrant = false" @confirm="submitGrant">
       <Form ref="grantForm" :rules="grantRules" v-model="grantModel" v-slot="{ errors }">
-        <FormField label="被授权人 ID" required :error="errors.granteeId"><input v-model="grantModel.granteeId" /></FormField>
-        <FormField label="追加权限点" required :error="errors.permCode"><input v-model="grantModel.permCode" placeholder="如 order:dispatch" /></FormField>
+        <FormField label="被授权人编号" required :error="errors.granteeId"><input v-model="grantModel.granteeId" /></FormField>
+        <FormField label="追加权限点" required :error="errors.permCode">
+          <select v-model="grantModel.permCode"><option value="">请选择权限</option><option v-for="c in permCodes" :key="c" :value="c">{{ permLabel(c) }}</option></select>
+        </FormField>
         <FormField label="开始" required :error="errors.startAt"><input type="datetime-local" v-model="grantModel.startAt" /></FormField>
         <FormField label="结束" required :error="errors.endAt"><input type="datetime-local" v-model="grantModel.endAt" /></FormField>
       </Form>
@@ -34,8 +36,11 @@ import Form from '../ui/Form.vue'
 import FormField from '../ui/FormField.vue'
 import PermButton from '../ui/PermButton.vue'
 import { useToast } from '../ui/stores/ui'
+import { inviteTypeLabel, permLabel } from '../ui/labels'
+import { canonicalCodes } from '../ui/permission-v2'
 import { listInvites, createInvite, listGrants, createGrant } from '../api/ledger'
 const toast = useToast()
+const permCodes = [...canonicalCodes()]
 const invites = ref([])
 const grants = ref([])
 const loading = ref(false)
@@ -51,7 +56,7 @@ const grantRules = {
   endAt: [(v) => (v ? '' : '结束必填')]
 }
 const invCols = [
-  { key: 'code', label: '码值' }, { key: 'type', label: '类型' }, { key: 'validDays', label: '有效期(天)' },
+  { key: 'code', label: '码值' }, { key: 'type', label: '类型', format: inviteTypeLabel }, { key: 'validDays', label: '有效期(天)' },
   { key: 'status', label: '状态' }, { key: 'joinedCount', label: '已加入' }
 ]
 const grantCols = [

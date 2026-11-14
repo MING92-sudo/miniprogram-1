@@ -5,14 +5,14 @@
       <PermButton code="order:create_proxy" label="代报修" @click="showProxy = true" />
     </div>
     <div v-if="order" class="detail">
-      <p><span class="label">状态</span> {{ order.status }}</p>
+      <p><span class="label">状态</span> {{ statusLabel(order.status) }}</p>
       <p><span class="label">设备</span> {{ order.elevatorCode }}</p>
-      <p><span class="label">SLA</span> {{ order.slaMinutes }} 分</p>
+      <p><span class="label">时限</span> {{ order.slaMinutes }} 分</p>
     </div>
     <Timeline :items="timeline" />
     <Modal :open="showProxy" title="代报修" @close="showProxy = false" @confirm="submitProxy">
-      <FormField label="来源"><select v-model="proxy.proxySource"><option>PHONE</option><option>WECHAT</option><option>ONSITE</option></select></FormField>
-      <FormField label="录音编号（REC-xxxx）"><input v-model="proxy.recordingNo" /></FormField>
+      <FormField label="来源"><select v-model="proxy.proxySource"><option value="PHONE">电话</option><option value="WECHAT">微信</option><option value="ONSITE">现场</option></select></FormField>
+      <FormField label="录音编号（如有）"><input v-model="proxy.recordingNo" /></FormField>
     </Modal>
   </div>
 </template>
@@ -26,6 +26,7 @@ import Modal from '../ui/Modal.vue'
 import FormField from '../ui/FormField.vue'
 import PermButton from '../ui/PermButton.vue'
 import { useToast } from '../ui/stores/ui'
+import { statusLabel } from '../ui/labels'
 const toast = useToast()
 const route = useRoute()
 const id = computed(() => route.params.id)
@@ -34,7 +35,7 @@ const showProxy = ref(false)
 const proxy = ref({ proxySource: 'PHONE', recordingNo: '' })
 const timeline = computed(() => order.value ? [
   { actor: order.value.createdByName || '系统', role: '创建', time: String(order.value.createdAt || ''), text: '工单创建' },
-  { actor: order.value.workerName || '-', role: '维修', time: String(order.value.finishedAt || ''), text: '状态 ' + order.value.status }
+  { actor: order.value.workerName || '-', role: '维修', time: String(order.value.finishedAt || ''), text: '状态 ' + statusLabel(order.value.status) }
 ] : [])
 async function load() { try { order.value = await http.get(`/faults/${id.value}`) } catch (e) { order.value = null } }
 async function submitProxy() {

@@ -75,6 +75,6 @@ router.beforeEach((to) => {
   return resolveRoute(to, { token: auth.token, role: auth.role })
 })
 router.afterEach((to) => {
-  document.title = to.meta && to.meta.title ? `${to.meta.title} · 梯维通管理端` : '梯维通管理端'
+  document.title = to.meta && to.meta.title ? `${to.meta.title} · 博威无纸化管理端` : '博威无纸化管理端'
 })
 export default router

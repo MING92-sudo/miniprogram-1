@@ -3,7 +3,7 @@
     :class="['perm-btn', variant, { 'is-deny': gate === 'deny', 'is-cond': gate === 'conditional' }]"
     :disabled="gate === 'deny'"
     :aria-disabled="gate === 'conditional' ? 'true' : null"
-    :title="gate === 'deny' ? '所需权限：' + code : (gate === 'conditional' ? '需审批/前置未满足：' + code : null)"
+    :title="gate === 'deny' ? '所需权限：' + permLabel(code) : (gate === 'conditional' ? '需审批/前置未满足：' + permLabel(code) : null)"
     @click.capture="onClick"
   >{{ label }}</button>
 </template>
@@ -11,6 +11,7 @@
 // M2 权限按钮：两档门控（spec §4.3）——Y 可点 / DENY native disabled+title / C aria-disabled+捕获拦截
 import { computed } from 'vue'
 import { state } from './permission-v2'
+import { permLabel } from './labels'
 const props = defineProps({
   code: { type: String, required: true },
   role: { type: String, default: '' },

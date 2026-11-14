@@ -5,7 +5,7 @@
       <select v-for="f in filters" :key="f.key" class="dt-filter" :value="t.filters.value[f.key] || ''"
         @change="t.setFilter(f.key, $event.target.value)" :aria-label="f.label">
         <option value="">{{ f.label }}：全部</option>
-        <option v-for="o in f.options" :key="o" :value="o">{{ o }}</option>
+        <option v-for="o in f.options" :key="optValue(o)" :value="optValue(o)">{{ optLabel(o) }}</option>
       </select>
     </div>
     <LoadingSkeleton v-if="loading" :rows="6" />
@@ -27,7 +27,7 @@
         <tbody>
           <tr v-for="row in t.visibleRows.value" :key="row.id" :class="{ 'row-clickable': clickable }" @click="clickable && $emit('row-click', row)">
             <td v-if="selectable"><input type="checkbox" :checked="t.selected.value.has(row.id)" @change="t.toggleSelect(row.id)" :aria-label="'选择 ' + row.id" /></td>
-            <td v-for="col in columns" :key="col.key">{{ row[col.key] }}</td>
+            <td v-for="col in columns" :key="col.key">{{ formatCell(col, row[col.key]) }}</td>
           </tr>
         </tbody>
       </table>
@@ -46,6 +46,7 @@
 // M2 数据表：排序三态/搜索/筛选/分页/批量/空态/骨架（spec §3.1）
 import { computed } from 'vue'
 import { useTable } from './composables/useTable'
+import { formatCell, statusLabel, roleLabel } from './labels'
 import LoadingSkeleton from './states/LoadingSkeleton.vue'
 import EmptyState from './states/EmptyState.vue'
 import PermButton from './PermButton.vue'
@@ -62,7 +63,15 @@ function arrow(key) {
   if (t.sortKey.value !== key) return '↕'
   return t.sortDir.value === 'asc' ? '↑' : t.sortDir.value === 'desc' ? '↓' : '↕'
 }
-const activeChips = computed(() => Object.entries(t.filters.value).filter(([, v]) => v).map(([k, v]) => `${k}: ${v}`))
+const activeChips = computed(() => Object.entries(t.filters.value).filter(([, v]) => v).map(([k, v]) => {
+  const def = props.filters.find((f) => f.key === k)
+  const label = (def && def.label) || k
+  const opt = def && def.options && def.options.find((o) => optValue(o) === v)
+  const display = opt ? optLabel(opt) : (k === 'status' ? statusLabel(v) : (k === 'role' || k === 'roles') ? roleLabel(v) : v)
+  return `${label}: ${display}`
+}))
+function optValue(o) { return o && typeof o === 'object' ? o.value : o }
+function optLabel(o) { return o && typeof o === 'object' ? o.label : o }
 </script>
 <style scoped>
 .dt-toolbar { display: flex; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }

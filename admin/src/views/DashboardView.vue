@@ -3,10 +3,10 @@
     <div class="wb-head">
       <h1 class="wb-title">工作台</h1>
       <div class="persp-switch">
-        <button v-for="r in perspective.roleSet" :key="r" :class="['persp-btn', { active: r === perspective.activeRole }]" @click="perspective.setRole(r)">{{ r }}</button>
+        <button v-for="r in perspective.roleSet" :key="r" :class="['persp-btn', { active: r === perspective.activeRole }]" @click="perspective.setRole(r)">{{ roleLabel(r) }}</button>
       </div>
     </div>
-    <div v-if="overdue" class="alert-bar">SLA 超时 {{ overdue }} 单，请优先处理</div>
+    <div v-if="overdue" class="alert-bar">工单超时 {{ overdue }} 单，请优先处理</div>
     <div class="kpi-grid">
       <div v-for="k in kpis" :key="k.key" class="kpi-card">
         <p class="kpi-value num">{{ k.value }}</p>
@@ -26,6 +26,7 @@
 // M2 工作台：KPI 7 项 + 预警 + 待办 + 视角切换（spec §5.2）；M2 数据源 mock 基准集
 import { computed } from 'vue'
 import { provider } from '../ui/providers/provider'
+import { roleLabel } from '../ui/labels'
 import { usePerspectiveStore } from '../ui/stores/perspective'
 const perspective = usePerspectiveStore()
 const kpis = computed(() => provider.getKPIs(perspective.activeRole))

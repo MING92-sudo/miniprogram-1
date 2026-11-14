@@ -8,22 +8,22 @@
     <h2 class="label">变更单（双人确认）</h2>
     <ul class="chg-list">
       <li v-for="c in changes" :key="c.id">
-        <span>{{ c.elevatorId }} · {{ c.changeType }} · {{ c.status }}</span>
+        <span>{{ c.elevatorId }} · {{ elevatorActionLabel(c.changeType) }} · {{ statusLabel(c.status) }}</span>
         <PermButton v-if="c.status === 'PENDING'" code="elevator:transfer" label="确认" variant="danger" @click="openConfirm(c.id)" />
       </li>
     </ul>
 
     <Modal :open="showChange" title="发起电梯变更" danger @close="showChange = false" @confirm="submitChange">
       <Form ref="chgForm" :rules="chgRules" v-model="chgModel" v-slot="{ errors }">
-        <FormField label="电梯 ID" required :error="errors.elevatorId"><input v-model="chgModel.elevatorId" /></FormField>
+        <FormField label="电梯编号" required :error="errors.elevatorId"><input v-model="chgModel.elevatorId" /></FormField>
         <FormField label="类型" required :error="errors.changeType">
-          <select v-model="chgModel.changeType"><option>TRANSFER</option><option>DISABLE</option><option>SCRAP</option></select>
+          <select v-model="chgModel.changeType"><option value="TRANSFER">移装</option><option value="DISABLE">停用</option><option value="SCRAP">报废</option></select>
         </FormField>
         <FormField label="原因" required :error="errors.reason"><input v-model="chgModel.reason" /></FormField>
       </Form>
     </Modal>
     <Modal :open="showConfirm" title="确认变更（须不同于发起人）" danger require-confirm @close="showConfirm = false" @confirm="submitConfirm">
-      <FormField label="确认人 ID"><input v-model="confirmerId" /></FormField>
+      <FormField label="确认人编号"><input v-model="confirmerId" /></FormField>
     </Modal>
   </div>
 </template>
@@ -37,6 +37,7 @@ import Form from '../ui/Form.vue'
 import FormField from '../ui/FormField.vue'
 import PermButton from '../ui/PermButton.vue'
 import { useToast } from '../ui/stores/ui'
+import { elevatorActionLabel, statusLabel } from '../ui/labels'
 import { listChanges, initiateChange, confirmChange } from '../api/ledger'
 const toast = useToast()
 const rows = ref([])

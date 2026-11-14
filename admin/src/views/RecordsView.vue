@@ -4,11 +4,11 @@
     <DataTable :columns="cols" :rows="rows" :loading="loading" :search-keys="['elevatorCode']" />
     <ul class="rec-list">
       <li v-for="r in rows" :key="r.id">
-        <span>{{ r.elevatorCode }} · v{{ r.version || 1 }} · {{ r.confirmStatus }}</span>
+        <span>{{ r.elevatorCode }} · 版本{{ r.version || 1 }} · {{ statusLabel(r.confirmStatus) }}</span>
         <PermButton v-if="r.confirmStatus === 'CONFIRMED'" code="record:amend" label="发起修订" @click="openAmend(r)" />
       </li>
     </ul>
-    <Modal :open="showAmend" title="发起修订（生成 v2 + 新哈希，不重报）" @close="showAmend = false" @confirm="submitAmend">
+    <Modal :open="showAmend" title="发起修订（生成新版本 + 新哈希，不重报）" @close="showAmend = false" @confirm="submitAmend">
       <FormField label="修订原因" required><input v-model="amendReason" /></FormField>
     </Modal>
   </div>
@@ -22,6 +22,7 @@ import Modal from '../ui/Modal.vue'
 import FormField from '../ui/FormField.vue'
 import PermButton from '../ui/PermButton.vue'
 import { useToast } from '../ui/stores/ui'
+import { statusLabel } from '../ui/labels'
 const toast = useToast()
 const rows = ref([])
 const loading = ref(false)

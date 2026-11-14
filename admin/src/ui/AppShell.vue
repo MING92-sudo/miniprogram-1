@@ -2,7 +2,7 @@
   <div class="ui-scope shell" :class="{ collapsed: ui.collapsed }">
     <div v-if="narrow" class="narrow-bar">建议桌面访问（≥1024px）以获得完整体验</div>
     <aside class="sidebar">
-      <div class="brand"><span class="brand-mark">梯维通</span><span class="brand-sub label">LIFT·OPS</span></div>
+      <div class="brand"><span class="brand-mark">博威无纸化</span><span class="brand-sub label">电梯维保管理端</span></div>
       <nav class="nav">
         <div v-for="g in menus" :key="g.title" class="nav-group">
           <p class="nav-group-title label">{{ g.title }}</p>
@@ -16,7 +16,7 @@
       <header class="topbar">
         <button class="collapse-btn" aria-label="折叠侧栏" @click="ui.toggleCollapsed">☰</button>
         <nav class="crumb"><span>{{ crumb.group }}</span><span class="crumb-sep">/</span><span>{{ crumb.view }}</span></nav>
-        <span class="scope-indicator label">范围 {{ perspective.scope }}</span>
+        <span class="scope-indicator label">范围 {{ scopeLabel(perspective.scope) }}</span>
         <span class="user-name">{{ auth.userName }}</span>
         <button class="logout" @click="auth.logout()">退出</button>
       </header>
@@ -33,6 +33,7 @@ import { useUiStore } from './stores/ui'
 import { usePerspectiveStore } from './stores/perspective'
 import { useAuthStore } from '../stores/auth'
 import { visibleMenus } from './menu-config'
+import { scopeLabel } from './labels'
 import { icon } from './icons'
 import Toast from './Toast.vue'
 const ui = useUiStore()

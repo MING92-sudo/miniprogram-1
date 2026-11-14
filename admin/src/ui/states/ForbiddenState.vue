@@ -2,13 +2,14 @@
   <div class="forbidden">
     <p class="fb-code num">403</p>
     <p class="fb-title">无权限访问</p>
-    <p class="fb-line">所需权限码：<code>{{ code }}</code></p>
-    <p class="fb-line">允许角色：<span v-for="r in allowedRoles" :key="r" class="fb-role">{{ r }}</span></p>
-    <p class="fb-line">当前角色：<span class="fb-role">{{ currentRole }}</span></p>
+    <p class="fb-line">所需权限：<code>{{ permLabel(code) }}</code></p>
+    <p class="fb-line">允许角色：<span v-for="r in allowedRoles" :key="r" class="fb-role">{{ roleLabel(r) }}</span></p>
+    <p class="fb-line">当前角色：<span class="fb-role">{{ roleLabel(currentRole) }}</span></p>
   </div>
 </template>
 <script setup>
-// M2 403 态：所需码 + 允许角色 + 当前角色（spec §3.10）
+// M2 403 态：所需权限 + 允许角色 + 当前角色（中文显示，spec §3.10）
+import { permLabel, roleLabel } from '../labels'
 defineProps({ code: { type: String, default: '' }, allowedRoles: { type: Array, default: () => [] }, currentRole: { type: String, default: '' } })
 </script>
 <style scoped>

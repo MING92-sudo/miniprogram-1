@@ -2,7 +2,7 @@
   <div class="page">
     <div class="page-head"><h1>审计日志（只读）</h1></div>
     <DataTable :columns="cols" :rows="rows" :loading="loading" :search-keys="['actorId', 'action']" />
-    <p class="hint">审计只读不可删改；旧 op_log 保留满足留存。</p>
+    <p class="hint">审计只读不可删改；旧操作日志保留满足留存。</p>
   </div>
 </template>
 <script setup>
@@ -10,13 +10,14 @@
 import { ref, onMounted } from 'vue'
 import http from '../api/client'
 import DataTable from '../ui/DataTable.vue'
+import { roleLabel, permLabel } from '../ui/labels'
 const rows = ref([])
 const loading = ref(false)
 const cols = [
   { key: 'createdAt', label: '时间', sortable: true },
   { key: 'actorId', label: '操作人' },
-  { key: 'actorRole', label: '角色' },
-  { key: 'action', label: '动作' },
+  { key: 'actorRole', label: '角色', format: roleLabel },
+  { key: 'action', label: '动作', format: permLabel },
   { key: 'target', label: '对象' },
   { key: 'result', label: '结果' }
 ]

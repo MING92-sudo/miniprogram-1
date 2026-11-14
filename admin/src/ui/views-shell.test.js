@@ -24,10 +24,10 @@ describe('LoginView', () => {
 })
 
 describe('ForbiddenView', () => {
-  it('shows required code from query', async () => {
+  it('shows required permission (Chinese) from query', async () => {
     await router.push('/403?code=contract:view')
     const w = mount(ForbiddenView, { global: { plugins: [router] } })
-    expect(w.text()).toContain('contract:view')
+    expect(w.text()).toContain('查看合同')
   })
 })
 

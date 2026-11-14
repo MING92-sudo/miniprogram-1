@@ -1,7 +1,7 @@
 <template>
   <div class="ui-scope login-page">
     <div class="login-card">
-      <div class="login-brand"><span class="brand-mark">梯维通</span><span class="label">LIFT·OPS 管理端</span></div>
+      <div class="login-brand"><span class="brand-mark">博威无纸化</span><span class="label">电梯维保管理端</span></div>
       <Form :rules="rules" v-model="model" @submit="onSubmit" v-slot="{ errors }">
         <FormField label="账号" required :error="errors.phone">
           <input name="phone" v-model="model.phone" autocomplete="username" />

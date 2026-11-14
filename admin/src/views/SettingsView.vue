@@ -15,7 +15,7 @@
     </div>
     <ul class="exp-list">
       <li v-for="a in approvals" :key="a.id">
-        <span>{{ a.purpose }} · {{ a.status }}</span>
+        <span>{{ a.purpose }} · {{ statusLabel(a.status) }}</span>
         <PermButton v-if="a.status === 'PENDING'" code="data:export_sensitive" label="批准" @click="approve(a.id)" />
       </li>
     </ul>
@@ -27,6 +27,7 @@ import { ref, onMounted, reactive } from 'vue'
 import http from '../api/client'
 import PermButton from '../ui/PermButton.vue'
 import { useToast } from '../ui/stores/ui'
+import { statusLabel } from '../ui/labels'
 const toast = useToast()
 const model = reactive({ sla_minutes: '30', maint_cycle_days: '15', spotcheck_ratio: '10' })
 const purpose = ref('')

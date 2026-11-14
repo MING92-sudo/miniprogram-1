@@ -3,14 +3,15 @@
     <li v-for="(it, i) in items" :key="i" class="tl-item">
       <span class="tl-dot" />
       <div class="tl-body">
-        <div class="tl-head"><strong>{{ it.actor }}</strong><span class="tl-role">{{ it.role }}</span><span class="tl-time num">{{ it.time }}</span></div>
+        <div class="tl-head"><strong>{{ it.actor }}</strong><span class="tl-role">{{ roleLabel(it.role) }}</span><span class="tl-time num">{{ it.time }}</span></div>
         <div class="tl-text">{{ it.text }}</div>
       </div>
     </li>
   </ol>
 </template>
 <script setup>
-// M2 时间轴：操作人 + 角色 + 时间（spec §3.7）
+// M2 时间轴：操作人 + 角色（中文）+ 时间（spec §3.7）
+import { roleLabel } from './labels'
 defineProps({ items: { type: Array, default: () => [] } })
 </script>
 <style scoped>
