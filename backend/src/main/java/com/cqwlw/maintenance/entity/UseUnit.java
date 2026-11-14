@@ -25,4 +25,6 @@ public class UseUnit {
     public String inviteCode;
     public String openid;
     public java.time.LocalDateTime boundAt;
+    /** 门户账号并入 sys_employee 标记（V41，M1）：0=未迁移（跨部门兜底），1=已迁移 */
+    public Integer accountMigrated;
 }
