@@ -16,4 +16,13 @@ describe('Form', () => {
     await w.find('form').trigger('submit')
     expect(w.emitted('submit')).toBeTruthy()
   })
+  it('submit syncs stale values from modelValue before validating (regression: 密码至少6位)', async () => {
+    // 回归：输入绑定在页面 model 上，values 经 watch 异步同步会滞后；
+    // 提交前必须以 modelValue 为准同步，否则末位字符未入 values 会误判（如「密码至少 6 位」）。
+    const w = mount(Form, { props: { rules, modelValue: { name: '李四' } }, slots: { default: '<input name="name" />' } })
+    w.vm.values.name = '' // 模拟 watch 尚未 flush，values 滞后于 modelValue
+    await w.find('form').trigger('submit')
+    expect(w.emitted('submit')).toBeTruthy()
+    expect(w.emitted('submit')[0][0]).toEqual({ name: '李四' })
+  })
 })
