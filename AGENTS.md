@@ -19,7 +19,7 @@
 | 账号与数据权限 | `docs/14-账号权限与组织角色设计.md` | 三平级部门（安装/维保/使用单位）角色码、数据域与权限矩阵 |
 | 测试与上线检查 | `docs/05-测试与验收方案.md`、`docs/11-云托管部署手册.md` | 人工验收结论写回 docs/05、docs/10 |
 
-**当前基线（2026-11-14 机审）**：小程序 40 页（tabBar 4）；`services/` 11 个模块；`mock/server.js` 73 条路由；后端 105 个 Web 映射注解（102 条业务路由 + 3 个探针）、Flyway V1—V36、362 个单测；管理端 21 个视图；文档 01—15。计数用于快速定位，提交前以代码实测为准；文档数字滞后时改文档，不要为迁就旧数字改代码。
+**当前基线（2026-11-14 机审）**：小程序 40 页（tabBar 4）；`services/` 11 个模块；`mock/server.js` 73 条路由；后端 173 个 Web 映射注解、Flyway V1—V39、375 个单测；管理端 23 个视图（自建组件库，Element Plus 已移除）；文档 01—15。计数用于快速定位，提交前以代码实测为准；文档数字滞后时改文档，不要为迁就旧数字改代码。
 
 ## 1. 系统组成与分层
 
@@ -32,8 +32,8 @@
 ├─ config/index.js                环境配置（ENV、useMock、apiBaseUrl、cloud.env/service、LBS key 留空）
 ├─ constants/index.js             枚举/错误码/业务常量（文案统一从这里取）
 ├─ mock/                          mock 契约层（server.js 路由 = docs/04 A 部分）
-├─ backend/                       Spring Boot 3.3.4 后端（Flyway V1—V36、JWT/BCrypt、平台转发、362 单测）
-├─ admin/                         Vue3 + Vite + 自建组件库（ui/）+ Element Plus（过渡期旧视图，M5 移除）管理端（21 视图；lint/vitest/build）
+├─ backend/                       Spring Boot 3.3.4 后端（Flyway V1—V39、JWT/BCrypt、平台转发、375 单测）
+├─ admin/                         Vue3 + Vite + 自建组件库（ui/）管理端（23 视图，Element Plus 已移除；lint/vitest/build）
 ├─ scripts/                       平台联调脚本与回归脚本（fixtures/ 合成测试件；tmp/ 已 gitignore）
 ├─ doc_text.txt                   平台规范 V1.5 原文提取（docs/04 B 部分核对来源，只读）
 ├─ docs/                          01—15 编号文档（见 §8）
@@ -188,6 +188,7 @@
 | V3.10 | 2026-11-13 | 使用单位「我的」独立成页（用户需求：门户账号只看单位信息与设置，不渲染维保内容）：①新增 `pages/unit/mine`（小程序 40 页）——单位信息（单位名称/登录账号/角色）+ 绑定微信一键登录 + 修改口令 + 退出登录，不含任何作业入口；②`pages/mine` 只服务员工态，检测到门户身份即回门户首页；门户首页「我的」改 `navigateTo` 该页（非 tab，无维保 tabBar）；③后端新增 `POST /unit/account/password`（门户令牌，原口令校验 + 新口令 ≥6 位且不同于原口令，只更新 BCrypt 哈希），`UnitAccountServiceTest` 补 4 例；会话返回体补 `account`；④mock 与 docs/04（V2.50）三处同步，迁移与种子数据不变 |
 | V3.11 | 2026-11-14 | M1 后端权限底座（管理端重构「梯维通」蓝图，策略 A 底座先行分批；spec/plan 见 docs/superpowers）：①V35 权限核心五表（sys_org/sys_user_role/sys_role_scope/sys_grant/sys_audit_log）+ sys_employee.scope_version + 13 角色默认范围种子；V36 dev/test 由存量旧角色回填（生产空库 no-op，张工归 Seeder，严禁自动 TRUNCATE/DELETE）；②RoleCatalog v2 十三规范角色 + 旧码别名 + 同部门兼任（R7）；PermissionMatrix v2 八十六码三态（Y/C/DENY）唯一事实源，24 旧常量/GRANTS 冻结保留；LegacyCapabilityTranslator 24→71 桥接（adminConsole 门控 + order/fault 语义反转，allows 逐格复现冻结授权，RbacMatrixTest/CompatTest 锁定）；③JWT 增 scopeVersion claim（保留 5 参重载）+ AuthInterceptor v2 多角色集 ATTR_ROLES + sv 校验（旧 token null→0 兼容）；ScopeResolver 读写双谓词与 V7 逐集合等价（写绝不扩区域/部门）；④GrantService 限时授权四态 + 到期回收 bumpScopeVersion + 审计；AuditLogService append-only + 越权 403/1403 BLOCKED 留痕（op_log 并存）；⑤DemoDataSeeder 增张工 INST_MGR（INSTALL）与组织角色锚点。旧端点行为逐条不变，业务查询/admin/小程序零改动；M1 不新增 REST 端点（grant 管理 M3、audit 视图 M5），docs/04 三处同步不触发。计数更新（Flyway V1—V36、362 单测）；门禁全绿（后端 mvn clean test/package、verify-dispatch/templates、admin lint/39 用例/build）。M2—M5 与生产清库见 docs/12 G 组 |
 | V3.12 | 2026-11-14 | M2 自建组件库 + 应用壳（管理端重构「梯维通」，纯前端；spec/plan 见 docs/superpowers）：①`admin/src/ui/` 深色工业风 token 层（admin-spec §8 逐字）+ inline SVG 图标 + 状态色映射；②9 组件（DataTable/Drawer/Modal/Form/Toast/StatusTag/Timeline/PermButton/AppShell）+ 四态 + 4 composables（useTable/usePagination/useForm/usePermission），styled SFC + headless 分离；③permission-v2 前端镜像 M1（13 角色/86 码三态 + canonical 别名 + 漂移守卫）；④双布局共存：新 AppShell 包 login/工作台/403/404，旧 17 视图保留 AdminLayout + EP（/legacy 前缀保活），EP 到 M5 移除；⑤工作台 M2 用 admin-spec §9 mock 基准集 + 真实多角色切换机制（roleSet 接线 M3）；⑥开发态组件廊 + 九不变量自检；⑦移除无引用 exceljs。旧 39 用例零回归 + 新增 66 用例（共 105）全绿，lint/build 通过，浏览器走查登录/组件廊/自检渲染无报错。M2 不新增 REST 端点，docs/04 三处同步不触发。docs/09 V3.17、docs/12 V1.7 同步 |
+| V3.13 | 2026-11-14 | M3—M5 视图分批落地与旧管理端下线（管理端重构「梯维通」收尾）：①M3 台账域——V37（sys_invite/biz_project/biz_elevator_change）+ MultiRoleGate 多角色三态门控 + 组织/项目/邀请/限时授权/电梯双人变更/账号/角色矩阵端点 + 7 视图；合同金额服务端分级脱敏；②M4 作业域——V38（记录版本链+solo_exempt、故障代报修+SLA、工单SLA）+ 记录修订 v2+新哈希（不重报，P-5）/代报修端点 + 移交/计划/记录/调度/工单详情 5 视图 + 合规组并入新壳；③M5 数据域——V39（sys_config/biz_export_approval）+ 配置/敏感导出审批/统计/审计只读端点 + 3 视图；移除 Element Plus 与旧 AdminLayout/旧 permission/menu/旧 EP 视图，guard/auth 切 permission-v2；小程序 role-view 对齐 13 规范角色（兼容旧码、单身份互斥不变）。计数更新（Flyway V1—V39、375 单测、173 映射、23 视图）；门禁全绿（后端 mvn test、admin lint/75 用例/build 无 EP 包、verify-dispatch/templates）。生产清库仍为人工上线步骤（docs/12 G 组） |
 
 <!-- aoci:begin -->
 ## AOCI Repository Cognition
