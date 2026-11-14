@@ -4,18 +4,8 @@ const { ROUTES } = require('../config/routes')
 const { resolveHome } = require('../config/menus')
 const { getRoles, getHome, getWorkspace } = require('./auth')
 
-// 新→旧过渡映射（M0 §4 反向；M3 已删 order/pkg-maintenance 映射，余 handover/client 随 M4/M5 删除）
+// 新→旧过渡映射（M0 §4 反向；M3/M4 已删 order/pkg-maintenance/handover 映射，余 client 随 M5 删除）
 const TRANSITION_MAP = {
-  '/pkg-handover/pages/list/index': '/pages/handover/list',
-  '/pkg-handover/pages/create/index': '/pages/handover/init',
-  '/pkg-handover/pages/detail/index': '/pages/handover/detail',
-  '/pkg-handover/pages/inspect/index': '/pages/handover/inspect',
-  '/pkg-handover/pages/rectify/index': '/pages/handover/rectify',
-  '/pkg-handover/pages/sign/index': '/pages/handover/confirm',
-  '/pkg-handover/pages/filing-init/index': '/pages/filing/init',
-  '/pkg-handover/pages/filing-detail/index': '/pages/filing/detail',
-  '/pkg-handover/pages/filing-inspect/index': '/pages/filing/inspect',
-  '/pkg-handover/pages/filing-confirm/index': '/pages/filing/confirm',
   '/pkg-client/pages/todo/index': '/pages/unit/records',
   '/pkg-client/pages/sign/index': '/pages/unit/sign',
   '/pkg-client/pages/orders/index': '/pages/unit/faults'

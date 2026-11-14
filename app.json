@@ -18,16 +18,6 @@
     "pages/mine/index",
     "pages/elevator/list",
     "pages/elevator/detail",
-    "pages/handover/list",
-    "pages/handover/init",
-    "pages/handover/detail",
-    "pages/handover/inspect",
-    "pages/handover/rectify",
-    "pages/handover/confirm",
-    "pages/filing/init",
-    "pages/filing/detail",
-    "pages/filing/inspect",
-    "pages/filing/confirm",
     "pages/mine/offline",
     "pages/unit/sign",
     "pages/unit/home",
@@ -78,6 +68,23 @@
         "pages/record-sign/index",
         "pages/record-archive/index"
       ]
+    },
+    {
+      "root": "pkg-handover",
+      "pages": [
+        "pages/list/index",
+        "pages/create/index",
+        "pages/detail/index",
+        "pages/inspect/index",
+        "pages/rectify/index",
+        "pages/sign/index",
+        "pages/upload/index",
+        "pages/review/index",
+        "pages/filing-init/index",
+        "pages/filing-detail/index",
+        "pages/filing-inspect/index",
+        "pages/filing-confirm/index"
+      ]
     }
   ],
   "preloadRule": {
@@ -85,6 +92,12 @@
       "network": "all",
       "packages": [
         "pkg-maintenance"
+      ]
+    },
+    "pages/install/home/index": {
+      "network": "all",
+      "packages": [
+        "pkg-handover"
       ]
     }
   }

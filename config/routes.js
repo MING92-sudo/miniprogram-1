@@ -71,6 +71,8 @@ const ROUTES = {}
 LIST.forEach((m) => { ROUTES[m.path] = m })
 // M3 已建：维保作业域 9 页 + 急修 3 页（随批次推进 built）
 LIST.forEach((m) => { if (m.batch === 'M3') m.built = true })
+// M4 已建：移交/外接域 12 页
+LIST.forEach((m) => { if (m.batch === 'M4') m.built = true })
 
 // 过渡期旧 40 页（M0 §4 旧列；各域迁移完即删，M6 清空）
 const OLD_PAGES = [
