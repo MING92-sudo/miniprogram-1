@@ -1,6 +1,6 @@
 // 应用入口（M2 单账号多角色，规格 §3.2/§5.3）：单会话 globalData + 菜单驱动导航。
 // 云托管初始化/版本更新/离线补传监听沿用；登录态恢复扩展 roles/perms/workspace/home。
-const { getToken, getUserInfo, getRole, getRoles, getPerms, getWorkspace, getHome, clearAuth } = require('./utils/auth')
+const { getToken, getUserInfo, getRole, getRoles, getPerms, getWorkspace, getHome, getScope, clearAuth } = require('./utils/auth')
 
 App({
   globalData: {
@@ -11,6 +11,7 @@ App({
     perms: [],
     workspace: '',
     home: '',
+    scope: '',
     tabs: [],
     quickActions: [],
     actions: {},
@@ -72,6 +73,7 @@ App({
     g.perms = getPerms() || []
     g.workspace = getWorkspace() || ''
     g.home = getHome() || ''
+    g.scope = getScope() || ''
     if (g.token) require('./services/unit').clearUnitSession()
   },
 
@@ -86,6 +88,7 @@ App({
     g.perms = data.perms || []
     g.workspace = data.activeWorkspace || data.role
     g.home = data.home || ''
+    g.scope = data.scope || ''
     this.loadMenus()
   },
 
@@ -114,7 +117,7 @@ App({
     clearAuth()
     const g = this.globalData
     g.token = ''; g.userInfo = null; g.role = ''
-    g.roles = []; g.perms = []; g.workspace = ''; g.home = ''
+    g.roles = []; g.perms = []; g.workspace = ''; g.home = ''; g.scope = ''
     g.tabs = []; g.quickActions = []; g.actions = {}
     g.badges = { pendingOrders: 0, pendingSigns: 0 }; g.lastDeny = null
   }

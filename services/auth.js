@@ -48,7 +48,8 @@ function applyLoginResult(data) {
     roles: data.roles,
     perms: data.perms,
     activeWorkspace: data.activeWorkspace,
-    home: data.home
+    home: data.home,
+    scope: data.scope
   })
   return data
 }

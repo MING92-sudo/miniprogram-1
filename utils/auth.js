@@ -7,6 +7,7 @@ const ROLES_KEY = 'em_roles'
 const PERMS_KEY = 'em_perms'
 const WORKSPACE_KEY = 'em_workspace'
 const HOME_KEY = 'em_home'
+const SCOPE_KEY = 'em_scope'
 
 function getToken() {
   return wx.getStorageSync(TOKEN_KEY)
@@ -25,7 +26,7 @@ function isLoggedIn() {
 }
 
 // 保存登录态（/auth/login 返回；M1 扩展 roles/perms/activeWorkspace/home）
-function saveAuth({ token, userInfo, role, roles, perms, activeWorkspace, home }) {
+function saveAuth({ token, userInfo, role, roles, perms, activeWorkspace, home, scope }) {
   wx.setStorageSync(TOKEN_KEY, token)
   wx.setStorageSync(USER_KEY, userInfo)
   wx.setStorageSync(ROLE_KEY, role)
@@ -33,6 +34,7 @@ function saveAuth({ token, userInfo, role, roles, perms, activeWorkspace, home }
   wx.setStorageSync(PERMS_KEY, perms || [])
   wx.setStorageSync(WORKSPACE_KEY, activeWorkspace || role)
   wx.setStorageSync(HOME_KEY, home || '')
+  wx.setStorageSync(SCOPE_KEY, scope || '')
 }
 
 function getRoles() {
@@ -51,6 +53,10 @@ function getHome() {
   return wx.getStorageSync(HOME_KEY) || ''
 }
 
+function getScope() {
+  return wx.getStorageSync(SCOPE_KEY) || ''
+}
+
 function clearAuth() {
   wx.removeStorageSync(TOKEN_KEY)
   wx.removeStorageSync(USER_KEY)
@@ -59,6 +65,7 @@ function clearAuth() {
   wx.removeStorageSync(PERMS_KEY)
   wx.removeStorageSync(WORKSPACE_KEY)
   wx.removeStorageSync(HOME_KEY)
+  wx.removeStorageSync(SCOPE_KEY)
 }
 
 module.exports = {
@@ -69,6 +76,7 @@ module.exports = {
   getPerms,
   getWorkspace,
   getHome,
+  getScope,
   isLoggedIn,
   saveAuth,
   clearAuth
