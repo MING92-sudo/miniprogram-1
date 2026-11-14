@@ -1231,7 +1231,7 @@ git commit -m "feat: 权限矩阵 v2 八十六码三态唯一事实源"
 - Test: `backend/src/test/java/com/cqwlw/maintenance/auth/LegacyCapabilityTranslatorTest.java`
 
 **Interfaces:**
-- Consumes: `PermissionMatrix.grant(旧码)→Set<String>`（冻结旧授权）、`PermissionMatrix.state/allowsNew`（Task 5）、`RoleCatalog.canonical/canonicalRole`（Task 4）。
+- Consumes: `PermissionMatrix.state/allowsNew`（Task 5）、`RoleCatalog.canonical/canonicalRole`（Task 4）、冻结 `GRANTS`（经**本任务新增**的 `holders` 访问器只读；现状 `grant(Map,String,String...)` 是 private void 构建器，非 public getter）。
 - Produces:
   - `PermissionMatrix.holders(String oldCode)→Set<String>` — **新增 public 冻结授权访问器**（现状 `grant(Map,String,String...)` 是 private void 构建器，无 public getter；翻译器与测试需要只读访问冻结 GRANTS）。未知码抛 IllegalArgumentException。
   - `static Set<String> translate(String oldCode)` — 旧码→新码集（M0 §2.1；未知旧码抛 IllegalArgumentException）。
