@@ -15,6 +15,11 @@ const RolesView = () => import('../views/RolesView.vue')
 const GrantsView = () => import('../views/GrantsView.vue')
 const ProjectsView = () => import('../views/ProjectsView.vue')
 const ContractsView = () => import('../views/ContractsView.vue')
+// M4 作业域视图
+const HandoversView = () => import('../views/HandoversView.vue')
+const PlansView = () => import('../views/PlansView.vue')
+const RecordsView = () => import('../views/RecordsView.vue')
+const DispatchView = () => import('../views/DispatchView.vue')
 // 旧 EP 视图（M2 保活，M3–M5 逐迁）
 const OrderListView = () => import('../views/OrderListView.vue')
 const OrderDetailView = () => import('../views/OrderDetailView.vue')
@@ -44,7 +49,18 @@ export const routes = [
     { path: 'grants', component: GrantsView, meta: { title: '授权管理', group: '组织与权限', perm: 'invite:manage' } },
     { path: 'projects', component: ProjectsView, meta: { title: '项目台账', group: '台账中心', perm: 'project:view' } },
     { path: 'contracts', component: ContractsView, meta: { title: '合同管理', group: '台账中心', perm: 'contract:view' } },
-    { path: 'elevators', component: ElevatorsView, meta: { title: '电梯台账', group: '台账中心', perm: 'elevator:view' } }
+    { path: 'elevators', component: ElevatorsView, meta: { title: '电梯台账', group: '台账中心', perm: 'elevator:view' } },
+    { path: 'handovers', component: HandoversView, meta: { title: '移交管理', group: '安装移交', perm: 'handover:view' } },
+    { path: 'plans', component: PlansView, meta: { title: '维保计划', group: '维保作业', perm: 'plan:view' } },
+    { path: 'records', component: RecordsView, meta: { title: '记录单复核', group: '维保作业', perm: 'record:view' } },
+    { path: 'dispatch', component: DispatchView, meta: { title: '工单调度', group: '急修报修', perm: 'order:view_pool' } },
+    { path: 'order/:id', component: OrderDetailView, meta: { title: '工单详情', group: '急修报修', perm: 'order:view_own' } },
+    { path: 'reports/failed', component: FailedRecordsView, meta: { title: '上报异常清单', group: '监管与档案', perm: 'report:view' } },
+    { path: 'reports/logs', component: UploadLogsView, meta: { title: '上报日志', group: '监管与档案', perm: 'report:view' } },
+    { path: 'filings', component: FilingView, meta: { title: '外接建档', group: '监管与档案', perm: 'filing:view' } },
+    { path: 'regions', component: RegionView, meta: { title: '区域管理', group: '监管与档案', perm: 'region:view' } },
+    { path: 'templates', component: TemplateManageView, meta: { title: '检查项模板', group: '监管与档案', perm: 'template:view' } },
+    { path: 'register/workers', component: RegisterWorkersView, meta: { title: '平台登记人员', group: '监管与档案', perm: 'platform:worker_view' } }
   ] },
   // 旧管理端保活分支（M5 迁完删除）；路径前缀 /legacy，旧组件零改动
   { path: '/legacy', component: AdminLayout, redirect: '/legacy/orders', children: [

@@ -39,7 +39,8 @@ const ui = useUiStore()
 const perspective = usePerspectiveStore()
 const auth = useAuthStore()
 const route = useRoute()
-const IMPLEMENTED = ['/dashboard', '/org', '/users', '/roles', '/grants', '/projects', '/contracts', '/elevators']
+const IMPLEMENTED = ['/dashboard', '/org', '/users', '/roles', '/grants', '/projects', '/contracts', '/elevators',
+  '/handovers', '/plans', '/records', '/dispatch', '/order', '/reports/failed', '/reports/logs', '/filings', '/regions', '/templates', '/register/workers']
 const menus = computed(() => visibleMenus(perspective.activeRole, IMPLEMENTED))
 const crumb = computed(() => ({ group: route.meta.group || '概览', view: route.meta.title || '' }))
 const narrow = ref(false)
