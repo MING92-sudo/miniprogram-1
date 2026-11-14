@@ -188,8 +188,10 @@ AuthInterceptor（JWT → userId/roles/useUnitId/scopeVersion）
 |---|---|
 | LoginView / ForbiddenView / NotFoundView | `#/login` / 403 / 404 重写 |
 | DashboardView | `#/dashboard` 重写（KPI 7 项+待办） |
-| OrderListView + FaultsView | `#/dispatch` 合并（类型筛选区分急修/报修） |
-| OrderDetailView | `#/order/:id` 重写（7 态时间轴+代报修） |
+| OrderListView（维保工单 HM/TM/SM/OY） | `#/plans` 计划/工单列表（**非急修域**，见 M0 表 3 §3.0） |
+| OrderListView（救援工单 FM） + FaultsView | `#/dispatch` 合并（类型筛选区分急修/报修） |
+| OrderDetailView（维保） | `#/records` 记录单详情（检查项+双签+记录预览） |
+| OrderDetailView（FM 救援） | `#/order/:id` 重写（7 态时间轴+代报修） |
 | ScheduleView | `#/plans`（投影+手动派单，D-A1） |
 | LedgerView + ElevatorsView | `#/elevators` 合并 |
 | HandoverView | `#/handovers` 重写（10 态，M0 状态机对照表驱动） |
@@ -294,3 +296,4 @@ AuthInterceptor（JWT → userId/roles/useUnitId/scopeVersion）
 | 版本 | 日期 | 修订内容 |
 |---|---|---|
 | V1.0 | 2026-11-14 | 首版：五项战略决策、角色/权限目标模型（12+1 角色、71+ 码、6 范围）、数据模型变更（9 新表+加列）、管理端 8 组 23 视图 IA、自建组件库规格、小程序对齐口径、M0—M5 里程碑与门禁、8 项风险、7 条偏离记录、文档同步计划 |
+| V1.1 | 2026-11-14 | M0 出口：§6.2 修正 OrderListView/OrderDetailView 混合域拆分（维保工单 HM/TM/SM/OY→#/plans+#/records，救援 FM+急修单→#/dispatch+#/order/:id），消除"维保工单误入急修 7 态机"陷阱；四张对照表落地 `2026-11-14-admin-redesign-m0-mappings.md`；三份外部设计 md 归档 `docs/16-梯维通设计输入/`；docs/06 追加 §十四 修订上报口径确认项（14-1） |
