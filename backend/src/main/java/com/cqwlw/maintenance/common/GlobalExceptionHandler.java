@@ -17,15 +17,41 @@ public class GlobalExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
+    private final com.cqwlw.maintenance.service.AuditLogService auditLogService;
+
+    public GlobalExceptionHandler(com.cqwlw.maintenance.service.AuditLogService auditLogService) {
+        this.auditLogService = auditLogService;
+    }
+
     /** 业务异常：HTTP 200 + 业务码（前端 request.js 以 body.code 判定业务结果）；data 可附带 conflicts[] 等 */
     @ExceptionHandler(BizException.class)
     @ResponseStatus(HttpStatus.OK)
-    public ApiResponse<Object> handleBiz(BizException e) {
+    public ApiResponse<Object> handleBiz(BizException e, jakarta.servlet.http.HttpServletRequest request) {
+        if (e.getCode() == 403 || e.getCode() == 1403) {
+            appendBlocked(e, request);
+        }
         ApiResponse<Object> resp = ApiResponse.error(e.getCode(), e.getMessage());
         if (e.getData() != null) {
             resp.setData(e.getData());
         }
         return resp;
+    }
+
+    /** 越权拒绝路径 BLOCKED 审计（spec §5.2）；落库失败不影响错误响应。 */
+    private void appendBlocked(BizException e, jakarta.servlet.http.HttpServletRequest request) {
+        try {
+            com.cqwlw.maintenance.entity.SysAuditLog a = new com.cqwlw.maintenance.entity.SysAuditLog();
+            a.actorId = (String) request.getAttribute(com.cqwlw.maintenance.auth.AuthInterceptor.ATTR_EMP_ID);
+            a.actorRole = (String) request.getAttribute(com.cqwlw.maintenance.auth.AuthInterceptor.ATTR_ROLE);
+            String action = request.getMethod() + " " + request.getRequestURI();
+            a.action = action.length() > 64 ? action.substring(0, 64) : action;
+            a.result = "BLOCKED";
+            a.reason = e.getMessage();
+            a.ip = request.getRemoteAddr();
+            auditLogService.append(a);
+        } catch (RuntimeException ex) {
+            log.warn("BLOCKED 审计落库失败（不影响主流程）: {}", ex.getMessage());
+        }
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
