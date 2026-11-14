@@ -37,7 +37,18 @@
 
 ## 3 急修/报修状态机映射
 
-（Task 3 写入）
+| 旧态/节点 | 代码出处 | 蓝图 §6.3 对应 | 新实现口径 |
+|---|---|---|---|
+| OPEN | DirectoryService.java:181 | 待接单 | 抢单（order:grab 本区域）/派单（order:dispatch 主管/经理）→ASSIGNED |
+| ASSIGNED | DirectoryService.java:209 | 已接单 | 新增到场打卡节点（order:arrive GPS+时间戳）→处置中 |
+| 新增 PROCESSING | — | 处置中 | 到场后进入；维修过程字段沿用 PUT /faults/{id} |
+| 新增 PENDING_CONFIRM | — | 待使用单位确认 | 提交急修单（order:submit）后进入；CLIENT_SIGNER 确认（管理员须兼任） |
+| CLOSED | DirectoryService.java:414 | 已闭环 | 确认后系统闭环（order:close 系统/主管）；维保人员只读；评价入口开放 |
+| 新增 REFUSED | — | 待整改 | 拒绝必填原因，退回处置 |
+| 新增 CANCELLED | — | 已取消 | 接单前单位管理员/接单后主管；原因必填（order:cancel） |
+| 升级/改派 | 新增 SLA 任务 | 改派/升级 | order:escalate 阈值 config:manage；超时通知上级 |
+| 到场时间现状 | DirectoryService.java:224 | 到场打卡 | 现以最早签到推导 arrivedAt；新增显式打卡节点后以打卡为准，签到推导兜底留痕 |
+| 评价 | 无端点 | 已闭环→待评价 | 新增 POST /faults/{id}/evaluate（client:evaluate，1–5 星+文字） |
 
 ## 4 路由对照（49 页）
 
