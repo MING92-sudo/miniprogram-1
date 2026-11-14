@@ -12,7 +12,12 @@ const emit = defineEmits(['update:modelValue', 'submit'])
 const { values, errors, validateField, validateAll } = useForm(props.rules)
 watch(() => props.modelValue, (v) => Object.assign(values, v), { immediate: true, deep: true })
 watch(values, (v) => emit('update:modelValue', { ...v }), { deep: true })
-function onSubmit() { if (validateAll()) emit('submit', { ...values }) }
+function onSubmit() {
+  // 输入绑定在页面 model 上，values 经 watch 异步同步会滞后一拍；
+  // 提交前先以 modelValue 为准同步，避免末位字符未入 values 导致误判（如「密码至少 6 位」）。
+  Object.assign(values, props.modelValue)
+  if (validateAll()) emit('submit', { ...values })
+}
 defineExpose({ validate: validateAll, validateField, errors, values })
 </script>
 <style scoped>
