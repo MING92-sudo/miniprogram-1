@@ -20,14 +20,26 @@ public class AuthInterceptor implements HandlerInterceptor {
     /** 使用单位令牌标记（JWT claim ut=1），与员工令牌分流 */
     public static final String CLAIM_UNIT_TOKEN = "ut";
     public static final String ATTR_OPENID = "openid";
+    /** 规范角色码集（Set<String>，M1 多角色）；员工分支由 sys_user_role 填，门户分支含 CLIENT_ADMIN */
+    public static final String ATTR_ROLES = "roles";
 
     private final JwtService jwtService;
     private final com.cqwlw.maintenance.mapper.EmployeeMapper employeeMapper;
+    private final com.cqwlw.maintenance.mapper.SysUserRoleMapper userRoleMapper; // 可为 null（2 参兼容）
 
+    @org.springframework.beans.factory.annotation.Autowired
     public AuthInterceptor(JwtService jwtService,
-                           com.cqwlw.maintenance.mapper.EmployeeMapper employeeMapper) {
+                           com.cqwlw.maintenance.mapper.EmployeeMapper employeeMapper,
+                           com.cqwlw.maintenance.mapper.SysUserRoleMapper userRoleMapper) {
         this.jwtService = jwtService;
         this.employeeMapper = employeeMapper;
+        this.userRoleMapper = userRoleMapper;
+    }
+
+    /** 2 参兼容构造器（AuthInterceptorTest/UnitTokenScopeTest 锁定）：无 sys_user_role 查询，回退主角色。 */
+    public AuthInterceptor(JwtService jwtService,
+                           com.cqwlw.maintenance.mapper.EmployeeMapper employeeMapper) {
+        this(jwtService, employeeMapper, null);
     }
 
     @Override
@@ -55,6 +67,7 @@ public class AuthInterceptor implements HandlerInterceptor {
             }
             request.setAttribute(ATTR_UNIT_ID, claims.getSubject());
             request.setAttribute(ATTR_ROLE, "UNIT_ADMIN");
+            request.setAttribute(ATTR_ROLES, java.util.Set.of("CLIENT_ADMIN", "UNIT_ADMIN"));
             return true;
         }
         String client = claims.get("client", String.class);
@@ -68,10 +81,40 @@ public class AuthInterceptor implements HandlerInterceptor {
         if (sid == null || !sid.equals(current)) {
             throw new BizException(401, "账号已在其他设备登录，请重新登录");
         }
+        // scopeVersion 校验（spec §4.2）：旧 token sv=null→0，DB null→0，不误拒
+        int tokenSv = claims.get("sv") == null ? 0 : ((Number) claims.get("sv")).intValue();
+        int dbSv = user.scopeVersion == null ? 0 : user.scopeVersion;
+        if (tokenSv != dbSv) {
+            throw new BizException(401, "登录已过期，请重新登录");
+        }
         request.setAttribute(ATTR_EMP_ID, claims.getSubject());
         // M2：角色以数据库为准——DB 降权/停用后旧 token 里的 role 不再生效
         request.setAttribute(ATTR_ROLE, user.role);
         request.setAttribute(ATTR_OPENID, claims.get("openid"));
+        request.setAttribute(ATTR_ROLES, resolveRoles(user));
         return true;
+    }
+
+    /** 多角色规范码集：有 sys_user_role 取其 role_code 规范码；否则回退主角色规范码（2 参兼容）。 */
+    private java.util.Set<String> resolveRoles(com.cqwlw.maintenance.entity.Employee user) {
+        java.util.Set<String> roles = new java.util.LinkedHashSet<>();
+        if (userRoleMapper != null) {
+            for (com.cqwlw.maintenance.entity.SysUserRole ur : userRoleMapper.selectList(
+                    new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<com.cqwlw.maintenance.entity.SysUserRole>()
+                            .eq(com.cqwlw.maintenance.entity.SysUserRole::getUserId, user.id)
+                            .eq(com.cqwlw.maintenance.entity.SysUserRole::getUserType, "EMPLOYEE"))) {
+                String c = RoleCatalog.canonical(ur.roleCode);
+                if (c != null) {
+                    roles.add(c);
+                }
+            }
+        }
+        if (roles.isEmpty()) {
+            String c = RoleCatalog.canonical(user.role);
+            if (c != null) {
+                roles.add(c);
+            }
+        }
+        return roles;
     }
 }
