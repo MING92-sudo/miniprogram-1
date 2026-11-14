@@ -18,7 +18,12 @@ function onSubmit() {
   Object.assign(values, props.modelValue)
   if (validateAll()) emit('submit', { ...values })
 }
-defineExpose({ validate: validateAll, validateField, errors, values })
+// 暴露的 validate 同样先同步（CRUD 视图直接调 formRef.validate()，不走 onSubmit）
+function validate() {
+  Object.assign(values, props.modelValue)
+  return validateAll()
+}
+defineExpose({ validate, validateField, errors, values })
 </script>
 <style scoped>
 .ui-form { display: block; }

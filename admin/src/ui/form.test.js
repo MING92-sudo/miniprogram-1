@@ -25,4 +25,10 @@ describe('Form', () => {
     expect(w.emitted('submit')).toBeTruthy()
     expect(w.emitted('submit')[0][0]).toEqual({ name: '李四' })
   })
+  it('exposed validate() also syncs stale values (CRUD 视图直接调 formRef.validate())', () => {
+    const w = mount(Form, { props: { rules, modelValue: { name: '王五' } }, slots: { default: '<input name="name" />' } })
+    w.vm.values.name = '' // 滞后
+    expect(w.vm.validate()).toBe(true) // 同步后校验通过
+    expect(w.vm.errors.name).toBe('')
+  })
 })
