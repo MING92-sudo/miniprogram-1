@@ -1,6 +1,7 @@
 # 博威无纸化小程序重构 M0 映射基线
 
 > V1.0 · 2026-11-15 · 依据规格 2026-11-15-miniapp-redesign-design.md · 守卫：scripts/verify-miniapp-m0.js
+> 门禁（2026-11-15，结构等价取证）：11 检查全 missingCount=0 —— record-states 3 / handover-states 6 / handover-baseline 6 / fault-states 3 / fault-drift 3 / routes-old 40 / routes-new 49 / routes-count 49 / perm-codes 106 / perm-count 106 / assets 3；根 lint 绿。图标/字体真实绘制验收留 M2。
 
 ## 1 维保记录状态机映射
 
