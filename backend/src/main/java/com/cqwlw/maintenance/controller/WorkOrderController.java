@@ -26,9 +26,65 @@ public class WorkOrderController {
     private final WorkOrderService workOrderService;
     private final IdempotencyService idempotencyService;
 
-    public WorkOrderController(WorkOrderService workOrderService, IdempotencyService idempotencyService) {
+    public WorkOrderController(WorkOrderService workOrderService, IdempotencyService idempotencyService,
+                               com.cqwlw.maintenance.service.RecordLifecycleService recordLifecycleService) {
         this.workOrderService = workOrderService;
         this.idempotencyService = idempotencyService;
+        this.recordLifecycleService = recordLifecycleService;
+    }
+
+    private final com.cqwlw.maintenance.service.RecordLifecycleService recordLifecycleService;
+
+    /** M1：配合人退回签字（仅配合人本人，无上报副作用） */
+    @PostMapping("/work-orders/{id}/signature-refuse")
+    public ApiResponse<Object> signatureRefuse(@PathVariable String id,
+                                               @RequestHeader(value = "X-Idempotency-Key", required = false) String idemKey,
+                                               HttpServletRequest request) {
+        IdempotencyService.Guard guard = idempotencyService.begin(idemKey, "/work-orders/signature-refuse");
+        if (guard.replayed()) {
+            return ApiResponse.ok(guard.replayedResult());
+        }
+        Map<String, Object> result = recordLifecycleService.signatureRefuse(id, empId(request));
+        guard.commit(result);
+        return ApiResponse.ok(result);
+    }
+
+    /** M1：主管复核（通过/退回，退回原因必填） */
+    @PostMapping("/work-orders/{id}/review")
+    public ApiResponse<Object> review(@PathVariable String id, @RequestBody Map<String, Object> body,
+                                      @RequestHeader(value = "X-Idempotency-Key", required = false) String idemKey,
+                                      HttpServletRequest request) {
+        IdempotencyService.Guard guard = idempotencyService.begin(idemKey, "/work-orders/review");
+        if (guard.replayed()) {
+            return ApiResponse.ok(guard.replayedResult());
+        }
+        boolean pass = Boolean.TRUE.equals(body.get("pass"));
+        String reason = body.get("reason") == null ? "" : String.valueOf(body.get("reason"));
+        Map<String, Object> result = recordLifecycleService.review(id, pass, reason,
+                com.cqwlw.maintenance.auth.MultiRoleGate.roles(request));
+        guard.commit(result);
+        return ApiResponse.ok(result);
+    }
+
+    /** M1：发起使用单位签字（门控双签齐） */
+    @PostMapping("/work-orders/{id}/sign-request")
+    public ApiResponse<Object> signRequest(@PathVariable String id,
+                                           @RequestHeader(value = "X-Idempotency-Key", required = false) String idemKey,
+                                           HttpServletRequest request) {
+        IdempotencyService.Guard guard = idempotencyService.begin(idemKey, "/work-orders/sign-request");
+        if (guard.replayed()) {
+            return ApiResponse.ok(guard.replayedResult());
+        }
+        Map<String, Object> result = recordLifecycleService.signRequest(id,
+                com.cqwlw.maintenance.auth.MultiRoleGate.roles(request));
+        guard.commit(result);
+        return ApiResponse.ok(result);
+    }
+
+    /** M1：归档投影（PDF 重签 URL + SHA-256；存量 SIGNED 按需补归档） */
+    @GetMapping("/work-orders/{id}/archive")
+    public ApiResponse<Map<String, Object>> archive(@PathVariable String id) {
+        return ApiResponse.ok(recordLifecycleService.archiveView(id));
     }
 
     @GetMapping("/work-orders")

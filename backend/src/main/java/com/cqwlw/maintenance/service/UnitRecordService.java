@@ -23,6 +23,14 @@ public class UnitRecordService {
     private final WorkOrderService workOrderService;
     private final FileStorageService fileStorageService;
 
+    /** M1 生命周期钩子（setter 注入；生产 Spring 必注入） */
+    private RecordLifecycleService recordLifecycleService;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    public void setRecordLifecycleService(RecordLifecycleService recordLifecycleService) {
+        this.recordLifecycleService = recordLifecycleService;
+    }
+
     public UnitRecordService(MaintainRecordMapper recordMapper, WorkOrderService workOrderService,
                              FileStorageService fileStorageService) {
         this.recordMapper = recordMapper;
@@ -67,6 +75,9 @@ public class UnitRecordService {
         r.signatureFileId = signatureFileId;
         r.signatureUrl = signatureUrl;
         recordMapper.updateById(r);
+        if (recordLifecycleService != null) {
+            recordLifecycleService.onClientSigned(r); // M1：SIGNED→自动归档（不触发平台调用）
+        }
         return JsonUtil.map("ok", true);
     }
 
@@ -112,6 +123,9 @@ public class UnitRecordService {
         r.signatureFileId = signatureFileId;
         r.signatureUrl = signatureUrl;
         recordMapper.updateById(r);
+        if (recordLifecycleService != null) {
+            recordLifecycleService.onClientSigned(r); // M1：SIGNED→自动归档（不触发平台调用）
+        }
         return JsonUtil.map("ok", true);
     }
 

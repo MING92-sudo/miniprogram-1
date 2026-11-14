@@ -97,10 +97,15 @@ public class FileStorageService {
 
     /** 上传并落库，返回 { fileId, url }（前端 uploadImage 契约） */
     public AppFile store(MultipartFile file, String schemeHost) throws IOException {
+        return storeBytes(file.getBytes(), file.getOriginalFilename(), file.getContentType(), schemeHost);
+    }
+
+    /** 字节级落库（M1 归档 PDF 等后端生成件）：与 store 同一持久化路径（COS 唯一源+写穿缓存） */
+    public AppFile storeBytes(byte[] bytes, String originalFilename, String contentType, String schemeHost) {
         // C1/M9：扩展名+contentType 双白名单（jpg/png/webp/pdf，覆盖 2.3 合同/2.4 证书 PDF），
         // 拒绝 html/svg 等可执行类型落库，阻断存储型 XSS 与任意类型上传
-        String declaredExt = ALLOWED_CONTENT_TYPES.get(file.getContentType());
-        String ext = extOf(file.getOriginalFilename()).toLowerCase();
+        String declaredExt = ALLOWED_CONTENT_TYPES.get(contentType);
+        String ext = extOf(originalFilename).toLowerCase();
         if (declaredExt == null || !ALLOWED_EXTS.contains(ext)) {
             throw new BizException(422, "不支持的文件类型（仅允许 jpg/png/webp/pdf）");
         }
@@ -108,12 +113,11 @@ public class FileStorageService {
         String objectKey = LocalDate.now(TimeUtil.ZONE) + "/" + id + ext;
         // 统一同源 /files/{id} 地址：公网域名可达，小程序/管理端/PDF 后端均可直接读取；
         // 托管桶默认私有读，COS 直链外部无法访问（2026-10-05 急修单签名/照片不可见根因）
-        byte[] bytes = file.getBytes();
         if (cosClient != null) {
             // 持久化源：上传 COS（失败抛出——本地缓存会随容器重建丢失，COS 是唯一持久化源）
             ObjectMetadata meta = new ObjectMetadata();
             meta.setContentLength(bytes.length);
-            meta.setContentType(file.getContentType());
+            meta.setContentType(contentType);
             cosClient.putObject(props.getCosBucket(), objectKey,
                     new java.io.ByteArrayInputStream(bytes), meta);
             // 写穿缓存：本地磁盘兜底，读取路径优先命中本地、免 COS 下行流量费（best-effort）
@@ -124,15 +128,20 @@ public class FileStorageService {
             }
         } else {
             // 本地磁盘是唯一存储（失败必须抛出，否则文件丢失）
-            cacheLocal(objectKey, bytes);
+            try {
+                cacheLocal(objectKey, bytes);
+            } catch (IOException e) {
+                throw new java.io.UncheckedIOException(e);
+            }
         }
-        String url = resolveBase(schemeHost) + "/files/" + id;
+        String base = resolveBase(schemeHost);
+        String url = (base == null ? "" : base) + "/files/" + id;
         AppFile f = new AppFile();
         f.id = id;
         f.objectKey = objectKey;
         f.url = url;
-        f.contentType = file.getContentType();
-        f.sizeBytes = file.getSize();
+        f.contentType = contentType;
+        f.sizeBytes = (long) bytes.length;
         f.createdAt = TimeUtil.now();
         fileMapper.insert(f);
         // 数据库只存不带签名的稳定地址；返回给客户端的是带时效签名的可读 URL

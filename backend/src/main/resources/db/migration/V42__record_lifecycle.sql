@@ -2,6 +2,7 @@
 -- 列随 T2 落地（菜单 badges 依赖）；生命周期逻辑与端点见 RecordLifecycleService（T4）。
 ALTER TABLE maintain_record
     ADD COLUMN lifecycle_status VARCHAR(32) NULL COMMENT '记录生命周期（M1）：PENDING_REVIEW/PENDING_CLIENT_SIGN/PENDING_CLIENT_SIGNATURE/SIGNED/ARCHIVED/REFUSED_RETURNED',
+    ADD COLUMN work_order_id    VARCHAR(32)  NULL COMMENT '来源工单 id（复核退回回写工单状态用）',
     ADD COLUMN refuse_reason    VARCHAR(500) NULL COMMENT '拒签/退回原因（必填场景由应用层校验）',
     ADD COLUMN archived_at      DATETIME     NULL COMMENT '自动归档时间',
     ADD COLUMN archive_file_id  VARCHAR(32)  NULL COMMENT '归档 PDF fileId',

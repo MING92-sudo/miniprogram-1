@@ -21,9 +21,30 @@ public class UnitRecordController {
     private final UnitRecordService unitRecordService;
     private final IdempotencyService idempotencyService;
 
-    public UnitRecordController(UnitRecordService unitRecordService, IdempotencyService idempotencyService) {
+    public UnitRecordController(UnitRecordService unitRecordService, IdempotencyService idempotencyService,
+                                com.cqwlw.maintenance.service.RecordLifecycleService recordLifecycleService) {
         this.unitRecordService = unitRecordService;
         this.idempotencyService = idempotencyService;
+        this.recordLifecycleService = recordLifecycleService;
+    }
+
+    private final com.cqwlw.maintenance.service.RecordLifecycleService recordLifecycleService;
+
+    /** M1：使用单位拒签（凭分享 token，原因必填，退回维保人员） */
+    @PostMapping("/unit/records/{id}/refuse-by-token")
+    public ApiResponse<Object> refuseByToken(@PathVariable String id,
+                                             @RequestParam(required = false) String token,
+                                             @RequestBody(required = false) Map<String, Object> body,
+                                             @org.springframework.web.bind.annotation.RequestHeader(
+                                                     value = "X-Idempotency-Key", required = false) String idemKey) {
+        IdempotencyService.Guard guard = idempotencyService.begin(idemKey, "/unit/records/refuse-by-token");
+        if (guard.replayed()) {
+            return ApiResponse.ok(guard.replayedResult());
+        }
+        String reason = body == null || body.get("reason") == null ? "" : String.valueOf(body.get("reason"));
+        Map<String, Object> result = recordLifecycleService.refuseByToken(id, token, reason);
+        guard.commit(result);
+        return ApiResponse.ok(result);
     }
 
     @GetMapping("/unit/records/pending")
