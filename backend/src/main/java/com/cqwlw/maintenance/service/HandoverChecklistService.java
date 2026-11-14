@@ -69,12 +69,12 @@ public class HandoverChecklistService {
     @Transactional
     public HandoverCheck generateChecklist(String handoverId) {
         HandoverOrder o = requireOrder(handoverId);
-        if (!INSPECTING.equals(o.status)) {
-            throw new BizException(422, "仅查验中可生成检查清单");
-        }
         HandoverCheck existing = latestCheck(handoverId);
         if (existing != null) {
-            return existing;
+            return existing; // 已有清单任意状态可读（整改/待确认/归档态查看）
+        }
+        if (!INSPECTING.equals(o.status)) {
+            throw new BizException(422, "仅查验中可生成检查清单");
         }
         HandoverCheck check = new HandoverCheck();
         check.id = Ids.next("hc");
