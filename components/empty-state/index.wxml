@@ -1,0 +1,9 @@
+<view class="empty">
+  <text class="i {{ico}}"></text>
+  <view class="et">{{title}}</view>
+  <view wx:if="{{desc}}" class="ed">{{desc}}</view>
+  <view wx:if="{{actionText || secondaryText}}" class="row gap8 mt4">
+    <button wx:if="{{actionText}}" class="link" bindtap="onAction">{{actionText}}</button>
+    <button wx:if="{{secondaryText}}" class="btn btn-ghost btn-xs" bindtap="onSecondary">{{secondaryText}}</button>
+  </view>
+</view>

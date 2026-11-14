@@ -1,0 +1,8 @@
+<view class="sk-wrap">
+  <view
+    wx:for="{{rows}}"
+    wx:key="index"
+    class="skel"
+    style="height:{{item.h}}rpx;{{item.flex ? 'flex:' + item.flex : ''}}"
+  ></view>
+</view>

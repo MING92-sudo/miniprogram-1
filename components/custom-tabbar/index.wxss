@@ -1,0 +1,12 @@
+.ct-bar{
+  position:fixed;left:0;right:0;bottom:0;z-index:50;
+  min-height:132rpx;padding-bottom:20rpx;
+  padding-bottom:calc(20rpx + env(safe-area-inset-bottom,0px));
+  border-top:1rpx solid var(--line);background:rgba(9,15,18,.96);
+  display:grid;grid-auto-flow:column;grid-auto-columns:1fr;
+}
+.ct-item{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8rpx;font-size:20rpx;color:var(--dim);min-width:0;white-space:nowrap}
+.ct-ico{font-size:32rpx}
+.ct-item.on{color:var(--amber)}
+.ct-item.on .ct-ico{filter:drop-shadow(0 0 12rpx rgba(255,176,32,.4))}
+.ct-badge{position:absolute;top:6rpx;left:calc(50% + 34rpx);min-width:24rpx;height:24rpx;border-radius:12rpx;background:var(--signal);color:var(--ink);font-size:18rpx;display:flex;align-items:center;justify-content:center;padding:0 6rpx}

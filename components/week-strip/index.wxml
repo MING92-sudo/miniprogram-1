@@ -1,0 +1,9 @@
+<view class="week-strip">
+  <block wx:for="{{items}}" wx:key="label">
+    <view>
+      <text class="mono fs32 {{item.tone}}">{{item.value}}</text>
+      <text class="fs20 dim">{{item.label}}</text>
+    </view>
+    <view wx:if="{{index < items.length - 1}}" class="vdiv"></view>
+  </block>
+</view>

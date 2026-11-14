@@ -1,0 +1,15 @@
+<view class="qa-grid">
+  <button
+    wx:for="{{items}}"
+    wx:key="key"
+    class="qa"
+    data-key="{{item.key}}"
+    data-index="{{index}}"
+    bindtap="onTap"
+    aria-role="button"
+    aria-label="{{item.text}}"
+  >
+    <text class="i {{icons[item.icon]}}"></text>
+    <text>{{item.text}}</text>
+  </button>
+</view>

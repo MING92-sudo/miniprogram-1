@@ -1,0 +1,6 @@
+<view class="kpi-row">
+  <view wx:for="{{items}}" wx:key="label" class="kpi {{item.alert ? 'kpi-alert' : ''}}">
+    <view class="mono kpi-n">{{item.value}}</view>
+    <view class="fs20 muted">{{item.label}}</view>
+  </view>
+</view>

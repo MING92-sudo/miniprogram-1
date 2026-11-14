@@ -1,0 +1,3 @@
+.er-card{display:flex;flex-direction:column;gap:16rpx}
+.er-msg{line-height:1.75}
+.er-grow{flex:1.2}

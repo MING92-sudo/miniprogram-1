@@ -1,0 +1,11 @@
+<view class="card er-card">
+  <view class="row between">
+    <text class="tag tag-signal"><text class="i i-triangle-exclamation fs18"></text> {{title}}</text>
+    <text wx:if="{{code}}" class="mono fs18 dim">{{code}}</text>
+  </view>
+  <view wx:if="{{message}}" class="fs22 muted er-msg">{{message}}</view>
+  <view class="row gap8 mt10">
+    <button class="btn btn-primary er-grow" bindtap="onRetry"><text class="i i-rotate-right"></text> 重试</button>
+    <button class="btn btn-ghost" bindtap="onBack">返回</button>
+  </view>
+</view>

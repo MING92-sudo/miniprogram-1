@@ -1,0 +1,4 @@
+<view class="sec-head">
+  <text class="panel-title">{{title}}</text>
+  <button wx:if="{{actionText}}" class="link fs20" bindtap="onAction">{{actionText}} <text class="i i-chevron-right fs18"></text></button>
+</view>
