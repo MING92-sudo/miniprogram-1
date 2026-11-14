@@ -1,4 +1,5 @@
 {
   "navigationBarTitleText": "水印相机",
-  "usingComponents": {}
+  "usingComponents": {},
+  "navigationStyle": "default"
 }

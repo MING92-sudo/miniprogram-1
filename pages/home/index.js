@@ -5,6 +5,7 @@ const { isLoggedIn } = require('../../utils/auth')
 const { refreshUnreadBadge } = require('../../utils/badge')
 const { getQueue } = require('../../utils/offline')
 const { viewOf } = require('../../utils/role-view')
+const nav = require('../../utils/nav')
 
 // tab 页不能用 navigateTo，宫格里命中 tab 时走 switchTab
 const TAB_PAGES = [
@@ -131,7 +132,7 @@ Page({
     const url = e.currentTarget.dataset.url
     // dataset.tab 显式标记 + TAB_PAGES 兜底（tabBar 页 navigateTo 会被微信拒绝）
     const isTab = e.currentTarget.dataset.tab || TAB_PAGES.indexOf(url) > -1
-    if (isTab) return wx.switchTab({ url })
+    if (isTab) return nav.switchTab({ url })
     wx.navigateTo({ url })
   },
 
@@ -139,7 +140,7 @@ Page({
   goRecordCard(e) {
     const jump = e.currentTarget.dataset.jump
     wx.setStorageSync('order_status_filter', jump === 'unconfirmed' ? 'DONE' : 'PROCESSING')
-    wx.switchTab({ url: '/pages/order/list' })
+    nav.switchTab({ url: '/pages/order/list' })
   },
 
   // 三色统计卡下钻：跳转工单列表并按到期维度过滤
@@ -147,7 +148,7 @@ Page({
     // /pages/order/list 是 tabBar 页：navigateTo 无法打开、switchTab 不能带参，
     // 过滤条件经临时存储传递（list 页 onShow 读取后立即清除）
     wx.setStorageSync('order_due_filter', e.currentTarget.dataset.due)
-    wx.switchTab({ url: '/pages/order/list' })
+    nav.switchTab({ url: '/pages/order/list' })
   },
 
 })

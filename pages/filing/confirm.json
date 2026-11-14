@@ -1,4 +1,5 @@
 {
   "navigationBarTitleText": "交接确认",
-  "usingComponents": {}
+  "usingComponents": {},
+  "navigationStyle": "default"
 }

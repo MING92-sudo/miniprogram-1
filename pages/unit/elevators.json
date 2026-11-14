@@ -1,4 +1,5 @@
 {
   "navigationBarTitleText": "本单位电梯",
-  "usingComponents": {}
+  "usingComponents": {},
+  "navigationStyle": "default"
 }

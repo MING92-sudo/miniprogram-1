@@ -9,6 +9,7 @@ const {
 } = require('../../services/unit')
 const { isLoggedIn } = require('../../utils/auth')
 const { TOAST_TEXT } = require('../../constants/index')
+const nav = require('../../utils/nav')
 
 // 记住账号（docs/01 §10.1 3.1 / docs/03 §5.6）：仅当前设备生效。
 // Minor5：密码不落盘（XOR 混淆密钥与密文同存 Storage 等价明文），只记账号。
@@ -57,7 +58,7 @@ Page({
   onReady() {
     if (this._signedIn) {
       // 延迟到路由稳定后再切换，避免 routeDone 竞态
-      setTimeout(() => wx.switchTab({ url: '/pages/home/index' }), 300)
+      setTimeout(() => nav.switchTab({ url: '/pages/home/index' }), 300)
       return
     }
     if (this._portal) {
@@ -91,7 +92,7 @@ Page({
 
   // 暂不登录：进入首页以未登录状态浏览（登录规范：须提供取消/暂不登录入口，不得强制登录）
   skipLogin() {
-    setTimeout(() => wx.switchTab({ url: '/pages/home/index' }), 300)
+    setTimeout(() => nav.switchTab({ url: '/pages/home/index' }), 300)
   },
 
   forgotPassword() {
@@ -137,7 +138,7 @@ Page({
       getApp().setAuth(data)
       wx.showToast({ title: '登录成功', icon: 'success' })
       // 回首页 tab：switchTab 比 reLaunch 稳定（首页是 tabBar 页），延迟避开路由竞态
-      setTimeout(() => wx.switchTab({ url: '/pages/home/index' }), 300)
+      setTimeout(() => nav.switchTab({ url: '/pages/home/index' }), 300)
     } catch (err) {
       wx.showToast({ title: err.message || TOAST_TEXT.LOGIN_FAILED, icon: 'none' })
     }
@@ -170,7 +171,7 @@ Page({
       auth.applyLoginResult(data)
       getApp().setAuth(data)
       wx.showToast({ title: '登录成功', icon: 'success' })
-      setTimeout(() => wx.switchTab({ url: '/pages/home/index' }), 300)
+      setTimeout(() => nav.switchTab({ url: '/pages/home/index' }), 300)
     } catch (err) {
       wx.showToast({ title: err.message || TOAST_TEXT.LOGIN_FAILED, icon: 'none' })
     }

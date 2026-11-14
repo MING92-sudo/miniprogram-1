@@ -1,4 +1,5 @@
 {
   "navigationBarTitleText": "维保日历",
-  "usingComponents": {}
+  "usingComponents": {},
+  "navigationStyle": "default"
 }

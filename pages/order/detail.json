@@ -1,4 +1,5 @@
 {
   "navigationBarTitleText": "工单详情",
-  "usingComponents": {}
+  "usingComponents": {},
+  "navigationStyle": "default"
 }

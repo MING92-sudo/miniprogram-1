@@ -2,6 +2,7 @@
 // 仅展示实际执行的检查项（周期项"本次无需执行"不进入本次记录），并汇总"执行 N 项（共 M 项）"。
 const { getRecord } = require('../../services/unit')
 const { CHECK_RESULT_TEXT, TOAST_TEXT, LOADING_TEXT } = require('../../constants/index')
+const nav = require('../../utils/nav')
 
 Page({
   data: {
@@ -91,7 +92,7 @@ Page({
   goBack() {
     wx.navigateBack({
       fail: function () {
-        wx.switchTab({ url: '/pages/order/list' })
+        nav.switchTab({ url: '/pages/order/list' })
       }
     })
   }

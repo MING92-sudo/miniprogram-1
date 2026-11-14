@@ -1,4 +1,5 @@
 {
   "navigationBarTitleText": "故障详情",
-  "usingComponents": {}
+  "usingComponents": {},
+  "navigationStyle": "default"
 }

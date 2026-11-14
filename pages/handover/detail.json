@@ -1,4 +1,5 @@
 {
   "navigationBarTitleText": "移交单详情",
-  "usingComponents": {}
+  "usingComponents": {},
+  "navigationStyle": "default"
 }

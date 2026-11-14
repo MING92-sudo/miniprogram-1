@@ -1,5 +1,6 @@
 {
   "navigationBarTitleText": "手写签名",
   "disableScroll": true,
-  "usingComponents": {}
+  "usingComponents": {},
+  "navigationStyle": "default"
 }

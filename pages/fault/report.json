@@ -1,1 +1,5 @@
-{"navigationBarTitleText": "急修单登记","usingComponents": {}}
+{
+  "navigationBarTitleText": "急修单登记",
+  "usingComponents": {},
+  "navigationStyle": "default"
+}

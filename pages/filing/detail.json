@@ -1,4 +1,5 @@
 {
   "navigationBarTitleText": "外接建档详情",
-  "usingComponents": {}
+  "usingComponents": {},
+  "navigationStyle": "default"
 }

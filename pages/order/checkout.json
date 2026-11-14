@@ -1,4 +1,5 @@
 {
   "navigationBarTitleText": "签退自检",
-  "usingComponents": {}
+  "usingComponents": {},
+  "navigationStyle": "default"
 }

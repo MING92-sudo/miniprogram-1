@@ -1,4 +1,5 @@
 {
   "navigationBarTitleText": "急修记录",
-  "usingComponents": {}
+  "usingComponents": {},
+  "navigationStyle": "default"
 }

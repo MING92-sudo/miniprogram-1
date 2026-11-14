@@ -1,3 +1,4 @@
 {
-  "navigationBarTitleText": "维保记录确认"
+  "navigationBarTitleText": "维保记录确认",
+  "navigationStyle": "default"
 }

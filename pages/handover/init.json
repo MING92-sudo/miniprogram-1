@@ -1,4 +1,5 @@
 {
   "navigationBarTitleText": "发起移交",
-  "usingComponents": {}
+  "usingComponents": {},
+  "navigationStyle": "default"
 }

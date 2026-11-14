@@ -1,5 +1,6 @@
 {
   "navigationBarTitleText": "工单列表",
   "enablePullDownRefresh": true,
-  "usingComponents": {}
+  "usingComponents": {},
+  "navigationStyle": "default"
 }

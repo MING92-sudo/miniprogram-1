@@ -1,4 +1,5 @@
 {
   "navigationBarTitleText": "确认归档",
-  "usingComponents": {}
+  "usingComponents": {},
+  "navigationStyle": "default"
 }
