@@ -43,7 +43,8 @@ for (const line of s4.split('\n')) {
     cells[2].split('+').forEach(x => oldCol.add(x.trim()))
   }
 }
-check('routes-old', app.pages.filter(p => !oldCol.has(p)), app.pages.length)
+// M2 过渡并集（裁决 R1）：app.json 新旧页并存，∈ oldCol ∪ newCol；M6 删旧页后收紧为 newCol 且计数 49
+check('routes-old', app.pages.filter(p => !oldCol.has(p) && !newCol.has(p)), app.pages.length)
 const spec14 = SPEC.split('### 1.4')[1].split('### 1.5')[0]
 const specRoutes = new Set()
 for (const line of spec14.split('\n')) {

@@ -1,8 +1,21 @@
 {
   "pages": [
+    "pages/login/index",
+    "pages/login/agreement",
+    "pages/install/home/index",
+    "pages/maint/home/index",
+    "pages/client/home/index",
+    "pages/elevator/list/index",
+    "pages/elevator/detail/index",
+    "pages/profile/index",
+    "pages/profile/password",
+    "pages/403/index",
+    "pages/message/index",
+    "pages/offline/index",
+    "pages/common/watermark-camera",
+    "pages/common/signature",
     "pages/home/index",
     "pages/order/list",
-    "pages/message/index",
     "pages/mine/index",
     "pages/order/detail",
     "pages/order/checkin",
@@ -11,8 +24,6 @@
     "pages/order/item-form",
     "pages/order/checkout",
     "pages/order/record-preview",
-    "pages/common/watermark-camera",
-    "pages/common/signature",
     "pages/fault/report",
     "pages/fault/detail",
     "pages/fault/list",
@@ -37,40 +48,15 @@
     "pages/unit/records",
     "pages/unit/faults",
     "pages/unit/report",
-    "pages/login/index",
-    "pages/login/agreement",
     "pages/mine/password"
   ],
   "window": {
-    "navigationBarBackgroundColor": "#ffffff",
-    "navigationBarTextStyle": "black",
-    "navigationBarTitleText": "电梯无纸化维保",
-    "backgroundColor": "#f5f6f7",
-    "backgroundTextStyle": "dark"
-  },
-  "tabBar": {
-    "color": "#5C6572",
-    "selectedColor": "#0A5BD3",
-    "backgroundColor": "#ffffff",
-    "borderStyle": "black",
-    "list": [
-      {
-        "pagePath": "pages/home/index",
-        "text": "工单台"
-      },
-      {
-        "pagePath": "pages/order/list",
-        "text": "工单"
-      },
-      {
-        "pagePath": "pages/message/index",
-        "text": "消息"
-      },
-      {
-        "pagePath": "pages/mine/index",
-        "text": "我的"
-      }
-    ]
+    "navigationBarTitleText": "博威无纸化",
+    "navigationStyle": "custom",
+    "navigationBarBackgroundColor": "#0A0F12",
+    "navigationBarTextStyle": "white",
+    "backgroundColor": "#0A0F12",
+    "backgroundTextStyle": "light"
   },
   "permission": {
     "scope.userLocation": {
@@ -85,5 +71,6 @@
     "uploadFile": 120000
   },
   "style": "v2",
-  "sitemapLocation": "sitemap.json"
+  "sitemapLocation": "sitemap.json",
+  "lazyCodeLoading": "requiredComponents"
 }

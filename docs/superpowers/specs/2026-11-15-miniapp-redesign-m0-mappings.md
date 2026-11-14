@@ -238,3 +238,8 @@
 **构建管线**（scripts/asset-build/，隔离依赖不污染根）：extract-symbols.js（原型→svg）/ build-icons.js（svgicons2svgfont→svg2ttf→ttf2woff2 流式管线，绕过 fantasticon 的 glob Windows 缺陷）/ extract-zcool.js（原型子集存档+required.txt）/ subset-zcool.js（subset-font/harfbuzz WASM 扩字，targetFormat=truetype）/ check-zcool-gap.js（opentype.js cmap 缺口检测）。OFL 全字取材于 scripts/tmp/（gitignored，构建期下载，交付物零外链）。
 
 **守卫**：verify-miniapp-m0.js assets 检查（logo 存在/64 字形/缺口为空）。
+## 7 修订记录
+
+| 日期 | 修订 |
+|---|---|
+| 2026-11-15 | M2 裁决 R1：verify-miniapp-m0.js routes-old 检查改为 oldCol ∪ newCol 过渡并集（app.json 新旧页并存）；M6 删旧页后收紧为 newCol 且计数 49。新增 scripts/verify-miniapp-routes.js 10 检查承接路由/菜单/导航守卫。 |

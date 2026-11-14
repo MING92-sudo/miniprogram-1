@@ -69,3 +69,8 @@ backend/src/main/resources/static/
 /.worktrees/
 /.superpowers/
 scripts/asset-build/out/
+
+# M2 模拟器走查（隔离依赖与截图，不入库）
+scripts/e2e/node_modules/
+scripts/e2e/shots/
+scripts/e2e/walkthrough-result.json
