@@ -33,14 +33,16 @@ const model = reactive({ sla_minutes: '30', maint_cycle_days: '15', spotcheck_ra
 const purpose = ref('')
 const approvals = ref([])
 const fields = [
-  { key: 'sla_minutes', label: 'SLA 困人时限(分,1—240)' },
+  { key: 'sla_minutes', label: '困人救援时限(分,1—240)' },
   { key: 'maint_cycle_days', label: '保养周期(天,1—90)' },
   { key: 'spotcheck_ratio', label: '抽查比例(%,1—100)' }
 ]
 async function load() {
-  const cfg = await http.get('/settings')
-  Object.keys(model).forEach(k => { if (cfg[k] != null) model[k] = cfg[k] })
-  approvals.value = await http.get('/export-approvals')
+  try {
+    const cfg = await http.get('/settings')
+    Object.keys(model).forEach(k => { if (cfg[k] != null) model[k] = cfg[k] })
+    approvals.value = await http.get('/export-approvals')
+  } catch (e) { toast.error(e.message || '加载配置失败') }
 }
 async function save(key) {
   try { await http.put(`/settings/${key}`, { value: model[key] }); toast.success('已保存'); }
