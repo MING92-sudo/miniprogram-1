@@ -52,4 +52,7 @@ public class WorkOrder {
     public String sourceFilingId;
     /** 移交遗留问题勾选（默认 false，首保签退回写来源移交单，V25 迁移） */
     public Boolean handoverIssue;
+    /** M4 SLA 快照（创建时冻结） */
+    public Integer slaMinutes;
+    public LocalDateTime deadline;
 }

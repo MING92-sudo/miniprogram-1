@@ -48,5 +48,13 @@ public class MaintainRecord {
     /** 预览上下文快照 JSON（地址/单位/手机号/签到经纬度/条目数，docs/03 §六，V11 迁移） */
     @TableField("preview_context")
     public String previewContextJson;
+    /** M4 版本链：修订生成 v2 + 新哈希，v1 与签名永久保留 */
+    public Integer version;
+    public String prevVersionId;
+    public String amendReason;
+    public String amendedBy;
+    public LocalDateTime amendedAt;
+    /** 存量单人豁免（P-4），新工单恒0 */
+    public Integer soloExempt;
     public LocalDateTime createdAt;
 }

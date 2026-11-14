@@ -34,5 +34,11 @@ public class Fault {
     public String photos;
     public String signature;
     public LocalDateTime confirmedAt;
+    /** M4 代报修 + SLA 快照 */
+    public String proxySource;
+    public String recordingNo;
+    public String proxyBy;
+    public Integer slaMinutes;
+    public LocalDateTime deadline;
     public LocalDateTime createdAt;
 }
