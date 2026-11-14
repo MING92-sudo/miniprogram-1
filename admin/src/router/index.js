@@ -8,6 +8,13 @@ const LoginView = () => import('../views/LoginView.vue')
 const DashboardView = () => import('../views/DashboardView.vue')
 const ForbiddenView = () => import('../views/ForbiddenView.vue')
 const NotFoundView = () => import('../views/NotFoundView.vue')
+// M3 台账域视图
+const OrgView = () => import('../views/OrgView.vue')
+const UsersView = () => import('../views/UsersView.vue')
+const RolesView = () => import('../views/RolesView.vue')
+const GrantsView = () => import('../views/GrantsView.vue')
+const ProjectsView = () => import('../views/ProjectsView.vue')
+const ContractsView = () => import('../views/ContractsView.vue')
 // 旧 EP 视图（M2 保活，M3–M5 逐迁）
 const OrderListView = () => import('../views/OrderListView.vue')
 const OrderDetailView = () => import('../views/OrderDetailView.vue')
@@ -30,7 +37,14 @@ const RegionView = () => import('../views/RegionView.vue')
 export const routes = [
   { path: '/login', component: LoginView, meta: { public: true, title: '登录' } },
   { path: '/', component: AppShell, redirect: '/dashboard', children: [
-    { path: 'dashboard', component: DashboardView, meta: { title: '工作台', group: '概览', perm: 'console:read' } }
+    { path: 'dashboard', component: DashboardView, meta: { title: '工作台', group: '概览', perm: 'console:read' } },
+    { path: 'org', component: OrgView, meta: { title: '组织架构', group: '组织与权限', perm: 'user:view' } },
+    { path: 'users', component: UsersView, meta: { title: '账号管理', group: '组织与权限', perm: 'user:view' } },
+    { path: 'roles', component: RolesView, meta: { title: '角色权限矩阵', group: '组织与权限', perm: 'role:assign' } },
+    { path: 'grants', component: GrantsView, meta: { title: '授权管理', group: '组织与权限', perm: 'invite:manage' } },
+    { path: 'projects', component: ProjectsView, meta: { title: '项目台账', group: '台账中心', perm: 'project:view' } },
+    { path: 'contracts', component: ContractsView, meta: { title: '合同管理', group: '台账中心', perm: 'contract:view' } },
+    { path: 'elevators', component: ElevatorsView, meta: { title: '电梯台账', group: '台账中心', perm: 'elevator:view' } }
   ] },
   // 旧管理端保活分支（M5 迁完删除）；路径前缀 /legacy，旧组件零改动
   { path: '/legacy', component: AdminLayout, redirect: '/legacy/orders', children: [

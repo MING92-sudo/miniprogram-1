@@ -39,7 +39,7 @@ const ui = useUiStore()
 const perspective = usePerspectiveStore()
 const auth = useAuthStore()
 const route = useRoute()
-const IMPLEMENTED = ['/dashboard']
+const IMPLEMENTED = ['/dashboard', '/org', '/users', '/roles', '/grants', '/projects', '/contracts', '/elevators']
 const menus = computed(() => visibleMenus(perspective.activeRole, IMPLEMENTED))
 const crumb = computed(() => ({ group: route.meta.group || '概览', view: route.meta.title || '' }))
 const narrow = ref(false)
