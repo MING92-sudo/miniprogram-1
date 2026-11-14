@@ -219,4 +219,242 @@ public final class PermissionMatrix {
             holders.add(role);
         }
     }
+
+    /** 三态：Y 可操作 / C 只读或需审批 / DENY 禁止（spec 的 '-'）。 */
+    public enum TriState { Y, C, DENY }
+
+    // ==== 86 新码常量（71 base + 15 extension）====
+    public static final String HANDOVER_VIEW = "handover:view";
+    public static final String HANDOVER_CREATE = "handover:create";
+    public static final String HANDOVER_EDIT = "handover:edit";
+    public static final String HANDOVER_DOC_UPLOAD = "handover:doc_upload";
+    public static final String HANDOVER_DOC_DELETE = "handover:doc_delete";
+    public static final String HANDOVER_SUBMIT = "handover:submit";
+    public static final String HANDOVER_REVIEW = "handover:review";
+    public static final String HANDOVER_REVIEW_RETURN = "handover:review_return";
+    public static final String HANDOVER_RECEIVE = "handover:receive";
+    public static final String HANDOVER_INSPECT = "handover:inspect";
+    public static final String HANDOVER_RECTIFY = "handover:rectify";
+    public static final String HANDOVER_SIGN_INSTALL = "handover:sign_install";
+    public static final String HANDOVER_SIGN_MAINT = "handover:sign_maint";
+    public static final String HANDOVER_VOID = "handover:void";
+    public static final String HANDOVER_EXPORT = "handover:export";
+    public static final String HANDOVER_NOTIFY_CLIENT = "handover:notify_client";
+    public static final String PROJECT_VIEW = "project:view";
+    public static final String PROJECT_EDIT = "project:edit";
+    public static final String CONTRACT_VIEW = "contract:view";
+    public static final String CONTRACT_EDIT = "contract:edit";
+    public static final String ELEVATOR_VIEW = "elevator:view";
+    public static final String ELEVATOR_EDIT = "elevator:edit";
+    public static final String ELEVATOR_QR = "elevator:qr";
+    public static final String ELEVATOR_TRANSFER = "elevator:transfer";
+    public static final String ELEVATOR_EXPORT = "elevator:export";
+    public static final String PLAN_VIEW = "plan:view";
+    public static final String PLAN_GENERATE = "plan:generate";
+    public static final String TASK_ACCEPT = "task:accept";
+    public static final String TASK_ASSIGN_PARTNER = "task:assign_partner";
+    public static final String CHECKLIST_FILL = "checklist:fill";
+    public static final String RECORD_VIEW = "record:view";
+    public static final String RECORD_SUBMIT = "record:submit";
+    public static final String RECORD_SIGN_TECH = "record:sign_tech";
+    public static final String RECORD_REVIEW = "record:review";
+    public static final String RECORD_SIGN_REQUEST = "record:sign_request";
+    public static final String RECORD_SIGN = "record:sign";
+    public static final String RECORD_REFUSE = "record:refuse";
+    public static final String RECORD_ARCHIVE = "record:archive";
+    public static final String RECORD_AMEND = "record:amend";
+    public static final String RECORD_EXPORT = "record:export";
+    public static final String ORDER_CREATE = "order:create";
+    public static final String ORDER_CREATE_PROXY = "order:create_proxy";
+    public static final String ORDER_VIEW_POOL = "order:view_pool";
+    public static final String ORDER_VIEW_OWN = "order:view_own";
+    public static final String ORDER_GRAB = "order:grab";
+    public static final String ORDER_DISPATCH = "order:dispatch";
+    public static final String ORDER_ARRIVE = "order:arrive";
+    public static final String ORDER_PROCESS = "order:process";
+    public static final String ORDER_SUBMIT = "order:submit";
+    public static final String ORDER_CONFIRM = "order:confirm";
+    public static final String ORDER_CLOSE = "order:close";
+    public static final String ORDER_CANCEL = "order:cancel";
+    public static final String ORDER_ESCALATE = "order:escalate";
+    public static final String ORDER_EXPORT = "order:export";
+    public static final String CLIENT_INVITE = "client:invite";
+    public static final String CLIENT_USER_MANAGE = "client:user_manage";
+    public static final String CLIENT_ELEVATOR_VIEW = "client:elevator_view";
+    public static final String CLIENT_REPORT = "client:report";
+    public static final String CLIENT_SIGN = "client:sign";
+    public static final String CLIENT_EVALUATE = "client:evaluate";
+    public static final String CLIENT_DOWNLOAD = "client:download";
+    public static final String USER_VIEW = "user:view";
+    public static final String USER_CREATE = "user:create";
+    public static final String USER_DISABLE = "user:disable";
+    public static final String ROLE_ASSIGN = "role:assign";
+    public static final String INVITE_MANAGE = "invite:manage";
+    public static final String STATS_VIEW = "stats:view";
+    public static final String STATS_EXPORT = "stats:export";
+    public static final String AUDIT_VIEW = "audit:view";
+    public static final String CONFIG_MANAGE = "config:manage";
+    public static final String DATA_EXPORT_SENSITIVE = "data:export_sensitive";
+    // 15 扩展码（M0 §2.2）
+    public static final String REPORT_VIEW = "report:view";
+    public static final String REPORT_RETRY_NEW = "report:retry";
+    public static final String FILING_VIEW = "filing:view";
+    public static final String FILING_WRITE_NEW = "filing:write";
+    public static final String REGION_VIEW = "region:view";
+    public static final String REGION_WRITE_NEW = "region:write";
+    public static final String TEMPLATE_VIEW = "template:view";
+    public static final String TEMPLATE_WRITE_NEW = "template:write";
+    public static final String TEMPLATE_TOGGLE = "template:toggle";
+    public static final String PLATFORM_WORKER_VIEW = "platform:worker_view";
+    public static final String PLATFORM_WORKER_REGISTER = "platform:worker_register";
+    public static final String PLATFORM_SYNC = "platform:sync";
+    public static final String RECORD_SPOTCHECK = "record:spotcheck";
+    public static final String CLIENT_EDIT = "client:edit";
+    public static final String USER_RESET_PASSWORD = "user:reset_password";
+
+    private static final java.util.Map<String, java.util.Map<String, TriState>> STATES = new java.util.HashMap<>();
+    private static final java.util.Set<String> CANONICAL_CAPS = new java.util.LinkedHashSet<>();
+
+    private static void g(String code, TriState st, String... roles) {
+        CANONICAL_CAPS.add(code);
+        java.util.Map<String, TriState> row = STATES.computeIfAbsent(code, k -> new java.util.HashMap<>());
+        for (String r : roles) {
+            row.put(r, st);
+        }
+    }
+    private static void y(String code, String... roles) { g(code, TriState.Y, roles); }
+    private static void c(String code, String... roles) { g(code, TriState.C, roles); }
+
+    static {
+        String PA = "PLATFORM_ADMIN", SA = "SYS_ADMIN", IM = "INST_MGR", IP = "INST_PM", IC = "INST_CLERK",
+                IW = "INSTALLER", MM = "MAINT_MGR", MS = "MAINT_SUP", MT = "MAINT_TECH",
+                MB = "MAINT_BIZ", MQ = "MAINT_QUALITY", CA = "CLIENT_ADMIN", CS = "CLIENT_SIGNER";
+        // §4.1 安装移交（16）
+        y(HANDOVER_VIEW, IM, MS, MM, PA, SA); c(HANDOVER_VIEW, IC, IP, CA);
+        y(HANDOVER_CREATE, IP);
+        y(HANDOVER_EDIT, IP); c(HANDOVER_EDIT, IC);
+        y(HANDOVER_DOC_UPLOAD, IC, IP);
+        y(HANDOVER_DOC_DELETE, IC, IP);
+        y(HANDOVER_SUBMIT, IP);
+        y(HANDOVER_REVIEW, IM);
+        y(HANDOVER_REVIEW_RETURN, IM);
+        y(HANDOVER_RECEIVE, MS);
+        y(HANDOVER_INSPECT, IW); c(HANDOVER_INSPECT, MT);
+        y(HANDOVER_RECTIFY, IP, IC, IW);
+        y(HANDOVER_SIGN_INSTALL, IM, IW);
+        y(HANDOVER_SIGN_MAINT, MS, MM);
+        y(HANDOVER_VOID, IM, MM, PA, SA);
+        y(HANDOVER_EXPORT, IM, MS, MM, PA, SA); c(HANDOVER_EXPORT, CA);
+        y(HANDOVER_NOTIFY_CLIENT, MS);
+        // §4.2 项目合同电梯（9）
+        y(PROJECT_VIEW, MS, MM, PA, SA); c(PROJECT_VIEW, IC, IP, IM, CA);
+        y(PROJECT_EDIT, MM, PA, SA);
+        y(CONTRACT_VIEW, MM, PA, SA, MB); c(CONTRACT_VIEW, MS, CA);
+        y(CONTRACT_EDIT, MM, PA, SA, MB);
+        c(ELEVATOR_VIEW, PA, SA, IM, IP, IC, IW, MM, MS, MT, MB, MQ, CA, CS);
+        y(ELEVATOR_EDIT, MS, PA, SA);
+        y(ELEVATOR_QR, MT, MS, CA);
+        y(ELEVATOR_TRANSFER, MM, PA, SA);
+        y(ELEVATOR_EXPORT, MM, PA, SA); c(ELEVATOR_EXPORT, MS, CA);
+        // §4.3 维保作业（15）
+        y(PLAN_VIEW, MS, MM); c(PLAN_VIEW, MT, CA);
+        y(PLAN_GENERATE, MS, MM);
+        y(TASK_ACCEPT, MT);
+        y(TASK_ASSIGN_PARTNER, MS, MT);
+        y(CHECKLIST_FILL, MT);
+        y(RECORD_VIEW, MS, MM, PA, SA); c(RECORD_VIEW, MT, CS);
+        y(RECORD_SUBMIT, MT);
+        y(RECORD_SIGN_TECH, MT);
+        y(RECORD_REVIEW, MS, MM);
+        y(RECORD_SIGN_REQUEST, MT, MS);
+        y(RECORD_SIGN, CS);
+        y(RECORD_REFUSE, CS);
+        y(RECORD_ARCHIVE, MS);
+        y(RECORD_AMEND, MM, PA, SA);
+        y(RECORD_EXPORT, MS, MM, PA, SA); c(RECORD_EXPORT, CA);
+        // §4.4 急修报修（14）
+        y(ORDER_CREATE, CA, CS);
+        y(ORDER_CREATE_PROXY, MS);
+        y(ORDER_VIEW_POOL, MS, MM); c(ORDER_VIEW_POOL, MT);
+        y(ORDER_VIEW_OWN, CA, CS);
+        y(ORDER_GRAB, MT);
+        y(ORDER_DISPATCH, MS, MM);
+        c(ORDER_ARRIVE, MT);
+        c(ORDER_PROCESS, MT);
+        y(ORDER_SUBMIT, MT);
+        y(ORDER_CONFIRM, CS);
+        y(ORDER_CLOSE, MS);
+        y(ORDER_CANCEL, CA, MS);
+        y(ORDER_ESCALATE, MM);
+        y(ORDER_EXPORT, MS, MM, PA, SA); c(ORDER_EXPORT, CA);
+        // §4.5 使用单位（7）
+        y(CLIENT_INVITE, CA, MS);
+        y(CLIENT_USER_MANAGE, CA);
+        y(CLIENT_ELEVATOR_VIEW, CA, CS);
+        y(CLIENT_REPORT, CA, CS);
+        y(CLIENT_SIGN, CS);
+        y(CLIENT_EVALUATE, CA, CS);
+        y(CLIENT_DOWNLOAD, CA, CS);
+        // §4.6 组织权限审计（10）
+        y(USER_VIEW, PA, SA); c(USER_VIEW, IM, MS, MM, CA);
+        y(USER_CREATE, IM, MS, MM, CA, PA, SA);
+        y(USER_DISABLE, IM, MS, MM, CA, PA, SA);
+        y(ROLE_ASSIGN, PA, SA); c(ROLE_ASSIGN, CA);
+        y(INVITE_MANAGE, IM, MS, MM, CA, PA, SA);
+        y(STATS_VIEW, IM, MS, MM, CA, PA, SA);
+        y(STATS_EXPORT, MM, PA, SA); c(STATS_EXPORT, IM, MS, CA);
+        y(AUDIT_VIEW, PA, SA); c(AUDIT_VIEW, CA);
+        y(CONFIG_MANAGE, PA, SA);
+        y(DATA_EXPORT_SENSITIVE, PA, SA); // 审批工作流 M5；M1 只编码平台持有该能力
+        // M0 §2.2 扩展（15）
+        y(REPORT_VIEW, PA, SA, MM); c(REPORT_VIEW, MS, MQ);
+        y(REPORT_RETRY_NEW, PA, SA, MM);
+        y(FILING_VIEW, PA, SA, IP, IC, MM); c(FILING_VIEW, MQ, IM);
+        y(FILING_WRITE_NEW, PA, SA, IP, IC, MM);
+        y(REGION_VIEW, PA, SA);
+        y(REGION_WRITE_NEW, PA, SA);
+        y(TEMPLATE_VIEW, PA, SA, MM); c(TEMPLATE_VIEW, MQ);
+        y(TEMPLATE_WRITE_NEW, PA, SA, MM, MQ);
+        y(TEMPLATE_TOGGLE, PA, SA, MQ);
+        y(PLATFORM_WORKER_VIEW, PA, SA); c(PLATFORM_WORKER_VIEW, IP, IC, MM, MS);
+        y(PLATFORM_WORKER_REGISTER, PA, SA, MM);
+        y(PLATFORM_SYNC, PA, SA);
+        y(RECORD_SPOTCHECK, MQ);
+        y(CLIENT_EDIT, PA, MB);
+        y(USER_RESET_PASSWORD, PA, SA, MM, IM);
+
+        // fail-closed 一致性校验：码集==常量集（86），每码至少一个持有者
+        if (CANONICAL_CAPS.size() != 86) {
+            throw new IllegalStateException("三态矩阵码数异常: " + CANONICAL_CAPS.size());
+        }
+        for (String code : CANONICAL_CAPS) {
+            java.util.Map<String, TriState> row = STATES.get(code);
+            boolean hasHolder = row.values().stream().anyMatch(s -> s == TriState.Y || s == TriState.C);
+            if (!hasHolder) {
+                throw new IllegalStateException("三态码无持有者: " + code);
+            }
+        }
+    }
+
+    /** 规范角色×新码三态；未知角色→DENY，未知码→IllegalArgumentException（fail-closed）。 */
+    public static TriState state(String role, String code) {
+        if (code == null || !CANONICAL_CAPS.contains(code)) {
+            throw new IllegalArgumentException("未知权限码: " + code);
+        }
+        String canonical = RoleCatalog.canonical(role);
+        if (canonical == null) {
+            return TriState.DENY;
+        }
+        return STATES.get(code).getOrDefault(canonical, TriState.DENY);
+    }
+
+    /** 新细粒度入口：要求 Y（C 不算放行；@RequirePerm(新码) M3+ 才标注）。 */
+    public static boolean allowsNew(String role, String code) {
+        return state(role, code) == TriState.Y;
+    }
+
+    /** 86 新码集合。 */
+    public static java.util.Set<String> canonicalCapabilities() {
+        return java.util.Collections.unmodifiableSet(CANONICAL_CAPS);
+    }
 }
