@@ -25,8 +25,8 @@ const hoBlock = hoSrc.split('\n').slice(47, 53).join('')
 const handoverStates = [...new Set((hoBlock.match(/"([A-Z_]+)"/g) || []).map(s => s.slice(1, -1)))]
 check('handover-states', handoverStates.filter(s => !section(2).includes('| ' + s + ' ')), handoverStates.length)
 check('handover-baseline', handoverStates.length === 6 ? [] : ['expect 6 got ' + handoverStates.length], 6)
-// 3 急修域：旧态全覆盖 + 漂移检测（严格双形态，排除 BWJX 单号前缀等大写串误报）
-const faultStates = ['OPEN', 'ASSIGNED', 'CLOSED']
+// 3 急修域：旧态全覆盖 + 漂移检测（严格双形态，排除 BWJX 单号前缀等大写串误报；M1 后基线=七态）
+const faultStates = ['OPEN', 'ASSIGNED', 'PROCESSING', 'PENDING_CONFIRM', 'CLOSED', 'REFUSED', 'CANCELLED']
 const faultSrc = fs.readFileSync(path.join(ROOT, 'backend/src/main/java/com/cqwlw/maintenance/service/DirectoryService.java'), 'utf8')
 const faultFound = [...new Set([...faultSrc.matchAll(/status = "([A-Z_]+)"|"([A-Z_]+)"\.equals\(f\.status\)/g)].map(m => m[1] || m[2]))]
 check('fault-states', faultStates.filter(s => !section(3).includes('| ' + s + ' ')), faultStates.length)

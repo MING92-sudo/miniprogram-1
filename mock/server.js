@@ -59,6 +59,43 @@ function handoverArchiveEntries(id) {
 }
 
 const routes = [
+  // ── M1 小程序重构后端底座（docs/04 V2.53 三处同步） ──
+  ['GET', '/me/menus', ({ query }) => {
+    const role = query.workspace || currentRole
+    const tabs = {
+      WORKER: [
+        { key: 'maint-home', text: '工作台', icon: 'gauge', path: '/pages/maint/home/index' },
+        { key: 'maint-orders', text: '工单', icon: 'clipboard', path: '/pages/order/list/index', badgeKey: 'pendingOrders' },
+        { key: 'maint-elevators', text: '电梯', icon: 'elevator', path: '/pages/elevator/list/index' },
+        { key: 'profile', text: '我的', icon: 'user', path: '/pages/profile/index' }
+      ],
+      UNIT_ADMIN: [
+        { key: 'client-home', text: '首页', icon: 'home', path: '/pages/client/home/index' },
+        { key: 'client-todo', text: '待办', icon: 'file-signature', path: '/pkg-client/pages/todo/index', badgeKey: 'pendingSigns' },
+        { key: 'client-elevators', text: '电梯', icon: 'elevator', path: '/pages/elevator/list/index' },
+        { key: 'profile', text: '我的', icon: 'user', path: '/pages/profile/index' }
+      ]
+    }
+    return {
+      user: { roles: [role] },
+      home: role === 'UNIT_ADMIN' ? '/pages/client/home/index' : '/pages/maint/home/index',
+      activeWorkspace: role,
+      tabs: tabs[role] || tabs.WORKER,
+      quickActions: [], actions: {},
+      badges: { pendingOrders: 0, pendingSigns: 0 }
+    }
+  }],
+  ['POST', '/work-orders/:id/signature-refuse', () => ({ ok: true })],
+  ['POST', '/work-orders/:id/review', ({ body }) => ({ ok: true, lifecycleStatus: body.pass ? 'PENDING_CLIENT_SIGN' : '' })],
+  ['POST', '/work-orders/:id/sign-request', () => ({ ok: true, shareToken: 'sg-mock' })],
+  ['GET', '/work-orders/:id/archive', () => ({ url: 'https://mock/files/arch?s=mock', hash: '0'.repeat(64), archivedAt: '2026-11-15 00:00:00' })],
+  ['POST', '/unit/records/:id/refuse-by-token', () => ({ ok: true })],
+  ['POST', '/faults/:id/grab', () => ({ ok: true, status: 'ASSIGNED' })],
+  ['POST', '/faults/:id/arrive', () => ({ ok: true, status: 'PROCESSING' })],
+  ['POST', '/faults/:id/submit', () => ({ ok: true, status: 'PENDING_CONFIRM' })],
+  ['POST', '/faults/:id/confirm', ({ body }) => ({ ok: true, status: body.pass === false ? 'REFUSED' : 'CLOSED' })],
+  ['POST', '/faults/:id/cancel', () => ({ ok: true, status: 'CANCELLED' })],
+  ['POST', '/faults/:id/evaluate', () => ({ ok: true })],
   // ── 鉴权 ──
   // 账号密码登录（用户需求：账号由维保单位系统分配，手机号为账号）
   ['POST', '/auth/login', ({ body }) => {
@@ -72,7 +109,22 @@ const routes = [
     if (!user) throw { code: 401, message: '账号不存在，请联系维保单位管理员分配' }
     if (user.password !== password) throw { code: 401, message: '账号或密码错误' }
     currentRole = roleKey
-    return { token: 'mock-token-' + Date.now(), userInfo: user, role: roleKey }
+    // M1 统一登录响应扩展（docs/04 V2.53）：roles/perms/scope/activeWorkspace/home
+    const canonMap = {
+      WORKER: 'MAINT_TECH', ASSISTANT: 'MAINT_TECH', LEADER: 'MAINT_SUP',
+      MAINT_MANAGER: 'MAINT_MGR', MAINT_QUALITY: 'MAINT_QUALITY', MAINT_BIZ: 'MAINT_BIZ',
+      UNIT_ADMIN: 'CLIENT_ADMIN', ADMIN: 'PLATFORM_ADMIN', SYS_ADMIN: 'SYS_ADMIN',
+      INSTALL_WORKER: 'INSTALLER'
+    }
+    const canon = canonMap[roleKey] || roleKey
+    const home = canon.indexOf('CLIENT') === 0 ? '/pages/client/home/index'
+      : (canon.indexOf('INST') === 0 || canon === 'INSTALLER') ? '/pages/install/home/index'
+        : (canon === 'PLATFORM_ADMIN' || canon === 'SYS_ADMIN') ? '/pkg-admin/pages/users/index'
+          : '/pages/maint/home/index'
+    return {
+      token: 'mock-token-' + Date.now(), userInfo: user, role: roleKey,
+      roles: [canon], perms: [], scope: '', activeWorkspace: canon, home
+    }
   }],
   // 自助改密（docs/04 A.0.1；与后端 AuthController 同口径：校验原密码、新密码 ≥6 位且不同）
   ['POST', '/auth/change-password', ({ body }) => {

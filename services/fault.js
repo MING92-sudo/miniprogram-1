@@ -30,10 +30,41 @@ function closeFault(id, data) {
   })
 }
 
+// M1 急修七态（docs/04 V2.53）：抢单/到场打卡/提交/使用单位确认/取消/评价
+function grabFault(id) {
+  return post(`/faults/${id}/grab`, {})
+}
+
+function arriveFault(id, lat, lng) {
+  return post(`/faults/${id}/arrive`, { lat, lng })
+}
+
+function submitFault(id, data) {
+  return post(`/faults/${id}/submit`, data)
+}
+
+function confirmFault(id, pass, reason) {
+  return post(`/faults/${id}/confirm`, { pass, reason })
+}
+
+function cancelFault(id, reason) {
+  return post(`/faults/${id}/cancel`, { reason })
+}
+
+function evaluateFault(id, score, text) {
+  return post(`/faults/${id}/evaluate`, { score, text })
+}
+
 module.exports = {
   reportFault,
   getFaultList,
   getFaultDetail,
   updateFault,
-  closeFault
+  closeFault,
+  grabFault,
+  arriveFault,
+  submitFault,
+  confirmFault,
+  cancelFault,
+  evaluateFault
 }
