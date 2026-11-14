@@ -21,4 +21,13 @@ public class HandoverRectification {
     public String recheckerId;
     public String recheckerName;
     public LocalDateTime recheckedAt;
+    /** C-12：1:1 映射检查项 + 逐条复验 */
+    public Integer itemNo;
+    public String respParty;
+    public String dueDate;
+    public String rectMeasure;
+    public LocalDateTime rectifiedAt;
+    public String rectifierName;
+    public String source;
+    public Boolean voided;
 }

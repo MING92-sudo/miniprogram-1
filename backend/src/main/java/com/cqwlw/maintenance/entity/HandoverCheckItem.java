@@ -16,4 +16,16 @@ public class HandoverCheckItem {
     /** PASS/FAIL/NA */
     public String result;
     public String remark;
+    /** C-12：74 项标准清单字段（GB/T 10060—2023 表1） */
+    public Integer itemNo;
+    public String itemGroup;
+    public String clauseNo;
+    public String itemName;
+    public String requirement;
+    public Boolean important;
+    public String measuredValue;
+    public String failDesc;
+    public String naReason;
+    public String naNote;
+    public String photoFileIds;
 }

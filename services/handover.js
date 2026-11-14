@@ -61,6 +61,48 @@ function getReceiverCandidates() {
   })
 }
 
+// ── C-12：GB/T 10060—2023 74 项移交检查清单（docs/15、docs/04 A.9）──
+
+// 74 项检查清单（进入查验中生成草稿，幂等）→ {check, items[74]}
+function getHandoverChecklist(id) {
+  return get('/handovers/' + id + '/checklist')
+}
+
+// 提交查验（74 项齐备 + 7.2/7.3 判定 + 1:1 整改，同事务）；data={items, conditional?}
+function submitHandoverChecklist(id, data) {
+  return post('/handovers/' + id + '/checklist/submit', data)
+}
+
+// 整改清单（按 itemNo 升序，1:1 映射检查项，不可增删）
+function getHandoverRectifications(id) {
+  return get('/handovers/' + id + '/rectifications')
+}
+
+// 安装部逐条上传整改（rectMeasure/afterPhotoFileId/rectifierName），状态仍整改中
+function rectifyHandoverItem(id, rectId, data) {
+  return post('/handovers/' + id + '/rectifications/' + rectId + '/rectify', data)
+}
+
+// 逐条复验（全部 PASS 才回待确认）；data={result, recheckerId, recheckerName}
+function recheckHandoverItem(id, rectId, data) {
+  return post('/handovers/' + id + '/rectifications/' + rectId + '/recheck', data)
+}
+
+// ☆项置 NA 的维保部经理审批（写 handover_sign 节点 NA_APPROVE）
+function approveHandoverNa(id, data) {
+  return post('/handovers/' + id + '/na-approve', data)
+}
+
+// 三张表单 PDF 导出（form=CHECK|RECT|INDEX）；返回二进制下载链接由调用方处理
+function getHandoverExportPdfUrl(id, form) {
+  return '/handovers/' + id + '/export-pdf?form=' + (form || 'CHECK')
+}
+
+// 一梯一档归档目录（7 条 + SHA-256，幂等）
+function getElevatorArchive(id) {
+  return get('/elevators/' + id + '/archive')
+}
+
 module.exports = {
   initHandover,
   getHandoverDetail,
@@ -71,5 +113,13 @@ module.exports = {
   submitHandoverRectify,
   recheckHandoverRectify,
   confirmHandover,
-  getReceiverCandidates
+  getReceiverCandidates,
+  getHandoverChecklist,
+  submitHandoverChecklist,
+  getHandoverRectifications,
+  rectifyHandoverItem,
+  recheckHandoverItem,
+  approveHandoverNa,
+  getHandoverExportPdfUrl,
+  getElevatorArchive
 }

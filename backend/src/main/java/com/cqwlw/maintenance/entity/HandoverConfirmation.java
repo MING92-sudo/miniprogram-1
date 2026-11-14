@@ -22,4 +22,6 @@ public class HandoverConfirmation {
     public String confirmedById;
     public String confirmedByName;
     public LocalDateTime at;
+    /** C-12：移交「有条件移交」三方协商（不混用 filing_id） */
+    public String handoverId;
 }

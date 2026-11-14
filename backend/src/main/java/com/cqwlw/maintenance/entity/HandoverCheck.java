@@ -17,4 +17,12 @@ public class HandoverCheck {
     public String checkerName;
     public LocalDateTime checkedAt;
     public String remark;
+    /** C-12：判定结论冻结（7.2/7.3），导出只读快照 */
+    public Integer totalItems;
+    public Integer passCount;
+    public Integer failCount;
+    public Integer naCount;
+    public Integer importantFailCount;
+    public String conclusion;
+    public String snapshotJson;
 }

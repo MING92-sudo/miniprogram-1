@@ -62,4 +62,8 @@ public class HandoverOrder {
     public String ratedSpeedUnit;
     public String stationsDoors;
     public String workTypeCode;
+    /** C-12：表单 §3.3 第 6—7 行 + 特殊类别 */
+    public String installCompleteDate;
+    public String installUnitName;
+    public String specialType;
 }

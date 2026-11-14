@@ -55,8 +55,7 @@ public class HandoverService {
     /** 现场查验 6 类 item */
     private static final List<String> ITEM_TYPES = List.of(
             "RUNNING", "SAFETY_DEVICE", "BRAKE", "EMERGENCY_OPERATION", "MACHINE_ROOM_SHAFT", "ACCESSORIES");
-    /** 整改触发项：任一为 FAIL 强制转 RECTIFYING */
-    private static final Set<String> RECTIFY_ITEM_TYPES = Set.of("SAFETY_DEVICE", "BRAKE");
+    /** C-12（D-2）：任一查验项 FAIL 即强制转 RECTIFYING（GB/T 10060 7.2），不再限定安全装置/制动器两类。 */
     private static final String PASS = "PASS";
     private static final String FAIL = "FAIL";
 
@@ -196,7 +195,7 @@ public class HandoverService {
             if (result == null) {
                 result = "NA";
             }
-            if (RECTIFY_ITEM_TYPES.contains(type) && FAIL.equals(result)) {
+            if (FAIL.equals(result)) {
                 forceRectify = true;
             }
             insertItem(check.id, type, result, str(item, "remark"));
@@ -249,6 +248,25 @@ public class HandoverService {
         String recheckerId = trimToNull(str(body, "recheckerId"));
         String recheckerName = trimToNull(str(body, "recheckerName"));
         LocalDateTime now = LocalDateTime.now();
+        String rectId = trimToNull(str(body, "rectId"));
+        if (rectId != null) {
+            // C-12（M6）：逐条复验，全部 PASS 才回待确认
+            HandoverRectification one = rectificationMapper.selectById(rectId);
+            if (one == null || !o.id.equals(one.handoverId)) {
+                throw new BizException(404, "整改记录不存在");
+            }
+            one.recheckResult = result;
+            one.recheckerId = recheckerId;
+            one.recheckerName = recheckerName;
+            one.recheckedAt = now;
+            rectificationMapper.updateById(one);
+            List<HandoverRectification> all = rectificationMapper.selectList(
+                    new LambdaQueryWrapper<HandoverRectification>().eq(HandoverRectification::getHandoverId, o.id));
+            boolean allPass = !all.isEmpty() && all.stream().allMatch(r -> PASS.equals(r.recheckResult));
+            o.status = allPass ? PENDING_CONFIRM : RECTIFYING;
+            orderMapper.updateById(o);
+            return o;
+        }
         List<HandoverRectification> outstanding = rectificationMapper.selectList(
                 new LambdaQueryWrapper<HandoverRectification>()
                         .eq(HandoverRectification::getHandoverId, o.id)

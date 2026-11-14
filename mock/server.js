@@ -30,6 +30,27 @@ function findOr404(list, id, name) {
   return item
 }
 
+// C-12：GB/T 10060—2023 表1 ☆重要项（49 项）与试验项（57—74），与后端 HandoverChecklistTemplate 对齐
+const HANDOVER_IMPORTANT = new Set([2, 3, 5, 8, 9, 10, 12, 13, 16, 18, 20, 21, 22, 23, 24, 25, 26, 29, 30, 32, 33, 35, 36, 37, 38, 39, 42, 43, 45, 46, 47, 48, 49, 50, 51, 52, 53, 58, 62, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73])
+function buildHandoverChecklist() {
+  const items = []
+  for (let no = 1; no <= 74; no++) {
+    items.push({ id: 'hi_' + no, itemNo: no, itemGroup: 'G' + String(Math.min(13, Math.ceil(no / 6))).padStart(2, '0'),
+      itemName: '检查项 ' + no, important: HANDOVER_IMPORTANT.has(no), result: null,
+      measuredValue: null, failDesc: null, naReason: null, photoFileIds: null })
+  }
+  return items
+}
+// 7.2/7.3 五路径判定（与后端 HandoverChecklistService.judge 同口径）
+function judgeHandover(impFail, genFail, cond) {
+  if (impFail === 0 && genFail === 0) return 'QUALIFIED'
+  if (impFail >= 1) return 'DISQUALIFIED'
+  if (genFail > 8) return 'DISQUALIFIED'
+  const conditional = cond && cond.siteLimited === true && cond.tripartiteAgreed === true && cond.controlMeasures
+  if (genFail >= 1 && genFail <= 3 && conditional) return 'CONDITIONAL'
+  return 'RECTIFY'
+}
+
 const routes = [
   // ── 鉴权 ──
   // 账号密码登录（用户需求：账号由维保单位系统分配，手机号为账号）
@@ -490,6 +511,94 @@ const routes = [
     const o = findOr404(mockHandovers, params.id, '移交单')
     Object.assign(o, body, { status: 'ARCHIVED', confirmedAt: formatTime(new Date()) })
     return o
+  }],
+  // ── C-12：74 项移交检查清单 / 整改清单 / 归档目录（docs/15、docs/04 A.9）──
+  ['GET', '/handovers/:id/checklist', ({ params }) => {
+    const o = findOr404(mockHandovers, params.id, '移交单')
+    if (!o.checklist74) o.checklist74 = buildHandoverChecklist()
+    return { check: { id: 'hc_' + o.id, handoverId: o.id, totalItems: 74, conclusion: o.checkConclusion || null,
+      passCount: (o.checkCounts && o.checkCounts.pass) || 0, failCount: (o.checkCounts && o.checkCounts.fail) || 0,
+      naCount: (o.checkCounts && o.checkCounts.na) || 0, importantFailCount: (o.checkCounts && o.checkCounts.impFail) || 0 }, items: o.checklist74 }
+  }],
+  ['POST', '/handovers/:id/checklist/submit', ({ params, body }) => {
+    const o = findOr404(mockHandovers, params.id, '移交单')
+    if (!o.checklist74) o.checklist74 = buildHandoverChecklist()
+    const sub = {}
+    ;(body.items || []).forEach((s) => { sub[s.itemNo] = s })
+    let pass = 0, fail = 0, na = 0, impFail = 0
+    const fails = []
+    o.checklist74.forEach((it) => {
+      const s = sub[it.itemNo] || {}
+      if (!s.result) throw { code: 422, message: '第 ' + it.itemNo + ' 项未填结果' }
+      it.result = s.result
+      it.measuredValue = s.measuredValue || null
+      it.failDesc = s.failDesc || null
+      it.naReason = s.naReason || null
+      it.photoFileIds = s.photoFileIds || null
+      if (it.result === 'FAIL') {
+        if (!it.failDesc) throw { code: 422, message: '第 ' + it.itemNo + ' 项不合格须填描述' }
+        if ((it.important || it.itemNo >= 57) && !it.photoFileIds) throw { code: 422, message: '第 ' + it.itemNo + ' 项不合格须附照片' }
+        fail++; if (it.important) impFail++; fails.push(it)
+      } else if (it.result === 'NA') {
+        if (!it.naReason) throw { code: 422, message: '第 ' + it.itemNo + ' 项不适用须选原因码' }
+        na++
+      } else if (it.result === 'PASS') {
+        if (it.itemNo >= 57 && !it.measuredValue) throw { code: 422, message: '第 ' + it.itemNo + ' 项试验须填实测值' }
+        pass++
+      } else throw { code: 422, message: '第 ' + it.itemNo + ' 项结果须 PASS/FAIL/NA' }
+    })
+    const conclusion = judgeHandover(impFail, fail - impFail, body.conditional)
+    o.checkConclusion = conclusion
+    o.checkCounts = { pass, fail, na, impFail }
+    if (conclusion === 'RECTIFY' || conclusion === 'DISQUALIFIED') {
+      o.rectifications = fails.map((f, i) => ({ id: 'hr_' + Date.now() + i, handoverId: o.id, itemNo: f.itemNo,
+        itemType: f.itemGroup, respParty: '安装单位', source: 'INSPECT', voided: false,
+        beforePhotoFileId: f.photoFileIds, recheckResult: null }))
+      o.status = 'RECTIFYING'
+    } else {
+      o.status = 'PENDING_CONFIRM'
+    }
+    return o
+  }],
+  ['GET', '/handovers/:id/rectifications', ({ params }) => {
+    const o = findOr404(mockHandovers, params.id, '移交单')
+    return (o.rectifications || []).slice().sort((a, b) => (a.itemNo || 0) - (b.itemNo || 0))
+  }],
+  ['POST', '/handovers/:id/rectifications/:rectId/rectify', ({ params, body }) => {
+    const o = findOr404(mockHandovers, params.id, '移交单')
+    const r = (o.rectifications || []).find((x) => x.id === params.rectId)
+    if (!r) throw { code: 1404, message: '整改记录不存在' }
+    Object.assign(r, { rectMeasure: body.rectMeasure, afterPhotoFileId: body.afterPhotoFileId,
+      rectifierName: body.rectifierName, rectifiedAt: formatTime(new Date()) })
+    return r
+  }],
+  ['POST', '/handovers/:id/rectifications/:rectId/recheck', ({ params, body }) => {
+    const o = findOr404(mockHandovers, params.id, '移交单')
+    const r = (o.rectifications || []).find((x) => x.id === params.rectId)
+    if (!r) throw { code: 1404, message: '整改记录不存在' }
+    Object.assign(r, { recheckResult: body.result, recheckerId: body.recheckerId,
+      recheckerName: body.recheckerName, recheckedAt: formatTime(new Date()) })
+    const all = (o.rectifications || []).filter((x) => !x.voided)
+    const allPass = all.length > 0 && all.every((x) => x.recheckResult === 'PASS')
+    o.status = allPass ? 'PENDING_CONFIRM' : 'RECTIFYING'
+    return o
+  }],
+  ['POST', '/handovers/:id/na-approve', ({ params, body }) => {
+    const o = findOr404(mockHandovers, params.id, '移交单')
+    const s = { id: 'hs_' + Date.now(), handoverId: o.id, nodeType: 'NA_APPROVE',
+      actorId: body.approverId, actorName: body.approverName, action: 'APPROVE', at: formatTime(new Date()) }
+    o.signs = (o.signs || []).concat(s)
+    return s
+  }],
+  ['GET', '/handovers/:id/export-pdf', ({ params, query }) => {
+    findOr404(mockHandovers, params.id, '移交单')
+    return { form: (query && query.form) || 'CHECK', fileUrl: '', note: 'mock 不生成真实 PDF，真实端点返回二进制 application/pdf' }
+  }],
+  ['GET', '/elevators/:id/archive', ({ params }) => {
+    const cats = [['01', 'CHECKLIST'], ['02', 'RECTIFICATION'], ['03', 'DOCS'], ['04', 'PHOTOS'],
+      ['05', 'CONFIRMATION'], ['06', 'FIRST_ORDER'], ['07', 'PENDING_DOCS']]
+    return cats.map((c, i) => ({ id: 'ha_' + params.id + '_' + c[0], handoverId: params.id,
+      category: c[1], seq: i + 1, sha256: 'mock_sha256_' + c[0], archivedAt: formatTime(new Date()) }))
   }],
   ['GET', '/filings', ({ query }) => paginate(mockFilings.filter((f) => !query.status || f.status === query.status), query)],
   ['POST', '/filings', ({ body }) => {
