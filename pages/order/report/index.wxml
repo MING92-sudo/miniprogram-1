@@ -1,0 +1,39 @@
+<view class="bw">
+  <nav-bar title="一键报修" bind:back="onBack"></nav-bar>
+  <view class="page-pad col gap10">
+    <view class="card col gap8">
+      <view class="panel-title">电梯</view>
+      <view class="row gap8">
+        <input class="rp-input grow" value="{{elevatorCode}}" bindinput="onCodeInput" placeholder="电梯编号" placeholder-class="rp-ph" />
+        <button class="btn btn-ghost btn-sm" bindtap="onScan"><text class="i i-qrcode"></text> 扫码</button>
+      </view>
+      <view wx:if="{{elevator}}" class="fs20 ok">{{elevator.elevatorName}} · {{elevator.projectName}}</view>
+    </view>
+
+    <view class="card col gap8">
+      <view class="panel-title">故障等级</view>
+      <picker mode="selector" range="{{faultTypes}}" bindchange="onTypeChange">
+        <view class="rp-input">{{faultType}}</view>
+      </picker>
+      <view class="panel-title mt4">故障描述（至少 5 字）</view>
+      <textarea class="rp-textarea" value="{{desc}}" bindinput="onDescInput" maxlength="500" placeholder="描述故障现象，如：层门关门异响、轿厢困人等" placeholder-class="rp-ph"></textarea>
+    </view>
+
+    <view class="card col gap8">
+      <view class="row between">
+        <text class="panel-title">现场照片</text>
+        <text class="fs20 dim">{{photos.length}}/3</text>
+      </view>
+      <view class="photo-row">
+        <view wx:for="{{photos}}" wx:key="*this" class="rp-photo-wrap">
+          <image class="thumb" src="{{item}}" mode="aspectFill" data-url="{{item}}" bindtap="onPreviewPhoto"></image>
+          <text class="rp-photo-del" data-index="{{index}}" catchtap="onRemovePhoto"><text class="i i-xmark"></text></text>
+        </view>
+        <view wx:if="{{photos.length < 3}}" class="thumb rp-photo-add" bindtap="onAddPhoto" aria-role="button"><text class="i i-camera"></text></view>
+      </view>
+    </view>
+
+    <button class="btn btn-primary" disabled="{{submitting}}" bindtap="onSubmit">{{submitting ? '提交中...' : '提交报修'}}</button>
+    <view class="hint">困人急修按 TSG 30 分钟到场口径优先处置</view>
+  </view>
+</view>
