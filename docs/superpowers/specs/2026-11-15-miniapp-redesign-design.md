@@ -63,14 +63,14 @@
 | 公共 | pages/common/watermark-camera | pages/common/watermark-camera（主包共享） | M2 |
 | 公共 | pages/common/signature | pages/common/signature（主包共享画布） | M2 |
 | 维保 | pages/order/list | pkg-maintenance/pages/orders/index（保留扩展：我的维保工单，工作台「全部」入口） | M3 |
-| 维保 | pages/order/detail | 作业中 → pkg-maintenance/pages/task/index；已完成 → record-detail/index | M3 |
-| 维保 | pages/order/checklist + item-form | 并入 task/index（屏 04 点检项内联展开实测 + 拍照） | M3 |
+| 维保 | pages/order/detail | pkg-maintenance/pages/task/index + pkg-maintenance/pages/record-detail/index | M3 |
+| 维保 | pages/order/checklist + item-form | pkg-maintenance/pages/task/index | M3 |
 | 维保 | pages/order/checkin | pkg-maintenance/pages/checkin/index（保留迁包） | M3 |
 | 维保 | pages/order/dynamic-code | pkg-maintenance/pages/dynamic-code/index（保留迁包） | M3 |
 | 维保 | pages/order/checkout | pkg-maintenance/pages/checkout/index（保留迁包） | M3 |
 | 维保 | pages/order/record-preview | pkg-maintenance/pages/record-detail/index（屏 05） | M3 |
 | 维保 | pages/calendar/index | pkg-maintenance/pages/plan/index（SUP/MGR 月视图） | M3 |
-| 维保 | （新） | pkg-maintenance/pages/record-sign/index（双人签字业务包装 as=primary\|assist） | M3 |
+| 维保 | （新） | pkg-maintenance/pages/record-sign/index | M3 |
 | 维保 | （新） | pkg-maintenance/pages/record-archive/index（归档/PDF） | M3 |
 | 急修 | pages/fault/list | pages/order/list/index（屏 07 报修接单池） | M3 |
 | 急修 | pages/fault/detail | pages/order/detail/index（屏 06） | M3 |
@@ -89,7 +89,7 @@
 | 外接 | pages/filing/detail | pkg-handover/pages/filing-detail/index | M4 |
 | 外接 | pages/filing/inspect | pkg-handover/pages/filing-inspect/index | M4 |
 | 外接 | pages/filing/confirm | pkg-handover/pages/filing-confirm/index | M4 |
-| 单位 | pages/unit/records | pkg-client/pages/todo/index（待办合并）+ record-detail 查看 | M5 |
+| 单位 | pages/unit/records | pkg-client/pages/todo/index + pkg-maintenance/pages/record-detail/index | M5 |
 | 单位 | pages/unit/sign | pkg-client/pages/sign/index（屏 11，taskId&token） | M5 |
 | 单位 | pages/unit/faults | pkg-client/pages/orders/index（本单位工单只读） | M5 |
 | 单位 | （新） | pkg-client/pages/evaluate/index（服务评价，新端点） | M5 |

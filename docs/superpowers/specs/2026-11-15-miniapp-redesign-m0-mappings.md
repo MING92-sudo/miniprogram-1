@@ -52,7 +52,60 @@
 
 ## 4 路由对照（49 页）
 
-（Task 4 写入）
+> 旧页存在性核实（2026-11-15 实测）：app.json 40 页逐页 fs.existsSync(p+'.js')，missing=[]。
+> 守卫 routes-old/new 按表格单元格精确解析（非子串匹配），防旧路径误匹配新路由前缀。
+
+| 新路由 | 旧页来源 | 批次 |
+|---|---|---|
+| pages/login/index | pages/login/index | M2 |
+| pages/login/agreement | pages/login/agreement | M2 |
+| pages/install/home/index | 新建 | M2 |
+| pages/maint/home/index | pages/home/index | M2 |
+| pages/client/home/index | pages/unit/home | M2 |
+| pages/order/list/index | pages/fault/list | M3 |
+| pages/order/detail/index | pages/fault/detail | M3 |
+| pages/order/report/index | pages/fault/report + pages/unit/report | M3 |
+| pages/elevator/list/index | pages/elevator/list + pages/unit/elevators | M2 |
+| pages/elevator/detail/index | pages/elevator/detail | M2 |
+| pages/profile/index | pages/mine/index + pages/unit/mine/index | M2 |
+| pages/profile/password | pages/mine/password | M2 |
+| pages/403/index | 新建 | M2 |
+| pages/message/index | pages/message/index | M2 |
+| pages/offline/index | pages/mine/offline | M2 |
+| pages/common/watermark-camera | pages/common/watermark-camera | M2 |
+| pages/common/signature | pages/common/signature | M2 |
+| pkg-handover/pages/list/index | pages/handover/list | M4 |
+| pkg-handover/pages/create/index | pages/handover/init | M4 |
+| pkg-handover/pages/detail/index | pages/handover/detail | M4 |
+| pkg-handover/pages/inspect/index | pages/handover/inspect | M4 |
+| pkg-handover/pages/rectify/index | pages/handover/rectify | M4 |
+| pkg-handover/pages/sign/index | pages/handover/confirm | M4 |
+| pkg-handover/pages/upload/index | 新建 | M4 |
+| pkg-handover/pages/review/index | 新建 | M4 |
+| pkg-handover/pages/filing-init/index | pages/filing/init | M4 |
+| pkg-handover/pages/filing-detail/index | pages/filing/detail | M4 |
+| pkg-handover/pages/filing-inspect/index | pages/filing/inspect | M4 |
+| pkg-handover/pages/filing-confirm/index | pages/filing/confirm | M4 |
+| pkg-maintenance/pages/orders/index | pages/order/list | M3 |
+| pkg-maintenance/pages/task/index | pages/order/detail + pages/order/checklist + pages/order/item-form | M3 |
+| pkg-maintenance/pages/checkin/index | pages/order/checkin | M3 |
+| pkg-maintenance/pages/dynamic-code/index | pages/order/dynamic-code | M3 |
+| pkg-maintenance/pages/checkout/index | pages/order/checkout | M3 |
+| pkg-maintenance/pages/record-detail/index | pages/order/detail + pages/order/record-preview | M3 |
+| pkg-maintenance/pages/plan/index | pages/calendar/index | M3 |
+| pkg-maintenance/pages/record-sign/index | 新建（包装 pages/common/signature） | M3 |
+| pkg-maintenance/pages/record-archive/index | 新建 | M3 |
+| pkg-client/pages/todo/index | pages/unit/records | M5 |
+| pkg-client/pages/sign/index | pages/unit/sign | M5 |
+| pkg-client/pages/orders/index | pages/unit/faults | M5 |
+| pkg-client/pages/evaluate/index | 新建 | M5 |
+| pkg-admin/pages/projects/index | 新建 | M6 |
+| pkg-admin/pages/contracts/index | 新建 | M6 |
+| pkg-admin/pages/users/index | 新建 | M6 |
+| pkg-admin/pages/roles/index | 新建 | M6 |
+| pkg-admin/pages/stats/index | 新建 | M6 |
+| pkg-admin/pages/audit/index | 新建 | M6 |
+| pkg-admin/pages/settings/index | 新建 | M6 |
 
 ## 5 权限码覆盖（106 唯一）
 
