@@ -1,0 +1,193 @@
+// 签退自检：自检项确认 + 签名 + 提交
+const { definePage } = require('../../../utils/guard')
+const { ROUTES } = require('../../../config/routes')
+// 业务规则：签到—签退间隔不少于 N 分钟（config.minWorkDurationMinutes，前后端双重校验）
+// 提交后触发记录生成与监管平台上报（后端）
+const { getOrderDetail, getChecklist, checkout } = require('../../../services/order')
+const { formatDuration, parseTime } = require('../../../utils/util')
+const config = require('../../../config/index')
+const offline = require('../../../utils/offline')
+
+definePage(ROUTES['/pkg-maintenance/pages/checkout/index'], {
+  data: {
+    orderId: '',
+    elevatorName: '',
+    checkinTime: '',
+    minMinutes: config.minWorkDurationMinutes, // 作业时长下限（分钟，测试可经 config 调小）
+    elapsedText: '-:--:--', // 已作业时长（24小时制 HH:mm:ss）
+    durationOk: false,
+    remainMinutes: 0,
+    selfChecks: [
+      { key: 'tools', label: '工具已清点带离井道', checked: false },
+      { key: 'site', label: '现场已清理干净', checked: false },
+      { key: 'power', label: '电梯电源已恢复', checked: false },
+      { key: 'run', label: '电梯试运行正常', checked: false }
+    ],
+    workerSigned: false, // 主维保已签字（各自手机签，docs/01 §3.7.5）
+    assistantSigned: false, // 配合人员已签字
+    hasAssistant: false, // 工单配有配合人员时需双人签字（docs/04 A.2 签退自检）
+    checkDone: 0,
+    checkTotal: 0,
+    naCount: 0,
+    keyIssues: [], // 关键项执行/异常但未拍照（TSG 注A-2，签退拦截）
+    safety: [
+      { key: 'warning', label: '警示标志', checked: false },
+      { key: 'barrier', label: '现场围拦', checked: false },
+      { key: 'powerOff', label: '断电挂牌（如需要）', checked: false },
+      { key: 'twoPerson', label: '双人作业', checked: false }
+    ],
+    todoDesc: '', // 待办事项（V20 采集；空=无待办）
+    checkBlocked: true, // 检查项未全部填写时灰置提交（docs/03 §5.7）
+    submitting: false
+  },
+
+  onLoad(query) {
+    this.setData({ orderId: query.orderId || '' })
+    this.fetchOrder()
+  },
+
+  onShow() {
+    // 从检查项页返回后刷新完成度预检（docs/03 §5.7：N/M 完成 + 关键项未拍照红色列出）
+    if (this.data.orderId) this.refreshCheckState()
+  },
+
+  async refreshCheckState() {
+    try {
+      const cl = await getChecklist(this.data.orderId)
+      const items = cl.items || []
+      const mustRun = items.filter((i) => !i.notInThisRun)
+      const done = mustRun.filter((i) => i.result).length
+      const keyIssues = mustRun
+        .filter((i) => i.isKey && i.photoRequired && i.result && i.result !== 'NA'
+          && !(i.photoFileIds || []).length && !(i.photos || []).length)
+        .map((i) => i.name)
+      this.setData({
+        checkDone: done,
+        checkTotal: mustRun.length,
+        naCount: items.length - mustRun.length,
+        keyIssues,
+        checkBlocked: done < mustRun.length || keyIssues.length > 0
+      })
+    } catch (e) {
+      // 预检失败不拦截签退（后端 1003/422 兜底）
+    }
+  },
+
+  onUnload() {
+    this.stopTicker()
+  },
+
+  async fetchOrder() {
+    try {
+      const order = await getOrderDetail(this.data.orderId)
+      this.setData({
+        elevatorName: (order.elevator && order.elevator.elevatorName) || '',
+        checkinTime: order.checkinTime || '',
+        hasAssistant: !!(order.assistantName && order.assistantName !== '无'),
+        workerSigned: !!order.workerSigned,
+        assistantSigned: !!order.assistantSigned
+      })
+      this.startTicker()
+    } catch (e) {
+      // 头部信息加载失败不阻断签退
+    }
+  },
+
+  // 时长实时刷新（每 30 秒）
+  startTicker() {
+    this.stopTicker()
+    this.updateElapsed()
+    this._ticker = setInterval(() => this.updateElapsed(), 30 * 1000)
+  },
+
+  stopTicker() {
+    if (this._ticker) {
+      clearInterval(this._ticker)
+      this._ticker = null
+    }
+  },
+
+  updateElapsed() {
+    if (!this.data.checkinTime) return
+    const elapsed = Date.now() - parseTime(this.data.checkinTime)
+    const minMs = config.minWorkDurationMinutes * 60000
+    const ok = elapsed >= minMs
+    this.setData({
+      elapsedText: formatDuration(elapsed),
+      durationOk: ok,
+      remainMinutes: ok ? 0 : Math.ceil((minMs - elapsed) / 60000)
+    })
+  },
+
+  onCheckToggle(e) {
+    const key = e.currentTarget.dataset.key
+    this.setData({
+      selfChecks: this.data.selfChecks.map((c) =>
+        c.key === key ? Object.assign({}, c, { checked: !c.checked }) : c
+      )
+    })
+  },
+
+  // 安全防护确认勾选（docs/04 V2.28：签退采集，写入维保记录）
+  onSafetyToggle(e) {
+    const key = e.currentTarget.dataset.key
+    this.setData({
+      safety: this.data.safety.map((c) =>
+        c.key === key ? Object.assign({}, c, { checked: !c.checked }) : c
+      )
+    })
+  },
+
+  onTodoInput(e) {
+    this.setData({ todoDesc: e.detail.value })
+  },
+
+  async onSubmit() {
+    const allChecked = this.data.selfChecks.every((c) => c.checked)
+    if (!allChecked) return wx.showToast({ title: '请完成全部自检项', icon: 'none' })
+    // 签字已在各自手机完成（docs/01 §3.7.5），此处仅做完整性预检，后端 422 双保险
+    if (!this.data.workerSigned) return wx.showToast({ title: '请完成主维保签字', icon: 'none' })
+    if (this.data.hasAssistant && !this.data.assistantSigned) {
+      return wx.showToast({ title: '请完成配合人员签字（双人签字）', icon: 'none' })
+    }
+    // 时长下限前端校验（后端 422 双保险）
+    if (!this.data.durationOk) {
+      return wx.showToast({
+        title: `作业时长不足 ${this.data.minMinutes} 分钟，还需约 ${this.data.remainMinutes} 分钟`,
+        icon: 'none'
+      })
+    }
+    this.setData({ submitting: true })
+    const payload = {
+      safetyConfirm: this.data.safety.reduce((m, c) => Object.assign(m, { [c.key]: c.checked }), {}),
+      todoDesc: this.data.todoDesc
+    }
+    try {
+      // 响应：{ duration, originalRecordId, reportStatus, recordId, shareToken }（docs/04 A.2）
+      const resp = await checkout(this.data.orderId, payload)
+      // 签退成功 → 进入签名确认页（安全管理员本机代签，或分享链接远程签字）
+      wx.showToast({ title: '签退成功', icon: 'success' })
+      this._leaving = true
+      setTimeout(() => {
+        wx.redirectTo({ url: `/pages/unit/sign?rid=${resp.recordId}&token=${resp.shareToken}` })
+      }, 800)
+    } catch (e) {
+      if (e && e.code === -1) {
+        offline.enqueue({
+          url: `/work-orders/${this.data.orderId}/checkout`,
+          method: 'POST',
+          data: payload,
+          desc: '签退提交'
+        })
+        wx.showToast({ title: '网络异常，签退已存入离线补传', icon: 'none' })
+        this._leaving = true
+        setTimeout(() => {
+          wx.reLaunch({ url: '/pages/maint/home/index' })
+        }, 1200)
+      } else {
+        wx.showToast({ title: e.message || '签退失败', icon: 'none' })
+      }
+    }
+    this.setData({ submitting: false })
+  }
+})
