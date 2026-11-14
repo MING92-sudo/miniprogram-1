@@ -40,5 +40,13 @@ public class Fault {
     public String proxyBy;
     public Integer slaMinutes;
     public LocalDateTime deadline;
+    /** M1 急修七态扩展（V43） */
+    public String faultReason;
+    public String cancelReason;
+    public String refuseReason;
+    public Integer evaluateScore;
+    public String evaluateText;
+    public LocalDateTime evaluatedAt;
+    public LocalDateTime escalatedAt;
     public LocalDateTime createdAt;
 }

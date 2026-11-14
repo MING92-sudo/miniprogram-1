@@ -1,0 +1,201 @@
+package com.cqwlw.maintenance.service;
+
+import com.cqwlw.maintenance.common.BizException;
+import com.cqwlw.maintenance.entity.Elevator;
+import com.cqwlw.maintenance.entity.Employee;
+import com.cqwlw.maintenance.entity.Fault;
+import com.cqwlw.maintenance.mapper.CompanyMapper;
+import com.cqwlw.maintenance.mapper.DrillMapper;
+import com.cqwlw.maintenance.mapper.ElevatorMapper;
+import com.cqwlw.maintenance.mapper.EmployeeMapper;
+import com.cqwlw.maintenance.mapper.FaultMapper;
+import com.cqwlw.maintenance.mapper.InspectRecordMapper;
+import com.cqwlw.maintenance.mapper.KnowledgeMapper;
+import com.cqwlw.maintenance.mapper.MessageMapper;
+import com.cqwlw.maintenance.mapper.RescueMapper;
+import com.cqwlw.maintenance.mapper.UseUnitMapper;
+import com.cqwlw.maintenance.mapper.WorkOrderMapper;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+import java.util.Map;
+import java.util.Set;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
+/**
+ * 急修七态（M1，蓝图 §6.3）：抢单区域校验/到场 GPS/提交必填/确认角色/取消角色/评价闭环一次性。
+ */
+class FaultLifecycleTest {
+
+    private FaultMapper faults;
+    private ElevatorMapper elevators;
+    private EmployeeMapper employees;
+    private DirectoryService svc;
+
+    @BeforeEach
+    void setUp() {
+        faults = mock(FaultMapper.class);
+        elevators = mock(ElevatorMapper.class);
+        employees = mock(EmployeeMapper.class);
+        svc = new DirectoryService(mock(RescueMapper.class), faults, mock(DrillMapper.class),
+                mock(InspectRecordMapper.class), mock(MessageMapper.class), mock(KnowledgeMapper.class),
+                elevators, mock(ChecklistService.class), mock(WorkOrderService.class),
+                mock(EmployeeScopeService.class), employees, mock(UseUnitMapper.class),
+                mock(WorkOrderMapper.class), mock(CompanyMapper.class), mock(FileStorageService.class));
+    }
+
+    private Fault fault(String status) {
+        Fault f = new Fault();
+        f.id = "f1";
+        f.status = status;
+        f.elevatorCode = "DT-1";
+        f.dispatchWorkerId = "e1";
+        when(faults.selectById("f1")).thenReturn(f);
+        return f;
+    }
+
+    private void elevator(String regionId, String unitId) {
+        Elevator el = new Elevator();
+        el.elevatorCode = "DT-1";
+        el.regionId = regionId;
+        el.useUnitId = unitId;
+        when(elevators.selectOne(any())).thenReturn(el);
+    }
+
+    @Test
+    void grabWithinRegionAssigns() {
+        Fault f = fault("OPEN");
+        Employee me = new Employee();
+        me.id = "e1";
+        me.regionId = "r1";
+        when(employees.selectById("e1")).thenReturn(me);
+        elevator("r1", "u1");
+        svc.grabFault("f1", "e1");
+        assertEquals("ASSIGNED", f.status);
+        assertEquals("e1", f.dispatchWorkerId);
+    }
+
+    @Test
+    void grabOutOfRegionForbidden() {
+        fault("OPEN");
+        Employee me = new Employee();
+        me.id = "e1";
+        me.regionId = "r2";
+        when(employees.selectById("e1")).thenReturn(me);
+        elevator("r1", "u1");
+        BizException ex = assertThrows(BizException.class, () -> svc.grabFault("f1", "e1"));
+        assertEquals(1403, ex.getCode());
+    }
+
+    @Test
+    void arriveRequiresGps() {
+        fault("ASSIGNED");
+        BizException ex = assertThrows(BizException.class,
+                () -> svc.arriveFault("f1", "e1", null, 106.5));
+        assertEquals(422, ex.getCode());
+    }
+
+    @Test
+    void arriveTransitionsToProcessing() {
+        Fault f = fault("ASSIGNED");
+        svc.arriveFault("f1", "e1", 29.5, 106.5);
+        assertEquals("PROCESSING", f.status);
+        assertNotNull(f.arrivedAt);
+    }
+
+    @Test
+    void arriveOnlyAssignedWorker() {
+        fault("ASSIGNED");
+        BizException ex = assertThrows(BizException.class,
+                () -> svc.arriveFault("f1", "e-other", 29.5, 106.5));
+        assertEquals(1403, ex.getCode());
+    }
+
+    @Test
+    void submitRequiresReasonAndHandle() {
+        fault("PROCESSING");
+        BizException ex = assertThrows(BizException.class,
+                () -> svc.submitFault("f1", "e1", Map.of("faultReason", "门锁故障")));
+        assertEquals(422, ex.getCode());
+    }
+
+    @Test
+    void submitTransitionsToPendingConfirm() {
+        Fault f = fault("PROCESSING");
+        svc.submitFault("f1", "e1", Map.of("faultReason", "门锁故障", "handleDesc", "更换触点"));
+        assertEquals("PENDING_CONFIRM", f.status);
+        assertNotNull(f.finishedAt);
+    }
+
+    @Test
+    void confirmRequiresClientSigner() {
+        fault("PENDING_CONFIRM");
+        BizException ex = assertThrows(BizException.class,
+                () -> svc.confirmFault("f1", Set.of("CLIENT_ADMIN"), null, true, ""));
+        assertEquals(1403, ex.getCode());
+    }
+
+    @Test
+    void confirmClosesAndRefuseNeedsReason() {
+        Fault f = fault("PENDING_CONFIRM");
+        svc.confirmFault("f1", Set.of("CLIENT_ADMIN", "CLIENT_SIGNER"), null, true, "");
+        assertEquals("CLOSED", f.status);
+        assertNotNull(f.confirmedAt);
+        Fault f2 = fault("PENDING_CONFIRM");
+        BizException ex = assertThrows(BizException.class,
+                () -> svc.confirmFault("f1", Set.of("CLIENT_SIGNER"), null, false, " "));
+        assertEquals(422, ex.getCode());
+    }
+
+    @Test
+    void confirmCrossUnitForbidden() {
+        fault("PENDING_CONFIRM");
+        elevator("r1", "u-other");
+        BizException ex = assertThrows(BizException.class,
+                () -> svc.confirmFault("f1", Set.of("CLIENT_SIGNER"), "u1", true, ""));
+        assertEquals(1403, ex.getCode());
+    }
+
+    @Test
+    void cancelRolesAndReason() {
+        fault("OPEN");
+        BizException noReason = assertThrows(BizException.class,
+                () -> svc.cancelFault("f1", Set.of("CLIENT_ADMIN"), ""));
+        assertEquals(422, noReason.getCode());
+        BizException wrongRole = assertThrows(BizException.class,
+                () -> svc.cancelFault("f1", Set.of("MAINT_SUP"), "误报"));
+        assertEquals(1403, wrongRole.getCode());
+        Fault f = fault("OPEN");
+        svc.cancelFault("f1", Set.of("CLIENT_ADMIN"), "误报");
+        assertEquals("CANCELLED", f.status);
+    }
+
+    @Test
+    void evaluateOnlyClosedOnce() {
+        fault("PROCESSING");
+        BizException notClosed = assertThrows(BizException.class,
+                () -> svc.evaluate("f1", Set.of("CLIENT_ADMIN"), null, Map.of("score", 5)));
+        assertEquals(422, notClosed.getCode());
+        Fault f = fault("CLOSED");
+        svc.evaluate("f1", Set.of("CLIENT_ADMIN"), null, Map.of("score", 5, "text", "响应快"));
+        assertEquals(5, f.evaluateScore);
+        assertNotNull(f.evaluatedAt);
+        BizException dup = assertThrows(BizException.class,
+                () -> svc.evaluate("f1", Set.of("CLIENT_ADMIN"), null, Map.of("score", 4)));
+        assertEquals(422, dup.getCode());
+    }
+
+    @Test
+    void evaluateScoreRange() {
+        fault("CLOSED");
+        BizException ex = assertThrows(BizException.class,
+                () -> svc.evaluate("f1", Set.of("CLIENT_ADMIN"), null, Map.of("score", 6)));
+        assertEquals(422, ex.getCode());
+    }
+}
