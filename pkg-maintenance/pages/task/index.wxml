@@ -1,0 +1,125 @@
+<view class="bw">
+  <nav-bar title="{{view === 'edit' ? '检查项填写' : '作业执行'}}" bind:back="onBack"></nav-bar>
+
+  <!-- list 态：概览 + 清单 -->
+  <view wx:if="{{view === 'list'}}" class="page-pad col gap10">
+    <skeleton wx:if="{{loading}}" rows="{{[{h:140},{h:60},{h:80},{h:80},{h:80}]}}"></skeleton>
+    <error-retry wx:elif="{{error}}" message="{{error}}" bind:retry="onRetry"></error-retry>
+    <block wx:else>
+      <view class="card col gap6">
+        <view class="row between">
+          <view class="fs26 w7 grow">{{elevatorName}}</view>
+          <text class="tag tag-amber">{{workType}}</text>
+        </view>
+        <view class="fs20 dim">{{projectName}}{{order && order.orderNo ? ' · ' + order.orderNo : ''}}</view>
+        <view class="progress mt4"><i style="width:{{progress}}%"></i></view>
+        <view class="row between mt4">
+          <text class="fs20 muted">{{doneCount}}/{{requiredTotal}} 项 · 进度 {{progress}}%</text>
+          <text class="fs20 dim">合格 {{normalCount}} · 异常 {{abnormalCount}} · 不适用 {{naCount}}</text>
+        </view>
+        <view class="row gap8 mt6">
+          <button class="btn btn-ghost btn-sm grow" bindtap="goCheckin">签到</button>
+          <button class="btn btn-ghost btn-sm grow" bindtap="goSign">签字</button>
+          <button class="btn btn-primary btn-sm grow" bindtap="goCheckout">签退</button>
+        </view>
+        <button wx:if="{{order && order.status === 'DONE'}}" class="btn btn-ghost btn-sm" bindtap="goRecord">查看记录单</button>
+      </view>
+
+      <view wx:for="{{sections}}" wx:key="label" class="col gap6">
+        <view class="row between">
+          <text class="panel-title">{{item.label}}</text>
+          <text class="fs20 dim">{{item.done}}/{{item.total}}</text>
+        </view>
+        <view
+          wx:for="{{item.items}}"
+          wx:for-item="it"
+          wx:key="id"
+          class="tk-item {{it.glyphClass}}"
+          data-id="{{it.id}}"
+          bindtap="goItemForm"
+          aria-role="button"
+          aria-label="{{it.name}}"
+        >
+          <text class="tk-glyph {{it.glyphClass}}">{{it.glyph}}</text>
+          <view class="grow">
+            <view class="fs22 {{it.result ? 'w6' : ''}}">{{it.name}}</view>
+            <view class="fs20 dim mt2 {{it.subClass}}">{{it.sub}}</view>
+          </view>
+          <view class="col tk-right">
+            <text wx:if="{{it.resultText}}" class="tk-res {{it.resultClass}}">{{it.resultText}}</text>
+            <text wx:if="{{it.photoCount}}" class="fs18 dim"><text class="i i-images"></text> {{it.photoCount}}</text>
+            <button wx:if="{{it.notInThisRun}}" class="link fs18" data-id="{{it.id}}" catchtap="onRunThisTime">本次执行</button>
+          </view>
+        </view>
+      </view>
+
+      <view wx:if="{{photos.length}}" class="card">
+        <view class="panel-title">现场照片（{{photos.length}}）</view>
+        <view class="photo-row mt6">
+          <image wx:for="{{photos}}" wx:key="src" class="thumb" src="{{item.src}}" mode="aspectFill" data-src="{{item.src}}" bindtap="previewPhoto"></image>
+        </view>
+      </view>
+    </block>
+  </view>
+
+  <!-- edit 态：检查项填写 -->
+  <view wx:else class="page-pad col gap10">
+    <view class="card col gap6">
+      <view class="fs26 w7">{{item.name}}</view>
+      <view wx:if="{{item.requirement}}" class="fs20 dim">{{item.requirement}}</view>
+      <view wx:if="{{item.isKey}}" class="tag tag-amber">关键项（须照片留证）</view>
+    </view>
+
+    <view class="card col gap8">
+      <view class="panel-title">检查结果</view>
+      <view class="row gap8">
+        <view class="tk-result {{result === 'NORMAL' ? 'on-ok' : ''}}" data-value="NORMAL" bindtap="onResultChange">合格</view>
+        <view class="tk-result {{result === 'ABNORMAL' ? 'on-ng' : ''}}" data-value="ABNORMAL" bindtap="onResultChange">异常</view>
+        <view class="tk-result {{result === 'NA' ? 'on-na' : ''}}" data-value="NA" bindtap="onResultChange">不适用</view>
+      </view>
+
+      <view wx:if="{{item.judgeType === 'NUMERIC' && result !== 'NA'}}" class="col gap4">
+        <text class="fs20 muted">测量读数{{item.valueUnit ? '（' + item.valueUnit + '）' : ''}}</text>
+        <input class="tk-input" type="digit" value="{{value}}" bindinput="onValueInput" placeholder="请输入读数" placeholder-class="tk-ph" />
+        <text wx:if="{{item.valueMin != null || item.valueMax != null}}" class="fs18 dim">标准范围 {{item.valueMin}} ~ {{item.valueMax}}{{item.valueUnit}}</text>
+      </view>
+
+      <view wx:if="{{item.judgeType === 'MANUFACTURER' && result !== 'NA'}}" class="col gap4">
+        <text class="fs20 muted">说明书判定</text>
+        <input class="tk-input" value="{{valueText}}" bindinput="onValueTextInput" placeholder="按制造单位说明书填写" placeholder-class="tk-ph" />
+      </view>
+
+      <view wx:if="{{result === 'ABNORMAL'}}" class="col gap6">
+        <text class="fs20 muted">异常描述（必填）</text>
+        <textarea class="tk-textarea" value="{{abnormalDesc}}" bindinput="onAbnormalInput" placeholder="描述异常现象" placeholder-class="tk-ph"></textarea>
+        <text class="fs20 muted">隐患代码（必填，S1–S7）</text>
+        <picker mode="selector" range="{{problemOptions}}" bindchange="onProblemChange">
+          <view class="tk-input">{{problemDesc || '请选择隐患代码'}}</view>
+        </picker>
+      </view>
+
+      <view wx:if="{{result === 'NA'}}" class="col gap4">
+        <text class="fs20 muted">跳过原因（必填）</text>
+        <input class="tk-input" value="{{skipReason}}" bindinput="onSkipInput" placeholder="不适用原因（TSG 注 A-1）" placeholder-class="tk-ph" />
+      </view>
+    </view>
+
+    <view class="card col gap8">
+      <view class="row between">
+        <text class="panel-title">现场照片</text>
+        <text class="fs20 dim">{{editPhotos.length}}/{{4}}</text>
+      </view>
+      <view class="photo-row">
+        <view wx:for="{{editPhotos}}" wx:key="url" class="tk-photo-wrap">
+          <image class="thumb" src="{{item.url}}" mode="aspectFill" data-src="{{item.url}}" bindtap="previewEditPhoto"></image>
+          <text class="tk-photo-del" data-index="{{index}}" catchtap="removePhoto"><text class="i i-xmark"></text></text>
+        </view>
+        <view class="thumb tk-photo-add" bindtap="choosePhoto" aria-role="button"><text class="i i-camera"></text></view>
+      </view>
+      <view class="fs18 dim">异常项与关键项必须附照片；水印由服务端烧录留证</view>
+    </view>
+
+    <button class="btn btn-primary" disabled="{{submitting}}" bindtap="onSubmitItem">{{submitting ? '保存中...' : '保存检查项'}}</button>
+    <button class="btn btn-ghost" bindtap="backToList">返回清单</button>
+  </view>
+</view>
