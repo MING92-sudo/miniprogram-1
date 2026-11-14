@@ -17,6 +17,7 @@ import static org.springframework.test.web.client.match.MockRestRequestMatchers.
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.queryParam;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withException;
 
 /**
  * token 中控（docs/04 B.1 实测口径）：GET + 查询串；code 兼容数字/字符串 "200"；
@@ -79,5 +80,39 @@ class PlatformTokenServiceTest {
         PlatformTokenService empty = new PlatformTokenService(new PlatformProperties(), new RestTemplate());
         BizException e = assertThrows(BizException.class, empty::getToken);
         assertEquals(2001, e.getCode());
+    }
+
+    @Test
+    void transientNetworkErrorRetriesOnceThenSucceeds() {
+        server.expect(requestTo(org.hamcrest.Matchers.startsWith("https://auth.example.com/login")))
+                .andRespond(withException(new java.io.IOException("connect timed out")));
+        server.expect(requestTo(org.hamcrest.Matchers.startsWith("https://auth.example.com/login")))
+                .andRespond(withSuccess(
+                        "{\"code\":200,\"data\":{\"access_token\":\"retry.ok\",\"expires_in\":3599}}",
+                        MediaType.APPLICATION_JSON));
+        assertEquals("retry.ok", service.getToken());
+        server.verify();
+    }
+
+    @Test
+    void persistentNetworkErrorThrows2001AfterRetry() {
+        server.expect(requestTo(org.hamcrest.Matchers.startsWith("https://auth.example.com/login")))
+                .andRespond(withException(new java.io.IOException("connect timed out")));
+        server.expect(requestTo(org.hamcrest.Matchers.startsWith("https://auth.example.com/login")))
+                .andRespond(withException(new java.io.IOException("connect timed out")));
+        BizException e = assertThrows(BizException.class, service::getToken);
+        assertEquals(2001, e.getCode());
+        server.verify();
+    }
+
+    @Test
+    void businessFailureNotRetried() {
+        // 平台业务非 200（凭证/白名单）只请求一次，不重试
+        server.expect(requestTo(org.hamcrest.Matchers.startsWith("https://auth.example.com/login")))
+                .andRespond(withSuccess("{\"code\":10001,\"message\":\"认证失败\",\"data\":null}",
+                        MediaType.APPLICATION_JSON));
+        BizException e = assertThrows(BizException.class, service::getToken);
+        assertEquals(2001, e.getCode());
+        server.verify();
     }
 }

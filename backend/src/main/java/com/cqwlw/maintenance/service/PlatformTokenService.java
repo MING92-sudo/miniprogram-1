@@ -76,27 +76,34 @@ public class PlatformTokenService {
                 .queryParam("appcode", props.getAppcode())
                 .queryParam("secret", props.getSecret())
                 .build().encode().toUriString();
-        try {
-            ResponseEntity<String> resp = restTemplate.getForEntity(url, String.class);
-            Map<String, Object> body = MAPPER.readValue(resp.getBody(), new TypeReference<Map<String, Object>>() {
-            });
-            // code 兼容数字/字符串 "200"（docs/04 B.1）
-            if (!"200".equals(String.valueOf(body.get("code")).trim())) {
-                log.warn("平台登录失败: code={}, message={}", body.get("code"), body.get("message"));
-                throw new BizException(2001, "监管平台 token 获取失败");
+        // 网络瞬时异常（冷启动连接超时等）重试 1 次；平台业务非 200（凭证/白名单）不重试。
+        // 2.1 为幂等 GET 登录，与 2.6/2.8 上报禁止自动重试（AGENTS §2.4）无关。
+        BizException last = null;
+        for (int attempt = 1; attempt <= 2; attempt++) {
+            try {
+                ResponseEntity<String> resp = restTemplate.getForEntity(url, String.class);
+                Map<String, Object> body = MAPPER.readValue(resp.getBody(), new TypeReference<Map<String, Object>>() {
+                });
+                // code 兼容数字/字符串 "200"（docs/04 B.1）
+                if (!"200".equals(String.valueOf(body.get("code")).trim())) {
+                    log.warn("平台登录失败: code={}, message={}", body.get("code"), body.get("message"));
+                    throw new BizException(2001, "监管平台 token 获取失败");
+                }
+                @SuppressWarnings("unchecked")
+                Map<String, Object> data = (Map<String, Object>) body.get("data");
+                cachedToken = String.valueOf(data.get("access_token"));
+                long expiresIn = ((Number) data.get("expires_in")).longValue();
+                cachedExpiry = Instant.now().plusSeconds(Math.max(60, expiresIn - 60));
+                log.info("平台 token 已刷新，TTL={}s", expiresIn - 60);
+                return;
+            } catch (BizException e) {
+                throw e;
+            } catch (Exception e) {
+                log.warn("平台登录请求异常(第{}次): {}", attempt, e.getMessage());
+                last = new BizException(2001, "监管平台 token 获取失败");
             }
-            @SuppressWarnings("unchecked")
-            Map<String, Object> data = (Map<String, Object>) body.get("data");
-            cachedToken = String.valueOf(data.get("access_token"));
-            long expiresIn = ((Number) data.get("expires_in")).longValue();
-            cachedExpiry = Instant.now().plusSeconds(Math.max(60, expiresIn - 60));
-            log.info("平台 token 已刷新，TTL={}s", expiresIn - 60);
-        } catch (BizException e) {
-            throw e;
-        } catch (Exception e) {
-            log.warn("平台登录请求异常: {}", e.getMessage());
-            throw new BizException(2001, "监管平台 token 获取失败");
         }
+        throw last;
     }
 
     private boolean notBlank(String s) {
