@@ -1,0 +1,153 @@
+/* 博威无纸化设计系统 · 深色工业风令牌与基础类（原型 index.html :root/基础工具逐字，rpx=px×2）
+   作用域裁决 R9：基础类全部挂 .bw 根容器下（新页 <view class="bw"> 包裹），
+   过渡期旧页同名 .card/.row/.btn 等（172/194/69 处）不被污染；M6 旧页删除后作用域保留无害。 */
+page{
+  --ink:#0A0F12;--ink-2:#0D1418;--panel:#131C21;--panel-2:#172228;
+  --line:#26343B;--line-2:#2E3E46;--text:#E8EEF0;--muted:#A3B4BB;--dim:#7E929B;
+  --amber:#FFB020;--amber-soft:#FFC85C;--signal:#FF4B2B;--signal-soft:#FF8F7A;
+  --ok:#2FC48D;--ok-soft:#5FE0B2;--paper:#EDE5D3;--paper-ink:#22201A;--paper-line:#C6BA9F;
+}
+.bw{min-height:100vh;background:var(--ink);color:var(--text);font-family:'PingFang SC','Microsoft YaHei','Hiragino Sans GB',system-ui,sans-serif;font-size:28rpx;line-height:1.5}
+
+/* ---------- 字体工具 ---------- */
+.bw .mono{font-family:'SFMono-Regular',Consolas,'Liberation Mono',monospace;font-variant-numeric:tabular-nums}
+.bw .disp{font-family:'ZCOOL QingKe HuangYou','PingFang SC','Microsoft YaHei',sans-serif;letter-spacing:.015em;font-weight:400}
+.bw .paper-font{font-family:'Songti SC','SimSun',serif}
+
+/* ---------- 布局工具 ---------- */
+.bw .row{display:flex;align-items:center}
+.bw .col{display:flex;flex-direction:column}
+.bw .between{justify-content:space-between}
+.bw .grow{flex:1;min-width:0}
+.bw .right{text-align:right}
+.bw .gap4{gap:8rpx}.bw .gap5{gap:10rpx}.bw .gap6{gap:12rpx}.bw .gap8{gap:16rpx}.bw .gap10{gap:20rpx}
+.bw .mt2{margin-top:4rpx}.bw .mt4{margin-top:8rpx}.bw .mt5{margin-top:10rpx}.bw .mt6{margin-top:12rpx}.bw .mt7{margin-top:14rpx}.bw .mt8{margin-top:16rpx}.bw .mt10{margin-top:20rpx}
+
+/* ---------- 字号（屏内正文≥20rpx，装饰微标≥18rpx） ---------- */
+.bw .fs18{font-size:18rpx}.bw .fs20{font-size:20rpx}.bw .fs22{font-size:22rpx}.bw .fs24{font-size:24rpx}
+.bw .fs26{font-size:26rpx}.bw .fs32{font-size:32rpx}.bw .fs38{font-size:38rpx}.bw .fs44{font-size:44rpx}.bw .fs52{font-size:52rpx}
+.bw .ls12{letter-spacing:.12em}.bw .ls16{letter-spacing:.16em}
+.bw .w6{font-weight:600}.bw .w7{font-weight:700}
+.bw .muted{color:var(--muted)}.bw .dim{color:var(--dim)}
+.bw .amber{color:var(--amber)}.bw .sig{color:var(--signal-soft)}.bw .ok{color:var(--ok-soft)}
+
+/* ---------- 图标基类（字形见 assets/icons/icons.wxss .i-xxx:before） ---------- */
+.bw .i{display:inline-block;font-style:normal;line-height:1;vertical-align:-.125em;flex:none}
+
+/* ---------- 卡面 ---------- */
+.bw .card{background:linear-gradient(160deg,#151F25,#0F181D);border:1rpx solid var(--line);border-radius:8rpx;padding:22rpx}
+.bw .plate{position:relative;border:1rpx solid #2C3B42;border-radius:8rpx;padding:24rpx;background:linear-gradient(150deg,var(--panel-2),#101A1F);box-shadow:inset 0 1rpx 0 rgba(255,255,255,.03);overflow:hidden}
+
+/* ---------- 按钮（每屏最多一个页面级 primary） ---------- */
+.bw .btn{height:80rpx;border-radius:10rpx;display:flex;align-items:center;justify-content:center;gap:14rpx;font-size:26rpx;font-weight:700;letter-spacing:.03em;border:1rpx solid transparent;white-space:nowrap}
+.bw .btn-primary{background:var(--amber);color:#1A1203;box-shadow:0 4rpx 0 #8E6000}
+.bw .btn-primary:active{transform:translateY(2rpx);box-shadow:0 2rpx 0 #8E6000}
+.bw .btn-ghost{background:transparent;border-color:#34454D;color:#DCE6E9}
+.bw .btn-signal{background:var(--signal);color:var(--ink);box-shadow:0 4rpx 0 #9E2A14}
+.bw .btn-xs{height:52rpx;padding:0 22rpx;font-size:20rpx;border-radius:6rpx;font-weight:600}
+.bw .btn-sm{height:64rpx;font-size:23rpx;border-radius:8rpx}
+.bw .btn[disabled]{opacity:.35}
+
+/* ---------- 可点文本动作 ---------- */
+.bw .link{background:none;border:none;padding:0;display:inline-flex;align-items:center;gap:8rpx;font-size:inherit;line-height:inherit;color:var(--amber);white-space:nowrap}
+.bw .link.quiet{color:var(--muted)}
+
+/* ---------- chip 筛选 ---------- */
+.bw .chips{display:flex;gap:10rpx;flex-wrap:wrap}
+.bw .chip{font-size:20rpx;padding:8rpx 16rpx;border:1rpx solid #2A383F;border-radius:40rpx;color:#9FB0B7;white-space:nowrap;background:none}
+.bw .chip.on{color:#1A1203;background:var(--amber);border-color:var(--amber);font-weight:700}
+
+/* ---------- 状态标签 ---------- */
+.bw .tag{display:inline-flex;align-items:center;gap:8rpx;font-size:20rpx;line-height:1;padding:8rpx 12rpx;border-radius:4rpx;border:1rpx solid transparent;white-space:nowrap}
+.bw .tag-amber{color:var(--amber-soft);background:rgba(255,176,32,.1);border-color:rgba(255,176,32,.35)}
+.bw .tag-signal{color:var(--signal-soft);background:rgba(255,75,43,.1);border-color:rgba(255,75,43,.4)}
+.bw .tag-ok{color:var(--ok-soft);background:rgba(47,196,141,.1);border-color:rgba(47,196,141,.35)}
+.bw .tag-dim{color:#A9B9BF;background:rgba(255,255,255,.04);border-color:var(--line)}
+
+/* ---------- 键值行 ---------- */
+.bw .kv{display:flex;justify-content:space-between;gap:24rpx;padding:8rpx 0;border-bottom:1rpx dashed rgba(38,52,59,.7);font-size:20rpx}
+.bw .kv:last-child{border-bottom:none}
+.bw .kv>span{color:var(--dim);flex:none}
+.bw .kv>b{font-weight:500;color:#D3DFE3;text-align:right}
+
+/* ---------- 节标题 ---------- */
+.bw .sec-head{display:flex;justify-content:space-between;align-items:center;padding:2rpx 2rpx 0}
+.bw .panel-title{font-size:20rpx;letter-spacing:.16em;color:var(--dim)}
+.bw .vline{width:1rpx;height:60rpx;background:var(--line);flex:none}
+.bw .vdiv{width:1rpx;height:48rpx;background:#2A383F;flex:none}
+
+/* ---------- 提示/规则/门控注 ---------- */
+.bw .hint{display:flex;align-items:center;justify-content:center;gap:10rpx;font-size:20rpx;color:var(--dim);line-height:1.5;text-align:center}
+.bw .rule-note{display:flex;align-items:flex-start;gap:12rpx;border-left:4rpx solid var(--amber);background:rgba(255,176,32,.05);padding:12rpx 16rpx;font-size:20rpx;line-height:1.55;color:#C9B98F}
+.bw .gate-note{font-size:20rpx;line-height:1.55;color:var(--dim)}
+
+/* ---------- 空态（双分支由 empty-state 组件承载） ---------- */
+.bw .empty{display:flex;flex-direction:column;align-items:center;gap:16rpx;padding:60rpx 40rpx;text-align:center;border:1rpx dashed var(--line-2);border-radius:8rpx;background:var(--panel)}
+.bw .empty .i{font-size:44rpx;color:#71838B}
+.bw .empty .et{font-size:24rpx;font-weight:600;color:#C6D3D8}
+.bw .empty .ed{font-size:20rpx;line-height:1.7;color:var(--dim);max-width:540rpx}
+
+/* ---------- 骨架屏（纯 CSS 扫光，reduced-motion 静态降级） ---------- */
+.bw .skel{position:relative;overflow:hidden;background:var(--panel-2);border-radius:6rpx}
+.bw .skel::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,var(--panel-2),var(--line),var(--panel-2));transform:translateX(-100%);animation:skel-sweep 1.4s ease-in-out infinite}
+@keyframes skel-sweep{to{transform:translateX(100%)}}
+@media (prefers-reduced-motion:reduce){.bw .skel::after{animation:none;transform:none;opacity:.5}}
+
+/* ---------- 搜索框 ---------- */
+.bw .search{display:flex;align-items:center;gap:14rpx;background:#111A1F;border:1rpx solid #243138;border-radius:6rpx;padding:16rpx 20rpx;color:var(--dim)}
+
+/* ---------- 页内 tab（非底部导航） ---------- */
+.bw .tabs{display:flex;gap:26rpx;border-bottom:1rpx solid var(--line);padding-bottom:14rpx}
+.bw .tabs .tab{font-size:20rpx;color:var(--dim);position:relative;padding-bottom:14rpx;white-space:nowrap;background:none}
+.bw .tabs .tab.on{color:var(--text);font-weight:700}
+.bw .tabs .tab.on::after{content:'';position:absolute;left:0;right:0;bottom:-16rpx;height:4rpx;background:var(--amber)}
+
+/* ---------- 进度条 ---------- */
+.bw .progress{height:8rpx;background:#22303A;border-radius:4rpx;overflow:hidden}
+.bw .progress>i{display:block;height:100%;background:linear-gradient(90deg,#C97E00,var(--amber));border-radius:4rpx}
+
+/* ---------- 头像 ---------- */
+.bw .avatar{width:40rpx;height:40rpx;border-radius:50%;background:#23343C;color:#B8C8CE;font-size:20rpx;display:flex;align-items:center;justify-content:center;border:1rpx solid #35454D;flex:none}
+
+/* ---------- 警示/通知条 ---------- */
+.bw .notice-strip{display:flex;align-items:center;gap:14rpx;border:1rpx dashed var(--line-2);border-radius:6rpx;padding:14rpx 18rpx;font-size:20rpx;color:var(--muted)}
+.bw .alert-strip{display:flex;align-items:center;gap:16rpx;border:1rpx solid rgba(255,176,32,.3);background:rgba(255,176,32,.06);border-radius:6rpx;padding:16rpx 18rpx}
+
+/* ---------- 电梯行（列表/工作台共用） ---------- */
+.bw .elev-row{display:flex;align-items:center;gap:16rpx;border:1rpx solid #243138;border-radius:6rpx;background:#111A1F;padding:16rpx 18rpx}
+.bw .elev-ico{width:52rpx;height:52rpx;border-radius:4rpx;border:1rpx solid #35454D;display:flex;align-items:center;justify-content:center;font-size:22rpx;color:var(--amber);flex:none;background:rgba(255,176,32,.05)}
+
+/* ---------- 工作台部件（屏 01/10） ---------- */
+.bw .shift{border:1rpx solid rgba(255,176,32,.3);background:rgba(255,176,32,.06);border-radius:6rpx;padding:12rpx 16rpx;text-align:right;flex:none}
+.bw .sos{position:relative;border:1rpx solid rgba(255,75,43,.45);border-radius:8rpx;padding:20rpx 22rpx;background:linear-gradient(120deg,rgba(255,75,43,.16),rgba(255,75,43,.04) 60%),#141517;box-shadow:0 0 0 1rpx rgba(255,75,43,.06),0 20rpx 48rpx -36rpx rgba(255,75,43,.6)}
+.bw .sos::before{content:'';position:absolute;left:0;top:16rpx;bottom:16rpx;width:4rpx;background:var(--signal)}
+.bw .kpi-row{display:grid;grid-template-columns:repeat(3,1fr);gap:16rpx}
+.bw .kpi{position:relative;background:#111A1F;border:1rpx solid #243138;border-radius:6rpx;padding:14rpx 18rpx 18rpx}
+.bw .kpi::after{content:'';position:absolute;left:18rpx;bottom:0;width:36rpx;height:4rpx;background:var(--amber);opacity:.55}
+.bw .kpi-n{font-size:46rpx;line-height:1.1;color:#F0F5F6;letter-spacing:-.02em}
+.bw .kpi-alert .kpi-n{color:var(--signal-soft)}
+.bw .kpi-alert::after{background:var(--signal)}
+.bw .task{display:flex;align-items:center;gap:18rpx;background:#111A1F;border:1rpx solid #243138;border-left:4rpx solid var(--amber);border-radius:6rpx;padding:16rpx 18rpx}
+.bw .task-time{font-size:20rpx;color:var(--amber);width:64rpx;flex:none}
+.bw .qa-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14rpx}
+.bw .qa{background:#111A1F;border:1rpx solid #243138;border-radius:6rpx;padding:18rpx 6rpx;display:flex;flex-direction:column;align-items:center;gap:10rpx;font-size:20rpx;color:#B9C7CC;text-align:center}
+.bw .qa .i{font-size:30rpx;color:var(--amber)}
+.bw .week-strip{display:flex;align-items:center;gap:20rpx;background:linear-gradient(90deg,rgba(255,176,32,.07),transparent);border:1rpx solid #243138;border-radius:6rpx;padding:16rpx 22rpx}
+.bw .week-strip>view{display:flex;flex-direction:column;gap:2rpx;flex:1}
+.bw .sync-note{display:flex;align-items:center;gap:16rpx;border:1rpx solid rgba(47,196,141,.22);background:rgba(47,196,141,.05);border-radius:6rpx;padding:16rpx 20rpx}
+.bw .sync-note>.i{color:var(--ok);font-size:24rpx}
+.bw .sign-alert{border:1rpx solid rgba(255,176,32,.35);border-radius:8rpx;padding:20rpx 22rpx;background:linear-gradient(120deg,rgba(255,176,32,.12),rgba(255,176,32,.02) 70%),#101A1F}
+.bw .sign-alert-row{display:flex;align-items:center;gap:16rpx;padding:14rpx 0 0;margin-top:12rpx;border-top:1rpx dashed rgba(255,176,32,.2)}
+
+/* ---------- 纸面单据（签字区共用，M3/M5 消费） ---------- */
+.bw .paper{position:relative;background:var(--paper);border-radius:4rpx;padding:24rpx 26rpx;color:var(--paper-ink);font-family:'Songti SC','SimSun',serif;box-shadow:0 52rpx 88rpx -52rpx rgba(0,0,0,.95),inset 0 0 80rpx rgba(120,96,52,.08)}
+.bw .paper-kicker{font-size:20rpx;letter-spacing:.18em;color:#5B5341}
+.bw .paper-title{font-size:32rpx;font-weight:600;letter-spacing:.1em;margin-top:4rpx}
+.bw .paper-no{font-size:20rpx;color:#5B5341;text-align:right;line-height:1.6}
+.bw .paper-hr{height:4rpx;background:var(--paper-ink);margin:16rpx 0 2rpx}
+
+/* ---------- 照片缩略图（水印服务端烧录，前端只展示） ---------- */
+.bw .thumb{width:84rpx;height:66rpx;border-radius:4rpx;position:relative;overflow:hidden;border:1rpx solid #35454D;flex:none;background:linear-gradient(160deg,#4A5256,#232C30)}
+.bw .thumb-ts{position:absolute;left:6rpx;bottom:4rpx;font-size:18rpx;color:rgba(255,255,255,.8);z-index:1}
+.bw .photo-row{display:flex;gap:12rpx}
+.bw .photo-row .thumb{width:auto;flex:1;height:84rpx}

@@ -1,4 +1,16 @@
 /**app.wxss 全局样式**/
+/* M2 深色工业风设计系统（.bw 作用域，旧页浅色体系暂留至 M6） */
+@import './styles/tokens.wxss';
+@import './assets/icons/icons.wxss';
+@import './styles/fonts.wxss';
+@import './styles/brand.wxss';
+
+/* 新壳按钮重置（仅 .bw 内，避免影响旧页原生 button） */
+.bw button{background:none;border:none;padding:0;margin:0;font-size:inherit;line-height:inherit;color:inherit}
+.bw button::after{border:none}
+.bw .page-pad{padding:18rpx 28rpx 20rpx}
+.bw .tabbar-pad{padding-bottom:calc(152rpx + env(safe-area-inset-bottom,0px))}
+
 page {
   /* 主题色（克制工业风：单蓝 + 三语义色） */
   --em-brand: #0A5BD3;
