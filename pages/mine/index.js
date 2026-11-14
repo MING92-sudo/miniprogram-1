@@ -63,8 +63,8 @@ Page({
   },
 
   onReady() {
-    this._authReady = true
-    this.enterState()
+    // M3：旧「我的」已被新 profile 取代，重定向到新壳（本页 M6 删除）
+    wx.reLaunch({ url: '/pages/profile/index' })
   },
 
   // 单身份：门户身份不进本页（回门户首页）；员工态展示个人信息；都没有则登录引导

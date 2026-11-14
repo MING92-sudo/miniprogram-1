@@ -4,19 +4,8 @@ const { ROUTES } = require('../config/routes')
 const { resolveHome } = require('../config/menus')
 const { getRoles, getHome, getWorkspace } = require('./auth')
 
-// 新→旧过渡映射（M0 §4 反向）
+// 新→旧过渡映射（M0 §4 反向；M3 已删 order/pkg-maintenance 映射，余 handover/client 随 M4/M5 删除）
 const TRANSITION_MAP = {
-  '/pages/order/list/index': '/pages/fault/list',
-  '/pages/order/detail/index': '/pages/fault/detail',
-  '/pages/order/report/index': '/pages/fault/report',
-  '/pkg-maintenance/pages/orders/index': '/pages/order/list',
-  '/pkg-maintenance/pages/task/index': '/pages/order/detail',
-  '/pkg-maintenance/pages/checkin/index': '/pages/order/checkin',
-  '/pkg-maintenance/pages/dynamic-code/index': '/pages/order/dynamic-code',
-  '/pkg-maintenance/pages/checkout/index': '/pages/order/checkout',
-  '/pkg-maintenance/pages/record-detail/index': '/pages/order/record-preview',
-  '/pkg-maintenance/pages/plan/index': '/pages/calendar/index',
-  '/pkg-maintenance/pages/record-archive/index': '/pages/order/record-preview',
   '/pkg-handover/pages/list/index': '/pages/handover/list',
   '/pkg-handover/pages/create/index': '/pages/handover/init',
   '/pkg-handover/pages/detail/index': '/pages/handover/detail',

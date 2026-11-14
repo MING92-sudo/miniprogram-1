@@ -15,18 +15,7 @@
     "pages/common/watermark-camera",
     "pages/common/signature",
     "pages/home/index",
-    "pages/order/list",
     "pages/mine/index",
-    "pages/order/detail",
-    "pages/order/checkin",
-    "pages/order/dynamic-code",
-    "pages/order/checklist",
-    "pages/order/item-form",
-    "pages/order/checkout",
-    "pages/order/record-preview",
-    "pages/fault/report",
-    "pages/fault/detail",
-    "pages/fault/list",
     "pages/elevator/list",
     "pages/elevator/detail",
     "pages/handover/list",
@@ -39,7 +28,6 @@
     "pages/filing/detail",
     "pages/filing/inspect",
     "pages/filing/confirm",
-    "pages/calendar/index",
     "pages/mine/offline",
     "pages/unit/sign",
     "pages/unit/home",
@@ -48,7 +36,10 @@
     "pages/unit/records",
     "pages/unit/faults",
     "pages/unit/report",
-    "pages/mine/password"
+    "pages/mine/password",
+    "pages/order/list/index",
+    "pages/order/detail/index",
+    "pages/order/report/index"
   ],
   "window": {
     "navigationBarTitleText": "博威无纸化",
@@ -72,5 +63,29 @@
   },
   "style": "v2",
   "sitemapLocation": "sitemap.json",
-  "lazyCodeLoading": "requiredComponents"
+  "lazyCodeLoading": "requiredComponents",
+  "subPackages": [
+    {
+      "root": "pkg-maintenance",
+      "pages": [
+        "pages/orders/index",
+        "pages/task/index",
+        "pages/checkin/index",
+        "pages/dynamic-code/index",
+        "pages/checkout/index",
+        "pages/record-detail/index",
+        "pages/plan/index",
+        "pages/record-sign/index",
+        "pages/record-archive/index"
+      ]
+    }
+  ],
+  "preloadRule": {
+    "pages/maint/home/index": {
+      "network": "all",
+      "packages": [
+        "pkg-maintenance"
+      ]
+    }
+  }
 }

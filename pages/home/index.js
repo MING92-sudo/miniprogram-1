@@ -57,8 +57,10 @@ Page({
   },
 
   onReady() {
-    this._authReady = true
-    this.refresh()
+    // M3：旧工单台已被新工作台取代，重定向到新壳（本页 M6 删除）
+    const { resolveHome } = require('../../config/menus')
+    const { getRoles } = require('../../utils/auth')
+    wx.reLaunch({ url: resolveHome(getRoles()) })
   },
 
   refresh() {
