@@ -82,6 +82,15 @@ function handoverArchiveEntries(id) {
 }
 
 const routes = [
+  // ── M6 管理统计域只读投影（pkg-admin，复用管理端端点） ──
+  ['GET', '/projects', () => ({ list: (d.db.projects || []).slice(0, 50), total: (d.db.projects || []).length })],
+  ['GET', '/contracts', () => ({ list: (d.db.contracts || []).slice(0, 50), total: (d.db.contracts || []).length })],
+  ['GET', '/users', () => ({ list: Object.keys(d.db.employees).map((k) => { const e = d.db.employees[k]; return { id: e.id, name: e.name, account: e.account, role: e.role, roleText: e.roleText, groupName: e.groupName, enabled: e.enabled !== false } }), total: Object.keys(d.db.employees).length })],
+  ['GET', '/roles-matrix', () => ({ roles: menus.ROLE_PRIORITY, matrix: {} })],
+  ['GET', '/stats', () => ({ managed: d.db.elevators.length, done: d.db.orders.filter((o) => o.status === 'DONE').length, openFaults: d.db.faults.filter((f) => f.status === 'OPEN').length, pendingSigns: d.db.unitRecords.filter((r) => r.confirmStatus === 'PENDING').length })],
+  ['GET', '/audit', () => ({ list: [], total: 0 })],
+  ['GET', '/settings', () => ([{ key: 'record_review_enabled', value: '0', remark: '维保记录复核开关' }, { key: 'sla_minutes', value: '30', remark: '急修 SLA 分钟' }])],
+  ['PUT', '/settings/:key', ({ params, body }) => ({ ok: true, key: params.key, value: body.value })],
   // ── M1 小程序重构后端底座（docs/04 V2.53 三处同步） ──
   ['GET', '/me/menus', ({ query }) => {
     // M2：与后端 MiniappMenuService 同投影（require 前端镜像，漂移守卫锁定 ROLE_TABS）

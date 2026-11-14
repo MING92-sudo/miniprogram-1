@@ -5,6 +5,9 @@
     "pages/install/home/index",
     "pages/maint/home/index",
     "pages/client/home/index",
+    "pages/order/list/index",
+    "pages/order/detail/index",
+    "pages/order/report/index",
     "pages/elevator/list/index",
     "pages/elevator/detail/index",
     "pages/profile/index",
@@ -13,23 +16,7 @@
     "pages/message/index",
     "pages/offline/index",
     "pages/common/watermark-camera",
-    "pages/common/signature",
-    "pages/home/index",
-    "pages/mine/index",
-    "pages/elevator/list",
-    "pages/elevator/detail",
-    "pages/mine/offline",
-    "pages/unit/sign",
-    "pages/unit/home",
-    "pages/unit/mine/index",
-    "pages/unit/elevators",
-    "pages/unit/records",
-    "pages/unit/faults",
-    "pages/unit/report",
-    "pages/mine/password",
-    "pages/order/list/index",
-    "pages/order/detail/index",
-    "pages/order/report/index"
+    "pages/common/signature"
   ],
   "window": {
     "navigationBarTitleText": "博威无纸化",
@@ -56,17 +43,24 @@
   "lazyCodeLoading": "requiredComponents",
   "subPackages": [
     {
-      "root": "pkg-maintenance",
+      "root": "pkg-admin",
       "pages": [
+        "pages/projects/index",
+        "pages/contracts/index",
+        "pages/users/index",
+        "pages/roles/index",
+        "pages/stats/index",
+        "pages/audit/index",
+        "pages/settings/index"
+      ]
+    },
+    {
+      "root": "pkg-client",
+      "pages": [
+        "pages/todo/index",
+        "pages/sign/index",
         "pages/orders/index",
-        "pages/task/index",
-        "pages/checkin/index",
-        "pages/dynamic-code/index",
-        "pages/checkout/index",
-        "pages/record-detail/index",
-        "pages/plan/index",
-        "pages/record-sign/index",
-        "pages/record-archive/index"
+        "pages/evaluate/index"
       ]
     },
     {
@@ -87,12 +81,17 @@
       ]
     },
     {
-      "root": "pkg-client",
+      "root": "pkg-maintenance",
       "pages": [
-        "pages/todo/index",
-        "pages/sign/index",
         "pages/orders/index",
-        "pages/evaluate/index"
+        "pages/task/index",
+        "pages/checkin/index",
+        "pages/dynamic-code/index",
+        "pages/checkout/index",
+        "pages/record-detail/index",
+        "pages/plan/index",
+        "pages/record-sign/index",
+        "pages/record-archive/index"
       ]
     }
   ],

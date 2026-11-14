@@ -43,8 +43,10 @@ for (const line of s4.split('\n')) {
     cells[2].split('+').forEach(x => oldCol.add(x.trim()))
   }
 }
-// M2 过渡并集（裁决 R1）：app.json 新旧页并存，∈ oldCol ∪ newCol；M6 删旧页后收紧为 newCol 且计数 49
-check('routes-old', app.pages.filter(p => !oldCol.has(p) && !newCol.has(p)), app.pages.length)
+// M6 收紧（裁决 R1）：旧页全删，app.json 全部页（主包+子包）∈ newCol 且计数 49
+const allAppPages = (app.pages || []).concat((app.subPackages || []).reduce((acc, sp) => acc.concat((sp.pages || []).map(p => sp.root + '/' + p)), []))
+check('routes-old', allAppPages.filter(p => !newCol.has(p)), allAppPages.length)
+check('routes-total', allAppPages.length === 49 ? [] : ['expect 49 got ' + allAppPages.length], 49)
 const spec14 = SPEC.split('### 1.4')[1].split('### 1.5')[0]
 const specRoutes = new Set()
 for (const line of spec14.split('\n')) {

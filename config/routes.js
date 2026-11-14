@@ -75,6 +75,8 @@ LIST.forEach((m) => { if (m.batch === 'M3') m.built = true })
 LIST.forEach((m) => { if (m.batch === 'M4') m.built = true })
 // M5 已建：使用单位域 4 页
 LIST.forEach((m) => { if (m.batch === 'M5') m.built = true })
+// M6 已建：管理统计域 7 页（全部 49 路由建成）
+LIST.forEach((m) => { if (m.batch === 'M6') m.built = true })
 
 // 过渡期旧 40 页（M0 §4 旧列；各域迁移完即删，M6 清空）
 const OLD_PAGES = [

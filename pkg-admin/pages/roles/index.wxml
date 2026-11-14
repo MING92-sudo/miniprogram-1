@@ -1,0 +1,15 @@
+<view class="bw">
+  <nav-bar title="角色" bind:back="onBack"></nav-bar>
+  <view class="page-pad col gap10">
+    <skeleton wx:if="{{loading}}" rows="{{[{h:100},{h:120},{h:120}]}}"></skeleton>
+    <error-retry wx:elif="{{error}}" message="{{error}}" bind:retry="onRetry"></error-retry>
+    <block wx:else>
+      <view wx:for="{{list}}" wx:key="index" class="card col gap4">
+        <view class="kv"><span>角色</span><b>{{item.roleText || '—'}}</b></view>
+        <view class="kv"><span>权限码数</span><b>{{item.permCount || '—'}}</b></view>
+      </view>
+      <empty-state wx:if="{{!list.length}}" mode="empty" title="暂无数据" desc="数据范围内暂无记录。"></empty-state>
+      <perm-button perm="role:assign" capability="分配角色" allowRoles="平台管理员" type="ghost" text="分配角色（管理端办理）"></perm-button>
+    </block>
+  </view>
+</view>
