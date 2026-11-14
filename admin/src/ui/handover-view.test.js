@@ -41,7 +41,7 @@ describe('HandoversView C-12', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     vi.clearAllMocks()
-    api.listHandovers.mockResolvedValue([order])
+    api.listHandovers.mockResolvedValue({ list: [order], total: 1 })
     api.getChecklist.mockResolvedValue({ check: { totalItems: 74, conclusion: null }, items: [item] })
     api.getRectifications.mockResolvedValue([])
     api.getArchive.mockResolvedValue([{ id: 'ha_1', seq: 1, category: 'CHECKLIST', sha256: 'abc', archivedAt: '2026-11-14 10:00:00' }])

@@ -18,7 +18,7 @@ const cols = [
   { key: 'nextDate', label: '下次维保', sortable: true },
   { key: 'workTypeCode', label: '类别' }
 ]
-onMounted(async () => { loading.value = true; try { rows.value = await http.get('/maintenance-calendar') } finally { loading.value = false } })
+onMounted(async () => { loading.value = true; try { rows.value = (await http.get('/maintenance-calendar')).entries || [] } finally { loading.value = false } })
 </script>
 <style scoped>
 .page-head { margin-bottom: 16px; }

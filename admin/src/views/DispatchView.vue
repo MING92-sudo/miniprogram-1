@@ -20,7 +20,7 @@ const cols = [
   { key: 'slaMinutes', label: '时限(分)' },
   { key: 'createdAt', label: '创建' }
 ]
-onMounted(async () => { loading.value = true; try { rows.value = await http.get('/faults') } finally { loading.value = false } })
+onMounted(async () => { loading.value = true; try { rows.value = (await http.get('/faults')).list || [] } finally { loading.value = false } })
 </script>
 <style scoped>
 .page-head { margin-bottom: 16px; }

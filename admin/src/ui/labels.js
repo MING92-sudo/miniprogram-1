@@ -125,7 +125,7 @@ export function triStateSymbol(v) { return TRI_SYMBOL[String(v || '')] || String
 export function formatCell(col, value) {
   if (typeof col.format === 'function') return col.format(value)
   const key = col.key
-  if (key === 'status' || key === 'reportStatus' || key === 'result' || key === 'faultType') return statusLabel(value)
+  if (key === 'status' || key === 'reportStatus' || key === 'confirmStatus' || key === 'result' || key === 'faultType') return statusLabel(value)
   if (key === 'role') return roleLabel(value)
   if (key === 'roles') {
     const arr = Array.isArray(value) ? value : String(value || '').split(',')

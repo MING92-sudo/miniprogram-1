@@ -17,7 +17,7 @@ const cols = [
   { key: 'status', label: '状态' },
   { key: 'createdAt', label: '创建' }
 ]
-onMounted(async () => { loading.value = true; try { rows.value = await http.get('/filings') } finally { loading.value = false } })
+onMounted(async () => { loading.value = true; try { rows.value = (await http.get('/filings')).list || [] } finally { loading.value = false } })
 </script>
 <style scoped>
 .page-head { margin-bottom: 16px; }

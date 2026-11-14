@@ -35,7 +35,7 @@ const cols = [
 ]
 async function load() {
   loading.value = true
-  try { const all = await listRecords(); rows.value = (all || []).filter(r => r.reportStatus === 'FAILED' || r.reportStatus === 'PENDING') }
+  try { const all = (await listRecords()).list || []; rows.value = all.filter(r => r.reportStatus === 'FAILED' || r.reportStatus === 'PENDING') }
   catch (e) { toast.error(e.message || '加载失败') } finally { loading.value = false }
 }
 function onBlocked(code) { toast.warn('需审批或前置未满足：' + code) }

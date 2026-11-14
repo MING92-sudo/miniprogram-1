@@ -36,7 +36,7 @@ const cols = [
   { key: 'confirmStatus', label: '确认' },
   { key: 'reportStatus', label: '上报' }
 ]
-async function load() { loading.value = true; try { rows.value = await http.get('/admin/records') } finally { loading.value = false } }
+async function load() { loading.value = true; try { rows.value = (await http.get('/admin/records')).list || [] } finally { loading.value = false } }
 function openAmend(r) { amendId.value = r.id; amendReason.value = ''; showAmend.value = true }
 async function submitAmend() {
   if (!amendReason.value) { toast.error('修订原因必填'); return }

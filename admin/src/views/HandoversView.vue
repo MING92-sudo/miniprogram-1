@@ -233,7 +233,7 @@ function onBlocked(code) { toast.warn('需审批或前置未满足：' + code) }
 
 async function loadList() {
   loading.value = true
-  try { rows.value = await api.listHandovers() } catch (e) { toast.error(e.message || '加载移交单失败') } finally { loading.value = false }
+  try { rows.value = (await api.listHandovers()).list || [] } catch (e) { toast.error(e.message || '加载移交单失败') } finally { loading.value = false }
 }
 onMounted(loadList)
 

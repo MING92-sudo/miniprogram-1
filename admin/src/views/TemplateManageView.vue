@@ -18,7 +18,7 @@ const cols = [
   { key: 'itemCount', label: '项数' },
   { key: 'enabled', label: '启用' }
 ]
-onMounted(async () => { loading.value = true; try { rows.value = await http.get('/admin/templates') } finally { loading.value = false } })
+onMounted(async () => { loading.value = true; try { rows.value = (await http.get('/admin/templates')).list || [] } finally { loading.value = false } })
 </script>
 <style scoped>
 .page-head { margin-bottom: 16px; }
