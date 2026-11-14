@@ -1,48 +1,42 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { resolveRoute } from './guard'
-import AdminLayout from '../layout/AdminLayout.vue'
 import AppShell from '../ui/AppShell.vue'
 
 const LoginView = () => import('../views/LoginView.vue')
 const DashboardView = () => import('../views/DashboardView.vue')
 const ForbiddenView = () => import('../views/ForbiddenView.vue')
 const NotFoundView = () => import('../views/NotFoundView.vue')
-// M3 台账域视图
+// M3 台账域
 const OrgView = () => import('../views/OrgView.vue')
 const UsersView = () => import('../views/UsersView.vue')
 const RolesView = () => import('../views/RolesView.vue')
 const GrantsView = () => import('../views/GrantsView.vue')
 const ProjectsView = () => import('../views/ProjectsView.vue')
 const ContractsView = () => import('../views/ContractsView.vue')
-// M4 作业域视图
+const ElevatorsView = () => import('../views/ElevatorsView.vue')
+// M4 作业域
 const HandoversView = () => import('../views/HandoversView.vue')
 const PlansView = () => import('../views/PlansView.vue')
 const RecordsView = () => import('../views/RecordsView.vue')
 const DispatchView = () => import('../views/DispatchView.vue')
-// 旧 EP 视图（M2 保活，M3–M5 逐迁）
-const OrderListView = () => import('../views/OrderListView.vue')
 const OrderDetailView = () => import('../views/OrderDetailView.vue')
+// M5 数据域
+const StatsView = () => import('../views/StatsView.vue')
+const AuditView = () => import('../views/AuditView.vue')
+const SettingsView = () => import('../views/SettingsView.vue')
+// 监管与档案（M5 迁至自建组件）
 const FailedRecordsView = () => import('../views/FailedRecordsView.vue')
-const FaultsView = () => import('../views/FaultsView.vue')
 const UploadLogsView = () => import('../views/UploadLogsView.vue')
-const CompanyView = () => import('../views/CompanyView.vue')
-const UseUnitsView = () => import('../views/UseUnitsView.vue')
-const EmployeesView = () => import('../views/EmployeesView.vue')
-const ElevatorsView = () => import('../views/ElevatorsView.vue')
-const ScheduleView = () => import('../views/ScheduleView.vue')
-const TemplateManageView = () => import('../views/TemplateManageView.vue')
-const LedgerView = () => import('../views/LedgerView.vue')
-const RegisterWorkersView = () => import('../views/RegisterWorkersView.vue')
-const HandoverView = () => import('../views/HandoverView.vue')
 const FilingView = () => import('../views/FilingView.vue')
-const ContractView = () => import('../views/ContractView.vue')
 const RegionView = () => import('../views/RegionView.vue')
+const TemplateManageView = () => import('../views/TemplateManageView.vue')
+const RegisterWorkersView = () => import('../views/RegisterWorkersView.vue')
 
 export const routes = [
   { path: '/login', component: LoginView, meta: { public: true, title: '登录' } },
   { path: '/', component: AppShell, redirect: '/dashboard', children: [
-    { path: 'dashboard', component: DashboardView, meta: { title: '工作台', group: '概览', perm: 'console:read' } },
+    { path: 'dashboard', component: DashboardView, meta: { title: '工作台', group: '概览' } },
     { path: 'org', component: OrgView, meta: { title: '组织架构', group: '组织与权限', perm: 'user:view' } },
     { path: 'users', component: UsersView, meta: { title: '账号管理', group: '组织与权限', perm: 'user:view' } },
     { path: 'roles', component: RolesView, meta: { title: '角色权限矩阵', group: '组织与权限', perm: 'role:assign' } },
@@ -55,32 +49,15 @@ export const routes = [
     { path: 'records', component: RecordsView, meta: { title: '记录单复核', group: '维保作业', perm: 'record:view' } },
     { path: 'dispatch', component: DispatchView, meta: { title: '工单调度', group: '急修报修', perm: 'order:view_pool' } },
     { path: 'order/:id', component: OrderDetailView, meta: { title: '工单详情', group: '急修报修', perm: 'order:view_own' } },
+    { path: 'stats', component: StatsView, meta: { title: '统计报表', group: '数据与系统', perm: 'stats:view' } },
+    { path: 'audit', component: AuditView, meta: { title: '审计日志', group: '数据与系统', perm: 'audit:view' } },
+    { path: 'settings', component: SettingsView, meta: { title: '系统配置', group: '数据与系统', perm: 'config:manage' } },
     { path: 'reports/failed', component: FailedRecordsView, meta: { title: '上报异常清单', group: '监管与档案', perm: 'report:view' } },
     { path: 'reports/logs', component: UploadLogsView, meta: { title: '上报日志', group: '监管与档案', perm: 'report:view' } },
     { path: 'filings', component: FilingView, meta: { title: '外接建档', group: '监管与档案', perm: 'filing:view' } },
     { path: 'regions', component: RegionView, meta: { title: '区域管理', group: '监管与档案', perm: 'region:view' } },
     { path: 'templates', component: TemplateManageView, meta: { title: '检查项模板', group: '监管与档案', perm: 'template:view' } },
     { path: 'register/workers', component: RegisterWorkersView, meta: { title: '平台登记人员', group: '监管与档案', perm: 'platform:worker_view' } }
-  ] },
-  // 旧管理端保活分支（M5 迁完删除）；路径前缀 /legacy，旧组件零改动
-  { path: '/legacy', component: AdminLayout, redirect: '/legacy/orders', children: [
-    { path: 'orders', component: OrderListView, meta: { title: '工单列表', perm: 'order:read' } },
-    { path: 'orders/:id', component: OrderDetailView, meta: { title: '工单详情', perm: 'order:read' } },
-    { path: 'reports/failed', component: FailedRecordsView, meta: { title: '上报异常清单', perm: 'order:read' } },
-    { path: 'faults', component: FaultsView, meta: { title: '急修单', perm: 'fault:read' } },
-    { path: 'reports/logs', component: UploadLogsView, meta: { title: '上报日志', perm: 'record:read' } },
-    { path: 'schedule', component: ScheduleView, meta: { title: '计划调度', perm: 'plan:write' } },
-    { path: 'templates', component: TemplateManageView, meta: { title: '模板管理', perm: 'template:write' } },
-    { path: 'ledger', component: LedgerView, meta: { title: '电梯台账', perm: 'ledger:read' } },
-    { path: 'handovers', component: HandoverView, meta: { title: '移交单', perm: 'handover:read' } },
-    { path: 'filings', component: FilingView, meta: { title: '外接建档', perm: 'filing:read' } },
-    { path: 'contracts', component: ContractView, meta: { title: '维保合同', perm: 'contract:read' } },
-    { path: 'regions', component: RegionView, meta: { title: '区域管理', perm: 'region:write' } },
-    { path: 'archive/company', component: CompanyView, meta: { title: '维保单位档案', perm: 'employee:read' } },
-    { path: 'archive/use-units', component: UseUnitsView, meta: { title: '使用单位档案', perm: 'useunit:read' } },
-    { path: 'archive/employees', component: EmployeesView, meta: { title: '人员档案', perm: 'employee:read' } },
-    { path: 'archive/elevators', component: ElevatorsView, meta: { title: '电梯档案', perm: 'ledger:read' } },
-    { path: 'register/workers', component: RegisterWorkersView, meta: { title: '人员管理', perm: 'employee:read' } }
   ] },
   { path: '/403', component: ForbiddenView, meta: { public: true, title: '无权限' } },
   { path: '/:pathMatch(.*)*', component: NotFoundView, meta: { public: true, title: '页面不存在' } }
