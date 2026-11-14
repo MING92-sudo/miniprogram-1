@@ -2,7 +2,7 @@
 // 未建路由走过渡映射回旧页（裁决 R4，各域迁移完即删对应行，M6 删全表）；所有路径来自白名单。
 const { ROUTES } = require('../config/routes')
 const { resolveHome } = require('../config/menus')
-const { getRoles, getHome, getWorkspace } = require('./auth')
+const { getRoles, getHome } = require('./auth')
 
 // 新→旧过渡映射（M0 §4 反向）：M3/M4/M5 已建全部业务域，映射清空；pkg-admin（M6）无旧等价走 FALLBACK。
 const TRANSITION_MAP = {}
@@ -44,24 +44,11 @@ function open(url) {
     })
     return
   }
-  // 未建：过渡映射回旧页（保留 query）
-  let old = TRANSITION_MAP[path]
-  if (path === '/pages/order/report/index' && String(getWorkspace()).indexOf('CLIENT') === 0) {
-    old = '/pages/unit/report'
-  }
+  // 未建路由（M6 后全部已建，此分支仅留兜底）：过渡映射或 profile 兜底
+  const old = TRANSITION_MAP[path]
   if (old) return reLaunch(old + query)
   wx.showToast({ title: '该功能将在后续版本开放', icon: 'none' })
   setTimeout(() => reLaunch(FALLBACK), 300)
-}
-
-// 旧页 wx.switchTab 的统一 shim（原生 tabBar 已删）：旧 tab 路径改 reLaunch，home/mine 落新壳
-function switchTab(opts) {
-  const url = (opts && opts.url) || ''
-  const { path } = splitUrl(url)
-  let target = path
-  if (path === '/pages/home/index') target = currentHome()
-  else if (path === '/pages/mine/index') target = '/pages/profile/index'
-  reLaunch(target)
 }
 
 // 返回：有栈 navigateBack，无栈回当前工作台
@@ -91,4 +78,4 @@ function parseScene(q) {
   return ROUTES[path] ? route : null
 }
 
-module.exports = { open, switchTab, back, safeRedirect, parseScene, TRANSITION_MAP, FALLBACK, ALLOWED_REDIRECTS }
+module.exports = { open, back, safeRedirect, parseScene, TRANSITION_MAP, FALLBACK, ALLOWED_REDIRECTS }
