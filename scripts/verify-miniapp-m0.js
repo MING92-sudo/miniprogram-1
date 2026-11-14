@@ -65,4 +65,15 @@ const codes = [...new Set([...pmSrc.matchAll(/public static final String [A-Z_0-
 const s5 = section(5)
 check('perm-codes', codes.filter(c => !s5.includes('| ' + c + ' ')), codes.length)
 check('perm-count', codes.length === 106 ? [] : ['expect 106 got ' + codes.length], 106)
+// 6 资产：logo/64 图标/字体缺口
+const assets = []
+if (!fs.existsSync(path.join(ROOT, 'assets/brand/logo.jpg'))) assets.push('logo.jpg')
+const iconCss = fs.existsSync(path.join(ROOT, 'assets/icons/icons.wxss'))
+  ? fs.readFileSync(path.join(ROOT, 'assets/icons/icons.wxss'), 'utf8') : ''
+const glyphCount = (iconCss.match(/\.i-[a-z0-9-]+:before/g) || []).length
+if (glyphCount !== 64) assets.push('icons glyphs=' + glyphCount)
+const gap = fs.existsSync(path.join(ROOT, 'assets/fonts/zcool-gap.json'))
+  ? JSON.parse(fs.readFileSync(path.join(ROOT, 'assets/fonts/zcool-gap.json'), 'utf8')) : { missing: ['gap.json 缺失'] }
+if (gap.missing.length && !gap.userApprovedFallback) assets.push('zcool missing=' + gap.missing.join(''))
+check('assets', assets, 3)
 console.log(JSON.stringify(results, null, 2))

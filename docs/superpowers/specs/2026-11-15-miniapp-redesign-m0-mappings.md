@@ -224,4 +224,16 @@
 
 ## 6 原型资产提取清单
 
-（Task 6 写入）
+> 取证类型：结构等价（计数/字节/缺口 JSON）。图标与字体的真实绘制验收留 M2 模拟器/真机。
+
+**色彩令牌**：引用规格 §2.1（不重复维护）。
+
+**公司 logo**：assets/brand/logo.jpg（41141 字节，450×450）。圆形徽标 bbox 实测 ≈ (55,20)–(395,335)；BOWEI 字母区 y≈360–430 **不渲染上页**。M2 渲染口径：CSS background-image(data URI) + background-size:100% auto + 视高 = 宽 × 335/450 ≈ 0.744，仅取圆形部分。
+
+**图标**：原型 64 个 FA Free 6.5.2 symbol → scripts/asset-build/svg/（64 件，入库）→ assets/icons/icons.wxss（14889 字节；bwicons woff2 7256 字节 base64 内嵌；码位 0xF101+排序索引；类名 .i-xxx 与原型 #i-xxx 逐字一致）。许可：图标 CC BY 4.0，署名落「我的」页中文可见文本。
+
+**显示字**：assets/fonts/zcool-proto-subset.woff2（原型 75 字子集存档，20336 字节）；assets/fonts/zcool-subset.ttf（扩字子集 135 字，84596 字节，覆盖「博威无纸化」及全部标题用字）；zcool-gap.json = {required:135, missing:[]}。OFL 1.1 无保留名，子集化沿用原名合规。M2 以 @font-face base64 内嵌（TTF 可直接用，需要时转 woff2）。
+
+**构建管线**（scripts/asset-build/，隔离依赖不污染根）：extract-symbols.js（原型→svg）/ build-icons.js（svgicons2svgfont→svg2ttf→ttf2woff2 流式管线，绕过 fantasticon 的 glob Windows 缺陷）/ extract-zcool.js（原型子集存档+required.txt）/ subset-zcool.js（subset-font/harfbuzz WASM 扩字，targetFormat=truetype）/ check-zcool-gap.js（opentype.js cmap 缺口检测）。OFL 全字取材于 scripts/tmp/（gitignored，构建期下载，交付物零外链）。
+
+**守卫**：verify-miniapp-m0.js assets 检查（logo 存在/64 字形/缺口为空）。

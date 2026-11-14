@@ -408,8 +408,8 @@ Run: `node scripts/asset-build/extract-symbols.js` → Expected: {"symbols":64}�
 - [ ] **Step 3: 隔离依赖 + iconfont 构建**
 
 ```json
-// scripts/asset-build/package.json
-{ "name": "asset-build", "private": true, "dependencies": { "fantasticon": "^3.0.0", "opentype.js": "^1.3.4" } }
+// scripts/asset-build/package.json（实际落地依赖；fantasticon 因其内部 path.join 反斜杠 pattern 被 glob v10 当转义符致 0 匹配而弃用）
+{ "name": "asset-build", "private": true, "dependencies": { "opentype.js": "^1.3.4", "subset-font": "^2.3.0", "svg2ttf": "^6.0.3", "svgicons2svgfont": "^12.0.0", "ttf2woff2": "^5.0.0" } }
 ```
 
 ```bash
@@ -419,29 +419,17 @@ cd scripts/asset-build && npm install
 确认忽略：检查根 `.gitignore` 是否覆盖 `scripts/asset-build/node_modules/` 与 `scripts/asset-build/out/`（`node_modules` 通常全局忽略）；未覆盖则追加这两行。`package-lock.json` 入库保证可复现。
 
 ```js
-// scripts/asset-build/build-icons.js
+// scripts/asset-build/build-icons.js（实际落地：流式管线，以仓库内脚本为准）
+// svgicons2svgfont → svg2ttf → ttf2woff2；关键 API 事实：
+// 1) 写入对象本身必须是可读流，metadata 挂在流上：contents.metadata = { name, unicode: [String.fromCodePoint(cp)] }
+// 2) 码位确定性：0xF101 + 排序索引；类名 = svg 文件名（i-xxx），与原型 #i-xxx 逐字一致
+// 3) 输出 assets/icons/icons.wxss：@font-face base64 woff2 + 每类 .i-xxx:before
 const fs = require('fs')
 const path = require('path')
-const { generateFonts } = require('fantasticon')
-async function main() {
-  await generateFonts({
-    name: 'bwicons', inputDir: path.join(__dirname, 'svg'), outputDir: path.join(__dirname, 'out'),
-    fontTypes: ['woff2'], assetTypes: ['json'], normalize: true, fontHeight: 1000
-  })
-  const woff2 = fs.readFileSync(path.join(__dirname, 'out/bwicons.woff2'))
-  // codepoints json 的 key = svg 文件名（i-xxx），类名直接取 key，与原型 #i-xxx 逐字一致
-  const codepoints = JSON.parse(fs.readFileSync(path.join(__dirname, 'out/bwicons.json'), 'utf8'))
-  let css = '/* 博威无纸化图标 · Font Awesome Free 6.5.2 子集 · CC BY 4.0（署名见「我的」页） */\n'
-  css += "@font-face{font-family:'bwicons';src:url(data:font/woff2;base64," + woff2.toString('base64') + ") format('woff2');}\n"
-  for (const [name, cp] of Object.entries(codepoints)) {
-    css += '.' + name + ':before{font-family:\'bwicons\';font-style:normal;content:"\\' + cp.toString(16) + '";}\n'
-  }
-  const out = path.join(__dirname, '../../assets/icons')
-  fs.mkdirSync(out, { recursive: true })
-  fs.writeFileSync(path.join(out, 'icons.wxss'), css)
-  console.log(JSON.stringify({ glyphs: Object.keys(codepoints).length }))
-}
-main()
+const SVGIcons2SVGFontStream = require('svgicons2svgfont')
+const svg2ttf = require('svg2ttf')
+const ttf2woff2 = require('ttf2woff2')
+// …完整实现见 scripts/asset-build/build-icons.js（已入库）
 ```
 
 Run: `node scripts/asset-build/build-icons.js` → Expected: {"glyphs":64}；`grep -c ':before' assets/icons/icons.wxss` = 64，类名形如 `.i-elevator:before`。
@@ -468,12 +456,10 @@ console.log(JSON.stringify({ protoExt: ext, requiredChars: [...new Set(REQUIRED)
 
 Run: `node scripts/asset-build/extract-zcool.js` → 记录 protoExt 与 requiredChars。
 
-扩字与检测（按序执行）：
-1. 下载 OFL 全字到 gitignored 目录：`curl -L -o scripts/tmp/ZCOOLQingKeHuangYou-Regular.ttf https://raw.githubusercontent.com/google/fonts/main/ofl/zcoolqingkehuangyou/ZCOOLQingKeHuangYou-Regular.ttf`（OFL 1.1 无保留名，子集化沿用原名合规；此为构建期取材，交付物仍零外链）。
-2. 检查 `python -c "import fontTools; print(fontTools.version)"`：
-   - 可用 → `pyftsubset scripts/tmp/ZCOOLQingKeHuangYou-Regular.ttf --text-file=scripts/asset-build/required.txt --output-file=assets/fonts/zcool-subset.ttf`（有 brotli 时加 `--flavor=woff2` 并改输出名 .woff2）。
-   - **不可用 → 停下报告用户裁决**（选项：pip install fonttools brotli；或缺字用系统栈兜底并留视觉 delta 记录）。不静默安装系统依赖。兜底裁决落地时写 `zcool-gap.json = { "missing": [], "userApprovedFallback": true, "note": "<裁决原文>" }` 并复制原型子集为 zcool-subset.<ext>。
-3. 扩字成功后用 opentype.js 解析 **TTF 子集**做缺口检测（若输出 woff2 则改用 fonttools 校验：`python -c "from fontTools.ttLib import TTFont; ..."` 读 cmap 比对 required.txt）：
+扩字与检测（实际落地路径，2026-11-15 裁决）：
+1. 下载 OFL 全字到 gitignored 目录：`curl -sL -o scripts/tmp/ZCOOLQingKeHuangYou-Regular.ttf https://raw.githubusercontent.com/google/fonts/main/ofl/zcoolqingkehuangyou/ZCOOLQingKeHuangYou-Regular.ttf`（OFL 1.1 无保留名，子集化沿用原名合规；构建期取材，交付物零外链）。
+2. **fonttools 不可用时的既定替代**（本机 python 为 Windows Store stub）：用 `subset-font`（harfbuzz WASM，npm 隔离依赖，不安装系统依赖）：`subsetFont(fullTtfBuffer, requiredText, { targetFormat: 'truetype' })` → assets/fonts/zcool-subset.ttf（注意 fontverter 目标格式名为 truetype 而非 ttf）。实现见 scripts/asset-build/subset-zcool.js。
+3. 缺口检测：opentype.js 解析 **TTF 子集**（不解 WOFF2）比对 required.txt → zcool-gap.json；missing 非 0 即退出码 1。实现见 scripts/asset-build/check-zcool-gap.js。若 subset-font 亦不可用，停下报告用户裁决（pip install fonttools brotli 或系统栈兜底留视觉 delta），不静默安装。
 
 ```js
 // scripts/asset-build/check-zcool-gap.js（TTF 子集路径）
