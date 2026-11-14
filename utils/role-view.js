@@ -131,7 +131,53 @@ const VIEWS = {
     canOperate: false,
     tiles: [TILE.portal],
     menus: [TILE.portal]
+  },
+  // M5 新规范角色（13 角色模型，与后端 RoleCatalog v2 对齐）
+  INST_MGR: {
+    dept: '安装部',
+    roleText: '安装部主管',
+    scope: '安装部子树移交/外接建档审核（ORG）',
+    canOperate: false,
+    tiles: [TILE.handover, TILE.filing, TILE.msg, TILE.deviceAll],
+    menus: [TILE.handover, TILE.filing]
+  },
+  CLIENT_SIGNER: {
+    dept: '使用单位',
+    roleText: '使用单位签字人',
+    scope: '本单位待签记录签字（门户账号，令牌单独存；管理员未兼任不能代签）',
+    canOperate: false,
+    tiles: [TILE.portal],
+    menus: [TILE.portal]
   }
+}
+
+// M5 旧码→新规范码别名（兼容期 DB 仍存旧码；viewOf 两者皆认）
+const ALIAS = {
+  ADMIN: 'PLATFORM_ADMIN',
+  INSTALL_MANAGER: 'INST_PM',
+  INSTALL_CLERK: 'INST_CLERK',
+  INSTALL_WORKER: 'INSTALLER',
+  MAINT_MANAGER: 'MAINT_MGR',
+  LEADER: 'MAINT_SUP',
+  WORKER: 'MAINT_TECH',
+  ASSISTANT: 'MAINT_TECH',
+  UNIT_ADMIN: 'CLIENT_ADMIN'
+}
+// 新规范码→视图键（复用既有视图定义）
+const CANONICAL_VIEW = {
+  PLATFORM_ADMIN: 'ADMIN',
+  SYS_ADMIN: 'SYS_ADMIN',
+  INST_MGR: 'INST_MGR',
+  INST_PM: 'INSTALL_MANAGER',
+  INST_CLERK: 'INSTALL_CLERK',
+  INSTALLER: 'INSTALL_WORKER',
+  MAINT_MGR: 'MAINT_MANAGER',
+  MAINT_SUP: 'LEADER',
+  MAINT_TECH: 'WORKER',
+  MAINT_BIZ: 'MAINT_BIZ',
+  MAINT_QUALITY: 'MAINT_QUALITY',
+  CLIENT_ADMIN: 'UNIT_ADMIN',
+  CLIENT_SIGNER: 'CLIENT_SIGNER'
 }
 
 const FALLBACK = {
@@ -144,7 +190,11 @@ const FALLBACK = {
 }
 
 function viewOf(role) {
-  return VIEWS[role] || FALLBACK
+  if (!role) return FALLBACK
+  // 新规范码优先；旧码经 ALIAS 归一后再查视图（兼容期两者皆认）
+  const canonical = CANONICAL_VIEW[role] ? role : ALIAS[role]
+  const key = CANONICAL_VIEW[canonical] || role
+  return VIEWS[key] || VIEWS[role] || FALLBACK
 }
 
-module.exports = { viewOf, VIEWS }
+module.exports = { viewOf, VIEWS, ALIAS, CANONICAL_VIEW }
