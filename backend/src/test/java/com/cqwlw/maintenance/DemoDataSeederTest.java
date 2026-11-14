@@ -30,6 +30,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -73,7 +74,9 @@ class DemoDataSeederTest {
                 mock(UseUnitMapper.class), elevatorMapper, orderMapper, recordMapper,
                 mock(MessageMapper.class), mock(RescueMapper.class), mock(FaultMapper.class),
                 mock(DrillMapper.class), mock(InspectRecordMapper.class), mock(KnowledgeMapper.class),
-                checklistService, mock(WorkOrderService.class));
+                checklistService, mock(WorkOrderService.class),
+                mock(com.cqwlw.maintenance.mapper.SysOrgMapper.class),
+                mock(com.cqwlw.maintenance.mapper.SysUserRoleMapper.class));
     }
 
     @Test
@@ -147,6 +150,21 @@ class DemoDataSeederTest {
         Set<String> invisible = new HashSet<>(used);
         invisible.removeAll(groupPlatformIds);
         assertTrue(invisible.isEmpty(), "班组长可见范围未覆盖以下工单作业人员：" + invisible);
+    }
+
+    @Test
+    void seedsZhangGongAsInstMgrWithUserRole() throws Exception {
+        seeder.run(null);
+        ArgumentCaptor<Employee> employees = ArgumentCaptor.forClass(Employee.class);
+        verify(employeeMapper, atLeastOnce()).insert(employees.capture());
+        Employee zhang = employees.getAllValues().stream()
+                .filter(e -> "INST_MGR".equals(e.role)).findFirst().orElse(null);
+        assertTrue(zhang != null, "种子应含张工 INST_MGR 测试账号（P-1）");
+        assertEquals("INSTALL", zhang.department);
+        // 不升任张伟 emp_1（张伟仍 WORKER）
+        Employee zhangWei = employees.getAllValues().stream()
+                .filter(e -> "emp_1".equals(e.id)).findFirst().orElse(null);
+        assertTrue(zhangWei != null && "WORKER".equals(zhangWei.role), "张伟 emp_1 不得升任");
     }
 
     private void collect(List<String> into, String platformId) {

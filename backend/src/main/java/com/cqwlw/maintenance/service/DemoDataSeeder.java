@@ -1,6 +1,7 @@
 package com.cqwlw.maintenance.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.cqwlw.maintenance.common.Ids;
 import com.cqwlw.maintenance.config.AppProperties;
 import com.cqwlw.maintenance.entity.Company;
 import com.cqwlw.maintenance.entity.Drill;
@@ -12,6 +13,8 @@ import com.cqwlw.maintenance.entity.Knowledge;
 import com.cqwlw.maintenance.entity.MaintainRecord;
 import com.cqwlw.maintenance.entity.Message;
 import com.cqwlw.maintenance.entity.Rescue;
+import com.cqwlw.maintenance.entity.SysOrg;
+import com.cqwlw.maintenance.entity.SysUserRole;
 import com.cqwlw.maintenance.entity.UseUnit;
 import com.cqwlw.maintenance.entity.WorkOrder;
 import com.cqwlw.maintenance.mapper.CompanyMapper;
@@ -24,6 +27,8 @@ import com.cqwlw.maintenance.mapper.KnowledgeMapper;
 import com.cqwlw.maintenance.mapper.MaintainRecordMapper;
 import com.cqwlw.maintenance.mapper.MessageMapper;
 import com.cqwlw.maintenance.mapper.RescueMapper;
+import com.cqwlw.maintenance.mapper.SysOrgMapper;
+import com.cqwlw.maintenance.mapper.SysUserRoleMapper;
 import com.cqwlw.maintenance.mapper.UseUnitMapper;
 import com.cqwlw.maintenance.mapper.WorkOrderMapper;
 import com.cqwlw.maintenance.util.JsonUtil;
@@ -77,6 +82,8 @@ public class DemoDataSeeder implements ApplicationRunner {
     private final KnowledgeMapper knowledgeMapper;
     private final ChecklistService checklistService;
     private final WorkOrderService workOrderService;
+    private final SysOrgMapper orgMapper;
+    private final SysUserRoleMapper userRoleMapper;
 
     @SuppressWarnings("checkstyle:ParameterNumber")
     public DemoDataSeeder(AppProperties props, CompanyMapper companyMapper, EmployeeMapper employeeMapper,
@@ -85,7 +92,7 @@ public class DemoDataSeeder implements ApplicationRunner {
                           MessageMapper messageMapper, RescueMapper rescueMapper, FaultMapper faultMapper,
                           DrillMapper drillMapper, InspectRecordMapper inspectMapper,
                           KnowledgeMapper knowledgeMapper, ChecklistService checklistService,
-                          WorkOrderService workOrderService) {
+                          WorkOrderService workOrderService, SysOrgMapper orgMapper, SysUserRoleMapper userRoleMapper) {
         this.props = props;
         this.companyMapper = companyMapper;
         this.employeeMapper = employeeMapper;
@@ -101,6 +108,8 @@ public class DemoDataSeeder implements ApplicationRunner {
         this.knowledgeMapper = knowledgeMapper;
         this.checklistService = checklistService;
         this.workOrderService = workOrderService;
+        this.orgMapper = orgMapper;
+        this.userRoleMapper = userRoleMapper;
     }
 
     @Override
@@ -284,6 +293,46 @@ public class DemoDataSeeder implements ApplicationRunner {
                 today + " 16:28:00", today + " 18:05:00", "01:37:00",
                 "FM", false, "19480012609000008", "REPORTED", 30, "CONFIRMED", 5,
                 "mock_file_sig1", DEMO_SIGNATURE);
+
+        // 张工 INST_MGR 测试账号（P-1，spec §6.1；不升任张伟 emp_1）。仅演示种子，绝不进 Flyway/生产。
+        // 不用 employee() helper（其 11 参签名内部即 insert，无法在 insert 前设 department）——
+        // 手动构建以便 department 先于 insert 落值，且只 insert 一次（避免重复插入）。
+        Employee zhang = new Employee();
+        zhang.id = "emp_zhang";
+        zhang.name = "张工";
+        zhang.phone = "13800000099";
+        zhang.account = "13800000099";
+        zhang.passwordHash = enc.encode("123456");
+        zhang.role = "INST_MGR";
+        zhang.roleText = "安装部主管";
+        zhang.department = "INSTALL";
+        zhang.groupName = "";
+        zhang.platformId = "P_ZHANG";
+        zhang.workStat = "normal";
+        zhang.syncStatus = "ACTIVE";
+        employeeMapper.insert(zhang);
+
+        // 演示组织节点：安装部（V36 已在空库建部门骨架，故先查后插避免主键冲突）+ 张工角色锚点。
+        if (orgMapper.selectById("org_dept_install") == null) {
+            SysOrg installDept = new SysOrg();
+            installDept.id = "org_dept_install";
+            installDept.type = "DEPT";
+            installDept.name = "安装部";
+            installDept.code = "DEPT_INSTALL";
+            installDept.status = "ACTIVE";
+            installDept.sortOrder = 1;
+            installDept.createdAt = TimeUtil.now();
+            orgMapper.insert(installDept);
+        }
+
+        SysUserRole zhangRole = new SysUserRole();
+        zhangRole.id = Ids.next("ur");
+        zhangRole.userId = "emp_zhang";
+        zhangRole.userType = "EMPLOYEE";
+        zhangRole.roleCode = "INST_MGR";
+        zhangRole.orgId = "org_dept_install";
+        zhangRole.createdAt = TimeUtil.now();
+        userRoleMapper.insert(zhangRole);
     }
 
     private Employee employee(String id, String name, String phone, String role, String roleText,
