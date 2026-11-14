@@ -1,0 +1,30 @@
+/* M2 设计 token（admin-spec §8）：深色工业风，零外部请求 */
+:root {
+  --ink: #0A0F12; --ink-2: #0D1418;
+  --panel: #131C21; --panel-2: #172228;
+  --line: #26343B; --line-2: #2E3E46;
+  --text: #E8EEF0; --muted: #A3B4BB; --dim: #7E929B;
+  --amber: #FFB020; --amber-soft: #FFC85C;
+  --signal: #FF4B2B; --signal-soft: #FF8F7A;
+  --ok: #2FC48D; --ok-soft: #5FE0B2;
+  --paper: #EDE5D3; --paper-ink: #22201A; --paper-line: #C6BA9F;
+  --accent-on-amber: #1A1203; --accent-on-signal: #1A0A06;
+  --scrim: rgba(5, 8, 10, .72); --focus: var(--amber);
+  --paper-small: #5B5341;
+  --font-sans: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
+  --font-mono: 'Consolas', 'Menlo', monospace;
+}
+.ui-scope {
+  background: var(--ink); color: var(--text);
+  font-family: var(--font-sans); font-size: 13px; line-height: 1.5;
+}
+.ui-scope .num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.ui-scope .label {
+  font-family: var(--font-mono); font-size: 11px; letter-spacing: .08em;
+  text-transform: uppercase; color: var(--dim);
+}
+.ui-scope ::-webkit-scrollbar { width: 10px; height: 10px; }
+.ui-scope ::-webkit-scrollbar-track { background: var(--panel); }
+.ui-scope ::-webkit-scrollbar-thumb { background: var(--line-2); border-radius: 5px; }
+.ui-scope ::-webkit-scrollbar-thumb:hover { background: var(--amber); }
+.ui-scope :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
