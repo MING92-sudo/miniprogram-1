@@ -65,6 +65,41 @@ public final class RoleCatalog {
         ROLES = Map.copyOf(roles);
     }
 
+    /** 规范角色（13）：code→Role。旧码经 ALIAS 翻译到此表（spec §3.1）。 */
+    private static final java.util.Map<String, Role> CANONICAL = new java.util.LinkedHashMap<>();
+    /** 旧码→规范码别名（spec §3.1 表）。 */
+    private static final java.util.Map<String, String> ALIAS = new java.util.LinkedHashMap<>();
+
+    static {
+        // 规范角色：adminConsole 按 spec §3.1（CLIENT_ADMIN M1 仍 false，M5 才开 Web）
+        CANONICAL.put("PLATFORM_ADMIN", new Role("PLATFORM_ADMIN", "PLATFORM", "平台管理员", true, null));
+        CANONICAL.put("SYS_ADMIN", new Role("SYS_ADMIN", "PLATFORM", "系统管理员", true, null));
+        CANONICAL.put("INST_MGR", new Role("INST_MGR", "INSTALL", "安装部主管", true, null));
+        CANONICAL.put("INST_PM", new Role("INST_PM", "INSTALL", "安装部项目负责人", true, "INST_MGR"));
+        CANONICAL.put("INST_CLERK", new Role("INST_CLERK", "INSTALL", "安装部资料员", true, "INST_MGR"));
+        CANONICAL.put("INSTALLER", new Role("INSTALLER", "INSTALL", "安装员", false, "INST_MGR"));
+        CANONICAL.put("MAINT_MGR", new Role("MAINT_MGR", "MAINT", "维保部经理", true, null));
+        CANONICAL.put("MAINT_SUP", new Role("MAINT_SUP", "MAINT", "维保主管", true, "MAINT_MGR"));
+        CANONICAL.put("MAINT_TECH", new Role("MAINT_TECH", "MAINT", "维保人员", false, "MAINT_SUP"));
+        CANONICAL.put("MAINT_BIZ", new Role("MAINT_BIZ", "MAINT", "维保商务", true, "MAINT_MGR"));
+        CANONICAL.put("MAINT_QUALITY", new Role("MAINT_QUALITY", "MAINT", "维保质量", true, "MAINT_MGR"));
+        CANONICAL.put("CLIENT_ADMIN", new Role("CLIENT_ADMIN", "UNIT", "使用单位管理员", false, null));
+        CANONICAL.put("CLIENT_SIGNER", new Role("CLIENT_SIGNER", "UNIT", "使用单位签字人", false, null));
+
+        ALIAS.put("ADMIN", "PLATFORM_ADMIN");
+        ALIAS.put("SYS_ADMIN", "SYS_ADMIN");
+        ALIAS.put("INSTALL_MANAGER", "INST_PM");
+        ALIAS.put("INSTALL_CLERK", "INST_CLERK");
+        ALIAS.put("INSTALL_WORKER", "INSTALLER");
+        ALIAS.put("MAINT_MANAGER", "MAINT_MGR");
+        ALIAS.put("LEADER", "MAINT_SUP");
+        ALIAS.put("WORKER", "MAINT_TECH");
+        ALIAS.put("ASSISTANT", "MAINT_TECH");
+        ALIAS.put("MAINT_BIZ", "MAINT_BIZ");
+        ALIAS.put("MAINT_QUALITY", "MAINT_QUALITY");
+        ALIAS.put("UNIT_ADMIN", "CLIENT_ADMIN");
+    }
+
     private RoleCatalog() {
     }
 
@@ -120,5 +155,34 @@ public final class RoleCatalog {
             case UNIT -> "使用单位";
             default -> department;
         };
+    }
+
+    /** 旧码/新码 → 规范码；未知返回 null。 */
+    public static String canonical(String anyCode) {
+        if (anyCode == null) {
+            return null;
+        }
+        if (CANONICAL.containsKey(anyCode)) {
+            return anyCode;
+        }
+        return ALIAS.get(anyCode);
+    }
+
+    /** 13 规范码集合。 */
+    public static java.util.Set<String> canonicalCodes() {
+        return java.util.Collections.unmodifiableSet(CANONICAL.keySet());
+    }
+
+    /** 规范角色 record；未知返回 null。 */
+    public static Role canonicalRole(String anyCode) {
+        String c = canonical(anyCode);
+        return c == null ? null : CANONICAL.get(c);
+    }
+
+    /** 同部门方可兼任（docs/14 R7）；跨部门/未知拒绝。 */
+    public static boolean sameDepartmentAssignable(String roleA, String roleB) {
+        Role a = canonicalRole(roleA);
+        Role b = canonicalRole(roleB);
+        return a != null && b != null && a.department().equals(b.department());
     }
 }
