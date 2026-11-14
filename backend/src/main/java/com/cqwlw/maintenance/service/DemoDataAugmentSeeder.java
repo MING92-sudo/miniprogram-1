@@ -131,7 +131,7 @@ public class DemoDataAugmentSeeder implements ApplicationRunner {
         try {
             task.run();
         } catch (Exception e) {
-            log.warn("演示数据补全[{}]失败（跳过，不影响其余域）: {}", domain, e.getMessage());
+            log.warn("演示数据补全[{}]失败（跳过，不影响其余域）", domain, e);
         }
     }
 
@@ -139,7 +139,7 @@ public class DemoDataAugmentSeeder implements ApplicationRunner {
         try {
             return task.get();
         } catch (Exception e) {
-            log.warn("演示数据补全[{}]失败（跳过，不影响其余域）: {}", domain, e.getMessage());
+            log.warn("演示数据补全[{}]失败（跳过，不影响其余域）", domain, e);
             return null;
         }
     }
@@ -224,10 +224,10 @@ public class DemoDataAugmentSeeder implements ApplicationRunner {
         ho.handoverNo = "YJ-2026-0001";
         ho.createdAt = LocalDateTime.now().minusDays(10);
         ho.status = "RECTIFYING";
-        ho.projectName = el.projectName;
+        ho.projectName = el.projectName != null ? el.projectName : "演示项目";
         ho.elevatorCode = el.elevatorCode;
-        ho.elevatorName = el.elevatorName;
-        ho.category = el.category;
+        ho.elevatorName = el.elevatorName != null ? el.elevatorName : "演示电梯";
+        ho.category = el.category != null ? el.category : "曳引与强制驱动电梯";
         ho.location = el.location;
         ho.installCompleteDate = LocalDate.now().minusDays(20).toString();
         ho.installUnitName = "重庆博威电梯有限公司";
