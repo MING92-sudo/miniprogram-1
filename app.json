@@ -85,6 +85,15 @@
         "pages/filing-inspect/index",
         "pages/filing-confirm/index"
       ]
+    },
+    {
+      "root": "pkg-client",
+      "pages": [
+        "pages/todo/index",
+        "pages/sign/index",
+        "pages/orders/index",
+        "pages/evaluate/index"
+      ]
     }
   ],
   "preloadRule": {
@@ -98,6 +107,12 @@
       "network": "all",
       "packages": [
         "pkg-handover"
+      ]
+    },
+    "pages/client/home/index": {
+      "network": "all",
+      "packages": [
+        "pkg-client"
       ]
     }
   }

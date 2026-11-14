@@ -1,0 +1,65 @@
+<view class="bw">
+  <nav-bar title="签署确认" bind:back="onBack"></nav-bar>
+  <view class="page-pad col gap10">
+    <view wx:if="{{loadError}}" class="card col gap8">
+      <text class="tag tag-signal"><text class="i i-ban fs18"></text> 无法签署</text>
+      <view class="fs22 muted">{{loadError}}</view>
+      <view class="fs20 dim">该签署任务可能已完成或已失效，请从待办重新进入。</view>
+    </view>
+    <block wx:elif="{{view}}">
+      <view class="paper">
+        <view class="row between">
+          <view>
+            <view class="paper-kicker">电梯维护保养记录 · {{confirmed ? '已签署' : (refused ? '已拒签' : '待使用单位签署')}}</view>
+            <view class="paper-title">{{view.elevatorName}}</view>
+          </view>
+          <view class="paper-no mono">{{view.recordNo || rid}}</view>
+        </view>
+        <view class="paper-hr"></view>
+        <view class="cs-meta">
+          <view>使用单位<b>{{view.useUnitName || '—'}}</b></view>
+          <view>维保日期<b>{{view.workDate || '—'}}</b></view>
+          <view>维保人<b>{{view.workerName || '—'}}</b></view>
+        </view>
+        <view wx:if="{{view.problemText}}" class="cs-note">异常整改：{{view.problemText}}</view>
+      </view>
+
+      <view wx:if="{{view.photos.length}}" class="card">
+        <view class="panel-title">现场照片</view>
+        <view class="photo-row mt6">
+          <image wx:for="{{view.photos}}" wx:key="*this" class="thumb" src="{{item}}" mode="aspectFill"></image>
+        </view>
+      </view>
+
+      <view class="card col gap6">
+        <view class="panel-title">签署前核对</view>
+        <view class="kv"><span>记录单版本号</span><b class="mono">{{view.version || 'v1'}}</b></view>
+        <view wx:if="{{view.hash}}" class="kv"><span>SHA-256 前 8 位</span><b class="mono">{{view.hash}}</b></view>
+        <view class="fs20 dim">版本号与哈希须与维保记录单一致；不一致请先「拒绝并说明」再签署。</view>
+      </view>
+
+      <block wx:if="{{!confirmed && !refused}}">
+        <view class="cs-pad">
+          <view class="row between cs-pad-head"><text>使用单位签字确认</text><text class="cs-clear" bindtap="onClear">{{hasDrawn ? '清除' : '未签名'}}</text></view>
+          <canvas id="sign-canvas" type="2d" class="cs-canvas" bindtouchstart="onTouchStart" bindtouchmove="onTouchMove"></canvas>
+          <view class="cs-pad-line">签署后写入时间戳与 GPS · 一次性 token 转发/重放无效</view>
+        </view>
+
+        <view class="cs-consent" bindtap="toggleConsent" aria-role="checkbox" aria-checked="{{consent}}">
+          <view class="cb {{consent ? 'on' : ''}}"><text wx:if="{{consent}}" class="i i-check cb-ico"></text></view>
+          <text class="fs20 muted">我已核对维保项目、异常整改说明及现场照片，确认内容属实。</text>
+        </view>
+
+        <view class="row gap8">
+          <button class="btn btn-ghost cs-refuse" bindtap="onRefuse">拒绝并说明</button>
+          <button class="btn btn-primary cs-submit {{consent ? '' : 'cs-gated'}}" aria-disabled="{{!consent}}" catchtap="onSubmit"><text class="i i-signature"></text> 确认签署</button>
+        </view>
+        <view wx:if="{{!consent}}" class="gate-note">先勾选「我已核对…」再提交：未勾选时确认签署不可点击，勾选后恢复。</view>
+      </block>
+      <view wx:else class="card row gap8">
+        <text class="i {{confirmed ? 'i-circle-check ok' : 'i-ban sig'}} fs32"></text>
+        <text class="fs22">{{confirmed ? '本记录已签署归档，不可修改。' : '本记录已拒签退回维保人员。'}}</text>
+      </view>
+    </block>
+  </view>
+</view>

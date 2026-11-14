@@ -1,0 +1,22 @@
+<view class="bw">
+  <nav-bar title="服务评价" bind:back="onBack"></nav-bar>
+  <view class="page-pad col gap10">
+    <skeleton wx:if="{{loading}}" rows="{{[{h:100},{h:120}]}}"></skeleton>
+    <error-retry wx:elif="{{error}}" message="{{error}}" bind:retry="onRetry"></error-retry>
+    <block wx:else>
+      <view class="card col gap6">
+        <view class="fs24 w7">{{fault.elevatorName || fault.elevatorCode}}</view>
+        <view class="fs20 dim">{{fault.desc}} · {{fault.id}}</view>
+      </view>
+      <view class="card col gap8">
+        <view class="panel-title">评分</view>
+        <view class="row gap8">
+          <text wx:for="{{[1,2,3,4,5]}}" wx:key="*this" class="ev-star {{score >= item ? 'on' : ''}}" data-score="{{item}}" bindtap="onScore" aria-role="button" aria-label="{{item}} 星">★</text>
+        </view>
+        <view class="panel-title mt4">评价内容</view>
+        <textarea class="ev-textarea" value="{{text}}" bindinput="onText" maxlength="500" placeholder="说说本次维修服务（选填）" placeholder-class="ev-ph"></textarea>
+      </view>
+      <button class="btn btn-primary" disabled="{{submitting}}" bindtap="onSubmit">{{submitting ? '提交中...' : '提交评价'}}</button>
+    </block>
+  </view>
+</view>

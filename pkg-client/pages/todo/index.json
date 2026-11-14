@@ -1,0 +1,10 @@
+{
+  "usingComponents": {
+    "nav-bar": "/components/nav-bar/index",
+    "custom-tabbar": "/components/custom-tabbar/index",
+    "sec-head": "/components/sec-head/index",
+    "skeleton": "/components/skeleton/index",
+    "error-retry": "/components/error-retry/index",
+    "empty-state": "/components/empty-state/index"
+  }
+}

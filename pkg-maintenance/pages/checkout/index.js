@@ -169,7 +169,7 @@ definePage(ROUTES['/pkg-maintenance/pages/checkout/index'], {
       wx.showToast({ title: '签退成功', icon: 'success' })
       this._leaving = true
       setTimeout(() => {
-        wx.redirectTo({ url: `/pages/unit/sign?rid=${resp.recordId}&token=${resp.shareToken}` })
+        wx.redirectTo({ url: `/pkg-client/pages/sign/index?taskId=${resp.recordId}&token=${resp.shareToken}` })
       }, 800)
     } catch (e) {
       if (e && e.code === -1) {

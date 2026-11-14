@@ -4,12 +4,8 @@ const { ROUTES } = require('../config/routes')
 const { resolveHome } = require('../config/menus')
 const { getRoles, getHome, getWorkspace } = require('./auth')
 
-// 新→旧过渡映射（M0 §4 反向；M3/M4 已删 order/pkg-maintenance/handover 映射，余 client 随 M5 删除）
-const TRANSITION_MAP = {
-  '/pkg-client/pages/todo/index': '/pages/unit/records',
-  '/pkg-client/pages/sign/index': '/pages/unit/sign',
-  '/pkg-client/pages/orders/index': '/pages/unit/faults'
-}
+// 新→旧过渡映射（M0 §4 反向）：M3/M4/M5 已建全部业务域，映射清空；pkg-admin（M6）无旧等价走 FALLBACK。
+const TRANSITION_MAP = {}
 // 无旧等价（pkg-admin 7 页 + record-sign + evaluate + handover upload/review）→ profile 兜底
 const FALLBACK = '/pages/profile/index'
 

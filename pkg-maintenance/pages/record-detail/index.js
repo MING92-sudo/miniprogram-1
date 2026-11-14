@@ -72,6 +72,6 @@ definePage(ROUTES['/pkg-maintenance/pages/record-detail/index'], {
   copySignLink() {
     const r = this.data.record
     if (!r || !r.shareToken) return wx.showToast({ title: '暂无确认链接', icon: 'none' })
-    wx.setClipboardData({ data: '/pages/unit/sign?rid=' + r.id + '&token=' + r.shareToken, success: () => wx.showToast({ title: '确认链接已复制', icon: 'none' }) })
+    wx.setClipboardData({ data: '/pkg-client/pages/sign/index?taskId=' + r.id + '&token=' + r.shareToken, success: () => wx.showToast({ title: '确认链接已复制', icon: 'none' }) })
   }
 })
