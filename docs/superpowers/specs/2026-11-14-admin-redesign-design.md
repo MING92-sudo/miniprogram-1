@@ -154,7 +154,7 @@ AuthInterceptor（JWT → userId/roles/useUnitId/scopeVersion）
 
 ### 5.2 既有表加列（不删不改旧列）
 
-- `maintain_record`：版本链（version/prev_version_id/amend_reason/amended_by/amended_at）；修订生成 v2 + 新哈希，**v1 与签名永久保留**；仅已归档可发起，MAINT_MGR 发起 + PLATFORM_ADMIN 确认。
+- `maintain_record`：版本链（version/prev_version_id/amend_reason/amended_by/amended_at）；修订生成 v2 + 新哈希，**v1 与签名永久保留**；仅已归档可发起，MAINT_MGR 发起 + PLATFORM_ADMIN 确认。**单人豁免标记**（solo_exempt，P-4 裁决）：存量无配合人记录置 1，按原样归档不追溯补签，仅放行双签条件 2（配合人签名）；新工单强制双人（必须配配合人），solo_exempt 恒 0。收紧 AGENTS §3.4「有配合人时双签」→「新工单强制双人」，M4 同步修订 AGENTS §3.4 + docs/01；与平台 2.6 workMan2Id 必填一致。
 - `fault`：代报修字段（proxy_source=PHONE/WECHAT/ONSITE、recording_no `^REC-\d{4,6}$`、proxy_by）。
 - `work_order`/`fault`：SLA 快照（sla_minutes/deadline，读 sys_config，创建时冻结）。
 - 合同金额：不加列，**服务端响应裁剪**（维保主管仅期与台量，安装部无页面，经理/使用单位/平台完整）；导出按导出人权限重生成。
@@ -302,3 +302,4 @@ AuthInterceptor（JWT → userId/roles/useUnitId/scopeVersion）
 | V1.2 | 2026-11-14 | M0 评审裁决 D-1：INSTALL_WORKER 统一改名 INSTALLER（扩展角色），保留安装员专司移交安装方签字（INSTALLER_HANDOVER 节点），角色总数不变；§4.1 角色行同步、新增偏离 D-A8（handover:sign_install 由 INSTALLER 而非新设计的 INST_MGR 签字）；对照表新增 §0.5 裁决记录区 |
 | V1.3 | 2026-11-14 | M0 评审裁决 P-2：MAINT_SUP 项目部归属按现有组织架构不变——不新增项目部组织层级，sys_org 按现有 公司→部门→班组 建立，MAINT_SUP 沿用现有班组归属、范围落 TEAM；§4.1/§4.4/§5.1/§5.3/§9/§10 同步，新增偏离 D-A9（PROJECT→TEAM）；M1 前置人事决策仅剩 P-1（INST_MGR 人选） |
 | V1.4 | 2026-11-14 | M0 评审裁决 P-3：CLIENT_SIGNER 兼任按现有客户对接人不变——现有 use_unit 门户账号持有人（电梯管理员/对接人，非单位负责人 unitPrincipal）加挂 CLIENT_SIGNER，与 CLIENT_ADMIN 同账号兼任，不新增/变更对接人；§4.1/§5.3 同步；M1 前置人事决策仅剩 P-1 |
+| V1.5 | 2026-11-14 | M0 评审裁决 P-4：新工单强制双人（必须配配合人，双签三条件全满足才可复核/归档）+ 存量单人记录加 solo_exempt 豁免标记按原样归档不追溯补签；§5.2 maintain_record 加列同步；收紧 AGENTS §3.4「有配合人时双签」→「新工单强制双人」，标注 AGENTS §3.4 + docs/01 将于 M4 同步修订，与平台 2.6 workMan2Id 必填一致；对照表 §4.2.1/4.2.2 + §0.3/0.5 回写 |
