@@ -28,6 +28,8 @@ public class Employee {
     public String managerId;
     /** 岗位名称（展示用，V31 迁移） */
     public String jobTitle;
+    /** 角色/范围变更递增→旧 token 失效（M1，V35 迁移） */
+    public Integer scopeVersion;
     public String openid;
     public String platformId;
     public String certificate;

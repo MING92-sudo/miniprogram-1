@@ -21,4 +21,8 @@ public interface EmployeeMapper extends BaseMapper<Employee> {
      */
     @Update("UPDATE sys_employee SET openid = NULL WHERE openid = #{openid} AND id <> #{employeeId}")
     int unbindOpenidExcept(@Param("openid") String openid, @Param("employeeId") String employeeId);
+
+    /** 角色/范围变更或限时授权回收时递增 scope_version，使旧 token 立即失效（spec §4.2/§5.1）。 */
+    @Update("UPDATE sys_employee SET scope_version = scope_version + 1 WHERE id = #{id}")
+    int bumpScopeVersion(@Param("id") String id);
 }
