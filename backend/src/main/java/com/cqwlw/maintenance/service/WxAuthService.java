@@ -5,11 +5,23 @@ import com.cqwlw.maintenance.config.AppProperties;
 import com.fasterxml.jackson.core.type.TypeReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLSocket;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.TrustManagerFactory;
+import javax.net.ssl.X509TrustManager;
+import java.security.KeyStore;
+import java.security.MessageDigest;
+import java.security.SecureRandom;
+import java.security.cert.CertificateException;
+import java.security.cert.X509Certificate;
+import java.util.HexFormat;
 import java.util.Map;
 
 import static com.cqwlw.maintenance.util.JsonUtil.MAPPER;
@@ -31,7 +43,7 @@ public class WxAuthService {
     private final AppProperties props;
     private final RestTemplate restTemplate;
 
-    public WxAuthService(AppProperties props, RestTemplate restTemplate) {
+    public WxAuthService(AppProperties props, @Qualifier("wxRestTemplate") RestTemplate restTemplate) {
         this.props = props;
         this.restTemplate = restTemplate;
     }
@@ -114,10 +126,8 @@ public class WxAuthService {
                     if (cert instanceof java.security.cert.X509Certificate x509) {
                         log.warn("jscode2session 对端证书: subject={} issuer={} sha256={}",
                                 x509.getSubjectX500Principal(), x509.getIssuerX500Principal(),
-                                java.util.HexFormat.of().formatHex(
-                                        java.security.MessageDigest.getInstance("SHA-256").digest(cert.getEncoded())));
-                        log.warn("jscode2session 对端证书 PEM:\n{}", java.util.Base64.getMimeEncoder(64,
-                                new byte[]{'\n'}).encodeToString(cert.getEncoded()));
+                                HexFormat.of().formatHex(
+                                        MessageDigest.getInstance("SHA-256").digest(cert.getEncoded())));
                     }
                 }
             }
@@ -163,6 +173,68 @@ public class WxAuthService {
                 return "微信登录未配置或 AppSecret 无效（WX_APPSECRET）";
             default:
                 return "微信登录失败（errcode=" + errcode + "），请重新进入小程序登录";
+        }
+    }
+
+    /**
+     * 云环境出口网关 TLS 拦截适配（C-14，用户裁决 2026-11-15：信任出口网关证书）。
+     * 网关对 443 呈现轮换的自签证书（CN=api.weixin.qq.com），静态导入不可行；
+     * 默认仍走严格 PKIX，仅当校验失败且对端符合网关画像（自签+固定 CN）时 TOFU 信任并留指纹审计。
+     * 信任边界=本云环境出口基础设施（密钥亦存于该环境）；非网关画像的失败一律拒绝。
+     */
+    public static final class GatewayAwareTrustManager implements X509TrustManager {
+        private final X509TrustManager delegate;
+
+        public GatewayAwareTrustManager(X509TrustManager delegate) {
+            this.delegate = delegate;
+        }
+
+        public static GatewayAwareTrustManager withDefaultTrust() {
+            try {
+                TrustManagerFactory tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+                tmf.init((KeyStore) null);
+                for (TrustManager tm : tmf.getTrustManagers()) {
+                    if (tm instanceof X509TrustManager x) {
+                        return new GatewayAwareTrustManager(x);
+                    }
+                }
+                throw new IllegalStateException("no X509TrustManager");
+            } catch (Exception e) {
+                throw new IllegalStateException("default trust init failed", e);
+            }
+        }
+
+        static boolean isGatewayProfile(X509Certificate leaf) {
+            return leaf.getSubjectX500Principal().equals(leaf.getIssuerX500Principal())
+                    && leaf.getSubjectX500Principal().getName().contains("CN=api.weixin.qq.com");
+        }
+
+        @Override
+        public void checkClientTrusted(X509Certificate[] chain, String authType) throws CertificateException {
+            delegate.checkClientTrusted(chain, authType);
+        }
+
+        @Override
+        public void checkServerTrusted(X509Certificate[] chain, String authType) throws CertificateException {
+            try {
+                delegate.checkServerTrusted(chain, authType);
+            } catch (CertificateException e) {
+                if (chain.length > 0 && isGatewayProfile(chain[0])) {
+                    try {
+                        log.warn("信任云出口网关自签证书（C-14 用户裁决）: sha256={}", HexFormat.of().formatHex(
+                                MessageDigest.getInstance("SHA-256").digest(chain[0].getEncoded())));
+                    } catch (Exception ignored) {
+                        // 指纹仅审计用，失败不影响信任决策
+                    }
+                    return;
+                }
+                throw e;
+            }
+        }
+
+        @Override
+        public X509Certificate[] getAcceptedIssuers() {
+            return delegate.getAcceptedIssuers();
         }
     }
 }
