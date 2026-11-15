@@ -116,6 +116,8 @@ public class WxAuthService {
                                 x509.getSubjectX500Principal(), x509.getIssuerX500Principal(),
                                 java.util.HexFormat.of().formatHex(
                                         java.security.MessageDigest.getInstance("SHA-256").digest(cert.getEncoded())));
+                        log.warn("jscode2session 对端证书 PEM:\n{}", java.util.Base64.getMimeEncoder(64,
+                                new byte[]{'\n'}).encodeToString(cert.getEncoded()));
                     }
                 }
             }
