@@ -51,6 +51,9 @@ public class HandoverService {
     private static final String RECTIFYING = "RECTIFYING";
     private static final String PENDING_CONFIRM = "PENDING_CONFIRM";
     private static final String ARCHIVED = "ARCHIVED";
+    /** C-13：待安装部审核（资料齐全提交后进入）与作废（任意未生效态） */
+    private static final String PENDING_INST_REVIEW = "PENDING_INST_REVIEW";
+    private static final String VOIDED = "VOIDED";
 
     /** 现场查验 6 类 item */
     private static final List<String> ITEM_TYPES = List.of(
@@ -142,7 +145,7 @@ public class HandoverService {
         return o;
     }
 
-    /** 提交 3 必传资料（监督检验报告/维保说明书/整机质量证明），缺一 422；齐全则转 INSPECTING */
+    /** 提交 3 必传资料（监督检验报告/维保说明书/整机质量证明），缺一 422；齐全则转待安装部审核（C-13） */
     public HandoverOrder submitDocs(String id, Map<String, Object> body) {
         HandoverOrder o = requireOrder(id);
         requireStatus(o, DOC_SUBMITTING, "提交资料");
@@ -155,9 +158,74 @@ public class HandoverService {
         o.supervisionReportFileId = sr.trim();
         o.maintenanceManualFileId = mm.trim();
         o.qualityCertificateFileId = qc.trim();
-        o.status = INSPECTING;
+        o.status = PENDING_INST_REVIEW;
         orderMapper.updateById(o);
         return o;
+    }
+
+    /**
+     * C-13 安装部内部审核：PENDING_INST_REVIEW → 通过 INSPECTING / 退回 DOC_SUBMITTING。
+     * 退回必填原因（remark）+ 整改期限（deadline yyyy-MM-dd）；留痕审核人/时间。角色门禁在控制器（handover:review / review_return）。
+     */
+    public HandoverOrder review(String id, Map<String, Object> body, String actorEmpId) {
+        HandoverOrder o = requireOrder(id);
+        requireStatus(o, PENDING_INST_REVIEW, "内部审核");
+        String action = str(body, "action") == null ? "" : str(body, "action").trim().toUpperCase();
+        if (!APPROVE.equals(action) && !REJECT.equals(action)) {
+            throw new BizException(422, "审核动作非法（APPROVE/REJECT）：" + action);
+        }
+        Employee actor = requireActor(actorEmpId);
+        if (REJECT.equals(action)) {
+            String remark = trimToNull(str(body, "remark"));
+            String deadline = trimToNull(str(body, "deadline"));
+            if (remark == null) {
+                throw new BizException(422, "审核退回须填写原因");
+            }
+            if (deadline == null) {
+                throw new BizException(422, "审核退回须填写整改期限");
+            }
+            o.reviewRemark = remark;
+            o.reviewDeadline = deadline;
+            o.status = DOC_SUBMITTING;
+        } else {
+            o.status = INSPECTING;
+        }
+        o.reviewById = actor.id;
+        o.reviewByName = actor.name;
+        o.reviewedAt = LocalDateTime.now();
+        orderMapper.updateById(o);
+        return o;
+    }
+
+    /**
+     * C-13 作废：任意未生效态（非 ARCHIVED/VOIDED）→ VOIDED，原因必填，留痕操作人/时间。
+     * 角色门禁在控制器（handover:void：安装主管/维保经理/平台）。已归档不可作废（保护归档副作用）。
+     */
+    public HandoverOrder voidHandover(String id, Map<String, Object> body, String actorEmpId) {
+        HandoverOrder o = requireOrder(id);
+        if (ARCHIVED.equals(o.status) || VOIDED.equals(o.status)) {
+            throw new BizException(422, "已归档或已作废的移交单不可作废");
+        }
+        String reason = trimToNull(str(body, "reason"));
+        if (reason == null) {
+            throw new BizException(422, "作废须填写原因");
+        }
+        Employee actor = requireActor(actorEmpId);
+        o.voidReason = reason;
+        o.voidById = actor.id;
+        o.voidByName = actor.name;
+        o.voidedAt = LocalDateTime.now();
+        o.status = VOIDED;
+        orderMapper.updateById(o);
+        return o;
+    }
+
+    private Employee requireActor(String actorEmpId) {
+        Employee actor = actorEmpId == null || actorEmpId.isBlank() ? null : employeeMapper.selectById(actorEmpId);
+        if (actor == null) {
+            throw new BizException(401, "登录已过期，请重新登录");
+        }
+        return actor;
     }
 
     /** 维保部经理分配接收工程师（receiver_id/receiver_name），状态不变（仍 INSPECTING） */

@@ -75,9 +75,14 @@ class HandoverServiceTest {
     @Test
     void inspectForceRectifyOnSafetyFail() {
         HandoverOrderMapper orderMapper = mock(HandoverOrderMapper.class);
-        HandoverService svc = service(orderMapper, mock(HandoverCheckMapper.class),
+        EmployeeMapper employeeMapper = mock(EmployeeMapper.class);
+        com.cqwlw.maintenance.entity.Employee reviewer = new com.cqwlw.maintenance.entity.Employee();
+        reviewer.id = "im"; reviewer.name = "安装主管"; reviewer.role = "INST_MGR";
+        when(employeeMapper.selectById("im")).thenReturn(reviewer);
+        HandoverService svc = new HandoverService(orderMapper, mock(HandoverCheckMapper.class),
                 mock(HandoverCheckItemMapper.class), mock(HandoverRectificationMapper.class),
-                mock(HandoverSignMapper.class));
+                mock(HandoverSignMapper.class), mock(ElevatorMapper.class), employeeMapper,
+                mock(WorkOrderMapper.class), mock(DispatchService.class));
 
         HandoverOrder created = svc.init(Map.of("projectName", "渝北区某项目"));
         when(orderMapper.selectById(created.id)).thenReturn(created);
@@ -85,6 +90,8 @@ class HandoverServiceTest {
                 "supervisionReportFileId", "f1",
                 "maintenanceManualFileId", "f2",
                 "qualityCertificateFileId", "f3"));
+        // C-13：资料齐全进入待审核，审核通过后才进入查验中
+        svc.review(created.id, Map.of("action", "APPROVE"), "im");
 
         svc.submitInspect(created.id, Map.of(
                 "checkerId", "c1", "checkerName", "王五",
@@ -97,9 +104,14 @@ class HandoverServiceTest {
     @Test
     void recheckReturnsToPendingConfirm() {
         HandoverOrderMapper orderMapper = mock(HandoverOrderMapper.class);
-        HandoverService svc = service(orderMapper, mock(HandoverCheckMapper.class),
+        EmployeeMapper employeeMapper = mock(EmployeeMapper.class);
+        com.cqwlw.maintenance.entity.Employee reviewer = new com.cqwlw.maintenance.entity.Employee();
+        reviewer.id = "im"; reviewer.name = "安装主管"; reviewer.role = "INST_MGR";
+        when(employeeMapper.selectById("im")).thenReturn(reviewer);
+        HandoverService svc = new HandoverService(orderMapper, mock(HandoverCheckMapper.class),
                 mock(HandoverCheckItemMapper.class), mock(HandoverRectificationMapper.class),
-                mock(HandoverSignMapper.class));
+                mock(HandoverSignMapper.class), mock(ElevatorMapper.class), employeeMapper,
+                mock(WorkOrderMapper.class), mock(DispatchService.class));
 
         HandoverOrder created = svc.init(Map.of("projectName", "渝北区某项目"));
         when(orderMapper.selectById(created.id)).thenReturn(created);
@@ -107,6 +119,7 @@ class HandoverServiceTest {
                 "supervisionReportFileId", "f1",
                 "maintenanceManualFileId", "f2",
                 "qualityCertificateFileId", "f3"));
+        svc.review(created.id, Map.of("action", "APPROVE"), "im"); // C-13 审核通过
         svc.submitInspect(created.id, Map.of(
                 "checkerId", "c1", "checkerName", "王五",
                 "items", List.of(Map.of("itemType", "SAFETY_DEVICE", "result", "FAIL"))));

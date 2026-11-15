@@ -66,4 +66,15 @@ public class HandoverOrder {
     public String installCompleteDate;
     public String installUnitName;
     public String specialType;
+    /** C-13：内部审核（PENDING_INST_REVIEW）留痕 */
+    public String reviewById;
+    public String reviewByName;
+    public LocalDateTime reviewedAt;
+    public String reviewRemark;
+    public String reviewDeadline;
+    /** C-13：作废（VOIDED）留痕 */
+    public String voidReason;
+    public String voidById;
+    public String voidByName;
+    public LocalDateTime voidedAt;
 }
