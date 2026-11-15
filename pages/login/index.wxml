@@ -16,7 +16,7 @@
           <view class="mono fs18 dim ls16">电梯无纸化维保系统</view>
         </view>
       </view>
-      <view class="disp lg-title">让每一台电梯<br/>都有据可查</view>
+      <view class="disp lg-title"><text class="lg-title-line">让每一台电梯</text><text class="lg-title-line">都有据可查</text></view>
       <view class="lg-sub">安装移交、半月保点检、急修报修与使用单位签字，全部在手机上闭环。</view>
     </view>
 
