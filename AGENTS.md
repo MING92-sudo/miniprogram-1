@@ -19,12 +19,12 @@
 | 账号与数据权限 | `docs/14-账号权限与组织角色设计.md` | 三平级部门（安装/维保/使用单位）角色码、数据域与权限矩阵 |
 | 测试与上线检查 | `docs/05-测试与验收方案.md`、`docs/11-云托管部署手册.md` | 人工验收结论写回 docs/05、docs/10 |
 
-**当前基线（2026-11-15 机审）**：小程序 49 页（主包 17 + 4 子包 pkg-handover 12/pkg-maintenance 9/pkg-client 4/pkg-admin 7；无原生 tabBar，custom-tabbar 菜单驱动）；`services/` 13 个模块（含 menu/admin）；`mock/server.js` 约 91 条路由；后端 182 个 Web 映射注解、Flyway V1—V43、452 个单测；管理端 23 个视图（自建组件库，Element Plus 已移除）；文档 01—15。计数用于快速定位，提交前以代码实测为准；文档数字滞后时改文档，不要为迁就旧数字改代码。
+**当前基线（2026-11-15 机审）**：小程序 49 页（主包 17 + 4 子包 pkg-handover 12/pkg-maintenance 9/pkg-client 4/pkg-admin 7；无原生 tabBar，custom-tabbar 菜单驱动）；`services/` 13 个模块（含 menu/admin）；`mock/server.js` 约 91 条路由；后端 182 个 Web 映射注解、Flyway V1—V45、452 个单测；管理端 23 个视图（自建组件库，Element Plus 已移除）；文档 01—15。计数用于快速定位，提交前以代码实测为准；文档数字滞后时改文档，不要为迁就旧数字改代码。
 
 ## 1. 系统组成与分层
 
 ```
-├─ app.js / app.json / app.wxss   小程序入口（40 页，tabBar 4 个；页面口径见 docs/03 §3.2）
+├─ app.js / app.json / app.wxss   小程序入口（49 页：主包 17 + 4 子包；无原生 tabBar，custom-tabbar 菜单驱动；页面口径见 docs/03 §3.5）
 ├─ pages/                         页面（每页 .js/.json/.wxml/.wxss 四件套）
 ├─ services/                      业务接口层：页面只调 services，禁止直接 wx.request / wx.uploadFile
 ├─ utils/request.js               唯一请求封装（Bearer、X-Idempotency-Key、401、callContainer/wx.request 分流）
@@ -32,7 +32,7 @@
 ├─ config/index.js                环境配置（ENV、useMock、apiBaseUrl、cloud.env/service、LBS key 留空）
 ├─ constants/index.js             枚举/错误码/业务常量（文案统一从这里取）
 ├─ mock/                          mock 契约层（server.js 路由 = docs/04 A 部分）
-├─ backend/                       Spring Boot 3.3.4 后端（Flyway V1—V40、JWT/BCrypt、平台转发、399 单测）
+├─ backend/                       Spring Boot 3.3.4 后端（Flyway V1—V45、JWT/BCrypt、平台转发、452 单测）
 ├─ admin/                         Vue3 + Vite + 自建组件库（ui/）管理端（23 视图，Element Plus 已移除；lint/vitest/build）
 ├─ scripts/                       平台联调脚本与回归脚本（fixtures/ 合成测试件；tmp/ 已 gitignore）
 ├─ doc_text.txt                   平台规范 V1.5 原文提取（docs/04 B 部分核对来源，只读）
