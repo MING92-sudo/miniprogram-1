@@ -22,13 +22,14 @@ definePage(ROUTES['/pages/install/home/index'], {
     app.refreshBadges()
     this.load()
   },
-  load() {
-    this.setData({ loading: true, error: '' })
+  load(force) {
+    // 重显保留旧数据静默刷新，仅首屏/重试显示骨架屏（响应速度审计 2026-11-15）
+    this.setData({ loading: !!force || !this.data.kpis.length, error: '' })
     home.getInstallHome()
       .then((r) => this.setData({ loading: false, kpis: r.kpis, tasks: r.tasks, week: r.week }))
       .catch((e) => this.setData({ loading: false, error: (e && e.message) || '加载失败' }))
   },
-  onRetry() { this.load() },
+  onRetry() { this.load(true) },
   onTaskTap(e) { nav.open('/pkg-handover/pages/detail/index?id=' + e.currentTarget.dataset.item.id) },
   onAllTasks() { nav.open('/pkg-handover/pages/list/index') },
   onQaAction(e) { nav.open(e.detail.item.path) }

@@ -25,13 +25,14 @@ definePage(ROUTES['/pages/client/home/index'], {
     app.refreshBadges()
     this.load()
   },
-  load() {
-    this.setData({ loading: true, error: '' })
+  load(force) {
+    // 重显保留旧数据静默刷新，仅首屏/重试显示骨架屏（响应速度审计 2026-11-15）
+    this.setData({ loading: !!force || !this.data.kpis.length, error: '' })
     home.getClientHome()
       .then((r) => this.setData({ loading: false, signAlerts: r.signAlerts, kpis: r.kpis, elevators: r.elevators, records: r.records, notice: r.notice }))
       .catch((e) => this.setData({ loading: false, error: (e && e.message) || '加载失败' }))
   },
-  onRetry() { this.load() },
+  onRetry() { this.load(true) },
   onSignAlert(e) {
     const item = e.currentTarget.dataset.item
     if (item.kind === 'fault') nav.open('/pkg-client/pages/evaluate/index?orderId=' + item.id)

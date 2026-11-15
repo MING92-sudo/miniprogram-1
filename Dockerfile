@@ -9,11 +9,16 @@ WORKDIR /admin
 COPY admin/package.json admin/package-lock.json /admin/
 RUN npm ci --no-fund --no-audit
 COPY admin/ /admin/
+# permission-v2.js 经 ESM 桥引用 admin 目录外的单一权限镜像（../../../constants/…），
+# 云端构建上下文必须带入，否则 vite build 报 Could not resolve（2026-11-15 #194 构建失败根因）
+COPY constants/permission-matrix.js /constants/permission-matrix.js
 RUN npm run build
 
 FROM maven:3.9-eclipse-temurin-17 AS build
 WORKDIR /app
 COPY backend/src /app/src
+# 清掉本地残留旧管理端 dist，避免 COPY 合并后旧哈希资源进 jar（#195 旧版管理端根因）
+RUN rm -rf /app/src/main/resources/static
 COPY --from=admin-build /admin/dist /app/src/main/resources/static
 COPY backend/settings.xml backend/pom.xml /app/
 RUN mvn -s /app/settings.xml -f /app/pom.xml clean package -Dmaven.test.skip=true
@@ -24,11 +29,14 @@ WORKDIR /extract
 COPY --from=build /app/target/*.jar /extract/app.jar
 RUN java -Djarmode=layertools -jar /extract/app.jar extract
 
-FROM eclipse-temurin:17-jre-alpine
+# 运行时与 backend/Dockerfile 对齐 jammy（glibc）：alpine musl 的 DNS 并行查询在 VPC DNS 下
+# 丢包致 api.weixin.qq.com 解析失败（C-14），不得回退 alpine
+FROM eclipse-temurin:17-jre-jammy
 ENV SERVER_PORT=80
-RUN apk add --no-cache ca-certificates tzdata \
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates tzdata \
     && cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
-    && echo Asia/Shanghai > /etc/timezone
+    && echo Asia/Shanghai > /etc/timezone \
+    && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY --from=extract /extract/dependencies/ ./
 COPY --from=extract /extract/spring-boot-loader/ ./

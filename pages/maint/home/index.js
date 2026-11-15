@@ -29,13 +29,14 @@ definePage(ROUTES['/pages/maint/home/index'], {
     app.refreshBadges()
     this.load()
   },
-  load() {
-    this.setData({ loading: true, error: '' })
+  load(force) {
+    // 重显保留旧数据静默刷新，仅首屏/重试显示骨架屏（响应速度审计 2026-11-15）
+    this.setData({ loading: !!force || !this.data.kpis.length, error: '' })
     home.getMaintHome()
       .then((r) => this.setData({ loading: false, kpis: r.kpis, tasks: r.tasks, sos: r.sos, week: r.week, sync: r.sync }))
       .catch((e) => this.setData({ loading: false, error: (e && e.message) || '加载失败' }))
   },
-  onRetry() { this.load() },
+  onRetry() { this.load(true) },
   onTaskTap(e) {
     const t = e.currentTarget.dataset.item
     if (t.kind === 'fault') nav.open('/pages/order/detail/index?id=' + t.id)
