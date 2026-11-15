@@ -1,0 +1,16 @@
+page{background:var(--ink);color:var(--text)}
+.cs-meta{display:grid;grid-template-columns:1fr 1fr;gap:6rpx 20rpx;font-size:20rpx;color:#6B6150;padding:12rpx 0}
+.cs-meta b{color:var(--paper-ink);font-weight:600;margin-left:8rpx}
+.cs-note{font-size:20rpx;line-height:1.55;color:#5B5341;background:#E3D9C2;border-left:4rpx solid #A83E24;padding:10rpx 14rpx;margin-top:8rpx}
+.cs-pad{background:var(--paper);border-radius:4rpx;padding:18rpx 20rpx;color:var(--paper-ink)}
+.cs-pad-head{font-size:20rpx;color:#5B5341;letter-spacing:.06em}
+.cs-clear{color:#6B4E14}
+.cs-canvas{width:100%;height:200rpx;border-bottom:1rpx dashed #B6A98D;margin-top:8rpx}
+.cs-pad-line{font-size:18rpx;color:#5B5341;padding-top:8rpx}
+.cs-consent{display:flex;align-items:center;gap:12rpx}
+.cb{width:28rpx;height:28rpx;border-radius:4rpx;border:1rpx solid var(--amber);display:flex;align-items:center;justify-content:center;flex:none}
+.cb.on{background:var(--amber)}
+.cb-ico{font-size:18rpx;color:#171005}
+.cs-refuse{flex:.8}
+.cs-submit{flex:1.2}
+.cs-gated{opacity:.35}

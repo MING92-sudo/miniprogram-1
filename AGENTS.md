@@ -19,7 +19,7 @@
 | 账号与数据权限 | `docs/14-账号权限与组织角色设计.md` | 三平级部门（安装/维保/使用单位）角色码、数据域与权限矩阵 |
 | 测试与上线检查 | `docs/05-测试与验收方案.md`、`docs/11-云托管部署手册.md` | 人工验收结论写回 docs/05、docs/10 |
 
-**当前基线（2026-11-15 机审）**：小程序 40 页（tabBar 4）；`services/` 11 个模块；`mock/server.js` 83 条路由；后端 182 个 Web 映射注解、Flyway V1—V40、399 个单测；管理端 23 个视图（自建组件库，Element Plus 已移除）；文档 01—15。计数用于快速定位，提交前以代码实测为准；文档数字滞后时改文档，不要为迁就旧数字改代码。
+**当前基线（2026-11-15 机审）**：小程序 49 页（主包 17 + 4 子包 pkg-handover 12/pkg-maintenance 9/pkg-client 4/pkg-admin 7；无原生 tabBar，custom-tabbar 菜单驱动）；`services/` 13 个模块（含 menu/admin）；`mock/server.js` 约 91 条路由；后端 182 个 Web 映射注解、Flyway V1—V43、452 个单测；管理端 23 个视图（自建组件库，Element Plus 已移除）；文档 01—15。计数用于快速定位，提交前以代码实测为准；文档数字滞后时改文档，不要为迁就旧数字改代码。
 
 ## 1. 系统组成与分层
 
@@ -69,7 +69,7 @@
 6. **派单**：自动派单只由定时任务驱动（每日 09:00 主扫描 + 每 13 分钟兜底自愈；判定到期前一日，计划时间=到期日 09:00），读接口一律不触发派单。到期基线按类型取最近一次同类型已完成维保；该类型从未执行时，以“首次维保日期”（最早一次 DONE 签退）起算，无任何已完成维保时回退建档 `lastMaintenanceAt`。首保/补单走手动派单；同项目同日到期电梯应一次性全部派单。
 7. **文件存储**：配置 COS 时 COS 为唯一持久化源，本地磁盘是写穿/写回缓存（读本地→未命中回源 COS→写回）；未配置 COS 时本地磁盘仅为开发模式，容器重建即丢失。上传响应与所有读路径统一经 `FileStorageService.urlOf` 重签。
 8. **工单号**：只经 `OrderNoIssuer` 发号；唯一键冲突重试时必须**重新统计当日工单数**并取“计数+1”，不得把重试次数当偏移跳过空闲号。
-9. **单身份登录**：员工态（`em_token`/`em_user`/`em_role`）与使用单位门户态（`unit_token`/`unit_info`）**互斥**，同一时刻只允许一个身份在线。登录任一方必须清掉另一方（员工登录 → `clearUnitSession()`；门户登录 → `saveUnitSession()` 内清员工态）；冷启动若两套并存保留员工态。页面可见内容只按当前身份的角色视图渲染，「我的」页不得同时出现员工卡片与门户卡片。微信绑定为可选能力，入口只在「我的」页，未开启时登录页不出现微信入口。
+9. **单账号单会话（多角色）**：一个手机号 = 一个账号，同一时刻一个会话令牌（`em_token`）；账号可持多角色（`sys_user_role`），权限取**并集**，数据范围逐角色判断（ScopeResolver 读写谓词，写绝不扩区域/部门）。`activeWorkspace` 决定工作台与 Tab 渲染，可在「我的」切换（重拉 `GET /me/menus?workspace=`）；登录即清旧会话。门户账号经 V41 并入员工体系，`unit_token` 双令牌体系废除（`/unit/login*` 废弃保留契约标注至生产清库）。微信绑定为可选能力，入口只在「我的」页，未开启时登录页不出现微信入口。页面只调 services，跳转走 `utils/nav` 白名单 + `utils/guard` 四层守卫（登录态→角色→权限码→单据状态）。
 
 ## 4. 编码约定
 
@@ -193,6 +193,7 @@
 | V3.15 | 2026-11-14 | C-12 管理端落地（前后端，小程序不动）：①`HandoversView` 由只读列表重建为主从视图——列表 + 状态筛选 + 行点击抽屉，抽屉三 Tab（74 项检查清单按 G01—G13 分组逐项留证：结果/实测值/不合格描述/NA 原因码 NA-01—05/照片上传，☆与试验项不合格强制照片；1:1 整改清单逐条上传整改 + 逐条复验；一梯一档 7 条目录 SHA-256）；判定结论由后端冻结回显（前端不改写），有条件移交 7.3 三条件输入；②`PermButton` 三态门控 handover:inspect/rectify/review/export，NA 审批/复验/整改走 `Modal`，三张表单 PDF blob 导出，照片复用 `api/upload`→`/files/upload`；③`DataTable` 增可选 `clickable`+`row-click`（向后兼容，旧视图零回归）；④`api/handover.js` +8 方法；⑤后端 `HandoverService.init` 接收表头三字段（installCompleteDate/installUnitName/specialType）+ 新增 `GET /handovers/{id}/archive`（按移交单，幂等）。门禁：admin lint/90 用例（+9）/build 无 EP 包、浏览器壳走查无报错（登录壳渲染正常；移交全流程 E2E 因本地无 MySQL 未跑，由 7 个视图交互测试覆盖）；后端 mvn clean test 396 全绿、根 lint 绿。mock/docs/04（V2.52）/docs/09（V3.20）/docs/12（V1.11）同步；小程序 services/pages 本期不动（C-12 查验页逐项留证 UI 暂缓）。计数更新（182 映射、mock 83 路由、396 单测） |
 | V3.16 | 2026-11-15 | 删旧管理端 + 前后端端到端对齐 + 云托管部署冒烟（管理端「博威无纸化」）：①删 `menu-config.js` LEGACY_GROUP 死链（旧视图 M5 已删）；②`PermButton` 缺省 role 回退登录角色，修复各页操作按钮误禁用；③电梯台账补档案增删改查 + 行点击「一梯一档」抽屉（profile + archive 只读 SHA-256），后端 `archiveByElevator` 按电梯取最近移交归档；④上报异常清单补逐条人工重报 + PDF 导出，上报日志改用 `/reg/upload-logs`；⑤修正分页解包（记录/移交/工单/建档/模板/上报异常取 `.list`、日历取 `.entries`），confirmStatus 中文化；⑥人员查询失败显式提示。云托管 springboot-l1ws-168 上线（FlowRatio 100），26 端点冒烟 25 绿；`/platform/workers` code=2001 为监管平台 token 获取失败（platformConfigured=true，平台 2.1 登录从云容器失败，属凭证白名单/网络外部依赖，非代码缺陷）。admin 96 用例/lint/build 绿、后端 396 单测绿；docs/09 V3.22、docs/12 V1.12 同步；小程序不动。计数不变（182 映射、mock 83、396 单测） |
 | V3.17 | 2026-11-15 | **更正 V3.16 监管平台结论 + token 登录重试**：复核证实监管平台链路正常（平台代码自 192c9c6 未改、平台 2.1 端点可达、`/platform/workers` 返回真实人员数据），V3.16 所记「2001 外部依赖损坏」结论有误——实为**部署冷启动瞬时 token 获取失败**（RestTemplate 连接超时 3s 偏紧，首登超时即 2001，token 缓存后恢复）。修复：`PlatformTokenService.login` 对**网络瞬时异常重试 1 次**（平台业务非 200 不重试；2.1 为幂等 GET 登录，与 §2.4 上报禁止自动重试无关），新增 `PlatformTokenServiceTest` 3 例（瞬时重试成功/持续异常 2001/业务失败不重试）。云托管 springboot-l1ws-169 上线（FlowRatio 100），冷启动首调即成功，26 端点全量冒烟 **26/26 绿**。后端 399 单测全绿；docs/09 V3.23、docs/12 V1.13 同步 |
+| V3.18 | 2026-11-15 | **小程序重构 M2—M6 落地（博威无纸化原型 V1.3）**：①§3.9 重写为单账号单会话多角色（V41 账号统一，unit_token 双令牌废除，权限并集/数据范围逐角色，activeWorkspace 切换工作台）；②小程序 49 页（主包 17 + 4 子包），删原生 tabBar 改 custom-tabbar 菜单驱动（/me/menus 下发 + config/menus 镜像），全局 custom 导航 + nav-bar；③深色工业风设计系统（.bw 作用域）+ 14 共享组件 + 四层守卫（config/routes 白名单 + utils/guard + utils/nav）；④合规主干逐字保留（签到 GPS/动态码/清单/30 分钟/各签各的/签退快照+2.6 即报，脚本化迁移 diff 核验）；⑤记录生命周期 UI（V42）+ 急修七态（V43）+ C-12 74 项逐项留证 + 使用单位签署门控/评价；⑥删全部旧页 + role-view.js；⑦基线计数更新（49 页/13 services/Flyway V1—V43/452 单测）。门禁：verify-miniapp-routes 10/10、verify-miniapp-m0 12/12、m1-sync 12/12、dispatch/templates/lint 绿。剩余：移交内部审核/作废后端端点（docs/12 C-13）、真实绘制走查待开启开发者工具服务端口、master 整合与生产清库人工门禁 |
 
 <!-- aoci:begin -->
 ## AOCI Repository Cognition

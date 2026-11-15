@@ -1,0 +1,12 @@
+<view class="nb" style="padding-top:{{statusBarHeight}}px">
+  <view class="nb-inner" style="height:{{navHeight}}px;padding-right:{{padRight}}px">
+    <view wx:if="{{back}}" class="nb-back" bindtap="onBack" aria-role="button" aria-label="返回">
+      <text class="i i-chevron-left"></text>
+    </view>
+    <view wx:if="{{brand}}" class="nb-brand">
+      <view class="brand-mark nb-logo"></view>
+      <text class="nb-name">博威无纸化</text>
+    </view>
+    <text wx:else class="nb-title">{{title}}</text>
+  </view>
+</view>

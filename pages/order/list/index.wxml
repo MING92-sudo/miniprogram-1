@@ -1,0 +1,27 @@
+<view class="bw">
+  <nav-bar title="报修接单" back="{{false}}"></nav-bar>
+  <view class="page-pad tabbar-pad col gap10">
+    <view class="tabs">
+      <button wx:for="{{tabs}}" wx:key="key" class="tab {{activeTab === item.key ? 'on' : ''}}" data-key="{{item.key}}" bindtap="onTabChange">{{item.label}}</button>
+    </view>
+
+    <skeleton wx:if="{{loading}}" rows="{{[{h:120},{h:120},{h:120}]}}"></skeleton>
+    <error-retry wx:elif="{{error}}" message="{{error}}" bind:retry="onRetry"></error-retry>
+    <block wx:elif="{{list.length}}">
+      <view wx:for="{{list}}" wx:key="id" class="card ol-card {{item.trappedCount ? 'ol-urgent' : ''}}" data-id="{{item.id}}" bindtap="goDetail" aria-role="button" aria-label="{{item.desc}}">
+        <view class="row between">
+          <view class="fs24 w7 grow">{{item.elevatorName || item.elevatorCode}}</view>
+          <status-tag text="{{item.statusText}}" tone="{{item.statusTone}}"></status-tag>
+        </view>
+        <view class="fs22 mt4">{{item.desc}}</view>
+        <view class="row between mt8">
+          <text class="mono fs20 dim">{{item.createdAt}}{{item.trappedCount ? ' · 困人 ' + item.trappedCount + ' 人' : ''}}</text>
+          <button wx:if="{{item.status === 'OPEN'}}" class="btn btn-signal btn-xs" data-id="{{item.id}}" catchtap="onGrab">抢单</button>
+        </view>
+      </view>
+      <view wx:if="{{list.length < total}}" class="hint">上拉加载更多</view>
+    </block>
+    <empty-state wx:else mode="{{emptyMode}}" title="{{emptyMode === 'filtered' ? '当前筛选没有匹配工单' : '本区域暂无待接单工单'}}" desc="{{emptyMode === 'filtered' ? '数据仍在，换个筛选条件试试。' : '新工单进入待接单池后按急修优先排序，并通过消息提醒。'}}" actionText="一键报修" bind:action="goReport"></empty-state>
+  </view>
+  <custom-tabbar></custom-tabbar>
+</view>

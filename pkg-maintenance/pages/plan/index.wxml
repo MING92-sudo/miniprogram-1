@@ -1,0 +1,28 @@
+<view class="bw">
+  <nav-bar title="维保计划" bind:back="onBack"></nav-bar>
+  <view class="page-pad col gap10">
+    <view class="chips">
+      <button wx:for="{{windows}}" wx:key="months" class="chip {{months === item.months ? 'on' : ''}}" data-months="{{item.months}}" bindtap="onWindowChange">{{item.label}}</button>
+    </view>
+    <view class="fs20 dim">应做排期 {{total}} 台次 · {{from}} 至 {{to}}（只读投影，不触发派单）</view>
+
+    <skeleton wx:if="{{loading}}" rows="{{[{h:80},{h:120},{h:120}]}}"></skeleton>
+    <error-retry wx:elif="{{error}}" message="{{error}}" bind:retry="onRetry"></error-retry>
+    <block wx:elif="{{groups.length}}">
+      <view wx:for="{{groups}}" wx:key="month" class="col gap8">
+        <view class="panel-title">{{item.label}}</view>
+        <view wx:for="{{item.days}}" wx:for-item="day" wx:key="date" class="card">
+          <view class="row gap8">
+            <text class="mono fs24 amber">{{day.dayLabel}}</text>
+            <text class="fs20 dim">{{day.week}}</text>
+          </view>
+          <view wx:for="{{day.entries}}" wx:for-item="e" wx:key="elevatorCode" class="kv mt4">
+            <span>{{e.elevatorName}}</span>
+            <b>{{e.workType}}</b>
+          </view>
+        </view>
+      </view>
+    </block>
+    <empty-state wx:else mode="empty" title="窗口内暂无排期" desc="到期前一日系统自动派单后会出现在这里。"></empty-state>
+  </view>
+</view>

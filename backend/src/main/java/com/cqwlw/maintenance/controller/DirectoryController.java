@@ -34,10 +34,123 @@ public class DirectoryController {
     private final RecordPdfService pdfService;
 
     public DirectoryController(DirectoryService directoryService, IdempotencyService idempotencyService,
-                               RecordPdfService pdfService) {
+                               RecordPdfService pdfService,
+                               com.cqwlw.maintenance.mapper.SysUserRoleMapper userRoleMapper) {
         this.directoryService = directoryService;
         this.idempotencyService = idempotencyService;
         this.pdfService = pdfService;
+        this.userRoleMapper = userRoleMapper;
+    }
+
+    private final com.cqwlw.maintenance.mapper.SysUserRoleMapper userRoleMapper;
+
+    /** M1：CLIENT 角色的组织锚点（sys_user_role.org_id = use_unit.id），本单位谓词用 */
+    private String unitAnchor(HttpServletRequest request) {
+        com.cqwlw.maintenance.entity.SysUserRole row = userRoleMapper.selectOne(
+                new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<com.cqwlw.maintenance.entity.SysUserRole>()
+                        .eq(com.cqwlw.maintenance.entity.SysUserRole::getUserId, empId(request))
+                        .eq(com.cqwlw.maintenance.entity.SysUserRole::getUserType, "EMPLOYEE")
+                        .likeRight(com.cqwlw.maintenance.entity.SysUserRole::getRoleCode, "CLIENT")
+                        .last("LIMIT 1"));
+        return row == null ? null : row.orgId;
+    }
+
+    /** M1：抢单（本区域校验） */
+    @PostMapping("/faults/{id}/grab")
+    public ApiResponse<Object> grabFault(@PathVariable String id,
+                                         @org.springframework.web.bind.annotation.RequestHeader(
+                                                 value = "X-Idempotency-Key", required = false) String idemKey,
+                                         HttpServletRequest request) {
+        IdempotencyService.Guard guard = idempotencyService.begin(idemKey, "/faults/grab");
+        if (guard.replayed()) {
+            return ApiResponse.ok(guard.replayedResult());
+        }
+        Map<String, Object> result = directoryService.grabFault(id, empId(request));
+        guard.commit(result);
+        return ApiResponse.ok(result);
+    }
+
+    /** M1：到场打卡（GPS 必填） */
+    @PostMapping("/faults/{id}/arrive")
+    public ApiResponse<Object> arriveFault(@PathVariable String id, @RequestBody Map<String, Object> body,
+                                           @org.springframework.web.bind.annotation.RequestHeader(
+                                                   value = "X-Idempotency-Key", required = false) String idemKey,
+                                           HttpServletRequest request) {
+        IdempotencyService.Guard guard = idempotencyService.begin(idemKey, "/faults/arrive");
+        if (guard.replayed()) {
+            return ApiResponse.ok(guard.replayedResult());
+        }
+        Double lat = body.get("lat") instanceof Number n ? n.doubleValue() : null;
+        Double lng = body.get("lng") instanceof Number n2 ? n2.doubleValue() : null;
+        Map<String, Object> result = directoryService.arriveFault(id, empId(request), lat, lng);
+        guard.commit(result);
+        return ApiResponse.ok(result);
+    }
+
+    /** M1：提交急修单 */
+    @PostMapping("/faults/{id}/submit")
+    public ApiResponse<Object> submitFault(@PathVariable String id, @RequestBody Map<String, Object> body,
+                                           @org.springframework.web.bind.annotation.RequestHeader(
+                                                   value = "X-Idempotency-Key", required = false) String idemKey,
+                                           HttpServletRequest request) {
+        IdempotencyService.Guard guard = idempotencyService.begin(idemKey, "/faults/submit");
+        if (guard.replayed()) {
+            return ApiResponse.ok(guard.replayedResult());
+        }
+        Map<String, Object> result = directoryService.submitFault(id, empId(request), body);
+        guard.commit(result);
+        return ApiResponse.ok(result);
+    }
+
+    /** M1：使用单位确认/拒绝 */
+    @PostMapping("/faults/{id}/confirm")
+    public ApiResponse<Object> confirmFault(@PathVariable String id, @RequestBody Map<String, Object> body,
+                                            @org.springframework.web.bind.annotation.RequestHeader(
+                                                    value = "X-Idempotency-Key", required = false) String idemKey,
+                                            HttpServletRequest request) {
+        IdempotencyService.Guard guard = idempotencyService.begin(idemKey, "/faults/confirm");
+        if (guard.replayed()) {
+            return ApiResponse.ok(guard.replayedResult());
+        }
+        boolean pass = !Boolean.FALSE.equals(body.get("pass"));
+        String reason = body.get("reason") == null ? "" : String.valueOf(body.get("reason"));
+        Map<String, Object> result = directoryService.confirmFault(id,
+                com.cqwlw.maintenance.auth.MultiRoleGate.roles(request), unitAnchor(request), pass, reason);
+        guard.commit(result);
+        return ApiResponse.ok(result);
+    }
+
+    /** M1：取消（原因必填） */
+    @PostMapping("/faults/{id}/cancel")
+    public ApiResponse<Object> cancelFault(@PathVariable String id, @RequestBody Map<String, Object> body,
+                                           @org.springframework.web.bind.annotation.RequestHeader(
+                                                   value = "X-Idempotency-Key", required = false) String idemKey,
+                                           HttpServletRequest request) {
+        IdempotencyService.Guard guard = idempotencyService.begin(idemKey, "/faults/cancel");
+        if (guard.replayed()) {
+            return ApiResponse.ok(guard.replayedResult());
+        }
+        String reason = body.get("reason") == null ? "" : String.valueOf(body.get("reason"));
+        Map<String, Object> result = directoryService.cancelFault(id,
+                com.cqwlw.maintenance.auth.MultiRoleGate.roles(request), reason);
+        guard.commit(result);
+        return ApiResponse.ok(result);
+    }
+
+    /** M1：服务评价（仅已闭环、1-5 星、一次性） */
+    @PostMapping("/faults/{id}/evaluate")
+    public ApiResponse<Object> evaluate(@PathVariable String id, @RequestBody Map<String, Object> body,
+                                        @org.springframework.web.bind.annotation.RequestHeader(
+                                                value = "X-Idempotency-Key", required = false) String idemKey,
+                                        HttpServletRequest request) {
+        IdempotencyService.Guard guard = idempotencyService.begin(idemKey, "/faults/evaluate");
+        if (guard.replayed()) {
+            return ApiResponse.ok(guard.replayedResult());
+        }
+        Map<String, Object> result = directoryService.evaluate(id,
+                com.cqwlw.maintenance.auth.MultiRoleGate.roles(request), unitAnchor(request), body);
+        guard.commit(result);
+        return ApiResponse.ok(result);
     }
 
     @PostMapping("/rescues")

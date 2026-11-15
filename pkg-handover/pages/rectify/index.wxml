@@ -1,0 +1,28 @@
+<view class="bw">
+  <nav-bar title="整改回复（逐条）" bind:back="onBack"></nav-bar>
+  <view class="page-pad col gap10">
+    <skeleton wx:if="{{loading}}" rows="{{[{h:120},{h:120}]}}"></skeleton>
+    <error-retry wx:elif="{{error}}" message="{{error}}" bind:retry="onRetry"></error-retry>
+    <block wx:else>
+      <view class="rule-note"><text class="i i-circle-info"></text><text>不合格项 1:1 映射检查项，不可增删；逐条复验全部 PASS 才回待确认。</text></view>
+      <empty-state wx:if="{{!rects.length}}" mode="empty" title="暂无整改项" desc="查验不合格项会自动生成整改清单。"></empty-state>
+      <view wx:for="{{rects}}" wx:key="id" class="card col gap8">
+        <view class="row between">
+          <text class="fs22 w6 grow">{{item.itemNo}}. {{item.itemName}}</text>
+          <status-tag text="{{item.recheckResult === 'PASS' ? '复验通过' : (item.recheckResult === 'FAIL' ? '复验不通过' : (item.afterPhotoFileId ? '待复验' : '待整改'))}}" tone="{{item.recheckResult === 'PASS' ? 'ok' : (item.recheckResult === 'FAIL' ? 'signal' : 'amber')}}"></status-tag>
+        </view>
+        <view wx:if="{{item.failDesc}}" class="fs20 dim">不合格：{{item.failDesc}}</view>
+        <textarea class="hr-textarea" value="{{item.rectMeasure}}" data-idx="{{item.idx}}" bindinput="onMeasure" placeholder="整改措施（必填）" placeholder-class="hr-ph"></textarea>
+        <view class="photo-row">
+          <image wx:for="{{item.photos}}" wx:for-item="p" wx:key="*this" class="thumb" src="{{p}}" mode="aspectFill"></image>
+          <view class="thumb hr-photo-add" data-idx="{{item.idx}}" bindtap="choosePhoto" aria-role="button"><text class="i i-camera"></text></view>
+        </view>
+        <button class="btn btn-ghost btn-sm" data-idx="{{item.idx}}" bindtap="onRectify">上传整改</button>
+        <view wx:if="{{item.afterPhotoFileId}}" class="row gap8">
+          <button class="btn btn-ghost btn-sm grow" data-idx="{{item.idx}}" data-result="FAIL" bindtap="onRecheck">复验不通过</button>
+          <button class="btn btn-primary btn-sm grow" data-idx="{{item.idx}}" data-result="PASS" bindtap="onRecheck">复验通过</button>
+        </view>
+      </view>
+    </block>
+  </view>
+</view>

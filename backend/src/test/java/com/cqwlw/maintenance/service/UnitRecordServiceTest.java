@@ -28,7 +28,8 @@ class UnitRecordServiceTest {
     void setUp() {
         fileStorage = mock(FileStorageService.class);
         service = new UnitRecordService(mock(MaintainRecordMapper.class),
-                mock(WorkOrderService.class), fileStorage);
+                mock(WorkOrderService.class), fileStorage,
+                mock(com.cqwlw.maintenance.mapper.ElevatorMapper.class));
     }
 
     @Test

@@ -90,6 +90,14 @@ public class WorkOrderService {
     private final FileStorageService fileStorage;
     private final TransactionTemplate transactionTemplate;
 
+    /** M1 生命周期钩子（setter 注入避免改写 8 处测试构造器；生产 Spring 必注入） */
+    private RecordLifecycleService recordLifecycleService;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    public void setRecordLifecycleService(RecordLifecycleService recordLifecycleService) {
+        this.recordLifecycleService = recordLifecycleService;
+    }
+
     public WorkOrderService(WorkOrderMapper orderMapper, ElevatorMapper elevatorMapper,
                             UseUnitMapper useUnitMapper, EmployeeMapper employeeMapper,
                             CompanyMapper companyMapper, MaintainRecordMapper recordMapper,
@@ -809,6 +817,9 @@ public class WorkOrderService {
         r.retryCount = 0;
         r.nextMaintenanceDate = LocalDate.now(TimeUtil.ZONE).plusDays(interval);
         r.confirmStatus = "PENDING";
+        // M1：记录生命周期初始化（复核开关分流）+ 来源工单关联（复核退回回写用）
+        r.workOrderId = o.id;
+        r.lifecycleStatus = recordLifecycleService == null ? null : recordLifecycleService.initialStatus();
         // M7：SecureRandom 128bit——旧实现时间36进制+Math.random 可猜，令牌可写签名与满意度
         byte[] shareTokenBytes = new byte[16];
         SHARE_TOKEN_RANDOM.nextBytes(shareTokenBytes);

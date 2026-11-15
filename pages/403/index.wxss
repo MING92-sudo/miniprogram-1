@@ -1,0 +1,3 @@
+page{background:var(--ink);color:var(--text)}
+.f403-hero{align-items:center;gap:16rpx;padding:48rpx 36rpx;text-align:center}
+.f403-desc{line-height:1.75;max-width:544rpx}

@@ -1,0 +1,8 @@
+<view class="sync-note">
+  <text class="i i-shield-halved"></text>
+  <view class="grow">
+    <view class="fs20 w6">{{title}}</view>
+    <view wx:if="{{desc}}" class="fs20 dim">{{desc}}</view>
+  </view>
+  <text class="mono fs18 ok">{{status}}</text>
+</view>

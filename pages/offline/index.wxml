@@ -1,0 +1,29 @@
+<view class="bw">
+  <nav-bar title="离线队列" bind:back="onBack"></nav-bar>
+  <view class="page-pad col gap10">
+    <view class="card row between">
+      <view>
+        <view class="fs22 w6">待补传 {{queueCount}} 条</view>
+        <view class="fs20 dim mt2">弱网时现场数据先存本地，网络恢复自动补传。</view>
+      </view>
+      <button class="btn btn-primary btn-sm" disabled="{{syncing}}" bindtap="onSyncQueue">立即补传</button>
+    </view>
+
+    <view wx:if="{{useMock}}" class="card row between">
+      <text class="fs20 muted">演示：模拟弱网写入一条待补传数据</text>
+      <button class="btn btn-ghost btn-xs" bindtap="onDemoEnqueue">模拟写入</button>
+    </view>
+
+    <view class="panel-title">本地缓存工单</view>
+    <block wx:if="{{cacheList.length}}">
+      <view wx:for="{{cacheList}}" wx:key="id" class="card row between">
+        <view class="grow">
+          <view class="fs22 w6">{{item.elevatorName || item.orderNo || item.id}}</view>
+          <view class="fs20 dim mt2">缓存于 {{item.cachedAtText}}</view>
+        </view>
+        <button class="btn btn-ghost btn-xs" data-key="{{item.key}}" data-id="{{item.id}}" bindtap="onClearCache">清除</button>
+      </view>
+    </block>
+    <empty-state wx:else mode="empty" title="暂无本地缓存" desc="离线作业过的工单会缓存到这里。"></empty-state>
+  </view>
+</view>

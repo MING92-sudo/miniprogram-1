@@ -1,0 +1,49 @@
+<view class="bw">
+  <nav-bar title="我的" back="{{false}}"></nav-bar>
+  <view class="page-pad tabbar-pad col gap10">
+    <view class="card pf-id">
+      <view class="row gap10">
+        <view class="pf-avatar"><text class="i i-user"></text></view>
+        <view class="grow">
+          <view class="disp fs38">{{userInfo.name || '未登录'}}</view>
+          <view class="fs20 muted mt2">{{userInfo.groupName || userInfo.unitName || ''}}{{userInfo.jobNo ? ' · 工号 ' + userInfo.jobNo : ''}}</view>
+        </view>
+      </view>
+      <view class="chips mt8">
+        <text wx:for="{{roleTexts}}" wx:key="*this" class="chip on">{{item}}</text>
+      </view>
+      <view wx:if="{{scope}}" class="fs20 dim mt8">数据范围：{{scope}}</view>
+    </view>
+
+    <view wx:if="{{workspaces.length > 1}}" class="card">
+      <view class="panel-title">切换工作台</view>
+      <view class="pf-ws-grid mt8">
+        <button
+          wx:for="{{workspaces}}"
+          wx:key="key"
+          class="pf-ws {{item.active ? 'on' : ''}}"
+          data-ws="{{item.ws}}"
+          data-active="{{item.active}}"
+          bindtap="onSwitchWs"
+        >{{item.label}}</button>
+      </view>
+      <view class="fs20 dim mt8">权限取多角色并集，数据范围逐角色判断；切换后底部导航随工作台变化。</view>
+    </view>
+
+    <view class="card pf-entries">
+      <view class="pf-entry" bindtap="goMessage" aria-role="button"><text class="i i-bell-r pf-eico"></text><text class="grow">消息中心</text><text class="i i-chevron-right dim"></text></view>
+      <view class="pf-entry" bindtap="goOffline" aria-role="button"><text class="i i-cloud-arrow-up pf-eico"></text><text class="grow">离线队列</text><text class="i i-chevron-right dim"></text></view>
+      <view class="pf-entry" bindtap="goPassword" aria-role="button"><text class="i i-key pf-eico"></text><text class="grow">修改密码</text><text class="i i-chevron-right dim"></text></view>
+      <view class="pf-entry" bindtap="onBindWechat" aria-role="button"><text class="i i-weixin pf-eico"></text><text class="grow">微信绑定{{wechatBound ? '（已绑定）' : ''}}</text><text class="i i-chevron-right dim"></text></view>
+    </view>
+
+    <button class="btn btn-ghost" bindtap="onLogout">退出登录</button>
+
+    <view class="pf-attr">
+      <view>图标：Font Awesome Free（CC BY 4.0）</view>
+      <view>显示字：ZCOOL QingKe HuangYou（OFL 1.1）</view>
+      <view class="mt4">博威无纸化 · {{versionText}}</view>
+    </view>
+  </view>
+  <custom-tabbar></custom-tabbar>
+</view>

@@ -1,0 +1,43 @@
+<view class="bw">
+  <nav-bar title="签到" bind:back="onBack"></nav-bar>
+  <view class="page-pad col gap10">
+    <view class="fs20 dim">{{elevatorName}}</view>
+
+    <view class="card col gap8">
+      <view class="row gap8"><text class="ci-step">步骤一</text><text class="fs24 w7">到场定位</text></view>
+      <view wx:if="{{location}}" class="fs22 ok">{{locationText}}</view>
+      <view wx:elif="{{locateFailed}}" class="fs22 sig">{{locationText}}</view>
+      <view wx:else class="fs22 muted">{{locationText || '定位获取中...'}}</view>
+      <view wx:if="{{geoText}}" class="ci-geo ci-geo-{{geoState}}">{{geoText}}</view>
+      <button class="btn btn-ghost btn-sm" bindtap="getLocation">重新定位</button>
+    </view>
+
+    <view class="card col gap8">
+      <view class="row gap8"><text class="ci-step">步骤二</text><text class="fs24 w7">签到身份</text></view>
+      <view class="fs20 muted">{{identityText}}</view>
+      <view wx:if="{{role === 'PRINCIPAL' && isDual}}" class="ci-code-box">
+        <view class="mono ci-code">{{issuedCode || '生成中...'}}</view>
+        <view class="fs20 dim">{{codeCountdown}} 秒后刷新 · 配合人员输入后即可完成其签到</view>
+      </view>
+      <view wx:if="{{!roleLocked}}" class="row gap8">
+        <view wx:for="{{roles}}" wx:key="value" class="ci-role {{role === item.value ? 'on' : ''}}" data-value="{{item.value}}" bindtap="onRoleChange">{{item.label}}</view>
+      </view>
+      <view wx:if="{{role === 'ASSISTANT' && !roleLocked || role === 'ASSISTANT' && isDual}}" class="col gap6">
+        <input class="ci-input mono" type="number" maxlength="6" placeholder="请输入主维保的 6 位动态码" placeholder-class="ci-ph" value="{{dynamicCode}}" bindinput="onCodeInput" />
+        <view class="fs20 dim">双人作业：配合人员须携带主维保生成的动态码（60 秒有效）</view>
+      </view>
+    </view>
+
+    <view class="card col gap8">
+      <view class="row gap8"><text class="ci-step">步骤三</text><text class="fs24 w7">水印自拍</text></view>
+      <view wx:if="{{photo}}" class="ci-photo-wrap">
+        <image class="ci-photo" src="{{photo}}" mode="aspectFill" bindtap="goCamera"></image>
+        <button class="btn btn-ghost btn-xs" bindtap="removePhoto">重拍</button>
+      </view>
+      <view wx:else class="ci-photo-empty" bindtap="goCamera" aria-role="button"><text class="i i-camera"></text> 点击拍照（自动叠加时间水印）</view>
+    </view>
+
+    <button class="btn btn-primary" disabled="{{submitting}}" bindtap="onSubmit">{{submitting ? '提交中...' : '提交签到'}}</button>
+    <view class="hint">签到后开始作业清单填写</view>
+  </view>
+</view>

@@ -1,0 +1,57 @@
+<view class="bw">
+  <nav-bar brand="{{true}}" back="{{false}}"></nav-bar>
+  <view class="page-pad tabbar-pad col gap10">
+    <skeleton wx:if="{{loading}}" rows="{{[{h:120},{h:160},{h:80},{h:80},{h:80},{h:120}]}}"></skeleton>
+    <error-retry wx:elif="{{error}}" message="{{error}}" bind:retry="onRetry"></error-retry>
+    <block wx:else>
+      <view class="row between mh-greet">
+        <view>
+          <view class="mono fs20 dim ls12">{{greeting.weekday}} · {{greeting.date}}</view>
+          <view class="disp fs44 mt2">早安，{{greeting.name}}</view>
+          <view class="fs20 muted">{{greeting.org}}{{greeting.jobNo ? ' · 工号 ' + greeting.jobNo : ''}}</view>
+        </view>
+        <view class="shift">
+          <view class="mono fs18 dim">班次</view>
+          <view class="mono fs20 amber">{{greeting.shift}}</view>
+        </view>
+      </view>
+
+      <view wx:if="{{sos}}" class="sos" bindtap="onSosTap" aria-role="button" aria-label="查看急修单">
+        <view class="row between">
+          <text class="tag tag-{{sos.statusTone}}"><text class="i i-circle-check fs18"></text> {{sos.statusText}}</text>
+          <text class="mono fs20 dim">{{sos.no}} · {{sos.time}}</text>
+        </view>
+        <view class="row between mt8">
+          <view class="grow">
+            <view class="fs26 w7">{{sos.title}}</view>
+            <view class="fs20 muted mt2">{{sos.desc}}</view>
+          </view>
+          <button class="btn btn-ghost btn-xs">查看急修单 <text class="i i-arrow-right fs18"></text></button>
+        </view>
+      </view>
+
+      <kpi-row items="{{kpis}}"></kpi-row>
+
+      <sec-head title="今日任务" actionText="全部" bind:action="onAllTasks"></sec-head>
+      <block wx:if="{{tasks.length}}">
+        <task-card
+          wx:for="{{tasks}}"
+          wx:key="id"
+          time="{{item.time}}"
+          title="{{item.title}}"
+          desc="{{item.desc}}"
+          tagText="{{item.tagText}}"
+          tagTone="{{item.tagTone}}"
+          data-item="{{item}}"
+          bind:tap="onTaskTap"
+        ></task-card>
+      </block>
+      <empty-state wx:else mode="empty" title="今日暂无任务" desc="新工单派发后会出现在这里，并通过消息中心提醒。"></empty-state>
+
+      <qa-grid items="{{quickActions}}" bind:action="onQaAction"></qa-grid>
+      <week-strip items="{{week}}"></week-strip>
+      <sync-note title="{{sync.title}}" desc="{{sync.desc}}" status="{{sync.status}}"></sync-note>
+    </block>
+  </view>
+  <custom-tabbar></custom-tabbar>
+</view>

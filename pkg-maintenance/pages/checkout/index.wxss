@@ -1,0 +1,7 @@
+page{background:var(--ink);color:var(--text)}
+.co-check{display:flex;align-items:center;gap:16rpx;padding:12rpx 0}
+.co-box{width:36rpx;height:36rpx;border-radius:6rpx;border:1rpx solid #3A4A51;display:flex;align-items:center;justify-content:center;flex:none}
+.co-box.on{background:var(--amber);border-color:var(--amber)}
+.co-ico{font-size:22rpx;color:#171005}
+.co-textarea{background:#0D1519;border:1rpx solid #3A4A51;border-radius:6rpx;padding:18rpx;font-size:24rpx;color:var(--text);min-height:140rpx;width:100%}
+.co-ph{color:var(--dim)}

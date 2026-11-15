@@ -1,0 +1,64 @@
+<view class="bw">
+  <nav-bar title="电梯档案" bind:back="onBack"></nav-bar>
+  <view class="page-pad col gap10">
+    <skeleton wx:if="{{loading}}" rows="{{[{h:184},{h:104},{h:104},{h:200},{h:200}]}}"></skeleton>
+    <error-retry wx:elif="{{error}}" message="{{error}}" bind:retry="onRetry" bind:back="onBack"></error-retry>
+    <block wx:else>
+      <view class="card ed-hero">
+        <view class="grow">
+          <view class="fs32 w7">{{profile.elevatorName}}</view>
+          <view class="mono fs20 dim mt4">{{profile.platform.elevatorCode}}</view>
+          <view class="mt6"><status-tag text="{{profile.category || '电梯'}}" tone="amber"></status-tag></view>
+        </view>
+        <view class="ed-qr">
+          <text class="i i-qrcode ed-qr-ico"></text>
+          <text class="fs18 dim">设备二维码</text>
+        </view>
+      </view>
+
+      <view class="card">
+        <view class="panel-title">设备信息</view>
+        <view class="ed-grid mt8">
+          <view class="ed-mini"><text class="fs18 dim">品种</text><text class="fs20 w6">{{profile.category || '—'}}</text></view>
+          <view class="ed-mini"><text class="fs18 dim">型号</text><text class="fs20 w6">{{profile.model || '—'}}</text></view>
+          <view class="ed-mini"><text class="fs18 dim">内部编号</text><text class="fs20 w6">{{profile.insideNumber || '—'}}</text></view>
+          <view class="ed-mini"><text class="fs18 dim">使用单位</text><text class="fs20 w6">{{profile.platform.elevatorAdminister || '—'}}</text></view>
+        </view>
+      </view>
+
+      <view class="card">
+        <view class="panel-title">平台登记（监管平台同步）</view>
+        <view class="kv mt4"><span>注册代码</span><b class="mono">{{profile.platform.registrationCode || '—'}}</b></view>
+        <view class="kv"><span>设备代码</span><b class="mono">{{profile.platform.deviceCode || '—'}}</b></view>
+        <view class="kv"><span>出厂编号</span><b class="mono">{{profile.platform.factoryNumber || '—'}}</b></view>
+        <view class="kv"><span>负责人电话</span><b class="mono"><mask-field value="{{profile.platform.elevatorAdministerPhone || '—'}}"></mask-field></b></view>
+        <view class="kv"><span>应急电话</span><b class="mono"><mask-field value="{{profile.platform.emergencyPhone || '—'}}"></mask-field></b></view>
+      </view>
+
+      <view class="card">
+        <view class="panel-title">本地维护（点按可现场更正）</view>
+        <view
+          wx:for="{{localFields}}"
+          wx:key="key"
+          class="kv ed-edit"
+          data-field="{{item.key}}"
+          bindtap="onEditLocal"
+          aria-role="button"
+          aria-label="更正{{item.label}}"
+        >
+          <span>{{item.label}}</span>
+          <b>{{item.value || '—'}} <text class="i i-chevron-right fs18 dim"></text></b>
+        </view>
+      </view>
+
+      <perm-button
+        perm="elevator:export"
+        capability="导出台账"
+        allowRoles="维保部经理、平台管理员"
+        type="ghost"
+        text="导出台账"
+        bind:tap="onExport"
+      ></perm-button>
+    </block>
+  </view>
+</view>

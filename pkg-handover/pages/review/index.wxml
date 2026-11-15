@@ -1,0 +1,27 @@
+<view class="bw">
+  <nav-bar title="内部审核" bind:back="onBack"></nav-bar>
+  <view class="page-pad col gap10">
+    <skeleton wx:if="{{loading}}" rows="{{[{h:120},{h:160}]}}"></skeleton>
+    <error-retry wx:elif="{{error}}" message="{{error}}" bind:retry="onRetry"></error-retry>
+    <block wx:else>
+      <view class="card col gap6">
+        <view class="row between">
+          <text class="fs24 w7 grow">{{detail.projectName || detail.id}}</text>
+          <status-tag text="{{detail.status}}" tone="amber"></status-tag>
+        </view>
+        <view class="kv"><span>安装单位</span><b>{{detail.installUnitName || '—'}}</b></view>
+        <view class="kv"><span>电梯</span><b>{{detail.elevatorName || '—'}}</b></view>
+        <view wx:if="{{check}}" class="kv"><span>查验结论</span><b>{{check.conclusion || '—'}}</b></view>
+      </view>
+
+      <view class="row gap8">
+        <button class="btn btn-ghost grow" bindtap="goUpload">核对资料</button>
+        <button class="btn btn-ghost grow" bindtap="goInspect">核对查验</button>
+      </view>
+
+      <view class="rule-note"><text class="i i-circle-info"></text><text>审核通过 / 退回与作废的审批端点待后端落地（见 docs/12 缺口）；本页当前为只读核对投影，审批动作暂不可用。</text></view>
+      <button class="btn btn-primary" disabled="{{true}}">审核通过（待后端）</button>
+      <view class="gate-note">所需能力：移交内部审核 · 允许角色：安装部主管 · 审批端点待落地</view>
+    </block>
+  </view>
+</view>

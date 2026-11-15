@@ -39,12 +39,17 @@ function logout() {
   return post('/auth/logout', {})
 }
 
-// 登录成功统一落库
+// 登录成功统一落库（M1：透传 roles/perms/activeWorkspace/home）
 function applyLoginResult(data) {
   saveAuth({
     token: data.token,
     userInfo: data.userInfo || null,
-    role: data.role
+    role: data.role,
+    roles: data.roles,
+    perms: data.perms,
+    activeWorkspace: data.activeWorkspace,
+    home: data.home,
+    scope: data.scope
   })
   return data
 }

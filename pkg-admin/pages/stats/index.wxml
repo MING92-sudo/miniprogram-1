@@ -1,0 +1,16 @@
+<view class="bw">
+  <nav-bar title="统计" bind:back="onBack"></nav-bar>
+  <view class="page-pad col gap10">
+    <skeleton wx:if="{{loading}}" rows="{{[{h:100},{h:120},{h:120}]}}"></skeleton>
+    <error-retry wx:elif="{{error}}" message="{{error}}" bind:retry="onRetry"></error-retry>
+    <block wx:else>
+      <view wx:if="{{stats}}" class="kpi-row">
+      <view class="kpi"><view class="mono kpi-n">{{stats.managed}}</view><view class="fs20 muted">在管台量</view></view>
+      <view class="kpi"><view class="mono kpi-n">{{stats.done}}</view><view class="fs20 muted">已完成维保</view></view>
+      <view class="kpi kpi-alert"><view class="mono kpi-n">{{stats.openFaults}}</view><view class="fs20 muted">待接急修</view></view>
+    </view>
+    <view class="card"><view class="kv"><span>待签署</span><b>{{stats.pendingSigns}}</b></view></view>
+      <perm-button perm="stats:export" capability="导出报表" allowRoles="维保部经理、平台管理员" type="ghost" text="导出报表（管理端办理）"></perm-button>
+    </block>
+  </view>
+</view>

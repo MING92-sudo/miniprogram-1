@@ -1,0 +1,11 @@
+<view class="pb-wrap">
+  <button
+    class="btn btn-{{type}} {{size}}"
+    disabled="{{tier === 1}}"
+    aria-disabled="{{tier === 2}}"
+    aria-role="button"
+    catchtap="onTap"
+  >{{text}}</button>
+  <view wx:if="{{tier === 1}}" class="gate-note">所需能力：{{capability}} · 允许角色：{{allowRoles}}</view>
+  <view wx:elif="{{tier === 2 && gateReason}}" class="gate-note">{{gateReason}}</view>
+</view>

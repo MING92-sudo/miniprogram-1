@@ -1,0 +1,21 @@
+<view class="bw">
+  <nav-bar title="资料上传" bind:back="onBack"></nav-bar>
+  <view class="page-pad col gap10">
+    <skeleton wx:if="{{loading}}" rows="{{[{h:100},{h:120},{h:120}]}}"></skeleton>
+    <error-retry wx:elif="{{error}}" message="{{error}}" bind:retry="onRetry"></error-retry>
+    <block wx:else>
+      <view class="rule-note"><text class="i i-circle-info"></text><text>3 项强制资料须上传或标记缺件（容缺受理）；缺件补传完成前移交不得生效。</text></view>
+      <view wx:for="{{docs}}" wx:key="idx" class="card row between">
+        <view class="grow">
+          <view class="fs22 w6">{{item.docName || item.docType}}<text wx:if="{{item.required}}" class="tag tag-amber hu-req">强制</text></view>
+          <view class="fs20 dim mt2">{{item.fileId ? '已上传' : (item.missing ? '缺件待补办' : '未上传')}}</view>
+        </view>
+        <view class="col gap6 hu-actions">
+          <button class="btn btn-ghost btn-xs" data-idx="{{item.idx}}" bindtap="onUpload">{{item.fileId ? '替换' : '上传'}}</button>
+          <button class="link fs18" data-idx="{{item.idx}}" bindtap="onToggleMissing">{{item.missing ? '取消缺件' : '标记缺件'}}</button>
+        </view>
+      </view>
+      <button class="btn btn-primary" disabled="{{submitting}}" bindtap="onSubmit">{{submitting ? '提交中...' : '提交资料'}}</button>
+    </block>
+  </view>
+</view>

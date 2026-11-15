@@ -1,54 +1,77 @@
-<view class="login-page">
-  <view class="login-header">
-    <view class="login-title">电梯无纸化维保</view>
-    <view class="login-sub">维保记录电子化 · 对接监管平台</view>
-    <view class="login-bar"></view>
-  </view>
-
-  <view class="form-area">
-    <!-- 唯一登录入口：员工账号（手机号）与使用单位账号同一表单，后端按账号类型分流（docs/04 A.0.1） -->
-    <view class="input-row">
-      <input
-        class="input-field"
-        type="text"
-        placeholder="请输入账号"
-        value="{{phone}}"
-        bindinput="onPhoneInput"
-      />
-    </view>
-    <view class="input-row">
-      <input
-        class="input-field"
-        password="{{!showPassword}}"
-        placeholder="请输入密码"
-        value="{{password}}"
-        bindinput="onPasswordInput"
-      />
-      <view class="eye" bindtap="togglePassword">{{showPassword ? '隐藏' : '显示'}}</view>
-    </view>
-
-    <view class="login-opts">
-      <!-- 记住账号：仅本机存储，密码不落盘（docs/03 §5.6 / Minor5） -->
-      <view class="remember" bindtap="toggleRemember">
-        <view class="checkbox {{remember ? 'checked' : ''}}">{{remember ? '✓' : ''}}</view>
-        <text class="remember-text">记住账号</text>
+<view class="bw">
+  <nav-bar brand="{{true}}" back="{{false}}"></nav-bar>
+  <view class="lg-page">
+    <view class="lg-hero">
+      <view class="row between">
+        <text class="mono fs18 dim ls16">电梯维保数字化</text>
+        <text class="mono fs18 dim">V1.3 · 2026</text>
       </view>
-      <view class="forgot" bindtap="forgotPassword">忘记密码？</view>
+      <view class="lg-shaft" aria-hidden="true">
+        <view class="lg-shaft-line" wx:for="{{[1,2,3,4,5]}}" wx:key="*this"></view>
+      </view>
+      <view class="row gap10 lg-brandrow">
+        <view class="brand-mark lg-mark"></view>
+        <view>
+          <view class="disp fs52">博威无纸化</view>
+          <view class="mono fs18 dim ls16">电梯无纸化维保系统</view>
+        </view>
+      </view>
+      <view class="disp lg-title">让每一台电梯<br/>都有据可查</view>
+      <view class="lg-sub">安装移交、半月保点检、急修报修与使用单位签字，全部在手机上闭环。</view>
     </view>
 
-    <view class="agreement">
-      <view class="checkbox {{agreed ? 'checked' : ''}}" bindtap="toggleAgreed">{{agreed ? '✓' : ''}}</view>
-      <view class="agreement-text">登录代表您已同意<text class="link" bindtap="openAgreement">《用户协议》</text>和<text class="link" bindtap="openPrivacy">《隐私政策》</text></view>
+    <view class="lg-hazard"></view>
+
+    <view class="lg-card">
+      <view class="row between">
+        <text class="fs22 w6">登录工作台</text>
+        <text class="mono fs18 dim ls12">统一入口</text>
+      </view>
+      <view class="col gap4 mt10">
+        <text class="fs20 muted">账号</text>
+        <input class="lg-input" value="{{phone}}" bindinput="onPhoneInput" placeholder="手机号 / 单位分配的账号" placeholder-class="lg-ph" />
+      </view>
+      <view class="col gap4 mt8">
+        <text class="fs20 muted">密码</text>
+        <view class="lg-pw-wrap">
+          <input class="lg-input lg-pw" password="{{!showPassword}}" value="{{password}}" bindinput="onPasswordInput" placeholder="请输入密码" placeholder-class="lg-ph" />
+          <text class="lg-eye fs20" bindtap="togglePassword">{{showPassword ? '隐藏' : '显示'}}</text>
+        </view>
+      </view>
+      <view class="row between mt8">
+        <view class="row gap6" bindtap="toggleRemember">
+          <view class="cb {{remember ? 'on' : ''}}"><text wx:if="{{remember}}" class="i i-check cb-ico"></text></view>
+          <text class="fs20 dim">记住账号</text>
+        </view>
+        <button class="link quiet fs20" bindtap="forgotPassword">忘记密码</button>
+      </view>
+      <button class="btn btn-primary lg-submit" disabled="{{logging}}" bindtap="onSubmit">{{logging ? '登录中…' : '登录工作台'}}</button>
+      <button wx:if="{{wechatBound}}" class="btn btn-ghost lg-wechat" bindtap="onWechatLogin"><text class="i i-weixin"></text> 微信一键登录</button>
+      <view class="row gap6 mt10" bindtap="toggleAgreed">
+        <view class="cb {{agreed ? 'on' : ''}}"><text wx:if="{{agreed}}" class="i i-check cb-ico"></text></view>
+        <text class="fs20 dim">已阅读并同意 <text class="lg-link" catchtap="openAgreement">《用户协议》</text> 与 <text class="lg-link" catchtap="openPrivacy">《隐私政策》</text></text>
+      </view>
     </view>
 
-    <button class="login-btn" disabled="{{logging}}" bindtap="onSubmit">
-      {{logging ? '登录中...' : '立即登录'}}
-      <text wx:if="{{!logging}}" class="login-arrow">→</text>
-    </button>
+    <view class="lg-points">
+      <view><text class="i i-shield-halved"></text>电子签名固化</view>
+      <view><text class="i i-cloud-arrow-up"></text>弱网自动续传</view>
+      <view><text class="i i-clock-rotate-left"></text>作业全程留痕</view>
+    </view>
 
-    <!-- 微信一键登录：仅在「我的」页自行开启过绑定时出现，未开启不占位（用户需求） -->
-    <view wx:if="{{wechatBound}}" class="skip-login" bindtap="onWechatLogin">微信一键登录</view>
+    <view class="lg-roles">
+      <view class="row between">
+        <text class="mono fs18 dim ls12">一个入口 · 三种工作台</text>
+      </view>
+      <view class="lg-role-grid mt6">
+        <view class="lg-role"><text class="i i-screwdriver-wrench"></text>维保部</view>
+        <view class="lg-role"><text class="i i-helmet-safety"></text>安装部</view>
+        <view class="lg-role"><text class="i i-building"></text>使用单位</view>
+      </view>
+      <view class="fs20 dim lg-role-note">登录后由账号权限自动进入对应工作台，无需选择角色。</view>
+    </view>
 
-    <view class="skip-login" bindtap="skipLogin">暂不登录，先看看</view>
+    <view class="lg-foot">账号由所属单位管理员开通 · 首次使用请联系项目负责人</view>
+    <button class="link quiet fs20 lg-skip" bindtap="skipLogin">暂不登录，查看介绍</button>
   </view>
 </view>

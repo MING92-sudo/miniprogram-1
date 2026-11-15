@@ -1,0 +1,5 @@
+page{background:var(--ink);color:var(--text)}
+.ol-input{flex:1;font-size:24rpx;color:var(--text)}
+.ol-ph{color:var(--dim)}
+.ol-scan{font-size:32rpx;color:var(--amber)}
+.ol-card{display:flex;flex-direction:column}

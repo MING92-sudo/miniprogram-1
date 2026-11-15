@@ -63,6 +63,23 @@ function retryRecordUpload(recordId) {
   return post(`/platform/records/${recordId}/reupload`, {})
 }
 
+// M1 记录生命周期（docs/04 V2.53）：配合退回/主管复核/发起使用单位签字/归档投影
+function signatureRefuse(orderId) {
+  return post(`/work-orders/${orderId}/signature-refuse`, {})
+}
+
+function reviewRecord(orderId, pass, reason) {
+  return post(`/work-orders/${orderId}/review`, { pass, reason })
+}
+
+function signRequest(orderId) {
+  return post(`/work-orders/${orderId}/sign-request`, {})
+}
+
+function getRecordArchive(orderId) {
+  return get(`/work-orders/${orderId}/archive`)
+}
+
 module.exports = {
   getOrderList,
   getOrderDetail,
@@ -75,5 +92,9 @@ module.exports = {
   runItemThisTime,
   signOrder,
   checkout,
-  retryRecordUpload
+  retryRecordUpload,
+  signatureRefuse,
+  reviewRecord,
+  signRequest,
+  getRecordArchive
 }

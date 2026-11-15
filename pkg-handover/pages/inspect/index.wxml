@@ -1,0 +1,58 @@
+<view class="bw">
+  <nav-bar title="现场验收（74 项）" bind:back="onBack"></nav-bar>
+  <view class="page-pad col gap10">
+    <skeleton wx:if="{{loading}}" rows="{{[{h:100},{h:120},{h:120}]}}"></skeleton>
+    <error-retry wx:elif="{{error}}" message="{{error}}" bind:retry="onRetry"></error-retry>
+    <block wx:else>
+      <view class="card row between">
+        <text class="fs20 muted">已完成 {{doneCount}}/{{items.length}} 项</text>
+        <text class="fs20 dim">☆重要项 49 · 试验项 57–74</text>
+      </view>
+
+      <view wx:for="{{groups}}" wx:key="group" class="col gap6">
+        <view class="panel-title">{{item.group}}</view>
+        <view wx:for="{{item.items}}" wx:for-item="it" wx:key="idx" class="card hi-item">
+          <view class="row between">
+            <view class="grow">
+              <text class="fs22 w6">{{it.itemNo}}. {{it.itemName}}</text>
+              <text wx:if="{{it.important}}" class="tag tag-amber hi-star">☆</text>
+            </view>
+          </view>
+          <view class="row gap6 mt6">
+            <view wx:for="{{results}}" wx:for-item="r" wx:key="*this" class="hi-res {{it.result === r ? (r === 'PASS' ? 'on-ok' : r === 'FAIL' ? 'on-ng' : 'on-na') : ''}}" data-idx="{{it.idx}}" data-value="{{r}}" bindtap="onResult">{{resultText[r]}}</view>
+          </view>
+          <view wx:if="{{it.result === 'PASS' && it.itemNo >= 57}}" class="col gap4 mt6">
+            <text class="fs20 muted">实测值（试验项必填）</text>
+            <input class="hi-input" value="{{it.measuredValue}}" data-idx="{{it.idx}}" bindinput="onMeasure" placeholder="实测值" placeholder-class="hi-ph" />
+          </view>
+          <view wx:if="{{it.result === 'FAIL'}}" class="col gap4 mt6">
+            <textarea class="hi-textarea" value="{{it.failDesc}}" data-idx="{{it.idx}}" bindinput="onFailDesc" placeholder="不合格描述（必填）" placeholder-class="hi-ph"></textarea>
+          </view>
+          <view wx:if="{{it.result === 'NA'}}" class="col gap4 mt6">
+            <picker mode="selector" range="{{naLabels}}" data-idx="{{it.idx}}" bindchange="onNaReason">
+              <view class="hi-input">{{it.naReason || '选择 NA 原因码（必填）'}}</view>
+            </picker>
+            <view wx:if="{{it.important}}" class="fs18 sig">☆项置 NA 须维保部经理审批</view>
+          </view>
+          <view wx:if="{{it.result === 'FAIL' || it.photoFileIds.length}}" class="photo-row mt6">
+            <view wx:for="{{it.photos}}" wx:for-item="p" wx:for-index="pidx" wx:key="*this" class="hi-photo-wrap">
+              <image class="thumb" src="{{p}}" mode="aspectFill"></image>
+              <text class="hi-photo-del" data-idx="{{it.idx}}" data-pidx="{{pidx}}" catchtap="removePhoto"><text class="i i-xmark"></text></text>
+            </view>
+            <view class="thumb hi-photo-add" data-idx="{{it.idx}}" bindtap="choosePhoto" aria-role="button"><text class="i i-camera"></text></view>
+          </view>
+        </view>
+      </view>
+
+      <view class="card col gap8">
+        <view class="panel-title">有条件移交（7.3 三条件，一般项不合格 1–3 时）</view>
+        <view class="hi-cond" data-key="siteLimited" bindtap="onCondToggle"><view class="cb {{conditional.siteLimited ? 'on' : ''}}"><text wx:if="{{conditional.siteLimited}}" class="i i-check cb-ico"></text></view><text class="fs20">现场条件受限</text></view>
+        <view class="hi-cond" data-key="tripartiteAgreed" bindtap="onCondToggle"><view class="cb {{conditional.tripartiteAgreed ? 'on' : ''}}"><text wx:if="{{conditional.tripartiteAgreed}}" class="i i-check cb-ico"></text></view><text class="fs20">三方协商同意</text></view>
+        <textarea class="hi-textarea" value="{{conditional.controlMeasures}}" bindinput="onCondInput" placeholder="管控措施（必填）" placeholder-class="hi-ph"></textarea>
+      </view>
+
+      <button class="btn btn-primary" disabled="{{submitting}}" bindtap="onSubmit">{{submitting ? '提交中...' : '提交查验（后端判定）'}}</button>
+      <view class="hint">判定结论由后端按 7.2/7.3 冻结；不合格项 1:1 自动生成整改清单</view>
+    </block>
+  </view>
+</view>

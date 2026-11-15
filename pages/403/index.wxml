@@ -1,0 +1,24 @@
+<view class="bw">
+  <nav-bar title="无访问权限" back="{{false}}"></nav-bar>
+  <view class="page-pad col gap10">
+    <view class="card col f403-hero">
+      <text class="i i-lock fs52 amber"></text>
+      <view class="disp fs38">无访问权限</view>
+      <view class="fs20 muted f403-desc">当前账号的数据范围内不可达该对象。已按守卫拦截，后端接口同步返回 403。</view>
+      <text class="tag tag-signal"><text class="i i-ban fs18"></text> 访问被拒绝</text>
+    </view>
+
+    <view class="card">
+      <view class="panel-title">拒绝详情</view>
+      <view class="kv mt4"><span>所需能力</span><b>{{capability}}</b></view>
+      <view class="kv"><span>允许角色</span><b>{{allowRoles}}</b></view>
+      <view class="kv"><span>我的当前角色</span><b>{{myRoles}}</b></view>
+      <view class="kv"><span>我的数据范围</span><b>{{scope}}</b></view>
+    </view>
+
+    <view class="rule-note"><text class="i i-circle-info"></text><text>「无权限」与「对象不存在」提示保持一致，不回显目标编号、名称与状态，避免探测数据是否存在。</text></view>
+
+    <button class="btn btn-primary" bindtap="goHome"><text class="i i-house"></text> 返回工作台</button>
+    <view class="hint"><text>权限由后台返回，前端不做推断 · </text><button class="link quiet fs20" bindtap="goMessage">联系维保主管核对范围</button></view>
+  </view>
+</view>

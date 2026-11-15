@@ -1,0 +1,61 @@
+<view class="bw">
+  <nav-bar title="急修单" bind:back="onBack"></nav-bar>
+  <view class="page-pad col gap10">
+    <skeleton wx:if="{{loading}}" rows="{{[{h:120},{h:160},{h:120}]}}"></skeleton>
+    <error-retry wx:elif="{{error}}" message="{{error}}" bind:retry="onRetry" bind:back="onBack"></error-retry>
+    <block wx:else>
+      <view class="card col gap6">
+        <view class="row between">
+          <view class="fs26 w7 grow">{{fault.elevatorName || fault.elevatorCode}}</view>
+          <status-tag text="{{statusText}}" tone="{{statusTone}}"></status-tag>
+        </view>
+        <view class="fs22">{{fault.desc}}</view>
+        <view class="fs20 dim">单号 {{fault.id}} · 报修 {{fault.createdAt}}</view>
+        <view wx:if="{{fault.trappedCount}}" class="tag tag-signal">困人 {{fault.trappedCount}} 人</view>
+      </view>
+
+      <view wx:if="{{fault.photos.length}}" class="card">
+        <view class="panel-title">现场照片</view>
+        <view class="photo-row mt6">
+          <image wx:for="{{fault.photos}}" wx:key="*this" class="thumb" src="{{item}}" mode="aspectFill" data-url="{{item}}" bindtap="onPreviewPhoto"></image>
+        </view>
+      </view>
+
+      <view class="card col gap6">
+        <view class="panel-title">处置信息</view>
+        <view class="kv"><span>现场情况</span><b>{{fault.siteDesc || '—'}}</b></view>
+        <view class="kv"><span>处理结果</span><b>{{fault.handleDesc || fault.result || '—'}}</b></view>
+        <view class="kv"><span>待办事项</span><b>{{fault.todoDesc || '—'}}</b></view>
+        <view wx:if="{{fault.arrivedAt}}" class="kv"><span>到场时间</span><b>{{fault.arrivedAt}}</b></view>
+        <view wx:if="{{fault.cancelReason}}" class="kv"><span>取消原因</span><b>{{fault.cancelReason}}</b></view>
+        <view wx:if="{{fault.refuseReason}}" class="kv"><span>拒绝原因</span><b>{{fault.refuseReason}}</b></view>
+      </view>
+
+      <!-- 处置中：维修过程表单 -->
+      <view wx:if="{{fault.status === 'PROCESSING' || fault.status === 'REFUSED'}}" class="card col gap8">
+        <view class="panel-title">维修过程</view>
+        <textarea class="od-textarea" value="{{siteDesc}}" bindinput="onSiteInput" placeholder="现场情况（原因，必填）" placeholder-class="od-ph"></textarea>
+        <textarea class="od-textarea" value="{{handleDesc}}" bindinput="onHandleInput" placeholder="处理结果（措施，必填）" placeholder-class="od-ph"></textarea>
+        <textarea class="od-textarea" value="{{todoDesc}}" bindinput="onTodoInput" placeholder="待办事项（留空视为无）" placeholder-class="od-ph"></textarea>
+        <view class="row gap8">
+          <button class="btn btn-ghost grow" disabled="{{submitting}}" bindtap="onSaveProcess">保存过程</button>
+          <button class="btn btn-primary grow" bindtap="onSubmitFault">提交急修单</button>
+        </view>
+      </view>
+
+      <!-- 状态动作 -->
+      <button wx:if="{{fault.status === 'OPEN'}}" class="btn btn-primary" bindtap="onGrab"><text class="i i-bolt"></text> 抢单</button>
+      <button wx:if="{{fault.status === 'ASSIGNED'}}" class="btn btn-primary" bindtap="onArrive"><text class="i i-location-dot"></text> 到场打卡</button>
+
+      <view wx:if="{{fault.status === 'PENDING_CONFIRM' && canConfirm}}" class="row gap8">
+        <button class="btn btn-ghost grow" data-pass="false" bindtap="onConfirm">拒绝并说明</button>
+        <button class="btn btn-primary grow" data-pass="true" bindtap="onConfirm">确认闭环</button>
+      </view>
+      <view wx:if="{{fault.status === 'PENDING_CONFIRM' && !canConfirm}}" class="rule-note"><text class="i i-circle-info"></text><text>确认需使用单位签字人（CLIENT_SIGNER）操作。</text></view>
+
+      <button wx:if="{{fault.status === 'CLOSED' && isClient && !fault.evaluatedAt}}" class="btn btn-primary" bindtap="onEvaluate"><text class="i i-signature"></text> 服务评价</button>
+
+      <button wx:if="{{fault.status === 'OPEN' || fault.status === 'ASSIGNED'}}" class="btn btn-ghost" bindtap="onCancel">取消急修单</button>
+    </block>
+  </view>
+</view>

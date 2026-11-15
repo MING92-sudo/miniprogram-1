@@ -1,0 +1,60 @@
+page{background:var(--ink);color:var(--text)}
+.section-title {
+  font-size: 30rpx;
+  font-weight: 600;
+  margin-bottom: 16rpx;
+}
+
+.field {
+  display: flex;
+  align-items: center;
+  min-height: 88rpx;
+  padding: 8rpx 0;
+  border-bottom: 2rpx solid var(--em-border);
+}
+
+.field:last-child {
+  border-bottom: none;
+}
+
+.field-label {
+  width: 220rpx;
+  flex-shrink: 0;
+  color: var(--em-text-primary);
+}
+
+.req {
+  color: var(--em-error);
+  margin-left: 4rpx;
+}
+
+.field-input {
+  flex: 1;
+  height: 72rpx;
+  line-height: 72rpx;
+  text-align: right;
+  font-size: 28rpx;
+}
+
+.field-picker {
+  flex: 1;
+  text-align: right;
+  color: var(--em-text-secondary);
+}
+
+.field-arrow {
+  margin-left: 8rpx;
+  color: var(--em-text-disabled);
+}
+
+.field-unit {
+  width: 60rpx;
+  text-align: right;
+  color: var(--em-text-secondary);
+  font-size: 24rpx;
+}
+
+.tip {
+  margin-top: 16rpx;
+  text-align: center;
+}

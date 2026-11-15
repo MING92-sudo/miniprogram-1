@@ -1,0 +1,1 @@
+<text class="mf">{{value}}<text wx:if="{{masked}}" class="dim mf-mark">△</text></text>

@@ -1,0 +1,10 @@
+{
+  "usingComponents": {
+    "nav-bar": "/components/nav-bar/index",
+    "status-tag": "/components/status-tag/index",
+    "skeleton": "/components/skeleton/index",
+    "error-retry": "/components/error-retry/index",
+    "empty-state": "/components/empty-state/index"
+  },
+  "enablePullDownRefresh": true
+}

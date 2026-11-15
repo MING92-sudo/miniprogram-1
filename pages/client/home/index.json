@@ -1,0 +1,14 @@
+{
+  "usingComponents": {
+    "nav-bar": "/components/nav-bar/index",
+    "custom-tabbar": "/components/custom-tabbar/index",
+    "kpi-row": "/components/kpi-row/index",
+    "qa-grid": "/components/qa-grid/index",
+    "week-strip": "/components/week-strip/index",
+    "sec-head": "/components/sec-head/index",
+    "status-tag": "/components/status-tag/index",
+    "skeleton": "/components/skeleton/index",
+    "error-retry": "/components/error-retry/index",
+    "empty-state": "/components/empty-state/index"
+  }
+}

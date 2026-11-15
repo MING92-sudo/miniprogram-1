@@ -1,0 +1,16 @@
+<view class="ct-bar">
+  <view
+    wx:for="{{tabs}}"
+    wx:key="key"
+    class="ct-item {{active === item.key ? 'on' : ''}}"
+    data-path="{{item.path}}"
+    data-key="{{item.key}}"
+    bindtap="onTap"
+    aria-role="button"
+    aria-label="{{item.text}}"
+  >
+    <text class="i {{icons[item.icon]}} ct-ico"></text>
+    <text class="ct-txt">{{item.text}}</text>
+    <view wx:if="{{item.badgeKey && badges[item.badgeKey]}}" class="ct-badge mono">{{badges[item.badgeKey]}}</view>
+  </view>
+</view>

@@ -56,5 +56,12 @@ public class MaintainRecord {
     public LocalDateTime amendedAt;
     /** 存量单人豁免（P-4），新工单恒0 */
     public Integer soloExempt;
+    /** 记录生命周期（V42，M1，蓝图 §6.2）：PENDING_REVIEW/PENDING_CLIENT_SIGN/PENDING_CLIENT_SIGNATURE/SIGNED/ARCHIVED/REFUSED_RETURNED */
+    public String lifecycleStatus;
+    public String workOrderId;
+    public String refuseReason;
+    public LocalDateTime archivedAt;
+    public String archiveFileId;
+    public String archiveHash;
     public LocalDateTime createdAt;
 }

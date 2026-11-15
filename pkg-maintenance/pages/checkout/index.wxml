@@ -1,0 +1,46 @@
+<view class="bw">
+  <nav-bar title="签退自检"></nav-bar>
+  <view class="page-pad col gap10">
+    <view class="fs20 dim">{{elevatorName}}</view>
+
+    <view class="card col gap8">
+      <view class="panel-title">检查项完成度</view>
+      <view class="fs22 {{checkBlocked ? 'sig' : 'ok'}}">{{checkDone}}/{{checkTotal}} 项已填写（{{naCount}} 项无需执行）</view>
+      <view wx:for="{{keyIssues}}" wx:key="*this" class="fs20 sig">关键项「{{item}}」须至少附 1 张照片（TSG 注A-2）</view>
+      <view class="panel-title mt6">作业时长</view>
+      <view class="kv"><span>签到时间</span><b>{{checkinTime || '-'}}</b></view>
+      <view class="kv"><span>已作业时长</span><b class="{{durationOk ? 'ok' : 'sig'}}">{{elapsedText}}</b></view>
+      <view wx:if="{{!durationOk}}" class="fs20 dim">签退要求签到与签退间隔不少于 {{minMinutes}} 分钟（24小时制计时），还需约 {{remainMinutes}} 分钟</view>
+    </view>
+
+    <view class="card col gap6">
+      <view class="panel-title">自检项（{{selfChecks.length}} 项全选后可提交）</view>
+      <view wx:for="{{selfChecks}}" wx:key="key" class="co-check" data-key="{{item.key}}" bindtap="onCheckToggle" aria-role="checkbox" aria-checked="{{item.checked}}">
+        <view class="co-box {{item.checked ? 'on' : ''}}"><text wx:if="{{item.checked}}" class="i i-check co-ico"></text></view>
+        <text class="fs22">{{item.label}}</text>
+      </view>
+    </view>
+
+    <view class="card col gap6">
+      <view class="panel-title">安全防护确认</view>
+      <view wx:for="{{safety}}" wx:key="key" class="co-check" data-key="{{item.key}}" bindtap="onSafetyToggle" aria-role="checkbox" aria-checked="{{item.checked}}">
+        <view class="co-box {{item.checked ? 'on' : ''}}"><text wx:if="{{item.checked}}" class="i i-check co-ico"></text></view>
+        <text class="fs22">{{item.label}}</text>
+      </view>
+      <view class="panel-title mt6">待办事项</view>
+      <textarea class="co-textarea" value="{{todoDesc}}" bindinput="onTodoInput" maxlength="500" placeholder="未当场完成的事项（更换配件/复测等），留空视为无待办" placeholder-class="co-ph"></textarea>
+    </view>
+
+    <view class="card col gap6">
+      <view class="panel-title">签字状态（各自手机签）</view>
+      <view class="kv"><span>主维保签字</span><b class="{{workerSigned ? 'ok' : 'sig'}}">{{workerSigned ? '已签字' : '未签字'}}</b></view>
+      <view wx:if="{{hasAssistant}}" class="kv"><span>配合人员签字</span><b class="{{assistantSigned ? 'ok' : 'sig'}}">{{assistantSigned ? '已签字' : '未签字'}}</b></view>
+      <view class="fs20 dim">主维保/配合人员在各自手机签字，未签字请在工单详情完成</view>
+    </view>
+
+    <button class="btn btn-primary" disabled="{{submitting || !durationOk || checkBlocked}}" bindtap="onSubmit">
+      {{checkBlocked ? '检查项未全部完成，无法签退' : !durationOk ? '作业时长不足 ' + minMinutes + ' 分钟' : submitting ? '提交中...' : '提交签退'}}
+    </button>
+    <view class="hint">提交后生成维保记录（含 2.6 上报快照），并上报监管平台</view>
+  </view>
+</view>

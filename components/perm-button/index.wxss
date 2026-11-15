@@ -1,0 +1,2 @@
+.pb-wrap{display:flex;flex-direction:column;gap:8rpx}
+.pb-wrap .btn{width:100%}

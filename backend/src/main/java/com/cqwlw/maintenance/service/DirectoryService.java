@@ -213,6 +213,175 @@ public class DirectoryService {
         return view;
     }
 
+    /** M1 急修七态：抢单（本区域校验）OPEN→ASSIGNED */
+    public Map<String, Object> grabFault(String id, String empId) {
+        Fault f = faultOr404(id);
+        if (!"OPEN".equals(f.status)) {
+            throw new BizException(422, "仅待接单的急修单可抢单");
+        }
+        Employee me = employeeMapper.selectById(empId);
+        if (me == null) {
+            throw new BizException(401, "登录已过期，请重新登录");
+        }
+        Elevator el = elevatorMapper.selectOne(new LambdaQueryWrapper<Elevator>()
+                .eq(Elevator::getElevatorCode, f.elevatorCode).last("LIMIT 1"));
+        if (me.regionId != null && el != null && el.regionId != null && !me.regionId.equals(el.regionId)) {
+            throw new BizException(1403, "超出本区域范围，请联系主管派单");
+        }
+        f.dispatchWorkerId = empId;
+        f.dispatchedAt = TimeUtil.now();
+        f.status = "ASSIGNED";
+        faultMapper.updateById(f);
+        return faultView(f);
+    }
+
+    /** M1：到场打卡（GPS 必填）ASSIGNED→PROCESSING；显式打卡优先于签到推导 */
+    public Map<String, Object> arriveFault(String id, String empId, Double lat, Double lng) {
+        Fault f = faultOr404(id);
+        if (!"ASSIGNED".equals(f.status)) {
+            throw new BizException(422, "仅已接单的急修单可到场打卡");
+        }
+        if (!empId.equals(f.dispatchWorkerId)) {
+            throw new BizException(1403, "仅被指派维保人员可打卡");
+        }
+        if (lat == null || lng == null) {
+            throw new BizException(422, "定位坐标必填");
+        }
+        f.arrivedAt = TimeUtil.now();
+        f.status = "PROCESSING";
+        faultMapper.updateById(f);
+        return faultView(f);
+    }
+
+    /** M1：提交急修单（故障原因/处理措施必填）PROCESSING→PENDING_CONFIRM */
+    public Map<String, Object> submitFault(String id, String empId, Map<String, Object> body) {
+        Fault f = faultOr404(id);
+        if (!"PROCESSING".equals(f.status)) {
+            throw new BizException(422, "仅处置中的急修单可提交");
+        }
+        if (!empId.equals(f.dispatchWorkerId)) {
+            throw new BizException(1403, "仅被指派维保人员可提交");
+        }
+        String reason = trimmed(body.get("faultReason"));
+        String handle = trimmed(body.get("handleDesc"));
+        if (reason.isEmpty() || handle.isEmpty()) {
+            throw new BizException(422, "故障原因与处理措施必填");
+        }
+        f.faultReason = reason;
+        f.handleDesc = handle;
+        f.finishedAt = TimeUtil.now();
+        f.status = "PENDING_CONFIRM";
+        faultMapper.updateById(f);
+        return faultView(f);
+    }
+
+    /** M1：使用单位确认（CLIENT_SIGNER，管理员须兼任）PENDING_CONFIRM→CLOSED/REFUSED */
+    public Map<String, Object> confirmFault(String id, java.util.Set<String> roles, String unitId,
+                                            boolean pass, String reason) {
+        Fault f = faultOr404(id);
+        if (!"PENDING_CONFIRM".equals(f.status)) {
+            throw new BizException(422, "仅待使用单位确认的急修单可确认");
+        }
+        if (!roles.contains("CLIENT_SIGNER")) {
+            throw new BizException(1403, "需使用单位签字人角色");
+        }
+        checkUnit(f, unitId);
+        if (pass) {
+            f.status = "CLOSED";
+            f.confirmedAt = TimeUtil.now();
+        } else {
+            if (reason.trim().isEmpty()) {
+                throw new BizException(422, "拒绝原因必填");
+            }
+            f.status = "REFUSED";
+            f.refuseReason = reason;
+        }
+        faultMapper.updateById(f);
+        return faultView(f);
+    }
+
+    /** M1：取消（接单前单位管理员/接单后主管；原因必填） */
+    public Map<String, Object> cancelFault(String id, java.util.Set<String> roles, String reason) {
+        Fault f = faultOr404(id);
+        if (reason.trim().isEmpty()) {
+            throw new BizException(422, "取消原因必填");
+        }
+        if ("CLOSED".equals(f.status) || "CANCELLED".equals(f.status)) {
+            throw new BizException(422, "已闭环/已取消的急修单不可取消");
+        }
+        boolean beforeAccept = "OPEN".equals(f.status);
+        if (beforeAccept ? !roles.contains("CLIENT_ADMIN") : !roles.contains("MAINT_SUP")) {
+            throw new BizException(1403, beforeAccept ? "接单前仅使用单位管理员可取消" : "接单后仅维保主管可取消");
+        }
+        f.status = "CANCELLED";
+        f.cancelReason = reason;
+        faultMapper.updateById(f);
+        return faultView(f);
+    }
+
+    /** M1：服务评价（仅已闭环、1-5 星、一次性） */
+    public Map<String, Object> evaluate(String id, java.util.Set<String> roles, String unitId,
+                                        Map<String, Object> body) {
+        Fault f = faultOr404(id);
+        if (!"CLOSED".equals(f.status)) {
+            throw new BizException(422, "仅已闭环的急修单可评价");
+        }
+        if (roles.stream().noneMatch(r -> r.startsWith("CLIENT"))) {
+            throw new BizException(1403, "仅使用单位可评价");
+        }
+        checkUnit(f, unitId);
+        if (f.evaluatedAt != null) {
+            throw new BizException(422, "该急修单已评价");
+        }
+        int score = body.get("score") instanceof Number n ? n.intValue() : 0;
+        if (score < 1 || score > 5) {
+            throw new BizException(422, "评分须为 1-5 星");
+        }
+        f.evaluateScore = score;
+        f.evaluateText = trimmed(body.get("text"));
+        f.evaluatedAt = TimeUtil.now();
+        faultMapper.updateById(f);
+        return faultView(f);
+    }
+
+    /** M1 SLA 升级（系统自动）：超时未闭环标记 escalatedAt 留痕；真实推送依赖 C-01 订阅消息 */
+    @org.springframework.scheduling.annotation.Scheduled(fixedDelay = 780000)
+    public void scanEscalation() {
+        for (Fault f : faultMapper.selectList(new LambdaQueryWrapper<Fault>()
+                .isNotNull(Fault::getDeadline).isNull(Fault::getEscalatedAt)
+                .notIn(Fault::getStatus, List.of("CLOSED", "CANCELLED")))) {
+            if (f.deadline.isBefore(TimeUtil.now())) {
+                f.escalatedAt = TimeUtil.now();
+                faultMapper.updateById(f);
+                org.slf4j.LoggerFactory.getLogger(DirectoryService.class)
+                        .warn("急修单 SLA 超时升级: id={}", f.id);
+            }
+        }
+    }
+
+    private void checkUnit(Fault f, String unitId) {
+        if (unitId == null) {
+            return;
+        }
+        Elevator el = elevatorMapper.selectOne(new LambdaQueryWrapper<Elevator>()
+                .eq(Elevator::getElevatorCode, f.elevatorCode).last("LIMIT 1"));
+        if (el == null || !unitId.equals(el.useUnitId)) {
+            throw new BizException(1403, "仅本单位急修单可操作");
+        }
+    }
+
+    private Fault faultOr404(String id) {
+        Fault f = faultMapper.selectById(id);
+        if (f == null) {
+            throw new BizException(1404, "急修单不存在");
+        }
+        return f;
+    }
+
+    private static String trimmed(Object o) {
+        return o == null ? "" : String.valueOf(o).trim();
+    }
+
     /** 急修单编号：BWJX + yyyyMMddHHmm + 当日 3 位顺序 = 19 位 */
     private String nextFaultNo() {
         String prefix = "BWJX" + TimeUtil.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmm"));

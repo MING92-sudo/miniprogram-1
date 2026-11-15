@@ -1,0 +1,5 @@
+page{background:var(--ink);color:var(--text)}
+.ev-star{font-size:56rpx;color:#3A4A51}
+.ev-star.on{color:var(--amber)}
+.ev-textarea{background:#0D1519;border:1rpx solid #3A4A51;border-radius:6rpx;padding:18rpx;font-size:24rpx;color:var(--text);min-height:160rpx;width:100%}
+.ev-ph{color:var(--dim)}

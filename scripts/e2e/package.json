@@ -1,0 +1,6 @@
+{
+  "name": "miniapp-e2e",
+  "private": true,
+  "description": "博威无纸化小程序模拟器走查（隔离依赖，miniprogram-automator）",
+  "dependencies": { "miniprogram-automator": "^0.12.1" }
+}

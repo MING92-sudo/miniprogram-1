@@ -1,0 +1,23 @@
+page{background:var(--ink);color:var(--text)}
+.tk-item{display:flex;align-items:center;gap:16rpx;border:1rpx solid #243138;border-radius:6rpx;background:rgba(255,255,255,.02);padding:16rpx 18rpx}
+.tk-glyph{width:40rpx;height:40rpx;border-radius:50%;border:1rpx solid #3A4A51;display:flex;align-items:center;justify-content:center;font-size:22rpx;flex:none;color:#71838B}
+.tk-glyph.is-ok{background:rgba(47,196,141,.15);border-color:rgba(47,196,141,.5);color:var(--ok)}
+.tk-glyph.is-ng{background:rgba(255,75,43,.15);border-color:rgba(255,75,43,.5);color:var(--signal-soft)}
+.tk-glyph.is-na{color:var(--muted)}
+.tk-glyph.is-skip{color:var(--dim)}
+.tk-right{align-items:flex-end;gap:6rpx;flex:none}
+.tk-res{font-size:18rpx;padding:4rpx 10rpx;border-radius:4rpx}
+.tk-res.res-ok{color:var(--ok-soft);background:rgba(47,196,141,.1)}
+.tk-res.res-ng{color:var(--signal-soft);background:rgba(255,75,43,.1)}
+.tk-res.res-na{color:var(--muted);background:rgba(255,255,255,.04)}
+.tk-res.res-pending{color:var(--dim)}
+.tk-result{flex:1;text-align:center;border:1rpx solid #34454D;border-radius:8rpx;padding:20rpx;font-size:24rpx;color:#DCE6E9}
+.tk-result.on-ok{background:rgba(47,196,141,.15);border-color:var(--ok);color:var(--ok-soft);font-weight:700}
+.tk-result.on-ng{background:rgba(255,75,43,.15);border-color:var(--signal);color:var(--signal-soft);font-weight:700}
+.tk-result.on-na{background:rgba(255,255,255,.06);border-color:var(--muted);color:var(--text);font-weight:700}
+.tk-input{background:#0D1519;border:1rpx solid #3A4A51;border-radius:6rpx;padding:18rpx 20rpx;font-size:24rpx;color:var(--text)}
+.tk-ph{color:var(--dim)}
+.tk-textarea{background:#0D1519;border:1rpx solid #3A4A51;border-radius:6rpx;padding:18rpx;font-size:24rpx;color:var(--text);min-height:120rpx;width:100%}
+.tk-photo-wrap{position:relative}
+.tk-photo-del{position:absolute;top:-12rpx;right:-12rpx;width:36rpx;height:36rpx;border-radius:50%;background:var(--signal);color:var(--ink);display:flex;align-items:center;justify-content:center;font-size:20rpx}
+.tk-photo-add{display:flex;align-items:center;justify-content:center;border:1rpx dashed #40535C;background:rgba(255,255,255,.02);color:var(--amber);font-size:32rpx}

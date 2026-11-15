@@ -1,0 +1,58 @@
+<view class="bw">
+  <nav-bar title="维保记录单" bind:back="onBack"></nav-bar>
+  <view class="page-pad col gap10">
+    <skeleton wx:if="{{loading}}" rows="{{[{h:100},{h:160},{h:120}]}}"></skeleton>
+    <error-retry wx:elif="{{error}}" message="{{error}}" bind:retry="onRetry" bind:back="onBack"></error-retry>
+    <block wx:else>
+      <view wx:if="{{lifecycleText}}" class="card row between">
+        <text class="fs20 muted">记录生命周期</text>
+        <status-tag text="{{lifecycleText}}" tone="{{lifecycleTone}}"></status-tag>
+      </view>
+
+      <view class="paper">
+        <view class="row between">
+          <view>
+            <view class="paper-kicker">电梯维护保养记录</view>
+            <view class="paper-title">{{context.elevatorName || record.elevatorName}}</view>
+          </view>
+          <view class="paper-no mono">{{record.recordNo || record.id}}</view>
+        </view>
+        <view class="paper-hr"></view>
+        <view class="rd-meta">
+          <view>使用单位<b>{{context.useUnitName || '—'}}</b></view>
+          <view>维保日期<b>{{context.workDate || '—'}}</b></view>
+          <view>维保人<b>{{context.workerName || '—'}}</b></view>
+          <view>隐患码<b>{{problemText}}</b></view>
+        </view>
+      </view>
+
+      <view class="card">
+        <view class="panel-title">检查项（执行 {{items.length}} / 共 {{itemTotal}}）</view>
+        <view wx:for="{{items}}" wx:key="id" class="rd-item">
+          <view class="row between">
+            <text class="fs22 grow">{{item.name}}</text>
+            <text class="rd-res {{item.result === 'ABNORMAL' ? 'sig' : (item.result === 'NORMAL' ? 'ok' : 'dim')}}">{{item.resultText}}</text>
+          </view>
+          <view wx:if="{{item.remark}}" class="fs20 dim mt2">{{item.remark}}</view>
+        </view>
+      </view>
+
+      <view wx:if="{{photoList.length}}" class="card">
+        <view class="panel-title">现场照片（{{photoList.length}}）</view>
+        <view class="photo-row mt6">
+          <image wx:for="{{photoList}}" wx:key="url" class="thumb {{item.abnormal ? 'rd-photo-ng' : ''}}" src="{{item.url}}" mode="aspectFill" data-url="{{item.url}}" bindtap="previewPhoto"></image>
+        </view>
+      </view>
+
+      <view wx:if="{{archive}}" class="card col gap6">
+        <view class="panel-title">归档</view>
+        <view class="kv"><span>归档时间</span><b>{{archive.archivedAt}}</b></view>
+        <view class="kv"><span>SHA-256</span><b class="mono rd-hash">{{archive.hash}}</b></view>
+      </view>
+
+      <perm-button perm="record:sign_request" capability="发起使用单位签字" allowRoles="主检、维保主管" type="primary" text="发起使用单位签字" bind:tap="onSignRequest"></perm-button>
+      <perm-button perm="record:export" capability="查看归档" allowRoles="维保主管、维保经理、平台" type="ghost" text="查看归档 / 哈希" bind:tap="onArchive"></perm-button>
+      <button wx:if="{{record.shareToken}}" class="btn btn-ghost" bindtap="copySignLink">复制签署链接</button>
+    </block>
+  </view>
+</view>

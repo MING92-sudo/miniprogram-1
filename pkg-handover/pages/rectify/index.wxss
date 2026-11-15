@@ -1,0 +1,4 @@
+page{background:var(--ink);color:var(--text)}
+.hr-textarea{background:#0D1519;border:1rpx solid #3A4A51;border-radius:6rpx;padding:14rpx;font-size:22rpx;color:var(--text);min-height:90rpx;width:100%}
+.hr-ph{color:var(--dim)}
+.hr-photo-add{display:flex;align-items:center;justify-content:center;border:1rpx dashed #40535C;background:rgba(255,255,255,.02);color:var(--amber);font-size:28rpx}

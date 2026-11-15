@@ -1,0 +1,4 @@
+page{background:var(--ink);color:var(--text)}
+.rs-row{display:flex;align-items:center;gap:16rpx;padding:14rpx 0;border-bottom:1rpx dashed rgba(38,52,59,.7)}
+.rs-row:last-of-type{border-bottom:none}
+.rs-sig{width:120rpx;height:60rpx;background:var(--paper);border-radius:4rpx;flex:none}

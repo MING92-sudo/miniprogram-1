@@ -93,12 +93,17 @@ function noSession() {
   return Promise.reject({ code: 401, message: UNIT_PORTAL_TEXT.NOT_LOGGED_IN })
 }
 
+// M1：统一令牌优先（单账号多角色）；旧门户令牌仅未迁移账号兜底（裁决 R4）
 function portalGet(url, data) {
+  const auth = require('../utils/auth')
+  if (auth.isLoggedIn()) return get(url, data)
   if (!isUnitLoggedIn()) return noSession()
   return get(url, data, portalOptions())
 }
 
 function portalPost(url, data) {
+  const auth = require('../utils/auth')
+  if (auth.isLoggedIn()) return post(url, data)
   if (!isUnitLoggedIn()) return noSession()
   return post(url, data, portalOptions())
 }
@@ -116,6 +121,11 @@ function bindUnitWechat(data) {
 // 自助改口令（门户令牌）：旧口令校验由后端负责，422 = 原口令不正确
 function changeUnitPassword(data) {
   return portalPost('/unit/account/password', data)
+}
+
+// M1：使用单位拒签（凭分享 token，原因必填；docs/04 V2.53）
+function refuseRecordByToken(id, token, reason) {
+  return post(`/unit/records/${id}/refuse-by-token?token=${encodeURIComponent(token)}`, { reason }, { needAuth: false })
 }
 
 // 本单位电梯
@@ -170,6 +180,7 @@ module.exports = {
   unitLoginByWechat,
   bindUnitWechat,
   changeUnitPassword,
+  refuseRecordByToken,
   getUnitElevators,
   getUnitRecords,
   getUnitPendingSigns,

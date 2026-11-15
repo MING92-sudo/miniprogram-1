@@ -1,0 +1,8 @@
+<view class="task" bindtap="onTap" aria-role="button" aria-label="{{title}}">
+  <view class="task-time mono">{{time}}</view>
+  <view class="grow">
+    <view class="fs22 w6">{{title}}</view>
+    <view class="fs20 dim mt2">{{desc}}</view>
+  </view>
+  <text wx:if="{{tagText}}" class="tag tag-{{tagTone}}">{{tagText}}</text>
+</view>

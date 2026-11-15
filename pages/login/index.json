@@ -1,4 +1,5 @@
 {
-  "navigationBarTitleText": "登录",
-  "usingComponents": {}
+  "usingComponents": {
+    "nav-bar": "/components/nav-bar/index"
+  }
 }
