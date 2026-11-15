@@ -1,5 +1,7 @@
 package com.cqwlw.maintenance.controller;
 
+import com.cqwlw.maintenance.auth.MultiRoleGate;
+import com.cqwlw.maintenance.auth.PermissionMatrix;
 import com.cqwlw.maintenance.common.ApiResponse;
 import com.cqwlw.maintenance.entity.HandoverOrder;
 import com.cqwlw.maintenance.entity.HandoverSign;
@@ -36,11 +38,13 @@ public class HandoverController {
         return ApiResponse.ok(handoverService.init(body));
     }
 
-    /** 管理端列表（Task 14）：status 过滤 + 分页 */
+    /** 管理端列表（Task 14）：status 过滤 + 分页；部门互斥读门禁（2026-11-15 对齐权限面） */
     @GetMapping("/handovers")
     public ApiResponse<Map<String, Object>> list(@RequestParam(required = false) String status,
                                                  @RequestParam(required = false) String page,
-                                                 @RequestParam(required = false) String size) {
+                                                 @RequestParam(required = false) String size,
+                                                 HttpServletRequest req) {
+        MultiRoleGate.requireRead(req, PermissionMatrix.HANDOVER_VIEW);
         Map<String, String> query = new java.util.HashMap<>();
         query.put("status", status == null ? "" : status);
         query.put("page", page == null ? "" : page);
@@ -50,7 +54,8 @@ public class HandoverController {
 
     /** 移交单详情 */
     @GetMapping("/handovers/{id}")
-    public ApiResponse<Map<String, Object>> get(@PathVariable String id) {
+    public ApiResponse<Map<String, Object>> get(@PathVariable String id, HttpServletRequest req) {
+        MultiRoleGate.requireRead(req, PermissionMatrix.HANDOVER_VIEW);
         return ApiResponse.ok(handoverService.detail(id));
     }
 

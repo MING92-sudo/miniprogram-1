@@ -25,7 +25,10 @@ definePage(ROUTES['/pkg-maintenance/pages/record-sign/index'], {
       const isAssistant = !!order.assistantName && (me.name === order.assistantName || (!!order.assistantPlatformId && me.platformId === order.assistantPlatformId))
       this.setData({
         order, loading: false, isDual, isPrincipal, isAssistant,
-        workerSigned: !!order.workerSignatureUrl, assistantSigned: !!order.assistantSignatureUrl,
+        // 后端工单视图返回布尔 workerSigned/assistantSigned（WorkOrderService.toMap）；
+        // URL 仅存在于签退后 recordInfo，旧读法致真实环境签字后恒显未签（2026-11-15 修复）
+        workerSigned: !!(order.workerSigned || order.workerSignatureUrl),
+        assistantSigned: !!(order.assistantSigned || order.assistantSignatureUrl),
         myRoleText: isPrincipal ? '主检人' : isAssistant ? '配合人' : '当前账号不在本工单签字名单'
       })
     }).catch((e) => this.setData({ loading: false, error: (e && e.message) || '加载失败' }))

@@ -332,7 +332,7 @@ public final class PermissionMatrix {
                 IW = "INSTALLER", MM = "MAINT_MGR", MS = "MAINT_SUP", MT = "MAINT_TECH",
                 MB = "MAINT_BIZ", MQ = "MAINT_QUALITY", CA = "CLIENT_ADMIN", CS = "CLIENT_SIGNER";
         // §4.1 安装移交（16）
-        y(HANDOVER_VIEW, IM, MS, MM, PA, SA); c(HANDOVER_VIEW, IC, IP, CA, IW);
+        y(HANDOVER_VIEW, IM, MS, MM, PA, SA); c(HANDOVER_VIEW, IC, IP, CA, IW, MT);
         y(HANDOVER_CREATE, IP);
         y(HANDOVER_EDIT, IP); c(HANDOVER_EDIT, IC);
         y(HANDOVER_DOC_UPLOAD, IC, IP);

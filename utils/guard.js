@@ -54,7 +54,8 @@ function ensureAuth(meta) {
         allowRoles: (meta.roles || []).map((r) => ROLE_TEXT[r] || r).join('、') || '请联系管理员'
       }
     }
-    wx.reLaunch({ url: '/pages/403/index' })
+    // 延迟到首屏路由完成后再 reLaunch，规避真机「routeDone with a webviewId not found」竞态白屏（同 redirectToLogin）
+    setTimeout(() => { wx.reLaunch({ url: '/pages/403/index' }) }, 300)
     return false
   }
   return true

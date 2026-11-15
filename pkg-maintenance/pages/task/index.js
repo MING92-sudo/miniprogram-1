@@ -53,7 +53,7 @@ function groupByFreq(items) {
 
 definePage(ROUTES['/pkg-maintenance/pages/task/index'], {
   data: {
-    orderId: '', view: 'list', order: null,
+    orderId: '', order: null, collapsed: {}, expandedId: '', nextItemName: '',
     workTypeCode: '', workType: '', elevatorName: '', projectName: '',
     sections: [], photos: [], doneCount: 0, requiredTotal: 0, normalCount: 0, abnormalCount: 0, naCount: 0, pendingCount: 0, progress: 0,
     loading: true, error: '',
@@ -67,8 +67,8 @@ definePage(ROUTES['/pkg-maintenance/pages/task/index'], {
     this.fetchOrder()
     this.fetchChecklist()
   },
-  onShow() { if (this.data.orderId && this.data.view === 'list') this.fetchChecklist() },
-  onBack() { if (this.data.view === 'edit') this.backToList(); else nav.back() },
+  onShow() { if (this.data.orderId) this.fetchChecklist() },
+  onBack() { nav.back() },
   fetchOrder() {
     getOrderDetail(this.data.orderId).then((order) => this.setData({ order })).catch(() => {})
   },
@@ -80,10 +80,12 @@ definePage(ROUTES['/pkg-maintenance/pages/task/index'], {
       items.forEach((i) => (i.photos || []).forEach((p) => photos.push({ src: p, itemName: i.name })))
       const requiredTotal = items.filter((i) => !i.notInThisRun).length
       const doneCount = items.filter((i) => !i.notInThisRun && i.result).length
+      const nextItem = items.find((i) => !i.notInThisRun && !i.result)
       this.setData({
         workTypeCode: checklist.workTypeCode || '', workType: checklist.workType || '',
         elevatorName: checklist.elevatorName || '', projectName: checklist.projectName || '',
         sections: groupByFreq(items), photos, doneCount, requiredTotal,
+        nextItemName: nextItem ? nextItem.name : '',
         normalCount: items.filter((i) => i.result === 'NORMAL').length,
         abnormalCount: items.filter((i) => i.result === 'ABNORMAL').length,
         naCount: items.filter((i) => i.result === 'NA').length,
@@ -95,6 +97,7 @@ definePage(ROUTES['/pkg-maintenance/pages/task/index'], {
   onRetry() { this.fetchChecklist() },
   goItemForm(e) {
     const itemId = e.currentTarget.dataset.id
+    if (this.data.expandedId === itemId) { this.setData({ expandedId: '', item: null }); return }
     let item = null
     this.data.sections.forEach((s) => s.items.forEach((i) => { if (i.id === itemId) item = i }))
     if (!item) return
@@ -102,13 +105,41 @@ definePage(ROUTES['/pkg-maintenance/pages/task/index'], {
     const urls = item.photos || []
     const editPhotos = urls.map((u, i) => ({ url: u, fileId: fileIds[i] || '' }))
     this.setData({
-      view: 'edit', itemId, item,
+      expandedId: itemId, item,
       result: item.result || '', value: item.value != null ? String(item.value) : '', valueText: item.valueText || '',
       abnormalDesc: item.abnormalDesc || '', problemCode: item.problemCode || '',
       problemDesc: item.problemCode ? PROBLEM_CODES[item.problemCode] : '', skipReason: item.skipReason || '', editPhotos
     })
   },
-  backToList() { this.setData({ view: 'edit' === this.data.view ? 'list' : 'list', item: null }); this.fetchChecklist() },
+  backToList() { this.setData({ expandedId: '', item: null }); this.fetchChecklist() },
+  onToggleGroup(e) {
+    const label = e.currentTarget.dataset.label
+    this.setData({ ['collapsed.' + label]: !this.data.collapsed[label] })
+  },
+  onNextItem() {
+    let target = null
+    this.data.sections.forEach((s) => s.items.forEach((i) => { if (!target && !i.notInThisRun && !i.result) target = i }))
+    if (!target) return wx.showToast({ title: '全部检查项已完成', icon: 'none' })
+    this.goItemForm({ currentTarget: { dataset: { id: target.id } } })
+    wx.pageScrollTo({ selector: '#item-' + target.id, offsetTop: -120, duration: 200 })
+  },
+  onSaveDraft() {
+    if (!this.data.expandedId || !this.data.item) return wx.showToast({ title: '请先展开检查项', icon: 'none' })
+    const { orderId, itemId } = this.data
+    const payload = this.buildPayload(this.data.editPhotos.filter((p) => p.fileId).map((p) => p.fileId))
+    const cached = offline.getCachedOrder(orderId)
+    const snapshot = (cached && cached.snapshot) || { id: orderId, orderNo: orderId, checklist: [] }
+    snapshot.checklist = snapshot.checklist || []
+    const patch = Object.assign({}, this.data.item, {
+      result: payload.result, value: payload.value, valueText: payload.valueText,
+      abnormalDesc: payload.abnormalDesc, problemCode: payload.problemCode, skipReason: payload.skipReason, photos: payload.photoUrls
+    })
+    const idx = snapshot.checklist.findIndex((i) => i.id === itemId)
+    if (idx > -1) snapshot.checklist[idx] = Object.assign({}, snapshot.checklist[idx], patch)
+    else snapshot.checklist.push(patch)
+    offline.cacheOrderSnapshot(snapshot)
+    wx.showToast({ title: '草稿已保存', icon: 'success' })
+  },
   onResultChange(e) { this.setData({ result: e.currentTarget.dataset.value }) },
   onValueInput(e) { this.setData({ value: e.detail.value }) },
   onValueTextInput(e) { this.setData({ valueText: e.detail.value }) },
@@ -133,7 +164,7 @@ definePage(ROUTES['/pkg-maintenance/pages/task/index'], {
   },
   onPhotoReady(photo) {
     if (!photo) return
-    if (this.data.view === 'edit') this.setData({ editPhotos: this.data.editPhotos.concat({ url: photo, fileId: '' }) })
+    if (this.data.expandedId) this.setData({ editPhotos: this.data.editPhotos.concat({ url: photo, fileId: '' }) })
   },
   removePhoto(e) {
     const idx = Number(e.currentTarget.dataset.index)

@@ -24,6 +24,12 @@ function clientUnitAnchor() {
   const u = d.db.employees[currentRole]
   return (u && u.useUnitId) || null
 }
+// 部门互斥读门禁（与后端 MultiRoleGate.requireRead 同口径，2026-11-15 对齐）
+function requireRead(code) {
+  if (!currentRoles.some((r) => permMirror.state(r, code) !== 'DENY')) {
+    throw { code: 1403, message: '无权访问该资源' }
+  }
+}
 // 移交/外接建档 mock 状态（模块级，进程重启即清空）
 const mockHandovers = []
 const mockFilings = []
@@ -596,14 +602,20 @@ const routes = [
   // ── 文件（真实上传走 wx.uploadFile，此路由兜底）──
   ['POST', '/files/upload', () => ({ fileId: 'mock_file_' + Date.now(), url: '' })],
   // ── 移交单 / 外接建档 / 使用单位门户 / 维保日历（Task 12/13/14 最小 mock）──
-  ['GET', '/handovers', ({ query }) => paginate(mockHandovers.filter((h) => !query.status || h.status === query.status), query)],
+  ['GET', '/handovers', ({ query }) => {
+    requireRead('handover:view')
+    return paginate(mockHandovers.filter((h) => !query.status || h.status === query.status), query)
+  }],
   ['POST', '/handovers', ({ body }) => {
     const o = Object.assign({ id: 'ho_' + Date.now(), handoverNo: 'HO' + Date.now(), status: 'DOC_SUBMITTING',
       createdAt: formatTime(new Date()), checks: [], rectifications: [], signs: [] }, body)
     mockHandovers.unshift(o)
     return o
   }],
-  ['GET', '/handovers/:id', ({ params }) => findOr404(mockHandovers, params.id, '移交单')],
+  ['GET', '/handovers/:id', ({ params }) => {
+    requireRead('handover:view')
+    return findOr404(mockHandovers, params.id, '移交单')
+  }],
   ['POST', '/handovers/:id/submit-docs', ({ params, body }) => {
     const o = findOr404(mockHandovers, params.id, '移交单')
     Object.assign(o, body, { status: 'PENDING_INST_REVIEW' })

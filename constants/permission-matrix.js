@@ -32,7 +32,7 @@ function g(code, st, roles) {
 const y = (code, ...roles) => g(code, 'Y', roles)
 const c = (code, ...roles) => g(code, 'C', roles)
 // §4.1 安装移交（16）
-y('handover:view', IM, MS, MM, PA, SA); c('handover:view', IC, IP, CA, IW)
+y('handover:view', IM, MS, MM, PA, SA); c('handover:view', IC, IP, CA, IW, MT)
 y('handover:create', IP)
 y('handover:edit', IP); c('handover:edit', IC)
 y('handover:doc_upload', IC, IP)

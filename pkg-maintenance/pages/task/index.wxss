@@ -21,3 +21,14 @@ page{background:var(--ink);color:var(--text)}
 .tk-photo-wrap{position:relative}
 .tk-photo-del{position:absolute;top:-12rpx;right:-12rpx;width:36rpx;height:36rpx;border-radius:50%;background:var(--signal);color:var(--ink);display:flex;align-items:center;justify-content:center;font-size:20rpx}
 .tk-photo-add{display:flex;align-items:center;justify-content:center;border:1rpx dashed #40535C;background:rgba(255,255,255,.02);color:var(--amber);font-size:32rpx}
+/* 原型屏 04：分组头 / 逐项卡 / 行内留证 / 底栏 */
+.tk-page{padding-bottom:140rpx}
+.group-head{display:flex;align-items:center;justify-content:space-between;gap:12rpx;background:rgba(255,255,255,.03);border:1rpx solid #243138;border-radius:8rpx;padding:18rpx 20rpx;font-size:22rpx;font-weight:600;color:var(--text);width:100%}
+.group-head::after{border:none}
+.ck{border:1rpx solid #243138;border-radius:8rpx;background:rgba(255,255,255,.02);padding:16rpx 18rpx;display:flex;flex-direction:column;gap:12rpx}
+.ck.ck-open{border-color:rgba(255,176,32,.45);background:rgba(255,176,32,.04)}
+.ck-row{display:flex;align-items:center;gap:16rpx}
+.ck-skip{border-top:1rpx dashed #243138;padding-top:10rpx}
+.ck-edit{border-top:1rpx solid #243138;padding-top:14rpx}
+.sync-row{display:flex;align-items:center;gap:10rpx;font-size:20rpx;color:var(--dim);padding:6rpx 4rpx}
+.tk-footer{position:fixed;left:0;right:0;bottom:0;padding:16rpx 24rpx calc(16rpx + env(safe-area-inset-bottom));background:rgba(10,15,18,.96);border-top:1rpx solid #243138;backdrop-filter:blur(8rpx)}
