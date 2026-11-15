@@ -11,18 +11,18 @@ let currentRole = 'WORKER'
 let currentRoles = ['MAINT_TECH']
 // 演示口径按钮码投影（19 码，与后端 BUTTON_CODES 同集；真实环境由 PermissionMatrix 计算，mock 仅演示）
 const MOCK_PERMS = {
-  MAINT_TECH: ['order:grab', 'order:arrive', 'order:submit', 'record:sign_tech', 'record:sign_request', 'checklist:fill', 'task:accept', 'handover:inspect'],
-  MAINT_SUP: ['order:grab', 'order:arrive', 'order:submit', 'order:cancel', 'record:sign_tech', 'record:sign_request', 'record:review', 'record:export', 'checklist:fill', 'task:accept', 'handover:inspect'],
-  MAINT_MGR: ['order:cancel', 'record:review', 'record:export', 'project:edit', 'elevator:export'],
-  MAINT_QUALITY: ['record:review', 'record:export'],
-  MAINT_BIZ: ['project:edit'],
-  INSTALLER: ['handover:inspect'],
-  INST_CLERK: ['handover:rectify'],
-  INST_PM: ['handover:create', 'handover:rectify'],
-  INST_MGR: ['handover:review'],
-  CLIENT_ADMIN: ['client:evaluate', 'order:cancel', 'elevator:export'],
-  CLIENT_SIGNER: ['client:sign', 'order:confirm', 'client:evaluate'],
-  PLATFORM_ADMIN: ['project:edit', 'elevator:export']
+  MAINT_TECH: ['elevator:view', 'order:view_pool', 'order:view_own', 'order:grab', 'order:arrive', 'order:submit', 'order:create', 'order:create_proxy', 'record:view', 'record:sign_tech', 'record:sign_request', 'checklist:fill', 'task:accept', 'handover:inspect', 'handover:view', 'plan:view'],
+  MAINT_SUP: ['elevator:view', 'order:view_pool', 'order:view_own', 'order:grab', 'order:arrive', 'order:submit', 'order:cancel', 'order:create_proxy', 'record:view', 'record:sign_tech', 'record:sign_request', 'record:review', 'record:export', 'checklist:fill', 'task:accept', 'handover:inspect', 'handover:view', 'handover:review', 'handover:sign_maint', 'handover:rectify', 'plan:view', 'project:view', 'contract:view', 'user:view', 'stats:view'],
+  MAINT_MGR: ['elevator:view', 'elevator:export', 'order:view_pool', 'order:cancel', 'order:create_proxy', 'record:view', 'record:review', 'record:export', 'project:view', 'project:edit', 'contract:view', 'user:view', 'stats:view', 'plan:view', 'handover:view', 'handover:sign_maint'],
+  MAINT_QUALITY: ['elevator:view', 'record:view', 'record:review', 'record:export', 'stats:view', 'plan:view'],
+  MAINT_BIZ: ['elevator:view', 'record:view', 'project:view', 'project:edit', 'contract:view'],
+  INSTALLER: ['elevator:view', 'handover:view', 'handover:inspect'],
+  INST_CLERK: ['elevator:view', 'handover:view', 'handover:doc_upload', 'handover:rectify', 'project:view'],
+  INST_PM: ['elevator:view', 'handover:view', 'handover:create', 'handover:doc_upload', 'handover:rectify', 'handover:submit', 'project:view'],
+  INST_MGR: ['elevator:view', 'handover:view', 'handover:review', 'handover:sign_install', 'stats:view', 'user:view', 'project:view'],
+  CLIENT_ADMIN: ['elevator:view', 'order:view_own', 'order:create', 'order:cancel', 'record:view', 'record:sign', 'record:export', 'client:evaluate', 'client:sign', 'contract:view', 'user:view', 'stats:view', 'audit:view', 'project:view', 'handover:view'],
+  CLIENT_SIGNER: ['elevator:view', 'order:view_own', 'order:create', 'order:confirm', 'record:view', 'record:sign', 'client:sign', 'client:evaluate', 'handover:view'],
+  PLATFORM_ADMIN: ['elevator:view', 'elevator:export', 'project:view', 'project:edit', 'contract:view', 'user:view', 'role:assign', 'stats:view', 'audit:view', 'config:manage', 'record:view', 'record:export', 'handover:view']
 }
 function permsOf(roles) {
   const set = {}
