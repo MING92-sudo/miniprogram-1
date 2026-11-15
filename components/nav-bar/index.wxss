@@ -2,6 +2,6 @@
 .nb-inner{display:flex;align-items:center;gap:16rpx;padding-left:24rpx}
 .nb-back{width:48rpx;height:48rpx;display:flex;align-items:center;justify-content:center;color:#DCE7EA;font-size:28rpx;flex:none}
 .nb-brand{display:flex;align-items:center;gap:16rpx}
-.nb-logo{width:48rpx;height:36rpx;flex:none}
+.nb-logo{width:44rpx;height:44rpx;flex:none}
 .nb-name{font-size:30rpx;font-weight:700;letter-spacing:.06em;color:var(--text)}
 .nb-title{font-size:30rpx;font-weight:600;letter-spacing:.02em;color:var(--text);white-space:nowrap}
