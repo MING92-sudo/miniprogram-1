@@ -10,6 +10,12 @@
         <FormField label="姓名" required :error="errors.name"><input v-model="model.name" /></FormField>
         <FormField label="手机号" required :error="errors.phone"><input v-model="model.phone" /></FormField>
         <FormField label="角色（同部门，可多选逗号分隔）" required :error="errors.roles"><input v-model="model.rolesText" placeholder="如：维保技术员,维保主管" /></FormField>
+        <FormField v-if="isUnitRole" label="所属使用单位（先建单位档案再开通账号）" required :error="errors.useUnitId">
+          <select v-model="model.useUnitId">
+            <option value="">请选择使用单位</option>
+            <option v-for="u in units" :key="u.id" :value="u.id">{{ u.unitName }}</option>
+          </select>
+        </FormField>
       </Form>
       <p v-if="initialPwd" class="pwd">初始口令：{{ initialPwd }}（一次性展示）</p>
     </Modal>
@@ -17,7 +23,7 @@
 </template>
 <script setup>
 // M3 账号管理：列表/开通/停用/分配角色；停用吊销 token
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import DataTable from '../ui/DataTable.vue'
 import Modal from '../ui/Modal.vue'
 import Form from '../ui/Form.vue'
@@ -25,18 +31,22 @@ import FormField from '../ui/FormField.vue'
 import PermButton from '../ui/PermButton.vue'
 import { useToast } from '../ui/stores/ui'
 import { roleCodeFromName } from '../ui/labels'
-import { listUsers, createUser } from '../api/ledger'
+import { listUsers, createUser, listUseUnits } from '../api/ledger'
 const toast = useToast()
 const rows = ref([])
+const units = ref([])
 const loading = ref(false)
 const showCreate = ref(false)
 const formRef = ref(null)
 const initialPwd = ref('')
-const model = ref({ name: '', phone: '', rolesText: '' })
+const model = ref({ name: '', phone: '', rolesText: '', useUnitId: '' })
+const parsedRoles = computed(() => model.value.rolesText.split(',').map(s => roleCodeFromName(s)).filter(Boolean))
+const isUnitRole = computed(() => parsedRoles.value.some(r => r === 'CLIENT_ADMIN' || r === 'CLIENT_SIGNER'))
 const rules = {
   name: [(v) => (v ? '' : '姓名必填')],
   phone: [(v) => (/^1[3-9]\d{9}$/.test(v || '') ? '' : '手机号格式错误')],
-  rolesText: [(v) => (v ? '' : '角色必填')]
+  rolesText: [(v) => (v ? '' : '角色必填')],
+  useUnitId: [(v) => (!isUnitRole.value || v ? '' : '使用单位账号须选择所属单位')]
 }
 const cols = [
   { key: 'name', label: '姓名', sortable: true }, { key: 'phone', label: '手机号' },
@@ -46,12 +56,14 @@ async function load() { loading.value = true; try { rows.value = (await listUser
 async function submit() {
   if (!formRef.value.validate()) return
   try {
-    const res = await createUser({ name: model.value.name, phone: model.value.phone, roles: model.value.rolesText.split(',').map(s => roleCodeFromName(s)).filter(Boolean) })
+    const body = { name: model.value.name, phone: model.value.phone, roles: parsedRoles.value }
+    if (isUnitRole.value) body.useUnitId = model.value.useUnitId
+    const res = await createUser(body)
     initialPwd.value = res.initialPassword
     toast.success('账号已开通'); load()
   } catch (e) { toast.error(e.message || '开通失败') }
 }
-onMounted(load)
+onMounted(() => { load(); listUseUnits().then(u => { units.value = u || [] }).catch(() => {}) })
 </script>
 <style scoped>
 .page-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }

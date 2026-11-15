@@ -50,4 +50,16 @@ describe('permission-v2 mirror', () => {
     expect(defaultScope('CLIENT_ADMIN')).toBe('ORG_FLAT')
     expect(defaultScope('HACKER')).toBe(null)
   })
+  it('用户裁决 2026-11-15：SYS_ADMIN 全权限 / 外接建档写归维保 / 安装员条件读移交', () => {
+    canonicalCodes().forEach((code) => {
+      expect(state('SYS_ADMIN', code)).toBe('Y')
+    })
+    expect(state('MAINT_MGR', 'filing:write')).toBe('Y')
+    expect(state('MAINT_SUP', 'filing:write')).toBe('Y')
+    expect(state('MAINT_BIZ', 'filing:write')).toBe('Y')
+    expect(state('INST_PM', 'filing:write')).toBe('DENY')
+    expect(state('INST_CLERK', 'filing:write')).toBe('DENY')
+    expect(state('INST_PM', 'filing:view')).toBe('C')
+    expect(state('INSTALLER', 'handover:view')).toBe('C')
+  })
 })

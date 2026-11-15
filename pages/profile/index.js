@@ -4,7 +4,7 @@ const auth = require('../../services/auth')
 const { definePage } = require('../../utils/guard')
 const { ROUTES } = require('../../config/routes')
 const menus = require('../../config/menus')
-const { getRoles } = require('../../utils/auth')
+const { getRoles, getPerms } = require('../../utils/auth')
 const nav = require('../../utils/nav')
 const { TOAST_TEXT } = require('../../constants/index')
 
@@ -25,7 +25,7 @@ function wxLoginCode() {
 definePage(ROUTES['/pages/profile/index'], {
   data: {
     userInfo: null, roleTexts: [], scope: '', workspaces: [],
-    wechatBound: false, binding: false, versionText: ''
+    wechatBound: false, binding: false, versionText: '', adminEntries: []
   },
   onShow() {
     const app = getApp()
@@ -45,9 +45,20 @@ definePage(ROUTES['/pages/profile/index'], {
       scope: g.scope || '',
       workspaces,
       wechatBound: !!wx.getStorageSync(WECHAT_BOUND_KEY),
-      versionText: this.readVersion()
+      versionText: this.readVersion(),
+      adminEntries: this.buildAdminEntries()
     })
   },
+  // 管理入口按后端下发 perms 渲染（2026-11-15 裁决：渲染面=权限面）
+  buildAdminEntries() {
+    const perms = getPerms() || []
+    const entries = []
+    if (perms.indexOf('project:view') > -1) entries.push({ key: 'projects', text: '项目台账', path: '/pkg-admin/pages/projects/index' })
+    if (perms.indexOf('contract:view') > -1) entries.push({ key: 'contracts', text: '合同台账', path: '/pkg-admin/pages/contracts/index' })
+    if (perms.indexOf('role:assign') > -1) entries.push({ key: 'roles', text: '角色矩阵', path: '/pkg-admin/pages/roles/index' })
+    return entries
+  },
+  goAdminEntry(e) { nav.open(e.currentTarget.dataset.path) },
   readVersion() {
     try {
       const mp = wx.getAccountInfoSync().miniProgram

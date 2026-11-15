@@ -88,12 +88,19 @@ class MiniappMenuServiceTest {
                     "profile|我的|user|/pages/profile/index"}),
             Map.entry("PLATFORM_ADMIN", new String[]{
                     "admin-org|组织|users|/pkg-admin/pages/users/index",
+                    "stats|统计|chart|/pkg-admin/pages/stats/index",
+                    "admin-audit|审计|shield|/pkg-admin/pages/audit/index",
+                    "admin-settings|配置|settings|/pkg-admin/pages/settings/index",
+                    "profile|我的|user|/pages/profile/index"}),
+            Map.entry("SYS_ADMIN", new String[]{
+                    "admin-org|组织|users|/pkg-admin/pages/users/index",
+                    "stats|统计|chart|/pkg-admin/pages/stats/index",
                     "admin-audit|审计|shield|/pkg-admin/pages/audit/index",
                     "admin-settings|配置|settings|/pkg-admin/pages/settings/index",
                     "profile|我的|user|/pages/profile/index"}));
 
     @Test
-    void allNineRoleTabsMatchBlueprintVerbatim() {
+    void allTenRoleTabsMatchBlueprintVerbatim() {
         for (Map.Entry<String, String[]> e : EXPECTED.entrySet()) {
             Map<String, Object> out = svc().menusOf(Set.of(e.getKey()), null, null);
             List<Map<String, Object>> got = tabs(out);
@@ -174,5 +181,26 @@ class MiniappMenuServiceTest {
         Map<String, Object> out = svc().menusOf(Set.of("MAINT_TECH"), "NOT_A_ROLE", null);
         assertEquals("/pages/maint/home/index", out.get("home"));
         assertFalse(keys(out).isEmpty());
+    }
+
+    /** 2026-11-15 裁决：SYS_ADMIN 平台域首页/5tabs；外接建档入口归维保工作台 */
+    @Test
+    void sysAdminPlatformHomeAndTabs() {
+        Map<String, Object> out = svc().menusOf(Set.of("SYS_ADMIN"), null, null);
+        assertEquals("/pkg-admin/pages/users/index", out.get("home"));
+        assertEquals("SYS_ADMIN", out.get("activeWorkspace"));
+        assertEquals(List.of("admin-org", "stats", "admin-audit", "admin-settings", "profile"), keys(out));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void maintQuickActionsIncludeFiling() {
+        Map<String, Object> out = svc().menusOf(Set.of("MAINT_MGR"), null, null);
+        List<Map<String, Object>> qa = (List<Map<String, Object>>) out.get("quickActions");
+        assertTrue(qa.stream().anyMatch(q -> "filing".equals(q.get("key"))
+                && "/pkg-handover/pages/filing-init/index".equals(q.get("path"))));
+        Map<String, Object> inst = svc().menusOf(Set.of("INST_PM"), null, null);
+        List<Map<String, Object>> iqa = (List<Map<String, Object>>) inst.get("quickActions");
+        assertFalse(iqa.stream().anyMatch(q -> "filing".equals(q.get("key"))));
     }
 }

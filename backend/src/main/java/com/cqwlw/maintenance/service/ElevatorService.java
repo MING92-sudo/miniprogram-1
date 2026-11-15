@@ -54,18 +54,32 @@ public class ElevatorService {
                 .filter(el -> ids == null
                         || (el.workerPlatformId != null && ids.contains(el.workerPlatformId))
                         || (el.assistantPlatformId != null && ids.contains(el.assistantPlatformId)))
-                .map(el -> {
-                    Map<String, Object> m = new LinkedHashMap<>();
-                    m.put("id", el.id);
-                    m.put("elevatorName", el.elevatorName);
-                    m.put("elevatorCode", el.elevatorCode);
-                    m.put("deviceCode", el.deviceCode);
-                    m.put("regCode", el.regCode);
-                    m.put("model", el.model);
-                    // 项目名称 = 小区/楼盘名称（elevator.project_name），与使用单位名称解耦（docs/01 §3.4.1）
-                    m.put("projectName", nz(el.projectName));
-                    return m;
-                }).toList();
+                .map(this::mapRow).toList();
+    }
+
+    /** 使用单位账号电梯收敛本单位（2026-11-15 用户裁决）；无锚点 fail-closed 返回空。 */
+    public List<Map<String, Object>> listViewForUnit(String unitId) {
+        if (unitId == null || unitId.isBlank()) {
+            return List.of();
+        }
+        return elevatorMapper.selectList(new LambdaQueryWrapper<Elevator>()
+                .eq(Elevator::getUseUnitId, unitId).orderByAsc(Elevator::getId))
+                .stream()
+                .filter(el -> !"INACTIVE".equals(el.status))
+                .map(this::mapRow).toList();
+    }
+
+    private Map<String, Object> mapRow(Elevator el) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("id", el.id);
+        m.put("elevatorName", el.elevatorName);
+        m.put("elevatorCode", el.elevatorCode);
+        m.put("deviceCode", el.deviceCode);
+        m.put("regCode", el.regCode);
+        m.put("model", el.model);
+        // 项目名称 = 小区/楼盘名称（elevator.project_name），与使用单位名称解耦（docs/01 §3.4.1）
+        m.put("projectName", nz(el.projectName));
+        return m;
     }
 
     /** 扫码回填电梯信息（急修单用，docs/04 A.6） */

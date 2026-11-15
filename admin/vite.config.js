@@ -16,6 +16,10 @@ export default defineConfig({
     }
   },
   build: {
+    // permission-matrix 镜像为 CJS（小程序 mock/Node 脚本同源复用），构建期显式纳入 commonjs 转换
+    commonjsOptions: {
+      include: [/node_modules/, /constants\/permission-matrix\.js/]
+    },
     // vendor 分包（docs/09 V3.6）：框架/UI 库/图表/HTTP 各自成块，配合路由级懒加载降低首屏体积；
     // element-plus 为全量引入（main.js app.use(ElementPlus)），单块约 940 kB（gzip ~300 kB）——
     // 按需引入需引 unplugin-vue-components（新依赖，需联网安装），列为后置优化；

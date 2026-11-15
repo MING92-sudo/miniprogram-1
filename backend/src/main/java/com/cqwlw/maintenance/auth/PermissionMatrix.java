@@ -332,7 +332,7 @@ public final class PermissionMatrix {
                 IW = "INSTALLER", MM = "MAINT_MGR", MS = "MAINT_SUP", MT = "MAINT_TECH",
                 MB = "MAINT_BIZ", MQ = "MAINT_QUALITY", CA = "CLIENT_ADMIN", CS = "CLIENT_SIGNER";
         // §4.1 安装移交（16）
-        y(HANDOVER_VIEW, IM, MS, MM, PA, SA); c(HANDOVER_VIEW, IC, IP, CA);
+        y(HANDOVER_VIEW, IM, MS, MM, PA, SA); c(HANDOVER_VIEW, IC, IP, CA, IW);
         y(HANDOVER_CREATE, IP);
         y(HANDOVER_EDIT, IP); c(HANDOVER_EDIT, IC);
         y(HANDOVER_DOC_UPLOAD, IC, IP);
@@ -411,8 +411,9 @@ public final class PermissionMatrix {
         // M0 §2.2 扩展（15）
         y(REPORT_VIEW, PA, SA, MM); c(REPORT_VIEW, MS, MQ);
         y(REPORT_RETRY_NEW, PA, SA, MM);
-        y(FILING_VIEW, PA, SA, IP, IC, MM); c(FILING_VIEW, MQ, IM);
-        y(FILING_WRITE_NEW, PA, SA, IP, IC, MM);
+        // 用户裁决 2026-11-15：外接建档写归维保部（安装部保留条件读）
+        y(FILING_VIEW, PA, MM, MS, MB); c(FILING_VIEW, MQ, IM, IP, IC);
+        y(FILING_WRITE_NEW, PA, MM, MS, MB);
         y(REGION_VIEW, PA, SA);
         y(REGION_WRITE_NEW, PA, SA);
         y(TEMPLATE_VIEW, PA, SA, MM); c(TEMPLATE_VIEW, MQ);
@@ -424,6 +425,11 @@ public final class PermissionMatrix {
         y(RECORD_SPOTCHECK, MQ);
         y(CLIENT_EDIT, PA, MB);
         y(USER_RESET_PASSWORD, PA, SA, MM, IM);
+
+        // 用户裁决 2026-11-15：SYS_ADMIN 拥有所有权限（负责开通所有人员账户）
+        for (String code : CANONICAL_CAPS) {
+            STATES.computeIfAbsent(code, k -> new java.util.HashMap<>()).put(SA, TriState.Y);
+        }
 
         // fail-closed 一致性校验：码集==常量集（86），每码至少一个持有者
         if (CANONICAL_CAPS.size() != 86) {

@@ -124,7 +124,7 @@ public class DemoDataSeeder implements ApplicationRunner {
             return;
         }
         log.warn("SEED_DEMO_DATA=true：正在向【空库】写入演示数据，"
-                + "其中包含 4 个口令为 123456 的演示账号（含 SYS_ADMIN，13800000010）。"
+                + "其中包含 14 个口令为 123456 的演示账号（含 SYS_ADMIN 13800000010、三部门补齐账号）。"
                 + "生产环境必须置 false（AGENTS §2.1）。已存在员工数据时本 Seeder 不执行。");
         log.info("开始写入演示种子数据（SEED_DEMO_DATA=true）");
         seed();
@@ -159,6 +159,27 @@ public class DemoDataSeeder implements ApplicationRunner {
                 "", "", "", 0, enc);
         employee("emp_sys", "系统管理员", "13800000010", "SYS_ADMIN", "系统管理员", "",
                 "", "", "", 0, enc);
+
+        // ── 渲染口径对齐（2026-11-15 裁决）：三部门演示账号补齐，与 mock/data.js 同号 ──
+        employee("emp_lzg", "李振国", "13800000011", "MAINT_TECH", "维保人员", "维保一组",
+                PID_ZHANGWEI, "CQ3601030011", "2023-03-01", 400, enc);
+        employee("emp_zw", "张伟", "13800000012", "CLIENT_ADMIN", "使用单位管理员兼签字人", "",
+                "", "", "", 0, enc);
+        employee("emp_wq", "王强", "13800000013", "INST_PM", "安装部项目负责人", "安装一部",
+                "", "", "2022-05-01", 500, enc);
+        employee("emp_lq", "刘倩", "13800000014", "INST_CLERK", "安装部资料员", "安装一部",
+                "", "", "2024-01-01", 500, enc);
+        employee("emp_zjl", "赵经理", "13800000015", "MAINT_MGR", "维保部经理", "维保部",
+                "990015", "CQ3601030015", "2020-01-01", 600, enc);
+        employee("emp_azy", "安装员", "13800000017", "INSTALLER", "安装员", "安装一部",
+                "", "", "2023-01-01", 500, enc);
+        employee("emp_qzr", "签字人", "13800000018", "CLIENT_SIGNER", "使用单位签字人", "",
+                "", "", "", 0, enc);
+        // 使用单位账号单位锚点（org_id=use_unit.id）：先建单位档案（uu_1/uu_2 上方已建）再在其下开通
+        unitRole("unit_1", "CLIENT_ADMIN", "uu_1");
+        unitRole("emp_zw", "CLIENT_ADMIN", "uu_1");
+        unitRole("emp_zw", "CLIENT_SIGNER", "uu_1");
+        unitRole("emp_qzr", "CLIENT_SIGNER", "uu_1");
 
         // ── 使用单位 ──
         useUnit("uu_1", "重庆世纪物业管理有限公司", "91500106MAABU3796N", "刘建国", "13910001001", "王芳", "13800000003", "02367612345");
@@ -335,6 +356,17 @@ public class DemoDataSeeder implements ApplicationRunner {
         zhangRole.orgId = "org_dept_install";
         zhangRole.createdAt = TimeUtil.now();
         userRoleMapper.insert(zhangRole);
+    }
+
+    private void unitRole(String userId, String roleCode, String orgId) {
+        SysUserRole ur = new SysUserRole();
+        ur.id = Ids.next("ur");
+        ur.userId = userId;
+        ur.userType = "EMPLOYEE";
+        ur.roleCode = roleCode;
+        ur.orgId = orgId;
+        ur.createdAt = TimeUtil.now();
+        userRoleMapper.insert(ur);
     }
 
     private Employee employee(String id, String name, String phone, String role, String roleText,

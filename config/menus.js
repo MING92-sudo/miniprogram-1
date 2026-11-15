@@ -6,7 +6,7 @@
 const ROLE_PRIORITY = [
   'MAINT_MGR', 'MAINT_SUP', 'MAINT_TECH',
   'INST_MGR', 'INST_PM', 'INST_CLERK',
-  'CLIENT_ADMIN', 'CLIENT_SIGNER', 'PLATFORM_ADMIN'
+  'CLIENT_ADMIN', 'CLIENT_SIGNER', 'PLATFORM_ADMIN', 'SYS_ADMIN'
 ]
 
 const ROLE_HOME = {
@@ -18,7 +18,8 @@ const ROLE_HOME = {
   MAINT_MGR: '/pages/maint/home/index',
   CLIENT_ADMIN: '/pages/client/home/index',
   CLIENT_SIGNER: '/pages/client/home/index',
-  PLATFORM_ADMIN: '/pkg-admin/pages/users/index'
+  PLATFORM_ADMIN: '/pkg-admin/pages/users/index',
+  SYS_ADMIN: '/pkg-admin/pages/users/index'
 }
 
 // 扩展角色归属最近工作台只读投影（规格 §3.6，后端 TABS_ALIAS 镜像）
@@ -103,6 +104,14 @@ const ROLE_TABS = {
   ],
   PLATFORM_ADMIN: [
     { key: 'admin-org', text: '组织', icon: 'users', path: '/pkg-admin/pages/users/index' },
+    { key: 'stats', text: '统计', icon: 'chart', path: '/pkg-admin/pages/stats/index' },
+    { key: 'admin-audit', text: '审计', icon: 'shield', path: '/pkg-admin/pages/audit/index' },
+    { key: 'admin-settings', text: '配置', icon: 'settings', path: '/pkg-admin/pages/settings/index' },
+    { key: 'profile', text: '我的', icon: 'user', path: '/pages/profile/index' }
+  ],
+  SYS_ADMIN: [
+    { key: 'admin-org', text: '组织', icon: 'users', path: '/pkg-admin/pages/users/index' },
+    { key: 'stats', text: '统计', icon: 'chart', path: '/pkg-admin/pages/stats/index' },
     { key: 'admin-audit', text: '审计', icon: 'shield', path: '/pkg-admin/pages/audit/index' },
     { key: 'admin-settings', text: '配置', icon: 'settings', path: '/pkg-admin/pages/settings/index' },
     { key: 'profile', text: '我的', icon: 'user', path: '/pages/profile/index' }

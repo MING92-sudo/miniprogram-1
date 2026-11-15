@@ -16,31 +16,69 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 import java.util.Map;
 
-/** 电梯列表/档案（docs/04 A.2/A.4.1）+ 手动派单（首保/补单） */
+/** 电梯列表/档案（docs/04 A.2/A.4.1）+ 手动派单（首保/补单）；CLIENT 账号收敛本单位（2026-11-15 裁决）。 */
 @RestController
 public class ElevatorController {
 
     private final ElevatorService elevatorService;
     private final DispatchService dispatchService;
+    private final com.cqwlw.maintenance.mapper.SysUserRoleMapper userRoleMapper;
 
-    public ElevatorController(ElevatorService elevatorService, DispatchService dispatchService) {
+    public ElevatorController(ElevatorService elevatorService, DispatchService dispatchService,
+                              com.cqwlw.maintenance.mapper.SysUserRoleMapper userRoleMapper) {
         this.elevatorService = elevatorService;
         this.dispatchService = dispatchService;
+        this.userRoleMapper = userRoleMapper;
+    }
+
+    /** CLIENT 角色的组织锚点（sys_user_role.org_id = use_unit.id），与 DirectoryController 同口径 */
+    private String unitAnchor(HttpServletRequest request) {
+        com.cqwlw.maintenance.entity.SysUserRole row = userRoleMapper.selectOne(
+                new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<com.cqwlw.maintenance.entity.SysUserRole>()
+                        .eq(com.cqwlw.maintenance.entity.SysUserRole::getUserId, empId(request))
+                        .eq(com.cqwlw.maintenance.entity.SysUserRole::getUserType, "EMPLOYEE")
+                        .likeRight(com.cqwlw.maintenance.entity.SysUserRole::getRoleCode, "CLIENT")
+                        .last("LIMIT 1"));
+        return row == null ? null : row.orgId;
+    }
+
+    private boolean isClient(HttpServletRequest request) {
+        return com.cqwlw.maintenance.auth.MultiRoleGate.roles(request).stream()
+                .anyMatch(r -> r != null && r.startsWith("CLIENT"));
+    }
+
+    private void requireUnit(HttpServletRequest request, String elevatorId) {
+        if (!isClient(request)) {
+            return;
+        }
+        com.cqwlw.maintenance.entity.Elevator el = elevatorService.get(elevatorId);
+        String anchor = unitAnchor(request);
+        if (el == null || anchor == null || !anchor.equals(el.useUnitId)) {
+            throw new com.cqwlw.maintenance.common.BizException(1403, "无权查看其他使用单位电梯");
+        }
     }
 
     @GetMapping("/elevators")
     public ApiResponse<List<Map<String, Object>>> list(HttpServletRequest request) {
+        if (isClient(request)) {
+            return ApiResponse.ok(elevatorService.listViewForUnit(unitAnchor(request)));
+        }
         return ApiResponse.ok(elevatorService.listView(empId(request)));
     }
 
     /** 扫码回填电梯信息（急修单用，docs/04 A.6） */
     @GetMapping("/elevators/by-code")
-    public ApiResponse<Map<String, Object>> byCode(@RequestParam String code) {
-        return ApiResponse.ok(elevatorService.viewByCode(code));
+    public ApiResponse<Map<String, Object>> byCode(@RequestParam String code, HttpServletRequest request) {
+        Map<String, Object> row = elevatorService.viewByCode(code);
+        if (isClient(request) && row != null) {
+            requireUnit(request, String.valueOf(row.get("id")));
+        }
+        return ApiResponse.ok(row);
     }
 
     @GetMapping("/elevators/{id}/profile")
     public ApiResponse<Map<String, Object>> profile(@PathVariable String id, HttpServletRequest request) {
+        requireUnit(request, id);
         return ApiResponse.ok(elevatorService.profile(id, empId(request)));
     }
 

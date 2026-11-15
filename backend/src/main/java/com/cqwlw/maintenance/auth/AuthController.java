@@ -250,8 +250,9 @@ public class AuthController {
         // M1 扩展（规格 §3.2）：多角色并集 + 能力码并集 + 范围投影 + 默认工作台；旧字段保留兼容
         java.util.Set<String> roles = userRoleService.canonicalRolesOf(user.id, user.role);
         out.put("roles", new java.util.ArrayList<>(roles));
+        // 渲染面 perms=Y∪C（C 级读页可渲染可达，数据范围由 ScopeResolver 谓词强制）；按钮 actions 仍 Y-only
         out.put("perms", PermissionMatrix.canonicalCapabilities().stream()
-                .filter(c -> roles.stream().anyMatch(r -> PermissionMatrix.allowsNew(r, c)))
+                .filter(c -> roles.stream().anyMatch(r -> PermissionMatrix.state(r, c) != PermissionMatrix.TriState.DENY))
                 .collect(java.util.stream.Collectors.toList()));
         out.put("scope", scopeText(user));
         out.put("activeWorkspace", MiniappMenuService.activeWorkspace(roles));

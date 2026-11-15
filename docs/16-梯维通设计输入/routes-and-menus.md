@@ -239,7 +239,7 @@ export interface TabItem {
 export const ROLE_PRIORITY: RoleCode[] = [
   'MAINT_MGR', 'MAINT_SUP', 'MAINT_TECH',
   'INST_MGR', 'INST_PM', 'INST_CLERK',
-  'CLIENT_ADMIN', 'CLIENT_SIGNER', 'PLATFORM_ADMIN'
+  'CLIENT_ADMIN', 'CLIENT_SIGNER', 'PLATFORM_ADMIN', 'SYS_ADMIN'
 ];
 
 export const ROLE_HOME: Record<RoleCode, string> = {
@@ -251,7 +251,8 @@ export const ROLE_HOME: Record<RoleCode, string> = {
   MAINT_MGR: '/pages/maint/home/index',
   CLIENT_ADMIN: '/pages/client/home/index',
   CLIENT_SIGNER: '/pages/client/home/index',
-  PLATFORM_ADMIN: '/pkg-admin/pages/users/index'
+  PLATFORM_ADMIN: '/pkg-admin/pages/users/index',
+  SYS_ADMIN: '/pkg-admin/pages/users/index'
 };
 
 export const ROLE_TABS: Record<RoleCode, TabItem[]> = {
@@ -308,6 +309,15 @@ export const ROLE_TABS: Record<RoleCode, TabItem[]> = {
   ],
   PLATFORM_ADMIN: [
     { key: 'admin-org', text: '组织', icon: 'users', path: '/pkg-admin/pages/users/index' },
+    { key: 'stats', text: '统计', icon: 'chart', path: '/pkg-admin/pages/stats/index' },
+    { key: 'admin-audit', text: '审计', icon: 'shield', path: '/pkg-admin/pages/audit/index' },
+    { key: 'admin-settings', text: '配置', icon: 'settings', path: '/pkg-admin/pages/settings/index' },
+    { key: 'profile', text: '我的', icon: 'user', path: '/pages/profile/index' }
+  ],
+  // 2026-11-15 用户裁决：SYS_ADMIN 全权限、平台域渲染；项目/合同/角色矩阵经「我的」perm 入口
+  SYS_ADMIN: [
+    { key: 'admin-org', text: '组织', icon: 'users', path: '/pkg-admin/pages/users/index' },
+    { key: 'stats', text: '统计', icon: 'chart', path: '/pkg-admin/pages/stats/index' },
     { key: 'admin-audit', text: '审计', icon: 'shield', path: '/pkg-admin/pages/audit/index' },
     { key: 'admin-settings', text: '配置', icon: 'settings', path: '/pkg-admin/pages/settings/index' },
     { key: 'profile', text: '我的', icon: 'user', path: '/pages/profile/index' }

@@ -27,5 +27,6 @@ export const listUsers = () => http.get('/users')
 export const createUser = (b) => http.post('/users', b)
 export const disableUser = (id) => http.post(`/users/${id}/disable`, {})
 export const assignRoles = (id, b) => http.post(`/users/${id}/roles`, b)
+export const listUseUnits = () => http.get('/use-units')
 
 export const listContractsLedger = () => http.get('/contracts-ledger')

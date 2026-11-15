@@ -9,25 +9,20 @@ const menus = require('../config/menus')
 let currentRole = 'WORKER'
 // M2 单账号多角色：当前会话角色集（登录写入），/me/menus 投影用
 let currentRoles = ['MAINT_TECH']
-// 演示口径按钮码投影（19 码，与后端 BUTTON_CODES 同集；真实环境由 PermissionMatrix 计算，mock 仅演示）
-const MOCK_PERMS = {
-  MAINT_TECH: ['elevator:view', 'order:view_pool', 'order:view_own', 'order:grab', 'order:arrive', 'order:submit', 'order:create', 'order:create_proxy', 'record:view', 'record:sign_tech', 'record:sign_request', 'checklist:fill', 'task:accept', 'handover:inspect', 'handover:view', 'plan:view'],
-  MAINT_SUP: ['elevator:view', 'order:view_pool', 'order:view_own', 'order:grab', 'order:arrive', 'order:submit', 'order:cancel', 'order:create_proxy', 'record:view', 'record:sign_tech', 'record:sign_request', 'record:review', 'record:export', 'checklist:fill', 'task:accept', 'handover:inspect', 'handover:view', 'handover:review', 'handover:sign_maint', 'handover:rectify', 'plan:view', 'project:view', 'contract:view', 'user:view', 'stats:view'],
-  MAINT_MGR: ['elevator:view', 'elevator:export', 'order:view_pool', 'order:cancel', 'order:create_proxy', 'record:view', 'record:review', 'record:export', 'project:view', 'project:edit', 'contract:view', 'user:view', 'stats:view', 'plan:view', 'handover:view', 'handover:sign_maint'],
-  MAINT_QUALITY: ['elevator:view', 'record:view', 'record:review', 'record:export', 'stats:view', 'plan:view'],
-  MAINT_BIZ: ['elevator:view', 'record:view', 'project:view', 'project:edit', 'contract:view'],
-  INSTALLER: ['elevator:view', 'handover:view', 'handover:inspect'],
-  INST_CLERK: ['elevator:view', 'handover:view', 'handover:doc_upload', 'handover:rectify', 'project:view'],
-  INST_PM: ['elevator:view', 'handover:view', 'handover:create', 'handover:doc_upload', 'handover:rectify', 'handover:submit', 'project:view'],
-  INST_MGR: ['elevator:view', 'handover:view', 'handover:review', 'handover:sign_install', 'stats:view', 'user:view', 'project:view'],
-  CLIENT_ADMIN: ['elevator:view', 'order:view_own', 'order:create', 'order:cancel', 'record:view', 'record:sign', 'record:export', 'client:evaluate', 'client:sign', 'contract:view', 'user:view', 'stats:view', 'audit:view', 'project:view', 'handover:view'],
-  CLIENT_SIGNER: ['elevator:view', 'order:view_own', 'order:create', 'order:confirm', 'record:view', 'record:sign', 'client:sign', 'client:evaluate', 'handover:view'],
-  PLATFORM_ADMIN: ['elevator:view', 'elevator:export', 'project:view', 'project:edit', 'contract:view', 'user:view', 'role:assign', 'stats:view', 'audit:view', 'config:manage', 'record:view', 'record:export', 'handover:view']
-}
+// 权限投影复用 constants/permission-matrix.js 镜像（与后端 PermissionMatrix 同源，Y∪C；防手写漂移）
+const permMirror = require('../constants/permission-matrix')
 function permsOf(roles) {
   const set = {}
-  roles.forEach((r) => (MOCK_PERMS[r] || []).forEach((c) => { set[c] = true }))
+  roles.forEach((r) => permMirror.canonicalCodes().forEach((code) => {
+    if (permMirror.state(r, code) !== 'DENY') set[code] = true
+  }))
   return Object.keys(set)
+}
+// CLIENT 角色本单位锚点（use_unit.id）；非 CLIENT 返回 undefined，CLIENT 无锚点返回 null（fail-closed）
+function clientUnitAnchor() {
+  if (!currentRoles.some((r) => r.indexOf('CLIENT') === 0)) return undefined
+  const u = d.db.employees[currentRole]
+  return (u && u.useUnitId) || null
 }
 // 移交/外接建档 mock 状态（模块级，进程重启即清空）
 const mockHandovers = []
@@ -120,15 +115,15 @@ const routes = [
     const roles = currentRoles.length ? currentRoles : ['MAINT_TECH']
     const effective = query.workspace && roles.indexOf(query.workspace) > -1 ? [query.workspace] : roles
     const ws = menus.activeWorkspace(effective)
-    const perms = permsOf(effective)
     const actions = {}
     const BUTTON_CODES = require('../services/menu').BUTTON_CODES
-    BUTTON_CODES.forEach((c) => { actions[c] = perms.indexOf(c) > -1 })
+    BUTTON_CODES.forEach((c) => { actions[c] = effective.some((r) => permMirror.allowsNew(r, c)) })
     const quickActions = ws && ws.indexOf('MAINT') === 0 ? [
       { key: 'scan', text: '扫码开工', icon: 'qrcode', path: '/pages/elevator/detail/index?mode=scan' },
       { key: 'emergency', text: '急修单', icon: 'bolt', path: '/pages/order/list/index?state=urgent' },
       { key: 'report', text: '报修接单', icon: 'wrench', path: '/pages/order/list/index?state=pending' },
-      { key: 'handover', text: '移交验收', icon: 'file-signature', path: '/pkg-handover/pages/list/index' }
+      { key: 'handover', text: '移交验收', icon: 'file-signature', path: '/pkg-handover/pages/list/index' },
+      { key: 'filing', text: '外接建档', icon: 'folder', path: '/pkg-handover/pages/filing-init/index' }
     ] : ws && ws.indexOf('CLIENT') === 0 ? [
       { key: 'report', text: '一键报修', icon: 'wrench', path: '/pages/order/report/index' },
       { key: 'todo', text: '待办签字', icon: 'file-signature', path: '/pkg-client/pages/todo/index' }
@@ -215,7 +210,15 @@ const routes = [
 
   // ── 工单 ──
   ['GET', '/home/summary', () => d.getHomeSummary()],
-  ['GET', '/elevators', () => d.listElevators()],
+  // 使用单位账号电梯收敛本单位（2026-11-15 裁决；与后端 CLIENT 谓词同口径，无锚点 fail-closed）
+  ['GET', '/elevators', () => {
+    const anchor = clientUnitAnchor()
+    const list = d.listElevators()
+    if (anchor === undefined) return list
+    if (anchor === null) return []
+    const ids = new Set(d.db.elevators.filter((el) => el.useUnitId === anchor).map((el) => el.id))
+    return list.filter((row) => ids.has(row.id))
+  }],
   // 扫码回填电梯信息（急修单用，docs/04 A.0.1）
   ['GET', '/elevators/by-code', ({ query }) => {
     const el = d.getElevatorByCode(String((query && query.code) || '').trim())
@@ -241,6 +244,9 @@ const routes = [
   ['GET', '/elevators/:id/profile', ({ params }) => {
     const p = d.getElevatorProfile(params.id)
     if (!p) throw { code: 1404, message: '电梯不存在' }
+    const anchor = clientUnitAnchor()
+    const el = d.getElevator(params.id)
+    if (anchor !== undefined && el && el.useUnitId !== anchor) throw { code: 1403, message: '无权查看其他使用单位电梯' }
     return p
   }],
   // 维保人员现场更正项目名称（小区名称，管理端可能写错；docs/04 A.2.1）

@@ -27,7 +27,7 @@ public class MiniappMenuService {
     public static final List<String> ROLE_PRIORITY = List.of(
             "MAINT_MGR", "MAINT_SUP", "MAINT_TECH",
             "INST_MGR", "INST_PM", "INST_CLERK",
-            "CLIENT_ADMIN", "CLIENT_SIGNER", "PLATFORM_ADMIN");
+            "CLIENT_ADMIN", "CLIENT_SIGNER", "PLATFORM_ADMIN", "SYS_ADMIN");
 
     private static final Map<String, String> ROLE_HOME = Map.of(
             "INST_CLERK", "/pages/install/home/index",
@@ -38,7 +38,8 @@ public class MiniappMenuService {
             "MAINT_MGR", "/pages/maint/home/index",
             "CLIENT_ADMIN", "/pages/client/home/index",
             "CLIENT_SIGNER", "/pages/client/home/index",
-            "PLATFORM_ADMIN", "/pkg-admin/pages/users/index");
+            "PLATFORM_ADMIN", "/pkg-admin/pages/users/index",
+            "SYS_ADMIN", "/pkg-admin/pages/users/index");
 
     /** 扩展角色归属最近工作台（规格 §3.6）：只读投影，写按钮由 actions 隐藏 */
     private static final Map<String, String> TABS_ALIAS = Map.of(
@@ -152,7 +153,8 @@ public class MiniappMenuService {
                     qa("scan", "扫码开工", "qrcode", "/pages/elevator/detail/index?mode=scan"),
                     qa("emergency", "急修单", "bolt", "/pages/order/list/index?state=urgent"),
                     qa("report", "报修接单", "wrench", "/pages/order/list/index?state=pending"),
-                    qa("handover", "移交验收", "file-signature", "/pkg-handover/pages/list/index"));
+                    qa("handover", "移交验收", "file-signature", "/pkg-handover/pages/list/index"),
+                    qa("filing", "外接建档", "folder", "/pkg-handover/pages/filing-init/index"));
         }
         if (ws.startsWith("CLIENT")) {
             return List.of(
@@ -247,6 +249,13 @@ public class MiniappMenuService {
         t.put("CLIENT_SIGNER", client);
         t.put("PLATFORM_ADMIN", List.of(
                 tab("admin-org", "组织", "users", "/pkg-admin/pages/users/index"),
+                tab("stats", "统计", "chart", "/pkg-admin/pages/stats/index"),
+                tab("admin-audit", "审计", "shield", "/pkg-admin/pages/audit/index"),
+                tab("admin-settings", "配置", "settings", "/pkg-admin/pages/settings/index"),
+                tab("profile", "我的", "user", "/pages/profile/index")));
+        t.put("SYS_ADMIN", List.of(
+                tab("admin-org", "组织", "users", "/pkg-admin/pages/users/index"),
+                tab("stats", "统计", "chart", "/pkg-admin/pages/stats/index"),
                 tab("admin-audit", "审计", "shield", "/pkg-admin/pages/audit/index"),
                 tab("admin-settings", "配置", "settings", "/pkg-admin/pages/settings/index"),
                 tab("profile", "我的", "user", "/pages/profile/index")));

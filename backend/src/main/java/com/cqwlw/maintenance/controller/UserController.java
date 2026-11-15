@@ -34,11 +34,14 @@ public class UserController {
 
     private final EmployeeMapper employeeMapper;
     private final SysUserRoleMapper userRoleMapper;
+    private final com.cqwlw.maintenance.mapper.UseUnitMapper useUnitMapper;
     private final BCryptPasswordEncoder enc = new BCryptPasswordEncoder();
 
-    public UserController(EmployeeMapper employeeMapper, SysUserRoleMapper userRoleMapper) {
+    public UserController(EmployeeMapper employeeMapper, SysUserRoleMapper userRoleMapper,
+                          com.cqwlw.maintenance.mapper.UseUnitMapper useUnitMapper) {
         this.employeeMapper = employeeMapper;
         this.userRoleMapper = userRoleMapper;
+        this.useUnitMapper = useUnitMapper;
     }
 
     private static String actor(HttpServletRequest req) {
@@ -72,6 +75,7 @@ public class UserController {
             throw new BizException(422, "姓名/手机号/角色必填且格式正确");
         }
         validateSameDepartment(roles);
+        String unitId = requireUnitAnchor(roles, str(body, "useUnitId"));
         Employee e = new Employee();
         e.id = Ids.next("emp");
         e.name = name;
@@ -81,13 +85,13 @@ public class UserController {
         e.passwordHash = enc.encode(rawPwd);
         e.role = roles.get(0);
         e.roleText = RoleCatalog.nameOf(roles.get(0));
-        e.department = RoleCatalog.departmentOf(roles.get(0));
+        e.department = RoleCatalog.canonicalRole(roles.get(0)).department();
         e.enabled = true;
         e.workStat = "normal";
         e.syncStatus = "NOT_SYNCED";
         employeeMapper.insert(e);
         for (String r : roles) {
-            insertRole(e.id, r);
+            insertRole(e.id, r, unitId);
         }
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("id", e.id);
@@ -120,13 +124,14 @@ public class UserController {
         if (e == null) {
             throw new BizException(404, "账号不存在");
         }
+        String unitId = requireUnitAnchor(roles, str(body, "useUnitId"));
         userRoleMapper.delete(new LambdaQueryWrapper<SysUserRole>().eq(SysUserRole::getUserId, id));
         for (String r : roles) {
-            insertRole(id, r);
+            insertRole(id, r, unitId);
         }
         e.role = roles.get(0);
         e.roleText = RoleCatalog.nameOf(roles.get(0));
-        e.department = RoleCatalog.departmentOf(roles.get(0));
+        e.department = RoleCatalog.canonicalRole(roles.get(0)).department();
         employeeMapper.updateById(e);
         employeeMapper.bumpScopeVersion(id);
         return ApiResponse.ok(Map.of("ok", true));
@@ -140,24 +145,44 @@ public class UserController {
         return out;
     }
 
-    private void insertRole(String userId, String role) {
+    private void insertRole(String userId, String role, String unitId) {
         SysUserRole ur = new SysUserRole();
         ur.id = Ids.next("ur");
         ur.userId = userId;
         ur.userType = "EMPLOYEE";
         ur.roleCode = role;
+        // 使用单位角色锚点 org_id=use_unit.id（本单位电梯/记录谓词用，2026-11-15 裁决）
+        RoleCatalog.Role cr = RoleCatalog.canonicalRole(role);
+        if (cr != null && "UNIT".equals(cr.department())) {
+            ur.orgId = unitId;
+        }
         ur.createdAt = TimeUtil.now();
         userRoleMapper.insert(ur);
+    }
+
+    /** 使用单位账号须先建单位档案并在其下开通；非 UNIT 角色返回 null。 */
+    private String requireUnitAnchor(List<String> roles, String useUnitId) {
+        boolean unitRole = roles.stream().anyMatch(r -> {
+            RoleCatalog.Role cr = RoleCatalog.canonicalRole(r);
+            return cr != null && "UNIT".equals(cr.department());
+        });
+        if (!unitRole) {
+            return null;
+        }
+        if (useUnitId == null || useUnitId.isBlank() || useUnitMapper.selectById(useUnitId) == null) {
+            throw new BizException(422, "使用单位账号须先建立单位档案并在其下开通");
+        }
+        return useUnitId;
     }
 
     private static void validateSameDepartment(List<String> roles) {
         String dept = null;
         for (String r : roles) {
-            String canonical = RoleCatalog.canonical(r);
-            if (canonical == null) {
+            RoleCatalog.Role cr = RoleCatalog.canonicalRole(r);
+            if (cr == null) {
                 throw new BizException(422, "未知角色: " + r);
             }
-            String d = RoleCatalog.departmentOf(canonical);
+            String d = cr.department();
             if (dept == null) {
                 dept = d;
             } else if (!dept.equals(d)) {

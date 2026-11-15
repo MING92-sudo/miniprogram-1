@@ -43,6 +43,21 @@ class PermissionMatrixV2Test {
         assertFalse(PermissionMatrix.allowsNew("MAINT_TECH", "config:manage"));
     }
 
+    /** 用户裁决 2026-11-15：SYS_ADMIN 全权限；外接建档写归维保部；安装员条件读移交单。 */
+    @Test
+    void userRulings20261115() {
+        for (String code : PermissionMatrix.canonicalCapabilities()) {
+            assertEquals(PermissionMatrix.TriState.Y, PermissionMatrix.state("SYS_ADMIN", code), code);
+        }
+        assertEquals(PermissionMatrix.TriState.Y, PermissionMatrix.state("MAINT_MGR", "filing:write"));
+        assertEquals(PermissionMatrix.TriState.Y, PermissionMatrix.state("MAINT_SUP", "filing:write"));
+        assertEquals(PermissionMatrix.TriState.Y, PermissionMatrix.state("MAINT_BIZ", "filing:write"));
+        assertEquals(PermissionMatrix.TriState.DENY, PermissionMatrix.state("INST_PM", "filing:write"));
+        assertEquals(PermissionMatrix.TriState.DENY, PermissionMatrix.state("INST_CLERK", "filing:write"));
+        assertEquals(PermissionMatrix.TriState.C, PermissionMatrix.state("INST_PM", "filing:view"));
+        assertEquals(PermissionMatrix.TriState.C, PermissionMatrix.state("INSTALLER", "handover:view"));
+    }
+
     @Test
     void unknownRoleDeniedUnknownCodeFailsLoudly() {
         assertEquals(PermissionMatrix.TriState.DENY, PermissionMatrix.state("HACKER", "handover:view"));

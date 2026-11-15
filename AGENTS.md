@@ -19,7 +19,7 @@
 | 账号与数据权限 | `docs/14-账号权限与组织角色设计.md` | 三平级部门（安装/维保/使用单位）角色码、数据域与权限矩阵 |
 | 测试与上线检查 | `docs/05-测试与验收方案.md`、`docs/11-云托管部署手册.md` | 人工验收结论写回 docs/05、docs/10 |
 
-**当前基线（2026-11-15 机审）**：小程序 50 页（主包 18 + 4 子包 pkg-handover 12/pkg-maintenance 9/pkg-client 4/pkg-admin 7；无原生 tabBar，custom-tabbar 菜单驱动）；`services/` 13 个模块（含 menu/admin）；`mock/server.js` 106 条路由；后端 197 个 Web 映射注解、Flyway V1—V46、477 个单测；管理端 23 个视图（自建组件库，Element Plus 已移除）；文档 01—15。计数用于快速定位，提交前以代码实测为准；文档数字滞后时改文档，不要为迁就旧数字改代码。
+**当前基线（2026-11-15 机审）**：小程序 50 页（主包 18 + 4 子包 pkg-handover 12/pkg-maintenance 9/pkg-client 4/pkg-admin 7；无原生 tabBar，custom-tabbar 菜单驱动）；`services/` 13 个模块（含 menu/admin）；`mock/server.js` 106 条路由；后端 197 个 Web 映射注解、Flyway V1—V46、489 个单测；管理端 23 个视图（自建组件库，Element Plus 已移除）；文档 01—16。计数用于快速定位，提交前以代码实测为准；文档数字滞后时改文档，不要为迁就旧数字改代码。
 
 ## 1. 系统组成与分层
 
@@ -197,6 +197,7 @@
 | V3.19 | 2026-11-15 | **忘记密码自助重置（用户需求）**：①登录页「忘记密码」改 fs20 与「记住账号」同字号、靠右对齐，点击跳新增 `pages/login/forgot`（主包 18/总 50 页）；②新增 `POST /auth/reset-password-by-wechat`（免登录白名单；code 服务端换 openid 匹配绑定账号，未绑定 422 引导管理员重置、停用 403、新密码 ≥6 位；重置后 `EmployeeMapper.clearSessions` 清两端会话旧 token 立即 401，回传 account 供登录页预填）；管理端重置仍走 `POST /employees/{id}/reset-password`；③services/auth.resetPasswordByWechat + mock + docs/04 V2.56 三处同步，docs/03 V2.19、M0 映射/spec §1.4 与 m0 守卫基线 49→50；`ResetPasswordByWechatTest` 5 例。门禁：后端 467 单测全绿、根 lint、routes 10/10、m0 12/12。计数更新（50 页/106 mock/197 映射/Flyway V1—V46/467 单测） |
 | V3.20 | 2026-11-15 | **微信绑定接线验证（用户需求）**：①客户端闭环 mock 实测全绿（登录→我的→绑定→退出→登录页「微信一键登录」→工作台，截图取证）；②补 `WechatBindLoginTest` 5 例（绑定先解绑他人再同事务落库/未登录 401/免密登录签发会话/未绑定 422/停用 403），472 单测全绿；③mock `/auth/wx-login` 补齐 M1 扩展响应（loginPayload 与 /auth/login 共用）；④真实 API 探针：模拟器 wx.login 取真实 code 成功，云容器 jscode2session 外联失败（真实/无效 code 对照均 2001 通用异常分支）→ docs/12 C-14 待人工排查（云托管日志/公网出口/WX_APPID 与 appid 一致性）；MCP 绑定 cloud1 读不到 prod 日志。services 过时注释修正 |
 | V3.21 | 2026-11-15 | **C-14 根因修复（用户裁决：信任出口网关证书）**：MCP 重绑 prod + tcb CLI 安装后开通 CLS 取容器日志，定位云出口网关（169.254.10.1）对 443 TLS 拦截、呈现轮换自签证书致 JVM PKIX 拒绝（监管平台 1443 不受影响）。`WxAuthService.GatewayAwareTrustManager` TOFU：默认严格 PKIX，仅网关画像（自签+CN=api.weixin.qq.com）校验失败时信任+指纹审计；`wxRestTemplate` 专用 Bean、platformRestTemplate @Primary；`GatewayAwareTrustManagerTest` 5 例，477 单测全绿。真实环境实测：wx-login code=0 签发会话、bind-wechat `{code:0,ok:true}`。docs/12 C-14 关闭。部署口径：tcb CLI deploy 走 Git 镜像有滞后，MCP manageCloudRun deploy 本地上传为准 |
+| V3.22 | 2026-11-15 | **权限面=渲染面（用户裁决三部门+平台统计后统一修复）**：①perms 下发 Y∪C（actions 仍 Y-only），修电梯等 C 级页真实环境 403；②SYS_ADMIN 86 码全 Y、平台域 5 tabs（组织/统计/审计/配置/我的）+ 我的页 perm 管理入口（项目/合同/角色矩阵）；③外接建档写归维保部（filing:write=MM/MS/MB/PA），维保工作台增入口，安装部条件读；④使用单位账号先建单位档案再开通（/users UNIT 角色必填 useUnitId，org_id 锚点），电梯列表/档案/扫码本单位收敛、跨单位 1403、无锚点 fail-closed；⑤INSTALLER handover:view=C、白名单逐页对齐矩阵；⑥权限镜像移 constants/permission-matrix.js（mock/admin/Node 单一源，admin 经 ESM 桥+vite commonjsOptions）；⑦seeder/mock 演示账号补齐 01—18/99；⑧修 UserController departmentOf 误用（canonicalRole.department）。489 单测全绿、admin 99 用例、role-render.js 11 账号 ALL PASS；docs/14 §7.1 渲染矩阵、docs/04 V2.57、docs/16 同步 |
 
 <!-- aoci:begin -->
 ## AOCI Repository Cognition

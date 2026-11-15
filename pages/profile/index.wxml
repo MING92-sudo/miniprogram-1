@@ -37,6 +37,13 @@
       <view class="pf-entry" bindtap="onBindWechat" aria-role="button"><text class="i i-weixin pf-eico"></text><text class="grow">微信绑定{{wechatBound ? '（已绑定）' : ''}}</text><text class="i i-chevron-right dim"></text></view>
     </view>
 
+    <view wx:if="{{adminEntries.length}}" class="card pf-entries">
+      <view class="panel-title">管理入口（按权限渲染）</view>
+      <view wx:for="{{adminEntries}}" wx:key="key" class="pf-entry" data-path="{{item.path}}" bindtap="goAdminEntry" aria-role="button">
+        <text class="i i-building pf-eico"></text><text class="grow">{{item.text}}</text><text class="i i-chevron-right dim"></text>
+      </view>
+    </view>
+
     <button class="btn btn-ghost" bindtap="onLogout">退出登录</button>
 
     <view class="pf-attr">

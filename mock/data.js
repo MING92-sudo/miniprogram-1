@@ -129,12 +129,12 @@ const db = {
       certificate: 'CQ3601030002', workStartDate: '2023-06-01', workEndDate: addDays(250), workStat: 'normal', syncStatus: 'ACTIVE' },
     WORKER2: { id: 'emp_3', name: '李强', phone: '13800000004', account: '13800000004', password: '123456', role: 'WORKER', roleText: '维保人员', groupName: '维保一班', platformId: '6901284774286860288',
       certificate: 'CQ3601030003', workStartDate: '2024-08-01', workEndDate: addDays(500), workStat: 'normal', syncStatus: 'ACTIVE' },
-    UNIT_ADMIN: { id: 'unit_1', name: '王芳', phone: '13800000003', account: '13800000003', password: '123456', role: 'UNIT_ADMIN', roleText: '使用单位安全管理员', platformId: '',
+    UNIT_ADMIN: { id: 'unit_1', name: '王芳', phone: '13800000003', account: '13800000003', password: '123456', role: 'UNIT_ADMIN', roleText: '使用单位安全管理员', useUnitId: 'uu_1', platformId: '',
       certificate: '', workStartDate: '', workEndDate: '', workStat: '', syncStatus: 'NOT_SYNCED' },
     // ── M2 蓝图基准演示人物（spec §5.2-6，多角色；旧账号保留兼容） ──
     MAINT_TECH: { id: 'emp_lzg', name: '李振国', phone: '13800000011', account: '13800000011', password: '123456', role: 'MAINT_TECH', roles: ['MAINT_TECH'], roleText: '维保人员', groupName: '维保一组', jobNo: 'T3101', platformId: '6901282369105174537',
       certificate: 'CQ3601030011', workStartDate: '2023-03-01', workEndDate: addDays(400), workStat: 'normal', syncStatus: 'ACTIVE' },
-    CLIENT_ZW: { id: 'emp_zw', name: '张伟', phone: '13800000012', account: '13800000012', password: '123456', role: 'CLIENT_ADMIN', roles: ['CLIENT_ADMIN', 'CLIENT_SIGNER'], roleText: '使用单位管理员兼签字人', unitName: '启元物业', jobTitle: '值班经理', platformId: '',
+    CLIENT_ZW: { id: 'emp_zw', name: '张伟', phone: '13800000012', account: '13800000012', password: '123456', role: 'CLIENT_ADMIN', roles: ['CLIENT_ADMIN', 'CLIENT_SIGNER'], roleText: '使用单位管理员兼签字人', unitName: '启元物业', useUnitId: 'uu_1', jobTitle: '值班经理', platformId: '',
       certificate: '', workStartDate: '', workEndDate: '', workStat: '', syncStatus: 'NOT_SYNCED' },
     INST_PM: { id: 'emp_wq', name: '王强', phone: '13800000013', account: '13800000013', password: '123456', role: 'INST_PM', roles: ['INST_PM'], roleText: '安装部项目负责人', groupName: '安装一部', platformId: '',
       certificate: '', workStartDate: '2022-05-01', workEndDate: addDays(500), workStat: 'normal', syncStatus: 'ACTIVE' },
@@ -143,6 +143,17 @@ const db = {
     MAINT_MGR: { id: 'emp_zjl', name: '赵经理', phone: '13800000015', account: '13800000015', password: '123456', role: 'MAINT_MGR', roles: ['MAINT_MGR'], roleText: '维保部经理', groupName: '维保部', platformId: '990015',
       certificate: 'CQ3601030015', workStartDate: '2020-01-01', workEndDate: addDays(600), workStat: 'normal', syncStatus: 'ACTIVE' },
     PLATFORM: { id: 'emp_pt', name: '平台管理员', phone: '13800000016', account: '13800000016', password: '123456', role: 'PLATFORM_ADMIN', roles: ['PLATFORM_ADMIN'], roleText: '平台管理员', groupName: '平台', platformId: '',
+      certificate: '', workStartDate: '', workEndDate: '', workStat: '', syncStatus: 'NOT_SYNCED' },
+    // ── 渲染口径对齐（2026-11-15 裁决）：平台双账号/安装主管/安装员/使用单位签字人，与后端 seeder 同号 ──
+    ADMIN: { id: 'emp_admin', name: '郑浩', phone: '13800000009', account: '13800000009', password: '123456', role: 'ADMIN', roles: ['PLATFORM_ADMIN'], roleText: '平台管理员', groupName: '平台', platformId: '',
+      certificate: '', workStartDate: '', workEndDate: '', workStat: '', syncStatus: 'NOT_SYNCED' },
+    SYS_ADMIN: { id: 'emp_sys', name: '系统管理员', phone: '13800000010', account: '13800000010', password: '123456', role: 'SYS_ADMIN', roles: ['SYS_ADMIN'], roleText: '系统管理员', groupName: '平台', platformId: '',
+      certificate: '', workStartDate: '', workEndDate: '', workStat: '', syncStatus: 'NOT_SYNCED' },
+    INST_MGR: { id: 'emp_zhang', name: '张工', phone: '13800000099', account: '13800000099', password: '123456', role: 'INST_MGR', roles: ['INST_MGR'], roleText: '安装部主管', groupName: '安装部', platformId: 'P_ZHANG',
+      certificate: '', workStartDate: '2020-01-01', workEndDate: addDays(600), workStat: 'normal', syncStatus: 'ACTIVE' },
+    INSTALLER: { id: 'emp_azy', name: '安装员', phone: '13800000017', account: '13800000017', password: '123456', role: 'INSTALLER', roles: ['INSTALLER'], roleText: '安装员', groupName: '安装一部', platformId: '',
+      certificate: '', workStartDate: '2023-01-01', workEndDate: addDays(500), workStat: 'normal', syncStatus: 'ACTIVE' },
+    CLIENT_SIGNER: { id: 'emp_qzr', name: '签字人', phone: '13800000018', account: '13800000018', password: '123456', role: 'CLIENT_SIGNER', roles: ['CLIENT_SIGNER'], roleText: '使用单位签字人', unitName: '世纪物业', useUnitId: 'uu_1', platformId: '',
       certificate: '', workStartDate: '', workEndDate: '', workStat: '', syncStatus: 'NOT_SYNCED' }
   },
 
