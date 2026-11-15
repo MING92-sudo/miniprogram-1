@@ -82,8 +82,12 @@ public class WxAuthService {
         } catch (BizException e) {
             throw e;
         } catch (Exception e) {
-            // 只记异常类型：请求 URL 含 appid/secret/js_code，异常 message 可能回显完整地址
-            log.warn("微信 jscode2session 请求异常: {}", e.getClass().getSimpleName());
+            // 只记异常类型与 cause：请求 URL 含 appid/secret/js_code，外层 message 可能回显完整地址；
+            // 网络层 cause（DNS/超时/SSL）message 不含凭证，可安全落日志供外联排障
+            Throwable cause = e.getCause();
+            log.warn("微信 jscode2session 请求异常: {} cause={} {}", e.getClass().getSimpleName(),
+                    cause == null ? "-" : cause.getClass().getSimpleName(),
+                    cause == null ? "-" : String.valueOf(cause.getMessage()));
             throw new BizException(2001, "微信登录失败，请稍后重试");
         }
     }

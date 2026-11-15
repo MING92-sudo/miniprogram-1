@@ -5,12 +5,14 @@ COPY src /app/src
 COPY settings.xml pom.xml /app/
 RUN mvn -s /app/settings.xml -f /app/pom.xml clean package -DskipTests
 
-# 运行阶段：JRE 17（alpine 体积小）
-FROM eclipse-temurin:17-jre-alpine
+# 运行阶段：JRE 17（glibc jammy；alpine musl 的 DNS 并行查询在 VPC DNS 下丢包致
+# api.weixin.qq.com 解析失败——jscode2session 快速 ResourceAccessException，C-14）
+FROM eclipse-temurin:17-jre-jammy
 ENV SERVER_PORT=80
-RUN apk add --no-cache ca-certificates tzdata \
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates tzdata \
     && cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
-    && echo Asia/Shanghai > /etc/timezone
+    && echo Asia/Shanghai > /etc/timezone \
+    && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY --from=build /app/target/*.jar /app/app.jar
 # 端口必须与「服务设置」中填写的监听端口一致（云托管模板约定 80）
