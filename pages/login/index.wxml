@@ -17,7 +17,6 @@
         </view>
       </view>
       <view class="disp lg-title"><text class="lg-title-line">让每一台电梯</text><text class="lg-title-line">都有据可查</text></view>
-      <view class="lg-sub">安装移交、半月保点检、急修报修与使用单位签字，全部在手机上闭环。</view>
     </view>
 
     <view class="lg-hazard"></view>
@@ -59,19 +58,6 @@
       <view><text class="i i-clock-rotate-left"></text>作业全程留痕</view>
     </view>
 
-    <view class="lg-roles">
-      <view class="row between">
-        <text class="mono fs18 dim ls12">一个入口 · 三种工作台</text>
-      </view>
-      <view class="lg-role-grid mt6">
-        <view class="lg-role"><text class="i i-screwdriver-wrench"></text>维保部</view>
-        <view class="lg-role"><text class="i i-helmet-safety"></text>安装部</view>
-        <view class="lg-role"><text class="i i-building"></text>使用单位</view>
-      </view>
-      <view class="fs20 dim lg-role-note">登录后由账号权限自动进入对应工作台，无需选择角色。</view>
-    </view>
-
-    <view class="lg-foot">账号由所属单位管理员开通 · 首次使用请联系项目负责人</view>
-    <button class="link quiet fs20 lg-skip" bindtap="skipLogin">暂不登录，查看介绍</button>
+    <view class="lg-foot">该小程序为重庆博威电梯公司内部相关人员登录使用，账号由单位管理员开通</view>
   </view>
 </view>

@@ -46,7 +46,6 @@ Page({
   },
   openAgreement() { wx.navigateTo({ url: '/pages/login/agreement?type=agreement' }) },
   openPrivacy() { wx.navigateTo({ url: '/pages/login/agreement?type=privacy' }) },
-  skipLogin() { wx.navigateTo({ url: '/pages/login/agreement?type=agreement' }) },
   forgotPassword() {
     wx.showModal({ title: '忘记密码', content: '账号由本单位管理员统一分配，请联系本单位管理员重置密码。', showCancel: false, confirmText: '知道了' })
   },
