@@ -134,6 +134,7 @@ page{
 .bw .qa .i{font-size:30rpx;color:var(--amber)}
 .bw .week-strip{display:flex;align-items:center;gap:20rpx;background:linear-gradient(90deg,rgba(255,176,32,.07),transparent);border:1rpx solid #243138;border-radius:6rpx;padding:16rpx 22rpx}
 .bw .week-strip>view{display:flex;flex-direction:column;gap:2rpx;flex:1}
+.bw .week-strip>.vdiv{flex:none;width:1rpx;height:48rpx}
 .bw .sync-note{display:flex;align-items:center;gap:16rpx;border:1rpx solid rgba(47,196,141,.22);background:rgba(47,196,141,.05);border-radius:6rpx;padding:16rpx 20rpx}
 .bw .sync-note>.i{color:var(--ok);font-size:24rpx}
 .bw .sign-alert{border:1rpx solid rgba(255,176,32,.35);border-radius:8rpx;padding:20rpx 22rpx;background:linear-gradient(120deg,rgba(255,176,32,.12),rgba(255,176,32,.02) 70%),#101A1F}
