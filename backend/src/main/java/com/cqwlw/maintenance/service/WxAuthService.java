@@ -88,7 +88,35 @@ public class WxAuthService {
             log.warn("微信 jscode2session 请求异常: {} cause={} {}", e.getClass().getSimpleName(),
                     cause == null ? "-" : cause.getClass().getSimpleName(),
                     cause == null ? "-" : String.valueOf(cause.getMessage()));
+            if (cause instanceof javax.net.ssl.SSLHandshakeException) {
+                logPeerChain();
+            }
             throw new BizException(2001, "微信登录失败，请稍后重试");
+        }
+    }
+
+    /** SSL 失败时捕获对端证书链并落 issuer（仅诊断：trust-all 只用于读证书，不发送任何凭证，不影响真实请求校验）。 */
+    private void logPeerChain() {
+        try {
+            javax.net.ssl.TrustManager[] capture = new javax.net.ssl.TrustManager[]{new javax.net.ssl.X509TrustManager() {
+                @Override public void checkClientTrusted(java.security.cert.X509Certificate[] chain, String authType) { }
+                @Override public void checkServerTrusted(java.security.cert.X509Certificate[] chain, String authType) { }
+                @Override public java.security.cert.X509Certificate[] getAcceptedIssuers() { return new java.security.cert.X509Certificate[0]; }
+            }};
+            javax.net.ssl.SSLContext ctx = javax.net.ssl.SSLContext.getInstance("TLS");
+            ctx.init(null, capture, new java.security.SecureRandom());
+            try (javax.net.ssl.SSLSocket socket = (javax.net.ssl.SSLSocket) ctx.getSocketFactory()
+                    .createSocket("api.weixin.qq.com", 443)) {
+                socket.startHandshake();
+                for (java.security.cert.Certificate cert : socket.getSession().getPeerCertificates()) {
+                    if (cert instanceof java.security.cert.X509Certificate x509) {
+                        log.warn("jscode2session 对端证书: subject={} issuer={}",
+                                x509.getSubjectX500Principal(), x509.getIssuerX500Principal());
+                    }
+                }
+            }
+        } catch (Exception ex) {
+            log.warn("jscode2session 对端证书链捕获失败: {}", ex.getClass().getSimpleName());
         }
     }
 
