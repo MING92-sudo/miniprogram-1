@@ -2,8 +2,8 @@
 const { post } = require('../utils/request')
 const { saveAuth } = require('../utils/auth')
 
-// ⚠ 契约保留、暂无入口（P2 微信一键登录）：wxLogin/bindEmployee/bindUseUnit 当前无页面调用，
-//   登录走 accountLogin + bindWeChat；后端端点与 docs/04 A.0.1 契约保留，启用前须按 AGENTS §1.2 三处同步。
+// 微信一键登录已启用（登录页仅本机已绑定账号显示，R5）；bindWeChat 入口在「我的」页；
+// bindEmployee/bindUseUnit 契约保留、暂无入口（角色切换已收敛为多角色并集，docs/14）。
 // 微信授权登录：code + 手机号授权码 → JWT + 角色
 // 第三参 role 仅 Mock 模式用于选择演示账号，真实后端忽略
 function wxLogin(code, phoneCode, role) {

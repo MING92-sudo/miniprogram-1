@@ -81,6 +81,29 @@ function handoverArchiveEntries(id) {
     category: c[1], seq: i + 1, sha256: 'mock_sha256_' + c[0], archivedAt: formatTime(new Date()) }))
 }
 
+// M1 统一登录响应扩展（docs/04 V2.53）：账号登录/微信免密登录共用，与后端 loginResult 口径一致
+function loginPayload(roleKey) {
+  const user = d.db.employees[roleKey]
+  const canonMap = {
+    WORKER: 'MAINT_TECH', ASSISTANT: 'MAINT_TECH', LEADER: 'MAINT_SUP',
+    MAINT_MANAGER: 'MAINT_MGR', MAINT_QUALITY: 'MAINT_QUALITY', MAINT_BIZ: 'MAINT_BIZ',
+    UNIT_ADMIN: 'CLIENT_ADMIN', ADMIN: 'PLATFORM_ADMIN', SYS_ADMIN: 'SYS_ADMIN',
+    INSTALL_WORKER: 'INSTALLER'
+  }
+  const canon = canonMap[roleKey] || roleKey
+  const roles = user.roles && user.roles.length ? user.roles : [canon]
+  currentRoles = roles
+  const perms = permsOf(roles)
+  const ws = menus.activeWorkspace(roles)
+  const scope = roles.indexOf('PLATFORM_ADMIN') > -1 ? '全部数据'
+    : roles.some((r) => r.indexOf('CLIENT') === 0) ? '本单位全部电梯'
+      : roles.some((r) => r.indexOf('INST') === 0) ? '安装部项目范围' : '本班组维保范围'
+  return {
+    token: 'mock-token-' + Date.now(), userInfo: user, role: roleKey,
+    roles, perms, scope, activeWorkspace: ws, home: menus.resolveHome(roles)
+  }
+}
+
 const routes = [
   // ── M6 管理统计域只读投影（pkg-admin，复用管理端端点） ──
   ['GET', '/projects', () => ({ list: (d.db.projects || []).slice(0, 50), total: (d.db.projects || []).length })],
@@ -148,25 +171,7 @@ const routes = [
     if (!user) throw { code: 401, message: '账号不存在，请联系维保单位管理员分配' }
     if (user.password !== password) throw { code: 401, message: '账号或密码错误' }
     currentRole = roleKey
-    // M1 统一登录响应扩展（docs/04 V2.53）+ M2 多角色并集：roles/perms/scope/activeWorkspace/home
-    const canonMap = {
-      WORKER: 'MAINT_TECH', ASSISTANT: 'MAINT_TECH', LEADER: 'MAINT_SUP',
-      MAINT_MANAGER: 'MAINT_MGR', MAINT_QUALITY: 'MAINT_QUALITY', MAINT_BIZ: 'MAINT_BIZ',
-      UNIT_ADMIN: 'CLIENT_ADMIN', ADMIN: 'PLATFORM_ADMIN', SYS_ADMIN: 'SYS_ADMIN',
-      INSTALL_WORKER: 'INSTALLER'
-    }
-    const canon = canonMap[roleKey] || roleKey
-    const roles = user.roles && user.roles.length ? user.roles : [canon]
-    currentRoles = roles
-    const perms = permsOf(roles)
-    const ws = menus.activeWorkspace(roles)
-    const scope = roles.indexOf('PLATFORM_ADMIN') > -1 ? '全部数据'
-      : roles.some((r) => r.indexOf('CLIENT') === 0) ? '本单位全部电梯'
-        : roles.some((r) => r.indexOf('INST') === 0) ? '安装部项目范围' : '本班组维保范围'
-    return {
-      token: 'mock-token-' + Date.now(), userInfo: user, role: roleKey,
-      roles, perms, scope, activeWorkspace: ws, home: menus.resolveHome(roles)
-    }
+    return loginPayload(roleKey)
   }],
   // 自助改密（docs/04 A.0.1；与后端 AuthController 同口径：校验原密码、新密码 ≥6 位且不同）
   ['POST', '/auth/change-password', ({ body }) => {
@@ -186,9 +191,8 @@ const routes = [
   }],
   ['POST', '/auth/wx-login', ({ body }) => {
     const role = d.db.employees[body.role] ? body.role : 'WORKER'
-    const user = d.db.employees[role]
     currentRole = role
-    return { token: 'mock-token-' + Date.now(), userInfo: user, role }
+    return loginPayload(role)
   }],
   // 忘记密码·微信验证重置（docs/04 V2.55 三处同步；mock 以演示账号模拟已绑定微信）
   ['POST', '/auth/reset-password-by-wechat', ({ body }) => {
