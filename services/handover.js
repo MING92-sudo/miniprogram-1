@@ -47,6 +47,16 @@ function confirmHandover(id, data) {
   return post('/handovers/' + id + '/confirm', data)
 }
 
+// C-13 安装部内部审核：action=APPROVE→INSPECTING / REJECT→DOC_SUBMITTING（remark+deadline 必填）
+function reviewHandover(id, data) {
+  return post('/handovers/' + id + '/review', data)
+}
+
+// C-13 作废：任意未生效态→VOIDED（reason 必填）
+function voidHandover(id, data) {
+  return post('/handovers/' + id + '/void', data)
+}
+
 // 接收工程师候选：复用管理端人员目录 GET /employees（console:read 角色可读），
 // 页面无权时由调用方降级为手工填写工号 + 姓名
 function getReceiverCandidates() {
@@ -113,6 +123,8 @@ module.exports = {
   submitHandoverRectify,
   recheckHandoverRectify,
   confirmHandover,
+  reviewHandover,
+  voidHandover,
   getReceiverCandidates,
   getHandoverChecklist,
   submitHandoverChecklist,

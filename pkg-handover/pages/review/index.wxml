@@ -19,9 +19,25 @@
         <button class="btn btn-ghost grow" bindtap="goInspect">核对查验</button>
       </view>
 
-      <view class="rule-note"><text class="i i-circle-info"></text><text>审核通过 / 退回与作废的审批端点待后端落地（见 docs/12 缺口）；本页当前为只读核对投影，审批动作暂不可用。</text></view>
-      <button class="btn btn-primary" disabled="{{true}}">审核通过（待后端）</button>
-      <view class="gate-note">所需能力：移交内部审核 · 允许角色：安装部主管 · 审批端点待落地</view>
+      <block wx:if="{{detail.status === 'PENDING_INST_REVIEW'}}">
+        <view wx:if="{{!rejecting}}" class="row gap8">
+          <perm-button class="grow" perm="handover:review_return" capability="审核退回" allowRoles="安装部主管" type="ghost" text="退回" bind:tap="onStartReject"></perm-button>
+          <perm-button class="grow" perm="handover:review" capability="审核通过" allowRoles="安装部主管" type="primary" text="审核通过" bind:tap="onApprove"></perm-button>
+        </view>
+        <view wx:else class="card col gap8">
+          <view class="panel-title">退回原因（必填）</view>
+          <textarea class="rv-textarea" value="{{rejectRemark}}" bindinput="onRejectRemark" placeholder="说明需补正的资料/问题" placeholder-class="rv-ph"></textarea>
+          <view class="panel-title">整改期限（必填）</view>
+          <input class="rv-input" value="{{rejectDeadline}}" bindinput="onRejectDeadline" placeholder="yyyy-MM-dd" placeholder-class="rv-ph" />
+          <view class="row gap8">
+            <button class="btn btn-ghost grow" bindtap="onCancelReject">取消</button>
+            <button class="btn btn-primary grow" disabled="{{submitting}}" bindtap="onConfirmReject">确认退回</button>
+          </view>
+        </view>
+      </block>
+
+      <perm-button wx:if="{{detail.status !== 'ARCHIVED' && detail.status !== 'VOIDED'}}" perm="handover:void" capability="作废移交单" allowRoles="安装部主管、维保经理、平台管理员" type="ghost" text="作废移交单" bind:tap="onVoid"></perm-button>
+      <view wx:if="{{detail.status === 'VOIDED'}}" class="rule-note"><text class="i i-ban"></text><text>已作废：{{detail.voidReason || '—'}}</text></view>
     </block>
   </view>
 </view>

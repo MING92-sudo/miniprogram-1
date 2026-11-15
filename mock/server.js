@@ -586,7 +586,26 @@ const routes = [
   ['GET', '/handovers/:id', ({ params }) => findOr404(mockHandovers, params.id, '移交单')],
   ['POST', '/handovers/:id/submit-docs', ({ params, body }) => {
     const o = findOr404(mockHandovers, params.id, '移交单')
-    Object.assign(o, body, { status: 'INSPECTING' })
+    Object.assign(o, body, { status: 'PENDING_INST_REVIEW' })
+    return o
+  }],
+  ['POST', '/handovers/:id/review', ({ params, body }) => {
+    const o = findOr404(mockHandovers, params.id, '移交单')
+    const action = String(body.action || '').toUpperCase()
+    if (action === 'REJECT') {
+      if (!body.remark) throw { code: 422, message: '审核退回须填写原因' }
+      if (!body.deadline) throw { code: 422, message: '审核退回须填写整改期限' }
+      Object.assign(o, { status: 'DOC_SUBMITTING', reviewRemark: body.remark, reviewDeadline: body.deadline, reviewedAt: formatTime(new Date()) })
+    } else {
+      Object.assign(o, { status: 'INSPECTING', reviewedAt: formatTime(new Date()) })
+    }
+    return o
+  }],
+  ['POST', '/handovers/:id/void', ({ params, body }) => {
+    const o = findOr404(mockHandovers, params.id, '移交单')
+    if (o.status === 'ARCHIVED' || o.status === 'VOIDED') throw { code: 422, message: '已归档或已作废的移交单不可作废' }
+    if (!body.reason) throw { code: 422, message: '作废须填写原因' }
+    Object.assign(o, { status: 'VOIDED', voidReason: body.reason, voidedAt: formatTime(new Date()) })
     return o
   }],
   ['POST', '/handovers/:id/inspect', ({ params, body }) => {

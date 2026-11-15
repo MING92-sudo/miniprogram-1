@@ -2,6 +2,7 @@
   "usingComponents": {
     "nav-bar": "/components/nav-bar/index",
     "status-tag": "/components/status-tag/index",
+    "perm-button": "/components/perm-button/index",
     "skeleton": "/components/skeleton/index",
     "error-retry": "/components/error-retry/index"
   }

@@ -104,6 +104,29 @@ public class HandoverController {
         return ApiResponse.ok(handoverService.signNode(id, body, empId(request)));
     }
 
+    /** C-13 安装部内部审核：通过→INSPECTING（handover:review）/退回→DOC_SUBMITTING（handover:review_return，原因+期限必填） */
+    @PostMapping("/handovers/{id}/review")
+    public ApiResponse<HandoverOrder> review(@PathVariable String id,
+                                             @RequestBody(required = false) Map<String, Object> body,
+                                             HttpServletRequest request) {
+        String action = body == null || body.get("action") == null ? "" : String.valueOf(body.get("action")).trim().toUpperCase();
+        if ("REJECT".equals(action)) {
+            com.cqwlw.maintenance.auth.MultiRoleGate.requireWrite(request, com.cqwlw.maintenance.auth.PermissionMatrix.HANDOVER_REVIEW_RETURN);
+        } else {
+            com.cqwlw.maintenance.auth.MultiRoleGate.requireWrite(request, com.cqwlw.maintenance.auth.PermissionMatrix.HANDOVER_REVIEW);
+        }
+        return ApiResponse.ok(handoverService.review(id, body, empId(request)));
+    }
+
+    /** C-13 作废：任意未生效态→VOIDED（handover:void，原因必填；安装主管/维保经理/平台） */
+    @PostMapping("/handovers/{id}/void")
+    public ApiResponse<HandoverOrder> voidHandover(@PathVariable String id,
+                                                   @RequestBody(required = false) Map<String, Object> body,
+                                                   HttpServletRequest request) {
+        com.cqwlw.maintenance.auth.MultiRoleGate.requireWrite(request, com.cqwlw.maintenance.auth.PermissionMatrix.HANDOVER_VOID);
+        return ApiResponse.ok(handoverService.voidHandover(id, body, empId(request)));
+    }
+
     private String empId(HttpServletRequest request) {
         return String.valueOf(request.getAttribute(com.cqwlw.maintenance.auth.AuthInterceptor.ATTR_EMP_ID));
     }
