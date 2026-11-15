@@ -42,7 +42,7 @@
           <view class="cb {{remember ? 'on' : ''}}"><text wx:if="{{remember}}" class="i i-check cb-ico"></text></view>
           <text class="fs20 dim">记住账号</text>
         </view>
-        <button class="link quiet fs20" bindtap="forgotPassword">忘记密码</button>
+        <text class="fs20 dim lg-forgot" bindtap="forgotPassword">忘记密码</text>
       </view>
       <button class="btn btn-primary lg-submit" disabled="{{logging}}" bindtap="onSubmit">{{logging ? '登录中…' : '登录工作台'}}</button>
       <button wx:if="{{wechatBound}}" class="btn btn-ghost lg-wechat" bindtap="onWechatLogin"><text class="i i-weixin"></text> 微信一键登录</button>

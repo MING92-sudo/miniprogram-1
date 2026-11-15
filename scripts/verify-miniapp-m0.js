@@ -43,10 +43,10 @@ for (const line of s4.split('\n')) {
     cells[2].split('+').forEach(x => oldCol.add(x.trim()))
   }
 }
-// M6 收紧（裁决 R1）：旧页全删，app.json 全部页（主包+子包）∈ newCol 且计数 49
+// M6 收紧（裁决 R1）：旧页全删，app.json 全部页（主包+子包）∈ newCol 且计数 50（V2.19 增 login/forgot）
 const allAppPages = (app.pages || []).concat((app.subPackages || []).reduce((acc, sp) => acc.concat((sp.pages || []).map(p => sp.root + '/' + p)), []))
 check('routes-old', allAppPages.filter(p => !newCol.has(p)), allAppPages.length)
-check('routes-total', allAppPages.length === 49 ? [] : ['expect 49 got ' + allAppPages.length], 49)
+check('routes-total', allAppPages.length === 50 ? [] : ['expect 50 got ' + allAppPages.length], 50)
 const spec14 = SPEC.split('### 1.4')[1].split('### 1.5')[0]
 const specRoutes = new Set()
 for (const line of spec14.split('\n')) {
@@ -61,7 +61,7 @@ for (const line of spec14.split('\n')) {
   }
 }
 check('routes-new', [...specRoutes].filter(p => !newCol.has(p)), specRoutes.size)
-check('routes-count', specRoutes.size === 49 && newCol.size === 49 ? [] : ['spec=' + specRoutes.size + ' m0=' + newCol.size], 49)
+check('routes-count', specRoutes.size === 50 && newCol.size === 50 ? [] : ['spec=' + specRoutes.size + ' m0=' + newCol.size], 50)
 // 5 权限码：106 唯一全覆盖
 const pmSrc = fs.readFileSync(path.join(ROOT, 'backend/src/main/java/com/cqwlw/maintenance/auth/PermissionMatrix.java'), 'utf8')
 const codes = [...new Set([...pmSrc.matchAll(/public static final String [A-Z_0-9]+ = "([a-z_]+:[a-z_]+)"/g)].map(m => m[1]))]

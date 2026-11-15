@@ -2,6 +2,7 @@
   "pages": [
     "pages/login/index",
     "pages/login/agreement",
+    "pages/login/forgot",
     "pages/install/home/index",
     "pages/maint/home/index",
     "pages/client/home/index",

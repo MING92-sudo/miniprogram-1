@@ -18,6 +18,7 @@ page{background:var(--ink);color:var(--text)}
 .lg-submit{width:100%;margin-top:24rpx}
 .lg-card .btn{width:100%;box-sizing:border-box}
 .lg-wechat{width:100%;margin-top:14rpx;height:80rpx;font-size:24rpx}
+.lg-forgot{padding:10rpx 0 10rpx 30rpx}
 .lg-link{color:#D6C29A}
 .cb{width:28rpx;height:28rpx;border-radius:4rpx;border:1rpx solid var(--amber);display:flex;align-items:center;justify-content:center;flex:none}
 .cb.on{background:var(--amber)}

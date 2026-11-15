@@ -14,6 +14,10 @@ function wxLogin(code, phoneCode, role) {
 function changePassword(oldPassword, newPassword) {
   return post('/auth/change-password', { oldPassword: oldPassword, newPassword: newPassword })
 }
+// 忘记密码：微信验证重置（code 服务端换 openid 匹配绑定账号；未绑定由页面引导管理员重置）
+function resetPasswordByWechat(code, newPassword) {
+  return post('/auth/reset-password-by-wechat', { code: code, newPassword: newPassword }, { needAuth: false })
+}
 // 账号密码登录（用户需求：账号由维保单位系统分配，手机号为账号）
 function accountLogin(phone, password) {
   return post('/auth/login', { phone: phone, password: password }, { needAuth: false })
@@ -56,6 +60,7 @@ function applyLoginResult(data) {
 
 module.exports = {
   changePassword: changePassword,
+  resetPasswordByWechat,
   accountLogin,
   bindWeChat,
   wxLogin,

@@ -14,6 +14,7 @@ const LIST = [
   // ── 主包 17（蓝图 11 + 保留工具 6） ──
   R('/pages/login/index', '登录', { auth: false, built: true }),
   R('/pages/login/agreement', '用户协议与隐私政策', { auth: false, built: true }),
+  R('/pages/login/forgot', '忘记密码', { auth: false, built: true }),
   R('/pages/install/home/index', '安装工作台', { roles: INST, tab: true, built: true }),
   R('/pages/maint/home/index', '维保工作台', { roles: MAINT_EXT, tab: true, built: true }),
   R('/pages/client/home/index', '使用单位首页', { roles: CLIENT, tab: true, built: true }),

@@ -1,0 +1,12 @@
+const automator = require('miniprogram-automator'); const path = require('path'); const fs = require('fs')
+const SHOTS = path.join(__dirname, 'shots'); if (!fs.existsSync(SHOTS)) fs.mkdirSync(SHOTS, { recursive: true })
+const sleep = ms => new Promise(r => setTimeout(r, ms))
+;(async () => {
+  const mp = await automator.connect({ wsEndpoint: 'ws://localhost:9421', timeout: 60000 }); await sleep(2000)
+  await mp.evaluate(() => wx.clearStorageSync())
+  await mp.reLaunch('/pages/login/index'); await sleep(2500)
+  await mp.screenshot({ path: path.join(SHOTS, 'login-forgot-fix.png') }); console.log('shot login')
+  await mp.reLaunch('/pages/login/forgot'); await sleep(2500)
+  await mp.screenshot({ path: path.join(SHOTS, 'forgot-page.png') }); console.log('shot forgot')
+  await mp.disconnect()
+})().catch(e => { console.error('ERR', e.message); process.exit(1) })

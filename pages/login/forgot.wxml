@@ -1,0 +1,31 @@
+<view class="bw">
+  <nav-bar title="重置密码"></nav-bar>
+  <view class="fg-page">
+    <view class="disp fg-title">忘记密码</view>
+    <view class="fs22 dim fg-sub">通过本机微信验证身份后设置新密码。</view>
+
+    <view class="fg-card">
+      <view class="row between">
+        <text class="fs22 w6">设置新密码</text>
+        <text class="mono fs18 dim ls12">微信验证</text>
+      </view>
+      <view class="col gap4 mt10">
+        <text class="fs20 muted">新密码</text>
+        <view class="fg-pw-wrap">
+          <input class="fg-input fg-pw" password="{{!showPassword}}" value="{{newPassword}}" bindinput="onNewInput" placeholder="至少 6 位" placeholder-class="fg-ph" />
+          <text class="fg-eye fs20" bindtap="togglePassword">{{showPassword ? '隐藏' : '显示'}}</text>
+        </view>
+      </view>
+      <view class="col gap4 mt8">
+        <text class="fs20 muted">确认新密码</text>
+        <input class="fg-input" password="{{!showPassword}}" value="{{confirmPassword}}" bindinput="onConfirmInput" placeholder="再次输入新密码" placeholder-class="fg-ph" />
+      </view>
+      <button class="btn btn-primary fg-submit" disabled="{{submitting}}" bindtap="onSubmit">{{submitting ? '重置中…' : '微信验证并重置'}}</button>
+    </view>
+
+    <view class="fg-note">
+      <view class="fs22 w6">未绑定微信？</view>
+      <view class="fs20 dim fg-note-text">账号由单位管理员统一开通。请联系本单位管理员在管理端「人员」中重置密码，再使用新密码登录。</view>
+    </view>
+  </view>
+</view>

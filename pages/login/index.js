@@ -35,6 +35,15 @@ Page({
     if (this._signedIn) setTimeout(() => wx.reLaunch({ url: getHome() || resolveHome(getRoles()) }), 300)
   },
 
+  // 忘记密码重置成功回跳：一次性预填账号
+  onShow() {
+    const reset = wx.getStorageSync('em_reset_account')
+    if (reset) {
+      wx.removeStorageSync('em_reset_account')
+      this.setData({ phone: reset })
+    }
+  },
+
   onPhoneInput(e) { this.setData({ phone: e.detail.value }) },
   onPasswordInput(e) { this.setData({ password: e.detail.value }) },
   togglePassword() { this.setData({ showPassword: !this.data.showPassword }) },
@@ -47,7 +56,7 @@ Page({
   openAgreement() { wx.navigateTo({ url: '/pages/login/agreement?type=agreement' }) },
   openPrivacy() { wx.navigateTo({ url: '/pages/login/agreement?type=privacy' }) },
   forgotPassword() {
-    wx.showModal({ title: '忘记密码', content: '账号由本单位管理员统一分配，请联系本单位管理员重置密码。', showCancel: false, confirmText: '知道了' })
+    nav.open('/pages/login/forgot')
   },
 
   // 登录成功统一回跳：白名单 redirect 优先，否则账号默认工作台

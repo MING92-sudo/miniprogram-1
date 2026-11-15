@@ -190,6 +190,16 @@ const routes = [
     currentRole = role
     return { token: 'mock-token-' + Date.now(), userInfo: user, role }
   }],
+  // 忘记密码·微信验证重置（docs/04 V2.55 三处同步；mock 以演示账号模拟已绑定微信）
+  ['POST', '/auth/reset-password-by-wechat', ({ body }) => {
+    if (!body.code) throw { code: 422, message: '缺少微信 code' }
+    const newPassword = String(body.newPassword || '')
+    if (newPassword.length < 6) throw { code: 422, message: '新密码至少 6 位' }
+    const role = d.db.employees[body.role] ? body.role : 'WORKER'
+    const user = d.db.employees[role]
+    user.password = newPassword
+    return { ok: true, account: user.account }
+  }],
   ['POST', '/auth/bind-employee', ({ body }) => {
     const role = body.role === 'LEADER' ? 'LEADER' : 'WORKER'
     return { token: 'mock-token-' + Date.now(), userInfo: d.db.employees[role], role }

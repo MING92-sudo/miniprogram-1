@@ -33,6 +33,7 @@ public class WebConfig implements WebMvcConfigurer {
                 .excludePathPatterns(
                         "/health", "/api/count",
                         "/auth/login", "/auth/wx-login", "/auth/logout",
+                        "/auth/reset-password-by-wechat",
                         // bind-* 是登录后写操作，统一走 AuthInterceptor（校验 JWT + 单端会话 sid），
                         // AuthController 内仍保留 currentUser 防御，避免未来路由配置回退时越权
                         "/unit/records/*/sign-view", "/unit/records/*/confirm-by-token",

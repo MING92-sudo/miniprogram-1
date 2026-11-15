@@ -171,6 +171,30 @@ public class AuthController {
         employeeMapper.updateById(user);
         return ApiResponse.ok(Map.of("ok", true));
     }
+    /** 忘记密码（登录页入口，免登录）：code 服务端换 openid 匹配绑定账号后重置；重置后清两端会话。 */
+    @PostMapping("/auth/reset-password-by-wechat")
+    @Transactional
+    public ApiResponse<Map<String, Object>> resetPasswordByWechat(@RequestBody Map<String, Object> body) {
+        String openid = wxAuthService.openidFromCode(text(body.get("code")));
+        Employee user = employeeMapper.selectOne(new LambdaQueryWrapper<Employee>()
+                .eq(Employee::getOpenid, openid).last("LIMIT 1"));
+        if (user == null) {
+            throw new BizException(422, "该微信尚未绑定账号，请联系单位管理员重置密码");
+        }
+        if (Boolean.FALSE.equals(user.enabled)) {
+            throw new BizException(403, "账号已停用，请联系系统管理员");
+        }
+        String newPassword = body.get("newPassword") == null ? "" : String.valueOf(body.get("newPassword"));
+        if (newPassword.length() < 6) {
+            throw new BizException(422, "新密码至少 6 位");
+        }
+        user.passwordHash = encoder.encode(newPassword);
+        employeeMapper.updateById(user);
+        employeeMapper.clearSessions(user.id);
+        log.info("微信验证重置密码成功: empId={}", user.id); // 不打印 openid/新密码（脱敏）
+        return ApiResponse.ok(Map.of("ok", true, "account", user.account == null ? "" : user.account));
+    }
+
     @PostMapping("/auth/logout")
     public ApiResponse<Map<String, Object>> logout() {
         return ApiResponse.ok(Map.of("ok", true));
