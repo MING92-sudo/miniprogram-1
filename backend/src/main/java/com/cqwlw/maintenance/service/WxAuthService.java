@@ -108,10 +108,14 @@ public class WxAuthService {
             try (javax.net.ssl.SSLSocket socket = (javax.net.ssl.SSLSocket) ctx.getSocketFactory()
                     .createSocket("api.weixin.qq.com", 443)) {
                 socket.startHandshake();
+                log.warn("jscode2session 解析 IP: {}", java.util.Arrays.toString(
+                        java.net.InetAddress.getAllByName("api.weixin.qq.com")));
                 for (java.security.cert.Certificate cert : socket.getSession().getPeerCertificates()) {
                     if (cert instanceof java.security.cert.X509Certificate x509) {
-                        log.warn("jscode2session 对端证书: subject={} issuer={}",
-                                x509.getSubjectX500Principal(), x509.getIssuerX500Principal());
+                        log.warn("jscode2session 对端证书: subject={} issuer={} sha256={}",
+                                x509.getSubjectX500Principal(), x509.getIssuerX500Principal(),
+                                java.util.HexFormat.of().formatHex(
+                                        java.security.MessageDigest.getInstance("SHA-256").digest(cert.getEncoded())));
                     }
                 }
             }
