@@ -4,7 +4,7 @@ const auth = require('../../services/auth')
 const { definePage } = require('../../utils/guard')
 const { ROUTES } = require('../../config/routes')
 const menus = require('../../config/menus')
-const { getRoles, getPerms } = require('../../utils/auth')
+const { getRoles, getPerms, isCustomerPrincipal } = require('../../utils/auth')
 const nav = require('../../utils/nav')
 const { TOAST_TEXT, PROFILE_TEXT, ROLE_DESC, BRAND } = require('../../constants/index')
 
@@ -56,7 +56,9 @@ definePage(ROUTES['/pages/profile/index'], {
       adminEntries: this.buildAdminEntries()
     })
   },
+  // P1 T8-B3：客户主体不渲染任何管理入口——矩阵已收回内部码（T2），此处再防旧会话缓存的过期 perms
   buildAdminEntries() {
+    if (isCustomerPrincipal()) return []
     const perms = getPerms() || []
     const entries = []
     if (perms.indexOf('project:view') > -1) entries.push({ key: 'projects', text: '项目台账', path: '/pkg-admin/pages/projects/index' })

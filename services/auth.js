@@ -43,7 +43,7 @@ function logout() {
   return post('/auth/logout', {})
 }
 
-// 登录成功统一落库（M1：透传 roles/perms/activeWorkspace/home）
+// 登录成功统一落库（M1：透传 roles/perms/activeWorkspace/home；P1 T8：透传 principalType）
 function applyLoginResult(data) {
   saveAuth({
     token: data.token,
@@ -53,7 +53,8 @@ function applyLoginResult(data) {
     perms: data.perms,
     activeWorkspace: data.activeWorkspace,
     home: data.home,
-    scope: data.scope
+    scope: data.scope,
+    principalType: data.principalType
   })
   return data
 }

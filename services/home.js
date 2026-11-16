@@ -90,7 +90,8 @@ function getInstallHome() {
   })
 }
 
-// 使用单位工作台（屏 10）：待签/待评价 / KPI / 我的电梯 / 最近记录 / 年检提醒
+// 使用单位工作台（屏 10）：待签提醒 / KPI / 我的电梯 / 最近记录 / 年检提醒
+// P1 T8-B2：评价入口下线（docs/14 §4.7 评价关闭），不再聚合「已闭环待评价」急修提醒
 function getClientHome() {
   return Promise.all([
     unit.getUnitPendingSigns().catch(() => []),
@@ -104,11 +105,6 @@ function getClientHome() {
       id: r.id, kind: 'record',
       title: (r.elevatorName || '') + ' · 半月保记录单',
       desc: (r.id || '') + ' · 待使用单位签署', action: '去签字'
-    }))
-    faults.filter((f) => f.status === 'CLOSED' && !f.evaluatedAt).slice(0, 1).forEach((f) => signAlerts.push({
-      id: f.id, kind: 'fault',
-      title: (f.elevatorName || f.elevatorCode || '') + ' · 急修单',
-      desc: (f.desc || '') + ' · 已闭环 · 7 天内可评价', action: '去评价'
     }))
     const kpis = [
       { value: pad(elevators.length), label: '在管电梯', tone: 'amber' },

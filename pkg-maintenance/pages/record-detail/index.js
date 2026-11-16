@@ -28,7 +28,8 @@ definePage(ROUTES['/pkg-maintenance/pages/record-detail/index'], {
     this.orderId = (options && options.orderId) || ''
     if (!this.recordId && this.orderId) {
       getOrderDetail(this.orderId).then((o) => {
-        this.recordId = (o && (o.recordId || o.record && o.record.id)) || ''
+        // P1 T8-A4：真实后端/mock 工单详情以 recordInfo.id 关联记录（旧口径 recordId/record.id 仅历史兜底）
+        this.recordId = (o && (o.recordId || (o.recordInfo && o.recordInfo.id) || (o.record && o.record.id))) || ''
         this.load()
       }).catch(() => this.load())
     }
@@ -69,13 +70,15 @@ definePage(ROUTES['/pkg-maintenance/pages/record-detail/index'], {
   },
   onRetry() { this.load() },
   previewPhoto(e) { wx.previewImage({ current: e.currentTarget.dataset.url, urls: this.data.photoList.map((p) => p.url) }) },
+  // P1 T8-A4：后端 signRequest/archiveView 一律按记录 id 定位（此前误传 orderId → 真实后端 1404），
+  // 本页 recordId 已在 onLoad 解析（recordId 直传或工单详情 recordInfo.id 兜底）
   onSignRequest() {
-    signRequest(this.orderId || (this.data.record && this.data.record.workOrderId) || this.recordId)
+    signRequest(this.recordId || (this.data.record && this.data.record.id))
       .then(() => { wx.showToast({ title: '已发起使用单位签署', icon: 'success' }); this.load() })
       .catch((e) => wx.showToast({ title: (e && e.message) || '发起失败', icon: 'none' }))
   },
   onArchive() {
-    getRecordArchive(this.orderId || this.recordId)
+    getRecordArchive(this.recordId || (this.data.record && this.data.record.id))
       .then((a) => this.setData({ archive: a }))
       .catch((e) => wx.showToast({ title: (e && e.message) || '暂无归档', icon: 'none' }))
   },

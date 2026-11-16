@@ -8,6 +8,8 @@ const PERMS_KEY = 'em_perms'
 const WORKSPACE_KEY = 'em_workspace'
 const HOME_KEY = 'em_home'
 const SCOPE_KEY = 'em_scope'
+// P1 T8-B6：登录体主体类型（CUSTOMER/EMPLOYEE，后端 AuthController.loginResult 下发）
+const PRINCIPAL_KEY = 'em_principal'
 
 function getToken() {
   return wx.getStorageSync(TOKEN_KEY)
@@ -25,8 +27,8 @@ function isLoggedIn() {
   return !!getToken()
 }
 
-// 保存登录态（/auth/login 返回；M1 扩展 roles/perms/activeWorkspace/home）
-function saveAuth({ token, userInfo, role, roles, perms, activeWorkspace, home, scope }) {
+// 保存登录态（/auth/login 返回；M1 扩展 roles/perms/activeWorkspace/home；P1 扩展 principalType）
+function saveAuth({ token, userInfo, role, roles, perms, activeWorkspace, home, scope, principalType }) {
   wx.setStorageSync(TOKEN_KEY, token)
   wx.setStorageSync(USER_KEY, userInfo)
   wx.setStorageSync(ROLE_KEY, role)
@@ -35,6 +37,7 @@ function saveAuth({ token, userInfo, role, roles, perms, activeWorkspace, home, 
   wx.setStorageSync(WORKSPACE_KEY, activeWorkspace || role)
   wx.setStorageSync(HOME_KEY, home || '')
   wx.setStorageSync(SCOPE_KEY, scope || '')
+  wx.setStorageSync(PRINCIPAL_KEY, principalType || '')
 }
 
 function getRoles() {
@@ -57,6 +60,10 @@ function getScope() {
   return wx.getStorageSync(SCOPE_KEY) || ''
 }
 
+function getPrincipalType() {
+  return wx.getStorageSync(PRINCIPAL_KEY) || ''
+}
+
 function clearAuth() {
   wx.removeStorageSync(TOKEN_KEY)
   wx.removeStorageSync(USER_KEY)
@@ -66,6 +73,7 @@ function clearAuth() {
   wx.removeStorageSync(WORKSPACE_KEY)
   wx.removeStorageSync(HOME_KEY)
   wx.removeStorageSync(SCOPE_KEY)
+  wx.removeStorageSync(PRINCIPAL_KEY)
 }
 
 
@@ -92,6 +100,19 @@ function hasAnyRole(list) {
   const session = getSessionRoles()
   return (list || []).some(function (r) { return session.indexOf(r) > -1 })
 }
+
+// 客户主体判定（P1 T8-B6，后端 RoleCatalog.isCustomerPrincipal 同口径）：优先登录体 principalType；
+// 旧会话无该字段时回退角色集归一判定（非空且全部为 CLIENT_ADMIN/CLIENT_SIGNER，含旧码 UNIT_ADMIN 别名）
+function isCustomerPrincipal() {
+  const pt = getPrincipalType()
+  if (pt) return pt === 'CUSTOMER'
+  const roles = getRoles() || []
+  if (!roles.length) return false
+  return roles.every(function (r) {
+    return ['CLIENT_ADMIN', 'CLIENT_SIGNER'].indexOf(ROLE_ALIAS[r] || r) > -1
+  })
+}
+
 module.exports = {
   getToken,
   getUserInfo,
@@ -101,10 +122,12 @@ module.exports = {
   getWorkspace,
   getHome,
   getScope,
+  getPrincipalType,
   isLoggedIn,
   saveAuth,
   clearAuth,
   getSessionRoles,
-  hasAnyRole
+  hasAnyRole,
+  isCustomerPrincipal
 }
 

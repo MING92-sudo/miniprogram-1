@@ -33,8 +33,8 @@
 
       <view class="card col gap6">
         <view class="panel-title">签署前核对</view>
-        <view class="kv"><span>记录单版本号</span><b class="mono">{{view.version || 'v1'}}</b></view>
-        <view wx:if="{{view.hash}}" class="kv"><span>SHA-256 前 8 位</span><b class="mono">{{view.hash}}</b></view>
+        <view class="kv"><span>记录单版本号</span><b class="mono">{{view.recordVersion || 'v1'}}</b></view>
+        <view wx:if="{{view.hashPrefix}}" class="kv"><span>SHA-256 前 8 位</span><b class="mono">{{view.hashPrefix}}</b></view>
         <view class="fs20 dim">版本号与哈希须与维保记录单一致；不一致请先「拒绝并说明」再签署。</view>
       </view>
 

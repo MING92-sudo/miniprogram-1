@@ -71,16 +71,19 @@ function signatureRefuse(orderId) {
   return post(`/work-orders/${orderId}/signature-refuse`, {})
 }
 
-function reviewRecord(orderId, pass, reason) {
-  return post(`/work-orders/${orderId}/review`, { pass, reason })
+// 主管复核（契约保留，暂无页面调用）：后端 review 同 sign-request 按记录 id 定位，调用方须传 recordId
+function reviewRecord(recordId, pass, reason) {
+  return post(`/work-orders/${recordId}/review`, { pass, reason })
 }
 
-function signRequest(orderId) {
-  return post(`/work-orders/${orderId}/sign-request`, {})
+// 发起使用单位签字（P1 T8-A4：后端按记录 id 定位，调用方须传 recordId；路径保留 /work-orders 前缀契约）
+function signRequest(recordId) {
+  return post(`/work-orders/${recordId}/sign-request`, {})
 }
 
-function getRecordArchive(orderId) {
-  return get(`/work-orders/${orderId}/archive`)
+// 归档投影（PDF 重签 URL + SHA-256）：同 sign-request，后端按记录 id 定位
+function getRecordArchive(recordId) {
+  return get(`/work-orders/${recordId}/archive`)
 }
 
 module.exports = {

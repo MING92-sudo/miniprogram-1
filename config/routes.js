@@ -22,9 +22,11 @@ const LIST = [
   R('/pages/client/home/index', '使用单位首页', { roles: CLIENT, tab: true, built: true }),
   R('/pages/order/list/index', '报修接单', { roles: MAINT, perm: 'order:view_pool', tab: true, batch: 'M3' }),
   R('/pages/order/detail/index', '急修单详情', { roles: MAINT.concat(CLIENT), perm: ['order:view_pool', 'order:view_own'], batch: 'M3' }),
-  R('/pages/order/report/index', '一键报修', { roles: CLIENT.concat(['MAINT_SUP']), perm: ['order:create', 'order:create_proxy'], batch: 'M3' }),
-  R('/pages/elevator/list/index', '电梯列表', { perm: 'elevator:view', tab: true, built: true }),
-  R('/pages/elevator/detail/index', '电梯档案', { perm: 'elevator:view', built: true }),
+  // P1 T8-B4：客户报修入口下线（client:report 收回，重开由 P3 裁决）；维保主管代报修保留
+  R('/pages/order/report/index', '一键报修', { roles: ['MAINT_SUP'], perm: ['order:create', 'order:create_proxy'], batch: 'M3' }),
+  // P1 T8-B4：电梯页为客户 tab（client-elevators），perm any-of 补客户码（T2 后客户仅持 client:*，内部码不再命中）
+  R('/pages/elevator/list/index', '电梯列表', { perm: ['elevator:view', 'client:elevator_view'], tab: true, built: true }),
+  R('/pages/elevator/detail/index', '电梯档案', { perm: ['elevator:view', 'client:elevator_view'], built: true }),
   R('/pages/profile/index', '我的', { tab: true, built: true }),
   R('/pages/profile/password', '修改密码', { built: true }),
   R('/pages/403/index', '无访问权限', { auth: false, built: true }),
@@ -50,14 +52,18 @@ const LIST = [
   R('/pkg-maintenance/pages/task/index', '作业执行', { roles: ['MAINT_TECH'], perm: 'task:accept', batch: 'M3' }),
   R('/pkg-maintenance/pages/checkin/index', '签到', { roles: ['MAINT_TECH'], batch: 'M3' }),
   R('/pkg-maintenance/pages/checkout/index', '签退', { roles: ['MAINT_TECH'], batch: 'M3' }),
-  R('/pkg-maintenance/pages/record-detail/index', '记录单详情', { roles: MAINT_EXT.concat(CLIENT), perm: 'record:view', batch: 'M3' }),
+  // P1 T8-B4：内部记录页保持内部码（员工用），客户不可达——客户读记录走 pkg-client/sign token 链路
+  R('/pkg-maintenance/pages/record-detail/index', '记录单详情', { roles: MAINT_EXT, perm: 'record:view', batch: 'M3' }),
   R('/pkg-maintenance/pages/plan/index', '维保计划', { roles: ['MAINT_SUP', 'MAINT_MGR'], perm: 'plan:view', batch: 'M3' }),
   R('/pkg-maintenance/pages/record-sign/index', '维保双人签字', { roles: ['MAINT_TECH'], perm: 'record:sign_tech', batch: 'M3' }),
-  // ── pkg-client 4 ──
-  R('/pkg-client/pages/todo/index', '待办签字', { roles: CLIENT, perm: ['record:sign', 'order:confirm'], tab: true, batch: 'M5' }),
-  R('/pkg-client/pages/sign/index', '签署确认', { roles: ['CLIENT_SIGNER'], perm: 'client:sign', batch: 'M5' }),
-  R('/pkg-client/pages/orders/index', '本单位工单', { roles: CLIENT, perm: 'order:view_own', batch: 'M5' }),
-  R('/pkg-client/pages/evaluate/index', '服务评价', { roles: CLIENT, perm: 'client:evaluate', batch: 'M5' }),
+  // ── pkg-client 4（P1 T8-B4：客户 perm 收敛为 client:* 三码；工单/评价入口下线，页面文件保留 P3 复用）──
+  R('/pkg-client/pages/todo/index', '待办签字', { roles: CLIENT, perm: 'client:sign', tab: true, batch: 'M5' }),
+  // client:sign 为 CA/CS 双 Y（docs/14 §5.4 两角色能力相同）：签字页对两客户角色开放
+  R('/pkg-client/pages/sign/index', '签署确认', { roles: CLIENT, perm: 'client:sign', batch: 'M5' }),
+  // 客户只看记录不看内部工单：roles 置空 = 客户入口下线（报修/工单域关闭，重开由 P3 裁决）
+  R('/pkg-client/pages/orders/index', '本单位工单', { roles: [], perm: 'order:view_own', batch: 'M5' }),
+  // 评价关闭（docs/14 §4.7，T3-Important#1）：roles 置空断入口，页面保留 P3 复用
+  R('/pkg-client/pages/evaluate/index', '服务评价', { roles: [], perm: 'client:evaluate', batch: 'M5' }),
   // ── pkg-admin 7 ──
   R('/pkg-admin/pages/projects/index', '项目台账', { roles: ['MAINT_SUP', 'MAINT_MGR', 'INST_PM', 'INST_MGR'].concat(PLATFORM), perm: 'project:view', tab: true, batch: 'M6' }),
   R('/pkg-admin/pages/contracts/index', '合同', { roles: ['MAINT_SUP', 'MAINT_MGR', 'CLIENT_ADMIN'].concat(PLATFORM), perm: 'contract:view', tab: true, batch: 'M6' }),

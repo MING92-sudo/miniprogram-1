@@ -4,7 +4,6 @@
     <skeleton wx:if="{{loading}}" rows="{{[{h:120},{h:120}]}}"></skeleton>
     <error-retry wx:elif="{{error}}" message="{{error}}" bind:retry="onRetry"></error-retry>
     <block wx:else>
-      <view wx:if="{{!canSign}}" class="rule-note"><text class="i i-circle-info"></text><text>签字需使用单位签字人（CLIENT_SIGNER）角色；管理员未兼任时不可代签。</text></view>
       <sec-head title="待签记录单"></sec-head>
       <block wx:if="{{records.length}}">
         <view wx:for="{{records}}" wx:key="id" class="card row between" data-item="{{item}}" bindtap="goSign" aria-role="button">
