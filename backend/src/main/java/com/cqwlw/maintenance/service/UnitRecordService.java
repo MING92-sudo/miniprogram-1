@@ -1,6 +1,8 @@
 package com.cqwlw.maintenance.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import com.cqwlw.maintenance.auth.RoleCatalog;
 import com.cqwlw.maintenance.common.BizException;
 import com.cqwlw.maintenance.entity.MaintainRecord;
 import com.cqwlw.maintenance.mapper.MaintainRecordMapper;
@@ -42,41 +44,109 @@ public class UnitRecordService {
 
     private final com.cqwlw.maintenance.mapper.ElevatorMapper elevatorMapper;
 
-    /** M1：统一令牌 + CLIENT 本单位谓词（旧门户令牌 UNIT_ADMIN 兜底） */
+    /**
+     * M1：统一令牌 + CLIENT 本单位谓词（旧门户令牌 UNIT_ADMIN 兜底）。
+     * P1 T4（docs/14 §4.6）：客户待签列表只含 本单位 + 唯一可签状态 PENDING_CLIENT_SIGNATURE + 链末端最新版本，
+     * 投影一律走 toClientMap 白名单（内部字段不外泄）。
+     */
     public Map<String, Object> pendingAs(Map<String, String> query, java.util.Set<String> roles, String unitId) {
         requireClient(roles, unitId);
         List<Map<String, Object>> list = recordMapper.selectList(new LambdaQueryWrapper<MaintainRecord>()
                         .eq(MaintainRecord::getConfirmStatus, "PENDING")
+                        .eq(MaintainRecord::getLifecycleStatus, "PENDING_CLIENT_SIGNATURE")
                         .orderByDesc(MaintainRecord::getCreatedAt))
-                .stream().filter(r -> unitId.equals(unitOf(r))).map(this::toMap).collect(Collectors.toList());
+                .stream()
+                // 内存双保险：与 SQL 同谓词（历史数据 lifecycle 为 NULL 不作为客户可见记录，§4.6 表）
+                .filter(r -> "PENDING".equals(r.confirmStatus) && "PENDING_CLIENT_SIGNATURE".equals(r.lifecycleStatus))
+                .filter(r -> unitId.equals(unitOf(r)) && isLatestVersion(r))
+                .map(this::toClientMap)
+                .collect(Collectors.toList());
         return workOrderService.paginate(list, query);
     }
 
     public Map<String, Object> getAs(String id, java.util.Set<String> roles, String unitId) {
         requireClient(roles, unitId);
         MaintainRecord r = findOr404(id);
-        if (!unitId.equals(unitOf(r))) {
-            throw new BizException(1403, "仅本单位记录可查看");
-        }
-        return toMap(r);
+        requireOwnUnit(r, unitId, "仅本单位记录可查看");
+        requireSignable(r); // 详情即签署前核对视图：非待签/旧版本客户不可见（docs/14 §4.6 规则 1/2）
+        return toClientMap(r);
     }
 
     public Map<String, Object> confirmAs(String id, Map<String, Object> body, java.util.Set<String> roles, String unitId) {
         requireClient(roles, unitId);
         MaintainRecord r = findOr404(id);
-        if (!unitId.equals(unitOf(r))) {
-            throw new BizException(1403, "仅本单位记录可确认");
+        requireOwnUnit(r, unitId, "仅本单位记录可确认");
+        requireSignable(r);
+        String signatureUrl = WorkOrderService.strOrEmpty(body.get("signatureUrl"));
+        String signatureFileId = WorkOrderService.strOrEmpty(body.get("signatureFileId"));
+        if (signatureUrl.isEmpty() && signatureFileId.isEmpty()) {
+            throw new BizException(422, "请先完成签名");
         }
-        return confirm(id, body);
+        int satisfaction = body.get("satisfaction") == null ? 0 : ((Number) body.get("satisfaction")).intValue();
+        // docs/14 §4.6 规则 3「先签为准」：条件更新 WHERE confirm_status='PENDING' AND lifecycle_status='PENDING_CLIENT_SIGNATURE'，
+        // 并发第二个签字受影响行=0 → 422 已签，不覆盖首签（客户签字不触发 2.6：onClientSigned 只置 SIGNED+归档）
+        int affected = recordMapper.update(null, new LambdaUpdateWrapper<MaintainRecord>()
+                .eq(MaintainRecord::getId, r.id)
+                .eq(MaintainRecord::getConfirmStatus, "PENDING")
+                .eq(MaintainRecord::getLifecycleStatus, "PENDING_CLIENT_SIGNATURE")
+                .set(MaintainRecord::getConfirmStatus, "CONFIRMED")
+                .set(MaintainRecord::getSatisfaction, satisfaction)
+                .set(MaintainRecord::getSignatureFileId, signatureFileId)
+                .set(MaintainRecord::getSignatureUrl, signatureUrl));
+        if (affected == 0) {
+            throw new BizException(422, "记录已被签署（先签为准），请刷新后查看");
+        }
+        // 落库成功后才回写内存态，供 onClientSigned 归档投影（PDF 需最新签字字段）
+        r.confirmStatus = "CONFIRMED";
+        r.satisfaction = satisfaction;
+        r.signatureFileId = signatureFileId;
+        r.signatureUrl = signatureUrl;
+        if (recordLifecycleService != null) {
+            recordLifecycleService.onClientSigned(r); // SIGNED→自动归档；不注入上报服务，结构保证不触发平台 2.6
+        }
+        return JsonUtil.map("ok", true);
     }
 
+    /**
+     * 门禁链①②（docs/14 §4.6 规则 2）：principalType=CUSTOMER（T1 RoleCatalog，CLIENT_ADMIN/CLIENT_SIGNER
+     * 及 UNIT_ADMIN 别名）+ token useUnitId 锚点。链末「账号启用」由 AuthInterceptor 会话校验保证
+     * （删除→401、停用 bumpScopeVersion→sv 不符 401、单会话顶号→sid 不符 401），服务层无 empId 不重复查。
+     */
     private void requireClient(java.util.Set<String> roles, String unitId) {
-        if (roles == null || roles.stream().noneMatch(r -> r.startsWith("CLIENT") || "UNIT_ADMIN".equals(r))) {
+        if (roles == null || roles.stream().noneMatch(
+                r -> RoleCatalog.principalTypeOf(r) == RoleCatalog.PrincipalType.CUSTOMER)) {
             throw new BizException(1403, "仅使用单位可访问门户记录");
         }
         if (unitId == null || unitId.isEmpty()) {
             throw new BizException(1403, "缺少单位锚点");
         }
+    }
+
+    /** 门禁链③：记录归属——P1 仍按电梯当前 useUnitId（unitOf），P2 改记录快照列；越权 1403 无副作用 */
+    private void requireOwnUnit(MaintainRecord r, String unitId, String message) {
+        if (!unitId.equals(unitOf(r))) {
+            throw new BizException(1403, message);
+        }
+    }
+
+    /** 门禁链④⑤⑥：唯一可签状态 PENDING_CLIENT_SIGNATURE + confirmStatus=PENDING + 链末端最新版本，任一失败 422 */
+    private void requireSignable(MaintainRecord r) {
+        if (!"PENDING_CLIENT_SIGNATURE".equals(r.lifecycleStatus)) {
+            throw new BizException(422, "记录不在待使用单位签署状态");
+        }
+        if (!"PENDING".equals(r.confirmStatus)) {
+            throw new BizException(422, "记录已签署，不能重复签字");
+        }
+        if (!isLatestVersion(r)) {
+            throw new BizException(422, "记录已被新版本替代，请签署最新记录");
+        }
+    }
+
+    /** docs/14 §4.6 规则 1：最新版本 = 不存在 prev_version_id = 本记录 id 的后续版本（历史版本仅内部/审计可见） */
+    private boolean isLatestVersion(MaintainRecord r) {
+        Long next = recordMapper.selectCount(new LambdaQueryWrapper<MaintainRecord>()
+                .eq(MaintainRecord::getPrevVersionId, r.id));
+        return next == null || next == 0;
     }
 
     private String unitOf(MaintainRecord r) {
@@ -106,6 +176,7 @@ public class UnitRecordService {
         return toMap(findOr404(id));
     }
 
+    /** 内部直确路径（UnitRecordConfirmTest 锁定）：客户令牌路径一律走 confirmAs 门禁链 + 条件更新，不经此方法 */
     public Map<String, Object> confirm(String id, Map<String, Object> body) {
         MaintainRecord r = findOr404(id);
         // 已确认记录不可被二次提交覆盖签字/满意度（与 confirmByToken 一致）：
@@ -177,6 +248,7 @@ public class UnitRecordService {
         return JsonUtil.map("ok", true);
     }
 
+    /** 内部/管理端全量投影（含上报与预览上下文）：客户路径禁用，一律走 toClientMap（P1 T4，docs/14 §4.7） */
     public Map<String, Object> toMap(MaintainRecord r) {
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("id", r.id);
@@ -210,6 +282,51 @@ public class UnitRecordService {
         m.put("reportPayload", r.reportPayloadJson == null ? null : JsonUtil.readMap(r.reportPayloadJson));
         // 预览上下文（docs/03 §六）：地址/使用单位/维保单位/手机号/平台ID/签到经纬度/条目总数
         m.put("context", r.previewContextJson == null ? Map.of() : JsonUtil.readMap(r.previewContextJson));
+        return m;
+    }
+
+    /**
+     * 客户字段白名单投影（P1 T4，docs/14 §4.7，只取现有列）：仅返回客户签署确认所需内容。
+     * 明确不返回：reportStatus/uploadStatus/retryCount/reportPayload/context(previewContext)/shareToken/
+     * originalRecordId/workerPlatformId/assistantPlatformId/refuseReason（内部复核退回）/satisfaction/幂等键/平台日志。
+     * DC5：P1 无 client_refuse_reason 独立列（P3 增），客户拒签原因暂不回显，避免与内部 refuseReason 混回。
+     */
+    private Map<String, Object> toClientMap(MaintainRecord r) {
+        List<Map<String, Object>> resolved = resolveItems(r.itemsJson);
+        // items 同为白名单投影：仅 名称/结果/实测值/照片URL（照片已按 fileId 重签）
+        List<Map<String, Object>> items = resolved.stream().map(i -> {
+            Map<String, Object> c = new LinkedHashMap<String, Object>();
+            c.put("name", i.get("name"));
+            c.put("result", i.get("result"));
+            c.put("value", i.get("value"));
+            c.put("photos", i.get("photos"));
+            return c;
+        }).collect(Collectors.toList());
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("id", r.id);
+        m.put("version", r.version);
+        m.put("prevVersionId", r.prevVersionId);
+        m.put("lifecycleStatus", r.lifecycleStatus);
+        m.put("elevatorCode", r.elevatorCode);
+        m.put("elevatorName", r.elevatorName);
+        m.put("workType", r.workType);
+        m.put("workTypeCode", r.workTypeCode);
+        m.put("workerName", r.workerName);
+        m.put("assistantName", r.assistantName);
+        m.put("checkinTime", TimeUtil.format(r.checkinTime));
+        m.put("checkoutTime", TimeUtil.format(r.checkoutTime));
+        m.put("duration", r.duration);
+        m.put("items", items);
+        m.put("photos", resolveRecordPhotos(resolved, r.photosJson));
+        m.put("problemCodes", JsonUtil.readStringList(r.problemCodesJson));
+        m.put("todoDesc", WorkOrderService.nz(r.todoDesc));
+        m.put("workerSignatureUrl", fileStorageService.resolveStoredUrl(r.workerSignatureUrl));
+        m.put("assistantSignatureUrl", fileStorageService.resolveStoredUrl(r.assistantSignatureUrl));
+        m.put("confirmStatus", r.confirmStatus);
+        m.put("signatureUrl", fileStorageService.resolveStoredUrl(r.signatureUrl));
+        // 归档 PDF 短时效重签 URL（§4.7「下载」）；未归档为空串
+        m.put("pdfUrl", r.archiveFileId == null || r.archiveFileId.isEmpty()
+                ? "" : fileStorageService.urlOf(r.archiveFileId));
         return m;
     }
 

@@ -84,6 +84,8 @@ class UnitTokenScopeTest {
         r.id = id;
         r.elevatorCode = elevatorCode;
         r.confirmStatus = "PENDING";
+        // P1 T4：客户待签列表只认唯一可签状态（docs/14 §4.6），门禁前置后 fixture 须为可签记录
+        r.lifecycleStatus = "PENDING_CLIENT_SIGNATURE";
         return r;
     }
 
