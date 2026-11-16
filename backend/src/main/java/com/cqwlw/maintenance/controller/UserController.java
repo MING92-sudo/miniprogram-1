@@ -151,21 +151,18 @@ public class UserController {
         ur.userId = userId;
         ur.userType = "EMPLOYEE";
         ur.roleCode = role;
-        // 使用单位角色锚点 org_id=use_unit.id（本单位电梯/记录谓词用，2026-11-15 裁决）
-        RoleCatalog.Role cr = RoleCatalog.canonicalRole(role);
-        if (cr != null && "UNIT".equals(cr.department())) {
+        // 使用单位角色锚点 org_id=use_unit.id（本单位电梯/记录谓词用，2026-11-15 裁决；P1 起按主体类型判定）
+        if (RoleCatalog.principalTypeOf(role) == RoleCatalog.PrincipalType.CUSTOMER) {
             ur.orgId = unitId;
         }
         ur.createdAt = TimeUtil.now();
         userRoleMapper.insert(ur);
     }
 
-    /** 使用单位账号须先建单位档案并在其下开通；非 UNIT 角色返回 null。 */
+    /** 使用单位账号须先建单位档案并在其下开通；非客户主体返回 null（P1 按 principalType 判定）。 */
     private String requireUnitAnchor(List<String> roles, String useUnitId) {
-        boolean unitRole = roles.stream().anyMatch(r -> {
-            RoleCatalog.Role cr = RoleCatalog.canonicalRole(r);
-            return cr != null && "UNIT".equals(cr.department());
-        });
+        boolean unitRole = roles.stream()
+                .anyMatch(r -> RoleCatalog.principalTypeOf(r) == RoleCatalog.PrincipalType.CUSTOMER);
         if (!unitRole) {
             return null;
         }
@@ -177,15 +174,17 @@ public class UserController {
 
     private static void validateSameDepartment(List<String> roles) {
         String dept = null;
+        boolean first = true;
         for (String r : roles) {
             RoleCatalog.Role cr = RoleCatalog.canonicalRole(r);
             if (cr == null) {
                 throw new BizException(422, "未知角色: " + r);
             }
-            String d = cr.department();
-            if (dept == null) {
+            String d = cr.department(); // P1：客户角色部门为 null（同为外部租户，视为同域）
+            if (first) {
                 dept = d;
-            } else if (!dept.equals(d)) {
+                first = false;
+            } else if (!java.util.Objects.equals(dept, d)) {
                 throw new BizException(422, "跨部门兼任禁止（R7）");
             }
         }

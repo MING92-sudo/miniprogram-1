@@ -187,7 +187,8 @@ class RbacMatrixTest {
         assertEquals("MAINT", RoleCatalog.departmentOf(RoleCatalog.MAINT_BIZ));
         assertEquals("MAINT", RoleCatalog.departmentOf(RoleCatalog.MAINT_QUALITY));
         assertEquals("INSTALL", RoleCatalog.departmentOf(RoleCatalog.INSTALL_CLERK));
-        assertEquals("UNIT", RoleCatalog.departmentOf(RoleCatalog.UNIT_ADMIN));
+        // P1 裁决（task-1）：客户主体部门投影为 null；旧 ROLES 表 UNIT_ADMIN 的 department 字段仍保留 UNIT
+        assertNull(RoleCatalog.departmentOf(RoleCatalog.UNIT_ADMIN));
         assertEquals("PLATFORM", RoleCatalog.departmentOf(RoleCatalog.ADMIN));
         assertEquals("PLATFORM", RoleCatalog.departmentOf(RoleCatalog.SYS_ADMIN));
 

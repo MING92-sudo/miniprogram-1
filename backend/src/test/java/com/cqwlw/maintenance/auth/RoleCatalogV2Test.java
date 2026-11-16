@@ -42,7 +42,7 @@ class RoleCatalogV2Test {
     void canonicalDepartmentsAndConsole() {
         assertEquals("INSTALL", RoleCatalog.canonicalRole("INST_MGR").department());
         assertEquals("MAINT", RoleCatalog.canonicalRole("MAINT_SUP").department());
-        assertEquals("UNIT", RoleCatalog.canonicalRole("CLIENT_SIGNER").department());
+        assertNull(RoleCatalog.canonicalRole("CLIENT_SIGNER").department()); // P1：客户部门归 null
         assertEquals("PLATFORM", RoleCatalog.canonicalRole("PLATFORM_ADMIN").department());
         assertTrue(RoleCatalog.canonicalRole("INST_MGR").adminConsole());
         assertTrue(RoleCatalog.canonicalRole("MAINT_MGR").adminConsole());

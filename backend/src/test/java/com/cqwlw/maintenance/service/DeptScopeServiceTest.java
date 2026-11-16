@@ -111,7 +111,8 @@ class DeptScopeServiceTest {
         DeptScopeService scope = service();
         assertEquals("MAINT", scope.departmentOf(employee("x1", RoleCatalog.WORKER, "A", null, null)));
         assertEquals("INSTALL", scope.departmentOf(employee("x2", RoleCatalog.INSTALL_CLERK, null, null, null)));
-        assertEquals("UNIT", scope.departmentOf(employee("x3", RoleCatalog.UNIT_ADMIN, null, null, null)));
+        // P1 裁决（task-1）：客户主体部门投影为 null（存量已回填 department=UNIT 的账号仍走存量值，见 L159）
+        assertNull(scope.departmentOf(employee("x3", RoleCatalog.UNIT_ADMIN, null, null, null)));
         assertEquals("MAINT", scope.departmentOf(byId("l1")));
         assertNull(scope.departmentOf(null));
         assertNull(scope.departmentOf(employee("x4", "HACKER", null, null, null)));

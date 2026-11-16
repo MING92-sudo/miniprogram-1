@@ -39,6 +39,11 @@ public final class RoleCatalog {
     public record Role(String code, String department, String name, boolean adminConsole, String parentRole) {
     }
 
+    /** 主体类型（P1）：EMPLOYEE 内部员工（平台/安装/维保），CUSTOMER 使用单位（外部客户租户）。 */
+    public enum PrincipalType {
+        EMPLOYEE, CUSTOMER
+    }
+
     private static final Map<String, Role> ROLES;
 
     static {
@@ -83,8 +88,9 @@ public final class RoleCatalog {
         CANONICAL.put("MAINT_TECH", new Role("MAINT_TECH", "MAINT", "维保人员", false, "MAINT_SUP"));
         CANONICAL.put("MAINT_BIZ", new Role("MAINT_BIZ", "MAINT", "维保商务", true, "MAINT_MGR"));
         CANONICAL.put("MAINT_QUALITY", new Role("MAINT_QUALITY", "MAINT", "维保质量", true, "MAINT_MGR"));
-        CANONICAL.put("CLIENT_ADMIN", new Role("CLIENT_ADMIN", "UNIT", "使用单位管理员", false, null));
-        CANONICAL.put("CLIENT_SIGNER", new Role("CLIENT_SIGNER", "UNIT", "使用单位签字人", false, null));
+        // P1：客户角色 department=null（使用单位为外部租户主体，不属内部部门；数据域走 org_id=use_unit 锚点）
+        CANONICAL.put("CLIENT_ADMIN", new Role("CLIENT_ADMIN", null, "使用单位管理员", false, null));
+        CANONICAL.put("CLIENT_SIGNER", new Role("CLIENT_SIGNER", null, "使用单位签字人", false, null));
 
         ALIAS.put("ADMIN", "PLATFORM_ADMIN");
         ALIAS.put("SYS_ADMIN", "SYS_ADMIN");
@@ -113,8 +119,11 @@ public final class RoleCatalog {
         return ROLES.keySet();
     }
 
-    /** 部门码：PLATFORM/INSTALL/MAINT/UNIT；未知角色返回 null */
+    /** 部门码：PLATFORM/INSTALL/MAINT；客户主体（P1）与未知角色返回 null */
     public static String departmentOf(String role) {
+        if (principalTypeOf(role) == PrincipalType.CUSTOMER) {
+            return null; // P1：使用单位是外部租户，不再投影 UNIT 部门（旧 ROLES 表字段保留，仅供历史展示）
+        }
         Role r = role(role);
         return r == null ? null : r.department();
     }
@@ -136,11 +145,13 @@ public final class RoleCatalog {
     }
 
     /**
-     * 建档可分配的角色（管理端「新建人员」下拉）：除使用单位外的全部角色。
+     * 建档可分配的角色（管理端「新建人员」下拉）：仅员工主体（P1 按 principalType 过滤）。
      * 使用单位账号不建在员工目录（走 use_unit 账号，docs/14 §9.1），故不可选。
      */
     public static java.util.List<Role> assignableRoles() {
-        return ROLES.values().stream().filter(r -> !UNIT.equals(r.department())).toList();
+        return ROLES.values().stream()
+                .filter(r -> principalTypeOf(r.code()) == PrincipalType.EMPLOYEE)
+                .toList();
     }
 
     /** 部门中文名（前端/接口展示用）：PLATFORM 平台层、INSTALL 安装部、MAINT 维保部、UNIT 使用单位 */
@@ -179,10 +190,24 @@ public final class RoleCatalog {
         return c == null ? null : CANONICAL.get(c);
     }
 
-    /** 同部门方可兼任（docs/14 R7）；跨部门/未知拒绝。 */
+    /**
+     * 主体类型（P1）：经 canonical 归一后 CLIENT_ADMIN/CLIENT_SIGNER → CUSTOMER，
+     * 其余规范码 → EMPLOYEE；null/未知码返回 null。T3—T6 消费此方法判客户。
+     */
+    public static PrincipalType principalTypeOf(String anyCode) {
+        String c = canonical(anyCode);
+        if (c == null) {
+            return null;
+        }
+        return "CLIENT_ADMIN".equals(c) || "CLIENT_SIGNER".equals(c)
+                ? PrincipalType.CUSTOMER
+                : PrincipalType.EMPLOYEE;
+    }
+
+    /** 同部门方可兼任（docs/14 R7）；跨部门/未知拒绝。客户角色部门为 null（同为外部租户，视为同域）。 */
     public static boolean sameDepartmentAssignable(String roleA, String roleB) {
         Role a = canonicalRole(roleA);
         Role b = canonicalRole(roleB);
-        return a != null && b != null && a.department().equals(b.department());
+        return a != null && b != null && java.util.Objects.equals(a.department(), b.department());
     }
 }
