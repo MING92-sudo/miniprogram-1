@@ -62,4 +62,27 @@ describe('permission-v2 mirror', () => {
     expect(state('INST_PM', 'filing:view')).toBe('C')
     expect(state('INSTALLER', 'handover:view')).toBe('C')
   })
+  it('P1 客户最小能力集：elevator_view/download/sign=Y，report/evaluate/user_manage/invite=DENY，内部码收回', () => {
+    // 客户最小集（镜像后端 clientMinimalCapabilitySetP1）
+    expect(state('CLIENT_ADMIN', 'client:sign')).toBe('Y')
+    expect(state('CLIENT_SIGNER', 'client:sign')).toBe('Y')
+    expect(state('CLIENT_ADMIN', 'client:elevator_view')).toBe('Y')
+    expect(state('CLIENT_ADMIN', 'client:download')).toBe('Y')
+    // 默认关闭
+    expect(state('CLIENT_ADMIN', 'client:user_manage')).toBe('DENY')
+    expect(state('CLIENT_ADMIN', 'client:report')).toBe('DENY')
+    expect(state('CLIENT_ADMIN', 'client:evaluate')).toBe('DENY')
+    expect(state('CLIENT_ADMIN', 'client:invite')).toBe('DENY')
+    // 内部码全收回（抽样）
+    ;['user:view', 'user:create', 'user:disable', 'stats:view', 'stats:export',
+      'audit:view', 'role:assign', 'invite:manage', 'order:create', 'order:view_own', 'order:confirm',
+      'record:view', 'record:sign', 'record:refuse', 'record:export', 'handover:view', 'handover:export',
+      'project:view', 'contract:view', 'elevator:view', 'elevator:qr', 'elevator:export', 'plan:view'].forEach((code) => {
+      expect(state('CLIENT_ADMIN', code)).toBe('DENY')
+      expect(state('CLIENT_SIGNER', code)).toBe('DENY')
+    })
+    expect(canonicalCodes().size).toBe(86)
+    expect(canonicalRoles().size).toBe(13)
+    expect(state('SYS_ADMIN', 'client:user_manage')).toBe('Y')
+  })
 })

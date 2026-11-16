@@ -332,7 +332,9 @@ public final class PermissionMatrix {
                 IW = "INSTALLER", MM = "MAINT_MGR", MS = "MAINT_SUP", MT = "MAINT_TECH",
                 MB = "MAINT_BIZ", MQ = "MAINT_QUALITY", CA = "CLIENT_ADMIN", CS = "CLIENT_SIGNER";
         // §4.1 安装移交（16）
-        y(HANDOVER_VIEW, IM, MS, MM, PA, SA); c(HANDOVER_VIEW, IC, IP, CA, IW, MT);
+        // P1 T2（2026-11-16 裁决）：客户（CA/CS）收回全部内部码，最小集仅 §4.5 的 elevator_view/download/sign；
+        // 无参 y()/c() 仅登记码（持有者由 SYS_ADMIN 全 Y 循环兜底），86 码计数不变。
+        y(HANDOVER_VIEW, IM, MS, MM, PA, SA); c(HANDOVER_VIEW, IC, IP, IW, MT);
         y(HANDOVER_CREATE, IP);
         y(HANDOVER_EDIT, IP); c(HANDOVER_EDIT, IC);
         y(HANDOVER_DOC_UPLOAD, IC, IP);
@@ -346,66 +348,68 @@ public final class PermissionMatrix {
         y(HANDOVER_SIGN_INSTALL, IM, IW);
         y(HANDOVER_SIGN_MAINT, MS, MM);
         y(HANDOVER_VOID, IM, MM, PA, SA);
-        y(HANDOVER_EXPORT, IM, MS, MM, PA, SA); c(HANDOVER_EXPORT, CA);
+        y(HANDOVER_EXPORT, IM, MS, MM, PA, SA);
         y(HANDOVER_NOTIFY_CLIENT, MS);
         // §4.2 项目合同电梯（9）
-        y(PROJECT_VIEW, MS, MM, PA, SA); c(PROJECT_VIEW, IC, IP, IM, CA);
+        y(PROJECT_VIEW, MS, MM, PA, SA); c(PROJECT_VIEW, IC, IP, IM);
         y(PROJECT_EDIT, MM, PA, SA);
-        y(CONTRACT_VIEW, MM, PA, SA, MB); c(CONTRACT_VIEW, MS, CA);
+        y(CONTRACT_VIEW, MM, PA, SA, MB); c(CONTRACT_VIEW, MS);
         y(CONTRACT_EDIT, MM, PA, SA, MB);
-        c(ELEVATOR_VIEW, PA, SA, IM, IP, IC, IW, MM, MS, MT, MB, MQ, CA, CS);
+        c(ELEVATOR_VIEW, PA, SA, IM, IP, IC, IW, MM, MS, MT, MB, MQ);
         y(ELEVATOR_EDIT, MS, PA, SA);
-        y(ELEVATOR_QR, MT, MS, CA);
+        y(ELEVATOR_QR, MT, MS);
         y(ELEVATOR_TRANSFER, MM, PA, SA);
-        y(ELEVATOR_EXPORT, MM, PA, SA); c(ELEVATOR_EXPORT, MS, CA);
+        y(ELEVATOR_EXPORT, MM, PA, SA); c(ELEVATOR_EXPORT, MS);
         // §4.3 维保作业（15）
-        y(PLAN_VIEW, MS, MM); c(PLAN_VIEW, MT, CA);
+        y(PLAN_VIEW, MS, MM); c(PLAN_VIEW, MT);
         y(PLAN_GENERATE, MS, MM);
         y(TASK_ACCEPT, MT);
         y(TASK_ASSIGN_PARTNER, MS, MT);
         y(CHECKLIST_FILL, MT);
-        y(RECORD_VIEW, MS, MM, PA, SA); c(RECORD_VIEW, MT, CS);
+        y(RECORD_VIEW, MS, MM, PA, SA); c(RECORD_VIEW, MT);
         y(RECORD_SUBMIT, MT);
         y(RECORD_SIGN_TECH, MT);
         y(RECORD_REVIEW, MS, MM);
         y(RECORD_SIGN_REQUEST, MT, MS);
-        y(RECORD_SIGN, CS);
-        y(RECORD_REFUSE, CS);
+        y(RECORD_SIGN); // P1 T2：客户签署收敛到 client:sign；record:sign 仅 SYS_ADMIN 持有
+        y(RECORD_REFUSE); // P1 T2：拒签能力 P3 增 client:refuse 前仅 SYS_ADMIN 持有（DC3）
         y(RECORD_ARCHIVE, MS);
         y(RECORD_AMEND, MM, PA, SA);
-        y(RECORD_EXPORT, MS, MM, PA, SA); c(RECORD_EXPORT, CA);
+        y(RECORD_EXPORT, MS, MM, PA, SA);
         // §4.4 急修报修（14）
-        y(ORDER_CREATE, CA, CS);
+        // P1 T2：客户报修默认关闭（client:report 收回；重开由 P3 裁决），仅 SYS_ADMIN 持有
+        y(ORDER_CREATE);
         y(ORDER_CREATE_PROXY, MS);
         y(ORDER_VIEW_POOL, MS, MM); c(ORDER_VIEW_POOL, MT);
-        y(ORDER_VIEW_OWN, CA, CS);
+        y(ORDER_VIEW_OWN); // P1 T2：仅 SYS_ADMIN 持有（客户工单读走锚点判定，不依赖本码）
         y(ORDER_GRAB, MT);
         y(ORDER_DISPATCH, MS, MM);
         c(ORDER_ARRIVE, MT);
         c(ORDER_PROCESS, MT);
         y(ORDER_SUBMIT, MT);
-        y(ORDER_CONFIRM, CS);
+        y(ORDER_CONFIRM); // P1 T2：客户确认收敛到 client:sign；仅 SYS_ADMIN 持有
         y(ORDER_CLOSE, MS);
-        y(ORDER_CANCEL, CA, MS);
+        y(ORDER_CANCEL, MS);
         y(ORDER_ESCALATE, MM);
-        y(ORDER_EXPORT, MS, MM, PA, SA); c(ORDER_EXPORT, CA);
-        // §4.5 使用单位（7）
-        y(CLIENT_INVITE, CA, MS);
-        y(CLIENT_USER_MANAGE, CA);
+        y(ORDER_EXPORT, MS, MM, PA, SA);
+        // §4.5 使用单位（7）：P1 T2 客户最小能力集 = elevator_view/download/sign（CA+CS 均 Y，doc §5.4 两角色能力相同）；
+        // report/evaluate/user_manage/invite 对客户默认关闭（仅 SYS_ADMIN 持有，重开由后续裁决），invite 保留 MS。
+        y(CLIENT_INVITE, MS);
+        y(CLIENT_USER_MANAGE);
         y(CLIENT_ELEVATOR_VIEW, CA, CS);
-        y(CLIENT_REPORT, CA, CS);
-        y(CLIENT_SIGN, CS);
-        y(CLIENT_EVALUATE, CA, CS);
+        y(CLIENT_REPORT);
+        y(CLIENT_SIGN, CA, CS);
+        y(CLIENT_EVALUATE);
         y(CLIENT_DOWNLOAD, CA, CS);
         // §4.6 组织权限审计（10）
-        y(USER_VIEW, PA, SA); c(USER_VIEW, IM, MS, MM, CA);
-        y(USER_CREATE, IM, MS, MM, CA, PA, SA);
-        y(USER_DISABLE, IM, MS, MM, CA, PA, SA);
-        y(ROLE_ASSIGN, PA, SA); c(ROLE_ASSIGN, CA);
-        y(INVITE_MANAGE, IM, MS, MM, CA, PA, SA);
-        y(STATS_VIEW, IM, MS, MM, CA, PA, SA);
-        y(STATS_EXPORT, MM, PA, SA); c(STATS_EXPORT, IM, MS, CA);
-        y(AUDIT_VIEW, PA, SA); c(AUDIT_VIEW, CA);
+        y(USER_VIEW, PA, SA); c(USER_VIEW, IM, MS, MM);
+        y(USER_CREATE, IM, MS, MM, PA, SA);
+        y(USER_DISABLE, IM, MS, MM, PA, SA);
+        y(ROLE_ASSIGN, PA, SA);
+        y(INVITE_MANAGE, IM, MS, MM, PA, SA);
+        y(STATS_VIEW, IM, MS, MM, PA, SA);
+        y(STATS_EXPORT, MM, PA, SA); c(STATS_EXPORT, IM, MS);
+        y(AUDIT_VIEW, PA, SA);
         y(CONFIG_MANAGE, PA, SA);
         y(DATA_EXPORT_SENSITIVE, PA, SA); // 审批工作流 M5；M1 只编码平台持有该能力
         // M0 §2.2 扩展（15）

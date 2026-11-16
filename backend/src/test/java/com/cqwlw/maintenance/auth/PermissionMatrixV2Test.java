@@ -59,7 +59,42 @@ class PermissionMatrixV2Test {
         // 维保人员现场验收需读移交单（菜单「移交验收」下发 MAINT 全工作区，权限面=渲染面）
         assertEquals(PermissionMatrix.TriState.C, PermissionMatrix.state("MAINT_TECH", "handover:view"));
         assertEquals(PermissionMatrix.TriState.C, PermissionMatrix.state("MAINT_TECH", "handover:inspect"));
-        assertEquals(PermissionMatrix.TriState.C, PermissionMatrix.state("CLIENT_ADMIN", "handover:view"));
+        // P1 T2（2026-11-16 裁决）：客户收回全部内部码，handover:view 由 C → DENY
+        assertEquals(PermissionMatrix.TriState.DENY, PermissionMatrix.state("CLIENT_ADMIN", "handover:view"));
+    }
+
+    /**
+     * P1 T2（2026-11-16 裁决，spec §5.4）：客户最小能力集 = client:elevator_view/download/sign（CA+CS 均 Y）；
+     * client:report/evaluate/user_manage/invite 默认关闭；内部码全收回（相关码仅 SYS_ADMIN 经全 Y 循环持有）。
+     */
+    @Test
+    void clientMinimalCapabilitySetP1() {
+        // 客户最小集
+        assertEquals(PermissionMatrix.TriState.Y, PermissionMatrix.state("CLIENT_ADMIN", "client:sign"));   // 原 DENY→Y
+        assertEquals(PermissionMatrix.TriState.Y, PermissionMatrix.state("CLIENT_SIGNER", "client:sign"));
+        assertEquals(PermissionMatrix.TriState.Y, PermissionMatrix.state("CLIENT_ADMIN", "client:elevator_view"));
+        assertEquals(PermissionMatrix.TriState.Y, PermissionMatrix.state("CLIENT_ADMIN", "client:download"));
+        assertEquals(PermissionMatrix.TriState.Y, PermissionMatrix.state("CLIENT_SIGNER", "client:elevator_view"));
+        assertEquals(PermissionMatrix.TriState.Y, PermissionMatrix.state("CLIENT_SIGNER", "client:download"));
+        // 默认关闭
+        assertEquals(PermissionMatrix.TriState.DENY, PermissionMatrix.state("CLIENT_ADMIN", "client:user_manage")); // 原 Y
+        assertEquals(PermissionMatrix.TriState.DENY, PermissionMatrix.state("CLIENT_ADMIN", "client:report"));
+        assertEquals(PermissionMatrix.TriState.DENY, PermissionMatrix.state("CLIENT_ADMIN", "client:evaluate"));
+        assertEquals(PermissionMatrix.TriState.DENY, PermissionMatrix.state("CLIENT_ADMIN", "client:invite"));
+        assertEquals(PermissionMatrix.TriState.DENY, PermissionMatrix.state("CLIENT_SIGNER", "client:user_manage"));
+        assertEquals(PermissionMatrix.TriState.DENY, PermissionMatrix.state("CLIENT_SIGNER", "client:report"));
+        assertEquals(PermissionMatrix.TriState.DENY, PermissionMatrix.state("CLIENT_SIGNER", "client:evaluate"));
+        assertEquals(PermissionMatrix.TriState.DENY, PermissionMatrix.state("CLIENT_SIGNER", "client:invite"));
+        // 内部码全收回（抽样）
+        for (String code : new String[]{"user:view", "user:create", "user:disable", "stats:view", "stats:export",
+                "audit:view", "role:assign", "invite:manage", "order:create", "order:view_own", "order:confirm",
+                "record:view", "record:sign", "record:refuse", "record:export", "handover:view", "handover:export",
+                "project:view", "contract:view", "elevator:view", "elevator:qr", "elevator:export", "plan:view"}) {
+            assertEquals(PermissionMatrix.TriState.DENY, PermissionMatrix.state("CLIENT_ADMIN", code), code);
+            assertEquals(PermissionMatrix.TriState.DENY, PermissionMatrix.state("CLIENT_SIGNER", code), code);
+        }
+        assertEquals(86, PermissionMatrix.canonicalCapabilities().size()); // 码数不变
+        assertEquals(PermissionMatrix.TriState.Y, PermissionMatrix.state("SYS_ADMIN", "client:user_manage")); // SA 全 Y 保留
     }
 
     @Test
