@@ -108,6 +108,31 @@ class UnifiedLoginTest {
         assertEquals("CUSTOMER", data.get("principalType"));
     }
 
+    /** P1 T9：混合角色登录（内部 + 客户角色同时生效）→ principalType=EMPLOYEE，钉死 isCustomerPrincipal「全客户才收敛」口径 */
+    @Test
+    void mixedRoleLoginStaysEmployeePrincipal() {
+        BCryptPasswordEncoder enc = new BCryptPasswordEncoder();
+        Employee e = new Employee();
+        e.id = "emp_m";
+        e.name = "李娜";
+        e.role = "MAINT_TECH";
+        e.account = "13800000099";
+        e.passwordHash = enc.encode("Passw0rd!23");
+        e.enabled = true;
+        when(employeeMapper.selectOne(any())).thenReturn(e);
+        when(userRoleService.canonicalRolesOf(any(), any()))
+                .thenReturn(java.util.Set.of("MAINT_TECH", "CLIENT_SIGNER"));
+        when(jwtService.issue(anyString(), anyString(), any(), anyString(), anyString(), anyInt()))
+                .thenReturn("mixed-token");
+
+        Map<String, Object> data = controller().login(Map.of("phone", "13800000099", "password", "Passw0rd!23")).getData();
+        assertEquals("EMPLOYEE", data.get("principalType"));
+        assertTrue(((java.util.List<?>) data.get("roles")).containsAll(
+                java.util.List.of("MAINT_TECH", "CLIENT_SIGNER")));
+        assertEquals(null, data.get("portal"));
+        assertEquals("mixed-token", data.get("token"));
+    }
+
     /** M1：UserRoleService 并集含别名归一后的旧主角色 */
     @Test
     void canonicalRolesUnionIncludesAliasedLegacyPrimary() {
