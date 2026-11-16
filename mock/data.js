@@ -159,6 +159,8 @@ const db = {
 
   elevators: [
     { id: 'el_1', elevatorCode: 'EM-2024-001', elevatorName: '世纪大厦 1# 客梯', projectName: '世纪大厦', location: '渝北区龙山一路 88 号世纪大厦', regCode: 'TSCQ5001120001', deviceCode: 'DT-CQ-2024-001', insideNumber: 'KT-01', model: 'OTIS 300VF', useUnitId: 'uu_1', category: '曳引与强制驱动电梯', nextCheckDate: addDays(45),
+      // 下次维保日期（上次 addDays(-3) + 半月周期 15 天，与 ensureDueOrders 到期口径一致）
+      nextMaintenanceDate: addDays(12),
       // ── 平台 2.7 自动获取字段（8 个，电话未脱敏，可直接回填用于 2.6 上报）──
       factoryNumber: 'SGL20131212-1', useUnitEntityId: '5633318206815862786',
       elevatorAdminister: '王芳', elevatorAdministerPhone: '13800000003', emergencyPhone: '023-67612345',
@@ -170,6 +172,7 @@ const db = {
       // 维保绑定配置：到期自动派单的人员与频次（正式版为维保合同 + 排班表）
       maintenance: { workTypeCode: 'HM', intervalDays: 15, workerName: '张伟', workerPhone: '13800000001', workerPlatformId: '6901282369105174537', assistantName: '李强', assistantPlatformId: '6901284774286860288', lastMaintenanceAt: addDays(-3) } },
     { id: 'el_2', elevatorCode: 'EM-2024-002', elevatorName: '世纪大厦 2# 客梯', projectName: '世纪大厦', location: '渝北区龙山一路 88 号世纪大厦', regCode: 'TSCQ5001120002', deviceCode: 'DT-CQ-2024-002', insideNumber: 'KT-02', model: 'OTIS 300VF', useUnitId: 'uu_1', category: '曳引与强制驱动电梯', nextCheckDate: addDays(18),
+      nextMaintenanceDate: addDays(12), // 上次 addDays(-3) + 半月周期 15 天
       factoryNumber: 'SGL20131212-2', useUnitEntityId: '5633318206815862786',
       elevatorAdminister: '王芳', elevatorAdministerPhone: '13800000003', emergencyPhone: '023-67612345',
       platformSyncedAt: '2026-09-29 14:20:00',

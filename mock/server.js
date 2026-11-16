@@ -130,6 +130,13 @@ function clientRecordRow(r) {
     version: r.version != null ? r.version : 1
   }
 }
+// P1 兼容期例外（控制器裁决 T7-C2，docs/14 §4.6 规则 8「可保留既有 shareToken 供旧链接」）：
+// 客户待办「去签字」以行内 shareToken 拼签字链接（pkg-client/pages/todo goSign），而 sign 页只有 token
+// 路径、无会话回退，去掉即断签字链路 → 仅 /unit/pending-signs 行兼容期保留 shareToken；
+// /unit/records/list、/unit/records/pending 与记录详情一律不含。后端 recordRow 同步由 T8 补齐（本轮接受暂时差异）。
+function clientPendingSignRow(r) {
+  return Object.assign(clientRecordRow(r), { shareToken: r.shareToken || '' })
+}
 // 客户可见记录集（后端 UnitPortalService.records）：本单位 + 可见集合 + 链末端最新版本，签退时间倒序
 function clientVisibleRecords(unitId) {
   const codes = ownElevatorCodes(unitId)
@@ -374,9 +381,14 @@ const routes = [
   }],
   ['POST', '/work-orders/:id/signature-refuse', () => ({ ok: true })],
   ['POST', '/work-orders/:id/review', ({ body }) => ({ ok: true, lifecycleStatus: body.pass ? 'PENDING_CLIENT_SIGN' : '' })],
-  // 发起使用单位签字（后端 RecordLifecycleService.signRequest）：推进生命周期后客户才可见/可签。
-  // 后端按记录 id 定位，小程序历史上也会传工单 id，两者都兜住；双签齐门控以后端为准（mock 不拦）。
+  // 发起使用单位签字（后端 RecordLifecycleService.signRequest）：角色门禁（主检/维保主管）→ 定位记录 →
+  // 推进生命周期后客户才可见/可签。后端按记录 id 定位，小程序历史上也会传工单 id，两者都兜住；
+  // 双签齐门控以后端为准（mock 不拦）。
   ['POST', '/work-orders/:id/sign-request', ({ params }) => {
+    const canon = currentRoles.map((r) => permMirror.canonical(r))
+    if (canon.indexOf('MAINT_TECH') < 0 && canon.indexOf('MAINT_SUP') < 0) {
+      throw { code: 1403, message: '无发起签署权限' }
+    }
     const o = (d.db.orders || []).find((x) => x.id === params.id)
     const rec = (d.db.unitRecords || []).find((r) => r.id === params.id) ||
       (o ? (d.db.unitRecords || []).find((r) => r.originalRecordId && r.originalRecordId === o.originalRecordId) : null)
@@ -803,17 +815,21 @@ const routes = [
     return paginate(list, query)
   }],
   ['GET', '/unit/records/:id', ({ params }) => {
-    const r = findOr404(d.db.unitRecords, params.id, '维保记录')
+    // 门禁顺序与后端 getAs 一致：requireClient 最先——不存在的 id 也不得以 1404 泄漏存在性
     if (isCustomerPrincipal(currentRoles)) {
-      // 客户会话：锚点 → 归属（跨单位 1403 无副作用）→ 可见性（§4.6）→ 白名单投影
       const unitId = requireClientUnit()
+      const r = findOr404(d.db.unitRecords, params.id, '维保记录')
+      // 归属（跨单位 1403 无副作用）→ 可见性（§4.6 可见性表）→ 白名单投影
       if (recordUnitId(r) !== unitId) throw { code: 1403, message: '仅本单位记录可查看' }
       requireViewable(r)
       return toClientRecord(r)
     }
-    // 员工会话：内部全量投影（含 context/reportPayload，pkg-maintenance/record-detail 预览依赖）。
-    // 差异登记：后端 P1 getAs 仅客户可达（员工令牌 1403），员工读记录详情的端点待补（docs/12）。
-    return r
+    // 员工会话：内部全量投影（含 context/reportPayload，pkg-maintenance/record-detail 预览依赖），
+    // 但须持 record:view（与后端 MultiRoleGate.requireRead 同口径），且只回浅拷贝——
+    // 不外泄 db 共享单例引用，避免调用方改写演示数据。
+    // 差异登记：后端 P1 getAs 仅客户可达（员工令牌 1403），员工读记录详情端点待补（docs/12）。
+    requireRead('record:view')
+    return Object.assign({}, findOr404(d.db.unitRecords, params.id, '维保记录'))
   }],
   ['POST', '/unit/records/:id/confirm', ({ params, body }) => {
     const unitId = requireClientUnit()
@@ -1077,10 +1093,11 @@ const routes = [
       nextMaintenanceDate: el.nextMaintenanceDate || '', nextCheckDate: el.nextCheckDate || ''
     }))
   }],
-  // 待签记录（后端 pendingSigns = records 按可签集合过滤）；行投影不含 shareToken（签字凭证只经分享链接下发）
+  // 待签记录（后端 pendingSigns = records 按可签集合过滤）；行投影兼容期保留 shareToken（裁决 T7-C2，
+  // docs/14 §4.6 规则 8）——客户待办「去签字」需凭此拼签字链接，sign 页无会话回退路径
   ['GET', '/unit/pending-signs', () => {
     const unitId = requirePortalUnit()
-    return clientVisibleRecords(unitId).filter(isSignableRow).map(clientRecordRow)
+    return clientVisibleRecords(unitId).filter(isSignableRow).map(clientPendingSignRow)
   }],
   ['GET', '/unit/faults', () => {
     const unitId = requirePortalUnit()
