@@ -1,41 +1,37 @@
 <template>
-  <button
-    :class="['perm-btn', variant, { 'is-deny': gate === 'deny', 'is-cond': gate === 'conditional' }]"
-    :disabled="gate === 'deny'"
-    :aria-disabled="gate === 'conditional' ? 'true' : null"
-    :title="gate === 'deny' ? '所需权限：' + permLabel(code) : (gate === 'conditional' ? '需审批/前置未满足：' + permLabel(code) : null)"
-    @click.capture="onClick"
-  >{{ label }}</button>
+  <span v-if="gate === 'conditional'" class="perm-wrap" :data-tip="tip">
+    <button :class="btnCls" disabled aria-disabled="true" type="button">
+      <span v-if="icon" v-html="iconSvg" /><span>{{ label }}</span>
+    </button>
+  </span>
+  <button v-else-if="gate === 'allow'" :class="btnCls" type="button" @click="$emit('click', $event)">
+    <span v-if="icon" v-html="iconSvg" /><span>{{ label }}</span>
+  </button>
+  <!-- DENY → 不渲染（原型 actBtn：'-' 隐藏；前端隐藏不作为安全边界） -->
 </template>
 <script setup>
-// M2 权限按钮：两档门控（spec §4.3）——Y 可点 / DENY native disabled+title / C aria-disabled+捕获拦截
+// 权限按钮（原型 actBtn 三态）：Y 可用 / C 置灰+tooltip / DENY 隐藏；后端强校验兜底
 import { computed } from 'vue'
 import { state } from './permission-v2'
-import { permLabel } from './labels'
+import { icon as svgIcon } from './icons'
 import { useAuthStore } from '../stores/auth'
 const props = defineProps({
   code: { type: String, required: true },
   role: { type: String, default: '' },
   label: { type: String, default: '操作' },
-  variant: { type: String, default: 'primary' }
+  variant: { type: String, default: 'primary' },
+  size: { type: String, default: '' },
+  icon: { type: String, default: '' },
+  cTip: { type: String, default: '' }
 })
-const emit = defineEmits(['click', 'blocked'])
+defineEmits(['click', 'blocked'])
 const auth = useAuthStore()
 const gate = computed(() => {
   const s = state(props.role || auth.role, props.code)
   return s === 'Y' ? 'allow' : s === 'C' ? 'conditional' : 'deny'
 })
-function onClick(e) {
-  if (gate.value === 'deny') { e.preventDefault(); e.stopPropagation(); return }
-  if (gate.value === 'conditional') { e.preventDefault(); e.stopPropagation(); emit('blocked', props.code); return }
-  emit('click', e)
-}
+const tip = computed(() => props.cTip || ('需权限 ' + props.code + '：当前角色为只读 / 需审批 / 仅限非管理角色'))
+const VARIANT = { primary: 'btn-primary', ghost: 'btn-ghost', danger: 'btn-danger', ok: 'btn-ok', 'solid-sig': 'btn-solid-sig' }
+const btnCls = computed(() => ['btn', VARIANT[props.variant] || 'btn-ghost', props.size ? 'btn-' + props.size : ''])
+const iconSvg = computed(() => (props.icon ? svgIcon(props.icon) : ''))
 </script>
-<style scoped>
-.perm-btn { padding: 6px 14px; border-radius: 6px; border: 1px solid var(--line-2); cursor: pointer;
-  font-size: 13px; background: var(--panel-2); color: var(--text); }
-.perm-btn.primary { background: var(--amber); color: var(--accent-on-amber); border-color: var(--amber); font-weight: 600; }
-.perm-btn.danger { background: transparent; color: var(--signal); border-color: var(--signal); }
-.perm-btn.is-deny { opacity: .45; cursor: not-allowed; }
-.perm-btn.is-cond { opacity: .7; cursor: help; }
-</style>

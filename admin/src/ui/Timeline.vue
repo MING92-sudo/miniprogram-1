@@ -1,25 +1,20 @@
 <template>
-  <ol class="timeline">
-    <li v-for="(it, i) in items" :key="i" class="tl-item">
-      <span class="tl-dot" />
-      <div class="tl-body">
-        <div class="tl-head"><strong>{{ it.actor }}</strong><span class="tl-role">{{ roleLabel(it.role) }}</span><span class="tl-time num">{{ it.time }}</span></div>
-        <div class="tl-text">{{ it.text }}</div>
+  <div class="timeline">
+    <div v-for="(it, i) in items" :key="i" :class="['tl-item', it.cls || 'done']">
+      <div class="tl-head">
+        <b>{{ it.title || it.actor }}</b>
+        <span v-if="it.time" class="tl-time">{{ it.time }}</span>
       </div>
-    </li>
-  </ol>
+      <div v-if="body(it)" class="tl-body">{{ body(it) }}</div>
+    </div>
+  </div>
 </template>
 <script setup>
-// M2 时间轴：操作人 + 角色（中文）+ 时间（spec §3.7）
+// 时间轴（原型 tlItem 对齐）：done/active/bad 三态圆点 + 操作人/角色/时间
 import { roleLabel } from './labels'
 defineProps({ items: { type: Array, default: () => [] } })
+function body(it) {
+  if (it.title) return [it.actor, it.role ? roleLabel(it.role) : '', it.text || it.note].filter(Boolean).join(' · ')
+  return [it.role ? roleLabel(it.role) : '', it.text].filter(Boolean).join(' · ')
+}
 </script>
-<style scoped>
-.timeline { list-style: none; margin: 0; padding: 0; }
-.tl-item { position: relative; padding: 0 0 14px 20px; border-left: 1px solid var(--line); }
-.tl-dot { position: absolute; left: -4px; top: 4px; width: 7px; height: 7px; border-radius: 50%; background: var(--amber); }
-.tl-head { display: flex; gap: 8px; align-items: baseline; font-size: 12px; }
-.tl-role { color: var(--dim); font-family: var(--font-mono); font-size: 11px; }
-.tl-time { color: var(--muted); margin-left: auto; }
-.tl-text { color: var(--text); font-size: 13px; margin-top: 2px; }
-</style>

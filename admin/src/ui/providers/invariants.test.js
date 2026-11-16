@@ -2,10 +2,10 @@ import { describe, it, expect } from 'vitest'
 import { mockData, checkInvariants } from '../mock-data'
 import { provider } from './provider'
 
-describe('mock baseline invariants', () => {
-  it('all 9 invariants pass', () => {
+describe('mock baseline invariants（原型基准集 12 条）', () => {
+  it('all 12 invariants pass', () => {
     const results = checkInvariants(mockData)
-    expect(results.length).toBe(9)
+    expect(results.length).toBe(12)
     results.forEach(r => expect(r.ok, r.detail).toBe(true))
   })
   it('elevator count closes to 20', () => {

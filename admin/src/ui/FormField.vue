@@ -1,17 +1,20 @@
 <template>
-  <div class="field">
-    <label class="field-label">{{ label }}<span v-if="required" class="req">*</span></label>
+  <div :class="['field', { bad: !!error }]">
+    <label>
+      <span v-if="required" class="req">*</span>{{ label }}
+      <span v-if="hint" class="hint">{{ hint }}</span>
+    </label>
     <slot />
-    <p v-if="error" class="field-error">{{ error }}</p>
+    <span class="err">
+      <svg class="ic ic-sm" aria-hidden="true"><use href="#i-alert" /></svg>
+      <span class="err-t">{{ error }}</span>
+    </span>
   </div>
 </template>
 <script setup>
-// M2 表单字段：标签 + 必填星号 + 下方错误文案（spec §3.4）
-defineProps({ label: String, required: Boolean, error: { type: String, default: '' } })
+// 表单字段（原型 fieldHtml 对齐）：必填星号 + hint + 下方错误文案（.field.bad 驱动）
+defineProps({
+  label: String, required: Boolean, hint: { type: String, default: '' },
+  error: { type: String, default: '' }
+})
 </script>
-<style scoped>
-.field { margin-bottom: 14px; }
-.field-label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 5px; }
-.req { color: var(--signal); margin-left: 3px; }
-.field-error { color: var(--signal); font-size: 12px; margin: 5px 0 0; }
-</style>

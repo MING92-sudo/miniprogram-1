@@ -32,6 +32,11 @@ const FilingView = () => import('../views/FilingView.vue')
 const RegionView = () => import('../views/RegionView.vue')
 const TemplateManageView = () => import('../views/TemplateManageView.vue')
 const RegisterWorkersView = () => import('../views/RegisterWorkersView.vue')
+// 二期：监管与运营（原型同款 mock 演示，后端接口后续接入）
+const SyncView = () => import('../views/SyncView.vue')
+const MsgTemplatesView = () => import('../views/MsgTemplatesView.vue')
+const ReviewsView = () => import('../views/ReviewsView.vue')
+const BoardView = () => import('../views/BoardView.vue')
 
 export const routes = [
   { path: '/login', component: LoginView, meta: { public: true, title: '登录' } },
@@ -57,8 +62,13 @@ export const routes = [
     { path: 'filings', component: FilingView, meta: { title: '外接建档', group: '监管与档案', perm: 'filing:view' } },
     { path: 'regions', component: RegionView, meta: { title: '区域管理', group: '监管与档案', perm: 'region:view' } },
     { path: 'templates', component: TemplateManageView, meta: { title: '检查项模板', group: '监管与档案', perm: 'template:view' } },
-    { path: 'register/workers', component: RegisterWorkersView, meta: { title: '平台登记人员', group: '监管与档案', perm: 'platform:worker_view' } }
+    { path: 'register/workers', component: RegisterWorkersView, meta: { title: '平台登记人员', group: '监管与档案', perm: 'platform:worker_view' } },
+    { path: 'sync', component: SyncView, meta: { title: '监管平台同步', group: '监管与运营', perm: 'report:view' } },
+    { path: 'msg-templates', component: MsgTemplatesView, meta: { title: '消息模板', group: '监管与运营', perm: 'config:manage' } },
+    { path: 'reviews', component: ReviewsView, meta: { title: '服务评价', group: '监管与运营', perm: 'stats:view' } }
   ] },
+  // 大屏调度：独立全屏（原型 Views.board 不渲染侧栏/顶栏）
+  { path: '/board', component: BoardView, meta: { title: '大屏调度', group: '监管与运营', perm: 'order:view_pool' } },
   { path: '/403', component: ForbiddenView, meta: { public: true, title: '无权限' } },
   { path: '/:pathMatch(.*)*', component: NotFoundView, meta: { public: true, title: '页面不存在' } }
 ]

@@ -1,18 +1,23 @@
 <template>
-  <div class="error-state" role="alert">
-    <p class="err-title">加载失败</p>
-    <p class="err-reason">{{ reason || '未知错误' }}</p>
-    <button class="err-retry" @click="$emit('retry')">重试</button>
+  <div class="state err-state" role="alert">
+    <div class="st-ico">
+      <svg class="ic ic-xl" aria-hidden="true"><use href="#i-alert" /></svg>
+    </div>
+    <h2>接口调用失败</h2>
+    <p class="mono">{{ reason || '未知错误' }}</p>
+    <p v-if="sim">这是「模拟异常」开关触发的失败态演示。生产环境此处展示重试与降级。</p>
+    <div class="st-acts">
+      <button class="btn btn-primary" type="button" @click="$emit('retry')">
+        <svg class="ic" aria-hidden="true"><use href="#i-refresh" /></svg>重试
+      </button>
+      <button v-if="sim" class="btn btn-ghost" type="button" @click="$emit('sim-off')">
+        <svg class="ic" aria-hidden="true"><use href="#i-x" /></svg>关闭模拟
+      </button>
+    </div>
   </div>
 </template>
 <script setup>
-// M2 失败态：可读原因 + 重试 + 退路，不清空已填数据（spec §3.10）
-defineProps({ reason: { type: String, default: '' } })
-defineEmits(['retry'])
+// 失败态（原型 errorState 对齐）：signal 描边卡 + 可读原因 + 重试 / 关闭模拟
+defineProps({ reason: { type: String, default: '' }, sim: Boolean })
+defineEmits(['retry', 'sim-off'])
 </script>
-<style scoped>
-.error-state { text-align: center; padding: 32px 16px; }
-.err-title { color: var(--signal); font-size: 14px; font-weight: 600; }
-.err-reason { color: var(--muted); font-size: 12px; margin: 8px 0 16px; }
-.err-retry { background: var(--panel-2); border: 1px solid var(--line-2); color: var(--text); padding: 6px 16px; border-radius: 6px; cursor: pointer; }
-</style>

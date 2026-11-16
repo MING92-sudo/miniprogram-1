@@ -1,30 +1,72 @@
-/* M2 设计 token（admin-spec §8）：深色工业风，零外部请求 */
+/* 设计 token 层 —— 逐字移植原型 UI/admin/assets/admin.css :root（梯维通 LIFT/OPS 管理端原型）
+   公司名保持「博威无纸化」；token 值与原型完全一致（admin-spec §8）。
+   末尾保留旧组件库变量别名，兼容存量 scoped 样式。 */
 :root {
-  --ink: #0A0F12; --ink-2: #0D1418;
-  --panel: #131C21; --panel-2: #172228;
-  --line: #26343B; --line-2: #2E3E46;
-  --text: #E8EEF0; --muted: #A3B4BB; --dim: #7E929B;
-  --amber: #FFB020; --amber-soft: #FFC85C;
-  --signal: #FF4B2B; --signal-soft: #FF8F7A;
-  --ok: #2FC48D; --ok-soft: #5FE0B2;
-  --paper: #EDE5D3; --paper-ink: #22201A; --paper-line: #C6BA9F;
-  --accent-on-amber: #1A1203; --accent-on-signal: #1A0A06;
-  --scrim: rgba(5, 8, 10, .72); --focus: var(--amber);
+  /* ---- 18 个既有 token（与小程序原型同源，不改值） ---- */
+  --ink: #0A0F12;
+  --ink-2: #0D1418;
+  --panel: #131C21;
+  --panel-2: #172228;
+  --line: #26343B;
+  --line-2: #2E3E46;
+  --text: #E8EEF0;
+  --muted: #A3B4BB;
+  --dim: #7E929B;
+  --amber: #FFB020;
+  --amber-soft: #FFC85C;
+  --signal: #FF4B2B;
+  --signal-soft: #FF8F7A;
+  --ok: #2FC48D;
+  --ok-soft: #5FE0B2;
+  --paper: #EDE5D3;
+  --paper-ink: #22201A;
+  --paper-line: #C6BA9F;
+
+  /* ---- 新增语义（不改既有值） ---- */
+  --on-amber: #1A1203;
+  --on-signal: #1A0A06;
+  --scrim: rgba(5, 8, 10, .74);
+  --amber-a08: rgba(255, 176, 32, .08);
+  --amber-a18: rgba(255, 176, 32, .18);
+  --signal-a10: rgba(255, 75, 43, .10);
+  --signal-a32: rgba(255, 75, 43, .32);
+  --ok-a10: rgba(47, 196, 141, .10);
+  --ok-a32: rgba(47, 196, 141, .32);
+
+  /* ---- 字体：系统栈（离线要求，D4） ---- */
+  --font-sans: "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+  --font-mono: Consolas, "SFMono-Regular", Menlo, "Courier New", monospace;
+  --font-paper: "Songti SC", "SimSun", Georgia, serif;
+
+  /* ---- 桌面排版尺度：正文 13 / 次级 12 / 标签 11 ---- */
+  --fs-body: 13px;
+  --fs-sm: 12px;
+  --fs-label: 11px;
+  --fs-h: 16px;
+  --fs-h2: 20px;
+
+  /* ---- 尺度：间距基数 4，硬边圆角（卡片4/按钮5/标签2） ---- */
+  --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 20px; --s6: 24px; --s8: 32px;
+  --r-card: 4px; --r-btn: 5px; --r-tag: 2px;
+  --row-h: 40px;
+  --side-w: 232px;
+  --side-w-min: 64px;
+  --top-h: 56px;
+
+  /* ---- 旧组件库别名（存量 scoped 样式兼容，值与原型一致） ---- */
+  --accent-on-amber: var(--on-amber);
+  --accent-on-signal: var(--on-signal);
+  --focus: var(--amber);
   --paper-small: #5B5341;
-  --font-sans: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
-  --font-mono: 'Consolas', 'Menlo', monospace;
 }
+
+/* 旧 .ui-scope 作用域基类（登录页等独立页面仍使用） */
 .ui-scope {
   background: var(--ink); color: var(--text);
-  font-family: var(--font-sans); font-size: 13px; line-height: 1.5;
+  font-family: var(--font-sans); font-size: var(--fs-body); line-height: 1.55;
 }
 .ui-scope .num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
 .ui-scope .label {
-  font-family: var(--font-mono); font-size: 11px; letter-spacing: .08em;
+  font-family: var(--font-mono); font-size: var(--fs-label); letter-spacing: .08em;
   text-transform: uppercase; color: var(--dim);
 }
-.ui-scope ::-webkit-scrollbar { width: 10px; height: 10px; }
-.ui-scope ::-webkit-scrollbar-track { background: var(--panel); }
-.ui-scope ::-webkit-scrollbar-thumb { background: var(--line-2); border-radius: 5px; }
-.ui-scope ::-webkit-scrollbar-thumb:hover { background: var(--amber); }
-.ui-scope :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }

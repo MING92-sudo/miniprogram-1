@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { statusColor } from './status-colors'
+import { statusColor, tagClass } from './status-colors'
 import { icon } from './icons'
 
 describe('status-colors', () => {
@@ -15,16 +15,28 @@ describe('status-colors', () => {
   it('unknown status falls back to muted', () => {
     expect(statusColor('WHATEVER').fg).toBe('var(--muted)')
   })
+  it('tagClass maps Chinese prototype states', () => {
+    expect(tagClass('已归档')).toBe('ok')
+    expect(tagClass('待复核')).toBe('amber')
+    expect(tagClass('超时')).toBe('signal')
+    expect(tagClass('停用')).toBe('dim')
+    expect(tagClass('未知态')).toBe('ghost')
+  })
 })
 
-describe('icons', () => {
-  it('returns inline svg with no external href', () => {
+describe('icons (sprite use 引用，零外部请求)', () => {
+  it('returns svg use referencing inline sprite symbol', () => {
     const svg = icon('dashboard', 16)
     expect(svg).toContain('<svg')
+    expect(svg).toContain('#i-gauge') // 旧名 dashboard → 原型 gauge 别名
     expect(svg).not.toContain('href="http')
-    expect(svg).toContain('width="16"')
   })
-  it('unknown icon falls back to a default glyph', () => {
-    expect(icon('nope', 16)).toContain('<svg')
+  it('size argument maps to prototype size class', () => {
+    expect(icon('check', 13)).toContain('ic-sm')
+    expect(icon('check', 20)).toContain('ic-lg')
+    expect(icon('check')).toContain('class="ic"')
+  })
+  it('unknown icon still renders a sprite use', () => {
+    expect(icon('nope')).toContain('<svg')
   })
 })

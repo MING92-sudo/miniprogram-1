@@ -1,27 +1,35 @@
 <template>
-  <div class="page">
-    <div class="page-head"><h1>检查项模板</h1></div>
-    <DataTable :columns="cols" :rows="rows" :loading="loading" :search-keys="['name', 'category']" />
-    <p class="hint">维保检查项模板（区别于系统配置签字模板）；可启用/停用。</p>
+  <div>
+    <ViewHead title="检查项模板" sub="维保检查项模板（区别于系统配置签字模板）· 品种 × 附件 A/B/C/D 路由">
+      <template #meta><PageMeta perm="template:view" :extra="[{ k: '模板数', v: rows.length, icon: 'clipboard-list', cls: 'count' }]" /></template>
+    </ViewHead>
+    <div class="mt16">
+      <DataTable :columns="cols" :rows="rows" :loading="loading" :search-keys="['name', 'category']"
+        search-placeholder="搜索模板名 / 品种" empty-hint="暂无检查项模板。">
+        <template #cell-itemCount="{ value }"><span class="num">{{ value }}</span></template>
+        <template #cell-enabled="{ value }">
+          <span :class="['tag', value ? 'tag-ok' : 'tag-dim']">{{ value ? '启用' : '停用' }}</span>
+        </template>
+      </DataTable>
+    </div>
+    <RuleNote class="mt12" icon="info">品种四类口径（TSG T5002 第八条）：曳引与强制驱动 / 液压 / 杂物 / 自动扶梯与人行道 → 附件 A/B/C/D；启停按 template:toggle（质量负责人可操作）。</RuleNote>
   </div>
 </template>
 <script setup>
-// M5 检查项模板：列表（template:view）
+// 检查项模板：列表（template:view）
 import { ref, onMounted } from 'vue'
 import http from '../api/client'
 import DataTable from '../ui/DataTable.vue'
+import ViewHead from '../ui/ViewHead.vue'
+import PageMeta from '../ui/PageMeta.vue'
+import RuleNote from '../ui/RuleNote.vue'
 const rows = ref([])
 const loading = ref(false)
 const cols = [
   { key: 'name', label: '模板名', sortable: true },
   { key: 'category', label: '品种' },
-  { key: 'itemCount', label: '项数' },
-  { key: 'enabled', label: '启用' }
+  { key: 'itemCount', label: '项数', cls: 'num', sortable: true },
+  { key: 'enabled', label: '状态' }
 ]
 onMounted(async () => { loading.value = true; try { rows.value = (await http.get('/admin/templates')).list || [] } finally { loading.value = false } })
 </script>
-<style scoped>
-.page-head { margin-bottom: 16px; }
-.page-head h1 { font-size: 20px; }
-.hint { color: var(--dim); font-size: 12px; margin-top: 10px; }
-</style>

@@ -1,51 +1,77 @@
 <template>
-  <div class="workbench">
-    <div class="wb-head">
-      <h1 class="wb-title">工作台</h1>
-      <div class="persp-switch">
-        <button v-for="r in perspective.roleSet" :key="r" :class="['persp-btn', { active: r === perspective.activeRole }]" @click="perspective.setRole(r)">{{ roleLabel(r) }}</button>
+  <div>
+    <ViewHead title="概览工作台" :sub="'在管项目 ' + k('projects') + ' / 电梯 ' + k('elevators') + ' · ' + scopeLabel">
+      <template #actions>
+        <button v-if="isDev" class="btn btn-ghost" type="button" @click="$router.push('/dev/spec')">
+          <svg class="ic" aria-hidden="true"><use href="#i-palette" /></svg>设计规范与自检
+        </button>
+      </template>
+      <template #meta><PageMeta /></template>
+    </ViewHead>
+    <div class="mt16">
+      <div class="kpi-grid">
+        <div v-for="it in kpis" :key="it.key" :class="['kpi', it.cls, { clickable: !!it.view }]" @click="it.view && $router.push(it.view)">
+          <div class="kpi-k"><svg class="ic" aria-hidden="true"><use :href="'#i-' + it.icon" /></svg>{{ it.label }}</div>
+          <div class="kpi-n">{{ it.value }}<small v-if="it.unit">{{ it.unit }}</small></div>
+          <div class="kpi-x" v-html="it.sub" />
+        </div>
       </div>
     </div>
-    <div v-if="overdue" class="alert-bar">工单超时 {{ overdue }} 单，请优先处理</div>
-    <div class="kpi-grid">
-      <div v-for="k in kpis" :key="k.key" class="kpi-card">
-        <p class="kpi-value num">{{ k.value }}</p>
-        <p class="kpi-label label">{{ k.label }}</p>
-      </div>
+    <div class="col gap8 mt16">
+      <AlertStrip v-if="k('contractExpiring')" tone="as-sig" icon="file-sign" title="合同临期"
+        :text="k('contractExpiring') + ' 份合同 ≤90 天到期，需安排续签'" to="/contracts" />
+      <AlertStrip v-if="k('slaOverdue')" tone="as-sig" icon="bolt" title="SLA 超时"
+        :text="k('slaOverdue') + ' 个工单超出时限仍未闭环'" to="/dispatch" />
+      <AlertStrip v-if="k('handoverReview')" icon="exchange" title="待审核移交"
+        :text="k('handoverReview') + ' 单等待安装部审核'" to="/handovers" />
+      <AlertStrip v-if="k('recordReview')" icon="clipboard" title="待复核"
+        :text="k('recordReview') + ' 单记录待维保主管复核'" to="/records" />
+      <AlertStrip v-if="amendPending" tone="as-info" icon="history" title="修订待双确认"
+        :text="amendPending + ' 单归档修订等待平台确认'" to="/records" />
+      <AlertStrip v-if="!hasAlert" tone="as-ok" icon="check" title="运行正常" text="当前范围内无紧急预警" />
     </div>
-    <section class="wb-todos">
-      <h2 class="label">待办</h2>
-      <ul v-if="todos.length">
-        <li v-for="t in todos" :key="t.id">{{ t.text }}</li>
-      </ul>
-      <p v-else class="wb-empty">暂无待办</p>
-    </section>
+    <div class="card card-pad0 mt16">
+      <div class="card-head">
+        <h3><svg class="ic" aria-hidden="true"><use href="#i-inbox" /></svg>我的待办</h3>
+        <span class="ch-tag tag tag-dim">{{ todos.length }} 项</span>
+      </div>
+      <div v-if="todos.length" class="tbl-wrap">
+        <table class="tbl">
+          <thead><tr><th>事项</th><th>对象</th><th>所需权限</th><th class="acts">操作</th></tr></thead>
+          <tbody>
+            <tr v-for="t in todos" :key="t.id">
+              <td>{{ t.label }}</td>
+              <td class="mono">{{ t.obj }}</td>
+              <td><code class="mono f11 c-amber">{{ t.perm }}</code></td>
+              <td class="acts">
+                <PermButton :code="t.perm" label="处理" variant="ghost" size="xs" icon="arrow-right" @click="$router.push(t.link)" />
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div v-else class="card-body dim">当前角色范围内暂无待办。</div>
+    </div>
+    <RuleNote class="mt16">KPI 全部由 mock 基准集计算，分项之和与总数闭合（spec §9 不变量 1/6/8）。切换右上角角色可观察导航、数据范围、脱敏与按钮权限的联动变化。</RuleNote>
   </div>
 </template>
 <script setup>
-// M2 工作台：KPI 7 项 + 预警 + 待办 + 视角切换（spec §5.2）；M2 数据源 mock 基准集
+// 概览工作台（原型 Views.dashboard 逐字对齐）：KPI 7 项 + 预警条 + 权限门控待办 + 元信息条
 import { computed } from 'vue'
 import { provider } from '../ui/providers/provider'
-import { roleLabel } from '../ui/labels'
+import { M } from '../ui/prototype-mock'
 import { usePerspectiveStore } from '../ui/stores/perspective'
+import ViewHead from '../ui/ViewHead.vue'
+import PageMeta from '../ui/PageMeta.vue'
+import AlertStrip from '../ui/AlertStrip.vue'
+import RuleNote from '../ui/RuleNote.vue'
+import PermButton from '../ui/PermButton.vue'
 const perspective = usePerspectiveStore()
+const isDev = import.meta.env.DEV
 const kpis = computed(() => provider.getKPIs(perspective.activeRole))
 const todos = computed(() => provider.getTodos(perspective.activeRole))
-const overdue = computed(() => (kpis.value.find(k => k.key === 'slaOverdue') || {}).value || 0)
+const scopeLabel = computed(() => (M.switchByRole(perspective.activeRole) || {}).scopeLabel || '全量')
+const amendPending = computed(() => M.RECORDS.filter(r => r.amendPending).length)
+function k(key) { return (kpis.value.find(x => x.key === key) || {}).value || 0 }
+const hasAlert = computed(() => k('contractExpiring') || k('slaOverdue') || k('handoverReview') || k('recordReview') || amendPending.value)
 </script>
-<style scoped>
-.wb-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
-.wb-title { font-size: 20px; font-weight: 600; }
-.persp-switch { display: flex; gap: 6px; flex-wrap: wrap; }
-.persp-btn { background: var(--panel-2); border: 1px solid var(--line-2); color: var(--muted); padding: 4px 10px; border-radius: 6px; cursor: pointer; font-size: 11px; font-family: var(--font-mono); }
-.persp-btn.active { background: var(--amber); color: var(--accent-on-amber); border-color: var(--amber); }
-.alert-bar { background: var(--signal); color: var(--accent-on-signal); padding: 8px 14px; border-radius: 6px; font-size: 13px; margin-bottom: 16px; }
-.kpi-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; }
-.kpi-card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px; }
-.kpi-value { font-size: 28px; font-weight: 700; color: var(--amber); }
-.kpi-label { margin-top: 6px; }
-.wb-todos { margin-top: 24px; }
-.wb-todos ul { list-style: none; padding: 0; margin: 8px 0; }
-.wb-todos li { padding: 10px 12px; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; margin-bottom: 6px; font-size: 13px; }
-.wb-empty { color: var(--dim); font-size: 13px; }
-</style>

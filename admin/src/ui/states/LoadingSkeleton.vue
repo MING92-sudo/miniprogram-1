@@ -1,14 +1,15 @@
 <template>
-  <div class="skeleton" aria-busy="true" aria-label="加载中">
-    <div v-for="n in rows" :key="n" class="sk-row" />
+  <div class="skel-wrap" aria-busy="true" aria-label="加载中">
+    <div class="skel hl" style="width:240px" />
+    <div class="skel" style="width:60%" />
+    <div class="skel-bars mt8">
+      <div class="skel lg grow" />
+      <div class="skel lg" style="width:120px" />
+    </div>
+    <div v-for="n in rows" :key="n" class="skel row" />
   </div>
 </template>
 <script setup>
-// M2 加载骨架：220ms 后显示由调用方控制（spec §3.10）
-defineProps({ rows: { type: Number, default: 5 } })
+// 加载骨架（原型 skeleton 对齐）：表头 + 灰块行，hazard 微光动画
+defineProps({ rows: { type: Number, default: 8 } })
 </script>
-<style scoped>
-.skeleton { display: flex; flex-direction: column; gap: 10px; padding: 12px; }
-.sk-row { height: 40px; border-radius: 6px; background: linear-gradient(90deg, var(--panel) 25%, var(--panel-2) 50%, var(--panel) 75%); background-size: 200% 100%; animation: sk 1.2s infinite; }
-@keyframes sk { to { background-position: -200% 0; } }
-</style>
