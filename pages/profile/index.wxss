@@ -1,8 +1,17 @@
+/* 我的（屏 20 · 原型 V1.4）：身份卡 / 我的角色 / 切换工作台 / 功能入口 */
 page{background:var(--ink);color:var(--text)}
-.pf-avatar{width:96rpx;height:96rpx;border-radius:50%;background:#23343C;border:1rpx solid #35454D;display:flex;align-items:center;justify-content:center;font-size:44rpx;color:var(--amber);flex:none}
-.pf-ws-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12rpx}
-.pf-ws{height:72rpx;border:1rpx solid #34454D;border-radius:8rpx;color:#DCE6E9;font-size:24rpx;display:flex;align-items:center;justify-content:center;background:transparent}
-.pf-ws.on{background:var(--amber);color:#1A1203;border-color:var(--amber);font-weight:700}
+.pf-avatar{width:96rpx;height:96rpx;border-radius:50%;background:#23343C;border:1rpx solid #35454D;display:flex;align-items:center;justify-content:center;font-size:44rpx;color:#B8C8CE;flex:none}
+.pf-sec{padding:2rpx 2rpx 0}
+.panel-title{font-size:20rpx;letter-spacing:.16em;color:var(--dim)}
+.pf-role{display:flex;align-items:center;gap:16rpx;padding:18rpx 0;border-bottom:1rpx dashed rgba(38,52,59,.7)}
+.pf-role:last-child{border-bottom:none}
+.pf-ws-row{display:flex;align-items:center;gap:16rpx;padding:20rpx 0;border-bottom:1rpx dashed rgba(38,52,59,.7)}
+.pf-ws-row:last-of-type{border-bottom:none}
+.pf-ws-ico{font-size:30rpx;color:var(--amber);width:40rpx}
+.pf-ws-row.none{opacity:.45}
+.pf-ws-row.none .pf-ws-ico{color:var(--dim)}
+.pf-note{display:flex;gap:12rpx;font-size:20rpx;line-height:1.6;color:var(--muted);background:rgba(255,176,32,.06);border:1rpx solid rgba(255,176,32,.25);border-radius:6rpx;padding:16rpx 18rpx}
+.pf-note .i{color:var(--amber);flex:none;margin-top:2rpx}
 .pf-entries{padding:8rpx 22rpx}
 .pf-entry{display:flex;align-items:center;gap:16rpx;padding:24rpx 0;border-bottom:1rpx dashed rgba(38,52,59,.7);font-size:26rpx}
 .pf-entry:last-child{border-bottom:none}

@@ -9,6 +9,13 @@ const menus = require('../config/menus')
 let currentRole = 'WORKER'
 // M2 单账号多角色：当前会话角色集（登录写入），/me/menus 投影用
 let currentRoles = ['MAINT_TECH']
+// 运行时重载后从本地会话恢复当前角色（与生产 JWT 解析同口径：会话持久，菜单按会话角色投影）
+try {
+  const sr = wx.getStorageSync('em_roles')
+  if (sr && sr.length) currentRoles = sr
+  const cr = wx.getStorageSync('em_role')
+  if (cr) currentRole = cr
+} catch (e) { /* 非小程序环境忽略 */ }
 // 权限投影复用 constants/permission-matrix.js 镜像（与后端 PermissionMatrix 同源，Y∪C；防手写漂移）
 const permMirror = require('../constants/permission-matrix')
 function permsOf(roles) {
@@ -82,6 +89,46 @@ function handoverArchiveEntries(id) {
     category: c[1], seq: i + 1, sha256: 'mock_sha256_' + c[0], archivedAt: formatTime(new Date()) }))
 }
 
+// 演示移交单（屏 02/24 原型基线 YJ-2026-0117）：模块加载即存在，避免依赖会话内 POST 持久化。
+// 数据为合成演示件，结构与后端 HandoverOrder/HandoverCheckItem 同口径（docs/04 A.9 / docs/15）。
+function seedDemoHandovers() {
+  const docs = [
+    { docType: 'FACTORY_CERT', docName: '出厂合格证', fileId: 'mock_file_1', missing: false },
+    { docType: 'TYPE_TEST', docName: '型式试验报告', fileId: '', missing: true },
+    { docType: 'INSTALL_NOTICE', docName: '安装告知书', fileId: 'mock_file_3', missing: false },
+    { docType: 'SELF_CHECK', docName: '自检报告', fileId: 'mock_file_4', missing: false },
+    { docType: 'HIDDEN_WORK', docName: '隐蔽工程记录', fileId: 'mock_file_5', missing: false },
+    { docType: 'AS_BUILT', docName: '竣工图纸', fileId: 'mock_file_6', missing: false }
+  ]
+  const items = buildHandoverChecklist()
+  items.forEach(function (it) {
+    if (it.itemNo === 38) { it.result = 'FAIL'; it.failDesc = '张紧轮松动，需整改后复验'; it.photoFileIds = 'mock_file_38' }
+    else if (it.itemNo >= 57) { it.result = 'PASS'; it.measuredValue = '0.52' }
+    else { it.result = 'PASS' }
+  })
+  const base = {
+    elevatorId: 'el_2', elevatorCode: 'EM-2024-002', elevatorName: '世纪大厦 2# 客梯', projectName: '世纪大厦',
+    location: '渝北区龙山一路 88 号', category: '曳引与强制驱动电梯', deviceCode: 'DT-CB-0231', useUnit: '启元物业',
+    installUnit: '中建安装', maintUnit: '博威电梯', initiatorName: '王强 · 中建安装', uploaderName: '刘倩 · 安装部资料员',
+    ratedLoad: 1050, ratedLoadUnit: 'kg', ratedSpeed: 1.75, ratedSpeedUnit: 'm/s', stationsDoors: '18 / 18',
+    workTypeCode: 'HM', supervisionPassDate: '2026-11-01', receiverId: 'emp_lzg', receiverName: '李振国',
+    supervisionReportFileId: 'mock_file_a', maintenanceManualFileId: 'mock_file_b', qualityCertificateFileId: 'mock_file_c',
+    docs: docs, keys: ['层门钥匙 ×6', '机房钥匙 ×2', '检修盒 ×1', '盘车手轮'],
+    checklist74: items, checkConclusion: 'RECTIFY', checkCounts: { pass: 73, fail: 1, na: 0, impFail: 0 },
+    rectifications: [{ id: 'hr_demo_1', handoverId: 'ho_demo_1', itemNo: 38, itemType: 'G05', respParty: '安装单位',
+      source: 'INSPECT', voided: false, beforePhotoFileId: 'mock_file_38', recheckResult: null,
+      failDesc: '张紧轮松动，需整改后复验' }]
+  }
+  mockHandovers.push(Object.assign({}, base, { id: 'ho_demo_1', handoverNo: 'YJ-2026-0117', status: 'INSPECTING',
+    createdAt: '2026-11-12 16:20:00', checks: [], signs: [] }))
+  mockHandovers.push(Object.assign({}, base, { id: 'ho_demo_2', handoverNo: 'YJ-2026-0118', status: 'RECTIFYING',
+    createdAt: '2026-11-12 16:20:00', checks: [], signs: [],
+    rectifications: [{ id: 'hr_demo_2', handoverId: 'ho_demo_2', itemNo: 38, itemType: 'G05', respParty: '安装单位',
+      source: 'INSPECT', voided: false, beforePhotoFileId: 'mock_file_38', recheckResult: null,
+      failDesc: '张紧轮松动，需整改后复验' }] }))
+}
+seedDemoHandovers()
+
 // M1 统一登录响应扩展（docs/04 V2.53）：账号登录/微信免密登录共用，与后端 loginResult 口径一致
 function loginPayload(roleKey) {
   const user = d.db.employees[roleKey]
@@ -99,17 +146,57 @@ function loginPayload(roleKey) {
   const scope = roles.indexOf('PLATFORM_ADMIN') > -1 ? '全部数据'
     : roles.some((r) => r.indexOf('CLIENT') === 0) ? '本单位全部电梯'
       : roles.some((r) => r.indexOf('INST') === 0) ? '安装部项目范围' : '本班组维保范围'
+  // 与后端 AuthController.userInfo() 同口径：会话体不含 password（2026-11-16 审查修复）
+  const userInfo = Object.assign({}, user)
+  delete userInfo.password
   return {
-    token: 'mock-token-' + Date.now(), userInfo: user, role: roleKey,
+    token: 'mock-token-' + Date.now(), userInfo, role: roleKey,
     roles, perms, scope, activeWorkspace: ws, home: menus.resolveHome(roles)
   }
 }
 
+// 电梯档案概览（屏 08）：规格卡/服务履历/统计/联系，全部由 db 推导，不硬编码
+function buildElevatorOverview(el) {
+  const unit = d.getUseUnit(el.useUnitId) || {}
+  const orders = (d.db.orders || []).filter((o) => o.elevatorId === el.id)
+  const faults = (d.db.faults || []).filter((f) => f.elevatorCode === el.elevatorCode)
+  const log = []
+  orders.slice(0, 4).forEach((o) => log.push({ tone: o.status === 'DONE' ? 'ok' : 'amber', title: (o.workType || '维保') + ' · ' + (o.orderNo || ''), sub: [o.workerName, o.status === 'DONE' ? '已签退归档' : '进行中'].filter(Boolean).join(' · '), date: (o.checkoutTime || o.planTime || '').slice(0, 10) }))
+  faults.slice(0, 2).forEach((f) => log.push({ tone: f.rescue ? 'signal' : 'amber', title: (f.rescue ? '急修 · 困人救援' : '急修') , sub: [f.id, f.workerName, f.status === 'CLOSED' ? '已闭环' : '处理中'].filter(Boolean).join(' · '), date: (f.createdAt || '').slice(0, 10) }))
+  const done = orders.filter((o) => o.status === 'DONE').length
+  const resp = faults.filter((f) => f.responseMinutes != null)
+  const avgResp = resp.length ? Math.round(resp.reduce((s, f) => s + f.responseMinutes, 0) / resp.length) : 0
+  const nextCheck = el.nextCheckDate || ''
+  const daysToCheck = nextCheck ? Math.max(0, Math.ceil((new Date(nextCheck).getTime() - Date.now()) / 86400000)) : 0
+  return {
+    useUnitName: unit.name || el.useUnitName || '',
+    contractNo: unit.contractNo || '', contractPeriod: unit.contractPeriod || '',
+    nextService: el.nextMaintenanceDate || '', inspection: nextCheck,
+    serviceLog: log,
+    stats: { fault30: faults.length, avgResp, daysToCheck },
+    contact: { unit: unit.unitPrincipal || '', unitPhone: unit.unitPrincipalPhone || '', main: el.maintPrincipal || '', mainPhone: el.maintPrincipalPhone || '', assist: el.assistPhone || '', addr: el.location || '', contractNo: unit.contractNo || '' }
+  }
+}
 const routes = [
   // ── M6 管理统计域只读投影（pkg-admin，复用管理端端点） ──
   ['GET', '/projects', () => ({ list: (d.db.projects || []).slice(0, 50), total: (d.db.projects || []).length })],
   ['GET', '/contracts', () => ({ list: (d.db.contracts || []).slice(0, 50), total: (d.db.contracts || []).length })],
   ['GET', '/users', () => ({ list: Object.keys(d.db.employees).map((k) => { const e = d.db.employees[k]; return { id: e.id, name: e.name, account: e.account, role: e.role, roleText: e.roleText, groupName: e.groupName, enabled: e.enabled !== false } }), total: Object.keys(d.db.employees).length })],
+  // 2026-11-16 审查修复：补齐 services 已调用但 mock 缺失的 4 端点（docs/04 既有契约，三处同步）
+  // GET /employees：后端 AdminArchiveController 回纯数组；接收工程师候选按旧码 WORKER/ASSISTANT 过滤
+  ['GET', '/employees', () => Object.keys(d.db.employees).map((k) => { const e = d.db.employees[k]; return { id: e.id, name: e.name, role: e.role === 'MAINT_TECH' ? 'WORKER' : e.role, groupName: e.groupName, enabled: e.enabled !== false } })],
+  ['GET', '/use-units', () => d.db.useUnits],
+  ['POST', '/handovers/:id/assign-receiver', ({ params, body }) => {
+    const o = findOr404(mockHandovers, params.id, '移交单')
+    Object.assign(o, { receiverId: body.receiverId || '', receiverName: body.receiverName || '' })
+    return o
+  }],
+  ['PUT', '/faults/:id', ({ params, body }) => {
+    const f = findOr404(d.db.faults, params.id, '急修单')
+    // 与后端 DirectoryService.updateFault 同口径：仅维修过程四字段
+    ;['siteDesc', 'todoDesc', 'handleDesc', 'finishedAt'].forEach((k) => { if (body[k] != null) f[k] = body[k] })
+    return f
+  }],
   ['GET', '/roles-matrix', () => ({ roles: menus.ROLE_PRIORITY, matrix: {} })],
   ['GET', '/stats', () => ({ managed: d.db.elevators.length, done: d.db.orders.filter((o) => o.status === 'DONE').length, openFaults: d.db.faults.filter((f) => f.status === 'OPEN').length, pendingSigns: d.db.unitRecords.filter((r) => r.confirmStatus === 'PENDING').length })],
   ['GET', '/audit', () => ({ list: [], total: 0 })],
@@ -124,19 +211,28 @@ const routes = [
     const actions = {}
     const BUTTON_CODES = require('../services/menu').BUTTON_CODES
     BUTTON_CODES.forEach((c) => { actions[c] = effective.some((r) => permMirror.allowsNew(r, c)) })
-    const quickActions = ws && ws.indexOf('MAINT') === 0 ? [
-      { key: 'scan', text: '扫码开工', icon: 'qrcode', path: '/pages/elevator/detail/index?mode=scan' },
-      { key: 'emergency', text: '急修单', icon: 'bolt', path: '/pages/order/list/index?state=urgent' },
-      { key: 'report', text: '报修接单', icon: 'wrench', path: '/pages/order/list/index?state=pending' },
-      { key: 'handover', text: '移交验收', icon: 'file-signature', path: '/pkg-handover/pages/list/index' },
-      { key: 'filing', text: '外接建档', icon: 'folder', path: '/pkg-handover/pages/filing-init/index' }
-    ] : ws && ws.indexOf('CLIENT') === 0 ? [
-      { key: 'report', text: '一键报修', icon: 'wrench', path: '/pages/order/report/index' },
-      { key: 'todo', text: '待办签字', icon: 'file-signature', path: '/pkg-client/pages/todo/index' }
-    ] : ws && ws.indexOf('INST') === 0 ? [
-      { key: 'create', text: '发起移交', icon: 'file-signature', path: '/pkg-handover/pages/create/index' },
-      { key: 'upload', text: '资料上传', icon: 'folder', path: '/pkg-handover/pages/upload/index' }
-    ] : []
+    // 2026-11-16 审查修复：与后端 MiniappMenuService.quickActions 同口径（角色感知，权限面=渲染面）
+    const has = (r) => effective.indexOf(r) > -1
+    let quickActions = []
+    if (ws && ws.indexOf('MAINT') === 0) {
+      quickActions = [
+        { key: 'emergency', text: '急修单', icon: 'bolt', path: '/pages/order/list/index?state=urgent' },
+        { key: 'report', text: '报修接单', icon: 'wrench', path: '/pages/order/list/index?state=pending' },
+        { key: 'handover', text: '移交验收', icon: 'file-signature', path: '/pkg-handover/pages/list/index' }
+      ]
+      if (has('MAINT_SUP') || has('MAINT_MGR')) quickActions.push({ key: 'plan', text: '维保计划', icon: 'calendar-check-r', path: '/pkg-maintenance/pages/plan/index' })
+      if (has('MAINT_SUP') || has('MAINT_MGR') || has('MAINT_BIZ') || has('PLATFORM_ADMIN') || has('SYS_ADMIN')) quickActions.push({ key: 'filing', text: '外接建档', icon: 'folder', path: '/pkg-handover/pages/filing-init/index' })
+    } else if (ws && ws.indexOf('CLIENT') === 0) {
+      quickActions = [
+        { key: 'report', text: '一键报修', icon: 'bullhorn', path: '/pages/order/report/index' },
+        { key: 'emergency', text: '急修进度', icon: 'bolt', path: '/pkg-client/pages/orders/index' },
+        { key: 'elevators', text: '我的电梯', icon: 'elevator', path: '/pages/elevator/list/index' },
+        { key: 'todo', text: '待办签字', icon: 'file-signature', path: '/pkg-client/pages/todo/index' }
+      ]
+    } else if (ws && ws.indexOf('INST') === 0) {
+      if (has('INST_PM')) quickActions.push({ key: 'create', text: '发起移交', icon: 'file-signature', path: '/pkg-handover/pages/create/index' })
+      if (has('INST_CLERK') || has('INST_PM')) quickActions.push({ key: 'upload', text: '资料上传', icon: 'folder', path: '/pkg-handover/pages/upload/index' })
+    }
     const badges = { pendingOrders: 0, pendingSigns: 0 }
     if (effective.some((r) => r.indexOf('MAINT') === 0)) badges.pendingOrders = d.db.faults.filter((f) => f.status === 'OPEN').length
     if (effective.some((r) => r.indexOf('CLIENT') === 0)) badges.pendingSigns = d.db.unitRecords.filter((r) => r.confirmStatus === 'PENDING').length
@@ -188,7 +284,7 @@ const routes = [
   // 登录后绑定微信：wx.login code → 服务端换 openid 并与账号关联（mock 直接返回成功）
   ['POST', '/auth/bind-wechat', ({ body }) => {
     if (!body.code) throw { code: 422, message: '缺少微信 code' }
-    return { ok: true, openid: 'mock_openid_' + Date.now() }
+    return { ok: true } // 后端只回 {ok:true}，openid 不出服务端（AGENTS §2.6）
   }],
   ['POST', '/auth/wx-login', ({ body }) => {
     const role = d.db.employees[body.role] ? body.role : 'WORKER'
@@ -253,6 +349,7 @@ const routes = [
     const anchor = clientUnitAnchor()
     const el = d.getElevator(params.id)
     if (anchor !== undefined && el && el.useUnitId !== anchor) throw { code: 1403, message: '无权查看其他使用单位电梯' }
+    p.overview = buildElevatorOverview(el)
     return p
   }],
   // 维保人员现场更正项目名称（小区名称，管理端可能写错；docs/04 A.2.1）
@@ -618,7 +715,10 @@ const routes = [
   }],
   ['POST', '/handovers/:id/submit-docs', ({ params, body }) => {
     const o = findOr404(mockHandovers, params.id, '移交单')
-    Object.assign(o, body, { status: 'PENDING_INST_REVIEW' })
+    // 与后端 HandoverService.submitDocs 同口径：3 平铺必传字段缺一 422，提交后进入内部审核
+    const sr = body.supervisionReportFileId; const mm = body.maintenanceManualFileId; const qc = body.qualityCertificateFileId
+    if (!sr || !mm || !qc) throw { code: 422, message: '监督检验报告、维保说明书、整机质量证明缺一不可' }
+    Object.assign(o, { supervisionReportFileId: sr, maintenanceManualFileId: mm, qualityCertificateFileId: qc, status: 'PENDING_INST_REVIEW' })
     return o
   }],
   ['POST', '/handovers/:id/review', ({ params, body }) => {
@@ -777,6 +877,8 @@ const routes = [
     o.status = 'ARCHIVED'
     return o
   }],
+  // ── 以下门户契约 V41 废弃（单账号单会话，unit_token 废除）：后端保留至生产清库（docs/12 G 组），
+  //    前端已无调用者（2026-11-16 审查清理），mock 仅作契约镜像保留，勿新增入口 ──
   ['POST', '/unit/accounts', () => ({ account: 'U' + Date.now(), initialPassword: 'Mock12345678', inviteCode: 'MOCK2345' })],
   ['POST', '/unit/login', ({ body }) => {
     if (!body.account || !body.password) throw { code: 422, message: '请填写账号与密码' }

@@ -33,7 +33,9 @@
       </view>
     </view>
 
-    <button class="btn btn-primary" disabled="{{submitting}}" bindtap="onSubmit">{{submitting ? '提交中...' : '提交报修'}}</button>
     <view class="hint">困人急修按 TSG 30 分钟到场口径优先处置</view>
+  </view>
+  <view class="page-footer">
+    <button class="btn btn-primary co-f-main" disabled="{{submitting}}" bindtap="onSubmit">{{submitting ? '提交中...' : '提交报修'}}</button>
   </view>
 </view>

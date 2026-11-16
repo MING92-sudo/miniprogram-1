@@ -83,7 +83,7 @@ public class MiniappMenuService {
         out.put("home", resolveHome(effective));
         out.put("activeWorkspace", ws);
         out.put("tabs", resolveTabs(effective));
-        out.put("quickActions", quickActions(ws));
+        out.put("quickActions", quickActions(ws, effective));
         Map<String, Object> actions = new LinkedHashMap<>();
         for (String code : BUTTON_CODES) {
             actions.put(code, effective.stream().anyMatch(r -> PermissionMatrix.allowsNew(r, code)));
@@ -144,27 +144,45 @@ public class MiniappMenuService {
         return tabs.size() > 5 ? tabs.subList(0, 5) : tabs;
     }
 
-    private List<Map<String, Object>> quickActions(String ws) {
+    /**
+     * 快捷动作按工作区 + 角色集下发（2026-11-16 审查修复：权限面=渲染面，逐条对齐 config/routes.js 角色白名单）：
+     * plan 仅 MAINT_SUP/MAINT_MGR；filing 仅 MAINT_FILING 口径；create 仅 INST_PM；upload 仅 INST_CLERK/INST_PM；
+     * CLIENT 不得指向维保子包；扫码开工深链未实现（docs/12 C-17）暂不下发。
+     */
+    private List<Map<String, Object>> quickActions(String ws, Set<String> roles) {
         if (ws == null) {
             return List.of();
         }
         if (ws.startsWith("MAINT")) {
-            return List.of(
-                    qa("scan", "扫码开工", "qrcode", "/pages/elevator/detail/index?mode=scan"),
+            List<Map<String, Object>> list = new ArrayList<>(List.of(
                     qa("emergency", "急修单", "bolt", "/pages/order/list/index?state=urgent"),
                     qa("report", "报修接单", "wrench", "/pages/order/list/index?state=pending"),
-                    qa("handover", "移交验收", "file-signature", "/pkg-handover/pages/list/index"),
-                    qa("filing", "外接建档", "folder", "/pkg-handover/pages/filing-init/index"));
+                    qa("handover", "移交验收", "file-signature", "/pkg-handover/pages/list/index")));
+            if (roles.contains("MAINT_SUP") || roles.contains("MAINT_MGR")) {
+                list.add(qa("plan", "维保计划", "calendar-check-r", "/pkg-maintenance/pages/plan/index"));
+            }
+            if (roles.contains("MAINT_SUP") || roles.contains("MAINT_MGR") || roles.contains("MAINT_BIZ")
+                    || roles.contains("PLATFORM_ADMIN") || roles.contains("SYS_ADMIN")) {
+                list.add(qa("filing", "外接建档", "folder", "/pkg-handover/pages/filing-init/index"));
+            }
+            return list;
         }
         if (ws.startsWith("CLIENT")) {
             return List.of(
-                    qa("report", "一键报修", "wrench", "/pages/order/report/index"),
+                    qa("report", "一键报修", "bullhorn", "/pages/order/report/index"),
+                    qa("emergency", "急修进度", "bolt", "/pkg-client/pages/orders/index"),
+                    qa("elevators", "我的电梯", "elevator", "/pages/elevator/list/index"),
                     qa("todo", "待办签字", "file-signature", "/pkg-client/pages/todo/index"));
         }
         if (ws.startsWith("INST")) {
-            return List.of(
-                    qa("create", "发起移交", "file-signature", "/pkg-handover/pages/create/index"),
-                    qa("upload", "资料上传", "folder", "/pkg-handover/pages/upload/index"));
+            List<Map<String, Object>> list = new ArrayList<>();
+            if (roles.contains("INST_PM")) {
+                list.add(qa("create", "发起移交", "file-signature", "/pkg-handover/pages/create/index"));
+            }
+            if (roles.contains("INST_CLERK") || roles.contains("INST_PM")) {
+                list.add(qa("upload", "资料上传", "folder", "/pkg-handover/pages/upload/index"));
+            }
+            return list;
         }
         return List.of();
     }
@@ -225,12 +243,12 @@ public class MiniappMenuService {
                 tab("profile", "我的", "user", "/pages/profile/index")));
         t.put("MAINT_TECH", List.of(
                 tab("maint-home", "工作台", "gauge", "/pages/maint/home/index"),
-                tab("maint-orders", "工单", "clipboard", "/pages/order/list/index", "pendingOrders"),
+                tab("maint-orders", "工单", "clipboard", "/pkg-maintenance/pages/orders/index", "pendingOrders"),
                 tab("maint-elevators", "电梯", "elevator", "/pages/elevator/list/index"),
                 tab("profile", "我的", "user", "/pages/profile/index")));
         t.put("MAINT_SUP", List.of(
                 tab("maint-home", "工作台", "gauge", "/pages/maint/home/index"),
-                tab("maint-orders", "工单", "clipboard", "/pages/order/list/index", "pendingOrders"),
+                tab("maint-orders", "工单", "clipboard", "/pkg-maintenance/pages/orders/index", "pendingOrders"),
                 tab("maint-projects", "项目", "building", "/pkg-admin/pages/projects/index"),
                 tab("stats", "统计", "chart", "/pkg-admin/pages/stats/index"),
                 tab("profile", "我的", "user", "/pages/profile/index")));

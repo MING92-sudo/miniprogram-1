@@ -2,7 +2,8 @@
 // 生命周期叠加在签退之后（V42）；record:review 在管理端执行，小程序仅展示状态（M0 澄清）。
 const { getRecord } = require('../../../services/unit')
 const { getOrderDetail, signRequest, getRecordArchive } = require('../../../services/order')
-const { CHECK_RESULT_TEXT, TOAST_TEXT } = require('../../../constants/index')
+const { CHECK_RESULT_TEXT, TOAST_TEXT, RECORD_TEXT } = require('../../../constants/index')
+const { buildRecordSummary } = require('../../../utils/record-view')
 const { definePage } = require('../../../utils/guard')
 const { ROUTES } = require('../../../config/routes')
 const nav = require('../../../utils/nav')
@@ -19,7 +20,8 @@ const LIFECYCLE_TONE = {
 definePage(ROUTES['/pkg-maintenance/pages/record-detail/index'], {
   data: {
     loading: true, error: '', record: null, context: null, items: [], itemTotal: 0, photoList: [],
-    problemText: 'S0', confirmed: false, lifecycleText: '', lifecycleTone: 'dim', archive: null
+    problemText: 'S0', confirmed: false, lifecycleText: '', lifecycleTone: 'dim', archive: null, text: RECORD_TEXT,
+    stats: null, groups: [], abnormalDesc: '', conclusion: '', signatures: null, verify: null
   },
   onLoad(options) {
     this.recordId = (options && options.recordId) || ''
@@ -43,7 +45,15 @@ definePage(ROUTES['/pkg-maintenance/pages/record-detail/index'], {
       const photoList = []
       executed.forEach((i) => (i.photos || []).forEach((url) => photoList.push({ url, abnormal: i.result === 'ABNORMAL', itemName: i.name })))
       const lc = r.lifecycleStatus || ''
-      this.setData({
+      // 结论/统计/分组走纯函数投影：有异常项不得显示合格，无整改数据不得虚报已整改（2026-11-16 审查修复）
+      const summary = buildRecordSummary(executed)
+      const stats = summary.stats
+      const groups = summary.groups
+      const abnormalDesc = summary.abnormalDesc
+      const conclusion = summary.conclusion
+      const signatures = { main: r.workerSignatureUrl || '', mainName: r.workerName || '', assist: r.assistantSignatureUrl || '', assistName: r.assistantName || '', client: r.signatureUrl || '', clientPending: r.confirmStatus !== 'CONFIRMED' }
+      const verify = (r.recordVersion || r.hashPrefix) ? { version: r.recordVersion || 'v1', hash: r.hashPrefix || '', time: r.frozenAt || '' } : null
+      this.setData({ stats, groups, abnormalDesc, conclusion, signatures, verify,
         loading: false, record: r, context: ctx,
         items: executed.map((i) => Object.assign({}, i, {
           resultText: i.result ? (CHECK_RESULT_TEXT[i.result] || i.result) : '-',

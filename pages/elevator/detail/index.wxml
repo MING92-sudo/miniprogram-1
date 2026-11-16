@@ -1,64 +1,73 @@
 <view class="bw">
-  <nav-bar title="电梯档案" bind:back="onBack"></nav-bar>
+  <nav-bar title="{{text.TITLE}}" bind:back="onBack"></nav-bar>
   <view class="page-pad col gap10">
     <skeleton wx:if="{{loading}}" rows="{{[{h:184},{h:104},{h:104},{h:200},{h:200}]}}"></skeleton>
     <error-retry wx:elif="{{error}}" message="{{error}}" bind:retry="onRetry" bind:back="onBack"></error-retry>
     <block wx:else>
-      <view class="card ed-hero">
-        <view class="grow">
-          <view class="fs32 w7">{{profile.elevatorName}}</view>
-          <view class="mono fs20 dim mt4">{{profile.platform.elevatorCode}}</view>
-          <view class="mt6"><status-tag text="{{profile.category || '电梯'}}" tone="amber"></status-tag></view>
+      <view class="plate ed-hero">
+        <view class="row between">
+          <text class="mono fs18 amber ls12">{{profile.platform.elevatorCode}}</text>
+          <text class="tag tag-ok">{{text.IN_SERVICE}}</text>
         </view>
-        <view class="ed-qr">
-          <text class="i i-qrcode ed-qr-ico"></text>
-          <text class="fs18 dim">设备二维码</text>
+        <view class="disp fs40 mt6">{{profile.elevatorName}}</view>
+        <view class="fs20 muted mt2">{{profile.category}}{{profile.local.ratedLoad ? ' · ' + profile.local.ratedLoad : ''}}{{profile.local.ratedSpeed ? ' · ' + profile.local.ratedSpeed : ''}}{{profile.local.stationsDoors ? ' · ' + profile.local.stationsDoors : ''}}</view>
+        <view class="fs18 dim mt2">注册代码 {{profile.platform.registrationCode || '—'}}</view>
+        <view class="ed-qr"><text class="i i-qrcode ed-qr-ico"></text></view>
+      </view>
+
+      <view class="spec-grid" wx:if="{{overview}}">
+        <view class="spec"><text class="hg-label">{{text.USE_UNIT}}</text><text class="hg-val">{{overview.useUnitName || '—'}}</text></view>
+        <view class="spec"><text class="hg-label">{{text.CONTRACT}}</text><text class="hg-val mono">{{overview.contractPeriod || '—'}}</text></view>
+        <view class="spec"><text class="hg-label">{{text.NEXT_SERVICE}}</text><text class="hg-val mono">{{overview.nextService || '—'}}</text></view>
+        <view class="spec"><text class="hg-label">{{text.INSPECTION}}</text><text class="hg-val mono">{{overview.inspection || '—'}}</text></view>
+      </view>
+
+      <view class="card" wx:if="{{overview.serviceLog.length}}">
+        <view class="sec-head"><text class="panel-title mono">{{text.SERVICE_LOG}}</text><text class="link fs18">{{text.ALL}} <text class="i i-chevron-right"></text></text></view>
+        <view class="tl mt8">
+          <view class="tl-item" wx:for="{{overview.serviceLog}}" wx:key="title">
+            <view class="tl-dot {{item.tone}}"></view>
+            <view class="grow"><view class="fs22 w6">{{item.title}}</view><view class="fs18 dim mt2">{{item.sub}}</view></view>
+            <text class="mono fs18 dim">{{item.date}}</text>
+          </view>
         </view>
+      </view>
+
+      <view class="week-strip" wx:if="{{overview}}">
+        <view><text class="mono fs32 amber">{{overview.stats.fault30}}</text><text class="fs18 dim">{{text.STAT_FAULT}}</text></view>
+        <view class="vdiv"></view>
+        <view><text class="mono fs32">{{overview.stats.avgResp}}'</text><text class="fs18 dim">{{text.STAT_RESPONSE}}</text></view>
+        <view class="vdiv"></view>
+        <view><text class="mono fs32">{{overview.stats.daysToCheck}}</text><text class="fs18 dim">{{text.STAT_INSPECT}}</text></view>
+      </view>
+
+      <view class="card" wx:if="{{overview}}">
+        <view class="panel-title mono">{{text.CONTACT}}</view>
+        <view class="kv-row mt4"><text class="dim">{{text.C_UNIT}}</text><text>{{overview.contact.unit || '—'}} · <mask-field value="{{overview.contact.unitPhone || '—'}}"></mask-field></text></view>
+        <view class="kv-row"><text class="dim">{{text.C_MAIN}}</text><text>{{overview.contact.main || '—'}}</text></view>
+        <view class="kv-row"><text class="dim">{{text.C_ASSIST}}</text><text><mask-field value="{{overview.contact.assist || '—'}}"></mask-field></text></view>
+        <view class="kv-row"><text class="dim">{{text.C_ADDR}}</text><text>{{overview.contact.addr || '—'}}</text></view>
+        <view class="kv-row"><text class="dim">{{text.C_CONTRACT}}</text><text class="mono">{{overview.contact.contractNo || '—'}}</text></view>
       </view>
 
       <view class="card">
-        <view class="panel-title">设备信息</view>
-        <view class="ed-grid mt8">
-          <view class="ed-mini"><text class="fs18 dim">品种</text><text class="fs20 w6">{{profile.category || '—'}}</text></view>
-          <view class="ed-mini"><text class="fs18 dim">型号</text><text class="fs20 w6">{{profile.model || '—'}}</text></view>
-          <view class="ed-mini"><text class="fs18 dim">内部编号</text><text class="fs20 w6">{{profile.insideNumber || '—'}}</text></view>
-          <view class="ed-mini"><text class="fs18 dim">使用单位</text><text class="fs20 w6">{{profile.platform.elevatorAdminister || '—'}}</text></view>
-        </view>
+        <view class="panel-title">{{text.PLATFORM}}</view>
+        <view class="kv-row mt4"><text class="dim">注册代码</text><text class="mono">{{profile.platform.registrationCode || '—'}}</text></view>
+        <view class="kv-row"><text class="dim">设备代码</text><text class="mono">{{profile.platform.deviceCode || '—'}}</text></view>
+        <view class="kv-row"><text class="dim">出厂编号</text><text class="mono">{{profile.platform.factoryNumber || '—'}}</text></view>
+        <view class="kv-row"><text class="dim">负责人电话</text><text class="mono"><mask-field value="{{profile.platform.elevatorAdministerPhone || '—'}}"></mask-field></text></view>
+        <view class="kv-row"><text class="dim">应急电话</text><text class="mono"><mask-field value="{{profile.platform.emergencyPhone || '—'}}"></mask-field></text></view>
       </view>
 
       <view class="card">
-        <view class="panel-title">平台登记（监管平台同步）</view>
-        <view class="kv mt4"><span>注册代码</span><b class="mono">{{profile.platform.registrationCode || '—'}}</b></view>
-        <view class="kv"><span>设备代码</span><b class="mono">{{profile.platform.deviceCode || '—'}}</b></view>
-        <view class="kv"><span>出厂编号</span><b class="mono">{{profile.platform.factoryNumber || '—'}}</b></view>
-        <view class="kv"><span>负责人电话</span><b class="mono"><mask-field value="{{profile.platform.elevatorAdministerPhone || '—'}}"></mask-field></b></view>
-        <view class="kv"><span>应急电话</span><b class="mono"><mask-field value="{{profile.platform.emergencyPhone || '—'}}"></mask-field></b></view>
-      </view>
-
-      <view class="card">
-        <view class="panel-title">本地维护（点按可现场更正）</view>
-        <view
-          wx:for="{{localFields}}"
-          wx:key="key"
-          class="kv ed-edit"
-          data-field="{{item.key}}"
-          bindtap="onEditLocal"
-          aria-role="button"
-          aria-label="更正{{item.label}}"
-        >
-          <span>{{item.label}}</span>
-          <b>{{item.value || '—'}} <text class="i i-chevron-right fs18 dim"></text></b>
+        <view class="panel-title">{{text.LOCAL}}</view>
+        <view wx:for="{{localFields}}" wx:key="key" class="kv-row ed-edit" data-field="{{item.key}}" bindtap="onEditLocal" aria-role="button" aria-label="更正{{item.label}}">
+          <text class="dim">{{item.label}}</text>
+          <text>{{item.value || '—'}} <text class="i i-chevron-right fs18 dim"></text></text>
         </view>
       </view>
 
-      <perm-button
-        perm="elevator:export"
-        capability="导出台账"
-        allowRoles="维保部经理、平台管理员"
-        type="ghost"
-        text="导出台账"
-        bind:tap="onExport"
-      ></perm-button>
+      <perm-button perm="elevator:export" capability="导出台账" allowRoles="维保部经理、平台管理员" type="ghost" text="导出台账" bind:tap="onExport"></perm-button>
     </block>
   </view>
 </view>

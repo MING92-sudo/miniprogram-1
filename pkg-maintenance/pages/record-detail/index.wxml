@@ -1,29 +1,57 @@
 <view class="bw">
-  <nav-bar title="维保记录单" bind:back="onBack"></nav-bar>
+  <nav-bar title="{{text.TITLE}}" bind:back="onBack"></nav-bar>
   <view class="page-pad col gap10">
     <skeleton wx:if="{{loading}}" rows="{{[{h:100},{h:160},{h:120}]}}"></skeleton>
     <error-retry wx:elif="{{error}}" message="{{error}}" bind:retry="onRetry" bind:back="onBack"></error-retry>
     <block wx:else>
-      <view wx:if="{{lifecycleText}}" class="card row between">
-        <text class="fs20 muted">记录生命周期</text>
+      <view wx:if="{{lifecycleText}}" class="sync-note">
+        <text class="i i-circle-check"></text>
+        <view class="grow"><view class="fs22 w6">{{lifecycleText}}</view><view class="fs18 dim">{{context.workerName}} / {{context.assistantName}}</view></view>
         <status-tag text="{{lifecycleText}}" tone="{{lifecycleTone}}"></status-tag>
       </view>
 
       <view class="paper">
         <view class="row between">
           <view>
-            <view class="paper-kicker">电梯维护保养记录</view>
+            <view class="paper-kicker">{{text.KICKER}}</view>
             <view class="paper-title">{{context.elevatorName || record.elevatorName}}</view>
           </view>
           <view class="paper-no mono">{{record.recordNo || record.id}}</view>
         </view>
         <view class="paper-hr"></view>
         <view class="rd-meta">
-          <view>使用单位<b>{{context.useUnitName || '—'}}</b></view>
-          <view>维保日期<b>{{context.workDate || '—'}}</b></view>
-          <view>维保人<b>{{context.workerName || '—'}}</b></view>
-          <view>隐患码<b>{{problemText}}</b></view>
+          <view>{{text.USE_UNIT}}<b>{{context.useUnitName || '—'}}</b></view>
+          <view>{{text.DEVICE_CODE}}<b class="mono">{{context.deviceCode || '—'}}</b></view>
+          <view>{{text.MAINT_UNIT}}<b>{{context.maintUnitName || '—'}}</b></view>
+          <view>{{text.MAINT_DATE}}<b class="mono">{{context.workDate || '—'}}</b></view>
         </view>
+        <view wx:if="{{stats}}" class="rd-stats">
+          <view><b>{{stats.total}}</b><span>{{text.STAT_TOTAL}}</span></view>
+          <view><b>{{stats.ok}}</b><span>{{text.STAT_OK}}</span></view>
+          <view class="sig"><b>{{stats.fixed}}</b><span>{{text.STAT_FIXED}}</span></view>
+          <view><b>{{stats.left}}</b><span>{{text.STAT_LEFT}}</span></view>
+        </view>
+        <view wx:if="{{groups.length}}" class="rd-groups">
+          <view wx:for="{{groups}}" wx:key="label" class="row between">
+            <text>{{item.label}} · {{item.total}} 项</text>
+            <text class="{{item.ab ? 'rd-sig' : 'rd-ok'}}">{{item.ab ? item.ab + ' 项已整改' : text.STAT_OK}}</text>
+          </view>
+        </view>
+        <view wx:if="{{abnormalDesc}}" class="rd-abnormal"><text class="rd-sig">{{text.ABNORMAL}}</text>：{{abnormalDesc}}</view>
+        <view class="rd-conclusion row between"><text>{{text.CONCLUSION}}</text><text class="rd-sig">{{conclusion}}</text></view>
+        <view wx:if="{{signatures}}" class="rd-signs">
+          <view class="rd-sign"><text>{{text.SIGN_MAIN}} · {{signatures.mainName}}</text><image wx:if="{{signatures.main}}" src="{{signatures.main}}" mode="aspectFit"></image></view>
+          <view class="rd-sign"><text>{{text.SIGN_ASSIST}} · {{signatures.assistName}}</text><image wx:if="{{signatures.assist}}" src="{{signatures.assist}}" mode="aspectFit"></image></view>
+        </view>
+        <view class="rd-client"><text>{{text.SIGN_CLIENT}} · {{signatures.clientPending ? text.SIGN_PENDING : text.SIGNED}}</text><image wx:if="{{signatures.client}}" src="{{signatures.client}}" mode="aspectFit"></image></view>
+      </view>
+
+      <view wx:if="{{verify}}" class="card col gap6">
+        <view class="sec-head"><text class="panel-title mono">{{text.VERIFY}}</text><text class="tag tag-ok">{{text.VERIFY_MATCH}}</text></view>
+        <view class="kv-row"><text class="dim">{{text.VER_VERSION}}</text><text class="mono">{{verify.version}}</text></view>
+        <view class="kv-row"><text class="dim">{{text.VER_HASH}}</text><text class="mono">{{verify.hash}}</text></view>
+        <view class="kv-row"><text class="dim">{{text.VER_TIME}}</text><text class="mono">{{verify.time}}</text></view>
+        <view class="fs18 dim">{{text.VERIFY_NOTE}}</view>
       </view>
 
       <view class="card">
@@ -46,8 +74,8 @@
 
       <view wx:if="{{archive}}" class="card col gap6">
         <view class="panel-title">归档</view>
-        <view class="kv"><span>归档时间</span><b>{{archive.archivedAt}}</b></view>
-        <view class="kv"><span>SHA-256</span><b class="mono rd-hash">{{archive.hash}}</b></view>
+        <view class="kv-row"><text class="dim">归档时间</text><text>{{archive.archivedAt}}</text></view>
+        <view class="kv-row"><text class="dim">SHA-256</text><text class="mono rd-hash">{{archive.hash}}</text></view>
       </view>
 
       <perm-button perm="record:sign_request" capability="发起使用单位签字" allowRoles="主检、维保主管" type="primary" text="发起使用单位签字" bind:tap="onSignRequest"></perm-button>

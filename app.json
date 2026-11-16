@@ -87,12 +87,10 @@
         "pages/orders/index",
         "pages/task/index",
         "pages/checkin/index",
-        "pages/dynamic-code/index",
         "pages/checkout/index",
         "pages/record-detail/index",
         "pages/plan/index",
-        "pages/record-sign/index",
-        "pages/record-archive/index"
+        "pages/record-sign/index"
       ]
     }
   ],

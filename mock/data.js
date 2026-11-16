@@ -249,8 +249,13 @@ const db = {
   ],
 
   faults: [
-    { id: 'ft_1', elevatorCode: 'EM-2024-002', desc: '1 层厅门关门异响', photos: [], status: 'OPEN', createdAt: today('10:15:00'), result: '', signature: '', confirmedAt: '' },
-    { id: 'ft_2', elevatorCode: 'EM-2024-001', desc: '平层偏差明显，已调整', photos: [], status: 'CLOSED', createdAt: today('08:20:00'), result: '调整平层感应器后恢复正常', signature: 'mock_sign_1', confirmedAt: today('09:00:00') }
+    { id: 'ft_1', elevatorCode: 'EM-2024-002', elevatorName: '世纪大厦 2# 客梯', desc: '1 层厅门关门异响', photos: [], status: 'OPEN', createdAt: today('10:15:00'), result: '', signature: '', confirmedAt: '',
+      priority: 'P2', source: '使用单位电话报修', trapped: 0, floor: '1', reporter: '张伟（物业）', expectBefore: '14:00', distanceKm: 1.2 },
+    { id: 'ft_2', elevatorCode: 'EM-2024-001', elevatorName: '世纪大厦 1# 客梯', desc: '门锁回路断开 · 轿厢停于 12F', photos: [DEMO_PHOTO, DEMO_PHOTO, DEMO_PHOTO], status: 'CLOSED', createdAt: today('07:58:00'), result: '门锁触点氧化导致接触不良、门锁回路断开。清洁触点并更换门锁触点 1 只，恢复运行后连续观察 3 次开关门正常。', signature: 'mock_sign_1', confirmedAt: today('08:47:00'),
+      priority: 'P1', rescue: true, trapped: 2, floor: '12', source: '使用单位电话报修', reporter: '张伟（物业）',
+      reportedAt: today('07:58:00'), arrivedAt: today('08:10:00'), rescuedAt: today('08:22:00'), finishedAt: today('08:47:00'), responseMinutes: 12,
+      workerName: '李振国', workerNo: 'T3101', actions: ['清洁触点', '更换配件', '调整门锁'], parts: [{ name: '门锁触点', qty: 1 }],
+      clientSigner: '张伟', clientRole: 'CLIENT_SIGNER', slaReport: 12, slaArrive: 24, slaDone: 30 }
   ],
 
   // ── 合规台账（TSG 法定项，docs/01 §3.17/3.18；数据暂存本地，不上报平台）──
@@ -278,7 +283,7 @@ const db = {
   // 使用单位待确认记录（签退时冻结的维保记录快照）
   unitRecords: [
     {
-      id: 'ur_1', elevatorName: '世纪大厦 1# 客梯', elevatorCode: 'EM-2024-001',
+      id: 'ur_1', elevatorName: '世纪大厦 1# 客梯', elevatorCode: 'EM-2024-001', shareToken: 'sg-mock-1', recordVersion: 'v1', hashPrefix: '9F3C7A21', frozenAt: today('10:06:00'), assistantSignatureUrl: DEMO_SIGNATURE,
       workType: '半月维保', workTypeCode: 'HM',
       workerName: '张伟', assistantName: '李强', workerPlatformId: '6901282369105174537', assistantPlatformId: '6901284774286860288',
       checkinTime: today('08:52:00'), checkoutTime: today('11:20:00'), duration: '02:28:00',
@@ -290,7 +295,7 @@ const db = {
       confirmStatus: 'PENDING', satisfaction: null, signatureFileId: '', signatureUrl: ''
     },
     {
-      id: 'ur_2', elevatorName: '蓝湾国际 A 座货梯', elevatorCode: 'EM-2024-003',
+      id: 'ur_2', elevatorName: '蓝湾国际 A 座货梯', elevatorCode: 'EM-2024-003', shareToken: 'sg-mock-2', recordVersion: 'v1', hashPrefix: '9F3C7A21', frozenAt: today('18:10:00'), assistantSignatureUrl: '',
       workType: '困人救援', workTypeCode: 'FM',
       workerName: '张伟', assistantName: '', workerPlatformId: '6901282369105174537', assistantPlatformId: '',
       checkinTime: today('16:28:00'), checkoutTime: today('18:05:00'), duration: '01:37:00',
@@ -557,7 +562,11 @@ function listElevators() {
       deviceCode: el.deviceCode || '',
       regCode: el.regCode || '',
       model: el.model || '',
-      projectName: el.projectName || ''
+      projectName: el.projectName || '',
+      status: el.status || 'ACTIVE',
+      workStat: el.workStat || 'normal',
+      nextMaintenanceDate: el.nextMaintenanceDate || '',
+      maintUnitName: el.maintUnitName || ''
     }
   })
 }

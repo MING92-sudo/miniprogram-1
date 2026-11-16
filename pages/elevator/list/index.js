@@ -3,10 +3,10 @@ const { getElevatorList } = require('../../../services/elevator')
 const { definePage } = require('../../../utils/guard')
 const { ROUTES } = require('../../../config/routes')
 const nav = require('../../../utils/nav')
-const { EMPTY_TEXT } = require('../../../constants/index')
+const { EMPTY_TEXT, ELEVATOR_TEXT } = require('../../../constants/index')
 
 definePage(ROUTES['/pages/elevator/list/index'], {
-  data: { keyword: '', allList: [], list: [], loading: true, error: '', emptyMode: 'empty', emptyTitle: '', emptyDesc: '' },
+  data: { keyword: '', allList: [], list: [], loading: true, error: '', emptyMode: 'empty', emptyTitle: '', emptyDesc: '', text: ELEVATOR_TEXT },
   onShow() { this.fetchList() },
   fetchList() {
     this.setData({ loading: true, error: '' })

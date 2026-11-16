@@ -1,117 +1,113 @@
 <view class="bw">
-<nav-bar title="移交单详情"></nav-bar>
-<view class="em-page">
-  <view wx:if="{{loading}}" class="em-card em-text-secondary">{{loadingText}}</view>
+<nav-bar title="安装移交验收" back></nav-bar>
+<view class="hd-page">
+  <skeleton wx:if="{{loading}}" rows="{{[{h:180},{h:60},{h:120},{h:160}]}}"></skeleton>
+  <error-retry wx:elif="{{error}}" message="{{error}}" bind:retry="onRetry"></error-retry>
 
-  <block wx:if="{{handover}}">
-    <view class="em-card">
-      <view class="head-row">
-        <view>
-          <view class="order-no">{{handover.handoverNo}}</view>
-          <view class="em-text-secondary">{{handover.projectName}}</view>
-        </view>
-        <view class="tag tag-{{handover.status}}">{{statusText}}</view>
+  <block wx:else>
+    <view class="plate hd-hero">
+      <view class="row between">
+        <text class="mono fs18 amber ls12">HANDOVER / {{handover.handoverNo}}</text>
+        <text class="tag {{statusTag}}">{{statusText}}</text>
+      </view>
+      <view class="disp fs40 mt6">{{handover.elevatorName || handover.projectName}}</view>
+      <view class="fs18 muted mt2">{{handover.installUnit || '安装部'}} → {{handover.maintUnit || '维保部'}} · 安装部移交维保部</view>
+      <view class="hero-grid mt10">
+        <view><text class="hg-label">DEVICE CODE</text><text class="hg-val mono">{{handover.deviceCode || '-'}}</text></view>
+        <view><text class="hg-label">USE UNIT</text><text class="hg-val">{{handover.useUnit || '-'}}</text></view>
+        <view><text class="hg-label">INITIATOR</text><text class="hg-val">{{handover.initiatorName || '-'}}</text></view>
+        <view><text class="hg-label">UPLOADED BY</text><text class="hg-val">{{uploaderText}}</text></view>
+        <view><text class="hg-label">CAPACITY</text><text class="hg-val mono">{{capacityText}}</text></view>
+        <view><text class="hg-label">FLOORS</text><text class="hg-val mono">{{handover.stationsDoors || '-'}}</text></view>
       </view>
     </view>
 
-    <view class="em-card">
-      <view class="section-title">流程进度</view>
-      <view class="steps">
-        <view wx:for="{{steps}}" wx:key="key" class="step step-{{item.state}}">
-          <view class="step-dot">{{item.state === 'done' ? '✓' : index + 1}}</view>
-          <view class="step-label">{{item.label}}</view>
+    <view class="stepper">
+      <block wx:for="{{steps4}}" wx:key="label">
+        <view wx:if="{{index > 0}}" class="step-line {{steps4[index-1].state === 'done' ? 'done' : ''}}"></view>
+        <view class="step {{item.state}}">
+          <view class="dot"><text wx:if="{{item.state === 'done'}}" class="i i-check"></text><text wx:else>{{index + 1}}</text></view>
+          <text>{{item.label}}</text>
         </view>
-      </view>
-    </view>
-
-    <view class="em-card">
-      <view class="section-title">电梯信息</view>
-      <view class="info-row"><text>电梯代码</text><text>{{handover.elevatorCode || '-'}}</text></view>
-      <view class="info-row"><text>电梯名称</text><text>{{handover.elevatorName || '-'}}</text></view>
-      <view class="info-row"><text>电梯品种</text><text>{{handover.category || '-'}}</text></view>
-      <view class="info-row"><text>安装地址</text><text>{{handover.location || '-'}}</text></view>
-      <view class="info-row"><text>注册代码</text><text>{{handover.regCode || '-'}}</text></view>
-      <view class="info-row"><text>设备代码</text><text>{{handover.deviceCode || '-'}}</text></view>
-      <view class="info-row"><text>内部编号</text><text>{{handover.insideNumber || '-'}}</text></view>
-      <view class="info-row"><text>型号</text><text>{{handover.model || '-'}}</text></view>
-      <view class="info-row"><text>品牌</text><text>{{handover.brand || '-'}}</text></view>
-      <view class="info-row"><text>制造单位</text><text>{{handover.manufacturer || '-'}}</text></view>
-      <view class="info-row"><text>产品编号</text><text>{{handover.productNo || '-'}}</text></view>
-      <view class="info-row"><text>驱动方式</text><text>{{handover.driveMode || '-'}}</text></view>
-      <view class="info-row"><text>额定载重</text><text>{{handover.ratedLoad ? handover.ratedLoad + (handover.ratedLoadUnit || '') : '-'}}</text></view>
-      <view class="info-row"><text>额定速度</text><text>{{handover.ratedSpeed ? handover.ratedSpeed + (handover.ratedSpeedUnit || '') : '-'}}</text></view>
-      <view class="info-row"><text>层站/门</text><text>{{handover.stationsDoors || '-'}}</text></view>
-      <view class="info-row"><text>维保类别</text><text>{{workTypeText || '-'}}</text></view>
-    </view>
-
-    <view class="em-card">
-      <view class="section-title">3 必传资料</view>
-      <view wx:for="{{docs}}" wx:key="field" class="doc-row">
-        <view class="doc-main">
-          <view class="doc-label">{{item.label}}</view>
-          <view class="em-text-secondary">{{item.uploaded ? '已上传' : '待上传'}}</view>
-        </view>
-        <view
-          wx:if="{{canDocs}}"
-          class="doc-action"
-          data-index="{{index}}"
-          bindtap="onPickDoc"
-        >{{uploadingIndex === index ? '上传中…' : (item.uploaded ? '重新上传' : '上传')}}</view>
-        <view wx:else class="doc-state {{item.uploaded ? 'is-ok' : 'is-todo'}}">{{item.uploaded ? '✓' : '—'}}</view>
-      </view>
-      <button wx:if="{{canDocs}}" class="em-btn-primary doc-submit" disabled="{{submitting}}" bindtap="onSubmitDocs">提交资料</button>
-      <view wx:if="{{canDocs}}" class="em-text-secondary doc-tip">三项资料齐全后本单转「现场查验」，缺一不可提交</view>
-    </view>
-
-    <view class="em-card">
-      <view class="section-title">接收工程师</view>
-      <view class="info-row"><text>当前接收人</text><text>{{handover.receiverName || '未分配'}}</text></view>
-      <block wx:if="{{canAssign}}">
-        <block wx:if="{{!manualReceiver}}">
-          <picker mode="selector" range="{{receiverNames}}" value="{{receiverIndex}}" bindchange="onReceiverChange">
-            <view class="picker-row">
-              {{receiverIndex > -1 ? receiverNames[receiverIndex] : '选择接收工程师'}}
-              <text class="field-arrow">›</text>
-            </view>
-          </picker>
-        </block>
-        <block wx:else>
-          <view class="em-text-secondary doc-tip">{{text.RECEIVER_MANUAL_TIP}}</view>
-          <view class="field">
-            <view class="field-label">工号（人员 ID）</view>
-            <input class="field-input" value="{{manualReceiverId}}" data-field="manualReceiverId" bindinput="onManualReceiverInput" placeholder="emp-xxxx" />
-          </view>
-          <view class="field">
-            <view class="field-label">姓名</view>
-            <input class="field-input" value="{{manualReceiverName}}" data-field="manualReceiverName" bindinput="onManualReceiverInput" placeholder="接收工程师姓名" />
-          </view>
-        </block>
-        <button class="em-btn-ghost doc-submit" disabled="{{submitting}}" bindtap="onAssign">确认分配</button>
       </block>
     </view>
 
-    <view class="em-card">
-      <view class="section-title">关键记录</view>
-      <view class="info-row"><text>发起时间</text><text>{{handover.createdAt || '-'}}</text></view>
-      <view class="info-row"><text>发起人</text><text>{{handover.initiatorName || '-'}}</text></view>
-      <view class="info-row"><text>监督检验合格日</text><text>{{handover.supervisionPassDate || '-'}}</text></view>
-      <view class="info-row"><text>确认人</text><text>{{handover.confirmedByName || '-'}}</text></view>
-      <view class="info-row"><text>确认时间</text><text>{{handover.confirmedAt || '-'}}</text></view>
-      <view class="info-row" wx:if="{{handover.elevatorId}}"><text>归档电梯 ID</text><text>{{handover.elevatorId}}</text></view>
+    <view class="section">
+      <view class="sec-head">
+        <text class="panel-title mono">01 / 技术资料 · 安装部上传</text>
+        <text wx:if="{{missingCount}}" class="tag tag-signal">容缺 {{missingCount}} 项</text>
+        <text wx:else class="fs18 ok">{{docs.length}} 项齐全</text>
+      </view>
+      <view class="doc-grid mt6">
+        <view wx:for="{{docs}}" wx:key="field" class="doc {{item.uploaded ? '' : 'bad'}}" data-index="{{index}}" bindtap="onPickDoc">
+          <text class="i {{item.uploaded ? 'i-file-circle-check' : 'i-file-circle-exclamation'}}"></text>
+          <text>{{uploadingIndex === index ? '上传中…' : item.label}}</text>
+        </view>
+      </view>
+      <view wx:if="{{missingCount}}" class="gate-note mt6"><text class="i i-circle-exclamation"></text> 容缺 {{missingCount}} 项：缺件由安装部发起人补传，维保侧只核验不代传；容缺受理后进入现场验收。</view>
+      <view wx:if="{{canDocs}}" class="row gap8 mt8">
+        <button class="btn btn-ghost btn-sm grow" bindtap="goUpload">资料上传 / 缺件标记</button>
+        <button class="btn btn-primary btn-sm grow" disabled="{{submitting}}" bindtap="onSubmitDocs">提交资料</button>
+      </view>
     </view>
 
-    <view class="em-card">
-      <view class="section-title">现场查验与整改</view>
-      <view class="em-text-secondary">{{text.DETAIL_GAP_TIP}}</view>
-      <view wx:if="{{handover.handoverIssue}}" class="issue-tip">本单首保时标记了遗留问题，需跟踪闭环</view>
+    <view class="section">
+      <view class="sec-head">
+        <text class="panel-title mono">02 / 现场验收 · {{checkTotal || 74}} 项</text>
+        <text class="fs18 ok">{{passCount}} 项合格</text>
+      </view>
+      <view wx:if="{{checkStarted}}" class="col gap5 mt6">
+        <view wx:for="{{checkGroups}}" wx:key="label" class="check {{item.fail ? 'bad' : ''}}" bindtap="goInspect">
+          <view class="grow">
+            <view class="fs20 w6">{{item.label}}</view>
+            <view class="fs18 {{item.fail ? 'sig' : 'dim'}}">{{item.fail ? '存在不合格项，需整改后复验' : item.sub}}</view>
+          </view>
+          <text class="tag {{item.fail ? 'tag-signal' : (item.started ? 'tag-ok' : 'tag-dim')}}">{{item.fail ? '整改' : (item.started ? '合格' : '待检')}}</text>
+        </view>
+      </view>
+      <view wx:else class="notice-strip mt6"><text class="i i-clipboard-list"></text> 尚未开始现场查验；进入查验页逐项留证（74 项 / ☆49 重要项）。</view>
     </view>
 
-    <view class="em-card" wx:if="{{canInspect || canRectify || canConfirm}}">
-      <button wx:if="{{canInspect}}" class="em-btn-primary" bindtap="goInspect">现场查验</button>
-      <button wx:if="{{canRectify}}" class="em-btn-primary" bindtap="goRectify">上传整改并复验</button>
-      <button wx:if="{{canConfirm}}" class="em-btn-primary" bindtap="goConfirm">确认归档</button>
+    <view class="section" wx:if="{{keys.length}}">
+      <view class="sec-head">
+        <text class="panel-title mono">03 / 钥匙与专用工具</text>
+        <text class="fs18 dim">{{keys.length}} 项齐全</text>
+      </view>
+      <view class="keys mt6">
+        <text wx:for="{{keys}}" wx:key="*this" class="key"><text class="i i-key"></text>{{item}}</text>
+      </view>
+    </view>
+
+    <view class="section" wx:if="{{canAssign}}">
+      <view class="sec-head"><text class="panel-title mono">接收工程师</text><text class="fs18 dim">{{handover.receiverName || '未分配'}}</text></view>
+      <block wx:if="{{!manualReceiver}}">
+        <picker mode="selector" range="{{receiverNames}}" value="{{receiverIndex}}" bindchange="onReceiverChange">
+          <view class="hd-picker mt6">{{receiverIndex > -1 ? receiverNames[receiverIndex] : '选择接收工程师'}}<text class="i i-chevron-down"></text></view>
+        </picker>
+      </block>
+      <block wx:else>
+        <view class="fs18 dim mt6">{{text.RECEIVER_MANUAL_TIP}}</view>
+        <input class="hd-input mt6" value="{{manualReceiverId}}" data-field="manualReceiverId" bindinput="onManualReceiverInput" placeholder="工号（人员 ID）" placeholder-class="hd-ph" />
+        <input class="hd-input mt6" value="{{manualReceiverName}}" data-field="manualReceiverName" bindinput="onManualReceiverInput" placeholder="接收工程师姓名" placeholder-class="hd-ph" />
+      </block>
+      <button class="btn btn-ghost btn-sm mt8" disabled="{{submitting}}" bindtap="onAssign">确认分配</button>
+    </view>
+
+    <view class="section">
+      <view class="sec-head"><text class="panel-title mono">关键记录</text></view>
+      <view class="hd-kv mt6"><text class="dim">发起时间</text><text class="mono">{{handover.createdAt || '-'}}</text></view>
+      <view class="hd-kv"><text class="dim">监督检验合格日</text><text class="mono">{{handover.supervisionPassDate || '-'}}</text></view>
+      <view class="hd-kv"><text class="dim">确认人 / 时间</text><text>{{handover.confirmedByName || '-'}} · {{handover.confirmedAt || '-'}}</text></view>
+      <view wx:if="{{handover.handoverIssue}}" class="gate-note mt6"><text class="i i-circle-exclamation"></text> 本单首保时标记了遗留问题，需跟踪闭环。</view>
     </view>
   </block>
 </view>
 
+<view class="page-footer" wx:if="{{!loading && !error && (canDocs || canReview || canInspect || canRectify || canConfirm)}}">
+  <button wx:if="{{canReview}}" class="btn btn-primary hd-foot-main" bindtap="goReview"><text class="i i-file-circle-check"></text> 内部审核 · 通过 / 退回</button>
+  <button wx:if="{{canInspect && hasRectify}}" class="btn btn-ghost hd-foot-ghost" bindtap="goRectify">整改 · 复验</button>
+  <button wx:if="{{canInspect}}" class="btn btn-primary hd-foot-main" bindtap="goInspect"><text class="i i-clipboard-list"></text> 现场查验 · 逐项留证</button>
+  <button wx:if="{{canRectify}}" class="btn btn-primary hd-foot-main" bindtap="goRectify"><text class="i i-file-circle-check"></text> 上传整改并复验</button>
+  <button wx:if="{{canConfirm}}" class="btn btn-primary hd-foot-main" bindtap="goConfirm"><text class="i i-signature"></text> 验收通过 · 双方签字</button>
+</view>
 </view>

@@ -16,7 +16,9 @@
         <view class="panel-title mt4">评价内容</view>
         <textarea class="ev-textarea" value="{{text}}" bindinput="onText" maxlength="500" placeholder="说说本次维修服务（选填）" placeholder-class="ev-ph"></textarea>
       </view>
-      <button class="btn btn-primary" disabled="{{submitting}}" bindtap="onSubmit">{{submitting ? '提交中...' : '提交评价'}}</button>
     </block>
+  </view>
+  <view class="page-footer" wx:if="{{!loading && !error}}">
+    <button class="btn btn-primary co-f-main" disabled="{{submitting}}" bindtap="onSubmit">{{submitting ? '提交中...' : '提交评价'}}</button>
   </view>
 </view>

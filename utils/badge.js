@@ -1,32 +1,12 @@
-// tabBar 消息未读角标（消息 tab 固定第 3 个，index = 2）
+// 消息未读数投影（2026-11-16 审查清理：无原生 tabBar，wx.setTabBarBadge/removeTabBarBadge
+// 永远静默 fail，已删；Tab 角标由 custom-tabbar 的 g.badges 驱动，本模块只供消息页未读数）。
 const { getUnreadCount } = require('../services/message')
 
-const MESSAGE_TAB_INDEX = 2
-
-function applyBadge(count) {
-  if (count > 0) {
-    wx.setTabBarBadge({
-      index: MESSAGE_TAB_INDEX,
-      text: count > 99 ? '99+' : String(count),
-      fail: () => {} // tabBar 尚未就绪等场景忽略
-    })
-  } else {
-    wx.removeTabBarBadge({ index: MESSAGE_TAB_INDEX, fail: () => {} })
-  }
-}
-
-// 拉取未读数并刷新角标；resolve 未读数（供页面同步展示）
+// 拉取未读数；resolve 未读数（供页面同步展示），失败归零
 function refreshUnreadBadge() {
   return getUnreadCount()
-    .then((data) => {
-      const count = (data && data.count) || 0
-      applyBadge(count)
-      return count
-    })
-    .catch(() => {
-      applyBadge(0)
-      return 0
-    })
+    .then((data) => (data && data.count) || 0)
+    .catch(() => 0)
 }
 
-module.exports = { refreshUnreadBadge, MESSAGE_TAB_INDEX }
+module.exports = { refreshUnreadBadge }

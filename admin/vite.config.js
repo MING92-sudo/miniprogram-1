@@ -20,10 +20,9 @@ export default defineConfig({
     commonjsOptions: {
       include: [/node_modules/, /constants\/permission-matrix\.js/]
     },
-    // vendor 分包（docs/09 V3.6）：框架/UI 库/图表/HTTP 各自成块，配合路由级懒加载降低首屏体积；
-    // element-plus 为全量引入（main.js app.use(ElementPlus)），单块约 940 kB（gzip ~300 kB）——
-    // 按需引入需引 unplugin-vue-components（新依赖，需联网安装），列为后置优化；
-    // 故阈值放宽到 1000 kB 并注明原因（echarts 已改按需引入，不再超限）。
+    // vendor 分包（docs/09 V3.6）：框架/图表/HTTP 各自成块，配合路由级懒加载降低首屏体积。
+    // Element Plus 已于 M5 移除（自建 ui/ 组件库），940 kB 全量块不复存在；
+    // 阈值 1000 仅作历史保守余量保留（2026-11-16 审查更新注释）。
     chunkSizeWarningLimit: 1000,
     rollupOptions: {
       output: {

@@ -16,6 +16,7 @@ const {
   LOADING_TEXT
 } = require('../../../constants/index')
 const { ensureLogin } = require('../../../utils/guard')
+const { hasAnyRole } = require('../../../utils/auth')
 
 const RESP_LABELS = TAKEOVER_RESPONSIBILITY_OPTIONS.map(function (code) {
   return TAKEOVER_RESPONSIBILITY_TEXT[code]
@@ -39,8 +40,7 @@ definePage(ROUTES['/pkg-handover/pages/filing-inspect/index'], {
   onLoad(query) {
     if (!ensureLogin()) return
     const id = (query && query.id) || ''
-    const role = (getApp().globalData && getApp().globalData.role) || ''
-    const canWrite = FILING_WRITE_ROLES.indexOf(role) > -1
+        const canWrite = hasAnyRole(FILING_WRITE_ROLES)
     const items = TAKEOVER_CHECK_ITEMS.map(function (i) {
       return { itemType: i.itemType, label: i.label, result: '', responsibility: '', respIndex: -1, remark: '' }
     })

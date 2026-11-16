@@ -229,4 +229,25 @@ class UnitAccountServiceTest {
         assertEquals(401, assertThrows(BizException.class,
                 () -> service.changePassword("nope", "x", "NewPass!45")).getCode());
     }
+
+    /** V41 账号统一（2026-11-16 审查）：account_migrated=1 的单位不得再经废弃门户链签发 ut=1 令牌 */
+    @Test
+    void loginRejectsMigratedAccount() {
+        UseUnit u = unit();
+        u.accountMigrated = 1;
+        when(useUnitMapper.selectOne(any())).thenReturn(u);
+        BizException ex = assertThrows(BizException.class, () -> service.login("UU000001", "Passw0rd!23"));
+        assertEquals(422, ex.getCode());
+    }
+
+    /** 微信免密登录同口径拒绝已迁移账号 */
+    @Test
+    void loginByWechatRejectsMigratedAccount() {
+        UseUnit u = unit();
+        u.accountMigrated = 1;
+        when(wxAuthService.openidFromCode("code1")).thenReturn("openid1");
+        when(useUnitMapper.selectOne(any())).thenReturn(u);
+        BizException ex = assertThrows(BizException.class, () -> service.loginByWechat("code1"));
+        assertEquals(422, ex.getCode());
+    }
 }

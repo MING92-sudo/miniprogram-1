@@ -1,3 +1,5 @@
 page{background:var(--ink);color:var(--text)}
 .el-search-input{flex:1;font-size:24rpx;color:var(--text)}
-.el-ph{color:var(--dim)}
+.el-ph{color:var(--dim)}page{background:var(--ink);color:var(--text)}
+.el-qr{width:120rpx;height:120rpx;border-radius:8rpx;background:var(--paper);display:flex;align-items:center;justify-content:center;flex:none}
+.el-qr .i{font-size:80rpx;color:var(--paper-ink)}

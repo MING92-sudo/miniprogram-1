@@ -50,10 +50,6 @@
           <text class="fs20 muted">我已核对维保项目、异常整改说明及现场照片，确认内容属实。</text>
         </view>
 
-        <view class="row gap8">
-          <button class="btn btn-ghost cs-refuse" bindtap="onRefuse">拒绝并说明</button>
-          <button class="btn btn-primary cs-submit {{consent ? '' : 'cs-gated'}}" aria-disabled="{{!consent}}" catchtap="onSubmit"><text class="i i-signature"></text> 确认签署</button>
-        </view>
         <view wx:if="{{!consent}}" class="gate-note">先勾选「我已核对…」再提交：未勾选时确认签署不可点击，勾选后恢复。</view>
       </block>
       <view wx:else class="card row gap8">
@@ -61,5 +57,9 @@
         <text class="fs22">{{confirmed ? '本记录已签署归档，不可修改。' : '本记录已拒签退回维保人员。'}}</text>
       </view>
     </block>
+  </view>
+  <view class="page-footer" wx:if="{{view && !confirmed && !refused}}">
+    <button class="btn btn-ghost cs-f-ghost" bindtap="onRefuse">拒绝并说明</button>
+    <button class="btn btn-primary cs-f-main {{consent ? '' : 'cs-gated'}}" aria-disabled="{{!consent}}" catchtap="onSubmit"><text class="i i-signature"></text> 确认签署</button>
   </view>
 </view>

@@ -23,6 +23,7 @@ function updateFault(id, data) {
 }
 
 // 急修单闭环：处理结果 + 使用单位安全管理员签字（docs/01 §3.9.2）
+// 契约保留、小程序暂无入口：现闭环走 submit → confirm（使用单位确认）
 function closeFault(id, data) {
   return post(`/faults/${id}/close`, {
     result: data.result,

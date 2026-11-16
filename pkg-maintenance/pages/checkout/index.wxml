@@ -38,9 +38,11 @@
       <view class="fs20 dim">主维保/配合人员在各自手机签字，未签字请在工单详情完成</view>
     </view>
 
-    <button class="btn btn-primary" disabled="{{submitting || !durationOk || checkBlocked}}" bindtap="onSubmit">
+    <view class="hint">提交后生成维保记录（含 2.6 上报快照），并上报监管平台</view>
+  </view>
+  <view class="page-footer">
+    <button class="btn btn-primary co-f-main" disabled="{{submitting || !durationOk || checkBlocked}}" bindtap="onSubmit">
       {{checkBlocked ? '检查项未全部完成，无法签退' : !durationOk ? '作业时长不足 ' + minMinutes + ' 分钟' : submitting ? '提交中...' : '提交签退'}}
     </button>
-    <view class="hint">提交后生成维保记录（含 2.6 上报快照），并上报监管平台</view>
   </view>
 </view>

@@ -73,9 +73,28 @@ function request(options) {
       h['X-Idempotency-Key'] = idempotencyKey || uuid()
     }
 
-    const onSuccess = (res) => handleResponse(res, resolve, reject)
-    const onFail = (err) => reject({ code: -1, message: (err && err.errMsg) || '网络异常' })
     const timeoutMs = timeout || config.requestTimeout
+    // 看门狗（2026-11-16 真机登录挂起根因修复）：真机调试通道下 callContainer 可能永不回调
+    // （平台限制），请求层必须自行 settle——否则登录页 logging 恒 true、按钮禁用且无任何提示。
+    // 传输自带 timeout 之外再兜底 +2s；settled 后迟到回调一律忽略，杜绝二次 settle。
+    let settled = false
+    const timer = setTimeout(() => {
+      if (settled) return
+      settled = true
+      reject({ code: -1, message: '请求超时，请检查网络后重试' })
+    }, timeoutMs + 2000)
+    const onSuccess = (res) => {
+      if (settled) return
+      settled = true
+      clearTimeout(timer)
+      handleResponse(res, resolve, reject)
+    }
+    const onFail = (err) => {
+      if (settled) return
+      settled = true
+      clearTimeout(timer)
+      reject({ code: -1, message: (err && err.errMsg) || '网络异常' })
+    }
 
     // 云托管：path 传接口路径（以 / 开头），服务名用 X-WX-SERVICE 头指定；
     // 走微信内网识别小程序身份，无需把域名配到 request 合法域名（docs/11）。
@@ -119,8 +138,4 @@ function put(url, data, options) {
   return request(Object.assign({ url, method: 'PUT', data }, options))
 }
 
-function del(url, data, options) {
-  return request(Object.assign({ url, method: 'DELETE', data }, options))
-}
-
-module.exports = { request, get, post, put, del }
+module.exports = { request, get, post, put }

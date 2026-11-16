@@ -13,4 +13,6 @@ page{background:var(--ink);color:var(--text)}
 .cb-ico{font-size:18rpx;color:#171005}
 .cs-refuse{flex:.8}
 .cs-submit{flex:1.2}
-.cs-gated{opacity:.35}
+.cs-gated{opacity:.35}.cs-f-ghost{flex:.9}
+.cs-f-main{flex:1.1}
+.page-pad{padding-bottom:calc(160rpx + env(safe-area-inset-bottom,0px))}

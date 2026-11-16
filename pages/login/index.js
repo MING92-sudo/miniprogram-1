@@ -6,7 +6,7 @@ const { clearUnitSession } = require('../../services/unit')
 const { isLoggedIn, getRoles, getHome } = require('../../utils/auth')
 const { resolveHome } = require('../../config/menus')
 const nav = require('../../utils/nav')
-const { TOAST_TEXT } = require('../../constants/index')
+const { TOAST_TEXT, LOGIN_TEXT, BRAND } = require('../../constants/index')
 
 const REMEMBER_KEY = 'em_remember_login'
 const WECHAT_BOUND_KEY = 'em_wechat_bound'
@@ -20,7 +20,8 @@ function wxLoginCode() {
 Page({
   data: {
     phone: '', password: '', showPassword: false,
-    agreed: false, logging: false, remember: false, wechatBound: false
+    agreed: false, logging: false, remember: false, wechatBound: false,
+    text: LOGIN_TEXT, appName: BRAND.APP_NAME, versionBadge: BRAND.VERSION_BADGE, companyFoot: BRAND.LOGIN_FOOT
   },
 
   onLoad(query) {

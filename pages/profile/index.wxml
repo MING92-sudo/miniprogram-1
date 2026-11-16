@@ -1,55 +1,71 @@
 <view class="bw">
-  <nav-bar title="我的" back="{{false}}"></nav-bar>
+  <nav-bar title="{{text.TITLE}}" back="{{false}}"></nav-bar>
   <view class="page-pad tabbar-pad col gap10">
     <view class="card pf-id">
       <view class="row gap10">
-        <view class="pf-avatar"><text class="i i-user"></text></view>
+        <view class="pf-avatar"><text>{{avatarChar}}</text></view>
         <view class="grow">
           <view class="disp fs38">{{userInfo.name || '未登录'}}</view>
-          <view class="fs20 muted mt2">{{userInfo.groupName || userInfo.unitName || ''}}{{userInfo.jobNo ? ' · 工号 ' + userInfo.jobNo : ''}}</view>
+          <view class="fs20 muted mt2">{{userInfo.unitName || userInfo.groupName || ''}}{{userInfo.jobTitle ? ' · ' + userInfo.jobTitle : ''}}{{userInfo.jobNo ? ' · ' + userInfo.jobNo : ''}}</view>
+          <view wx:if="{{maskedPhone}}" class="fs20 dim mt2">手机号 {{maskedPhone}}{{text.MASKED_PHONE}}</view>
         </view>
       </view>
-      <view class="chips mt8">
-        <text wx:for="{{roleTexts}}" wx:key="*this" class="chip on">{{item}}</text>
-      </view>
-      <view wx:if="{{scope}}" class="fs20 dim mt8">数据范围：{{scope}}</view>
     </view>
 
-    <view wx:if="{{workspaces.length > 1}}" class="card">
-      <view class="panel-title">切换工作台</view>
-      <view class="pf-ws-grid mt8">
-        <button
-          wx:for="{{workspaces}}"
-          wx:key="key"
-          class="pf-ws {{item.active ? 'on' : ''}}"
-          data-ws="{{item.ws}}"
-          data-active="{{item.active}}"
-          bindtap="onSwitchWs"
-        >{{item.label}}</button>
+    <view class="card">
+      <view class="row between pf-sec">
+        <text class="panel-title mono">{{text.ROLES}}</text>
+        <text class="fs18 dim">{{text.ROLES_SUB}}</text>
       </view>
-      <view class="fs20 dim mt8">权限取多角色并集，数据范围逐角色判断；切换后底部导航随工作台变化。</view>
+      <view class="pf-role mt8" wx:for="{{roleList}}" wx:key="code">
+        <view class="grow">
+          <view class="fs24 w6">{{item.name}}</view>
+          <view class="fs18 dim mt2">{{item.code}}{{item.desc ? ' · ' + item.desc : ''}}</view>
+        </view>
+        <text class="tag {{item.current ? 'tag-ok' : 'tag-amber'}}">{{item.current ? text.CURRENT : text.DUAL}}</text>
+      </view>
+    </view>
+
+    <view class="card">
+      <view class="row between pf-sec">
+        <text class="panel-title mono">{{text.WORKBENCH}}</text>
+        <text class="fs18 dim">{{text.WORKBENCH_SUB}}</text>
+      </view>
+      <view class="pf-ws-row mt8 {{item.state}}" wx:for="{{workbenchList}}" wx:key="key" data-ws="{{item.ws}}" data-state="{{item.state}}" bindtap="onSwitchWs">
+        <text class="i i-{{item.icon}} pf-ws-ico"></text>
+        <text class="grow fs24">{{item.label}}</text>
+        <text wx:if="{{item.state === 'current'}}" class="tag tag-ok">{{text.CURRENT}}</text>
+        <text wx:elif="{{item.state === 'none'}}" class="fs18 dim">{{text.NO_PERM}}</text>
+        <text wx:else class="i i-chevron-right dim"></text>
+      </view>
+      <view class="pf-note mt8"><text class="i i-circle-info"></text> {{text.NOTE}}</view>
     </view>
 
     <view class="card pf-entries">
-      <view class="pf-entry" bindtap="goMessage" aria-role="button"><text class="i i-bell-r pf-eico"></text><text class="grow">消息中心</text><text class="i i-chevron-right dim"></text></view>
-      <view class="pf-entry" bindtap="goOffline" aria-role="button"><text class="i i-cloud-arrow-up pf-eico"></text><text class="grow">离线队列</text><text class="i i-chevron-right dim"></text></view>
-      <view class="pf-entry" bindtap="goPassword" aria-role="button"><text class="i i-key pf-eico"></text><text class="grow">修改密码</text><text class="i i-chevron-right dim"></text></view>
-      <view class="pf-entry" bindtap="onBindWechat" aria-role="button"><text class="i i-weixin pf-eico"></text><text class="grow">微信绑定{{wechatBound ? '（已绑定）' : ''}}</text><text class="i i-chevron-right dim"></text></view>
+      <view class="pf-entry" bindtap="goMaskDoc"><text class="i i-eye-slash pf-eico"></text><text class="grow">{{text.MASK}}</text><text class="i i-chevron-right dim"></text></view>
+      <view class="pf-entry" bindtap="goMessage"><text class="i i-bell-r pf-eico"></text><text class="grow">{{text.MESSAGE}}</text><text class="i i-chevron-right dim"></text></view>
+      <view class="pf-entry" bindtap="goOffline"><text class="i i-cloud-arrow-up pf-eico"></text><text class="grow">{{text.OFFLINE}}</text><text class="i i-chevron-right dim"></text></view>
+      <view class="pf-entry" bindtap="goPassword"><text class="i i-key pf-eico"></text><text class="grow">{{text.PASSWORD}}</text><text class="i i-chevron-right dim"></text></view>
+      <view class="pf-entry" bindtap="onBindWechat"><text class="i i-weixin pf-eico"></text><text class="grow">{{text.WECHAT}}{{wechatBound ? text.WECHAT_BOUND : ''}}</text><text class="i i-chevron-right dim"></text></view>
     </view>
 
     <view wx:if="{{adminEntries.length}}" class="card pf-entries">
-      <view class="panel-title">管理入口（按权限渲染）</view>
-      <view wx:for="{{adminEntries}}" wx:key="key" class="pf-entry" data-path="{{item.path}}" bindtap="goAdminEntry" aria-role="button">
+      <view class="panel-title">{{text.ADMIN}}</view>
+      <view wx:for="{{adminEntries}}" wx:key="key" class="pf-entry" data-path="{{item.path}}" bindtap="goAdminEntry">
         <text class="i i-building pf-eico"></text><text class="grow">{{item.text}}</text><text class="i i-chevron-right dim"></text>
       </view>
     </view>
 
-    <button class="btn btn-ghost" bindtap="onLogout">退出登录</button>
+    <view class="card pf-entries">
+      <view class="pf-entry"><text class="i i-circle-info pf-eico"></text><text class="grow">{{text.ABOUT}}</text><text class="fs18 dim">{{versionText}}</text></view>
+    </view>
+
+    <button class="btn btn-ghost" bindtap="onLogout">{{text.LOGOUT}}</button>
 
     <view class="pf-attr">
       <view>图标：Font Awesome Free（CC BY 4.0）</view>
       <view>显示字：ZCOOL QingKe HuangYou（OFL 1.1）</view>
-      <view class="mt4">博威无纸化 · {{versionText}}</view>
+      <view class="mt4">{{appName}} · {{versionText}}</view>
     </view>
   </view>
   <custom-tabbar></custom-tabbar>

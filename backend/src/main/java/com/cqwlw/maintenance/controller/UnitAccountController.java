@@ -12,10 +12,11 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.Map;
 
 /**
- * 使用单位门户账号（W3，Task 9）：
- * - POST /unit/accounts：管理端开通（内部鉴权，角色校验在服务层）；
- * - POST /unit/login、/unit/bind-wechat：开放接口（WebConfig 已排除拦截，见 AuthInterceptor 注释）。
- * 账号挂在 use_unit 上，不建在 sys_employee（docs/14 §3）。
+ * 使用单位门户账号（W3，Task 9）——V41 单账号单会话后整链废弃保留至生产清库（docs/12 G 组，2026-11-16 审查标注）：
+ * - POST /unit/accounts：旧开通链（管理端现行开通走 /users UNIT 角色 + useUnitId 锚点）；
+ * - POST /unit/login、/unit/login-by-wechat、/unit/bind-wechat、/unit/account/password：旧门户令牌链，
+ *   前端已无调用者；已迁移账号（account_migrated=1）登录一律 422 拒绝（裁决 R4 口径）。
+ * 勿据此开发新功能；清库后与 JwtService.issueUnit/AuthInterceptor 门户分支一并删除。
  */
 @RestController
 public class UnitAccountController {

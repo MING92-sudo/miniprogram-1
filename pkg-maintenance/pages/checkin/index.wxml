@@ -37,7 +37,9 @@
       <view wx:else class="ci-photo-empty" bindtap="goCamera" aria-role="button"><text class="i i-camera"></text> 点击拍照（自动叠加时间水印）</view>
     </view>
 
-    <button class="btn btn-primary" disabled="{{submitting}}" bindtap="onSubmit">{{submitting ? '提交中...' : '提交签到'}}</button>
     <view class="hint">签到后开始作业清单填写</view>
+  </view>
+  <view class="page-footer">
+    <button class="btn btn-primary co-f-main" disabled="{{submitting}}" bindtap="onSubmit">{{submitting ? '提交中...' : '提交签到'}}</button>
   </view>
 </view>

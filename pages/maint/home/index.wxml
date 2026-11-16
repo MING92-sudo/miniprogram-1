@@ -30,7 +30,7 @@
         </view>
       </view>
 
-      <kpi-row items="{{kpis}}"></kpi-row>
+      <kpi-row items="{{kpis}}" bind:action="onKpiTap"></kpi-row>
 
       <sec-head title="今日任务" actionText="全部" bind:action="onAllTasks"></sec-head>
       <block wx:if="{{tasks.length}}">

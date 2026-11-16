@@ -8,9 +8,12 @@ const {
   WORK_TYPE_CODES,
   HANDOVER_WRITE_ROLES,
   HANDOVER_TEXT,
+  HANDOVER_CREATE_TEXT,
+  HANDOVER_FLOW,
   TOAST_TEXT
 } = require('../../../constants/index')
 const { ensureLogin } = require('../../../utils/guard')
+const { hasAnyRole } = require('../../../utils/auth')
 
 const WORK_TYPE_CODES_LIST = Object.keys(WORK_TYPE_CODES)
 const WORK_TYPE_LABELS = WORK_TYPE_CODES_LIST.map(function (c) {
@@ -51,14 +54,14 @@ definePage(ROUTES['/pkg-handover/pages/create/index'], {
     workTypeIndex: -1,
     form: emptyForm(),
     submitting: false,
-    text: HANDOVER_TEXT
+    text: HANDOVER_TEXT, ct: HANDOVER_CREATE_TEXT,
+    flow: HANDOVER_FLOW.map((label, i) => ({ label, state: i === 0 ? 'active' : '' }))
   },
 
   onLoad() {
     if (!ensureLogin()) return
     const app = getApp()
-    const role = (app.globalData && app.globalData.role) || ''
-    this.setData({ canWrite: HANDOVER_WRITE_ROLES.indexOf(role) > -1 })
+        this.setData({ canWrite: hasAnyRole(HANDOVER_WRITE_ROLES) })
   },
 
   onInput(e) {

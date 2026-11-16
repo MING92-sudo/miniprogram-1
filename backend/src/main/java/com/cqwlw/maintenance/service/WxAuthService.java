@@ -94,17 +94,31 @@ public class WxAuthService {
         } catch (BizException e) {
             throw e;
         } catch (Exception e) {
-            // 只记异常类型与 cause：请求 URL 含 appid/secret/js_code，外层 message 可能回显完整地址；
-            // 网络层 cause（DNS/超时/SSL）message 不含凭证，可安全落日志供外联排障
+            // 只记异常类型与脱敏后的 cause：请求 URL 含 appid/secret/js_code，
+            // HttpURLConnection 非 2xx 的 IOException message 会回显完整 URL，落日志前必须截掉查询串（AGENTS §2.6）
             Throwable cause = e.getCause();
             log.warn("微信 jscode2session 请求异常: {} cause={} {}", e.getClass().getSimpleName(),
                     cause == null ? "-" : cause.getClass().getSimpleName(),
-                    cause == null ? "-" : String.valueOf(cause.getMessage()));
+                    sanitizeCauseMessage(cause == null ? null : cause.getMessage()));
             if (cause instanceof javax.net.ssl.SSLHandshakeException) {
                 logPeerChain();
             }
             throw new BizException(2001, "微信登录失败，请稍后重试");
         }
+    }
+
+    /**
+     * 异常 message 落日志前脱敏：截掉 URL 查询串（appid/secret/js_code 均在查询参数），
+     * 保留 HTTP 码/主机路径等排障上下文；空消息归一为 "-"。
+     * @param msg 原始异常 message（可能为 null）
+     * @return 不含凭证查询参数的日志安全文本
+     */
+    static String sanitizeCauseMessage(String msg) {
+        if (msg == null || msg.isEmpty()) {
+            return "-";
+        }
+        int q = msg.indexOf('?');
+        return q < 0 ? msg : msg.substring(0, q) + "?<query-redacted>";
     }
 
     /** SSL 失败时捕获对端证书链并落 issuer（仅诊断：trust-all 只用于读证书，不发送任何凭证，不影响真实请求校验）。 */

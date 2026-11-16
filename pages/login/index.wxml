@@ -3,61 +3,85 @@
   <view class="lg-page">
     <view class="lg-hero">
       <view class="row between">
-        <text class="mono fs18 dim ls16">电梯维保数字化</text>
-        <text class="mono fs18 dim">V1.3 · 2026</text>
+        <text class="mono fs18 dim ls16">{{text.EYEBROW}}</text>
+        <text class="mono fs18 dim">{{versionBadge}}</text>
       </view>
       <view class="lg-shaft" aria-hidden="true">
-        <view class="lg-shaft-line" wx:for="{{[1,2,3,4,5]}}" wx:key="*this"></view>
+        <view class="lg-shaft-lines"></view>
+        <text class="lg-floor" wx:for="{{text.FLOORS}}" wx:key="*this" style="top:{{52 + index * 80}}rpx">{{item}}</text>
+        <view class="lg-rail"></view>
+        <view class="lg-cable"></view>
+        <view class="lg-car"></view>
+        <view class="lg-dot"></view>
+        <text class="lg-up">↑</text>
+        <text class="lg-down">↓</text>
       </view>
       <view class="row gap10 lg-brandrow">
         <view class="brand-mark lg-mark"></view>
         <view>
-          <view class="disp fs52">博威无纸化</view>
-          <view class="mono fs18 dim ls16">电梯无纸化维保系统</view>
+          <view class="disp fs52">{{appName}}</view>
+          <view class="mono fs18 dim ls16">{{text.BRAND_SUB}}</view>
         </view>
       </view>
-      <view class="disp lg-title"><text class="lg-title-line">让每一台电梯</text><text class="lg-title-line">都有据可查</text></view>
+      <view class="disp lg-title"><text class="lg-title-line">{{text.TITLE_1}}</text><text class="lg-title-line">{{text.TITLE_2}}</text></view>
+      <view class="lg-sub">{{text.SUBTITLE}}</view>
     </view>
 
     <view class="lg-hazard"></view>
 
     <view class="lg-card">
       <view class="row between">
-        <text class="fs22 w6">登录工作台</text>
-        <text class="mono fs18 dim ls12">统一入口</text>
+        <text class="fs22 w6">{{text.CARD_TITLE}}</text>
+        <text class="mono fs18 dim ls12">{{text.CARD_TAG}}</text>
       </view>
       <view class="col gap4 mt10">
-        <text class="fs20 muted">账号</text>
-        <input class="lg-input" value="{{phone}}" bindinput="onPhoneInput" placeholder="手机号 / 单位分配的账号" placeholder-class="lg-ph" />
+        <text class="fs20 muted">{{text.ACCOUNT}}</text>
+        <input class="lg-input" value="{{phone}}" bindinput="onPhoneInput" placeholder="{{text.ACCOUNT_PH}}" placeholder-class="lg-ph" />
       </view>
       <view class="col gap4 mt8">
-        <text class="fs20 muted">密码</text>
+        <text class="fs20 muted">{{text.PASSWORD}}</text>
         <view class="lg-pw-wrap">
-          <input class="lg-input lg-pw" password="{{!showPassword}}" value="{{password}}" bindinput="onPasswordInput" placeholder="请输入密码" placeholder-class="lg-ph" />
-          <text class="lg-eye fs20" bindtap="togglePassword">{{showPassword ? '隐藏' : '显示'}}</text>
+          <input class="lg-input lg-pw" password="{{!showPassword}}" value="{{password}}" bindinput="onPasswordInput" placeholder="{{text.PASSWORD_PH}}" placeholder-class="lg-ph" />
+          <text class="lg-eye fs20" bindtap="togglePassword">{{showPassword ? text.HIDE : text.SHOW}}</text>
         </view>
       </view>
       <view class="row between mt8">
         <view class="row gap6" bindtap="toggleRemember">
           <view class="cb {{remember ? 'on' : ''}}"><text wx:if="{{remember}}" class="i i-check cb-ico"></text></view>
-          <text class="fs20 dim">记住账号</text>
+          <text class="fs20 dim">{{text.REMEMBER}}</text>
         </view>
-        <text class="fs20 dim lg-forgot" bindtap="forgotPassword">忘记密码</text>
+        <text class="fs20 dim lg-forgot" bindtap="forgotPassword">{{text.FORGOT}}</text>
       </view>
-      <button class="btn btn-primary lg-submit" disabled="{{logging}}" bindtap="onSubmit">{{logging ? '登录中…' : '登录工作台'}}</button>
-      <button wx:if="{{wechatBound}}" class="btn btn-ghost lg-wechat" bindtap="onWechatLogin"><text class="i i-weixin"></text> 微信一键登录</button>
+      <button class="btn btn-primary lg-submit" disabled="{{logging}}" bindtap="onSubmit">{{logging ? text.SUBMITTING : text.SUBMIT}}</button>
+      <button wx:if="{{wechatBound}}" class="btn btn-ghost lg-wechat" bindtap="onWechatLogin"><text class="i i-weixin"></text> {{text.WECHAT}}</button>
       <view class="row gap6 mt10" bindtap="toggleAgreed">
         <view class="cb {{agreed ? 'on' : ''}}"><text wx:if="{{agreed}}" class="i i-check cb-ico"></text></view>
-        <text class="fs20 dim">已阅读并同意 <text class="lg-link" catchtap="openAgreement">《用户协议》</text> 与 <text class="lg-link" catchtap="openPrivacy">《隐私政策》</text></text>
+        <text class="fs20 dim">{{text.AGREE_PRE}} <text class="lg-link" catchtap="openAgreement">《用户协议》</text> {{text.AGREE_MID}} <text class="lg-link" catchtap="openPrivacy">《隐私政策》</text></text>
       </view>
     </view>
 
     <view class="lg-points">
-      <view><text class="i i-shield-halved"></text>电子签名固化</view>
-      <view><text class="i i-cloud-arrow-up"></text>弱网自动续传</view>
-      <view><text class="i i-clock-rotate-left"></text>作业全程留痕</view>
+      <view wx:for="{{text.POINTS}}" wx:key="*this"><text class="i {{index === 0 ? 'i-shield-halved' : (index === 1 ? 'i-cloud-arrow-up' : 'i-clock-rotate-left')}}"></text>{{item}}</view>
     </view>
 
-    <view class="lg-foot">该小程序为重庆博威电梯公司内部相关人员登录使用，账号由单位管理员开通</view>
+    <view class="week-strip lg-stats">
+      <block wx:for="{{text.STATS}}" wx:key="label">
+        <view wx:if="{{index > 0}}" class="vdiv"></view>
+        <view><text class="mono fs32 {{item.tone}}">{{item.n}}</text><text class="fs18 dim">{{item.label}}</text></view>
+      </block>
+    </view>
+
+    <view class="lg-roles">
+      <view class="row between">
+        <text class="mono fs18 dim ls12">{{text.ROLES_TITLE}}</text>
+        <text class="fs18 dim">{{text.ROLES_SUB}}</text>
+      </view>
+      <view class="lg-role-grid mt6">
+        <view class="lg-role-mini" wx:for="{{text.ROLE_CARDS}}" wx:key="label"><text class="i i-{{item.icon}}"></text>{{item.label}}</view>
+      </view>
+      <view class="fs18 dim lg-role-note">{{text.ROLE_NOTE}}</view>
+    </view>
+
+    <view class="lg-foot">{{companyFoot}}</view>
   </view>
 </view>

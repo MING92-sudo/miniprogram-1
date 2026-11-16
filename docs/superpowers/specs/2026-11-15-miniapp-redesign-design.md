@@ -67,12 +67,12 @@
 | 维保 | pages/order/detail | pkg-maintenance/pages/task/index + pkg-maintenance/pages/record-detail/index | M3 |
 | 维保 | pages/order/checklist + item-form | pkg-maintenance/pages/task/index | M3 |
 | 维保 | pages/order/checkin | pkg-maintenance/pages/checkin/index（保留迁包） | M3 |
-| 维保 | pages/order/dynamic-code | pkg-maintenance/pages/dynamic-code/index（保留迁包） | M3 |
+| 维保 | pages/order/dynamic-code | （独立页 2026-11-16 审查删：动态码内联 checkin） | M3 |
 | 维保 | pages/order/checkout | pkg-maintenance/pages/checkout/index（保留迁包） | M3 |
 | 维保 | pages/order/record-preview | pkg-maintenance/pages/record-detail/index（屏 05） | M3 |
 | 维保 | pages/calendar/index | pkg-maintenance/pages/plan/index（SUP/MGR 月视图） | M3 |
 | 维保 | （新） | pkg-maintenance/pages/record-sign/index | M3 |
-| 维保 | （新） | pkg-maintenance/pages/record-archive/index（归档/PDF） | M3 |
+| 维保 | （新） | （record-archive 2026-11-16 审查删：归档/PDF 内联 record-detail） | M3 |
 | 急修 | pages/fault/list | pages/order/list/index（屏 07 报修接单池） | M3 |
 | 急修 | pages/fault/detail | pages/order/detail/index（屏 06） | M3 |
 | 急修 | pages/fault/report + pages/unit/report | pages/order/report/index（一键报修 + 员工代报修合并） | M3 |

@@ -11,6 +11,7 @@ const {
   TOAST_TEXT
 } = require('../../../constants/index')
 const { ensureLogin } = require('../../../utils/guard')
+const { hasAnyRole } = require('../../../utils/auth')
 
 const WORK_TYPE_CODES_LIST = Object.keys(WORK_TYPE_CODES)
 const WORK_TYPE_LABELS = WORK_TYPE_CODES_LIST.map(function (c) {
@@ -65,8 +66,7 @@ definePage(ROUTES['/pkg-handover/pages/filing-init/index'], {
 
   onLoad() {
     if (!ensureLogin()) return
-    const role = (getApp().globalData && getApp().globalData.role) || ''
-    this.setData({ canWrite: FILING_WRITE_ROLES.indexOf(role) > -1 })
+    this.setData({ canWrite: hasAnyRole(FILING_WRITE_ROLES) })
     this.loadUnits()
     this.loadContracts()
   },

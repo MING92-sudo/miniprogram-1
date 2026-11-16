@@ -68,6 +68,30 @@ function clearAuth() {
   wx.removeStorageSync(SCOPE_KEY)
 }
 
+
+// 规范角色别名（docs/14 §3 十三规范角色；旧码→规范码，与后端 RoleCatalog / mock loginPayload 同口径）
+const ROLE_ALIAS = {
+  WORKER: 'MAINT_TECH', ASSISTANT: 'MAINT_TECH', LEADER: 'MAINT_SUP',
+  UNIT_ADMIN: 'CLIENT_ADMIN', ADMIN: 'PLATFORM_ADMIN',
+  INSTALL_MANAGER: 'INST_PM', INSTALL_CLERK: 'INST_CLERK', INSTALL_WORKER: 'INSTALLER',
+  MAINT_MANAGER: 'MAINT_MGR'
+}
+
+// 会话角色集（规范 roles 数组 + 单角色及其别名），供页面岗位门控统一判定
+function getSessionRoles() {
+  const out = (getRoles() || []).slice()
+  const single = getRole()
+  if (single) {
+    if (out.indexOf(single) < 0) out.push(single)
+    if (ROLE_ALIAS[single] && out.indexOf(ROLE_ALIAS[single]) < 0) out.push(ROLE_ALIAS[single])
+  }
+  return out
+}
+
+function hasAnyRole(list) {
+  const session = getSessionRoles()
+  return (list || []).some(function (r) { return session.indexOf(r) > -1 })
+}
 module.exports = {
   getToken,
   getUserInfo,
@@ -79,5 +103,8 @@ module.exports = {
   getScope,
   isLoggedIn,
   saveAuth,
-  clearAuth
+  clearAuth,
+  getSessionRoles,
+  hasAnyRole
 }
+

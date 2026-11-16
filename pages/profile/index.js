@@ -1,31 +1,34 @@
-// 我的（M2，规格 §3.3）：单身份卡 + 切换工作台 + 功能入口 + 微信绑定 + 署名 + 退出。
-// 合并旧 pages/mine + pages/unit/mine；菜单驱动渲染取代 role-view（M6 删 role-view）。
+// 我的（屏 20 · 原型 V1.4 对齐）：身份卡（头像字+脱敏手机号）+ 我的角色（当前/兼任）+ 切换工作台（当前/无权限）
+// + 功能入口 + 微信绑定 + 署名 + 退出。单账号多角色，权限取并集、数据范围逐角色判断（AGENTS §3.9）。
 const auth = require('../../services/auth')
 const { definePage } = require('../../utils/guard')
 const { ROUTES } = require('../../config/routes')
 const menus = require('../../config/menus')
 const { getRoles, getPerms } = require('../../utils/auth')
 const nav = require('../../utils/nav')
-const { TOAST_TEXT } = require('../../constants/index')
+const { TOAST_TEXT, PROFILE_TEXT, ROLE_DESC, BRAND } = require('../../constants/index')
 
 const WECHAT_BOUND_KEY = 'em_wechat_bound'
 const GROUPS = [
-  { key: 'MAINT', label: '维保工作台', match: (r) => r.indexOf('MAINT') === 0 },
-  { key: 'INST', label: '安装工作台', match: (r) => r === 'INSTALLER' || r.indexOf('INST') === 0 },
-  { key: 'CLIENT', label: '使用单位', match: (r) => r.indexOf('CLIENT') === 0 },
-  { key: 'PLATFORM', label: '平台管理', match: (r) => r === 'PLATFORM_ADMIN' }
+  { key: 'MAINT', label: '维保工作台', icon: 'screwdriver-wrench', match: (r) => r.indexOf('MAINT') === 0 },
+  { key: 'INST', label: '安装部工作台', icon: 'helmet-safety', match: (r) => r === 'INSTALLER' || r.indexOf('INST') === 0 },
+  { key: 'CLIENT', label: '使用单位工作台', icon: 'building', match: (r) => r.indexOf('CLIENT') === 0 },
+  { key: 'PLATFORM', label: '平台管理', icon: 'server', match: (r) => r === 'PLATFORM_ADMIN' || r === 'SYS_ADMIN' }
 ]
 
+function maskPhone(p) {
+  const s = String(p || '')
+  if (s.length < 7) return s
+  return s.slice(0, 3) + '****' + s.slice(-4)
+}
 function wxLoginCode() {
-  return new Promise((resolve, reject) => {
-    wx.login({ success: (r) => resolve(r.code || ''), fail: reject })
-  })
+  return new Promise((resolve, reject) => { wx.login({ success: (r) => resolve(r.code || ''), fail: reject }) })
 }
 
 definePage(ROUTES['/pages/profile/index'], {
   data: {
-    userInfo: null, roleTexts: [], scope: '', workspaces: [],
-    wechatBound: false, binding: false, versionText: '', adminEntries: []
+    userInfo: null, avatarChar: '', maskedPhone: '', roleList: [], scope: '', workbenchList: [],
+    wechatBound: false, binding: false, versionText: '', adminEntries: [], text: PROFILE_TEXT, appName: BRAND.APP_NAME
   },
   onShow() {
     const app = getApp()
@@ -33,23 +36,26 @@ definePage(ROUTES['/pages/profile/index'], {
     const roles = getRoles()
     const ws = g.workspace || menus.activeWorkspace(roles)
     const curGroup = (GROUPS.find((x) => x.match(ws)) || {}).key
-    const workspaces = GROUPS.map((grp) => {
+    const u = g.userInfo || {}
+    const roleList = roles.map((r) => ({ code: r, name: menus.ROLE_TEXT[r] || r, desc: ROLE_DESC[r] || '', current: r === ws }))
+    const workbenchList = GROUPS.map((grp) => {
       const held = roles.filter(grp.match)
-      if (!held.length) return null
-      const rep = menus.ROLE_PRIORITY.find((r) => held.indexOf(r) > -1) || held[0]
-      return { key: grp.key, label: grp.label, ws: rep, active: grp.key === curGroup }
-    }).filter(Boolean)
+      const rep = menus.ROLE_PRIORITY.find((r) => held.indexOf(r) > -1) || held[0] || ''
+      const state = grp.key === curGroup ? 'current' : (held.length ? 'held' : 'none')
+      return { key: grp.key, label: grp.label, icon: grp.icon, ws: rep, state }
+    })
     this.setData({
-      userInfo: g.userInfo,
-      roleTexts: roles.map((r) => menus.ROLE_TEXT[r] || r),
+      userInfo: u,
+      avatarChar: (u.name || '').charAt(0) || '我',
+      maskedPhone: maskPhone(u.phone || u.account),
+      roleList,
       scope: g.scope || '',
-      workspaces,
+      workbenchList,
       wechatBound: !!wx.getStorageSync(WECHAT_BOUND_KEY),
       versionText: this.readVersion(),
       adminEntries: this.buildAdminEntries()
     })
   },
-  // 管理入口按后端下发 perms 渲染（2026-11-15 裁决：渲染面=权限面）
   buildAdminEntries() {
     const perms = getPerms() || []
     const entries = []
@@ -62,17 +68,18 @@ definePage(ROUTES['/pages/profile/index'], {
   readVersion() {
     try {
       const mp = wx.getAccountInfoSync().miniProgram
-      return mp.version ? '版本 ' + mp.version : (mp.envVersion === 'trial' ? '体验版' : '开发版')
+      return mp.version ? 'V' + mp.version : (mp.envVersion === 'trial' ? '体验版' : '开发版')
     } catch (e) { return '' }
   },
   onSwitchWs(e) {
-    const ws = e.currentTarget.dataset.ws
-    if (e.currentTarget.dataset.active) return
-    getApp().switchWorkspace(ws)
+    const state = e.currentTarget.dataset.state
+    if (state !== 'held') return
+    getApp().switchWorkspace(e.currentTarget.dataset.ws)
   },
   goMessage() { nav.open('/pages/message/index') },
   goOffline() { nav.open('/pages/offline/index') },
   goPassword() { nav.open('/pages/profile/password') },
+  goMaskDoc() { wx.showModal({ title: PROFILE_TEXT.MASK, content: PROFILE_TEXT.MASK_CONTENT, showCancel: false, confirmText: '知道了' }) },
   async onBindWechat() {
     if (this.data.binding) return
     if (this.data.wechatBound) {

@@ -72,13 +72,13 @@ const ROLE_TABS = {
   ],
   MAINT_TECH: [
     { key: 'maint-home', text: '工作台', icon: 'gauge', path: '/pages/maint/home/index' },
-    { key: 'maint-orders', text: '工单', icon: 'clipboard', path: '/pages/order/list/index', badgeKey: 'pendingOrders' },
+    { key: 'maint-orders', text: '工单', icon: 'clipboard', path: '/pkg-maintenance/pages/orders/index', badgeKey: 'pendingOrders' },
     { key: 'maint-elevators', text: '电梯', icon: 'elevator', path: '/pages/elevator/list/index' },
     { key: 'profile', text: '我的', icon: 'user', path: '/pages/profile/index' }
   ],
   MAINT_SUP: [
     { key: 'maint-home', text: '工作台', icon: 'gauge', path: '/pages/maint/home/index' },
-    { key: 'maint-orders', text: '工单', icon: 'clipboard', path: '/pages/order/list/index', badgeKey: 'pendingOrders' },
+    { key: 'maint-orders', text: '工单', icon: 'clipboard', path: '/pkg-maintenance/pages/orders/index', badgeKey: 'pendingOrders' },
     { key: 'maint-projects', text: '项目', icon: 'building', path: '/pkg-admin/pages/projects/index' },
     { key: 'stats', text: '统计', icon: 'chart', path: '/pkg-admin/pages/stats/index' },
     { key: 'profile', text: '我的', icon: 'user', path: '/pages/profile/index' }

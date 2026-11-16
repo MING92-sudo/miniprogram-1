@@ -8,9 +8,10 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 管理端菜单下发（docs/14 §9.3、§11 P2）：按角色能力过滤菜单树，前端只渲染下发的项。
- * 权威仍是 {@link PermissionMatrix}——菜单过滤只是体验，后端端点各自再判一次。
- * 顺序与 `admin/src/layout/AdminLayout.vue` 的兜底表一致；前端拿到接口结果后不再自行过滤。
+ * 管理端菜单下发（docs/14 §9.3、§11 P2）——旧契约，废弃保留（2026-11-16 审查标注）。
+ * M5 起管理端菜单走 admin/src/ui/menu-config.js + permission-v2 本地投影，/auth/menus 前端无调用者；
+ * TREE 路径为旧 AdminLayout 口径（已删），与现行 router 不符，勿据此开发。生产清库后随旧契约一并删除。
+ * 权威仍是 {@link PermissionMatrix}——后端端点各自强校验。
  */
 @Service
 public class MenuService {

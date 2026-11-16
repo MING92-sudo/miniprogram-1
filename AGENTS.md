@@ -19,12 +19,12 @@
 | 账号与数据权限 | `docs/14-账号权限与组织角色设计.md` | 三平级部门（安装/维保/使用单位）角色码、数据域与权限矩阵 |
 | 测试与上线检查 | `docs/05-测试与验收方案.md`、`docs/11-云托管部署手册.md` | 人工验收结论写回 docs/05、docs/10 |
 
-**当前基线（2026-11-15 机审）**：小程序 50 页（主包 18 + 4 子包 pkg-handover 12/pkg-maintenance 9/pkg-client 4/pkg-admin 7；无原生 tabBar，custom-tabbar 菜单驱动）；`services/` 13 个模块（含 menu/admin）；`mock/server.js` 106 条路由；后端 197 个 Web 映射注解、Flyway V1—V46、489 个单测；管理端 23 个视图（自建组件库，Element Plus 已移除）；文档 01—16。计数用于快速定位，提交前以代码实测为准；文档数字滞后时改文档，不要为迁就旧数字改代码。
+**当前基线（2026-11-16 审查修复后实测）**：小程序 48 页（主包 18 + 4 子包 pkg-handover 12/pkg-maintenance 7/pkg-client 4/pkg-admin 7；无原生 tabBar，custom-tabbar 菜单驱动）；`services/` 13 个模块（含 menu/admin）；`mock/server.js` 110 条路由；后端 197 个 Web 映射注解、Flyway V1—V46、505 个单测；管理端 23 个视图（自建组件库，Element Plus 已移除）；文档 01—16。计数用于快速定位，提交前以代码实测为准；文档数字滞后时改文档，不要为迁就旧数字改代码。
 
 ## 1. 系统组成与分层
 
 ```
-├─ app.js / app.json / app.wxss   小程序入口（50 页：主包 18 + 4 子包；无原生 tabBar，custom-tabbar 菜单驱动；页面口径见 docs/03 §3.5）
+├─ app.js / app.json / app.wxss   小程序入口（48 页：主包 18 + 4 子包；无原生 tabBar，custom-tabbar 菜单驱动；页面口径见 docs/03 §3.5）
 ├─ pages/                         页面（每页 .js/.json/.wxml/.wxss 四件套）
 ├─ services/                      业务接口层：页面只调 services，禁止直接 wx.request / wx.uploadFile
 ├─ utils/request.js               唯一请求封装（Bearer、X-Idempotency-Key、401、callContainer/wx.request 分流）
@@ -32,7 +32,7 @@
 ├─ config/index.js                环境配置（ENV、useMock、apiBaseUrl、cloud.env/service、LBS key 留空）
 ├─ constants/index.js             枚举/错误码/业务常量（文案统一从这里取）
 ├─ mock/                          mock 契约层（server.js 路由 = docs/04 A 部分）
-├─ backend/                       Spring Boot 3.3.4 后端（Flyway V1—V45、JWT/BCrypt、平台转发、452 单测）
+├─ backend/                       Spring Boot 3.3.4 后端（Flyway V1—V46、JWT/BCrypt、平台转发、505 单测）
 ├─ admin/                         Vue3 + Vite + 自建组件库（ui/）管理端（23 视图，Element Plus 已移除；lint/vitest/build）
 ├─ scripts/                       平台联调脚本与回归脚本（fixtures/ 合成测试件；tmp/ 已 gitignore）
 ├─ doc_text.txt                   平台规范 V1.5 原文提取（docs/04 B 部分核对来源，只读）
@@ -199,6 +199,8 @@
 | V3.21 | 2026-11-15 | **C-14 根因修复（用户裁决：信任出口网关证书）**：MCP 重绑 prod + tcb CLI 安装后开通 CLS 取容器日志，定位云出口网关（169.254.10.1）对 443 TLS 拦截、呈现轮换自签证书致 JVM PKIX 拒绝（监管平台 1443 不受影响）。`WxAuthService.GatewayAwareTrustManager` TOFU：默认严格 PKIX，仅网关画像（自签+CN=api.weixin.qq.com）校验失败时信任+指纹审计；`wxRestTemplate` 专用 Bean、platformRestTemplate @Primary；`GatewayAwareTrustManagerTest` 5 例，477 单测全绿。真实环境实测：wx-login code=0 签发会话、bind-wechat `{code:0,ok:true}`。docs/12 C-14 关闭。部署口径：tcb CLI deploy 走 Git 镜像有滞后，MCP manageCloudRun deploy 本地上传为准 |
 | V3.22 | 2026-11-15 | **权限面=渲染面（用户裁决三部门+平台统计后统一修复）**：①perms 下发 Y∪C（actions 仍 Y-only），修电梯等 C 级页真实环境 403；②SYS_ADMIN 86 码全 Y、平台域 5 tabs（组织/统计/审计/配置/我的）+ 我的页 perm 管理入口（项目/合同/角色矩阵）；③外接建档写归维保部（filing:write=MM/MS/MB/PA），维保工作台增入口，安装部条件读；④使用单位账号先建单位档案再开通（/users UNIT 角色必填 useUnitId，org_id 锚点），电梯列表/档案/扫码本单位收敛、跨单位 1403、无锚点 fail-closed；⑤INSTALLER handover:view=C、白名单逐页对齐矩阵；⑥权限镜像移 constants/permission-matrix.js（mock/admin/Node 单一源，admin 经 ESM 桥+vite commonjsOptions）；⑦seeder/mock 演示账号补齐 01—18/99；⑧修 UserController departmentOf 误用（canonicalRole.department）。489 单测全绿、admin 99 用例、role-render.js 11 账号 ALL PASS；docs/14 §7.1 渲染矩阵、docs/04 V2.57、docs/16 同步 |
 | V3.23 | 2026-11-15 | **张伟账号真机反馈三修**：①移交验收白屏根因=菜单下发 MAINT 全工作区但矩阵/白名单缺 MT 读权→403 竞态白屏；矩阵 MT handover:view=C、白名单 list/detail 对齐、`GET /handovers`/`{id}` 补 requireRead 部门互斥、guard 403 reLaunch 延迟 300ms；②签字后恒显未签根因=record-sign 读 URL（仅 recordInfo 有）改读布尔 workerSigned/assistantSigned；③作业清单按原型屏 04 重做（分组折叠/行内逐项留证/底栏下一项+存草稿，合规校验逐字保留）。489 单测全绿、lint/routes/m0/m1-sync/dispatch/templates 绿；docs/03 V2.20、docs/04 V2.58、docs/14 V1.3 同步 |
+| V3.24 | 2026-11-16 | **全仓审查修复 + 死代码清理**：①P0——恢复 `HANDOVER_DOCS` 导出（移交签字页白屏/详情回退崩溃）；`UnitPortalController` 统一令牌 + CLIENT 锚点迁移（修复 V41 后 CLIENT 首页/待办/急修列表现网恒空，旧门户令牌兜底、无锚点 403）；记录单结论/签字态改纯函数投影 `utils/record-view`（异常不得显合格、不虚报已整改、签后文本/主按钮随状态变化）；`WxAuthService.sanitizeCauseMessage` 截 URL 查询串防 secret 落日志；`/unit/login*` 已迁移账号 422 拒绝 + 整链废弃标注。②P1——移交内部审核断头接通（PENDING_INST_REVIEW 文案/筛选/详情 goReview）；资料提交恒走后端 3 平铺字段契约（mock 422 对齐）；`/me/menus` quickActions 角色感知（plan 归 SUP/MGR、filing 排除 TECH、INST create/upload 按路由角色、CLIENT plan→todo、scan 深链暂不下发 C-17）；filing 写岗位对齐矩阵（维保部+平台）+ hasAnyRole 门控；ICONS 补 bullhorn/calendar-check-r。③死代码清理——删不可达页 dynamic-code/record-archive（内联 checkin/record-detail，**48 页** pkg-maintenance 7）、unit_token 登录链、UNIT_PORTAL_TEXT 等死常量、nav.parseScene/TRANSITION_MAP、routes.OLD_PAGES、offline.clearQueue、request.del、badge 原生角标、admin 9 死 API 模块 + getMenus；活后端端点的死服务方法补「契约保留」标注；mock 死路由均为活端点契约镜像，保留。④mock 补 GET /employees、GET /use-units、POST /handovers/:id/assign-receiver、PUT /faults/:id（**110 路由**），loginPayload 去 password、bind-wechat 不回 openid。⑤新增 `scripts/verify-review-fixes.js` 18 项回归断言；docs/12 新增 C-17—C-21（扫码深链/急修救援字段/overview/整改闭环/接单池筛选）。门禁：后端 **505 单测**全绿（+16）、admin lint/99 用例/build、根 lint、routes 10/10、m0 12/12（48 页基线）、m1-sync 12/12、dispatch/templates/review-fixes 绿；**automator 模拟器走查 22 项 ALL PASS**（scripts/e2e/review-fixes-flow.js + review-handover-chain.js，mock 双会话，截图 shots/fix-*.png；走查后 useMock/packOptions 已还原）。docs/03 V2.25、docs/04 V2.59、docs/12 V1.26、docs/16 tab 路径同步 |
+| V3.25 | 2026-11-16 | **C-22 真机调试登录卡死根因修复**：真机调试通道 `wx.cloud.callContainer` 永不回调（平台限制），旧 `utils/request.js` 无客户端兜底 → Promise 不 settle → 登录按钮卡「登录中…」禁用无提示。修复：请求层看门狗（传输 timeout+2s 强制 reject「请求超时，请检查网络后重试」，settled 后迟到回调忽略，callContainer/wx.request 双传输覆盖）；`scripts/test-request-watchdog.js` 5 例（黑洞/正常/迟到回调/401 透传/fail）RED→GREEN。公网探针证实账号与后端正常（13800000010 可登录；11/12/99 因线上后端滞后 401）。**真机验证用预览模式**；真机调试模式现会明确报超时。docs/11 §10、docs/12 V1.27 同步 |
 
 <!-- aoci:begin -->
 ## AOCI Repository Cognition

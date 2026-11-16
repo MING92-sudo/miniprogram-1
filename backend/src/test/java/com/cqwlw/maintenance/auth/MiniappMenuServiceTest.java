@@ -61,12 +61,12 @@ class MiniappMenuServiceTest {
                     "profile|我的|user|/pages/profile/index"}),
             Map.entry("MAINT_TECH", new String[]{
                     "maint-home|工作台|gauge|/pages/maint/home/index",
-                    "maint-orders|工单|clipboard|/pages/order/list/index",
+                    "maint-orders|工单|clipboard|/pkg-maintenance/pages/orders/index",
                     "maint-elevators|电梯|elevator|/pages/elevator/list/index",
                     "profile|我的|user|/pages/profile/index"}),
             Map.entry("MAINT_SUP", new String[]{
                     "maint-home|工作台|gauge|/pages/maint/home/index",
-                    "maint-orders|工单|clipboard|/pages/order/list/index",
+                    "maint-orders|工单|clipboard|/pkg-maintenance/pages/orders/index",
                     "maint-projects|项目|building|/pkg-admin/pages/projects/index",
                     "stats|统计|chart|/pkg-admin/pages/stats/index",
                     "profile|我的|user|/pages/profile/index"}),

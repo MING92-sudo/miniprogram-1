@@ -9,7 +9,7 @@ const { STATUS_TEXT } = require('../constants/index')
 
 function arr(x) { return Array.isArray(x) ? x : ((x && x.list) || []) }
 function pad(n) { return String(n || 0).padStart(2, '0') }
-function today() { return new Date().toISOString().slice(0, 10) }
+function today() { const d = new Date(); return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) }
 function hm(t) { return String(t || '').slice(11, 16) }
 function orderTone(s) { return s === 'DONE' ? 'ok' : 'amber' }
 
@@ -26,9 +26,9 @@ function getMaintHome() {
     const trapped = open.filter((f) => (f.trappedCount || 0) > 0)
     const due = (summary.dueToday || 0) + (summary.dueSoon || 0) + (summary.overdue || 0)
     const kpis = [
-      { value: pad(due), label: '待维保' },
-      { value: pad(trapped.length), label: '急修待接', alert: true },
-      { value: pad(open.length - trapped.length), label: '报修待接' }
+      { value: pad(due), label: '待维保', path: '/pkg-maintenance/pages/orders/index' },
+      { value: pad(trapped.length), label: '急修待接', alert: true, path: '/pages/order/list/index?state=urgent' },
+      { value: pad(open.length - trapped.length), label: '报修待接', path: '/pages/order/list/index?state=pending' }
     ]
     const t = today()
     const tasks = orders
@@ -129,4 +129,4 @@ function getClientHome() {
   })
 }
 
-module.exports = { getMaintHome, getInstallHome, getClientHome, getHomeSummary: () => get('/home/summary') }
+module.exports = { getMaintHome, getInstallHome, getClientHome }

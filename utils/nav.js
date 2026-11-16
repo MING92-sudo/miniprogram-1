@@ -1,12 +1,10 @@
-// 统一跳转（M2，规格 §1.2/§1.5）：tab=reLaunch 清栈；详情=navigateTo；
-// 未建路由走过渡映射回旧页（裁决 R4，各域迁移完即删对应行，M6 删全表）；所有路径来自白名单。
+// 统一跳转（M2，规格 §1.2/§1.5）：tab=reLaunch 清栈；详情=navigateTo；所有路径来自白名单。
+// 2026-11-16 审查清理：M6 后全部路由已建，删 TRANSITION_MAP 过渡映射与 parseScene 深链（零调用；扫码深链待 docs/12 C-17）。
 const { ROUTES } = require('../config/routes')
 const { resolveHome } = require('../config/menus')
 const { getRoles, getHome } = require('./auth')
 
-// 新→旧过渡映射（M0 §4 反向）：M3/M4/M5 已建全部业务域，映射清空；pkg-admin（M6）无旧等价走 FALLBACK。
-const TRANSITION_MAP = {}
-// 无旧等价（pkg-admin 7 页 + record-sign + evaluate + handover upload/review）→ profile 兜底
+// 无旧等价页兜底（pkg-admin 等）→ profile
 const FALLBACK = '/pages/profile/index'
 
 // 登录后回跳白名单（蓝图 L436-443 + 三 home + profile，防开放重定向）
@@ -28,7 +26,7 @@ function currentHome() {
 
 function reLaunch(url) { wx.reLaunch({ url }) }
 
-// 统一打开：白名单校验 → 已建按 tab/详情分流 → 未建走过渡映射
+// 统一打开：白名单校验 → tab/详情分流（未建路由仅留兜底提示）
 function open(url) {
   const { path, query } = splitUrl(url)
   const meta = ROUTES[path]
@@ -44,9 +42,6 @@ function open(url) {
     })
     return
   }
-  // 未建路由（M6 后全部已建，此分支仅留兜底）：过渡映射或 profile 兜底
-  const old = TRANSITION_MAP[path]
-  if (old) return reLaunch(old + query)
   wx.showToast({ title: '该功能将在后续版本开放', icon: 'none' })
   setTimeout(() => reLaunch(FALLBACK), 300)
 }
@@ -66,16 +61,4 @@ function safeRedirect(raw) {
   return ALLOWED_REDIRECTS.indexOf(path) > -1 ? decoded : null
 }
 
-// 扫码场景深链解析（蓝图 L323-330）：q=route=<白名单路径>
-function parseScene(q) {
-  if (!q) return null
-  let query = q
-  try { query = decodeURIComponent(q) } catch (e) { query = q }
-  const m = query.match(/(?:^|&)route=([^&]+)/)
-  if (!m) return null
-  const route = m[1]
-  const path = route.split('?')[0]
-  return ROUTES[path] ? route : null
-}
-
-module.exports = { open, back, safeRedirect, parseScene, TRANSITION_MAP, FALLBACK, ALLOWED_REDIRECTS }
+module.exports = { open, back, safeRedirect }

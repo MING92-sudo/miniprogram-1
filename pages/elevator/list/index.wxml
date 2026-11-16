@@ -1,9 +1,12 @@
 <view class="bw">
-  <nav-bar title="电梯" back="{{false}}"></nav-bar>
+  <nav-bar title="{{text.LIST_TITLE}}" back="{{false}}"></nav-bar>
   <view class="page-pad tabbar-pad col gap10">
+    <view class="row between">
+      <text class="fs20 dim">{{text.COUNT_PRE}} {{allList.length}} {{text.COUNT_UNIT}}</text>
+    </view>
     <view class="search">
       <text class="i i-magnifying-glass"></text>
-      <input class="el-search-input" value="{{keyword}}" bindinput="onSearchInput" placeholder="搜索名称 / 编号 / 项目" placeholder-class="el-ph" />
+      <input class="el-search-input" value="{{keyword}}" bindinput="onSearchInput" placeholder="{{text.SEARCH_PH}}" placeholder-class="el-ph" />
       <text wx:if="{{keyword}}" class="i i-xmark dim" bindtap="onClearSearch"></text>
     </view>
     <skeleton wx:if="{{loading}}" rows="{{[{h:96},{h:96},{h:96},{h:96}]}}"></skeleton>
@@ -13,10 +16,19 @@
         <view class="elev-ico"><text class="i i-elevator"></text></view>
         <view class="grow">
           <view class="fs22 w6">{{item.elevatorName}}</view>
-          <view class="fs20 dim mt2">{{item.projectName || ''}} · {{item.elevatorCode}}</view>
+          <view class="fs20 dim mt2">{{item.elevatorCode}}{{item.nextMaintenanceDate ? ' · ' + text.NEXT_LABEL + ' ' + item.nextMaintenanceDate : ''}}{{item.maintUnitName ? ' · ' + item.maintUnitName : ''}}</view>
         </view>
+        <text class="tag {{item.workStat === 'normal' ? 'tag-ok' : 'tag-amber'}}">{{item.workStat === 'normal' ? text.NORMAL : item.workStat}}</text>
         <text class="i i-chevron-right dim"></text>
       </view>
+      <view class="card">
+        <view class="sec-head"><text class="panel-title mono">{{text.QR_TITLE}}</text><text class="fs18 dim">{{text.QR_SUB}}</text></view>
+        <view class="row gap10 mt8">
+          <view class="el-qr"><text class="i i-qrcode"></text></view>
+          <view class="fs20 dim grow">{{text.QR_NOTE}}</view>
+        </view>
+      </view>
+      <view class="rule-note"><text class="i i-circle-info"></text><text>{{text.LIST_NOTE}}</text></view>
     </block>
     <empty-state wx:else mode="{{emptyMode}}" title="{{emptyTitle}}" desc="{{emptyDesc}}" actionText="{{keyword ? '清空搜索' : ''}}" bind:action="onClearSearch"></empty-state>
   </view>

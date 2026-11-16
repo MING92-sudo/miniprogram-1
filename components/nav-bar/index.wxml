@@ -5,7 +5,7 @@
     </view>
     <view wx:if="{{brand}}" class="nb-brand">
       <view class="brand-mark nb-logo"></view>
-      <text class="nb-name">博威无纸化</text>
+      <text class="nb-name">{{appName}}</text>
     </view>
     <text wx:else class="nb-title">{{title}}</text>
   </view>

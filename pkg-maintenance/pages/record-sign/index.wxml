@@ -1,6 +1,6 @@
 <view class="bw">
   <nav-bar title="维保双人签字" bind:back="onBack"></nav-bar>
-  <view class="page-pad col gap10">
+  <view class="page-pad col gap10 rs-pad">
     <skeleton wx:if="{{loading}}" rows="{{[{h:100},{h:160},{h:120}]}}"></skeleton>
     <error-retry wx:elif="{{error}}" message="{{error}}" bind:retry="onRetry"></error-retry>
     <block wx:else>
@@ -17,7 +17,7 @@
         <view class="rs-row">
           <view class="grow">
             <view class="fs22 w6">主检人 · {{order.workerName || '—'}}</view>
-            <view class="fs20 dim mt2">{{order.workerSignatureAt || '未签字'}}</view>
+            <view class="fs20 {{workerSigned ? 'ok' : 'dim'}} mt2">{{workerSignText}}</view>
           </view>
           <image wx:if="{{order.workerSignatureUrl}}" class="rs-sig" src="{{order.workerSignatureUrl}}" mode="aspectFit"></image>
           <status-tag text="{{workerSigned ? '已签' : '未签'}}" tone="{{workerSigned ? 'ok' : 'dim'}}"></status-tag>
@@ -25,7 +25,7 @@
         <view wx:if="{{isDual}}" class="rs-row">
           <view class="grow">
             <view class="fs22 w6">配合人 · {{order.assistantName || '—'}}</view>
-            <view class="fs20 dim mt2">{{order.assistantSignatureAt || '未签字'}}</view>
+            <view class="fs20 {{assistantSigned ? 'ok' : 'dim'}} mt2">{{assistantSignText}}</view>
           </view>
           <image wx:if="{{order.assistantSignatureUrl}}" class="rs-sig" src="{{order.assistantSignatureUrl}}" mode="aspectFit"></image>
           <status-tag text="{{assistantSigned ? '已签' : '未签'}}" tone="{{assistantSigned ? 'ok' : 'dim'}}"></status-tag>
@@ -38,9 +38,10 @@
         <view class="kv"><span>记录单版本号</span><b class="mono">{{order.recordInfo.version || 'v1'}}</b></view>
         <view wx:if="{{order.recordInfo.hash}}" class="kv"><span>SHA-256 前 8 位</span><b class="mono">{{order.recordInfo.hash}}</b></view>
       </view>
-
-      <button class="btn btn-primary" bindtap="goSign"><text class="i i-signature"></text> 本机签字</button>
-      <button class="btn btn-ghost" bindtap="goRecord">查看记录单</button>
     </block>
+  </view>
+  <view class="page-footer" wx:if="{{!loading && !error}}">
+    <button class="btn btn-ghost rs-foot-ghost" bindtap="goRecord">查看记录单</button>
+    <button class="btn btn-primary rs-foot-main" disabled="{{primaryDisabled}}" bindtap="onPrimary"><text class="i i-signature"></text> {{primaryText}}</button>
   </view>
 </view>

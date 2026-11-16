@@ -3,7 +3,7 @@ const { getElevatorProfile, updateElevatorLocal } = require('../../../services/e
 const { definePage } = require('../../../utils/guard')
 const { ROUTES } = require('../../../config/routes')
 const nav = require('../../../utils/nav')
-const { TOAST_TEXT } = require('../../../constants/index')
+const { TOAST_TEXT, ELEVATOR_TEXT } = require('../../../constants/index')
 
 const LOCAL_FIELDS = {
   projectName: { label: '项目名称（小区名称）', placeholder: '请输入小区名称', required: true },
@@ -20,7 +20,7 @@ const LOCAL_FIELDS = {
 }
 
 definePage(ROUTES['/pages/elevator/detail/index'], {
-  data: { id: '', profile: null, loading: true, error: '', localFields: [] },
+  data: { id: '', profile: null, overview: null, loading: true, error: '', localFields: [], text: ELEVATOR_TEXT },
   onLoad(query) {
     this.setData({ id: (query && query.id) || '' })
     this.fetchProfile()
@@ -33,7 +33,7 @@ definePage(ROUTES['/pages/elevator/detail/index'], {
         const localFields = Object.keys(LOCAL_FIELDS).map((k) => ({
           key: k, label: LOCAL_FIELDS[k].label, value: String(local[k] || '')
         }))
-        this.setData({ profile, localFields, loading: false })
+        this.setData({ profile, overview: (profile && profile.overview) || null, localFields, loading: false })
       })
       .catch((e) => this.setData({ loading: false, error: (e && e.message) || TOAST_TEXT.LOAD_FAILED }))
   },

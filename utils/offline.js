@@ -123,10 +123,6 @@ async function flushQueue() {
   return { success, fail: failed.length }
 }
 
-function clearQueue() {
-  wx.removeStorageSync(QUEUE_KEY)
-}
-
 module.exports = {
   QUEUE_KEY,
   cacheOrderSnapshot,
@@ -135,6 +131,5 @@ module.exports = {
   clearOrderCache,
   enqueue,
   getQueue,
-  flushQueue,
-  clearQueue
+  flushQueue
 }

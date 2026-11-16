@@ -1,13 +1,24 @@
+/* 登录页（屏 00 · 原型 V1.4 对齐）：品牌=博威无纸化（圆形徽标/公司名/程序名不变，D4/D5）；
+   账号口令唯一表单不变（AGENTS §3.9）；补原型 hero 副标题/井道插画/统计条/ACCESS BY ROLE。 */
 page{background:var(--ink);color:var(--text)}
-.lg-page{padding:24rpx 40rpx 32rpx;display:flex;flex-direction:column}
-.lg-hero{position:relative;min-height:340rpx;padding-top:4rpx}
-.lg-shaft{position:absolute;right:-28rpx;top:28rpx;width:248rpx;height:488rpx;opacity:.5;pointer-events:none;border:1rpx solid rgba(255,176,32,.18);display:flex;flex-direction:column;justify-content:space-around}
-.lg-shaft-line{height:1rpx;background:rgba(255,176,32,.13)}
+.lg-page{padding:24rpx 40rpx 32rpx;display:flex;flex-direction:column;min-height:calc(100vh - 120rpx);box-sizing:border-box}
+.lg-hero{position:relative;min-height:524rpx;padding-top:4rpx}
+.lg-shaft{position:absolute;right:-28rpx;top:28rpx;width:248rpx;height:488rpx;opacity:.85;pointer-events:none;border:1rpx solid rgba(255,176,32,.18);box-sizing:border-box}
+.lg-shaft-lines{position:absolute;left:0;right:0;top:0;bottom:0;background-image:repeating-linear-gradient(to bottom,transparent 0 78rpx,rgba(255,176,32,.13) 78rpx 80rpx)}
+.lg-floor{position:absolute;left:14rpx;font-family:'SFMono-Regular',Consolas,monospace;font-size:18rpx;color:rgba(255,176,32,.32)}
+.lg-rail{position:absolute;right:40rpx;top:20rpx;bottom:20rpx;width:0;border-left:1rpx dashed rgba(255,176,32,.22)}
+.lg-cable{position:absolute;left:118rpx;top:20rpx;width:0;height:140rpx;border-left:1rpx solid rgba(255,176,32,.4)}
+.lg-car{position:absolute;left:76rpx;top:160rpx;width:80rpx;height:68rpx;border:1rpx solid rgba(255,176,32,.55);box-sizing:border-box}
+.lg-car::after{content:'';position:absolute;left:6rpx;top:6rpx;right:6rpx;bottom:6rpx;border:1rpx solid rgba(255,176,32,.22)}
+.lg-dot{position:absolute;left:114rpx;top:156rpx;width:8rpx;height:8rpx;border-radius:50%;background:rgba(255,176,32,.75)}
+.lg-up{position:absolute;right:20rpx;top:24rpx;color:rgba(255,176,32,.4);font-size:26rpx;line-height:1}
+.lg-down{position:absolute;right:20rpx;bottom:24rpx;color:rgba(255,176,32,.4);font-size:26rpx;line-height:1}
 .lg-brandrow{margin-top:32rpx;position:relative;z-index:1}
-.lg-mark{width:88rpx;height:88rpx;flex:none}
+.lg-mark{width:92rpx;height:92rpx;flex:none}
 .lg-title{font-size:62rpx;line-height:1.14;letter-spacing:.02em;margin-top:44rpx;position:relative;z-index:1}
 .lg-title-line{display:block}
-.lg-hazard{height:8rpx;border-radius:2rpx;background:repeating-linear-gradient(45deg,var(--amber) 0 18rpx,var(--ink) 18rpx 36rpx);opacity:.72;margin:24rpx 0}
+.lg-sub{font-size:20rpx;color:var(--muted);line-height:1.75;max-width:400rpx;margin-top:18rpx;position:relative;z-index:1}
+.lg-hazard{height:8rpx;border-radius:2rpx;background:repeating-linear-gradient(45deg,var(--amber) 0 18rpx,var(--ink) 18rpx 36rpx);opacity:.72;margin:0 0 24rpx}
 .lg-card{position:relative;border:1rpx solid #2C3B42;border-radius:8rpx;padding:26rpx;background:linear-gradient(160deg,#162127,#0E171C);overflow:hidden;box-shadow:0 40rpx 80rpx -56rpx #000}
 .lg-card::before{content:'';position:absolute;left:0;top:0;right:0;height:6rpx;background:repeating-linear-gradient(90deg,var(--amber) 0 24rpx,var(--ink) 24rpx 48rpx);opacity:.85}
 .lg-input{background:#0D1519;border:1rpx solid #3A4A51;border-radius:6rpx;padding:20rpx 22rpx;font-size:26rpx;color:var(--text)}
@@ -26,4 +37,10 @@ page{background:var(--ink);color:var(--text)}
 .lg-points{display:grid;grid-template-columns:repeat(3,1fr);gap:12rpx;margin-top:22rpx}
 .lg-points view{display:flex;align-items:center;gap:8rpx;font-size:20rpx;color:var(--dim);white-space:nowrap}
 .lg-points .i{color:var(--amber);font-size:18rpx}
-.lg-foot{font-size:20rpx;color:var(--dim);text-align:center;line-height:1.7;margin-top:32rpx;padding-top:24rpx;border-top:1rpx dashed var(--line-2)}
+.lg-stats{margin-top:20rpx}
+.lg-roles{margin-top:auto;padding-top:22rpx;border-top:1rpx dashed var(--line-2)}
+.lg-role-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12rpx}
+.lg-role-mini{border:1rpx solid #243138;background:rgba(255,255,255,.02);border-radius:4rpx;padding:14rpx 8rpx;text-align:center;font-size:20rpx;color:#B9C7CC;white-space:nowrap}
+.lg-role-mini .i{display:block;color:var(--amber);font-size:22rpx;margin-bottom:8rpx}
+.lg-role-note{line-height:1.6;margin-top:16rpx}
+.lg-foot{font-size:20rpx;color:var(--dim);text-align:center;line-height:1.7;margin-top:20rpx}

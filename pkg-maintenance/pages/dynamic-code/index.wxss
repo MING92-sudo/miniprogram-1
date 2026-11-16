@@ -1,6 +1,0 @@
-page{background:var(--ink);color:var(--text)}
-.dc-mode{flex:1;text-align:center;border:1rpx solid #34454D;border-radius:8rpx;padding:18rpx 8rpx;font-size:22rpx;color:#DCE6E9}
-.dc-mode.on{background:var(--amber);color:#1A1203;border-color:var(--amber);font-weight:700}
-.dc-display{font-size:72rpx;font-weight:700;letter-spacing:16rpx;color:var(--amber);text-align:center;padding:24rpx 0}
-.dc-input{background:#0D1519;border:1rpx solid #3A4A51;border-radius:6rpx;padding:20rpx;font-size:36rpx;letter-spacing:12rpx;color:var(--text);text-align:center}
-.dc-ph{color:var(--dim);letter-spacing:0}

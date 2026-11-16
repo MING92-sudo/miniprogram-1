@@ -21,6 +21,7 @@ const {
   LOADING_TEXT
 } = require('../../../constants/index')
 const { ensureLogin } = require('../../../utils/guard')
+const { hasAnyRole } = require('../../../utils/auth')
 
 // 接管查验项中文名（itemType → 中文，后端只回码值）
 const ITEM_LABELS = {}
@@ -63,9 +64,8 @@ definePage(ROUTES['/pkg-handover/pages/filing-detail/index'], {
   onLoad(query) {
     if (!ensureLogin()) return
     const id = (query && query.id) || ''
-    const role = (getApp().globalData && getApp().globalData.role) || ''
-    // 无 filing:read 的岗位（如安装员/维保商务）不发起详情请求，直接给只读提示，避免点开即报错
-    if (FILING_READ_ROLES.indexOf(role) < 0) {
+    // 无 filing:view 的岗位（如安装员）不发起详情请求，直接给只读提示，避免点开即报错（多角色并集判定）
+    if (!hasAnyRole(FILING_READ_ROLES)) {
       this.setData({ id: id, loading: false, forbidden: true })
       return
     }
@@ -93,8 +93,7 @@ definePage(ROUTES['/pkg-handover/pages/filing-detail/index'], {
   },
 
   apply(f) {
-    const role = (getApp().globalData && getApp().globalData.role) || ''
-    const canWrite = FILING_WRITE_ROLES.indexOf(role) > -1
+    const canWrite = hasAnyRole(FILING_WRITE_ROLES)
     const status = f.status
     const submitted = f.docs || []
     const cache = this._fileIds || {}

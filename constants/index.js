@@ -17,14 +17,7 @@ const ROLE = {
   MAINT_QUALITY: 'MAINT_QUALITY' // 维保质量负责人
 }
 
-// 工单状态
-const ORDER_STATUS = {
-  PENDING: 'PENDING',
-  PROCESSING: 'PROCESSING',
-  DONE: 'DONE'
-}
-
-// 工单状态文案
+// 工单状态文案（ORDER_STATUS 枚举死导出已删，2026-11-16 审查清理；状态码见 docs/04）
 const STATUS_TEXT = {
   PENDING: '待执行',
   PROCESSING: '进行中',
@@ -37,10 +30,6 @@ const CHECK_RESULT_TEXT = {
   ABNORMAL: '异常',
   NA: '不适用'
 }
-
-// 检查项判定方式（docs/04 A.4.2 judgeType）
-// NUMERIC 读数型 / STANDARD 标准型 / MANUFACTURER 按本机说明书判定 / QUALITATIVE 定性判定
-const JUDGE_TYPES = ['NUMERIC', 'STANDARD', 'MANUFACTURER', 'QUALITATIVE']
 
 // 严重事故隐患码（需求文档 §6.2 / 平台 V1.5 规范 3.2；规范原文 S3 重复且缺 S4，
 // 已按连续编码勘误实现，待平台确认 docs/06 #9）
@@ -62,18 +51,6 @@ const WORK_TYPE_CODES = {
   TM: '季度维保',
   SM: '半年维保',
   OY: '年度维保'
-}
-
-// 记录上报状态（技术架构文档 §5.2 状态机；CONFIRMED 为本地终态，不上报平台）
-const REPORT_STATUS_TEXT = {
-  DRAFT: '草稿',
-  SUBMITTED: '已提交待上报',
-  REPORTING: '上报中',
-  REPORTED: '平台上报成功',
-  RETRY_WAIT: '等待重试',
-  FAILED_MAX: '待人工处理',
-  FAILED: '上报失败',
-  CONFIRMED: '已确认（本地归档）'
 }
 
 // 业务规则：签到—签退最小作业时长（分钟），前端与后端双重校验。
@@ -129,6 +106,7 @@ const LOADING_TEXT = '加载中...'
 const HANDOVER_STATUS = {
   INIT: 'INIT',
   DOC_SUBMITTING: 'DOC_SUBMITTING',
+  PENDING_INST_REVIEW: 'PENDING_INST_REVIEW', // C-13 安装部内部审核（后端 HandoverService）
   INSPECTING: 'INSPECTING',
   RECTIFYING: 'RECTIFYING',
   PENDING_CONFIRM: 'PENDING_CONFIRM',
@@ -138,20 +116,12 @@ const HANDOVER_STATUS = {
 const HANDOVER_STATUS_TEXT = {
   INIT: '待发起',
   DOC_SUBMITTING: '资料移交中',
+  PENDING_INST_REVIEW: '内部审核中',
   INSPECTING: '现场查验',
   RECTIFYING: '整改复验中',
   PENDING_CONFIRM: '待确认归档',
   ARCHIVED: '已归档'
 }
-
-// 流程节点（详情页进度条；RECTIFYING 是 INSPECTING 的分支，落位在第 3 格）
-const HANDOVER_STEPS = [
-  { key: 'DOC_SUBMITTING', label: '资料移交' },
-  { key: 'INSPECTING', label: '现场查验' },
-  { key: 'RECTIFYING', label: '整改复验' },
-  { key: 'PENDING_CONFIRM', label: '待确认' },
-  { key: 'ARCHIVED', label: '已归档' }
-]
 
 // 3 必传资料（缺一后端 422，HandoverService.submitDocs）
 const HANDOVER_DOCS = [
@@ -159,6 +129,24 @@ const HANDOVER_DOCS = [
   { field: 'maintenanceManualFileId', label: '维保说明书' },
   { field: 'qualityCertificateFileId', label: '整机质量证明' }
 ]
+
+// 移交查验 13 项类标签（docs/15 附录 A 分组，G01—G13；详情/查验页共用）
+const HANDOVER_FLOW = ['发起并上传', '内部审核', '维保验收', '双方签字']
+const HANDOVER_CREATE_TEXT = {
+  TITLE: '发起移交',
+  PROJECT: '项目信息',
+  ELEVATOR: '电梯信息（归档即建电梯档案）',
+  SUBMIT: '申请容缺受理 · 提交审核',
+  DRAFT: '存草稿',
+  TIP: '发起后进入「资料移交中」，需在详情页上传 3 类必传资料',
+  PREVIEW_SUB: '安装部移交维保部'
+}
+const HANDOVER_GROUP_LABEL = {
+  G01: '机器空间和滑轮间', G02: '井道', G03: '机器设置在不同位置的要求', G04: '轿厢',
+  G05: '悬挂装置和补偿装置', G06: '层门和层站', G07: '电气装置', G08: '紧急报警装置',
+  G09: '电梯运行控制', G10: '电梯数据信息输出', G11: '消防员电梯的附加要求', G12: '防爆电梯的附加要求',
+  G13: '验收试验项目与试验要求'
+}
 
 // 现场查验 6 类（顺序固定，HandoverService.ITEM_TYPES）；rectify=true 的项任一 FAIL 强制进整改
 const HANDOVER_CHECK_ITEMS = [
@@ -188,7 +176,8 @@ const HANDOVER_WRITE_ROLES = [
   ROLE.INSTALL_WORKER,
   ROLE.MAINT_MANAGER,
   ROLE.ADMIN,
-  ROLE.SYS_ADMIN
+  ROLE.SYS_ADMIN,
+  'INST_PM', 'INST_CLERK', 'INST_MGR', 'INSTALLER', 'MAINT_MGR', 'PLATFORM_ADMIN'
 ]
 
 // 移交页提示与校验文案（AGENTS §4.1：页面不硬编码文案）
@@ -250,12 +239,6 @@ const FILING_DOC_TYPES = [
 ]
 
 // 接管查验不合格项责任归属（ExternalFilingService.RESPONSIBILITIES）
-const TAKEOVER_RESPONSIBILITY = {
-  PREV_MAINT: 'PREV_MAINT',
-  USE_UNIT: 'USE_UNIT',
-  OURS_AFTER_TAKEOVER: 'OURS_AFTER_TAKEOVER'
-}
-
 const TAKEOVER_RESPONSIBILITY_TEXT = {
   PREV_MAINT: '原维保单位',
   USE_UNIT: '使用单位',
@@ -269,17 +252,22 @@ const TAKEOVER_CHECK_ITEMS = HANDOVER_CHECK_ITEMS.map(function (i) {
   return { itemType: i.itemType, label: i.label }
 })
 
-// 可推进外接建档单的岗位（docs/14 §6 filing:write）
+// 可推进外接建档单的岗位（PermissionMatrix filing:write=PA/MM/MS/MB，SA 全权限；2026-11-15 裁决写归维保部）
 const FILING_WRITE_ROLES = [
-  ROLE.INSTALL_MANAGER,
-  ROLE.INSTALL_CLERK,
   ROLE.MAINT_MANAGER,
+  ROLE.LEADER,
   ROLE.ADMIN,
-  ROLE.SYS_ADMIN
+  ROLE.SYS_ADMIN,
+  'MAINT_MGR', 'MAINT_SUP', 'MAINT_BIZ', 'PLATFORM_ADMIN'
 ]
 
-// 可读外接建档单的岗位（docs/14 §6 filing:read：写岗位 + 质量负责人抽查）
-const FILING_READ_ROLES = FILING_WRITE_ROLES.concat([ROLE.MAINT_QUALITY])
+// 可读外接建档单的岗位（filing:view：写岗位 Y + MQ/IM/IP/IC 条件读；安装员无读权）
+const FILING_READ_ROLES = FILING_WRITE_ROLES.concat([
+  ROLE.MAINT_QUALITY,
+  ROLE.INSTALL_MANAGER,
+  ROLE.INSTALL_CLERK,
+  'MAINT_QUALITY', 'INST_MGR', 'INST_PM', 'INST_CLERK'
+])
 
 // 外接建档页提示与校验文案
 const FILING_TEXT = {
@@ -298,49 +286,12 @@ const FILING_TEXT = {
   CONFIRM_TITLE: '提交交接确认',
   CONFIRM_CONTENT: '确认后本单归档：自动建电梯档案（来源=外接建档）并预建 3 日后的首保工单，且不可撤销。是否继续？',
   DOC_TIP: '缺件可标「缺件待补办」，不阻断进入接管查验；补齐后请重新提交资料',
-  READONLY_TIP: '当前岗位对外接建档单只读；发起/推进请用安装部或维保经理账号',
+  READONLY_TIP: '当前岗位对外接建档单只读；发起/推进请用维保部管理岗位（经理/班组长/商务）或平台管理员账号',
   DETAIL_GAP_TIP: '查验明细与交接确认单在本页按最近一次提交展示；完整归档记录请在管理端「外接建档」查阅'
 }
 
-// 使用单位门户（W3，docs/04 A.11）：门户令牌与员工令牌分开存，见 services/unit.js
-const UNIT_PORTAL_TEXT = {
-  LOGIN_TITLE: '使用单位登录',
-  ACCOUNT_REQUIRED: '请输入账号',
-  PASSWORD_REQUIRED: '请输入密码',
-  LOGIN_SUCCESS: '登录成功',
-  LOGIN_TIP: '账号由维保单位开通并线下交付，口令丢失请联系维保单位重置',
-  NOT_LOGGED_IN: '请先使用使用单位账号登录',
-  INVITE_REQUIRED: '请输入邀请码',
-  BIND_TITLE: '绑定微信（可选）',
-  BIND_TIP: '绑定后可在微信内免口令进入门户；邀请码由维保单位提供',
-  BIND_SUCCESS: '微信已绑定',
-  LOGOUT_CONFIRM_TITLE: '退出门户',
-  LOGOUT_CONFIRM_CONTENT: '退出后需重新输入账号口令登录。是否继续？',
-  ELEVATOR_REQUIRED: '请选择电梯',
-  DESC_REQUIRED: '请填写故障描述',
-  REPORT_SUCCESS: '报修已提交',
-  REPORT_TIP: '报修提交后由维保单位派单处理，可在此查看进度',
-  SIGN_HINT: '记录签字由维保单位发起的分享链接完成，本门户只提供查看',
-  EMPTY_ELEVATOR: '本单位暂未登记电梯',
-  EMPTY_RECORD: '暂无维保记录',
-  EMPTY_FAULT: '暂无急修记录',
-  READONLY_TIP: '门户只读：仅可查看本单位电梯、维保记录与急修单，并发起报修'
-}
-
-// 报修故障等级（与员工端 /faults 的 faultType 口径一致）
-const UNIT_FAULT_TYPES = ['一般故障', '困人（紧急）']
-
-// 急修单状态（docs/04 A.7：OPEN/CLOSED）
-const UNIT_FAULT_STATUS_TEXT = {
-  OPEN: '处理中',
-  CLOSED: '已闭环'
-}
-
-// 维保记录确认状态（MaintainRecord.confirmStatus）
-const UNIT_CONFIRM_STATUS_TEXT = {
-  CONFIRMED: '已确认',
-  PENDING: '待确认'
-}
+// UNIT_PORTAL_TEXT/UNIT_FAULT_TYPES/UNIT_FAULT_STATUS_TEXT/UNIT_CONFIRM_STATUS_TEXT 已删
+// （2026-11-16 审查清理：V41 门户登录链废除后零引用；状态文案见 docs/04 A.7/A.11）
 
 // 维保日历（Task 11 GET /maintenance-calendar）：窗口月数可切 1/3/6
 const CALENDAR_WINDOWS = [
@@ -357,15 +308,201 @@ const CALENDAR_TEXT = {
   SCOPE_TIP: '可见范围：本人名下电梯；班组/区域扩大随管理端权限收敛'
 }
 
+
+// 品牌标识（程序名/公司名/徽标口径不变，D4/D5；页面与 nav-bar 统一引用，禁止散落硬编码）
+const BRAND = {
+  APP_NAME: '博威无纸化',
+  APP_SUB: '电梯无纸化维保系统',
+  COMPANY: '重庆博威电梯公司',
+  VERSION_BADGE: 'V1.4 / 2026',
+  LOGIN_FOOT: '该小程序为重庆博威电梯公司内部相关人员登录使用 · 账号由所属单位管理员开通 · 首次使用请联系项目负责人'
+}
+// ── 原型 V1.4 界面文案（屏 00/02/05/06/08/09/11/20/24 等）：页面一律经 data.text 绑定，禁止 WXML 硬编码 ──
+const LOGIN_TEXT = {
+  EYEBROW: 'ELEVATOR MAINTENANCE OS',
+  BRAND_SUB: '电梯无纸化维保系统',
+  TITLE_1: '让每一台电梯',
+  TITLE_2: '都有据可查',
+  SUBTITLE: '安装移交、半月保点检、急修报修与使用单位签字，全部在手机上闭环。',
+  CARD_TITLE: '登录工作台',
+  CARD_TAG: '统一入口',
+  ACCOUNT: '账号',
+  ACCOUNT_PH: '手机号 / 单位分配的账号',
+  PASSWORD: '密码',
+  PASSWORD_PH: '请输入密码',
+  SHOW: '显示',
+  HIDE: '隐藏',
+  REMEMBER: '记住账号',
+  FORGOT: '忘记密码',
+  SUBMIT: '登录工作台',
+  SUBMITTING: '登录中…',
+  WECHAT: '微信一键登录',
+  AGREE_PRE: '已阅读并同意',
+  AGREE_MID: '与',
+  POINTS: ['电子签名固化', '弱网自动续传', '作业全程留痕'],
+  STATS: [
+    { n: '24/7', label: '应急响应', tone: 'amber' },
+    { n: '15天', label: '半月保周期', tone: '' },
+    { n: '100%', label: '签字留痕', tone: 'ok' }
+  ],
+  ROLES_TITLE: 'ACCESS BY ROLE',
+  ROLES_SUB: '一个入口 · 三种工作台',
+  ROLE_CARDS: [
+    { icon: 'screwdriver-wrench', label: '维保部' },
+    { icon: 'helmet-safety', label: '安装部' },
+    { icon: 'building', label: '使用单位' }
+  ],
+  ROLE_NOTE: '登录后由账号权限自动进入对应工作台，无需选择角色。',
+  FLOORS: ['12F', '09F', '06F', '03F', '01F']
+}
+const RECORD_TEXT = {
+  KICKER: '电梯维护保养记录',
+  TITLE: '电梯维护保养记录单',
+  USE_UNIT: '使用单位',
+  DEVICE_CODE: '设备代码',
+  MAINT_UNIT: '维保单位',
+  MAINT_DATE: '维保日期',
+  WORKER: '维保人',
+  PROBLEM: '隐患码',
+  STAT_TOTAL: '应检项',
+  STAT_OK: '合格',
+  STAT_FIXED: '异常已整改',
+  STAT_LEFT: '遗留项',
+  ABNORMAL: '异常说明',
+  CONCLUSION: '维保结论',
+  CONCLUSION_OK: '合格 · 可正常运行',
+  SIGN_MAIN: '主检人签字',
+  SIGN_ASSIST: '配合人签字',
+  SIGN_CLIENT: '使用单位签字确认',
+  SIGN_PENDING: '待签署',
+  VERIFY: 'VERIFY / 版本与哈希',
+  VERIFY_MATCH: '与签署页一致',
+  VER_VERSION: '记录单版本号',
+  VER_HASH: 'SHA-256 前 8 位',
+  VER_TIME: '版本生成时刻',
+  VERIFY_NOTE: '双签完成即冻结 v1 并生成校验值；使用单位签署页（屏 11）展示同一组「版本号 + 哈希前 8 位」供签署前核对。签署后再生成整单 PDF 哈希并同步监管平台。',
+  CONCLUSION_ABNORMAL: '存在异常项 · 详见异常说明',
+  SIGNED: '已签字',
+  UNSIGNED: '未签字',
+  SIGN_SELF: '本机签字',
+  VIEW_RECORD: '查看记录单',
+  ROLE_MAIN: '主检人',
+  ROLE_ASSIST: '配合人',
+  ROLE_NONE: '当前账号不在本工单签字名单'
+}
+const ORDER_TEXT = {
+  TITLE: '急修处置',
+  RESCUE_DONE: '救援完成 · 已闭环',
+  TRAPPED_UNIT: '人',
+  CONFIRMED_SHORT: '使用单位已确认',
+  RESPONSE: 'RESPONSE',
+  TL_REPORT: '接警',
+  TL_ARRIVE: '到场',
+  TL_RESCUE: '救出',
+  TL_DONE: '完工',
+  FAULT: 'FAULT / 故障信息',
+  FAULT_PHEN: '故障现象',
+  FAULT_TRAPPED: '困人情况',
+  FAULT_SOURCE: '报修来源',
+  REPAIR: 'REPAIR / 处置记录',
+  PARTS: '更换配件',
+  STOCK: '库存扣减',
+  CONFIRMED: '使用单位已确认 · 工单已闭环',
+  SIGN_CLIENT: '使用单位签字',
+  SIGNED: '已签署',
+  SIGN_NOTE: '电子签名固化',
+  SIGN_GPS: '签署后写入时间戳与 GPS',
+  GRAB: '抢单',
+  CANCEL: '取消急修单',
+  ARRIVE: '到场签到',
+  SUBMIT: '提交处置',
+  CONFIRM: '确认闭环'
+}
+const ELEVATOR_TEXT = {
+  TITLE: '电梯档案',
+  IN_SERVICE: '在保',
+  USE_UNIT: 'USE UNIT',
+  CONTRACT: 'MAINT. CONTRACT',
+  NEXT_SERVICE: 'NEXT SERVICE',
+  INSPECTION: 'INSPECTION',
+  SERVICE_LOG: 'SERVICE LOG / 维保记录',
+  ALL: '全部',
+  STAT_FAULT: '近 30 天故障',
+  STAT_RESPONSE: '平均响应',
+  STAT_INSPECT: '距年检 / 天',
+  CONTACT: 'CONTACT / 联系与合同',
+  C_UNIT: '使用单位联系人',
+  C_MAIN: '维保负责人',
+  C_ASSIST: '配合人电话',
+  C_ADDR: '设备地址',
+  C_CONTRACT: '合同编号',
+  QR: '设备二维码',
+  LIST_TITLE: '电梯',
+  SEARCH_PH: '搜索名称 / 编号 / 项目',
+  COUNT_PRE: '在管电梯',
+  COUNT_UNIT: '台',
+  NORMAL: '正常',
+  NEXT_LABEL: '下次维保',
+  QR_TITLE: 'QR / 设备码',
+  QR_SUB: '扫码进入档案 / 开工',
+  QR_NOTE: '维保人员到场扫码开工，自动关联本次维保记录。',
+  LIST_NOTE: '点电梯行进入「电梯档案」；使用单位仅见本单位电梯（ORG_FLAT 单级，不含下级）。',
+  LOCAL: '本地维护（点按可现场更正）',
+  PLATFORM: '平台登记（监管平台同步）'
+}
+const PROFILE_TEXT = {
+  TITLE: '我的',
+  ROLES: 'ROLES / 我的角色',
+  ROLES_SUB: '一人可多角色 · 登录不选',
+  CURRENT: '当前',
+  DUAL: '兼任',
+  WORKBENCH: 'WORKBENCH / 切换工作台',
+  WORKBENCH_SUB: '仅展示有权限的端',
+  NO_PERM: '无权限',
+  NOTE: '账号不选角色、后台定角色：登录后进入默认工作台，可在本页切换。兼任签字人角色后方可代签，签名独立留痕。',
+  MASK: '字段脱敏说明',
+  MASK_CONTENT: '手机号、openid、平台密钥等敏感字段按权限脱敏展示：列表与详情默认掩码，完整值仅授权岗位经审计后调阅；签名与哈希固化留痕。',
+  MESSAGE: '消息中心',
+  OFFLINE: '离线队列',
+  PASSWORD: '修改密码',
+  WECHAT: '微信绑定',
+  WECHAT_BOUND: '（已绑定）',
+  ABOUT: '关于博威无纸化',
+  LOGOUT: '退出登录',
+  MASKED_PHONE: '（脱敏 · 屏 16）',
+  ADMIN: '管理入口（按权限渲染）'
+}
+const ROLE_DESC = {
+  MAINT_TECH: '本班组 · 点检 / 签到 / 签退 / 双签',
+  MAINT_SUP: '本班组 · 派单 / 计划 / 复核 / 归档',
+  MAINT_MGR: '维保部 · 台账 / 合同 / 统计 / 审核',
+  MAINT_QUALITY: '维保部 · 质量抽查 / 记录复核',
+  MAINT_BIZ: '维保部 · 合同 / 项目商务',
+  INST_PM: '安装部项目 · 发起移交 / 整改',
+  INST_CLERK: '安装部 · 资料上传 / 移交单据',
+  INST_MGR: '安装部 · 容缺受理 / 内部审核',
+  INSTALLER: '安装部 · 现场整改 / 自检',
+  CLIENT_ADMIN: 'ORG_FLAT · 本单位台账 / 报修 / 评价',
+  CLIENT_SIGNER: '记录单 / 急修单电子签署',
+  PLATFORM_ADMIN: '全平台 · 组织 / 审计 / 配置',
+  SYS_ADMIN: '全平台 · 系统管理'
+}
+
 module.exports = {
+  HANDOVER_FLOW,
+  HANDOVER_CREATE_TEXT,
+  BRAND,
+  LOGIN_TEXT,
+  RECORD_TEXT,
+  ORDER_TEXT,
+  ELEVATOR_TEXT,
+  PROFILE_TEXT,
+  ROLE_DESC,
   ROLE,
-  ORDER_STATUS,
   STATUS_TEXT,
   CHECK_RESULT_TEXT,
-  JUDGE_TYPES,
   PROBLEM_CODES,
   WORK_TYPE_CODES,
-  REPORT_STATUS_TEXT,
   MIN_WORK_DURATION_MINUTES,
   ERROR_CODES,
   IMAGE_LIMIT,
@@ -374,9 +511,8 @@ module.exports = {
   LOADING_TEXT,
   HANDOVER_STATUS,
   HANDOVER_STATUS_TEXT,
-  HANDOVER_STEPS,
+  HANDOVER_GROUP_LABEL,
   HANDOVER_DOCS,
-  HANDOVER_CHECK_ITEMS,
   HANDOVER_RESULTS,
   HANDOVER_RESULT_TEXT,
   ELEVATOR_CATEGORIES,
@@ -386,17 +522,13 @@ module.exports = {
   FILING_STATUS_TEXT,
   FILING_STEPS,
   FILING_DOC_TYPES,
-  TAKEOVER_RESPONSIBILITY,
   TAKEOVER_RESPONSIBILITY_TEXT,
   TAKEOVER_RESPONSIBILITY_OPTIONS,
   TAKEOVER_CHECK_ITEMS,
   FILING_WRITE_ROLES,
   FILING_READ_ROLES,
   FILING_TEXT,
-  UNIT_PORTAL_TEXT,
-  UNIT_FAULT_TYPES,
-  UNIT_FAULT_STATUS_TEXT,
-  UNIT_CONFIRM_STATUS_TEXT,
   CALENDAR_WINDOWS,
   CALENDAR_TEXT
 }
+

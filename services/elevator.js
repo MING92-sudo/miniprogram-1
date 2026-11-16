@@ -15,12 +15,9 @@ function getElevatorList() {
   return get('/elevators')
 }
 
-// 维保人员现场更正项目名称（小区名称，docs/04 A.2.1）
-function updateElevatorProjectName(elevatorId, projectName) {
-  return put('/elevators/' + elevatorId + '/project-name', { projectName })
-}
-
-// 维保人员现场维护设备本地信息（品牌/制造单位/地址/载重/速度/日期等，docs/04 A.2.1）
+// 维保人员现场维护设备本地信息（项目名称/品牌/制造单位/地址/载重/速度/日期等，docs/04 A.2.1）
+// 2026-11-16 审查清理：updateElevatorProjectName 已删——projectName 并入 updateLocal（后端同谓词），
+// 旧 PUT /elevators/{id}/project-name 端点契约保留。
 function updateElevatorLocal(elevatorId, fields) {
   return put('/elevators/' + elevatorId + '/local', fields)
 }
@@ -29,6 +26,5 @@ module.exports = {
   getElevatorByCode,
   getElevatorList,
   getElevatorProfile,
-  updateElevatorProjectName,
   updateElevatorLocal
 }

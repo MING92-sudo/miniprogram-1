@@ -82,7 +82,11 @@ public class UnitAccountService {
         return out;
     }
 
-    /** 账号口令登录 → 门户令牌；未开通（无口令哈希）与口令错误统一 401，不区分原因 */
+    /**
+     * 账号口令登录 → 门户令牌；未开通（无口令哈希）与口令错误统一 401，不区分原因。
+     * @deprecated V41 单账号单会话后废弃保留至生产清库（docs/12 G 组）；已迁移账号一律拒绝。
+     */
+    @Deprecated
     public Map<String, Object> login(String account, String password) {
         String acc = account == null ? "" : account.trim();
         UseUnit unit = acc.isEmpty() ? null : useUnitMapper.selectOne(new LambdaQueryWrapper<UseUnit>()
@@ -91,13 +95,23 @@ public class UnitAccountService {
                 || password == null || !encoder.matches(password, unit.passwordHash)) {
             throw new BizException(401, "账号或密码错误");
         }
+        requireNotMigrated(unit);
         return sessionOf(unit);
+    }
+
+    /** V41 账号统一（2026-11-16 审查）：account_migrated=1 不得再经废弃门户链签发 ut=1 令牌（裁决 R4 口径落地） */
+    private static void requireNotMigrated(UseUnit unit) {
+        if (unit.accountMigrated != null && unit.accountMigrated == 1) {
+            throw new BizException(422, "该账号已并入统一登录，请使用手机号在登录页登录");
+        }
     }
 
     /**
      * 微信免密登录（已绑定的使用单位）：wx.login code → 服务端换 openid → 反查 use_unit。
      * 未绑定/绑定被重置一律 422，不泄露“哪些单位绑了微信”。
+     * @deprecated V41 废弃保留至生产清库；已迁移账号一律拒绝。
      */
+    @Deprecated
     public Map<String, Object> loginByWechat(String wxCode) {
         if (wxCode == null || wxCode.isBlank()) {
             throw new BizException(422, "缺少微信登录凭证，请重试");
@@ -108,6 +122,7 @@ public class UnitAccountService {
         if (unit == null) {
             throw new BizException(422, "该微信尚未绑定使用单位，请先用邀请码绑定或使用账号口令登录");
         }
+        requireNotMigrated(unit);
         return sessionOf(unit);
     }
 

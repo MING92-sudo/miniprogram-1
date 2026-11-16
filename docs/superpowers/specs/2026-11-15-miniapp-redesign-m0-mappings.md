@@ -91,12 +91,12 @@
 | pkg-maintenance/pages/orders/index | pages/order/list | M3 |
 | pkg-maintenance/pages/task/index | pages/order/detail + pages/order/checklist + pages/order/item-form | M3 |
 | pkg-maintenance/pages/checkin/index | pages/order/checkin | M3 |
-| pkg-maintenance/pages/dynamic-code/index | pages/order/dynamic-code | M3 |
+| | pages/order/dynamic-code（独立页 2026-11-16 审查删：动态码已内联 checkin） | M3 |
 | pkg-maintenance/pages/checkout/index | pages/order/checkout | M3 |
 | pkg-maintenance/pages/record-detail/index | pages/order/detail + pages/order/record-preview | M3 |
 | pkg-maintenance/pages/plan/index | pages/calendar/index | M3 |
 | pkg-maintenance/pages/record-sign/index | 新建（包装 pages/common/signature） | M3 |
-| pkg-maintenance/pages/record-archive/index | 新建 | M3 |
+| | （record-archive 2026-11-16 审查删：归档/哈希已内联 record-detail） | M3 |
 | pkg-client/pages/todo/index | pages/unit/records | M5 |
 | pkg-client/pages/sign/index | pages/unit/sign | M5 |
 | pkg-client/pages/orders/index | pages/unit/faults | M5 |
@@ -156,7 +156,7 @@
 | record:refuse | ② | sign/index 拒绝签署 | CLIENT_SIGNER |
 | record:archive | ③ | 状态机已签署→已归档自动 | 系统/MAINT_SUP |
 | record:amend | ① | 管理端归档后修订 | MAINT_MGR→平台双人 |
-| record:export | 路由 | pkg-maintenance/pages/record-archive/index | MAINT_SUP/经理/平台；CLIENT_ADMIN△ |
+| record:export | 路由 | pkg-maintenance/pages/record-detail/index（归档内联；独立 record-archive 页 2026-11-16 删）+ 管理端 | MAINT_SUP/经理/平台；CLIENT_ADMIN△ |
 | order:create | 路由 | pages/order/report/index | CLIENT_ADMIN · CLIENT_SIGNER |
 | order:create_proxy | ① | 管理端代报修（V38 已有端点） | MAINT_SUP |
 | order:view_pool | 路由 | pages/order/list/index + detail/index | 维保侧 |
@@ -177,7 +177,7 @@
 | client:report | ② | client/home/index 一键报修（同 order:create 表单） | CLIENT_ADMIN · CLIENT_SIGNER |
 | client:sign | 路由 | pkg-client/pages/sign/index | CLIENT_SIGNER |
 | client:evaluate | 路由 | pkg-client/pages/evaluate/index | CLIENT_ADMIN · CLIENT_SIGNER |
-| client:download | ② | sign/index + record-archive/index 下载本单位单据 | CLIENT_ADMIN · CLIENT_SIGNER |
+| client:download | ② | sign/index + record-detail/index 下载本单位单据 | CLIENT_ADMIN · CLIENT_SIGNER |
 | user:view | 路由 | pkg-admin/pages/users/index | 按范围；手机号脱敏 |
 | user:create | ① | 管理端账号管理开通 | 各单位管理员限本单位 |
 | user:disable | ① | 管理端停用/离职转交 | 同 user:create |

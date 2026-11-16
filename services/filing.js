@@ -13,6 +13,7 @@ function getFilingDetail(id) {
 }
 
 // 外接建档单列表（GET /filings?status=&page=&size= → {list,total}）
+// 契约保留、小程序暂无入口：列表在管理端「外接建档」视图
 function getFilingList(params) {
   return get('/filings', params)
 }

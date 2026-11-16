@@ -9,3 +9,32 @@
 .bw .step-title,.bw .section-title,.bw .head-title{color:var(--text)}
 .bw .info-row{color:var(--text);border-bottom:1rpx dashed rgba(38,52,59,.7)}
 .bw .info-row text:first-child{color:var(--dim)}
+/* 迁移页表单与列表深色补全（.bw 作用域）：旧 em 与 field 系列浅色类在深色卡面上的可读性覆盖，
+   字段标签、分隔线、选择器、状态标签统一走深色令牌，避免深底深字不可读（屏 09、24 等迁移页）。 */
+.bw .field{border-bottom:1rpx solid var(--line)}
+.bw .field-label{color:var(--muted)}
+.bw .field-input{color:var(--text)}
+.bw .field-picker{color:var(--text)}
+.bw .field-arrow{color:var(--dim)}
+.bw .field-unit{color:var(--muted)}
+.bw .req{color:var(--signal-soft)}
+.bw .input-placeholder{color:var(--dim)}
+.bw .doc-row{border-bottom:1rpx solid var(--line)}
+.bw .doc-label{color:var(--text)}
+.bw .doc-action{background:rgba(255,176,32,.1);color:var(--amber-soft);border:1rpx solid rgba(255,176,32,.3)}
+.bw .doc-state.is-ok{color:var(--ok-soft)}
+.bw .doc-state.is-todo{color:var(--dim)}
+.bw .picker-row{background:#0D1519;border:1rpx solid #3A4A51;color:var(--text)}
+.bw .em-btn-ghost{background:transparent;border:1rpx solid #34454D;color:#DCE6E9}
+.bw .issue-tip{background:rgba(255,75,43,.08);color:var(--signal-soft);border:1rpx solid rgba(255,75,43,.3)}
+.bw .doc-tip{color:var(--dim)}
+.bw .tag-DOC_SUBMITTING,.bw .tag-PENDING_INST_REVIEW{color:var(--amber-soft);background:rgba(255,176,32,.1);border:1rpx solid rgba(255,176,32,.35)}
+.bw .tag-INSPECTING{color:var(--amber-soft);background:rgba(255,176,32,.1);border:1rpx solid rgba(255,176,32,.35)}
+.bw .tag-RECTIFYING{color:var(--signal-soft);background:rgba(255,75,43,.1);border:1rpx solid rgba(255,75,43,.4)}
+.bw .tag-PENDING_CONFIRM{color:var(--ok-soft);background:rgba(47,196,141,.1);border:1rpx solid rgba(47,196,141,.35)}
+.bw .tag-ARCHIVED{color:var(--ok-soft);background:rgba(47,196,141,.1);border:1rpx solid rgba(47,196,141,.35)}
+.bw .step-dot{background:#0F181D;border:1rpx solid var(--line-2);color:var(--dim)}
+.bw .step-done .step-dot{background:rgba(47,196,141,.14);border-color:rgba(47,196,141,.5);color:var(--ok-soft)}
+.bw .step-current .step-dot{background:var(--amber);border-color:var(--amber);color:#1A1203}
+.bw .step-label{color:var(--dim)}
+.bw .step-current .step-label{color:var(--amber-soft)}

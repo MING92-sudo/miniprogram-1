@@ -13,6 +13,7 @@ const {
   LOADING_TEXT
 } = require('../../../constants/index')
 const { ensureLogin } = require('../../../utils/guard')
+const { hasAnyRole } = require('../../../utils/auth')
 
 definePage(ROUTES['/pkg-handover/pages/filing-confirm/index'], {
   data: {
@@ -38,7 +39,7 @@ definePage(ROUTES['/pkg-handover/pages/filing-confirm/index'], {
     this.setData({
       id: id,
       confirmerName: user.name || '',
-      confirmRoleOk: FILING_WRITE_ROLES.indexOf(role) > -1
+      confirmRoleOk: hasAnyRole(FILING_WRITE_ROLES)
     })
     if (!id) {
       this.setData({ loading: false, locked: true })

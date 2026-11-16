@@ -17,7 +17,9 @@ const ICONS = {
   settings: 'i-gear',
   qrcode: 'i-qrcode',
   bolt: 'i-bolt',
-  wrench: 'i-screwdriver-wrench'
+  wrench: 'i-screwdriver-wrench',
+  bullhorn: 'i-bullhorn',
+  'calendar-check-r': 'i-calendar-check-r'
 }
 
 module.exports = { ICONS }

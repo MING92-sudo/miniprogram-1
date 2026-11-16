@@ -44,5 +44,6 @@ definePage(ROUTES['/pages/maint/home/index'], {
   },
   onSosTap() { if (this.data.sos) nav.open('/pages/order/detail/index?id=' + this.data.sos.id) },
   onAllTasks() { nav.open('/pkg-maintenance/pages/orders/index') },
+  onKpiTap(e) { const item = e.detail.item; if (item && item.path) nav.open(item.path) },
   onQaAction(e) { nav.open(e.detail.item.path) }
 })

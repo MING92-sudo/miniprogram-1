@@ -1,5 +1,1 @@
-{
-  "usingComponents": {
-    "nav-bar": "/components/nav-bar/index"
-  }
-}
+{"usingComponents":{"nav-bar":"/components/nav-bar/index","skeleton":"/components/skeleton/index","error-retry":"/components/error-retry/index"}}

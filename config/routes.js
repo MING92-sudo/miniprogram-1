@@ -45,16 +45,14 @@ const LIST = [
   R('/pkg-handover/pages/filing-detail/index', '外接建档详情', { roles: MAINT_FILING.concat(INST), perm: 'filing:view', batch: 'M4' }),
   R('/pkg-handover/pages/filing-inspect/index', '外接接管查验', { roles: MAINT_FILING, perm: 'filing:write', batch: 'M4' }),
   R('/pkg-handover/pages/filing-confirm/index', '外接建档确认', { roles: MAINT_FILING, perm: 'filing:write', batch: 'M4' }),
-  // ── pkg-maintenance 9（蓝图 5 + 合规扩展 4） ──
+  // ── pkg-maintenance 7（2026-11-16 审查清理：dynamic-code 已内联 checkin、record-archive 已内联 record-detail，删不可达页） ──
   R('/pkg-maintenance/pages/orders/index', '我的维保工单', { roles: MAINT_EXT, batch: 'M3' }),
   R('/pkg-maintenance/pages/task/index', '作业执行', { roles: ['MAINT_TECH'], perm: 'task:accept', batch: 'M3' }),
   R('/pkg-maintenance/pages/checkin/index', '签到', { roles: ['MAINT_TECH'], batch: 'M3' }),
-  R('/pkg-maintenance/pages/dynamic-code/index', '双人动态码', { roles: ['MAINT_TECH'], batch: 'M3' }),
   R('/pkg-maintenance/pages/checkout/index', '签退', { roles: ['MAINT_TECH'], batch: 'M3' }),
   R('/pkg-maintenance/pages/record-detail/index', '记录单详情', { roles: MAINT_EXT.concat(CLIENT), perm: 'record:view', batch: 'M3' }),
   R('/pkg-maintenance/pages/plan/index', '维保计划', { roles: ['MAINT_SUP', 'MAINT_MGR'], perm: 'plan:view', batch: 'M3' }),
   R('/pkg-maintenance/pages/record-sign/index', '维保双人签字', { roles: ['MAINT_TECH'], perm: 'record:sign_tech', batch: 'M3' }),
-  R('/pkg-maintenance/pages/record-archive/index', '归档与导出', { roles: ['MAINT_SUP', 'MAINT_MGR', 'CLIENT_ADMIN', 'PLATFORM_ADMIN'], perm: 'record:export', batch: 'M3' }),
   // ── pkg-client 4 ──
   R('/pkg-client/pages/todo/index', '待办签字', { roles: CLIENT, perm: ['record:sign', 'order:confirm'], tab: true, batch: 'M5' }),
   R('/pkg-client/pages/sign/index', '签署确认', { roles: ['CLIENT_SIGNER'], perm: 'client:sign', batch: 'M5' }),
@@ -81,25 +79,10 @@ LIST.forEach((m) => { if (m.batch === 'M5') m.built = true })
 // M6 已建：管理统计域 7 页（全部 49 路由建成）
 LIST.forEach((m) => { if (m.batch === 'M6') m.built = true })
 
-// 过渡期旧 40 页（M0 §4 旧列；各域迁移完即删，M6 清空）
-const OLD_PAGES = [
-  'pages/home/index', 'pages/order/list', 'pages/message/index', 'pages/mine/index',
-  'pages/order/detail', 'pages/order/checkin', 'pages/order/dynamic-code', 'pages/order/checklist',
-  'pages/order/item-form', 'pages/order/checkout', 'pages/order/record-preview',
-  'pages/common/watermark-camera', 'pages/common/signature',
-  'pages/fault/report', 'pages/fault/detail', 'pages/fault/list',
-  'pages/elevator/list', 'pages/elevator/detail',
-  'pages/handover/list', 'pages/handover/init', 'pages/handover/detail',
-  'pages/handover/inspect', 'pages/handover/rectify', 'pages/handover/confirm',
-  'pages/filing/init', 'pages/filing/detail', 'pages/filing/inspect', 'pages/filing/confirm',
-  'pages/calendar/index', 'pages/mine/offline',
-  'pages/unit/sign', 'pages/unit/home', 'pages/unit/mine/index', 'pages/unit/elevators',
-  'pages/unit/records', 'pages/unit/faults', 'pages/unit/report',
-  'pages/login/index', 'pages/login/agreement', 'pages/mine/password'
-]
+// OLD_PAGES 过渡表已删（2026-11-16 审查清理：M6 旧页全删后零消费者）
 
 function metaOf(path) {
   return ROUTES[path] || null
 }
 
-module.exports = { ROUTES, OLD_PAGES, metaOf }
+module.exports = { ROUTES, metaOf }

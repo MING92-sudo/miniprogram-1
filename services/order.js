@@ -27,6 +27,7 @@ function issueDynamicCode(orderId) {
 }
 
 // 双人作业动态码校验（配合人员到场确认；不消费码，消费发生在配合人员签到时）
+// 契约保留：独立动态码页已删（2026-11-16），校验/消费内联在 checkin 链路，端点保留
 function verifyDynamicCode(orderId, data) {
   return post(`/work-orders/${orderId}/dynamic-code/verify`, data)
 }
@@ -58,12 +59,14 @@ function checkout(orderId, data) {
 }
 
 // 手动重报平台 2.6（仅 uploadStatus=FAILED 的记录，docs/04 A.7 P3 修订）
+// 契约保留、小程序暂无入口：逐条人工重报入口在管理端（AGENTS §2.4 禁止自动重试）
 function retryRecordUpload(recordId) {
   // 注意：此处不用稳定幂等键——重报必须真实重发，重放旧响应会吞掉重试
   return post(`/platform/records/${recordId}/reupload`, {})
 }
 
 // M1 记录生命周期（docs/04 V2.53）：配合退回/主管复核/发起使用单位签字/归档投影
+// signatureRefuse/reviewRecord 契约保留、小程序暂无入口：复核在管理端（record:review）
 function signatureRefuse(orderId) {
   return post(`/work-orders/${orderId}/signature-refuse`, {})
 }

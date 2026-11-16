@@ -14,4 +14,5 @@ page{background:var(--ink);color:var(--text)}
 .ci-photo-wrap{display:flex;align-items:center;gap:16rpx}
 .ci-photo{width:200rpx;height:150rpx;border-radius:6rpx;border:1rpx solid #35454D}
 .ci-photo-empty{display:flex;align-items:center;justify-content:center;gap:12rpx;border:1rpx dashed #40535C;border-radius:8rpx;padding:48rpx;color:var(--dim);font-size:22rpx}
-.ci-photo-empty .i{font-size:32rpx;color:var(--amber)}
+.ci-photo-empty .i{font-size:32rpx;color:var(--amber)}.page-pad{padding-bottom:calc(160rpx + env(safe-area-inset-bottom,0px))}
+.co-f-main{flex:1}

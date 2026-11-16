@@ -152,3 +152,45 @@ page{
 .bw .thumb-ts{position:absolute;left:6rpx;bottom:4rpx;font-size:18rpx;color:rgba(255,255,255,.8);z-index:1}
 .bw .photo-row{display:flex;gap:12rpx}
 .bw .photo-row .thumb{width:auto;flex:1;height:84rpx}
+/* ---------- 原型共享部件（屏 02/03/05/06/08/09/11/24 复用，避免各页重复定义） ---------- */
+.bw .sec-head{display:flex;justify-content:space-between;align-items:center;padding:2rpx 2rpx 0}
+.bw .panel-title{font-size:20rpx;letter-spacing:.16em;color:var(--dim)}
+.bw .hero-grid{display:grid;grid-template-columns:1fr 1fr;gap:16rpx 24rpx;border-top:1rpx dashed #2A383F;padding-top:18rpx}
+.bw .hg-label{display:block;font-family:'SFMono-Regular',Consolas,monospace;font-size:18rpx;letter-spacing:.12em;color:var(--dim)}
+.bw .hg-val{display:block;font-size:20rpx;font-weight:500;color:#D4E0E4;margin-top:4rpx}
+.bw .stepper{display:flex;align-items:flex-start;padding:4rpx 8rpx 0}
+.bw .step{display:flex;flex-direction:column;align-items:center;gap:8rpx;font-size:20rpx;color:var(--dim);flex:none;width:116rpx}
+.bw .step .dot{width:42rpx;height:42rpx;border-radius:50%;border:1rpx solid var(--line-2);display:flex;align-items:center;justify-content:center;font-size:20rpx;background:#0F181D;font-family:'SFMono-Regular',Consolas,monospace}
+.bw .step .dot .i{font-size:18rpx}
+.bw .step.done .dot{background:rgba(47,196,141,.14);border-color:rgba(47,196,141,.5);color:var(--ok-soft)}
+.bw .step.active .dot{background:var(--amber);border-color:var(--amber);color:#1A1203;font-weight:700}
+.bw .step.active{color:#E9EEF0}
+.bw .step-line{flex:1;height:1rpx;background:var(--line);margin:20rpx 2rpx 0}
+.bw .step-line.done{background:rgba(47,196,141,.45)}
+.bw .doc-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10rpx}
+.bw .doc{display:flex;align-items:center;gap:12rpx;font-size:20rpx;padding:12rpx 14rpx;border-radius:4rpx;background:rgba(255,255,255,.025);border:1rpx solid #243138;color:#C9D5D9}
+.bw .doc .i{font-size:20rpx;color:var(--ok);flex:none}
+.bw .doc.bad{border-color:rgba(255,75,43,.32);background:rgba(255,75,43,.06);color:#FFB3A6}
+.bw .doc.bad .i{color:var(--signal-soft)}
+.bw .gate-note{font-size:20rpx;line-height:1.55;color:var(--dim)}
+.bw .gate-note .i{color:var(--amber);margin-right:6rpx}
+.bw .check{display:flex;align-items:center;gap:16rpx;padding:14rpx 18rpx;border:1rpx solid #243138;border-radius:4rpx;background:rgba(255,255,255,.02)}
+.bw .check.bad{border-color:rgba(255,75,43,.32);background:rgba(255,75,43,.05)}
+.bw .keys{display:flex;flex-wrap:wrap;gap:10rpx}
+.bw .key{font-size:20rpx;padding:8rpx 14rpx;border:1rpx solid var(--line-2);border-radius:4rpx;color:#B9C7CC;background:rgba(255,255,255,.02)}
+.bw .key .i{color:var(--amber);margin-right:6rpx;font-size:18rpx}
+.bw .spec-grid{display:grid;grid-template-columns:1fr 1fr;gap:16rpx}
+.bw .spec{background:#111A1F;border:1rpx solid #243138;border-radius:6rpx;padding:14rpx 18rpx}
+.bw .spec .hg-label{margin-bottom:6rpx}
+.bw .spec .hg-val{font-size:24rpx;font-weight:600;margin-top:0}
+.bw .tl{display:flex;flex-direction:column}
+.bw .tl-item{position:relative;display:flex;gap:16rpx;padding:0 0 24rpx 0}
+.bw .tl-item::before{content:'';position:absolute;left:9rpx;top:24rpx;bottom:0;width:1rpx;background:var(--line)}
+.bw .tl-item:last-child::before{display:none}
+.bw .tl-dot{width:20rpx;height:20rpx;border-radius:50%;background:var(--ok);flex:none;margin-top:6rpx;box-shadow:0 0 0 4rpx rgba(47,196,141,.12)}
+.bw .tl-dot.amber{background:var(--amber);box-shadow:0 0 0 4rpx rgba(255,176,32,.12)}
+.bw .tl-dot.signal{background:var(--signal);box-shadow:0 0 0 4rpx rgba(255,75,43,.12)}
+.bw .tl-dot.dim{background:var(--dim);box-shadow:0 0 0 4rpx rgba(126,146,155,.12)}
+.bw .page-footer{position:fixed;left:0;right:0;bottom:0;display:flex;align-items:center;gap:18rpx;padding:20rpx 28rpx calc(28rpx + env(safe-area-inset-bottom,0px));border-top:1rpx solid var(--line);background:rgba(9,15,18,.94);box-shadow:0 -24rpx 48rpx -36rpx #000;z-index:20}
+.bw .kv-row{display:flex;justify-content:space-between;gap:24rpx;font-size:20rpx;padding:10rpx 0;border-bottom:1rpx dashed rgba(38,52,59,.7)}
+.bw .kv-row:last-child{border-bottom:none}

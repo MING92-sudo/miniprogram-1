@@ -12,6 +12,7 @@ const {
   LOADING_TEXT
 } = require('../../../constants/index')
 const { ensureLogin } = require('../../../utils/guard')
+const { hasAnyRole } = require('../../../utils/auth')
 
 // 确认归档岗位（HandoverService.NODE_ROLES：MAINTENANCE_CONFIRM + 维保经理）
 const CONFIRM_ROLES = [ROLE.MAINT_MANAGER, ROLE.LEADER, ROLE.ADMIN, ROLE.SYS_ADMIN]

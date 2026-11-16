@@ -1,5 +1,5 @@
 // 整改回复（M4，C-12 1:1 逐条）：不合格项按 itemNo 1:1 映射（不可增删），安装部逐条上传整改，维保逐条复验（全 PASS 才回待确认）。
-const { getHandoverRectifications, rectifyHandoverItem, recheckHandoverItem } = require('../../../services/handover')
+const { getHandoverRectifications, rectifyHandoverItem, recheckHandoverItem, getHandoverDetail } = require('../../../services/handover')
 const { uploadImage } = require('../../../services/upload')
 const { getUserInfo } = require('../../../utils/auth')
 const { definePage } = require('../../../utils/guard')
@@ -7,12 +7,13 @@ const { ROUTES } = require('../../../config/routes')
 const nav = require('../../../utils/nav')
 
 definePage(ROUTES['/pkg-handover/pages/rectify/index'], {
-  data: { id: '', rects: [], loading: true, error: '', submitting: false },
+  data: { id: '', handover: null, rects: [], loading: true, error: '', submitting: false },
   onLoad(query) { this.setData({ id: (query && query.id) || '' }); this.load() },
   onShow() { if (this.data.id) this.load() },
   onBack() { nav.back() },
   load() {
     this.setData({ loading: true, error: '' })
+    getHandoverDetail(this.data.id).then((h) => this.setData({ handover: h })).catch(() => {})
     getHandoverRectifications(this.data.id).then((list) => {
       const rects = (list || []).map((r, idx) => Object.assign({}, r, { idx, rectMeasure: r.rectMeasure || '', photos: [], afterPhotoFileId: r.afterPhotoFileId || '' }))
       this.setData({ rects, loading: false })

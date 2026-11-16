@@ -28,6 +28,7 @@ function assignHandoverReceiver(id, data) {
 }
 
 // 提交现场查验（6 类，安全装置/制动器任一 FAIL → 后端转 RECTIFYING）
+// 契约保留：C-12 后新建单走 74 项 checklist submit，旧 6 类端点后端保留兼容
 function submitHandoverInspect(id, data) {
   return post('/handovers/' + id + '/inspect', data)
 }
@@ -99,6 +100,7 @@ function recheckHandoverItem(id, rectId, data) {
 }
 
 // ☆项置 NA 的维保部经理审批（写 handover_sign 节点 NA_APPROVE）
+// 契约保留、小程序暂无入口：NA 审批/ PDF 导出/一梯一档在管理端移交视图
 function approveHandoverNa(id, data) {
   return post('/handovers/' + id + '/na-approve', data)
 }

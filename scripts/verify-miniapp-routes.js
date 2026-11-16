@@ -34,8 +34,8 @@ section4().split('\n').forEach((line) => {
   }
 })
 
-// 1 routes-meta：app.json 每页 ∈ ROUTES ∪ OLD_PAGES
-check('routes-meta', appPages.filter((p) => !routes.ROUTES['/' + p] && !routes.OLD_PAGES.includes(p)), appPages.length)
+// 1 routes-meta：app.json 每页 ∈ ROUTES（OLD_PAGES 过渡表已删，2026-11-16 审查清理）
+check('routes-meta', appPages.filter((p) => !routes.ROUTES['/' + p]), appPages.length)
 // 2 routes-coverage：49 新路由 ⊆ ROUTES
 check('routes-coverage', [...newCol].filter((p) => !routes.ROUTES['/' + p]), newCol.size)
 // 3 routes-built：built:true ⊆ app.json；app.json 新页 ⊆ built
@@ -118,17 +118,8 @@ const tabPaths = []
 Object.keys(menus.ROLE_TABS).forEach((r) => menus.ROLE_TABS[r].forEach((t) => tabPaths.push(t.path.split('?')[0])))
 check('tabs-paths', [...new Set(tabPaths)].filter((p) => !routes.ROUTES[p]), new Set(tabPaths).size)
 
-// 7 nav-transition：未建 tab 目标 ∈ TRANSITION_MAP 或 fallback
-let navMissing = []
-const navPath = path.join(ROOT, 'utils/nav.js')
-if (!fs.existsSync(navPath)) {
-  navMissing = ['utils/nav.js 未建']
-} else {
-  const nav = require('../utils/nav')
-  const map = nav.TRANSITION_MAP || {}
-  const unbuiltTabTargets = [...new Set(tabPaths)].filter((p) => routes.ROUTES[p] && !routes.ROUTES[p].built)
-  navMissing = unbuiltTabTargets.filter((p) => !map[p] && nav.FALLBACK !== '/pages/profile/index')
-}
+// 7 nav-transition：M6 后全部 tab 目标必须已建（TRANSITION_MAP 过渡映射已删，2026-11-16 审查清理）
+const navMissing = [...new Set(tabPaths)].filter((p) => routes.ROUTES[p] && !routes.ROUTES[p].built)
 check('nav-transition', navMissing, [...new Set(tabPaths)].length)
 
 // 8 no-switchtab：pages/components/utils（除 nav.js）无 wx.switchTab 调用
