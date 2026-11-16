@@ -16,17 +16,20 @@
       </block>
       <empty-state wx:else mode="empty" title="暂无待签记录单" desc="维保发起签署后会出现在这里。"></empty-state>
 
-      <sec-head title="待确认急修单"></sec-head>
-      <block wx:if="{{faults.length}}">
-        <view wx:for="{{faults}}" wx:key="id" class="card row between" data-id="{{item.id}}" bindtap="goFault" aria-role="button">
-          <view class="grow">
-            <view class="fs22 w6">{{item.elevatorName || item.elevatorCode}} · 急修单</view>
-            <view class="fs20 dim mt2">{{item.desc}} · 待确认</view>
+      <!-- P1 T8-I2：客户急修确认已关闭（入口+能力双重下线），客户主体不渲染本区块 -->
+      <block wx:if="{{showFaults}}">
+        <sec-head title="待确认急修单"></sec-head>
+        <block wx:if="{{faults.length}}">
+          <view wx:for="{{faults}}" wx:key="id" class="card row between" data-id="{{item.id}}" bindtap="goFault" aria-role="button">
+            <view class="grow">
+              <view class="fs22 w6">{{item.elevatorName || item.elevatorCode}} · 急修单</view>
+              <view class="fs20 dim mt2">{{item.desc}} · 待确认</view>
+            </view>
+            <button class="btn btn-ghost btn-xs">去确认</button>
           </view>
-          <button class="btn btn-ghost btn-xs">去确认</button>
-        </view>
+        </block>
+        <empty-state wx:else mode="empty" title="暂无待确认急修单" desc="急修提交后会出现在这里。"></empty-state>
       </block>
-      <empty-state wx:else mode="empty" title="暂无待确认急修单" desc="急修提交后会出现在这里。"></empty-state>
     </block>
   </view>
   <custom-tabbar></custom-tabbar>
