@@ -9,8 +9,9 @@ const EXPECT = {
   '13800000014': { home: '/pages/install/home/index', tabs: ['install-home', 'handover-list', 'handover-docs', 'profile'] },
   '13800000099': { home: '/pages/install/home/index', tabs: ['install-home', 'handover-list', 'handover-review', 'stats', 'profile'] },
   '13800000017': { home: '/pages/install/home/index', tabs: ['install-home', 'handover-list', 'handover-docs', 'profile'] },
-  '13800000003': { home: '/pages/client/home/index', tabs: ['client-home', 'client-todo', 'client-elevators', 'profile'] },
-  '13800000018': { home: '/pages/client/home/index', tabs: ['client-home', 'client-todo', 'client-elevators', 'profile'] },
+  // P1 T6：客户快捷动作收敛为 elevators+todo，报修/急修进度下线（tabs 不变）
+  '13800000003': { home: '/pages/client/home/index', tabs: ['client-home', 'client-todo', 'client-elevators', 'profile'], qa: ['elevators', 'todo'], noqa: ['report', 'emergency'] },
+  '13800000018': { home: '/pages/client/home/index', tabs: ['client-home', 'client-todo', 'client-elevators', 'profile'], qa: ['elevators', 'todo'], noqa: ['report', 'emergency'] },
   '13800000009': { home: '/pkg-admin/pages/users/index', tabs: ['admin-org', 'stats', 'admin-audit', 'admin-settings', 'profile'] },
   '13800000010': { home: '/pkg-admin/pages/users/index', tabs: ['admin-org', 'stats', 'admin-audit', 'admin-settings', 'profile'] }
 }
@@ -31,7 +32,8 @@ const SHOTS = ['13800000010', '13800000009', '13800000017', '13800000003', '1380
     const e = EXPECT[account]
     const okHome = g.home === e.home
     const okTabs = JSON.stringify(g.tabs) === JSON.stringify(e.tabs)
-    const okQa = (!e.qa || g.qa.includes(e.qa)) && (!e.noqa || !g.qa.includes(e.noqa))
+    // qa/noqa 支持字符串或数组（P1 T6 客户账号双键断言）：qa 全含 + noqa 全不含
+    const okQa = [].concat(e.qa || []).every(k => g.qa.includes(k)) && ![].concat(e.noqa || []).some(k => g.qa.includes(k))
     const ok = okHome && okTabs && okQa
     if (!ok) fail++
     console.log((ok ? 'PASS ' : 'FAIL ') + account + ' ' + JSON.stringify(g))

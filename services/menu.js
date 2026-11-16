@@ -4,12 +4,12 @@ const { get } = require('../utils/request')
 const menus = require('../config/menus')
 const { getRoles, getPerms } = require('../utils/auth')
 
-// 后端 BUTTON_CODES 镜像（MiniappMenuService.java:49-54），兜底 actions 投影用
+// 后端 BUTTON_CODES 镜像（MiniappMenuService.java），兜底 actions 投影用；P1 T6 删 client:evaluate（评价入口下线）
 const BUTTON_CODES = [
   'order:grab', 'order:arrive', 'order:submit', 'order:confirm', 'order:cancel',
   'record:sign_tech', 'record:sign_request', 'record:review', 'record:export',
   'handover:create', 'handover:inspect', 'handover:rectify', 'handover:review',
-  'client:sign', 'client:evaluate', 'project:edit', 'elevator:export',
+  'client:sign', 'project:edit', 'elevator:export',
   'checklist:fill', 'task:accept'
 ]
 

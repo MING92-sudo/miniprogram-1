@@ -50,11 +50,12 @@ public class MiniappMenuService {
             "MAINT_BIZ", "MAINT_SUP",
             "INSTALLER", "INST_CLERK");
 
+    // P1 T6：client:evaluate 移除（评价入口下线，T2 矩阵对客户 DENY）；client:sign 保留
     private static final List<String> BUTTON_CODES = List.of(
             "order:grab", "order:arrive", "order:submit", "order:confirm", "order:cancel",
             "record:sign_tech", "record:sign_request", "record:review", "record:export",
             "handover:create", "handover:inspect", "handover:rectify", "handover:review",
-            "client:sign", "client:evaluate", "project:edit", "elevator:export",
+            "client:sign", "project:edit", "elevator:export",
             "checklist:fill", "task:accept");
 
     private static final Map<String, List<Map<String, Object>>> ROLE_TABS = buildTabs();
@@ -173,9 +174,9 @@ public class MiniappMenuService {
             return list;
         }
         if (ws.startsWith("CLIENT")) {
+            // P1 T6（docs/14 §5.5/§10.3）：客户工作台收敛——下线一键报修/急修进度入口
+            // （client:report/evaluate 矩阵默认 DENY，重开由后续裁决），仅下发我的电梯+待办签字
             return List.of(
-                    qa("report", "一键报修", "bullhorn", "/pages/order/report/index"),
-                    qa("emergency", "急修进度", "bolt", "/pkg-client/pages/orders/index"),
                     qa("elevators", "我的电梯", "elevator", "/pages/elevator/list/index"),
                     qa("todo", "待办签字", "file-signature", "/pkg-client/pages/todo/index"));
         }

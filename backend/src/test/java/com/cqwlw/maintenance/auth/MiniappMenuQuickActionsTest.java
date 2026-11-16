@@ -11,6 +11,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -45,6 +46,26 @@ class MiniappMenuQuickActionsTest {
         assertTrue(paths.stream().noneMatch(p -> p.startsWith("/pkg-maintenance/")),
                 "CLIENT 快捷动作不得指向维保子包（守卫必 403）");
         assertTrue(paths.contains("/pkg-client/pages/todo/index"), "CLIENT 待办签字入口保留");
+    }
+
+    /** P1 T6：客户工作台收敛——quickActions 删 report/emergency（保留 elevators/todo）；actions 不下发 client:evaluate/client:report */
+    @Test
+    @SuppressWarnings("unchecked")
+    void clientQuickActionsExcludeReportAndEvaluate() {
+        for (String role : List.of("CLIENT_ADMIN", "CLIENT_SIGNER")) {
+            Map<String, Object> out = svc().menusOf(Set.of(role), null, null);
+            List<Map<String, Object>> qa = (List<Map<String, Object>>) out.get("quickActions");
+            assertTrue(qa.stream().noneMatch(a -> "report".equals(a.get("key")) || "emergency".equals(a.get("key"))),
+                    role + " 快捷动作下线一键报修/急修进度（T2 矩阵 client:report DENY，docs/14 §10.3）");
+            assertTrue(qa.stream().anyMatch(a -> "todo".equals(a.get("key"))), role + " 待办签字保留");
+            assertTrue(qa.stream().anyMatch(a -> "elevators".equals(a.get("key"))), role + " 我的电梯保留");
+            assertTrue(qa.stream().noneMatch(a -> String.valueOf(a.get("path")).startsWith("/pkg-maintenance/")),
+                    role + " 不得指向维保子包");
+            Map<String, Object> actions = (Map<String, Object>) out.get("actions");
+            assertFalse(actions.containsKey("client:evaluate"), role + " BUTTON_CODES 删 client:evaluate（评价入口下线）");
+            assertFalse(actions.containsKey("client:report"), role + " actions 不下发 client:report");
+            assertEquals(Boolean.TRUE, actions.get("client:sign"), role + " client:sign 保留且为 Y（T2 最小集）");
+        }
     }
 
     @Test

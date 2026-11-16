@@ -223,9 +223,8 @@ const routes = [
       if (has('MAINT_SUP') || has('MAINT_MGR')) quickActions.push({ key: 'plan', text: '维保计划', icon: 'calendar-check-r', path: '/pkg-maintenance/pages/plan/index' })
       if (has('MAINT_SUP') || has('MAINT_MGR') || has('MAINT_BIZ') || has('PLATFORM_ADMIN') || has('SYS_ADMIN')) quickActions.push({ key: 'filing', text: '外接建档', icon: 'folder', path: '/pkg-handover/pages/filing-init/index' })
     } else if (ws && ws.indexOf('CLIENT') === 0) {
+      // P1 T6：与后端同口径——客户工作台下线一键报修/急修进度，仅我的电梯+待办签字（docs/14 §5.5）
       quickActions = [
-        { key: 'report', text: '一键报修', icon: 'bullhorn', path: '/pages/order/report/index' },
-        { key: 'emergency', text: '急修进度', icon: 'bolt', path: '/pkg-client/pages/orders/index' },
         { key: 'elevators', text: '我的电梯', icon: 'elevator', path: '/pages/elevator/list/index' },
         { key: 'todo', text: '待办签字', icon: 'file-signature', path: '/pkg-client/pages/todo/index' }
       ]
