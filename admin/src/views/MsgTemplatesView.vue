@@ -35,7 +35,7 @@
         </template>
       </DataTable>
     </div>
-    <RuleNote class="mt12">变量用 <span class="mono">{{ '{{var}}' }}</span> 占位，发送时由服务端渲染；模板启停写审计（演示）。</RuleNote>
+    <RuleNote class="mt12">变量用 <span class="mono" v-pre>{{var}}</span> 占位，发送时由服务端渲染；模板启停写审计（演示）。</RuleNote>
 
     <Modal :open="!!editing" :title="editing ? (isNew ? '新增消息模板' : '编辑消息模板') : ''"
       :sub="editing && !isNew ? editing.id + ' · ' + editing.scene : '模板名 2–20 字'" icon="message" note="config:manage"

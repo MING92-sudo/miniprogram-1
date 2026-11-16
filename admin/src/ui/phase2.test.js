@@ -3,6 +3,7 @@ import { mount, flushPromises } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import { createRouter, createWebHashHistory } from 'vue-router'
 import { M } from './prototype-mock'
+import { useAuthStore } from '../stores/auth'
 import SyncView from '../views/SyncView.vue'
 import MsgTemplatesView from '../views/MsgTemplatesView.vue'
 import ReviewsView from '../views/ReviewsView.vue'
@@ -33,7 +34,7 @@ describe('prototype-mock 基准集（原型 §9 不变量）', () => {
 })
 
 describe('二期 4 页（原型对齐 · 演示数据）', () => {
-  beforeEach(() => { setActivePinia(createPinia()); router.push('/') })
+  beforeEach(() => { setActivePinia(createPinia()); useAuthStore().role = 'PLATFORM_ADMIN'; router.push('/') })
   it('SyncView renders table + field map + code maps, no bulk retry entry', async () => {
     const w = mountView(SyncView)
     await flushPromises()

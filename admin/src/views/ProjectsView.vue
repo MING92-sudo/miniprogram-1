@@ -20,7 +20,7 @@
         <template #cell-contract="{ value }"><span class="mono f12">{{ value || '—' }}</span></template>
         <template #cell-status="{ value }"><StatusTag :status="value" /></template>
         <template #cell-last="{ value }"><span class="mono f12">{{ value || '—' }}</span></template>
-        <template #row-actions="{ row }">
+        <template #row-actions>
           <PermButton code="elevator:view" label="电梯" variant="ghost" size="xs" icon="elevator" @click="$router.push('/elevators')" />
           <PermButton code="contract:view" label="合同" variant="ghost" size="xs" icon="file-sign" @click="$router.push('/contracts')" />
         </template>
