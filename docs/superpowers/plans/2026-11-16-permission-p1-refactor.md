@@ -14,7 +14,7 @@
 
 - 不改数据库表、不新增 Flyway 迁移（P1 不改表；签字门禁复用 V42 已有 `lifecycle_status/confirm_status/version/prev_version_id` 列）。
 - 不动登录主体二分：仍 `/auth/login` 一入口一 token；不新增 `/client/**` 业务端点、不新增 `select-unit`/`needUnitSelection`（P3）。
-- 内部 11 角色（含旧 5 角色）放行结果逐条不变；冻结面 `RbacMatrixTest`/`AdminRoleInterceptorCompatTest`/`LegacyCapabilityTranslatorTest`/legacy `GRANTS` **禁改**。
+- 内部 11 角色（含旧 5 角色）放行结果逐条不变；冻结面 `RbacMatrixTest`/`AdminRoleInterceptorCompatTest`/`LegacyCapabilityTranslatorTest`/legacy `GRANTS` **禁改**——冻结保护的是 legacy grant 放行结果（`allows/holders`）与旧码×角色矩阵锁；`RbacMatrixTest` 中 `departmentOf(UNIT_ADMIN)` 部门投影断言随 V2.2 改 null（T1 已改 L190，控制器追认 T1-C1），不属冻结放宽。`PermissionMatrixV2Test`/`RoleCatalogV2Test` 非冻结，客户格断言随 P1 更新。
 - 矩阵码总数保持 **86**、规范角色 **13**、旧 `codes()` **12**；SYS_ADMIN 全码 Y 循环保留；fail-closed（未知角色 DENY、未知码抛 IAE、每码≥1 持有者）保留。
 - 不新增能力码（`client:record_view`/`client:refuse` 属 P3/P4）；P1 客户签字/拒签能力判定复用 `client:sign`。
 - 合规红线（AGENTS §2/§3）：客户签字/拒签**不触发平台 2.6 重报、不改签退上报快照**；越权一律 403/1403 且无副作用；不打印 token/手机号/openid/平台密钥；`originalRecordId` 禁自动重试。
