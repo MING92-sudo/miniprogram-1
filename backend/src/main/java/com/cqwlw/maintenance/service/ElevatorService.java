@@ -117,6 +117,30 @@ public class ElevatorService {
                 && (el.assistantPlatformId == null || !ids.contains(el.assistantPlatformId))) {
             throw new BizException(1403, "仅可查看本人负责的电梯");
         }
+        return profileView(el);
+    }
+
+    /**
+     * 客户（使用单位）档案视图（P1 终审 I1，docs/04 A.12.1①「GET /elevators* 含 profile 本单位谓词」）：
+     * 只做本单位校验（锚点缺失/跨单位一律 1403 fail-closed），**不走 worker-scope 班组谓词**——
+     * 客户员工无 platformId，visibleWorkerPlatformIds 恒 Set.of()，旧实现对本单位已派梯恒 1403 与契约矛盾。
+     */
+    public Map<String, Object> profileForUnit(String useUnitId, String elevatorId) {
+        if (useUnitId == null || useUnitId.isBlank()) {
+            throw new BizException(1403, "当前账号无使用单位数据权限");
+        }
+        Elevator el = get(elevatorId);
+        if (el == null) {
+            throw new BizException(1404, "电梯不存在");
+        }
+        if (!useUnitId.equals(el.useUnitId)) {
+            throw new BizException(1403, "无权查看其他使用单位电梯");
+        }
+        return profileView(el);
+    }
+
+    /** 档案投影（员工与客户共用，字段名与前端契约一致；客户可达性由 profileForUnit 本单位谓词把门） */
+    private Map<String, Object> profileView(Elevator el) {
         UseUnit uu = el.useUnitId == null ? null : useUnitMapper.selectById(el.useUnitId);
         Map<String, Object> platform = new LinkedHashMap<>();
         platform.put("syncedAt", TimeUtil.format(el.platformSyncedAt));

@@ -82,8 +82,11 @@ class ElevatorClientScopeTest {
         el.id = "el_1";
         el.useUnitId = "uu_1";
         when(elevatorService.get("el_1")).thenReturn(el);
-        when(elevatorService.profile("el_1", "e1")).thenReturn(Map.of("elevatorId", "el_1"));
+        // P1 终审 I1：客户档案走 profileForUnit 本单位谓词，不走 worker-scope 的 profile(empId)
+        when(elevatorService.profileForUnit("uu_1", "el_1")).thenReturn(Map.of("elevatorId", "el_1"));
         assertEquals("el_1", controller().profile("el_1", request(Set.of("CLIENT_ADMIN"))).getData().get("elevatorId"));
+        verify(elevatorService).profileForUnit("uu_1", "el_1");
+        verify(elevatorService, never()).profile(anyString(), anyString());
     }
 
     @Test

@@ -136,7 +136,11 @@ public class AuthInterceptor implements HandlerInterceptor {
         return "GET".equalsIgnoreCase(method) && (uri.startsWith("/files/") || uri.startsWith("/elevators"));
     }
 
-    /** 多角色规范码集：有 sys_user_role 取其 role_code 规范码；否则回退主角色规范码（2 参兼容）。 */
+    /**
+     * 多角色规范码集（P1 终审 I2）：sys_user_role 行 ∪ 主角色 canonical——与 UserRoleService.canonicalRolesOf
+     * （登录 principalType/perms 同源）同口径。历史混合形态（V41 合并产生主角色=WORKER + 行仅 CLIENT_ADMIN）
+     * 不得丢内部主角色被判全客户锁进白名单。2 参兼容构造器无行查询，仅主角色。
+     */
     private java.util.Set<String> resolveRoles(com.cqwlw.maintenance.entity.Employee user) {
         java.util.Set<String> roles = new java.util.LinkedHashSet<>();
         if (userRoleMapper != null) {
@@ -150,11 +154,9 @@ public class AuthInterceptor implements HandlerInterceptor {
                 }
             }
         }
-        if (roles.isEmpty()) {
-            String c = RoleCatalog.canonical(user.role);
-            if (c != null) {
-                roles.add(c);
-            }
+        String c = RoleCatalog.canonical(user.role);
+        if (c != null) {
+            roles.add(c);
         }
         return roles;
     }

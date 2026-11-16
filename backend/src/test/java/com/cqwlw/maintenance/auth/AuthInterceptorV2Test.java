@@ -205,4 +205,18 @@ class AuthInterceptorV2Test {
                 () -> interceptor.preHandle(request("/users"), response, handler));
         assertEquals(403, ex.getCode());
     }
+
+    /** P1 终审 I2：历史混合形态（主角色=内部 WORKER、行仅 CLIENT_ADMIN，UnitAccountUnifyService V41 合并可产生）——
+     *  生效角色集 = 行 ∪ 主角色 canonical（与 UserRoleService.canonicalRolesOf 同口径）→ {MAINT_TECH, CLIENT_ADMIN}，
+     *  不得判为全客户锁进白名单（isCustomer=false，内部端点放行）；登录 principalType 与拦截器口径一致 */
+    @Test
+    void internalPrimaryWithCustomerRowsTakesEmployeePath() {
+        AuthInterceptor interceptor = interceptorFor("emp_h", "WORKER", "CLIENT_ADMIN");
+        HttpServletRequest req = request("/work-orders");
+        assertTrue(interceptor.preHandle(req, response, handler), "混合角色不得被客户白名单误锁");
+        @SuppressWarnings("unchecked")
+        Set<String> roles = (Set<String>) req.getAttribute(AuthInterceptor.ATTR_ROLES);
+        assertEquals(Set.of("MAINT_TECH", "CLIENT_ADMIN"), roles, "并集口径：行 ∪ 主角色 canonical");
+        assertTrue(interceptor.preHandle(request("/users"), response, handler));
+    }
 }

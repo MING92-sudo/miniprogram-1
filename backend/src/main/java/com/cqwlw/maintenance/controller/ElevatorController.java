@@ -76,9 +76,13 @@ public class ElevatorController {
         return ApiResponse.ok(row);
     }
 
+    /** 档案（docs/04 A.12.1①）：客户走本单位谓词（P1 终审 I1，worker-scope 对客户恒 1403 与契约矛盾）；员工保持班组谓词 */
     @GetMapping("/elevators/{id}/profile")
     public ApiResponse<Map<String, Object>> profile(@PathVariable String id, HttpServletRequest request) {
-        requireUnit(request, id);
+        if (isClient(request)) {
+            requireUnit(request, id);
+            return ApiResponse.ok(elevatorService.profileForUnit(unitAnchor(request), id));
+        }
         return ApiResponse.ok(elevatorService.profile(id, empId(request)));
     }
 
