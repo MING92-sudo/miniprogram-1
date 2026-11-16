@@ -77,10 +77,41 @@ public class UnitPortalService {
     /**
      * 本单位维保记录（按签退时间倒序）。
      * T4-I5（docs/14 §4.6 可见性表）：客户只见 PENDING_CLIENT_SIGNATURE/SIGNED/ARCHIVED/REFUSED_RETURNED
-     * 且为链末端最新版本——PENDING_REVIEW/PENDING_CLIENT_SIGN/NULL（历史）不外显；谓词写进查询条件，
-     * 内存再防御过滤一层（本类既有约定，避免将来改查询漏条件）。
+     * 且为链末端最新版本——PENDING_REVIEW/PENDING_CLIENT_SIGN/NULL（历史）不外显；
+     * 可见集合谓词统一在 visibleRecords()（查询条件 + 内存防御双保险）。
+     * 行投影 recordRow 不含 shareToken（§4.7 白名单；兼容期例外仅 pendingSigns）。
      */
     public List<Map<String, Object>> records(String useUnitId) {
+        List<Map<String, Object>> out = new ArrayList<>();
+        for (MaintainRecord r : visibleRecords(useUnitId)) {
+            out.add(recordRow(r));
+        }
+        return out;
+    }
+
+    /**
+     * 待签字（docs/14 §4.6）：仅唯一可签状态 PENDING_CLIENT_SIGNATURE + confirmStatus=PENDING
+     * （本单位/可见集合/最新版本已由 visibleRecords() 保证）。
+     * P1 兼容期（T7-C2/T8-A1，§4.6 规则 8）：仅此路径行内保留 shareToken——小程序待办「去签字」
+     * 以行内 token 拼签字链接（sign 页只有 token 路径、无会话回退，去掉即断签字链路）；
+     * records 列表与记录详情白名单仍排除（§4.7）。与 mock clientPendingSignRow 口径对齐。
+     */
+    public List<Map<String, Object>> pendingSigns(String useUnitId) {
+        List<Map<String, Object>> out = new ArrayList<>();
+        for (MaintainRecord r : visibleRecords(useUnitId)) {
+            String confirm = r.confirmStatus == null ? "PENDING" : r.confirmStatus;
+            if (!"PENDING_CLIENT_SIGNATURE".equals(r.lifecycleStatus) || !"PENDING".equals(confirm)) {
+                continue;
+            }
+            Map<String, Object> row = recordRow(r);
+            row.put("shareToken", r.shareToken == null ? "" : r.shareToken);
+            out.add(row);
+        }
+        return out;
+    }
+
+    /** 客户可见记录实体集：本单位电梯 + §4.6 可见集合 + 链末端最新版本，签退时间倒序（谓词进查询 + 内存防御双保险） */
+    private List<MaintainRecord> visibleRecords(String useUnitId) {
         Set<String> codes = ownCodes(useUnitId);
         if (codes.isEmpty()) {
             return List.of();
@@ -90,7 +121,7 @@ public class UnitPortalService {
                 .in(MaintainRecord::getLifecycleStatus, CLIENT_VISIBLE_LIFECYCLES)
                 .orderByDesc(MaintainRecord::getCheckoutTime)
                 .last("LIMIT " + LIST_LIMIT));
-        List<Map<String, Object>> out = new ArrayList<>();
+        List<MaintainRecord> out = new ArrayList<>();
         for (MaintainRecord r : list == null ? List.<MaintainRecord>of() : list) {
             if (!codes.contains(r.elevatorCode)) {
                 continue;
@@ -101,17 +132,9 @@ public class UnitPortalService {
             if (!isLatestVersion(r)) {
                 continue; // §4.6 规则 1：历史版本仅内部/审计可见
             }
-            out.add(recordRow(r));
+            out.add(r);
         }
         return out;
-    }
-
-    /** 待签字（docs/14 §4.6）：仅唯一可签状态 PENDING_CLIENT_SIGNATURE + confirmStatus=PENDING（本单位/可见集合/最新版本已由 records() 保证） */
-    public List<Map<String, Object>> pendingSigns(String useUnitId) {
-        return records(useUnitId).stream()
-                .filter(r -> "PENDING_CLIENT_SIGNATURE".equals(r.get("lifecycleStatus"))
-                        && "PENDING".equals(r.get("confirmStatus")))
-                .toList();
     }
 
     /** docs/14 §4.6 规则 1：最新版本 = 不存在 prev_version_id = 本记录 id 的后续版本 */

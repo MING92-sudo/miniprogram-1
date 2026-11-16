@@ -244,9 +244,21 @@ public class UnitRecordService {
         m.put("duration", WorkOrderService.nz(r.duration));
         m.put("itemTotal", items == null ? 0 : items.size());
         m.put("photoCount", photos.size());
+        // P1 T8-A3（与 mock sign-view 契约对齐，sign 页「签署前核对」）：记录版本号 + 归档 SHA-256 前 8 位；
+        // 未归档（签字前常态）hashPrefix 为空串，前端隐藏该行
+        m.put("recordVersion", r.version);
+        m.put("hashPrefix", hashPrefix(r.archiveHash));
         // T4-I3：satisfaction 不再返回（docs/14 §4.7 评价关闭，签字链路不带满意度）
         m.put("signatureUrl", fileStorageService.resolveStoredUrl(r.signatureUrl));
         return m;
+    }
+
+    /** 归档哈希展示前缀（SHA-256 前 8 位，原型屏 11）；空/短值原样收敛为空串或全量 */
+    private static String hashPrefix(String archiveHash) {
+        if (archiveHash == null || archiveHash.isEmpty()) {
+            return "";
+        }
+        return archiveHash.substring(0, Math.min(8, archiveHash.length()));
     }
 
     /**

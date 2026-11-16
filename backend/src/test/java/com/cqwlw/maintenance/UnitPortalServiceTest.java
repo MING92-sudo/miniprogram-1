@@ -159,6 +159,34 @@ class UnitPortalServiceTest {
         assertEquals("ur_sign", out.get(0).get("id"));
     }
 
+    /**
+     * P1 T8-A1（控制器裁决 T7-C2，docs/14 §4.6 规则 8 兼容期）：
+     * 仅 /unit/pending-signs 行保留 shareToken（小程序待办「去签字」以行内 token 拼签字链接，
+     * sign 页只有 token 路径、无会话回退）；/unit/records/list 行一律不含（§4.7 白名单）。
+     * 与 mock clientPendingSignRow/clientRecordRow 口径对齐。
+     */
+    @Test
+    void pendingSignsCarryShareTokenWhileRecordsDoNot() {
+        when(elevatorMapper.selectList(any())).thenReturn(List.of(elevator("el_1", "EM-1", "uu_1", null)));
+        MaintainRecord wait = record("ur_wait", "EM-1");
+        wait.shareToken = "sg-compat-1";
+        MaintainRecord signed = record("ur_signed", "EM-1");
+        signed.lifecycleStatus = "SIGNED";
+        signed.confirmStatus = "CONFIRMED";
+        signed.shareToken = "sg-compat-2";
+        when(recordMapper.selectList(any())).thenReturn(List.of(wait, signed));
+
+        UnitPortalService svc = service();
+        List<Map<String, Object>> pending = svc.pendingSigns("uu_1");
+        assertEquals(1, pending.size());
+        assertEquals("sg-compat-1", pending.get(0).get("shareToken"));
+        List<Map<String, Object>> rows = svc.records("uu_1");
+        assertEquals(2, rows.size());
+        for (Map<String, Object> row : rows) {
+            assertTrue(!row.containsKey("shareToken"), "records 列表行不应下发签字凭证 shareToken");
+        }
+    }
+
     /** 报修：落到急修单并派给该梯责任人（按 workerPlatformId 找员工） */
     @Test
     void reportFaultCreatesAndDispatches() {

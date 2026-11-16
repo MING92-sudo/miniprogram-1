@@ -76,6 +76,8 @@ class UnifiedLoginTest {
         assertEquals("/pages/maint/home/index", data.get("home"));
         assertTrue(data.get("perms") instanceof java.util.List);
         assertTrue(String.valueOf(data.get("scope")).contains("维保"));
+        // P1 T8-A2：员工主体 principalType=EMPLOYEE（与 mock loginPayload 口径一致）
+        assertEquals("EMPLOYEE", data.get("principalType"));
     }
 
     /** M1：CLIENT 账号登录路由使用单位工作台，无 portal 标记 */
@@ -102,6 +104,8 @@ class UnifiedLoginTest {
         assertEquals(null, data.get("portal"));
         assertTrue(((java.util.List<?>) data.get("roles")).containsAll(
                 java.util.List.of("CLIENT_ADMIN", "CLIENT_SIGNER")));
+        // P1 T8-A2：生效角色集全为客户角色 → principalType=CUSTOMER（小程序据此收敛客户入口）
+        assertEquals("CUSTOMER", data.get("principalType"));
     }
 
     /** M1：UserRoleService 并集含别名归一后的旧主角色 */

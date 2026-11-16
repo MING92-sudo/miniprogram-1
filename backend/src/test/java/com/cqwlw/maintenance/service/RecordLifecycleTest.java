@@ -148,6 +148,21 @@ class RecordLifecycleTest {
         assertEquals("PENDING_CLIENT_SIGNATURE", r.lifecycleStatus);
     }
 
+    /**
+     * P1 T8-A4 口径锁定：小程序 record-detail 改传记录 id（此前误传 orderId → 真实后端 1404），
+     * 以记录 id 调 signRequest 可推进 PENDING_CLIENT_SIGN → PENDING_CLIENT_SIGNATURE 并回传真实 shareToken
+     * （客户端待办兼容期凭此拼签字链接，docs/14 §4.6 规则 8）。
+     */
+    @Test
+    void signRequestByRecordIdAdvancesAndReturnsShareToken() {
+        MaintainRecord r = record("PENDING_CLIENT_SIGN");
+        r.workerSignatureUrl = "files/w";
+        r.assistantSignatureUrl = "files/a";
+        Map<String, Object> out = svc.signRequest("r1", Set.of("MAINT_TECH"));
+        assertEquals("PENDING_CLIENT_SIGNATURE", r.lifecycleStatus);
+        assertEquals("sg-token", out.get("shareToken"));
+    }
+
     @Test
     void signatureRefuseOnlyAssistant() {
         WorkOrder o = new WorkOrder();

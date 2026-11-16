@@ -250,6 +250,11 @@ public class AuthController {
         // M1 扩展（规格 §3.2）：多角色并集 + 能力码并集 + 范围投影 + 默认工作台；旧字段保留兼容
         java.util.Set<String> roles = userRoleService.canonicalRolesOf(user.id, user.role);
         out.put("roles", new java.util.ArrayList<>(roles));
+        // P1 T8-A2：主体类型（与 mock loginPayload.principalType 同口径）——生效角色集全为客户角色
+        // → CUSTOMER，否则 EMPLOYEE；小程序据此收敛客户入口（profile 管理入口/守卫判定）
+        out.put("principalType", (RoleCatalog.isCustomerPrincipal(roles)
+                ? RoleCatalog.PrincipalType.CUSTOMER
+                : RoleCatalog.PrincipalType.EMPLOYEE).name());
         // 渲染面 perms=Y∪C（C 级读页可渲染可达，数据范围由 ScopeResolver 谓词强制）；按钮 actions 仍 Y-only
         out.put("perms", PermissionMatrix.canonicalCapabilities().stream()
                 .filter(c -> roles.stream().anyMatch(r -> PermissionMatrix.state(r, c) != PermissionMatrix.TriState.DENY))

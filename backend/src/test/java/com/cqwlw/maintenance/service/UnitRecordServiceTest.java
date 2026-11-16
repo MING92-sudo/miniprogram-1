@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -22,12 +23,14 @@ import static org.mockito.Mockito.when;
 class UnitRecordServiceTest {
 
     private FileStorageService fileStorage;
+    private MaintainRecordMapper recordMapper;
     private UnitRecordService service;
 
     @BeforeEach
     void setUp() {
         fileStorage = mock(FileStorageService.class);
-        service = new UnitRecordService(mock(MaintainRecordMapper.class),
+        recordMapper = mock(MaintainRecordMapper.class);
+        service = new UnitRecordService(recordMapper,
                 mock(WorkOrderService.class), fileStorage,
                 mock(com.cqwlw.maintenance.mapper.ElevatorMapper.class));
     }
@@ -66,6 +69,39 @@ class UnitRecordServiceTest {
         assertTrue(((List<?>) out.get("photos")).isEmpty());
         List<?> items = (List<?>) out.get("items");
         assertTrue(((List<?>) ((Map<?, ?>) items.get(0)).get("photos")).isEmpty());
+    }
+
+    /**
+     * P1 T8-A3：signView 投影 recordVersion/hashPrefix（sign 页「签署前核对」契约字段，
+     * 与 mock sign-view 对齐）；hashPrefix = 归档 SHA-256 前 8 位，未归档为空串；
+     * 白名单不变：不回显 shareToken、不返回 satisfaction（docs/14 §4.7）。
+     */
+    @Test
+    void signViewProjectsRecordVersionAndHashPrefix() {
+        MaintainRecord r = record();
+        r.shareToken = "sg-1";
+        r.version = 2;
+        r.archiveHash = "9f3c7a21b8d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e";
+        when(recordMapper.selectById("ur_1")).thenReturn(r);
+
+        Map<String, Object> out = service.signView("ur_1", "sg-1");
+
+        assertEquals(2, out.get("recordVersion"));
+        assertEquals("9f3c7a21", out.get("hashPrefix"));
+        assertFalse(out.containsKey("shareToken"));
+        assertFalse(out.containsKey("satisfaction"));
+    }
+
+    /** 未归档（archiveHash 为空）→ hashPrefix 空串，不报错 */
+    @Test
+    void signViewHashPrefixEmptyBeforeArchive() {
+        MaintainRecord r = record();
+        r.shareToken = "sg-1";
+        when(recordMapper.selectById("ur_1")).thenReturn(r);
+
+        Map<String, Object> out = service.signView("ur_1", "sg-1");
+
+        assertEquals("", out.get("hashPrefix"));
     }
 
     private static MaintainRecord record() {
