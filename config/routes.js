@@ -37,7 +37,8 @@ const LIST = [
   // ── pkg-handover 12（蓝图 8 + 外接建档 4） ──
   R('/pkg-handover/pages/list/index', '移交单列表', { roles: INST.concat(['MAINT_TECH', 'MAINT_SUP', 'MAINT_MGR', 'INSTALLER']).concat(PLATFORM), perm: 'handover:view', tab: true, batch: 'M4' }),
   R('/pkg-handover/pages/create/index', '发起移交', { roles: ['INST_PM'], perm: 'handover:create', batch: 'M4' }),
-  R('/pkg-handover/pages/detail/index', '移交单详情', { roles: INST.concat(MAINT).concat(['INSTALLER']).concat(PLATFORM).concat(CLIENT), perm: 'handover:view', batch: 'M4' }),
+  // P1 终审 M6：客户去列（T8 漏做）——T2 收回后客户不持 handover:view，roles 含 CLIENT 为死配置
+  R('/pkg-handover/pages/detail/index', '移交单详情', { roles: INST.concat(MAINT).concat(['INSTALLER']).concat(PLATFORM), perm: 'handover:view', batch: 'M4' }),
   R('/pkg-handover/pages/inspect/index', '现场验收', { roles: ['MAINT_TECH', 'INSTALLER'], perm: 'handover:inspect', batch: 'M4' }),
   R('/pkg-handover/pages/rectify/index', '整改回复', { roles: ['INST_PM', 'INST_CLERK'], perm: 'handover:rectify', batch: 'M4' }),
   R('/pkg-handover/pages/sign/index', '双方签字', { roles: ['INST_MGR', 'MAINT_SUP', 'MAINT_MGR'], perm: ['handover:sign_install', 'handover:sign_maint'], batch: 'M4' }),

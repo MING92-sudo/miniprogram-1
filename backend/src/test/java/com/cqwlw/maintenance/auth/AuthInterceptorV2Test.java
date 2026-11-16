@@ -219,4 +219,20 @@ class AuthInterceptorV2Test {
         assertEquals(Set.of("MAINT_TECH", "CLIENT_ADMIN"), roles, "并集口径：行 ∪ 主角色 canonical");
         assertTrue(interceptor.preHandle(request("/users"), response, handler));
     }
+
+    /** P1 终审 M8：/elevators 白名单斜杠边界——前缀形 URI（如 /elevators-secret）不得放行；
+     *  POST /files/upload（非 GET 写路径）客户拒；POST /unit/faults（/unit/** 前缀）放行 */
+    @Test
+    void clientWhitelistUsesSlashBoundary() {
+        AuthInterceptor interceptor = interceptorFor("emp_c", "UNIT_ADMIN", "CLIENT_ADMIN");
+        BizException ex = assertThrows(BizException.class, () -> interceptor.preHandle(
+                request("/elevators-secret", "GET"), response, handler));
+        assertEquals(403, ex.getCode(), "startsWith 无斜杠边界会误放行前缀形 URI");
+        BizException up = assertThrows(BizException.class, () -> interceptor.preHandle(
+                request("/files/upload", "POST"), response, handler));
+        assertEquals(403, up.getCode(), "客户写路径不放行（仅 GET /files/*）");
+        assertTrue(interceptor.preHandle(request("/unit/faults", "POST"), response, handler));
+        assertTrue(interceptor.preHandle(request("/elevators", "GET"), response, handler));
+        assertTrue(interceptor.preHandle(request("/elevators/e1/profile", "GET"), response, handler));
+    }
 }

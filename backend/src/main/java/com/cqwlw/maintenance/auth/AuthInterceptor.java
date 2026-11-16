@@ -119,7 +119,8 @@ public class AuthInterceptor implements HandlerInterceptor {
     /**
      * 客户主体业务路由白名单（P1 兼容 /unit/**，不新增 /client/** 端点）：
      * 门户前缀、自身账号端点（菜单/本人信息/改密/绑微信/登出）、健康检查、
-     * GET /files/*（鉴权前已放行，此处兜底；时效签名在 FileController 校验）与
+     * GET /files/*（与 L49 前置放行口径对齐：常规请求在鉴权前已放行，此处为白名单面兜底；
+     * 时效签名在 FileController 校验）与
      * GET /elevators*（含 profile，本单位谓词在 ElevatorController 已有，跨单位 1403）。
      * 其余一律拒绝——尤其 /users /org /stats /audit /invites /grants /projects /roles-matrix
      * /admin/ /reg/ /platform/ /employees/ /use-units/ /home/summary。
@@ -132,8 +133,10 @@ public class AuthInterceptor implements HandlerInterceptor {
                 || uri.equals("/auth/bind-wechat") || uri.equals("/auth/logout") || uri.equals("/health")) {
             return true;
         }
-        // 读口径与 AdminRoleInterceptor 的「GET /elevators* 小程序共用读接口」一致；写操作（派单等）不放行
-        return "GET".equalsIgnoreCase(method) && (uri.startsWith("/files/") || uri.startsWith("/elevators"));
+        // 读口径与 AdminRoleInterceptor 的「GET /elevators* 小程序共用读接口」一致；写操作（派单等）不放行。
+        // 斜杠边界（P1 终审 M8）：equals("/elevators") || startsWith("/elevators/")，防 /elevators-xxx 前缀形 URI 误放行
+        return "GET".equalsIgnoreCase(method)
+                && (uri.startsWith("/files/") || uri.equals("/elevators") || uri.startsWith("/elevators/"));
     }
 
     /**

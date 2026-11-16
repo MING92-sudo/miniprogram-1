@@ -113,7 +113,8 @@ function getClientHome() {
     ]
     const elevRows = elevators.slice(0, 2).map((e) => ({
       id: e.id, name: e.elevatorName || e.elevatorCode,
-      desc: '下次维保 ' + String(e.nextMaintenanceAt || e.nextCheckDate || '').slice(0, 10),
+      // P1 终审 M12：/unit/elevators 投影字段为 nextMaintenanceDate（E1 锁定），旧键 nextMaintenanceAt 不存在恒回退年检日期
+      desc: '下次维保 ' + String(e.nextMaintenanceDate || e.nextCheckDate || '').slice(0, 10),
       tagText: '正常', tagTone: 'ok'
     }))
     const records = signs.slice(0, 2).map((r) => ({
