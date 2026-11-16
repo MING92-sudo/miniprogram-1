@@ -9,10 +9,12 @@ import com.cqwlw.maintenance.common.Ids;
 import com.cqwlw.maintenance.entity.Company;
 import com.cqwlw.maintenance.entity.Elevator;
 import com.cqwlw.maintenance.entity.Employee;
+import com.cqwlw.maintenance.entity.SysUserRole;
 import com.cqwlw.maintenance.entity.UseUnit;
 import com.cqwlw.maintenance.mapper.CompanyMapper;
 import com.cqwlw.maintenance.mapper.EmployeeMapper;
 import com.cqwlw.maintenance.mapper.ElevatorMapper;
+import com.cqwlw.maintenance.mapper.SysUserRoleMapper;
 import com.cqwlw.maintenance.mapper.UseUnitMapper;
 import com.cqwlw.maintenance.entity.WorkOrder;
 import com.cqwlw.maintenance.mapper.WorkOrderMapper;
@@ -24,8 +26,10 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * 管理端档案维护（docs/09 一期：维保单位/使用单位/人员/电梯四类档案）。
@@ -38,6 +42,7 @@ public class AdminArchiveService {
     private final CompanyMapper companyMapper;
     private final UseUnitMapper useUnitMapper;
     private final EmployeeMapper employeeMapper;
+    private final SysUserRoleMapper userRoleMapper;
     private final ElevatorMapper elevatorMapper;
     private final PhoneMutexService phoneMutexService;
     private final WorkOrderMapper workOrderMapper;
@@ -45,12 +50,14 @@ public class AdminArchiveService {
     private final BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
 
     public AdminArchiveService(CompanyMapper companyMapper, UseUnitMapper useUnitMapper,
-                               EmployeeMapper employeeMapper, ElevatorMapper elevatorMapper,
+                               EmployeeMapper employeeMapper, SysUserRoleMapper userRoleMapper,
+                               ElevatorMapper elevatorMapper,
                                PhoneMutexService phoneMutexService,
                                WorkOrderMapper workOrderMapper, PlatformClient platformClient) {
         this.companyMapper = companyMapper;
         this.useUnitMapper = useUnitMapper;
         this.employeeMapper = employeeMapper;
+        this.userRoleMapper = userRoleMapper;
         this.elevatorMapper = elevatorMapper;
         this.phoneMutexService = phoneMutexService;
         this.workOrderMapper = workOrderMapper;
@@ -124,13 +131,35 @@ public class AdminArchiveService {
 
     // ── 人员（GET/POST/PUT /employees）──
 
+    /**
+     * 人员目录（GET /employees）。P1（T5）临时排除客户主体行：客户账号在「使用单位档案」下开通
+     * （docs/14 §9.1），不进内部人员目录视图；数据保留不删。判定用 principalTypeOf 而非
+     * department 字面量（客户 department 存 UNIT/null 两代值）。P3 账号体系重建后再定正式口径。
+     */
     public List<Map<String, Object>> employeeList() {
         List<Map<String, Object>> list = new ArrayList<>();
         for (Employee e : employeeMapper.selectList(new LambdaQueryWrapper<Employee>()
                 .orderByAsc(Employee::getId))) {
+            if (customerPrincipal(e)) {
+                continue;
+            }
             list.add(employeeRow(e));
         }
         return list;
+    }
+
+    /** 生效角色集 = 主角色 ∪ sys_user_role（EMPLOYEE 行）：任一内部即保留，全 CUSTOMER 才排除 */
+    private boolean customerPrincipal(Employee e) {
+        Set<String> roles = new LinkedHashSet<>();
+        if (e.role != null && !e.role.isBlank()) {
+            roles.add(e.role);
+        }
+        for (SysUserRole ur : userRoleMapper.selectList(new LambdaQueryWrapper<SysUserRole>()
+                .eq(SysUserRole::getUserId, e.id)
+                .eq(SysUserRole::getUserType, "EMPLOYEE"))) {
+            roles.add(ur.roleCode);
+        }
+        return RoleCatalog.isCustomerPrincipal(roles);
     }
 
     /** 2.4 自动建档用：按证书号判重 */

@@ -23,8 +23,10 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * M3 账号管理：列表/开通/停用/分配角色。多角色同部门校验（R7）；停用吊销 token（bumpScopeVersion）。
@@ -48,18 +50,31 @@ public class UserController {
         return String.valueOf(req.getAttribute(AuthInterceptor.ATTR_EMP_ID));
     }
 
+    /**
+     * 账号列表。P1（T5）临时排除客户主体行：生效角色集（多角色 ∪ 主角色）任一内部
+     * （principalTypeOf==EMPLOYEE）即保留、全 CUSTOMER 排除；判定不用 department 字面量
+     * （客户 department 存 UNIT/null 两代值）。客户账号在「使用单位档案」下管理，数据保留不删。
+     */
     @GetMapping("/users")
     public ApiResponse<List<Map<String, Object>>> list(HttpServletRequest req) {
         MultiRoleGate.requireRead(req, PermissionMatrix.USER_VIEW);
         List<Map<String, Object>> out = new ArrayList<>();
         for (Employee e : employeeMapper.selectList(new LambdaQueryWrapper<Employee>().orderByAsc(Employee::getId))) {
+            List<String> roles = rolesOf(e.id);
+            Set<String> effective = new LinkedHashSet<>(roles);
+            if (e.role != null && !e.role.isBlank()) {
+                effective.add(e.role);
+            }
+            if (RoleCatalog.isCustomerPrincipal(effective)) {
+                continue;
+            }
             Map<String, Object> row = new LinkedHashMap<>();
             row.put("id", e.id);
             row.put("name", e.name);
             row.put("phone", e.phone);
             row.put("department", e.department);
             row.put("status", Boolean.FALSE.equals(e.enabled) ? "DISABLED" : "NORMAL");
-            row.put("roles", rolesOf(e.id));
+            row.put("roles", roles);
             out.add(row);
         }
         return ApiResponse.ok(out);

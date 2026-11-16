@@ -1,12 +1,15 @@
 package com.cqwlw.maintenance.auth;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.cqwlw.maintenance.entity.Elevator;
 import com.cqwlw.maintenance.entity.Employee;
 import com.cqwlw.maintenance.entity.Fault;
 import com.cqwlw.maintenance.entity.MaintainRecord;
+import com.cqwlw.maintenance.entity.SysUserRole;
+import com.cqwlw.maintenance.mapper.ElevatorMapper;
 import com.cqwlw.maintenance.mapper.FaultMapper;
 import com.cqwlw.maintenance.mapper.MaintainRecordMapper;
-import com.cqwlw.maintenance.service.ScopeResolver;
+import com.cqwlw.maintenance.mapper.SysUserRoleMapper;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -58,13 +61,15 @@ public class MiniappMenuService {
 
     private final FaultMapper faultMapper;
     private final MaintainRecordMapper recordMapper;
-    private final ScopeResolver scopeResolver;
+    private final SysUserRoleMapper userRoleMapper;
+    private final ElevatorMapper elevatorMapper;
 
     public MiniappMenuService(FaultMapper faultMapper, MaintainRecordMapper recordMapper,
-                              ScopeResolver scopeResolver) {
+                              SysUserRoleMapper userRoleMapper, ElevatorMapper elevatorMapper) {
         this.faultMapper = faultMapper;
         this.recordMapper = recordMapper;
-        this.scopeResolver = scopeResolver;
+        this.userRoleMapper = userRoleMapper;
+        this.elevatorMapper = elevatorMapper;
     }
 
     public Map<String, Object> menusOf(Set<String> roles, String workspace, Employee me) {
@@ -195,13 +200,77 @@ public class MiniappMenuService {
                 pendingOrders = faultMapper.selectCount(new LambdaQueryWrapper<Fault>()
                         .eq(Fault::getStatus, "OPEN"));
             }
-            if (roles.stream().anyMatch(r -> r.startsWith("CLIENT"))) {
-                pendingSigns = recordMapper.selectCount(new LambdaQueryWrapper<MaintainRecord>()
-                        .in(MaintainRecord::getLifecycleStatus,
-                                List.of("PENDING_CLIENT_SIGN", "PENDING_CLIENT_SIGNATURE")));
+            // P1（T5）：客户分支判定用 principalTypeOf（含 UNIT_ADMIN 旧码），不用 startsWith 字面量
+            if (roles.stream().anyMatch(r -> RoleCatalog.principalTypeOf(r) == RoleCatalog.PrincipalType.CUSTOMER)) {
+                pendingSigns = clientPendingSigns(me);
             }
         }
         return Map.of("pendingOrders", pendingOrders, "pendingSigns", pendingSigns);
+    }
+
+    /**
+     * 客户待签角标（P1 T5，修复跨单位数量泄漏 + 与 T4 口径不一致）：
+     * ① 本单位锚点 = sys_user_role.org_id 的 CUSTOMER 角色行（V41 并号时写入，与
+     *   UnitPortalController.unitId 同口径）；无锚点 fail-closed 计 0，绝不回退全表 count；
+     * ② 计数口径对齐 T4 可签集合（docs/14 §4.6，与 UnitRecordService.pendingAs 同谓词）：
+     *   lifecycleStatus=PENDING_CLIENT_SIGNATURE + confirmStatus=PENDING + 链末端最新版本 + 本单位
+     *   （记录归属按电梯 useUnitId 判定，同 UnitRecordService.unitOf）；
+     *   不再计 PENDING_CLIENT_SIGN（双签未齐，T4 已从客户待签列表剔除）。
+     */
+    private long clientPendingSigns(Employee me) {
+        String unitId = clientUnitAnchor(me);
+        if (unitId == null) {
+            return 0;
+        }
+        Set<String> codes = ownElevatorCodes(unitId);
+        if (codes.isEmpty()) {
+            return 0;
+        }
+        long count = 0;
+        for (MaintainRecord r : recordMapper.selectList(new LambdaQueryWrapper<MaintainRecord>()
+                .in(MaintainRecord::getElevatorCode, codes)
+                .eq(MaintainRecord::getConfirmStatus, "PENDING")
+                .eq(MaintainRecord::getLifecycleStatus, "PENDING_CLIENT_SIGNATURE"))) {
+            // 内存双保险：与 SQL 同谓词（UnitRecordService/UnitPortalService 既有约定，防将来改查询漏条件）
+            if (!"PENDING".equals(r.confirmStatus) || !"PENDING_CLIENT_SIGNATURE".equals(r.lifecycleStatus)
+                    || !codes.contains(r.elevatorCode)) {
+                continue;
+            }
+            Long next = recordMapper.selectCount(new LambdaQueryWrapper<MaintainRecord>()
+                    .eq(MaintainRecord::getPrevVersionId, r.id));
+            if (next == null || next == 0) {
+                count++; // §4.6 规则 1：链末端最新版本
+            }
+        }
+        return count;
+    }
+
+    /** 客户单位锚点：sys_user_role（EMPLOYEE 行）中 CUSTOMER 角色的 org_id；无锚点返回 null（fail-closed） */
+    private String clientUnitAnchor(Employee me) {
+        if (me.id == null) {
+            return null;
+        }
+        for (SysUserRole ur : userRoleMapper.selectList(new LambdaQueryWrapper<SysUserRole>()
+                .eq(SysUserRole::getUserId, me.id)
+                .eq(SysUserRole::getUserType, "EMPLOYEE"))) {
+            if (RoleCatalog.principalTypeOf(ur.roleCode) == RoleCatalog.PrincipalType.CUSTOMER
+                    && ur.orgId != null && !ur.orgId.isBlank()) {
+                return ur.orgId;
+            }
+        }
+        return null;
+    }
+
+    /** 本单位电梯编码集（记录归属按电梯 useUnitId 收敛，与 UnitRecordService.unitOf 同口径） */
+    private Set<String> ownElevatorCodes(String unitId) {
+        Set<String> codes = new LinkedHashSet<>();
+        for (Elevator el : elevatorMapper.selectList(new LambdaQueryWrapper<Elevator>()
+                .eq(Elevator::getUseUnitId, unitId))) {
+            if (el.elevatorCode != null && !el.elevatorCode.isBlank()) {
+                codes.add(el.elevatorCode);
+            }
+        }
+        return codes;
     }
 
     private static Map<String, Object> qa(String key, String text, String icon, String path) {

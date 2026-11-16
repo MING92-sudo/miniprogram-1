@@ -76,7 +76,7 @@ class AdminArchiveServiceTest {
 
         platformClient = mock(PlatformClient.class);
         service = new AdminArchiveService(companyMapper, useUnitMapper,
-                employeeMapper, elevatorMapper,
+                employeeMapper, mock(com.cqwlw.maintenance.mapper.SysUserRoleMapper.class), elevatorMapper,
                 new PhoneMutexService(companyMapper, useUnitMapper, employeeMapper),
                 mock(WorkOrderMapper.class), platformClient);
     }

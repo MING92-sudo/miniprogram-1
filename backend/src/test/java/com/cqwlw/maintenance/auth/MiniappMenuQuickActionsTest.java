@@ -1,8 +1,9 @@
 package com.cqwlw.maintenance.auth;
 
+import com.cqwlw.maintenance.mapper.ElevatorMapper;
 import com.cqwlw.maintenance.mapper.FaultMapper;
 import com.cqwlw.maintenance.mapper.MaintainRecordMapper;
-import com.cqwlw.maintenance.service.ScopeResolver;
+import com.cqwlw.maintenance.mapper.SysUserRoleMapper;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -28,7 +29,7 @@ class MiniappMenuQuickActionsTest {
         MaintainRecordMapper records = mock(MaintainRecordMapper.class);
         when(faults.selectCount(any())).thenReturn(0L);
         when(records.selectCount(any())).thenReturn(0L);
-        return new MiniappMenuService(faults, records, mock(ScopeResolver.class));
+        return new MiniappMenuService(faults, records, mock(SysUserRoleMapper.class), mock(ElevatorMapper.class));
     }
 
     @SuppressWarnings("unchecked")

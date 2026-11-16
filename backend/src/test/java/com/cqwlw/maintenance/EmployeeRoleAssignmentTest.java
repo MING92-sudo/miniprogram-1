@@ -40,7 +40,8 @@ class EmployeeRoleAssignmentTest {
         when(phoneMutex.checkEmployee(any(), anyString(), anyString())).thenReturn(List.of());
         when(employeeMapper.selectCount(any())).thenReturn(0L);
         return new AdminArchiveService(mock(CompanyMapper.class), mock(UseUnitMapper.class),
-                employeeMapper, mock(ElevatorMapper.class), phoneMutex,
+                employeeMapper, mock(com.cqwlw.maintenance.mapper.SysUserRoleMapper.class),
+                mock(ElevatorMapper.class), phoneMutex,
                 mock(WorkOrderMapper.class), mock(PlatformClient.class));
     }
 

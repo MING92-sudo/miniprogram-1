@@ -1,9 +1,10 @@
 package com.cqwlw.maintenance.auth;
 
 import com.cqwlw.maintenance.entity.Employee;
+import com.cqwlw.maintenance.mapper.ElevatorMapper;
 import com.cqwlw.maintenance.mapper.FaultMapper;
 import com.cqwlw.maintenance.mapper.MaintainRecordMapper;
-import com.cqwlw.maintenance.service.ScopeResolver;
+import com.cqwlw.maintenance.mapper.SysUserRoleMapper;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -29,7 +30,7 @@ class MiniappMenuServiceTest {
         MaintainRecordMapper records = mock(MaintainRecordMapper.class);
         when(faults.selectCount(any())).thenReturn(3L);
         when(records.selectCount(any())).thenReturn(2L);
-        return new MiniappMenuService(faults, records, mock(ScopeResolver.class));
+        return new MiniappMenuService(faults, records, mock(SysUserRoleMapper.class), mock(ElevatorMapper.class));
     }
 
     @SuppressWarnings("unchecked")
@@ -158,6 +159,42 @@ class MiniappMenuServiceTest {
         Map<String, Object> badges = (Map<String, Object>) out.get("badges");
         assertTrue(badges.containsKey("pendingOrders"));
         assertTrue(badges.containsKey("pendingSigns"));
+    }
+
+    /** P1 T5：CLIENT 角标只按本单位锚点（sys_user_role.org_id）+ T4 可签口径计数，不再全表 count（跨单位泄漏） */
+    @Test
+    @SuppressWarnings("unchecked")
+    void clientPendingSignsBadgeScopedToOwnUnit() {
+        FaultMapper faults = mock(FaultMapper.class);
+        MaintainRecordMapper records = mock(MaintainRecordMapper.class);
+        SysUserRoleMapper userRoles = mock(SysUserRoleMapper.class);
+        ElevatorMapper elevators = mock(ElevatorMapper.class);
+        MiniappMenuService svc = new MiniappMenuService(faults, records, userRoles, elevators);
+
+        Employee me = new Employee();
+        me.id = "emp_zw";
+        me.role = "CLIENT_ADMIN";
+        com.cqwlw.maintenance.entity.SysUserRole anchor = new com.cqwlw.maintenance.entity.SysUserRole();
+        anchor.userId = "emp_zw";
+        anchor.userType = "EMPLOYEE";
+        anchor.roleCode = "CLIENT_ADMIN";
+        anchor.orgId = "uu_1";
+        when(userRoles.selectList(any())).thenReturn(List.of(anchor));
+        com.cqwlw.maintenance.entity.Elevator own = new com.cqwlw.maintenance.entity.Elevator();
+        own.elevatorCode = "DT-1";
+        own.useUnitId = "uu_1";
+        when(elevators.selectList(any())).thenReturn(List.of(own));
+        com.cqwlw.maintenance.entity.MaintainRecord r = new com.cqwlw.maintenance.entity.MaintainRecord();
+        r.id = "ur_1";
+        r.elevatorCode = "DT-1";
+        r.lifecycleStatus = "PENDING_CLIENT_SIGNATURE";
+        r.confirmStatus = "PENDING";
+        when(records.selectList(any())).thenReturn(List.of(r));
+        when(records.selectCount(any())).thenReturn(0L); // 链末端最新版本
+
+        Map<String, Object> badges =
+                (Map<String, Object>) svc.menusOf(Set.of("CLIENT_ADMIN"), null, me).get("badges");
+        assertEquals(1L, badges.get("pendingSigns"));
     }
 
     @Test

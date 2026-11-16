@@ -204,6 +204,25 @@ public final class RoleCatalog {
                 : PrincipalType.EMPLOYEE;
     }
 
+    /**
+     * P1（T5）：行级客户主体判定——码集非空且全部规范为 CUSTOMER 才是客户；
+     * 含任一内部角色（EMPLOYEE）或未知码不视为客户（内部视图全量保持，只剔除客户行）。
+     * 与 AuthInterceptor.isCustomer（T3 令牌级）同口径；调用方负责组装生效角色集
+     * （主角色 ∪ sys_user_role 多角色集）。判定必须走本方法/主角色集，不得用
+     * department 字面量（客户 department 存 UNIT/null 两代值，字面量判定会漏判一半）。
+     */
+    public static boolean isCustomerPrincipal(java.util.Collection<String> anyCodes) {
+        if (anyCodes == null || anyCodes.isEmpty()) {
+            return false;
+        }
+        for (String code : anyCodes) {
+            if (principalTypeOf(code) != PrincipalType.CUSTOMER) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     /** 同部门方可兼任（docs/14 R7）；跨部门/未知拒绝。客户角色部门为 null（同为外部租户，视为同域）。 */
     public static boolean sameDepartmentAssignable(String roleA, String roleB) {
         Role a = canonicalRole(roleA);

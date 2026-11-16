@@ -17,6 +17,7 @@ import com.cqwlw.maintenance.mapper.SysOrgMapper;
 import com.cqwlw.maintenance.util.TimeUtil;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -45,8 +46,19 @@ public class LedgerService {
         this.audit = audit;
     }
 
+    /**
+     * 组织树（GET /org）。P1（T5）临时口径：内部组织树只渲染 公司/部门/班组；
+     * UNIT（使用单位）节点数据保留、不进本视图（客户是外部租户主体，不属内部组织；
+     * P3 组织树重建后再定正式口径）。内存过滤避免 SQL ne 把 type=NULL 的历史行一并丢掉。
+     */
     public List<SysOrg> orgTree() {
-        return orgMapper.selectList(new LambdaQueryWrapper<SysOrg>().orderByAsc(SysOrg::getSortOrder));
+        List<SysOrg> out = new ArrayList<>();
+        for (SysOrg o : orgMapper.selectList(new LambdaQueryWrapper<SysOrg>().orderByAsc(SysOrg::getSortOrder))) {
+            if (!"UNIT".equals(o.type)) {
+                out.add(o);
+            }
+        }
+        return out;
     }
 
     public SysOrg createOrg(Map<String, Object> body, String actor) {
