@@ -292,7 +292,9 @@ const db = {
       problemCodes: ['S5'],
       originalRecordId: '19480012609000011', reportStatus: 'REPORTED', retryCount: 0,
       nextMaintenanceDate: addDays(15),
-      confirmStatus: 'PENDING', satisfaction: null, signatureFileId: '', signatureUrl: ''
+      confirmStatus: 'PENDING', satisfaction: null, signatureFileId: '', signatureUrl: '',
+      // 生命周期（V42）+ 版本链（P1 T4/T7 门禁演示）：本单位 uu_1、唯一可签状态、链末端最新版本
+      lifecycleStatus: 'PENDING_CLIENT_SIGNATURE', version: 1, prevVersionId: ''
     },
     {
       id: 'ur_2', elevatorName: '蓝湾国际 A 座货梯', elevatorCode: 'EM-2024-003', shareToken: 'sg-mock-2', recordVersion: 'v1', hashPrefix: '9F3C7A21', frozenAt: today('18:10:00'), assistantSignatureUrl: '',
@@ -304,7 +306,9 @@ const db = {
       problemCodes: ['S0'], // 无隐患必须填 S0（平台 2.6 约定）
       originalRecordId: '19480012609000008', reportStatus: 'REPORTED', retryCount: 0,
       nextMaintenanceDate: addDays(30),
-      confirmStatus: 'CONFIRMED', satisfaction: 5, signatureFileId: 'mock_file_sig1', signatureUrl: DEMO_SIGNATURE
+      confirmStatus: 'CONFIRMED', satisfaction: 5, signatureFileId: 'mock_file_sig1', signatureUrl: DEMO_SIGNATURE,
+      // 跨单位（uu_2）已归档记录：客户门户越权 1403 与「只读可见集合」演示件
+      lifecycleStatus: 'ARCHIVED', version: 1, prevVersionId: ''
     }
   ],
 
@@ -787,7 +791,12 @@ function markCheckout(orderId, body) {
     confirmStatus: 'PENDING',
     satisfaction: null,
     signatureFileId: '',
-    signatureUrl: ''
+    signatureUrl: '',
+    // 生命周期初值与后端 RecordLifecycleService.initialStatus() 同口径（复核开关默认关 → 待使用单位签字），
+    // 客户可见/可签须先经「发起使用单位签字」推进到 PENDING_CLIENT_SIGNATURE（P1 T7 门禁）
+    lifecycleStatus: 'PENDING_CLIENT_SIGN',
+    version: 1,
+    prevVersionId: ''
   }
   // 预览上下文快照（docs/03 §六）：与后端 maintain_record.preview_context 同口径，随记录冻结
   const executed = items.filter((i) => i.notInThisRun !== true)

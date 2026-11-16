@@ -25,11 +25,140 @@ function permsOf(roles) {
   }))
   return Object.keys(set)
 }
-// CLIENT 角色本单位锚点（use_unit.id）；非 CLIENT 返回 undefined，CLIENT 无锚点返回 null（fail-closed）
+// ── P1 T7：客户主体（使用单位）判定 / 门禁 / 字段白名单，逐条对齐后端 ──
+// 对应后端：RoleCatalog.isCustomerPrincipal、UnitRecordService（requireClient/requireOwnUnit/
+// requireViewable/requireSignable/toClientMap）、RecordLifecycleService.refuseByToken、UnitPortalService。
+// 客户主体 = 角色集非空且全部规范码为 CUSTOMER（CLIENT_ADMIN/CLIENT_SIGNER；旧码 UNIT_ADMIN 经根 ALIAS 归一）
+function isCustomerPrincipal(roles) {
+  const list = roles || []
+  if (!list.length) return false
+  return list.every((r) => {
+    const c = permMirror.canonical(r)
+    return c === 'CLIENT_ADMIN' || c === 'CLIENT_SIGNER'
+  })
+}
+// 登录体 principalType（后端 RoleCatalog.PrincipalType，T8 小程序消费）
+function principalTypeOf(roles) {
+  return isCustomerPrincipal(roles) ? 'CUSTOMER' : 'EMPLOYEE'
+}
+// CLIENT 角色本单位锚点（use_unit.id）；非客户返回 undefined，客户无锚点返回 null（fail-closed）
 function clientUnitAnchor() {
-  if (!currentRoles.some((r) => r.indexOf('CLIENT') === 0)) return undefined
+  if (!isCustomerPrincipal(currentRoles)) return undefined
   const u = d.db.employees[currentRole]
   return (u && u.useUnitId) || null
+}
+// 客户可见生命周期集合（docs/14 §4.6 可见性表，后端 CLIENT_VISIBLE_LIFECYCLES）：待签可签 + 三态只读
+const CLIENT_VISIBLE_LIFECYCLES = ['PENDING_CLIENT_SIGNATURE', 'SIGNED', 'ARCHIVED', 'REFUSED_RETURNED']
+// 记录归属单位（后端 UnitRecordService.unitOf 同口径：按电梯当前 useUnitId）
+function recordUnitId(r) {
+  const el = d.getElevatorByCode(r.elevatorCode)
+  return (el && el.useUnitId) || ''
+}
+// 本单位电梯编码集（后端 UnitPortalService.ownCodes；停用梯不计）
+function ownElevatorCodes(unitId) {
+  const codes = new Set()
+  ;(d.db.elevators || []).forEach((el) => {
+    if (el.useUnitId === unitId && el.status !== 'INACTIVE' && el.elevatorCode) codes.add(el.elevatorCode)
+  })
+  return codes
+}
+// 链末端最新版本（后端 isLatestVersion）：不存在 prevVersionId = 本记录 id 的后续版本
+function isLatestVersion(r) {
+  return !(d.db.unitRecords || []).some((x) => x.prevVersionId && x.prevVersionId === r.id)
+}
+// 可签集合（后端 pendingAs 谓词）：唯一可签状态 + confirmStatus=PENDING + 最新版本
+function isSignableRow(r) {
+  return r.lifecycleStatus === 'PENDING_CLIENT_SIGNATURE' && r.confirmStatus === 'PENDING' && isLatestVersion(r)
+}
+// 签字门禁链（后端 requireSignable）：任一失败 422 且无副作用
+function requireSignable(r) {
+  if (r.lifecycleStatus !== 'PENDING_CLIENT_SIGNATURE') throw { code: 422, message: '记录不在待使用单位签署状态' }
+  if (r.confirmStatus !== 'PENDING') throw { code: 422, message: '记录已签署，不能重复签字' }
+  if (!isLatestVersion(r)) throw { code: 422, message: '记录已被新版本替代，请签署最新记录' }
+}
+// 查看门禁（后端 requireViewable）：可见 ≠ 可签，历史版本仅内部/审计可见
+function requireViewable(r) {
+  if (CLIENT_VISIBLE_LIFECYCLES.indexOf(r.lifecycleStatus) < 0) throw { code: 422, message: '记录当前状态客户不可见' }
+  if (!isLatestVersion(r)) throw { code: 422, message: '记录已被新版本替代，请查看最新记录' }
+}
+// 门禁链①②（后端 requireClient）：非客户主体 / 无单位锚点一律 1403 fail-closed
+function requireClientUnit() {
+  if (!isCustomerPrincipal(currentRoles)) throw { code: 1403, message: '仅使用单位可访问门户记录' }
+  const unitId = clientUnitAnchor()
+  if (!unitId) throw { code: 1403, message: '缺少单位锚点' }
+  return unitId
+}
+// 门户数据域锚点（后端 UnitPortalController.unitId）：非客户 / 无锚点 403，绝不回退 useUnits[0] 或全量
+function requirePortalUnit() {
+  const unitId = isCustomerPrincipal(currentRoles) ? clientUnitAnchor() : null
+  if (!unitId) throw { code: 403, message: '当前账号无使用单位数据权限' }
+  return unitId
+}
+// 客户字段白名单投影（后端 UnitRecordService.toClientMap 等价，docs/14 §4.7）：明确不返回
+// reportPayload/context(previewContext)/shareToken/originalRecordId/workerPlatformId/assistantPlatformId/
+// refuseReason(内部复核)/reportStatus/uploadStatus/retryCount/satisfaction；items 同为白名单四字段
+function toClientRecord(r) {
+  return {
+    id: r.id,
+    version: r.version != null ? r.version : 1,
+    prevVersionId: r.prevVersionId || '',
+    lifecycleStatus: r.lifecycleStatus || '',
+    elevatorCode: r.elevatorCode || '', elevatorName: r.elevatorName || '',
+    workType: r.workType || '', workTypeCode: r.workTypeCode || '',
+    workerName: r.workerName || '', assistantName: r.assistantName || '',
+    checkinTime: r.checkinTime || '', checkoutTime: r.checkoutTime || '', duration: r.duration || '',
+    items: (r.items || []).map((i) => ({ name: i.name, result: i.result,
+      value: i.value != null ? i.value : (i.valueText || null), photos: i.photos || [] })),
+    photos: r.photos || [],
+    problemCodes: r.problemCodes || [],
+    todoDesc: r.todoDesc || '',
+    workerSignatureUrl: r.workerSignatureUrl || '', assistantSignatureUrl: r.assistantSignatureUrl || '',
+    confirmStatus: r.confirmStatus || 'PENDING',
+    signatureUrl: r.signatureUrl || '',
+    pdfUrl: r.archiveFileId ? 'https://mock/files/' + r.archiveFileId + '?s=mock' : '',
+    // mock 演示字段（原型「记录版本 / SHA-256 前 8 位」展示；后端 P1 无对应列，签名链接页同源）
+    recordVersion: r.recordVersion || '', hashPrefix: r.hashPrefix || '', frozenAt: r.frozenAt || ''
+  }
+}
+// 列表行投影（后端 UnitPortalService.recordRow 等价）：含 lifecycleStatus/version，不含 shareToken 等凭证
+function clientRecordRow(r) {
+  return {
+    id: r.id, elevatorCode: r.elevatorCode || '', elevatorName: r.elevatorName || '',
+    workType: r.workType || '', workerName: r.workerName || '', assistantName: r.assistantName || '',
+    checkinTime: r.checkinTime || '', checkoutTime: r.checkoutTime || '', duration: r.duration || '',
+    confirmStatus: r.confirmStatus || 'PENDING', lifecycleStatus: r.lifecycleStatus || '',
+    version: r.version != null ? r.version : 1
+  }
+}
+// 客户可见记录集（后端 UnitPortalService.records）：本单位 + 可见集合 + 链末端最新版本，签退时间倒序
+function clientVisibleRecords(unitId) {
+  const codes = ownElevatorCodes(unitId)
+  return (d.db.unitRecords || [])
+    .filter((r) => codes.has(r.elevatorCode) && CLIENT_VISIBLE_LIFECYCLES.indexOf(r.lifecycleStatus) > -1 && isLatestVersion(r))
+    .sort((a, b) => ((a.checkoutTime || '') < (b.checkoutTime || '') ? 1 : -1))
+    .slice(0, 50)
+}
+// 客户待签角标（后端 MiniappMenuService.clientPendingSigns 同口径）：无锚点 fail-closed 计 0，不回退全表
+function clientPendingSignCount() {
+  const unitId = clientUnitAnchor()
+  if (!unitId) return 0
+  const codes = ownElevatorCodes(unitId)
+  return (d.db.unitRecords || []).filter((r) => codes.has(r.elevatorCode) && isSignableRow(r)).length
+}
+// 签字落库（后端 UnitRecordService.signRecord 同口径，confirmAs/confirmByToken 共用，门禁须已前置通过）：
+// 先签为准（条件更新等价判定，已签 → 422，不覆盖首签）；satisfaction 一律不接收（docs/14 §4.7 评价关闭）
+function signRecord(r, body) {
+  const signatureUrl = String((body && body.signatureUrl) || '')
+  const signatureFileId = String((body && body.signatureFileId) || '')
+  if (!signatureUrl && !signatureFileId) throw { code: 422, message: '请先完成签名' }
+  if (r.confirmStatus !== 'PENDING' || r.lifecycleStatus !== 'PENDING_CLIENT_SIGNATURE') {
+    throw { code: 422, message: '记录已被签署（先签为准），请刷新后查看' }
+  }
+  r.confirmStatus = 'CONFIRMED'
+  r.signatureFileId = signatureFileId
+  r.signatureUrl = signatureUrl
+  r.lifecycleStatus = 'SIGNED' // 后端 onClientSigned：SIGNED → 自动归档（mock 不生成 PDF）
+  return { ok: true }
 }
 // 部门互斥读门禁（与后端 MultiRoleGate.requireRead 同口径，2026-11-15 对齐）
 function requireRead(code) {
@@ -132,26 +261,24 @@ seedDemoHandovers()
 // M1 统一登录响应扩展（docs/04 V2.53）：账号登录/微信免密登录共用，与后端 loginResult 口径一致
 function loginPayload(roleKey) {
   const user = d.db.employees[roleKey]
-  const canonMap = {
-    WORKER: 'MAINT_TECH', ASSISTANT: 'MAINT_TECH', LEADER: 'MAINT_SUP',
-    MAINT_MANAGER: 'MAINT_MGR', MAINT_QUALITY: 'MAINT_QUALITY', MAINT_BIZ: 'MAINT_BIZ',
-    UNIT_ADMIN: 'CLIENT_ADMIN', ADMIN: 'PLATFORM_ADMIN', SYS_ADMIN: 'SYS_ADMIN',
-    INSTALL_WORKER: 'INSTALLER'
-  }
-  const canon = canonMap[roleKey] || roleKey
-  const roles = user.roles && user.roles.length ? user.roles : [canon]
+  // 旧码归一走根别名表（constants/permission-matrix.ALIAS，与后端 RoleCatalog.ALIAS 同源）——
+  // 此前此处手写第三份别名表，与 ALIAS 重复维护易漂移（P1 T7 裁决：统一引用）
+  const canon = permMirror.canonical(roleKey) || roleKey
+  const roles = (user.roles && user.roles.length ? user.roles : [canon]).map((r) => permMirror.canonical(r) || r)
   currentRoles = roles
   const perms = permsOf(roles)
   const ws = menus.activeWorkspace(roles)
   const scope = roles.indexOf('PLATFORM_ADMIN') > -1 ? '全部数据'
-    : roles.some((r) => r.indexOf('CLIENT') === 0) ? '本单位全部电梯'
+    : isCustomerPrincipal(roles) ? '本单位全部电梯'
       : roles.some((r) => r.indexOf('INST') === 0) ? '安装部项目范围' : '本班组维保范围'
   // 与后端 AuthController.userInfo() 同口径：会话体不含 password（2026-11-16 审查修复）
   const userInfo = Object.assign({}, user)
   delete userInfo.password
   return {
     token: 'mock-token-' + Date.now(), userInfo, role: roleKey,
-    roles, perms, scope, activeWorkspace: ws, home: menus.resolveHome(roles)
+    roles, perms, scope, activeWorkspace: ws, home: menus.resolveHome(roles),
+    // P1 T7：主体类型（后端 RoleCatalog.isCustomerPrincipal 口径），T8 小程序据此收敛客户入口
+    principalType: principalTypeOf(roles)
   }
 }
 
@@ -234,7 +361,9 @@ const routes = [
     }
     const badges = { pendingOrders: 0, pendingSigns: 0 }
     if (effective.some((r) => r.indexOf('MAINT') === 0)) badges.pendingOrders = d.db.faults.filter((f) => f.status === 'OPEN').length
-    if (effective.some((r) => r.indexOf('CLIENT') === 0)) badges.pendingSigns = d.db.unitRecords.filter((r) => r.confirmStatus === 'PENDING').length
+    // P1 T5/T7：客户待签角标按本单位 + 可签集合收敛（后端 MiniappMenuService.clientPendingSigns 同口径），
+    // 无锚点 fail-closed 计 0；主体判定用 principalType（含旧码 UNIT_ADMIN），不用字面量前缀
+    if (effective.some((r) => isCustomerPrincipal([r]))) badges.pendingSigns = clientPendingSignCount()
     return {
       user: { roles: effective, activeWorkspace: ws },
       home: menus.resolveHome(effective),
@@ -245,9 +374,35 @@ const routes = [
   }],
   ['POST', '/work-orders/:id/signature-refuse', () => ({ ok: true })],
   ['POST', '/work-orders/:id/review', ({ body }) => ({ ok: true, lifecycleStatus: body.pass ? 'PENDING_CLIENT_SIGN' : '' })],
-  ['POST', '/work-orders/:id/sign-request', () => ({ ok: true, shareToken: 'sg-mock' })],
+  // 发起使用单位签字（后端 RecordLifecycleService.signRequest）：推进生命周期后客户才可见/可签。
+  // 后端按记录 id 定位，小程序历史上也会传工单 id，两者都兜住；双签齐门控以后端为准（mock 不拦）。
+  ['POST', '/work-orders/:id/sign-request', ({ params }) => {
+    const o = (d.db.orders || []).find((x) => x.id === params.id)
+    const rec = (d.db.unitRecords || []).find((r) => r.id === params.id) ||
+      (o ? (d.db.unitRecords || []).find((r) => r.originalRecordId && r.originalRecordId === o.originalRecordId) : null)
+    if (!rec) throw { code: 1404, message: '维保记录不存在' }
+    if (rec.lifecycleStatus !== 'PENDING_CLIENT_SIGN') throw { code: 422, message: '记录不在待使用单位签字状态' }
+    rec.lifecycleStatus = 'PENDING_CLIENT_SIGNATURE'
+    return { ok: true, shareToken: rec.shareToken || '' }
+  }],
   ['GET', '/work-orders/:id/archive', () => ({ url: 'https://mock/files/arch?s=mock', hash: '0'.repeat(64), archivedAt: '2026-11-15 00:00:00' })],
-  ['POST', '/unit/records/:id/refuse-by-token', () => ({ ok: true })],
+  // 使用单位拒签（后端 RecordLifecycleService.refuseByToken，T4-I4）：token 401 先于状态披露 →
+  // 唯一可签状态 → confirmStatus=PENDING → 链末端最新版本 → 原因必填，任一失败 422 且无副作用；
+  // 成功走条件更新等价判定（并发先签为准），退回 REFUSED_RETURNED；不触发平台 2.6
+  ['POST', '/unit/records/:id/refuse-by-token', ({ params, query, body }) => {
+    const r = findOr404(d.db.unitRecords, params.id, '维保记录')
+    if (!query.token || query.token !== r.shareToken) {
+      throw { code: 401, message: '确认链接无效或已失效' }
+    }
+    if (r.lifecycleStatus !== 'PENDING_CLIENT_SIGNATURE') throw { code: 422, message: '记录不在待使用单位签署状态' }
+    if (r.confirmStatus !== 'PENDING') throw { code: 422, message: '记录已签署，不能拒签' }
+    if (!isLatestVersion(r)) throw { code: 422, message: '记录已被新版本替代，请处理最新记录' }
+    const reason = String((body && body.reason) || '').trim()
+    if (!reason) throw { code: 422, message: '拒绝原因必填' }
+    r.lifecycleStatus = 'REFUSED_RETURNED'
+    r.refuseReason = reason // 内部字段：客户白名单一律不回显（docs/14 §4.7 DC5）
+    return { ok: true }
+  }],
   ['POST', '/faults/:id/grab', () => ({ ok: true, status: 'ASSIGNED' })],
   ['POST', '/faults/:id/arrive', () => ({ ok: true, status: 'PROCESSING' })],
   ['POST', '/faults/:id/submit', () => ({ ok: true, status: 'PENDING_CONFIRM' })],
@@ -632,25 +787,48 @@ const routes = [
     return { ok: true }
   }],
 
-  // ── 使用单位确认 ──
-  ['GET', '/unit/records/pending', ({ query }) => (
-    paginate(d.db.unitRecords.filter((r) => r.confirmStatus === 'PENDING'), query)
-  )],
-  ['GET', '/unit/records/:id', ({ params }) => findOr404(d.db.unitRecords, params.id, '维保记录')],
-  ['POST', '/unit/records/:id/confirm', ({ params, body }) => {
-    const r = findOr404(d.db.unitRecords, params.id, '维保记录')
-    r.confirmStatus = 'CONFIRMED'
-    r.satisfaction = body.satisfaction || 0
-    r.signatureFileId = body.signatureFileId || ''
-    r.signatureUrl = body.signatureUrl || '' // mock 演示回显
-    return { ok: true }
+  // ── 使用单位确认（客户门户，P1 T7 门禁 + 白名单，逐条对齐后端 UnitRecordService/UnitPortalService）──
+  // 路由顺序：精确路径 /unit/records/list 必须排在 /unit/records/:id 之前，否则 list 被当作 :id（1404）
+  ['GET', '/unit/records/list', () => {
+    const unitId = requirePortalUnit()
+    return clientVisibleRecords(unitId).map(clientRecordRow)
   }],
-  // 签名链接确认（用户需求：无需登录，凭一次性令牌远程签字或本机代签）
+  // 客户待签列表（后端 pendingAs）：本单位 + 唯一可签状态 + confirmStatus=PENDING + 链末端最新版本 + 白名单
+  ['GET', '/unit/records/pending', ({ query }) => {
+    const unitId = requireClientUnit()
+    const codes = ownElevatorCodes(unitId)
+    const list = (d.db.unitRecords || [])
+      .filter((r) => codes.has(r.elevatorCode) && isSignableRow(r))
+      .map(toClientRecord)
+    return paginate(list, query)
+  }],
+  ['GET', '/unit/records/:id', ({ params }) => {
+    const r = findOr404(d.db.unitRecords, params.id, '维保记录')
+    if (isCustomerPrincipal(currentRoles)) {
+      // 客户会话：锚点 → 归属（跨单位 1403 无副作用）→ 可见性（§4.6）→ 白名单投影
+      const unitId = requireClientUnit()
+      if (recordUnitId(r) !== unitId) throw { code: 1403, message: '仅本单位记录可查看' }
+      requireViewable(r)
+      return toClientRecord(r)
+    }
+    // 员工会话：内部全量投影（含 context/reportPayload，pkg-maintenance/record-detail 预览依赖）。
+    // 差异登记：后端 P1 getAs 仅客户可达（员工令牌 1403），员工读记录详情的端点待补（docs/12）。
+    return r
+  }],
+  ['POST', '/unit/records/:id/confirm', ({ params, body }) => {
+    const unitId = requireClientUnit()
+    const r = findOr404(d.db.unitRecords, params.id, '维保记录')
+    if (recordUnitId(r) !== unitId) throw { code: 1403, message: '仅本单位记录可确认' }
+    requireSignable(r)
+    return signRecord(r, body) // 先签为准；satisfaction 不接收（§4.7 评价关闭）
+  }],
+  // 签名链接确认（用户需求：无需登录，凭一次性令牌远程签字或本机代签）；token 401 先于状态披露
   ['GET', '/unit/records/:id/sign-view', ({ params, query }) => {
     const r = findOr404(d.db.unitRecords, params.id, '维保记录')
     if (!query.token || query.token !== r.shareToken) {
       throw { code: 401, message: '确认链接无效或已失效' }
     }
+    // 与后端 signView 同口径：白名单摘要，不返回 satisfaction（§4.7）、不回显 shareToken
     return {
       confirmed: r.confirmStatus === 'CONFIRMED',
       elevatorName: r.elevatorName || '',
@@ -663,26 +841,21 @@ const routes = [
       duration: r.duration || '',
       itemTotal: (r.items || []).length,
       photoCount: (r.photos || []).length,
-      satisfaction: r.satisfaction,
+      // mock 演示字段（原型「记录单版本号 / SHA-256 前 8 位」；后端 P1 无对应列）
+      recordVersion: r.recordVersion || '',
+      hashPrefix: r.hashPrefix || '',
+      frozenAt: r.frozenAt || '',
       signatureUrl: r.signatureUrl || ''
     }
   }],
+  // 后端 confirmByToken（T4-C1）：token → 签字门禁链 → 条件更新；已签/旧版本一律 422，不再回 already 幂等体
   ['POST', '/unit/records/:id/confirm-by-token', ({ params, query, body }) => {
     const r = findOr404(d.db.unitRecords, params.id, '维保记录')
     if (!query.token || query.token !== r.shareToken) {
       throw { code: 401, message: '确认链接无效或已失效' }
     }
-    if (r.confirmStatus === 'CONFIRMED') {
-      return { ok: true, already: true }
-    }
-    if (!body.signatureUrl && !body.signatureFileId) {
-      throw { code: 422, message: '请先完成签名' }
-    }
-    r.confirmStatus = 'CONFIRMED'
-    r.satisfaction = Number(body.satisfaction) || 0
-    r.signatureFileId = body.signatureFileId || ''
-    r.signatureUrl = body.signatureUrl || ''
-    return { ok: true }
+    requireSignable(r)
+    return signRecord(r, body)
   }],
 
   // ── 知识库 ──
@@ -894,22 +1067,35 @@ const routes = [
     if (!body.newPassword || String(body.newPassword).length < 6) throw { code: 422, message: '新口令至少 6 位' }
     return { ok: true }
   }],
+  // ── 使用单位门户数据域（live，后端 UnitPortalController/UnitPortalService）：一律会话锚点本单位，
+  //    P1 T7 起不再回退 useUnits[0]、不再全量返回；非客户/无锚点 403 fail-closed ──
   ['GET', '/unit/elevators', () => {
-    const unit = (d.db.useUnits || [])[0] || {}
-    return (d.db.elevators || []).filter((el) => el.useUnitId === unit.id && el.status !== 'INACTIVE').map((el) => ({
+    const unitId = requirePortalUnit()
+    return (d.db.elevators || []).filter((el) => el.useUnitId === unitId && el.status !== 'INACTIVE').map((el) => ({
       id: el.id, elevatorCode: el.elevatorCode, elevatorName: el.elevatorName, projectName: el.projectName,
-      location: el.location, insideNumber: el.insideNumber, regCode: el.regCode, deviceCode: el.deviceCode
+      location: el.location, insideNumber: el.insideNumber, regCode: el.regCode, deviceCode: el.deviceCode,
+      nextMaintenanceDate: el.nextMaintenanceDate || '', nextCheckDate: el.nextCheckDate || ''
     }))
   }],
-  ['GET', '/unit/records/list', () => (d.db.records || []).slice(0, 50).map((r) => ({
-    id: r.id, elevatorCode: r.elevatorCode, elevatorName: r.elevatorName, workType: r.workType,
-    workerName: r.workerName, checkinTime: r.checkinTime, checkoutTime: r.checkoutTime,
-    duration: r.duration, confirmStatus: r.confirmStatus || 'PENDING' }))],
-  ['GET', '/unit/pending-signs', () => (d.db.records || []).filter((r) => r.confirmStatus !== 'CONFIRMED').slice(0, 50).map((r) => ({
-    id: r.id, elevatorCode: r.elevatorCode, elevatorName: r.elevatorName, checkoutTime: r.checkoutTime,
-    confirmStatus: r.confirmStatus || 'PENDING' }))],
-  ['GET', '/unit/faults', () => (d.db.faults || []).slice(0, 50)],
-  ['POST', '/unit/faults', ({ body }) => d.createFault(body)],
+  // 待签记录（后端 pendingSigns = records 按可签集合过滤）；行投影不含 shareToken（签字凭证只经分享链接下发）
+  ['GET', '/unit/pending-signs', () => {
+    const unitId = requirePortalUnit()
+    return clientVisibleRecords(unitId).filter(isSignableRow).map(clientRecordRow)
+  }],
+  ['GET', '/unit/faults', () => {
+    const unitId = requirePortalUnit()
+    const codes = ownElevatorCodes(unitId)
+    return (d.db.faults || []).filter((f) => codes.has(f.elevatorCode)).slice(0, 50)
+  }],
+  // 使用单位报修（后端 reportFault）：电梯必须属本单位，越权 1403 且不落单
+  ['POST', '/unit/faults', ({ body }) => {
+    const unitId = requirePortalUnit()
+    const code = String((body && body.elevatorCode) || '').trim()
+    if (!code) throw { code: 422, message: '请选择电梯' }
+    if (!String((body && body.desc) || '').trim()) throw { code: 422, message: '请填写故障描述' }
+    if (!ownElevatorCodes(unitId).has(code)) throw { code: 1403, message: '仅可为本单位电梯报修' }
+    return d.createFault(body)
+  }],
   ['GET', '/maintenance-calendar', ({ query }) => ({ from: query.from || '', to: query.to || '', entries: [] })]
 ]
 
