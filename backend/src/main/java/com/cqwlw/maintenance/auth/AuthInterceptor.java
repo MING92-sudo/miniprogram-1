@@ -91,8 +91,49 @@ public class AuthInterceptor implements HandlerInterceptor {
         // M2：角色以数据库为准——DB 降权/停用后旧 token 里的 role 不再生效
         request.setAttribute(ATTR_ROLE, user.role);
         request.setAttribute(ATTR_OPENID, claims.get("openid"));
-        request.setAttribute(ATTR_ROLES, resolveRoles(user));
+        java.util.Set<String> roles = resolveRoles(user);
+        request.setAttribute(ATTR_ROLES, roles);
+        // P1 T3：客户主体（使用单位账号）路由门禁——员工统一令牌此前无按角色路径限制，
+        // 客户令牌可直达 /users /org /stats /audit 等内部/管理端点（AdminRoleInterceptor 覆盖不到 M3/M5 路由）。
+        // 混合角色（含任一内部角色）走员工路径不误锁；403 与 ut=1 门户分支同写法，
+        // 经 GlobalExceptionHandler 统一 {code,message} 响应并落 BLOCKED 审计（spec §5.2）。
+        if (isCustomer(roles) && !clientAllowed(request.getRequestURI(), request.getMethod())) {
+            throw new BizException(403, "客户账号仅可访问客户门户接口");
+        }
         return true;
+    }
+
+    /** 客户主体判定（P1）：roles 非空且全部规范码为 CUSTOMER；含任一内部角色（或空集）不视为客户。 */
+    private static boolean isCustomer(java.util.Set<String> roles) {
+        if (roles == null || roles.isEmpty()) {
+            return false;
+        }
+        for (String role : roles) {
+            if (RoleCatalog.principalTypeOf(role) != RoleCatalog.PrincipalType.CUSTOMER) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * 客户主体业务路由白名单（P1 兼容 /unit/**，不新增 /client/** 端点）：
+     * 门户前缀、自身账号端点（菜单/本人信息/改密/绑微信/登出）、健康检查、
+     * GET /files/*（鉴权前已放行，此处兜底；时效签名在 FileController 校验）与
+     * GET /elevators*（含 profile，本单位谓词在 ElevatorController 已有，跨单位 1403）。
+     * 其余一律拒绝——尤其 /users /org /stats /audit /invites /grants /projects /roles-matrix
+     * /admin/ /reg/ /platform/ /employees/ /use-units/ /home/summary。
+     */
+    private static boolean clientAllowed(String uri, String method) {
+        if (uri.startsWith("/unit/")) {
+            return true;
+        }
+        if (uri.equals("/me/menus") || uri.equals("/auth/me") || uri.equals("/auth/change-password")
+                || uri.equals("/auth/bind-wechat") || uri.equals("/auth/logout") || uri.equals("/health")) {
+            return true;
+        }
+        // 读口径与 AdminRoleInterceptor 的「GET /elevators* 小程序共用读接口」一致；写操作（派单等）不放行
+        return "GET".equalsIgnoreCase(method) && (uri.startsWith("/files/") || uri.startsWith("/elevators"));
     }
 
     /** 多角色规范码集：有 sys_user_role 取其 role_code 规范码；否则回退主角色规范码（2 参兼容）。 */

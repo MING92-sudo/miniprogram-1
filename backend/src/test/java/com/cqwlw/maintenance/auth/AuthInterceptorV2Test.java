@@ -111,4 +111,98 @@ class AuthInterceptorV2Test {
         Set<String> roles = (Set<String>) req.getAttribute(AuthInterceptor.ATTR_ROLES);
         assertEquals(Set.of("MAINT_TECH"), roles); // 回退主角色规范码
     }
+
+    // ── P1 T3：客户主体令牌业务路由白名单（task-3-brief；403 口径同 ut=1 门户分支 BizException，
+    //    经 GlobalExceptionHandler 统一 {code,message} 响应并落 BLOCKED 审计） ──
+
+    /** 构造合法统一令牌（client=mp、sid/sv 匹配），sys_user_role 返回给定角色码（经 canonical 归一）。 */
+    private AuthInterceptor interceptorFor(String sub, String primaryRole, String... roleCodes) {
+        Claims c = claims(sub, primaryRole, "mp", "s1", 0); // 先建 mock 再 stub，避免嵌套 stubbing
+        when(jwt.verify(anyString())).thenReturn(c);
+        when(employeeMapper.selectById(sub)).thenReturn(employee(sub, primaryRole, "s1", 0));
+        java.util.List<SysUserRole> rows = new java.util.ArrayList<>();
+        for (String code : roleCodes) {
+            SysUserRole r = new SysUserRole();
+            r.roleCode = code;
+            rows.add(r);
+        }
+        when(userRoleMapper.selectList(any())).thenReturn(rows);
+        return new AuthInterceptor(jwt, employeeMapper, userRoleMapper);
+    }
+
+    private HttpServletRequest request(String uri, String method) {
+        MockHttpServletRequest req = new MockHttpServletRequest();
+        req.setMethod(method);
+        req.setRequestURI(uri);
+        req.addHeader("Authorization", "Bearer token");
+        return req;
+    }
+
+    /** 客户令牌打内部/管理端点 → 403（P1 前员工统一令牌对这些 M3/M5 路由无按角色限制，可直达） */
+    @Test
+    void customerTokenRejectedOnInternalEndpoints() {
+        AuthInterceptor interceptor = interceptorFor("emp_c", "UNIT_ADMIN", "CLIENT_ADMIN");
+        for (String uri : new String[]{"/users", "/org", "/stats", "/audit", "/invites",
+                "/admin/dashboard", "/employees", "/home/summary"}) {
+            BizException ex = assertThrows(BizException.class,
+                    () -> interceptor.preHandle(request(uri), response, handler), uri);
+            assertEquals(403, ex.getCode());
+            assertTrue(ex.getMessage().contains("客户"), uri);
+        }
+    }
+
+    /** 客户令牌打员工作业端点（工单/移交/日历/消息）→ 403；多客户角色（ADMIN+SIGNER）同判 */
+    @Test
+    void customerTokenRejectedOnStaffWorkEndpoints() {
+        AuthInterceptor interceptor = interceptorFor("emp_c", "UNIT_ADMIN", "CLIENT_ADMIN", "CLIENT_SIGNER");
+        for (String uri : new String[]{"/work-orders", "/handovers", "/maintenance-calendar", "/messages"}) {
+            BizException ex = assertThrows(BizException.class,
+                    () -> interceptor.preHandle(request(uri), response, handler), uri);
+            assertEquals(403, ex.getCode());
+        }
+    }
+
+    /** 客户门户与自身账号端点放行：/unit/**、/me/menus、/auth/me、改密/绑微信（POST）、GET /elevators*（含 profile） */
+    @Test
+    void customerTokenAllowedOnPortalAndOwnEndpoints() {
+        AuthInterceptor interceptor = interceptorFor("emp_c", "UNIT_ADMIN", "CLIENT_ADMIN");
+        for (String uri : new String[]{"/unit/records/pending", "/unit/elevators", "/me/menus",
+                "/auth/me", "/elevators", "/elevators/e1/profile"}) {
+            assertTrue(interceptor.preHandle(request(uri), response, handler), uri);
+        }
+        assertTrue(interceptor.preHandle(request("/auth/change-password", "POST"), response, handler));
+        assertTrue(interceptor.preHandle(request("/auth/bind-wechat", "POST"), response, handler));
+    }
+
+    /** 电梯族仅 GET 读放行：客户令牌写操作（手动派单）→ 403 */
+    @Test
+    void customerTokenRejectedOnElevatorWrite() {
+        AuthInterceptor interceptor = interceptorFor("emp_c", "UNIT_ADMIN", "CLIENT_ADMIN");
+        BizException ex = assertThrows(BizException.class, () -> interceptor.preHandle(
+                request("/elevators/e1/dispatch", "POST"), response, handler));
+        assertEquals(403, ex.getCode());
+    }
+
+    /** 内部员工放行逐条不变：MAINT_TECH 打 /work-orders 不受客户白名单影响 */
+    @Test
+    void employeeTokenUnaffectedByCustomerWhitelist() {
+        AuthInterceptor interceptor = interceptorFor("emp_1", "WORKER", "MAINT_TECH");
+        assertTrue(interceptor.preHandle(request("/work-orders"), response, handler));
+    }
+
+    /** 混合角色（含任一内部角色）走员工路径，不被误锁（Review Focus #1：全部 CUSTOMER 才锁） */
+    @Test
+    void mixedRolesNotLockedToCustomerWhitelist() {
+        AuthInterceptor interceptor = interceptorFor("emp_1", "MAINT_MANAGER", "MAINT_MGR", "CLIENT_ADMIN");
+        assertTrue(interceptor.preHandle(request("/users"), response, handler));
+    }
+
+    /** 旧客户账号无 sys_user_role 行：回退主角色 UNIT_ADMIN→CLIENT_ADMIN，仍判客户主体 → /users 403 */
+    @Test
+    void legacyUnitAdminFallbackStillCustomer() {
+        AuthInterceptor interceptor = interceptorFor("emp_c", "UNIT_ADMIN");
+        BizException ex = assertThrows(BizException.class,
+                () -> interceptor.preHandle(request("/users"), response, handler));
+        assertEquals(403, ex.getCode());
+    }
 }
