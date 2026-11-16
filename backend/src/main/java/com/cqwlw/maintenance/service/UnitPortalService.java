@@ -34,6 +34,9 @@ public class UnitPortalService {
     public static final String REPORTER_PREFIX = "unit:";
     /** 门户列表上限：先给固定窗口，分页等门户页落地后再补 */
     private static final int LIST_LIMIT = 50;
+    /** 客户可见生命周期集合（docs/14 §4.6 可见性表，T4-I5）：待签 + 已签/归档/拒签三态只读；NULL/其他不可见 */
+    private static final Set<String> CLIENT_VISIBLE_LIFECYCLES =
+            Set.of("PENDING_CLIENT_SIGNATURE", "SIGNED", "ARCHIVED", "REFUSED_RETURNED");
 
     private final ElevatorMapper elevatorMapper;
     private final MaintainRecordMapper recordMapper;
@@ -71,7 +74,12 @@ public class UnitPortalService {
         return out;
     }
 
-    /** 本单位维保记录（按签退时间倒序） */
+    /**
+     * 本单位维保记录（按签退时间倒序）。
+     * T4-I5（docs/14 §4.6 可见性表）：客户只见 PENDING_CLIENT_SIGNATURE/SIGNED/ARCHIVED/REFUSED_RETURNED
+     * 且为链末端最新版本——PENDING_REVIEW/PENDING_CLIENT_SIGN/NULL（历史）不外显；谓词写进查询条件，
+     * 内存再防御过滤一层（本类既有约定，避免将来改查询漏条件）。
+     */
     public List<Map<String, Object>> records(String useUnitId) {
         Set<String> codes = ownCodes(useUnitId);
         if (codes.isEmpty()) {
@@ -79,6 +87,7 @@ public class UnitPortalService {
         }
         List<MaintainRecord> list = recordMapper.selectList(new LambdaQueryWrapper<MaintainRecord>()
                 .in(MaintainRecord::getElevatorCode, codes)
+                .in(MaintainRecord::getLifecycleStatus, CLIENT_VISIBLE_LIFECYCLES)
                 .orderByDesc(MaintainRecord::getCheckoutTime)
                 .last("LIMIT " + LIST_LIMIT));
         List<Map<String, Object>> out = new ArrayList<>();
@@ -86,16 +95,30 @@ public class UnitPortalService {
             if (!codes.contains(r.elevatorCode)) {
                 continue;
             }
+            if (r.lifecycleStatus == null || !CLIENT_VISIBLE_LIFECYCLES.contains(r.lifecycleStatus)) {
+                continue;
+            }
+            if (!isLatestVersion(r)) {
+                continue; // §4.6 规则 1：历史版本仅内部/审计可见
+            }
             out.add(recordRow(r));
         }
         return out;
     }
 
-    /** 待确认签字：本单位电梯中 confirmStatus != CONFIRMED 的记录 */
+    /** 待签字（docs/14 §4.6）：仅唯一可签状态 PENDING_CLIENT_SIGNATURE + confirmStatus=PENDING（本单位/可见集合/最新版本已由 records() 保证） */
     public List<Map<String, Object>> pendingSigns(String useUnitId) {
         return records(useUnitId).stream()
-                .filter(r -> !"CONFIRMED".equals(r.get("confirmStatus")))
+                .filter(r -> "PENDING_CLIENT_SIGNATURE".equals(r.get("lifecycleStatus"))
+                        && "PENDING".equals(r.get("confirmStatus")))
                 .toList();
+    }
+
+    /** docs/14 §4.6 规则 1：最新版本 = 不存在 prev_version_id = 本记录 id 的后续版本 */
+    private boolean isLatestVersion(MaintainRecord r) {
+        Long next = recordMapper.selectCount(new LambdaQueryWrapper<MaintainRecord>()
+                .eq(MaintainRecord::getPrevVersionId, r.id));
+        return next == null || next == 0;
     }
 
     /** 本单位急修单（按报修时间倒序） */
@@ -195,6 +218,7 @@ public class UnitPortalService {
         return codes;
     }
 
+    /** 列表行投影（客户安全字段）：T4-I5 增 lifecycleStatus/version 供前端区分 待签/只读 与版本链 */
     private static Map<String, Object> recordRow(MaintainRecord r) {
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("id", r.id);
@@ -207,6 +231,8 @@ public class UnitPortalService {
         m.put("checkoutTime", TimeUtil.format(r.checkoutTime));
         m.put("duration", r.duration);
         m.put("confirmStatus", r.confirmStatus == null ? "PENDING" : r.confirmStatus);
+        m.put("lifecycleStatus", r.lifecycleStatus);
+        m.put("version", r.version);
         return m;
     }
 

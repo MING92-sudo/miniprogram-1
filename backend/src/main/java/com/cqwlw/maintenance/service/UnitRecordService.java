@@ -68,7 +68,7 @@ public class UnitRecordService {
         requireClient(roles, unitId);
         MaintainRecord r = findOr404(id);
         requireOwnUnit(r, unitId, "仅本单位记录可查看");
-        requireSignable(r); // 详情即签署前核对视图：非待签/旧版本客户不可见（docs/14 §4.6 规则 1/2）
+        requireViewable(r); // 查看门禁（T4-C2）：§4.6 可见性表，与签字门禁（requireSignable）分离
         return toClientMap(r);
     }
 
@@ -77,20 +77,27 @@ public class UnitRecordService {
         MaintainRecord r = findOr404(id);
         requireOwnUnit(r, unitId, "仅本单位记录可确认");
         requireSignable(r);
+        return signRecord(r, body);
+    }
+
+    /**
+     * 签字落库（confirmAs / confirmByToken 共用，docs/14 §4.6 规则 2/3，门禁须已前置通过）：
+     * 条件更新 WHERE confirm_status='PENDING' AND lifecycle_status='PENDING_CLIENT_SIGNATURE'，
+     * 受影响行 0 → 422 已签（并发先签为准，不覆盖首签）；satisfaction 不接收（§4.7 评价关闭，
+     * 不塞进签字端点；旧实现对字符串入参还会 CCE→500）；落库成功后才回写内存态并归档
+     * （onClientSigned 只置 SIGNED+归档，不注入上报服务，结构保证不触发平台 2.6）。
+     */
+    private Map<String, Object> signRecord(MaintainRecord r, Map<String, Object> body) {
         String signatureUrl = WorkOrderService.strOrEmpty(body.get("signatureUrl"));
         String signatureFileId = WorkOrderService.strOrEmpty(body.get("signatureFileId"));
         if (signatureUrl.isEmpty() && signatureFileId.isEmpty()) {
             throw new BizException(422, "请先完成签名");
         }
-        int satisfaction = body.get("satisfaction") == null ? 0 : ((Number) body.get("satisfaction")).intValue();
-        // docs/14 §4.6 规则 3「先签为准」：条件更新 WHERE confirm_status='PENDING' AND lifecycle_status='PENDING_CLIENT_SIGNATURE'，
-        // 并发第二个签字受影响行=0 → 422 已签，不覆盖首签（客户签字不触发 2.6：onClientSigned 只置 SIGNED+归档）
         int affected = recordMapper.update(null, new LambdaUpdateWrapper<MaintainRecord>()
                 .eq(MaintainRecord::getId, r.id)
                 .eq(MaintainRecord::getConfirmStatus, "PENDING")
                 .eq(MaintainRecord::getLifecycleStatus, "PENDING_CLIENT_SIGNATURE")
                 .set(MaintainRecord::getConfirmStatus, "CONFIRMED")
-                .set(MaintainRecord::getSatisfaction, satisfaction)
                 .set(MaintainRecord::getSignatureFileId, signatureFileId)
                 .set(MaintainRecord::getSignatureUrl, signatureUrl));
         if (affected == 0) {
@@ -98,11 +105,10 @@ public class UnitRecordService {
         }
         // 落库成功后才回写内存态，供 onClientSigned 归档投影（PDF 需最新签字字段）
         r.confirmStatus = "CONFIRMED";
-        r.satisfaction = satisfaction;
         r.signatureFileId = signatureFileId;
         r.signatureUrl = signatureUrl;
         if (recordLifecycleService != null) {
-            recordLifecycleService.onClientSigned(r); // SIGNED→自动归档；不注入上报服务，结构保证不触发平台 2.6
+            recordLifecycleService.onClientSigned(r);
         }
         return JsonUtil.map("ok", true);
     }
@@ -129,7 +135,7 @@ public class UnitRecordService {
         }
     }
 
-    /** 门禁链④⑤⑥：唯一可签状态 PENDING_CLIENT_SIGNATURE + confirmStatus=PENDING + 链末端最新版本，任一失败 422 */
+    /** 签字门禁链④⑤⑥：唯一可签状态 PENDING_CLIENT_SIGNATURE + confirmStatus=PENDING + 链末端最新版本，任一失败 422 */
     private void requireSignable(MaintainRecord r) {
         if (!"PENDING_CLIENT_SIGNATURE".equals(r.lifecycleStatus)) {
             throw new BizException(422, "记录不在待使用单位签署状态");
@@ -137,8 +143,27 @@ public class UnitRecordService {
         if (!"PENDING".equals(r.confirmStatus)) {
             throw new BizException(422, "记录已签署，不能重复签字");
         }
+        requireLatestVersion(r, "记录已被新版本替代，请签署最新记录");
+    }
+
+    /**
+     * 查看门禁（docs/14 §4.6 可见性表，T4-C2）：客户只读可见集合 =
+     * PENDING_CLIENT_SIGNATURE（可签）/ SIGNED / ARCHIVED / REFUSED_RETURNED（只读）；
+     * PENDING_REVIEW / PENDING_CLIENT_SIGN / NULL / 其他一律不可见（422），历史版本仅内部/审计可见。
+     * 与签字门禁分离：可见 ≠ 可签，签字一律走 requireSignable。
+     */
+    private void requireViewable(MaintainRecord r) {
+        String lc = r.lifecycleStatus;
+        if (!"PENDING_CLIENT_SIGNATURE".equals(lc) && !"SIGNED".equals(lc)
+                && !"ARCHIVED".equals(lc) && !"REFUSED_RETURNED".equals(lc)) {
+            throw new BizException(422, "记录当前状态客户不可见");
+        }
+        requireLatestVersion(r, "记录已被新版本替代，请查看最新记录");
+    }
+
+    private void requireLatestVersion(MaintainRecord r, String message) {
         if (!isLatestVersion(r)) {
-            throw new BizException(422, "记录已被新版本替代，请签署最新记录");
+            throw new BizException(422, message);
         }
     }
 
@@ -219,33 +244,24 @@ public class UnitRecordService {
         m.put("duration", WorkOrderService.nz(r.duration));
         m.put("itemTotal", items == null ? 0 : items.size());
         m.put("photoCount", photos.size());
-        m.put("satisfaction", r.satisfaction);
+        // T4-I3：satisfaction 不再返回（docs/14 §4.7 评价关闭，签字链路不带满意度）
         m.put("signatureUrl", fileStorageService.resolveStoredUrl(r.signatureUrl));
         return m;
     }
 
+    /**
+     * 匿名分享链接签字（P1/P2 兼容期，docs/14 §4.6 规则 8）：token 即凭证（401 先于状态披露）；
+     * T4-C1：状态/版本门禁与条件更新与 confirmAs 完全一致——此前无 lifecycle 门禁且 updateById
+     * 读-改-写非原子，持链接可对 PENDING_REVIEW/PENDING_CLIENT_SIGN/NULL 记录签字（虚假签字合规绕过），
+     * 并发 token 后写还会覆盖首签。已签/旧版本一律 422（先签为准），不再回 already 幂等体。
+     */
     public Map<String, Object> confirmByToken(String id, String token, Map<String, Object> body) {
         MaintainRecord r = findOr404(id);
         if (token == null || token.isEmpty() || !token.equals(r.shareToken)) {
             throw new BizException(401, "确认链接无效或已失效");
         }
-        if ("CONFIRMED".equals(r.confirmStatus)) {
-            return JsonUtil.map("ok", true, "already", true);
-        }
-        String signatureUrl = WorkOrderService.strOrEmpty(body.get("signatureUrl"));
-        String signatureFileId = WorkOrderService.strOrEmpty(body.get("signatureFileId"));
-        if (signatureUrl.isEmpty() && signatureFileId.isEmpty()) {
-            throw new BizException(422, "请先完成签名");
-        }
-        r.confirmStatus = "CONFIRMED";
-        r.satisfaction = body.get("satisfaction") == null ? 0 : ((Number) body.get("satisfaction")).intValue();
-        r.signatureFileId = signatureFileId;
-        r.signatureUrl = signatureUrl;
-        recordMapper.updateById(r);
-        if (recordLifecycleService != null) {
-            recordLifecycleService.onClientSigned(r); // M1：SIGNED→自动归档（不触发平台调用）
-        }
-        return JsonUtil.map("ok", true);
+        requireSignable(r);
+        return signRecord(r, body);
     }
 
     /** 内部/管理端全量投影（含上报与预览上下文）：客户路径禁用，一律走 toClientMap（P1 T4，docs/14 §4.7） */

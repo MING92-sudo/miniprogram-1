@@ -126,7 +126,54 @@ class ClientRecordGateTest {
         verify(records, never()).updateById(any(MaintainRecord.class));
         verify(lifecycle, never()).onClientSigned(any());
 
-        // 详情同门禁：非待签状态客户不可见（docs/14 §4.6 表）
+        // 查看门禁（§4.6 可见性表）：PENDING_CLIENT_SIGN 属不可见集合（双签未齐，客户不应提前看到）→ 422
+        assertEquals(422, assertThrows(BizException.class,
+                () -> service.getAs(RECORD_ID, CLIENT, UNIT)).getCode());
+    }
+
+    /** T4-C2（§4.6 可见性表）：SIGNED/ARCHIVED/REFUSED_RETURNED 客户只读可见；签字门禁仍拒（可见≠可签） */
+    @Test
+    void signedArchivedRefusedAreReadOnlyVisible() {
+        for (String state : new String[]{"SIGNED", "ARCHIVED", "REFUSED_RETURNED"}) {
+            MaintainRecord r = signable();
+            r.lifecycleStatus = state;
+            r.confirmStatus = "REFUSED_RETURNED".equals(state) ? "PENDING" : "CONFIRMED";
+            if ("ARCHIVED".equals(state)) {
+                r.archiveFileId = "f_pdf";
+                when(files.urlOf("f_pdf")).thenReturn("https://api/files/f_pdf?s=x");
+            }
+            Map<String, Object> m = service.getAs(RECORD_ID, CLIENT, UNIT);
+            assertEquals(state, m.get("lifecycleStatus"));
+            assertFalse(m.containsKey("shareToken"), state);
+            assertFalse(m.containsKey("reportPayload"), state);
+            if ("ARCHIVED".equals(state)) {
+                assertEquals("https://api/files/f_pdf?s=x", m.get("pdfUrl"));
+            }
+            // 只读：签字门禁仍拒（SIGNED/ARCHIVED 非可签状态；REFUSED_RETURNED 客户不能自行重签）
+            assertEquals(422, assertThrows(BizException.class, () -> service.confirmAs(RECORD_ID,
+                    Map.of("signatureUrl", "https://x/s.png"), CLIENT, UNIT)).getCode());
+        }
+        verify(records, never()).update(any(), any());
+    }
+
+    /** T4-C2：PENDING_REVIEW / NULL（历史行）不在可见集合 → 详情 422 */
+    @Test
+    void pendingReviewAndNullLifecycleInvisible() {
+        MaintainRecord r = signable();
+        r.lifecycleStatus = "PENDING_REVIEW";
+        assertEquals(422, assertThrows(BizException.class,
+                () -> service.getAs(RECORD_ID, CLIENT, UNIT)).getCode());
+        r.lifecycleStatus = null;
+        assertEquals(422, assertThrows(BizException.class,
+                () -> service.getAs(RECORD_ID, CLIENT, UNIT)).getCode());
+    }
+
+    /** §4.6 规则 1：旧版本即使 SIGNED 也不可见（历史版本仅内部/审计） */
+    @Test
+    void supersededSignedRecordInvisible() {
+        MaintainRecord r = signable();
+        r.lifecycleStatus = "SIGNED";
+        when(records.selectCount(any())).thenReturn(1L);
         assertEquals(422, assertThrows(BizException.class,
                 () -> service.getAs(RECORD_ID, CLIENT, UNIT)).getCode());
     }
@@ -169,7 +216,8 @@ class ClientRecordGateTest {
                 Map.of("signatureUrl", "https://x/s1.png", "satisfaction", 5), CLIENT, UNIT).get("ok"));
         assertEquals("CONFIRMED", r.confirmStatus);
         assertEquals("https://x/s1.png", r.signatureUrl);
-        assertEquals(5, r.satisfaction.intValue());
+        // T4-I3（§4.7）：satisfaction 不接收不落库（评价关闭），入参被忽略
+        assertEquals(0, r.satisfaction.intValue());
         verify(lifecycle, times(1)).onClientSigned(r);
 
         // 第二次确认（其他账号）→ 门禁 confirmStatus=PENDING 拒绝，首签签字不被覆盖
@@ -178,6 +226,71 @@ class ClientRecordGateTest {
         assertEquals(422, ex.getCode());
         assertEquals("https://x/s1.png", r.signatureUrl);
         verify(records, times(1)).update(any(), any());
+    }
+
+    /** T4-C1：匿名 token 签字同门禁——token 错 401 先于状态披露；非待签/NULL/旧版本 422 且零副作用 */
+    @Test
+    void confirmByTokenGatesStateAndVersion() {
+        MaintainRecord r = signable();
+        r.shareToken = "sg-token";
+
+        assertEquals(401, assertThrows(BizException.class, () -> service.confirmByToken(RECORD_ID, "bad",
+                Map.of("signatureUrl", "https://x/s.png"))).getCode());
+
+        // 双签未齐（PENDING_CLIENT_SIGN）→ 422：持分享链接不得提前签字（虚假签字合规绕过）
+        r.lifecycleStatus = "PENDING_CLIENT_SIGN";
+        assertEquals(422, assertThrows(BizException.class, () -> service.confirmByToken(RECORD_ID, "sg-token",
+                Map.of("signatureUrl", "https://x/s.png"))).getCode());
+
+        // 历史 NULL lifecycle → 422
+        r.lifecycleStatus = null;
+        assertEquals(422, assertThrows(BizException.class, () -> service.confirmByToken(RECORD_ID, "sg-token",
+                Map.of("signatureUrl", "https://x/s.png"))).getCode());
+
+        // 旧版本（存在 prevVersionId=本记录 id 的后续版本）→ 422
+        r.lifecycleStatus = "PENDING_CLIENT_SIGNATURE";
+        when(records.selectCount(any())).thenReturn(1L);
+        assertEquals(422, assertThrows(BizException.class, () -> service.confirmByToken(RECORD_ID, "sg-token",
+                Map.of("signatureUrl", "https://x/s.png"))).getCode());
+
+        assertEquals("PENDING", r.confirmStatus);
+        assertNull(r.signatureUrl);
+        verify(records, never()).update(any(), any());
+        verify(records, never()).updateById(any(MaintainRecord.class));
+        verify(lifecycle, never()).onClientSigned(any());
+    }
+
+    /** T4-C1：token 首签走同一条件更新（非 updateById 读-改-写）；satisfaction 字符串入参不再 CCE→500 */
+    @Test
+    void confirmByTokenSignsWithConditionalUpdate() {
+        MaintainRecord r = signable();
+        r.shareToken = "sg-token";
+        when(records.update(any(), any())).thenReturn(1);
+
+        assertEquals(Boolean.TRUE, service.confirmByToken(RECORD_ID, "sg-token",
+                Map.of("signatureUrl", "https://x/t1.png", "satisfaction", "五")).get("ok"));
+        assertEquals("CONFIRMED", r.confirmStatus);
+        assertEquals("https://x/t1.png", r.signatureUrl);
+        assertEquals(0, r.satisfaction.intValue()); // 不接收 satisfaction（§4.7）
+        verify(lifecycle, times(1)).onClientSigned(r);
+        verify(records, never()).updateById(any(MaintainRecord.class));
+
+        // 并发后来者：内存态已 CONFIRMED → 门禁 422，首签不被覆盖，条件更新只发生一次
+        BizException ex = assertThrows(BizException.class, () -> service.confirmByToken(RECORD_ID, "sg-token",
+                Map.of("signatureUrl", "https://x/forged.png")));
+        assertEquals(422, ex.getCode());
+        assertEquals("https://x/t1.png", r.signatureUrl);
+        verify(records, times(1)).update(any(), any());
+    }
+
+    /** T4-I3：sign-view 不再返回 satisfaction（评价关闭，签字链路不带满意度） */
+    @Test
+    void signViewOmitsSatisfaction() {
+        MaintainRecord r = signable();
+        r.shareToken = "sg-token";
+        Map<String, Object> v = service.signView(RECORD_ID, "sg-token");
+        assertFalse(v.containsKey("satisfaction"));
+        assertEquals(Boolean.FALSE, v.get("confirmed"));
     }
 
     /** 无签名确认 → 422（先于任何写操作） */
@@ -252,20 +365,38 @@ class ClientRecordGateTest {
         MaintainRecord r = signable();
         r.shareToken = "sg-token";
 
-        // 原因空 → 422，状态不变
+        // 原因空 → 422，状态不变、不落库
         assertEquals(422, assertThrows(BizException.class,
                 () -> real.refuseByToken(RECORD_ID, "sg-token", "  ")).getCode());
         assertEquals("PENDING_CLIENT_SIGNATURE", r.lifecycleStatus);
+        verify(records, never()).update(any(), any());
 
         // 非待签状态（已签）→ 422
         r.lifecycleStatus = "SIGNED";
         assertEquals(422, assertThrows(BizException.class,
                 () -> real.refuseByToken(RECORD_ID, "sg-token", "照片不清晰")).getCode());
 
-        // 待签 + 原因齐备 → REFUSED_RETURNED + 拒签原因留痕
+        // T4-I4：归档异常残留 CONFIRMED+PENDING_CLIENT_SIGNATURE → 不得拒签回滚已签
         r.lifecycleStatus = "PENDING_CLIENT_SIGNATURE";
+        r.confirmStatus = "CONFIRMED";
+        assertEquals(422, assertThrows(BizException.class,
+                () -> real.refuseByToken(RECORD_ID, "sg-token", "照片不清晰")).getCode());
+        verify(records, never()).update(any(), any());
+
+        // 待签 + 未确认 + 原因齐备 → 条件更新命中，REFUSED_RETURNED + 拒签原因留痕
+        r.confirmStatus = "PENDING";
+        when(records.update(any(), any())).thenReturn(1);
         real.refuseByToken(RECORD_ID, "sg-token", "照片不清晰");
         assertEquals("REFUSED_RETURNED", r.lifecycleStatus);
         assertEquals("照片不清晰", r.refuseReason);
+
+        // T4-I4：条件更新 0 行（并发已签抢先落库）→ 422，实体状态不改写
+        MaintainRecord race = signable();
+        race.shareToken = "sg-token";
+        when(records.update(any(), any())).thenReturn(0);
+        assertEquals(422, assertThrows(BizException.class,
+                () -> real.refuseByToken(RECORD_ID, "sg-token", "照片不清晰")).getCode());
+        assertEquals("PENDING_CLIENT_SIGNATURE", race.lifecycleStatus);
+        assertEquals("内部复核退回原因", race.refuseReason); // 拒签原因未写入（fixture 原值不被改写）
     }
 }

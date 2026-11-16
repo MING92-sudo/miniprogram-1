@@ -12,6 +12,7 @@ import com.cqwlw.maintenance.mapper.MaintainRecordMapper;
 import com.cqwlw.maintenance.mapper.SysConfigMapper;
 import com.cqwlw.maintenance.mapper.UseUnitMapper;
 import com.cqwlw.maintenance.mapper.WorkOrderMapper;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -25,6 +26,8 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
@@ -53,14 +56,24 @@ class RecordLifecycleTest {
                 mock(ElevatorMapper.class), mock(UseUnitMapper.class), pdf, files, configs);
     }
 
+    /** T4-I4 fixture 同步：拒签门禁补 confirmStatus=PENDING + 条件更新（mock 命中 1 行）；LambdaUpdateWrapper 需 TableInfo 缓存 */
+    @BeforeAll
+    static void initTableInfo() {
+        com.baomidou.mybatisplus.core.metadata.TableInfoHelper.initTableInfo(
+                new org.apache.ibatis.builder.MapperBuilderAssistant(
+                        new com.baomidou.mybatisplus.core.MybatisConfiguration(), ""), MaintainRecord.class);
+    }
+
     private MaintainRecord record(String lifecycle) {
         MaintainRecord r = new MaintainRecord();
         r.id = "r1";
         r.lifecycleStatus = lifecycle;
+        r.confirmStatus = "PENDING";
         r.shareToken = "sg-token";
         r.reportStatus = "SUCCESS";
         r.workOrderId = "o1";
         when(records.selectById("r1")).thenReturn(r);
+        when(records.update(any(), any())).thenReturn(1);
         return r;
     }
 
@@ -178,6 +191,42 @@ class RecordLifecycleTest {
         BizException ex = assertThrows(BizException.class,
                 () -> svc.refuseByToken("r1", "bad", "原因"));
         assertEquals(401, ex.getCode());
+    }
+
+    /** T4-I4：已确认（含归档异常残留 CONFIRMED+PENDING_CLIENT_SIGNATURE）不得拒签回滚已签 */
+    @Test
+    void refuseByTokenRejectedWhenAlreadyConfirmed() {
+        MaintainRecord r = record("PENDING_CLIENT_SIGNATURE");
+        r.confirmStatus = "CONFIRMED";
+        BizException ex = assertThrows(BizException.class,
+                () -> svc.refuseByToken("r1", "sg-token", "不认可"));
+        assertEquals(422, ex.getCode());
+        assertEquals("PENDING_CLIENT_SIGNATURE", r.lifecycleStatus);
+        verify(records, never()).update(any(), any());
+    }
+
+    /** T4-I4：旧版本（存在 prevVersionId=本记录 id 的后续版本）不可拒签 */
+    @Test
+    void refuseByTokenRejectedForSupersededVersion() {
+        MaintainRecord r = record("PENDING_CLIENT_SIGNATURE");
+        when(records.selectCount(any())).thenReturn(1L);
+        BizException ex = assertThrows(BizException.class,
+                () -> svc.refuseByToken("r1", "sg-token", "不认可"));
+        assertEquals(422, ex.getCode());
+        assertEquals("PENDING_CLIENT_SIGNATURE", r.lifecycleStatus);
+        verify(records, never()).update(any(), any());
+    }
+
+    /** T4-I4：条件更新 0 行（并发签字抢先落库）→ 422，实体不改写（防状态撕裂） */
+    @Test
+    void refuseByTokenConditionalUpdateZeroRows() {
+        MaintainRecord r = record("PENDING_CLIENT_SIGNATURE");
+        when(records.update(any(), any())).thenReturn(0);
+        BizException ex = assertThrows(BizException.class,
+                () -> svc.refuseByToken("r1", "sg-token", "不认可"));
+        assertEquals(422, ex.getCode());
+        assertEquals("PENDING_CLIENT_SIGNATURE", r.lifecycleStatus);
+        assertNull(r.refuseReason);
     }
 
     @Test

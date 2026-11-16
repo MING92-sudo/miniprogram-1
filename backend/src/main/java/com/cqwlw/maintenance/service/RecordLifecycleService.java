@@ -1,6 +1,7 @@
 package com.cqwlw.maintenance.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.cqwlw.maintenance.common.BizException;
 import com.cqwlw.maintenance.entity.AppFile;
 import com.cqwlw.maintenance.entity.Elevator;
@@ -130,7 +131,14 @@ public class RecordLifecycleService {
         return Map.of("ok", true);
     }
 
-    /** 使用单位拒签（凭分享 token）：原因必填，退回维保人员重新走签字链路 */
+    /**
+     * 使用单位拒签（凭分享 token）：原因必填，退回维保人员重新走签字链路。
+     * T4-I4（docs/14 §4.6 规则 2/5）：补全门禁链 confirmStatus=PENDING + 最新版本，
+     * 落库改条件更新（WHERE lifecycle='PENDING_CLIENT_SIGNATURE' AND confirm_status='PENDING'）——
+     * 旧 updateById 整实体读-改-写与 confirmAs 并发可把已落库 CONFIRMED 覆盖回 PENDING（状态撕裂），
+     * 归档异常残留 CONFIRMED+PENDING_CLIENT_SIGNATURE 时也可能拒签退回已签记录；受影响行 0 → 422。
+     * 不注入上报服务，结构保证拒签不触发平台 2.6。
+     */
     public Map<String, Object> refuseByToken(String recordId, String token, String reason) {
         MaintainRecord r = findOr404(recordId);
         if (token == null || token.isEmpty() || !token.equals(r.shareToken)) {
@@ -139,12 +147,28 @@ public class RecordLifecycleService {
         if (!"PENDING_CLIENT_SIGNATURE".equals(r.lifecycleStatus)) {
             throw new BizException(422, "记录不在待使用单位签署状态");
         }
+        if (!"PENDING".equals(r.confirmStatus)) {
+            throw new BizException(422, "记录已签署，不能拒签");
+        }
+        Long next = recordMapper.selectCount(new LambdaQueryWrapper<MaintainRecord>()
+                .eq(MaintainRecord::getPrevVersionId, r.id));
+        if (next != null && next > 0) {
+            throw new BizException(422, "记录已被新版本替代，请处理最新记录");
+        }
         if (reason == null || reason.trim().isEmpty()) {
             throw new BizException(422, "拒绝原因必填");
         }
+        int affected = recordMapper.update(null, new LambdaUpdateWrapper<MaintainRecord>()
+                .eq(MaintainRecord::getId, r.id)
+                .eq(MaintainRecord::getLifecycleStatus, "PENDING_CLIENT_SIGNATURE")
+                .eq(MaintainRecord::getConfirmStatus, "PENDING")
+                .set(MaintainRecord::getLifecycleStatus, "REFUSED_RETURNED")
+                .set(MaintainRecord::getRefuseReason, reason));
+        if (affected == 0) {
+            throw new BizException(422, "记录状态已变更（可能已被签署），拒签未生效");
+        }
         r.lifecycleStatus = "REFUSED_RETURNED";
         r.refuseReason = reason;
-        recordMapper.updateById(r);
         return Map.of("ok", true);
     }
 

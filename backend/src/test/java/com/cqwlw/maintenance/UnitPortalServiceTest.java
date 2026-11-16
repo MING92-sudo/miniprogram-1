@@ -53,6 +53,7 @@ class UnitPortalServiceTest {
         return el;
     }
 
+    /** T4-I5 fixture 同步：客户可见性按 §4.6 表过滤后，列表 fixture 须为可签状态才可见 */
     private static MaintainRecord record(String id, String code) {
         MaintainRecord r = new MaintainRecord();
         r.id = id;
@@ -60,6 +61,8 @@ class UnitPortalServiceTest {
         r.elevatorName = code + " 梯";
         r.workType = "半月维保";
         r.confirmStatus = "PENDING";
+        r.lifecycleStatus = "PENDING_CLIENT_SIGNATURE";
+        r.version = 1;
         return r;
     }
 
@@ -92,17 +95,68 @@ class UnitPortalServiceTest {
         assertEquals("EM-1", svc.faults("uu_1").get(0).get("elevatorCode"));
     }
 
-    /** 待签字 = 本单位电梯中未确认的维保记录 */
+    /** 待签字 = 唯一可签状态（PENDING_CLIENT_SIGNATURE + confirmStatus=PENDING）；已签（SIGNED/CONFIRMED）不列 */
     @Test
     void pendingSignsOnlyUnconfirmedOwnRecords() {
         when(elevatorMapper.selectList(any())).thenReturn(List.of(elevator("el_1", "EM-1", "uu_1", null)));
         MaintainRecord confirmed = record("ur_done", "EM-1");
         confirmed.confirmStatus = "CONFIRMED";
+        confirmed.lifecycleStatus = "SIGNED";
         when(recordMapper.selectList(any())).thenReturn(List.of(record("ur_wait", "EM-1"), confirmed));
 
         List<Map<String, Object>> out = service().pendingSigns("uu_1");
         assertEquals(1, out.size());
         assertEquals("ur_wait", out.get(0).get("id"));
+    }
+
+    /** T4-I5（docs/14 §4.6 可见性表）：客户列表只含 待签/已签/归档/拒签 四态 + 链末端最新版本；行投影带 lifecycleStatus/version */
+    @Test
+    void recordsFollowVisibilityTable() {
+        when(elevatorMapper.selectList(any())).thenReturn(List.of(elevator("el_1", "EM-1", "uu_1", null)));
+        MaintainRecord review = record("ur_review", "EM-1");
+        review.lifecycleStatus = "PENDING_REVIEW";
+        MaintainRecord dual = record("ur_dual", "EM-1");
+        dual.lifecycleStatus = "PENDING_CLIENT_SIGN";
+        MaintainRecord legacy = record("ur_legacy", "EM-1");
+        legacy.lifecycleStatus = null; // V42 前历史行：不作为客户可见记录
+        MaintainRecord sign = record("ur_sign", "EM-1");
+        MaintainRecord signed = record("ur_signed", "EM-1");
+        signed.lifecycleStatus = "SIGNED";
+        signed.confirmStatus = "CONFIRMED";
+        MaintainRecord archived = record("ur_arch", "EM-1");
+        archived.lifecycleStatus = "ARCHIVED";
+        archived.confirmStatus = "CONFIRMED";
+        MaintainRecord refused = record("ur_ref", "EM-1");
+        refused.lifecycleStatus = "REFUSED_RETURNED";
+        MaintainRecord old = record("ur_old", "EM-1"); // 旧版本：存在 prevVersionId=ur_old.id 的后续版本
+        when(recordMapper.selectList(any()))
+                .thenReturn(List.of(review, dual, legacy, sign, signed, archived, refused, old));
+        when(recordMapper.selectCount(any())).thenReturn(0L, 0L, 0L, 0L, 1L);
+
+        List<Map<String, Object>> out = service().records("uu_1");
+        assertEquals(List.of("ur_sign", "ur_signed", "ur_arch", "ur_ref"),
+                out.stream().map(r -> r.get("id")).toList());
+        assertEquals("PENDING_CLIENT_SIGNATURE", out.get(0).get("lifecycleStatus"));
+        assertEquals(1, out.get(0).get("version"));
+    }
+
+    /** T4-I5：待签列表剔除 双签未齐/已签/状态撕裂残留（PENDING_CLIENT_SIGNATURE+CONFIRMED） */
+    @Test
+    void pendingSignsOnlySignableState() {
+        when(elevatorMapper.selectList(any())).thenReturn(List.of(elevator("el_1", "EM-1", "uu_1", null)));
+        MaintainRecord sign = record("ur_sign", "EM-1");
+        MaintainRecord dual = record("ur_dual", "EM-1");
+        dual.lifecycleStatus = "PENDING_CLIENT_SIGN";
+        MaintainRecord signed = record("ur_signed", "EM-1");
+        signed.lifecycleStatus = "SIGNED";
+        signed.confirmStatus = "CONFIRMED";
+        MaintainRecord torn = record("ur_torn", "EM-1"); // 归档异常残留：待签态但已确认
+        torn.confirmStatus = "CONFIRMED";
+        when(recordMapper.selectList(any())).thenReturn(List.of(sign, dual, signed, torn));
+
+        List<Map<String, Object>> out = service().pendingSigns("uu_1");
+        assertEquals(1, out.size());
+        assertEquals("ur_sign", out.get(0).get("id"));
     }
 
     /** 报修：落到急修单并派给该梯责任人（按 workerPlatformId 找员工） */
