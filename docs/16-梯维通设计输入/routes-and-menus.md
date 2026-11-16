@@ -110,6 +110,8 @@ miniprogram/
 
 图例：`INST_*` = 安装部三角色，`MAINT_*` = 维保三角色，`CLIENT_*` = 使用单位两角色。
 
+> **2026-11-17 P1 终审 M1 同步**：本节已按 `config/routes.js` 实际值逐行对齐（客户报修/工单/评价入口收敛、电梯两页 perm any-of、移交详情去客户、签署 perm 改 `client:*`）；裁决依据 `docs/14` V2.3 与 `docs/12` C-25，登记见 §12 N10。verify 守卫只锁 §5 `ROLE_TABS`，不锁本表。
+
 ### 4.1 主包
 
 | 路由 | 页面 | 允许角色 | 权限点 | 关键参数 |
@@ -120,9 +122,9 @@ miniprogram/
 | `/pages/client/home/index` | 使用单位首页 | `CLIENT_*` | — | — |
 | `/pages/order/list/index` | 工单列表 | `MAINT_*` | `order:view_pool` | `state?` |
 | `/pages/order/detail/index` | 工单详情 | `MAINT_*` / `CLIENT_*` | `order:view_pool` / `order:view_own` | `id` |
-| `/pages/order/report/index` | 一键报修 | `CLIENT_*` | `order:create` | `elevatorId?` |
-| `/pages/elevator/list/index` | 电梯列表 | 全部已登录 | `elevator:view` | `scope?` |
-| `/pages/elevator/detail/index` | 电梯档案 | 全部已登录 | `elevator:view` | `id` |
+| `/pages/order/report/index` | 一键报修 | `MAINT_SUP`（客户报修入口下线，重开由 P3 裁决） | `order:create` / `order:create_proxy` | `elevatorId?` |
+| `/pages/elevator/list/index` | 电梯列表 | 全部已登录 | `elevator:view` / `client:elevator_view`（any-of，客户 tab 电梯页） | `scope?` |
+| `/pages/elevator/detail/index` | 电梯档案 | 全部已登录 | `elevator:view` / `client:elevator_view`（any-of） | `id` |
 | `/pages/profile/index` | 我的 / 切换工作台 | 全部已登录 | — | — |
 | `/pages/403/index` | 无权限 | 全部已登录 | — | `from?` |
 
@@ -131,7 +133,7 @@ miniprogram/
 | 路由 | 页面 | 允许角色 | 权限点 | 关键参数 |
 |---|---|---|---|---|
 | `/pkg-handover/pages/list/index` | 移交单列表 | `INST_*` · `MAINT_SUP` · `MAINT_MGR` | `handover:view` | `state?` |
-| `/pkg-handover/pages/detail/index` | 移交单详情 | 相关角色 + `CLIENT_ADMIN`（生效后） | `handover:view` | `id` |
+| `/pkg-handover/pages/detail/index` | 移交单详情 | 相关角色（客户不列：T2 收回后客户不持 `handover:view`，P1 终审 M6 去死配置） | `handover:view` | `id` |
 | `/pkg-handover/pages/create/index` | 发起移交 | `INST_PM` | `handover:create` | `projectId?` |
 | `/pkg-handover/pages/upload/index` | 资料上传 | `INST_CLERK` · `INST_PM` | `handover:doc_upload` | `handoverId` |
 | `/pkg-handover/pages/review/index` | 内部审核 | `INST_MGR` | `handover:review` | `id` |
@@ -145,7 +147,7 @@ miniprogram/
 |---|---|---|---|---|
 | `/pkg-maintenance/pages/plan/index` | 维保计划 | `MAINT_SUP` · `MAINT_MGR` | `plan:view` | `month?` |
 | `/pkg-maintenance/pages/task/index` | 作业执行 | `MAINT_TECH` | `task:accept` | `id` |
-| `/pkg-maintenance/pages/record-detail/index` | 记录单详情 | `MAINT_*` · `CLIENT_*` | `record:view` | `id` |
+| `/pkg-maintenance/pages/record-detail/index` | 记录单详情 | 维保内部五岗（`MAINT_*` · `MAINT_QUALITY` · `MAINT_BIZ`）；客户不可达（客户读记录走 `/pkg-client/pages/sign/index` token 链路） | `record:view` | `id` |
 | `/pkg-maintenance/pages/record-sign/index` | 维保双人签字 | `MAINT_TECH`（主检 / 配合） | `record:sign_tech` | `id` `as=primary\|assist` |
 | `/pkg-maintenance/pages/record-archive/index` | 归档 / PDF | `MAINT_SUP` · `MAINT_MGR` · `CLIENT_ADMIN` | `record:export` | `id` |
 
@@ -153,10 +155,10 @@ miniprogram/
 
 | 路由 | 页面 | 允许角色 | 权限点 | 关键参数 |
 |---|---|---|---|---|
-| `/pkg-client/pages/todo/index` | 待办签字 | `CLIENT_*` | `record:sign` / `order:confirm` | — |
-| `/pkg-client/pages/sign/index` | 签署确认 | `CLIENT_SIGNER` | `client:sign` | `taskId` `token` |
-| `/pkg-client/pages/orders/index` | 本单位工单 | `CLIENT_*` | `order:view_own` | `state?` |
-| `/pkg-client/pages/evaluate/index` | 服务评价 | `CLIENT_*` | `client:evaluate` | `orderId` |
+| `/pkg-client/pages/todo/index` | 待办签字 | `CLIENT_*` | `client:sign` | — |
+| `/pkg-client/pages/sign/index` | 签署确认 | `CLIENT_*`（CA/CS 双角色，`client:sign` 双 Y，docs/14 §5.4） | `client:sign` | `taskId` `token` |
+| `/pkg-client/pages/orders/index` | 本单位工单 | —（入口下线，roles 置空；页面保留 P3 复用，重开由 P3 裁决） | `order:view_own` | `state?` |
+| `/pkg-client/pages/evaluate/index` | 服务评价 | —（评价关闭，roles 置空；docs/14 §4.7） | `client:evaluate` | `orderId` |
 
 ### 4.5 管理子包
 
@@ -709,10 +711,11 @@ function parseScene(q?: string) {
 | N7 | 不可用控件两档门控并存 | 路由层不引入第三套判定，判定实现只在权限矩阵 §8.4 定义 | `routes-and-menus.md:343`、`roles-permissions.md:353-370` |
 | N8 | 原型 17 屏 | §10 表从 12 行扩到 17 行，屏号与 `data-title` 逐字一致；屏 13–16 明确不新增路由 | `routes-and-menus.md:639-657` |
 | N9 | 文档双日期口径 | 页脚改为「发布 2026-11-14 · 数据基准日 2026-11-13」，业务数据仍按基准日取值 | `routes-and-menus.md:707` |
+| N10 | P1 权限收口（2026-11-17 终审 M1，非批次 4b 裁决，补登记） | §4 路由清单按 `config/routes.js` 实际值逐行对齐：一键报修改 `MAINT_SUP`（客户报修下线，perm 补 `order:create_proxy`）、电梯两页 perm 补 `client:elevator_view` any-of、记录单详情去 `CLIENT_*`（客户读记录走 sign token 链路）、待办签字 perm 改 `client:sign`、签署确认对 CA/CS 双角色开放、本单位工单/服务评价入口 roles 置空、移交详情去客户（M6 死配置清理）。§5 `ROLE_TABS` 未动（verify-miniapp-routes 10/10 绿） | `routes-and-menus.md:109-175` |
 
 > 版本口径：本文 V1.3 与 `roles-permissions.md` V1.3、`admin-spec.md`（后台管理端规格）、被冻结的 `index.html`（17 屏）同批对齐。`index.html` 内仍有 5 处按旧行号引用本文（`index.html:965` / `:969` / `:982` / `:1047` / `:1475` → L127 / L77 / L216 / L257 / L286），实测**行号在本次改写后仍然有效**，无需回改；权限矩阵侧的 11 处旧行号需要回改，登记在 `roles-permissions.md` §14 R7。
 
 ---
 
-> 版本：V1.3 · 发布 2026-11-14 · 数据基准日 2026-11-13（业务数据与单据时间仍按基准日取值，版本号与发布日期按发布日记录）  
+> 版本：V1.3 · 发布 2026-11-14 · 数据基准日 2026-11-13（业务数据与单据时间仍按基准日取值，版本号与发布日期按发布日记录） · 2026-11-17 §4 增量修订（P1 终审 M1，按 `config/routes.js` 实际值对齐，见 §12 N10）  
 > 配套：`roles-permissions.md`（权限矩阵 V1.3，含 §12 权限覆盖表与 §13 小程序侧补充规格） / `index.html`（17 屏原型 V1.3） / `preview.png` / 后台管理端 `admin-spec.md` + `admin/`
