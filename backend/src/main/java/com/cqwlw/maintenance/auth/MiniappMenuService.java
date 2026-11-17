@@ -10,6 +10,7 @@ import com.cqwlw.maintenance.mapper.ElevatorMapper;
 import com.cqwlw.maintenance.mapper.FaultMapper;
 import com.cqwlw.maintenance.mapper.MaintainRecordMapper;
 import com.cqwlw.maintenance.mapper.SysUserRoleMapper;
+import com.cqwlw.maintenance.util.RecordVersionUtil;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -227,7 +228,7 @@ public class MiniappMenuService {
         if (codes.isEmpty()) {
             return 0;
         }
-        long count = 0;
+        List<String> ids = new ArrayList<>();
         for (MaintainRecord r : recordMapper.selectList(new LambdaQueryWrapper<MaintainRecord>()
                 .in(MaintainRecord::getElevatorCode, codes)
                 .eq(MaintainRecord::getConfirmStatus, "PENDING")
@@ -237,9 +238,14 @@ public class MiniappMenuService {
                     || !codes.contains(r.elevatorCode)) {
                 continue;
             }
-            Long next = recordMapper.selectCount(new LambdaQueryWrapper<MaintainRecord>()
-                    .eq(MaintainRecord::getPrevVersionId, r.id));
-            if (next == null || next == 0) {
+            ids.add(r.id);
+        }
+        // P2 T5（N+1 消除）：链末端最新版本改用共享 supersededIds 批量判定——一次 IN 查询
+        // 替代逐记录 selectCount，计数口径与旧实现逐集合相等（docs/14 §4.6 规则 1）
+        Set<String> superseded = RecordVersionUtil.supersededIds(recordMapper, ids);
+        long count = 0;
+        for (String id : ids) {
+            if (!superseded.contains(id)) {
                 count++; // §4.6 规则 1：链末端最新版本
             }
         }

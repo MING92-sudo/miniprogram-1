@@ -39,6 +39,7 @@ import java.util.Set;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.atMost;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -116,12 +117,12 @@ class ClientExclusionTest {
         Employee onlyRoles = emp("emp_n", "多角色客户", null);       // 主角色缺失、多角色集全客户 → 排除
         Employee mixed = emp("emp_m", "兼任", "WORKER");            // 角色集含内部（WORKER→EMPLOYEE）→ 保留（规则锁定，R7 正常不产生此数据）
         when(employees.selectList(any())).thenReturn(List.of(tech, client, legacy, onlyRoles, mixed));
-        when(userRoles.selectList(any())).thenReturn(
-                List.of(),                                          // emp_1
-                List.of(ur("emp_zw", "CLIENT_ADMIN", "uu_1")),      // emp_zw
-                List.of(),                                          // emp_u
-                List.of(ur("emp_n", "CLIENT_SIGNER", "uu_1")),      // emp_n
-                List.of(ur("emp_m", "CLIENT_ADMIN", "uu_1")));      // emp_m
+        // P2 T5（N+1 消除）：sys_user_role 改为一次 .in(userId) 批量载入按 userId 分组，
+        // 单一 stub 返回全部角色行（等价于旧逐员工 .eq(userId) 查询的并集），排除结论逐条不变
+        when(userRoles.selectList(any())).thenReturn(List.of(
+                ur("emp_zw", "CLIENT_ADMIN", "uu_1"),
+                ur("emp_n", "CLIENT_SIGNER", "uu_1"),
+                ur("emp_m", "CLIENT_ADMIN", "uu_1")));
 
         List<Map<String, Object>> out = archiveService(employees, userRoles).employeeList();
 
@@ -129,6 +130,8 @@ class ClientExclusionTest {
                 "人员目录不得出现 CLIENT_* 行");
         assertEquals(List.of("emp_1", "emp_m"), out.stream().map(m -> m.get("id")).toList(),
                 "UNIT_ADMIN 旧码 / 主角色缺失的全客户账号同样排除，仅内部主体保留");
+        // 查询次数锁定：角色表至多 1 次批量查询，不随员工数增长
+        verify(userRoles, atMost(1)).selectList(any());
     }
 
     /** brief Step 1：GET /users 账号视图不含 CLIENT_* 行（含 UNIT_ADMIN 旧码账号） */
@@ -219,14 +222,20 @@ class ClientExclusionTest {
         MaintainRecord superseded = rec("ur_2", "DT-1", "PENDING_CLIENT_SIGNATURE", "PENDING");
         MaintainRecord otherUnit = rec("ur_3", "DT-2", "PENDING_CLIENT_SIGNATURE", "PENDING"); // uu_2 的电梯
         MaintainRecord notYet = rec("ur_4", "DT-1", "PENDING_CLIENT_SIGN", "PENDING");         // 双签未齐
-        when(records.selectList(any())).thenReturn(List.of(signable, superseded, otherUnit, notYet));
-        when(records.selectCount(any())).thenReturn(0L, 1L); // ur_1=链末端；ur_2=存在后续版本
+        MaintainRecord nextOfSuperseded = rec("ur_2_v2", "DT-1", "SIGNED", "CONFIRMED");
+        nextOfSuperseded.prevVersionId = "ur_2"; // supersededIds 批量 IN 查询命中的后续版本行
+        when(records.selectList(any()))
+                .thenReturn(List.of(signable, superseded, otherUnit, notYet))
+                .thenReturn(List.of(nextOfSuperseded));
 
         Map<String, Object> out = menus.menusOf(Set.of("CLIENT_ADMIN"), null, me);
         Map<String, Object> badges = (Map<String, Object>) out.get("badges");
 
         assertEquals(1L, badges.get("pendingSigns"), "只计 本单位+可签+最新版本（ur_1）");
         assertEquals(0L, badges.get("pendingOrders"));
+        // P2 T5（N+1 消除）：链末端判定批量化——记录表至多 2 次查询（候选 1 + supersededIds 1），不再逐条 selectCount
+        verify(records, never()).selectCount(any());
+        verify(records, atMost(2)).selectList(any());
     }
 
     /** 无锚点 fail-closed：计 0 且不再全表 count（修复跨单位数量泄漏的旧实现路径） */

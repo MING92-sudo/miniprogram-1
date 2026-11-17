@@ -10,6 +10,7 @@ import com.cqwlw.maintenance.mapper.ElevatorMapper;
 import com.cqwlw.maintenance.mapper.EmployeeMapper;
 import com.cqwlw.maintenance.mapper.FaultMapper;
 import com.cqwlw.maintenance.mapper.MaintainRecordMapper;
+import com.cqwlw.maintenance.util.RecordVersionUtil;
 import com.cqwlw.maintenance.util.TimeUtil;
 import org.springframework.stereotype.Service;
 
@@ -121,7 +122,7 @@ public class UnitPortalService {
                 .in(MaintainRecord::getLifecycleStatus, CLIENT_VISIBLE_LIFECYCLES)
                 .orderByDesc(MaintainRecord::getCheckoutTime)
                 .last("LIMIT " + LIST_LIMIT));
-        List<MaintainRecord> out = new ArrayList<>();
+        List<MaintainRecord> candidates = new ArrayList<>();
         for (MaintainRecord r : list == null ? List.<MaintainRecord>of() : list) {
             if (!codes.contains(r.elevatorCode)) {
                 continue;
@@ -129,7 +130,18 @@ public class UnitPortalService {
             if (r.lifecycleStatus == null || !CLIENT_VISIBLE_LIFECYCLES.contains(r.lifecycleStatus)) {
                 continue;
             }
-            if (!isLatestVersion(r)) {
+            candidates.add(r);
+        }
+        // P2 T5（N+1 消除）：链末端最新版本改用共享 supersededIds 批量判定——一次 IN 查询
+        // 替代逐记录 selectCount，可见集合与旧 isLatestVersion 逐条判定相等（docs/14 §4.6 规则 1）
+        List<String> ids = new ArrayList<>();
+        for (MaintainRecord r : candidates) {
+            ids.add(r.id);
+        }
+        Set<String> superseded = RecordVersionUtil.supersededIds(recordMapper, ids);
+        List<MaintainRecord> out = new ArrayList<>();
+        for (MaintainRecord r : candidates) {
+            if (superseded.contains(r.id)) {
                 continue; // §4.6 规则 1：历史版本仅内部/审计可见
             }
             out.add(r);
@@ -137,22 +149,22 @@ public class UnitPortalService {
         return out;
     }
 
-    /** docs/14 §4.6 规则 1：最新版本 = 不存在 prev_version_id = 本记录 id 的后续版本 */
-    private boolean isLatestVersion(MaintainRecord r) {
-        Long next = recordMapper.selectCount(new LambdaQueryWrapper<MaintainRecord>()
-                .eq(MaintainRecord::getPrevVersionId, r.id));
-        return next == null || next == 0;
-    }
-
     /**
      * 本单位急修单（按报修时间倒序）。
-     * C-25②（投影补齐）：Fault 表无电梯名列，elevatorName 按 elevatorCode 批量联电梯取——
-     * 一次 .in 查询建 code→name（elevatorNameMap），不随行数逐行联（无 N+1）；
+     * C-25②（投影补齐）：Fault 表无电梯名列，elevatorName 按 elevatorCode 联电梯档案取；
+     * P2 T5（T3 minor）：codes 与电梯名 map 复用同一次 ownElevators 已载入结果（一次遍历建成），
+     * 不再按 codes 重查电梯（省 1 次查询），电梯/急修单空列表均短路；
      * 缺名回退 elevatorCode（与 pkg-client orders 页 `item.elevatorName || item.elevatorCode` 同显示语义）。
      * trapped 依赖 C-18 增列，不改表裁决，本投影暂不下发。
      */
     public List<Map<String, Object>> faults(String useUnitId) {
-        Set<String> codes = ownCodes(useUnitId);
+        List<Elevator> own = ownElevators(useUnitId);
+        Set<String> codes = new LinkedHashSet<>();
+        for (Elevator el : own) {
+            if (el.elevatorCode != null) {
+                codes.add(el.elevatorCode);
+            }
+        }
         if (codes.isEmpty()) {
             return List.of();
         }
@@ -160,9 +172,19 @@ public class UnitPortalService {
                 .in(Fault::getElevatorCode, codes)
                 .orderByDesc(Fault::getCreatedAt)
                 .last("LIMIT " + LIST_LIMIT));
-        Map<String, String> elevatorNames = elevatorNameMap(codes);
+        if (list == null || list.isEmpty()) {
+            return List.of(); // 空列表短路
+        }
+        // 电梯名 map 仅由本单位在保档案建成（他单位/停用同码电梯不进入，数据域较旧 codes 重查更严格）；
+        // 缺名/空白名不入 map，由投影层回退 elevatorCode（C-25② 口径不变）
+        Map<String, String> elevatorNames = new LinkedHashMap<>();
+        for (Elevator el : own) {
+            if (el.elevatorCode != null && el.elevatorName != null && !el.elevatorName.isBlank()) {
+                elevatorNames.putIfAbsent(el.elevatorCode, el.elevatorName);
+            }
+        }
         List<Map<String, Object>> out = new ArrayList<>();
-        for (Fault f : list == null ? List.<Fault>of() : list) {
+        for (Fault f : list) {
             if (!codes.contains(f.elevatorCode)) {
                 continue;
             }
@@ -181,22 +203,6 @@ public class UnitPortalService {
             out.add(m);
         }
         return out;
-    }
-
-    /** 批量取电梯名（C-25②）：一次 .in 查询建 code→name，避免逐行联电梯（N+1）；缺名/空白名不入 map，由投影层回退 */
-    private Map<String, String> elevatorNameMap(Set<String> codes) {
-        if (codes.isEmpty()) {
-            return Map.of();
-        }
-        List<Elevator> list = elevatorMapper.selectList(new LambdaQueryWrapper<Elevator>()
-                .in(Elevator::getElevatorCode, codes));
-        Map<String, String> map = new LinkedHashMap<>();
-        for (Elevator el : list == null ? List.<Elevator>of() : list) {
-            if (el.elevatorCode != null && el.elevatorName != null && !el.elevatorName.isBlank()) {
-                map.putIfAbsent(el.elevatorCode, el.elevatorName);
-            }
-        }
-        return map;
     }
 
     /**

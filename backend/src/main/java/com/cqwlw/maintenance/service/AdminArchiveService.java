@@ -137,10 +137,14 @@ public class AdminArchiveService {
      * department 字面量（客户 department 存 UNIT/null 两代值）。P3 账号体系重建后再定正式口径。
      */
     public List<Map<String, Object>> employeeList() {
+        List<Employee> all = employeeMapper.selectList(new LambdaQueryWrapper<Employee>()
+                .orderByAsc(Employee::getId));
+        // P2 T5（N+1 消除）：一次 .in(userId) 批量载入全部员工 sys_user_role（EMPLOYEE 行）按 userId 分组，
+        // 替代逐员工查询；每员工角色集与旧 .eq(userId) 逐条查询逐集合相等，排除结论不变
+        Map<String, List<SysUserRole>> rolesByUser = employeeRolesByUser(all);
         List<Map<String, Object>> list = new ArrayList<>();
-        for (Employee e : employeeMapper.selectList(new LambdaQueryWrapper<Employee>()
-                .orderByAsc(Employee::getId))) {
-            if (customerPrincipal(e)) {
+        for (Employee e : all == null ? List.<Employee>of() : all) {
+            if (customerPrincipal(e, rolesByUser)) {
                 continue;
             }
             list.add(employeeRow(e));
@@ -148,15 +152,41 @@ public class AdminArchiveService {
         return list;
     }
 
-    /** 生效角色集 = 主角色 ∪ sys_user_role（EMPLOYEE 行）：任一内部即保留，全 CUSTOMER 才排除 */
-    private boolean customerPrincipal(Employee e) {
+    /**
+     * 批量载入员工角色行并按 userId 分组（P2 T5）。
+     * 空 id 集短路不发起查询——MyBatis-Plus in() 空集会退化为无条件（全表），必须守卫；
+     * null userId 行不入分组（旧 .eq(userId) 语义下 NULL 永不匹配任何员工）。
+     */
+    private Map<String, List<SysUserRole>> employeeRolesByUser(List<Employee> all) {
+        Map<String, List<SysUserRole>> map = new LinkedHashMap<>();
+        Set<String> empIds = new LinkedHashSet<>();
+        for (Employee e : all == null ? List.<Employee>of() : all) {
+            if (e != null && e.id != null) {
+                empIds.add(e.id);
+            }
+        }
+        if (empIds.isEmpty()) {
+            return map;
+        }
+        List<SysUserRole> rows = userRoleMapper.selectList(new LambdaQueryWrapper<SysUserRole>()
+                .in(SysUserRole::getUserId, empIds)
+                .eq(SysUserRole::getUserType, "EMPLOYEE"));
+        for (SysUserRole ur : rows == null ? List.<SysUserRole>of() : rows) {
+            if (ur != null && ur.userId != null) {
+                map.computeIfAbsent(ur.userId, k -> new ArrayList<>()).add(ur);
+            }
+        }
+        return map;
+    }
+
+    /** 生效角色集 = 主角色 ∪ sys_user_role（EMPLOYEE 行，employeeRolesByUser 批量预载）：任一内部即保留，全 CUSTOMER 才排除 */
+    private boolean customerPrincipal(Employee e, Map<String, List<SysUserRole>> rolesByUser) {
         Set<String> roles = new LinkedHashSet<>();
         if (e.role != null && !e.role.isBlank()) {
             roles.add(e.role);
         }
-        for (SysUserRole ur : userRoleMapper.selectList(new LambdaQueryWrapper<SysUserRole>()
-                .eq(SysUserRole::getUserId, e.id)
-                .eq(SysUserRole::getUserType, "EMPLOYEE"))) {
+        // null id 无角色行（与旧 .eq(userId, null) 恒不匹配同口径；且不可直接 getOrDefault(null)——不可变空 Map 会 NPE）
+        for (SysUserRole ur : e.id == null ? List.<SysUserRole>of() : rolesByUser.getOrDefault(e.id, List.of())) {
             roles.add(ur.roleCode);
         }
         return RoleCatalog.isCustomerPrincipal(roles);

@@ -113,13 +113,10 @@ class UnitTokenScopeTest {
         var elevators = mock(com.cqwlw.maintenance.mapper.ElevatorMapper.class);
         when(records.selectList(org.mockito.ArgumentMatchers.any())).thenReturn(java.util.List.of(
                 record("r1", "DT-1"), record("r2", "DT-2")));
-        elevator(elevators, "DT-1", "u1");
-        // 第二次查询返回另一单位电梯：用 thenReturn 链
-        com.cqwlw.maintenance.entity.Elevator el2 = new com.cqwlw.maintenance.entity.Elevator();
-        el2.elevatorCode = "DT-2";
-        el2.useUnitId = "u2";
-        when(elevators.selectOne(org.mockito.ArgumentMatchers.any()))
-                .thenReturn(elFor("DT-1", "u1"), elFor("DT-2", "u2"));
+        // P2 T5（N+1 消除）：pendingAs 电梯归属改为一次批量 .in(elevatorCode) 查询（不再逐条 selectOne）；
+        // DT-2 属另一单位 u2 → r2 被归属过滤
+        when(elevators.selectList(org.mockito.ArgumentMatchers.any()))
+                .thenReturn(java.util.List.of(elFor("DT-1", "u1"), elFor("DT-2", "u2")));
         var out = recordService(records, elevators).pendingAs(Map.of(), java.util.Set.of("CLIENT_ADMIN"), "u1");
         assertEquals(1, ((java.util.List<?>) out.get("list")).size());
     }

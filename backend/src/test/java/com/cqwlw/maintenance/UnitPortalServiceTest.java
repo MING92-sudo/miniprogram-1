@@ -121,8 +121,9 @@ class UnitPortalServiceTest {
         assertEquals("EM-1 梯", out.get(0).get("elevatorName"));
         assertEquals("EM-1 梯", out.get(1).get("elevatorName"));
         assertEquals("EM-2", out.get(2).get("elevatorName"));
-        // 无 N+1：3 条急修行，电梯表查询至多 2 次（本单位谓词 1 次 + 批量联名 1 次），不得逐行查
-        verify(elevatorMapper, atMost(2)).selectList(any());
+        // 无 N+1（P2 T5/T3 minor）：电梯表只查 1 次——codes 与电梯名 map 复用同一次 ownElevators 结果，
+        // 不再按 codes 重查电梯；更不得逐行查
+        verify(elevatorMapper, atMost(1)).selectList(any());
     }
 
     /** 待签字 = 唯一可签状态（PENDING_CLIENT_SIGNATURE + confirmStatus=PENDING）；已签（SIGNED/CONFIRMED）不列 */
@@ -159,15 +160,20 @@ class UnitPortalServiceTest {
         MaintainRecord refused = record("ur_ref", "EM-1");
         refused.lifecycleStatus = "REFUSED_RETURNED";
         MaintainRecord old = record("ur_old", "EM-1"); // 旧版本：存在 prevVersionId=ur_old.id 的后续版本
+        MaintainRecord nextOfOld = record("ur_old_v2", "EM-1");
+        nextOfOld.prevVersionId = "ur_old"; // IN(prev_version_id) 批量查询命中的后续版本行
         when(recordMapper.selectList(any()))
-                .thenReturn(List.of(review, dual, legacy, sign, signed, archived, refused, old));
-        when(recordMapper.selectCount(any())).thenReturn(0L, 0L, 0L, 0L, 1L);
+                .thenReturn(List.of(review, dual, legacy, sign, signed, archived, refused, old))
+                .thenReturn(List.of(nextOfOld));
 
         List<Map<String, Object>> out = service().records("uu_1");
         assertEquals(List.of("ur_sign", "ur_signed", "ur_arch", "ur_ref"),
                 out.stream().map(r -> r.get("id")).toList());
         assertEquals("PENDING_CLIENT_SIGNATURE", out.get(0).get("lifecycleStatus"));
         assertEquals(1, out.get(0).get("version"));
+        // P2 T5（N+1 消除）：最新版本判定批量化——记录表至多 2 次查询（列表 1 + supersededIds 1），不再逐条 selectCount
+        verify(recordMapper, never()).selectCount(any());
+        verify(recordMapper, atMost(2)).selectList(any());
     }
 
     /** T4-I5：待签列表剔除 双签未齐/已签/状态撕裂残留（PENDING_CLIENT_SIGNATURE+CONFIRMED） */

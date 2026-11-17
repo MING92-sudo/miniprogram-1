@@ -24,6 +24,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.atMost;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -389,13 +390,60 @@ class ClientRecordGateTest {
         MaintainRecord notYet = record("ur_c2", "PENDING_CLIENT_SIGN"); // 双签未齐，客户不应提前看到
         MaintainRecord done = record("ur_c3", "ARCHIVED");              // 已签已归档
         MaintainRecord superseded = record("ur_c4", "PENDING_CLIENT_SIGNATURE"); // 旧版本
-        when(records.selectList(any())).thenReturn(List.of(ok, notYet, done, superseded));
-        when(records.selectCount(any())).thenReturn(0L, 1L); // ok=链末端；superseded=存在后续版本
+        MaintainRecord nextOfSuperseded = record("ur_c4_v2", "PENDING_CLIENT_SIGNATURE");
+        nextOfSuperseded.prevVersionId = "ur_c4"; // supersededIds 批量 IN 查询命中的后续版本行
+        when(records.selectList(any()))
+                .thenReturn(List.of(ok, notYet, done, superseded))
+                .thenReturn(List.of(nextOfSuperseded));
+        Elevator el = new Elevator();
+        el.elevatorCode = "DT-1";
+        el.useUnitId = UNIT;
+        when(elevators.selectList(any())).thenReturn(List.of(el)); // P2 T5：归属批量 .in(elevatorCode)
 
         Map<String, Object> out = service.pendingAs(Map.of(), CLIENT, UNIT);
         List<?> list = (List<?>) out.get("list");
         assertEquals(1, list.size());
         assertEquals(RECORD_ID, ((Map<?, ?>) list.get(0)).get("id"));
+        // P2 T5（N+1 消除）：归属 + 链末端判定批量化——记录表至多 2 次（候选 1 + supersededIds 1），
+        // 电梯表至多 1 次；不再逐条 selectCount / selectOne
+        verify(records, never()).selectCount(any());
+        verify(records, atMost(2)).selectList(any());
+        verify(elevators, never()).selectOne(any());
+        verify(elevators, atMost(1)).selectList(any());
+    }
+
+    /** P2 T5 查询次数锁定：记录数/电梯数增长时 pendingAs 查询次数恒定（2+1），判定与旧逐条实现等价 */
+    @Test
+    void pendingAsQueryCountIsConstantAcrossRecords() {
+        MaintainRecord a = record("ur_a", "PENDING_CLIENT_SIGNATURE");   // DT-1 本单位
+        MaintainRecord b = record("ur_b", "PENDING_CLIENT_SIGNATURE");
+        b.elevatorCode = "DT-2";                                          // DT-2 本单位
+        MaintainRecord old = record("ur_c", "PENDING_CLIENT_SIGNATURE"); // 旧版本 → 被替代
+        MaintainRecord foreign = record("ur_d", "PENDING_CLIENT_SIGNATURE");
+        foreign.elevatorCode = "DT-9";                                    // 他单位 → 归属过滤
+        MaintainRecord nextOfOld = record("ur_c_v2", "PENDING_CLIENT_SIGNATURE");
+        nextOfOld.prevVersionId = "ur_c";
+        when(records.selectList(any()))
+                .thenReturn(List.of(a, b, old, foreign))
+                .thenReturn(List.of(nextOfOld));
+        when(elevators.selectList(any())).thenReturn(List.of(
+                elevatorOf("DT-1", UNIT), elevatorOf("DT-2", UNIT), elevatorOf("DT-9", "u-other")));
+
+        Map<String, Object> out = service.pendingAs(Map.of(), CLIENT, UNIT);
+        List<?> list = (List<?>) out.get("list");
+        assertEquals(List.of("ur_a", "ur_b"), list.stream().map(m -> ((Map<?, ?>) m).get("id")).toList());
+
+        verify(records, times(2)).selectList(any());   // 候选 + supersededIds，恒定不随记录数增长
+        verify(records, never()).selectCount(any());
+        verify(elevators, times(1)).selectList(any()); // 一次 .in(elevatorCode) 批量归属，恒定
+        verify(elevators, never()).selectOne(any());
+    }
+
+    private static Elevator elevatorOf(String code, String useUnitId) {
+        Elevator el = new Elevator();
+        el.elevatorCode = code;
+        el.useUnitId = useUnitId;
+        return el;
     }
 
     /** 拒签：原因必填 + 仅待签状态可拒 + 成功落 REFUSED_RETURNED（不注入上报服务，结构保证不触发 2.6） */

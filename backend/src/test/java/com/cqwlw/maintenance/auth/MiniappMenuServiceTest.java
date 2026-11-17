@@ -16,7 +16,10 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.atMost;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
@@ -190,11 +193,14 @@ class MiniappMenuServiceTest {
         r.lifecycleStatus = "PENDING_CLIENT_SIGNATURE";
         r.confirmStatus = "PENDING";
         when(records.selectList(any())).thenReturn(List.of(r));
-        when(records.selectCount(any())).thenReturn(0L); // 链末端最新版本
 
         Map<String, Object> badges =
                 (Map<String, Object>) svc.menusOf(Set.of("CLIENT_ADMIN"), null, me).get("badges");
         assertEquals(1L, badges.get("pendingSigns"));
+        // P2 T5（N+1 消除）：链末端判定走共享 supersededIds 批量查询（第二次 selectList 命中同一 stub，
+        // r.prevVersionId=null → 无被替代），记录表至多 2 次查询、不再逐条 selectCount
+        verify(records, never()).selectCount(any());
+        verify(records, atMost(2)).selectList(any());
     }
 
     @Test
