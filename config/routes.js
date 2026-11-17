@@ -59,19 +59,22 @@ const LIST = [
   R('/pkg-maintenance/pages/record-sign/index', '维保双人签字', { roles: ['MAINT_TECH'], perm: 'record:sign_tech', batch: 'M3' }),
   // ── pkg-client 4（P1 T8-B4：客户 perm 收敛为 client:* 三码；工单/评价入口下线，页面文件保留 P3 复用）──
   R('/pkg-client/pages/todo/index', '待办签字', { roles: CLIENT, perm: 'client:sign', tab: true, batch: 'M5' }),
-  // client:sign 为 CA/CS 双 Y（docs/14 §5.4 两角色能力相同）：签字页对两客户角色开放
-  R('/pkg-client/pages/sign/index', '签署确认', { roles: CLIENT, perm: 'client:sign', batch: 'M5' }),
+  // client:sign 为 CA/CS 双 Y（docs/14 §5.4 两角色能力相同）；C-25④：免登录签署链路以 token 即凭证（taskId+token，无会话回退），
+  // auth:false 使守卫直接放行（docs/14 §4.6 规则 8 P1/P2 兼容期匿名链路保留）；roles/perm 仅留登记参考，auth:false 优先生效
+  R('/pkg-client/pages/sign/index', '签署确认', { auth: false, roles: CLIENT, perm: 'client:sign', batch: 'M5' }),
   // 客户只看记录不看内部工单：roles 置空 = 客户入口下线（报修/工单域关闭，重开由 P3 裁决）
   R('/pkg-client/pages/orders/index', '本单位工单', { roles: [], perm: 'order:view_own', batch: 'M5' }),
   // 评价关闭（docs/14 §4.7，T3-Important#1）：roles 置空断入口，页面保留 P3 复用
   R('/pkg-client/pages/evaluate/index', '服务评价', { roles: [], perm: 'client:evaluate', batch: 'M5' }),
   // ── pkg-admin 7 ──
   R('/pkg-admin/pages/projects/index', '项目台账', { roles: ['MAINT_SUP', 'MAINT_MGR', 'INST_PM', 'INST_MGR'].concat(PLATFORM), perm: 'project:view', tab: true, batch: 'M6' }),
-  R('/pkg-admin/pages/contracts/index', '合同', { roles: ['MAINT_SUP', 'MAINT_MGR', 'CLIENT_ADMIN'].concat(PLATFORM), perm: 'contract:view', tab: true, batch: 'M6' }),
-  R('/pkg-admin/pages/users/index', '人员', { roles: ['INST_MGR', 'MAINT_SUP', 'MAINT_MGR', 'CLIENT_ADMIN'].concat(PLATFORM), perm: 'user:view', tab: true, batch: 'M6' }),
+  // C-25⑤：T2 收回后客户不持 contract:view/user:view/stats:view/audit:view 四码（perm 层已挡），
+  // contracts/users/stats/audit 四页 roles 中 CLIENT_ADMIN 为死配置，删除（先例 P1 M6 handover detail 去 CLIENT）
+  R('/pkg-admin/pages/contracts/index', '合同', { roles: ['MAINT_SUP', 'MAINT_MGR'].concat(PLATFORM), perm: 'contract:view', tab: true, batch: 'M6' }),
+  R('/pkg-admin/pages/users/index', '人员', { roles: ['INST_MGR', 'MAINT_SUP', 'MAINT_MGR'].concat(PLATFORM), perm: 'user:view', tab: true, batch: 'M6' }),
   R('/pkg-admin/pages/roles/index', '角色', { roles: PLATFORM, perm: 'role:assign', batch: 'M6' }),
-  R('/pkg-admin/pages/stats/index', '统计', { roles: ['INST_MGR', 'MAINT_SUP', 'MAINT_MGR', 'CLIENT_ADMIN'].concat(PLATFORM), perm: 'stats:view', tab: true, batch: 'M6' }),
-  R('/pkg-admin/pages/audit/index', '审计', { roles: ['CLIENT_ADMIN'].concat(PLATFORM), perm: 'audit:view', tab: true, batch: 'M6' }),
+  R('/pkg-admin/pages/stats/index', '统计', { roles: ['INST_MGR', 'MAINT_SUP', 'MAINT_MGR'].concat(PLATFORM), perm: 'stats:view', tab: true, batch: 'M6' }),
+  R('/pkg-admin/pages/audit/index', '审计', { roles: PLATFORM, perm: 'audit:view', tab: true, batch: 'M6' }),
   R('/pkg-admin/pages/settings/index', '系统配置', { roles: PLATFORM, perm: 'config:manage', tab: true, batch: 'M6' })
 ]
 
