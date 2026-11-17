@@ -6,6 +6,7 @@ import com.cqwlw.maintenance.util.JsonUtil;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
@@ -136,6 +137,24 @@ class UnitRecordServiceTest {
         assertTrue(out.containsKey("lifecycleStatus"));
         assertTrue(out.containsKey("version"));
         assertTrue(out.containsKey("prevVersionId"));
+        // final-fix Minor#2：未归档 archivedAt 为 null → 投影收敛空串（不抛错、不回 null）
+        assertEquals("", out.get("archivedAt"));
+    }
+
+    /**
+     * final-fix Minor#2（2026-11-17）：toMap 补 archivedAt 投影——record-detail「版本核对」行的
+     * 「版本生成时刻」此前只读 mock 专用字段 frozenAt，真实后端 toMap 不投影任何时刻字段致恒空串；
+     * 归档时同时落 archiveHash（hashPrefix 来源）与 archivedAt，故版本核对行时间口径取 archivedAt
+     * （yyyy-MM-dd HH:mm:ss，GMT+8，AGENTS §4.1），前端保留 frozenAt 兜底兼容 mock 种子。
+     */
+    @Test
+    void toMapProjectsArchivedAt() {
+        MaintainRecord r = record();
+        r.archivedAt = LocalDateTime.of(2026, 11, 17, 10, 30, 0);
+
+        Map<String, Object> out = service.toMap(r);
+
+        assertEquals("2026-11-17 10:30:00", out.get("archivedAt"));
     }
 
     private static MaintainRecord record() {

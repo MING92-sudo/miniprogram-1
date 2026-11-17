@@ -366,6 +366,9 @@ public class UnitRecordService {
         m.put("version", r.version);
         m.put("prevVersionId", r.prevVersionId);
         m.put("hashPrefix", hashPrefix(r.archiveHash));
+        // final-fix Minor#2：归档时刻投影（与 archiveHash 同时落库）——record-detail「版本核对」行
+        // 的「版本生成时刻」数据源（此前仅 mock 种子有 frozenAt，真实环境恒空串）；未归档收敛空串
+        m.put("archivedAt", TimeUtil.format(r.archivedAt));
         m.put("satisfaction", r.satisfaction);
         m.put("signatureFileId", r.signatureFileId);
         m.put("signatureUrl", fileStorageService.resolveStoredUrl(r.signatureUrl));

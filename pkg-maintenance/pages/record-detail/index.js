@@ -55,7 +55,8 @@ definePage(ROUTES['/pkg-maintenance/pages/record-detail/index'], {
       const conclusion = summary.conclusion
       const signatures = { main: r.workerSignatureUrl || '', mainName: r.workerName || '', assist: r.assistantSignatureUrl || '', assistName: r.assistantName || '', client: r.signatureUrl || '', clientPending: r.confirmStatus !== 'CONFIRMED' }
       // C-24：内部投影版本字段为 version（数值，后端 toMap/版本链），展示口径统一 v 前缀；hashPrefix=归档 SHA-256 前 8 位
-      const verify = (r.version || r.hashPrefix) ? { version: r.version ? 'v' + r.version : 'v1', hash: r.hashPrefix || '', time: r.frozenAt || '' } : null
+      // final-fix Minor#2：版本生成时刻改读后端 toMap 的 archivedAt（与 archiveHash 同时落库）；frozenAt 为 mock 种子字段，保留兜底兼容
+      const verify = (r.version || r.hashPrefix) ? { version: r.version ? 'v' + r.version : 'v1', hash: r.hashPrefix || '', time: r.archivedAt || r.frozenAt || '' } : null
       this.setData({ stats, groups, abnormalDesc, conclusion, signatures, verify,
         loading: false, record: r, context: ctx,
         items: executed.map((i) => Object.assign({}, i, {
