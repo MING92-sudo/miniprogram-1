@@ -42,8 +42,11 @@ async function globalData(mp) {
 }
 ;(async () => {
   let mp
-  try { mp = await automator.connect({ wsEndpoint: 'ws://localhost:23853', timeout: 60000 }) }
-  catch (e) { mp = await automator.connect({ wsEndpoint: 'ws://localhost:9421', timeout: 60000 }) }
+  for (const port of [23854, 23853, 9421]) {
+    try { mp = await automator.connect({ wsEndpoint: 'ws://localhost:' + port, timeout: 20000 }); break }
+    catch (e) { /* 尝试下一端口 */ }
+  }
+  if (!mp) throw new Error('automator connect failed on 23854/23853/9421')
   await sleep(3000)
 
   // 1 CLIENT_ADMIN（张伟）：QA 含 todo 不含 plan；首页电梯/待签数据非空（统一令牌投影）

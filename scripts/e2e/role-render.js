@@ -17,7 +17,13 @@ const EXPECT = {
 }
 const SHOTS = ['13800000010', '13800000009', '13800000017', '13800000003', '13800000015']
 ;(async () => {
-  const mp = await automator.connect({ wsEndpoint: 'ws://localhost:9421', timeout: 60000 }); await sleep(2000)
+  let mp
+  for (const port of [23854, 23853, 9421]) {
+    try { mp = await automator.connect({ wsEndpoint: 'ws://localhost:' + port, timeout: 15000 }); break }
+    catch (e) { /* 尝试下一端口 */ }
+  }
+  if (!mp) throw new Error('automator connect failed on 23854/23853/9421')
+  await sleep(2000)
   let fail = 0
   for (const account of Object.keys(EXPECT)) {
     await mp.evaluate(() => wx.clearStorageSync())
