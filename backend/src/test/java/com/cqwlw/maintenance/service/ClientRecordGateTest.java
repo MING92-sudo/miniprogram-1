@@ -283,6 +283,48 @@ class ClientRecordGateTest {
         verify(records, times(1)).update(any(), any());
     }
 
+    /** C-25⑧：匿名 token 端点记录不存在 → 401 与错 token 同文案（消除 1404/401 存在性 oracle），且零写副作用 */
+    @Test
+    void anonymousTokenEndpointsUnknownRecordIs401() {
+        when(records.selectById("ur_missing")).thenReturn(null);
+
+        BizException view = assertThrows(BizException.class, () -> service.signView("ur_missing", "sg-token"));
+        assertEquals(401, view.getCode());
+        assertEquals("确认链接无效或已失效", view.getMessage());
+
+        BizException sign = assertThrows(BizException.class, () -> service.confirmByToken("ur_missing", "sg-token",
+                Map.of("signatureUrl", "https://x/s.png")));
+        assertEquals(401, sign.getCode());
+        assertEquals("确认链接无效或已失效", sign.getMessage());
+
+        verify(records, never()).update(any(), any());
+        verify(records, never()).updateById(any(MaintainRecord.class));
+        verify(lifecycle, never()).onClientSigned(any());
+    }
+
+    /** C-25⑧ 对照：signView 错/缺 token → 401（与不存在记录同文案，匿名探测者两种情形不可区分） */
+    @Test
+    void signViewWrongToken401() {
+        MaintainRecord r = signable();
+        r.shareToken = "sg-token";
+        BizException ex = assertThrows(BizException.class, () -> service.signView(RECORD_ID, "bad"));
+        assertEquals(401, ex.getCode());
+        assertEquals("确认链接无效或已失效", ex.getMessage());
+        assertEquals(401, assertThrows(BizException.class, () -> service.signView(RECORD_ID, null)).getCode());
+    }
+
+    /** C-25⑧ 边界：客户认证路径（getAs/confirmAs）不归一，记录不存在仍 1404（仅匿名 token 端点收敛） */
+    @Test
+    void authenticatedClientPathsUnknownRecordStill404() {
+        when(records.selectById("ur_missing")).thenReturn(null);
+        assertEquals(1404, assertThrows(BizException.class,
+                () -> service.getAs("ur_missing", CLIENT, UNIT)).getCode());
+        assertEquals(1404, assertThrows(BizException.class, () -> service.confirmAs("ur_missing",
+                Map.of("signatureUrl", "https://x/s.png"), CLIENT, UNIT)).getCode());
+        verify(records, never()).update(any(), any());
+        verify(records, never()).updateById(any(MaintainRecord.class));
+    }
+
     /** T4-I3：sign-view 不再返回 satisfaction（评价关闭，签字链路不带满意度） */
     @Test
     void signViewOmitsSatisfaction() {

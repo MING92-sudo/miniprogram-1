@@ -226,6 +226,15 @@ function findOr404(list, id, name) {
   return item
 }
 
+// C-25⑧ 匿名 token 端点归一（后端 UnitRecordService/RecordLifecycleService.findOr401 同口径）：
+// sign-view/confirm-by-token/refuse-by-token 记录不存在时与错 token 一致抛 401 同文案，
+// 匿名探测者无法据 1404/401 区分记录 id 存在性；内部认证路径仍用 findOr404（1404）
+function findOr401Token(list, id) {
+  const item = list.find((x) => x.id === id)
+  if (!item) throw { code: 401, message: '确认链接无效或已失效' }
+  return item
+}
+
 // C-12：GB/T 10060—2023 表1 ☆重要项（49 项）与试验项（57—74），与后端 HandoverChecklistTemplate 对齐
 const HANDOVER_IMPORTANT = new Set([2, 3, 5, 8, 9, 10, 12, 13, 16, 18, 20, 21, 22, 23, 24, 25, 26, 29, 30, 32, 33, 35, 36, 37, 38, 39, 42, 43, 45, 46, 47, 48, 49, 50, 51, 52, 53, 58, 62, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73])
 function buildHandoverChecklist() {
@@ -431,7 +440,7 @@ const routes = [
   // 唯一可签状态 → confirmStatus=PENDING → 链末端最新版本 → 原因必填，任一失败 422 且无副作用；
   // 成功走条件更新等价判定（并发先签为准），退回 REFUSED_RETURNED；不触发平台 2.6
   ['POST', '/unit/records/:id/refuse-by-token', ({ params, query, body }) => {
-    const r = findOr404(d.db.unitRecords, params.id, '维保记录')
+    const r = findOr401Token(d.db.unitRecords, params.id) // C-25⑧：不存在 → 401 同错 token 文案
     if (!query.token || query.token !== r.shareToken) {
       throw { code: 401, message: '确认链接无效或已失效' }
     }
@@ -873,7 +882,7 @@ const routes = [
   }],
   // 签名链接确认（用户需求：无需登录，凭一次性令牌远程签字或本机代签）；token 401 先于状态披露
   ['GET', '/unit/records/:id/sign-view', ({ params, query }) => {
-    const r = findOr404(d.db.unitRecords, params.id, '维保记录')
+    const r = findOr401Token(d.db.unitRecords, params.id) // C-25⑧：不存在 → 401 同错 token 文案
     if (!query.token || query.token !== r.shareToken) {
       throw { code: 401, message: '确认链接无效或已失效' }
     }
@@ -899,7 +908,7 @@ const routes = [
   }],
   // 后端 confirmByToken（T4-C1）：token → 签字门禁链 → 条件更新；已签/旧版本一律 422，不再回 already 幂等体
   ['POST', '/unit/records/:id/confirm-by-token', ({ params, query, body }) => {
-    const r = findOr404(d.db.unitRecords, params.id, '维保记录')
+    const r = findOr401Token(d.db.unitRecords, params.id) // C-25⑧：不存在 → 401 同错 token 文案
     if (!query.token || query.token !== r.shareToken) {
       throw { code: 401, message: '确认链接无效或已失效' }
     }

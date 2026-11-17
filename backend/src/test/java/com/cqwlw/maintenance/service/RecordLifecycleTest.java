@@ -206,6 +206,32 @@ class RecordLifecycleTest {
         BizException ex = assertThrows(BizException.class,
                 () -> svc.refuseByToken("r1", "bad", "原因"));
         assertEquals(401, ex.getCode());
+        assertEquals("确认链接无效或已失效", ex.getMessage());
+    }
+
+    /** C-25⑧：匿名拒签记录不存在 → 401 与错 token 同文案（消除 1404/401 存在性 oracle），零写副作用 */
+    @Test
+    void refuseByTokenUnknownRecordIs401() {
+        when(records.selectById("ur_missing")).thenReturn(null);
+        BizException ex = assertThrows(BizException.class,
+                () -> svc.refuseByToken("ur_missing", "sg-token", "照片不清晰"));
+        assertEquals(401, ex.getCode());
+        assertEquals("确认链接无效或已失效", ex.getMessage());
+        verify(records, never()).update(any(), any());
+        verify(records, never()).updateById(any(MaintainRecord.class));
+    }
+
+    /** C-25⑧ 对照：内部认证路径（review/signRequest/archiveView）不归一，记录不存在仍 1404 */
+    @Test
+    void internalPathsUnknownRecordStill404() {
+        when(records.selectById("ur_missing")).thenReturn(null);
+        assertEquals(1404, assertThrows(BizException.class,
+                () -> svc.review("ur_missing", true, "", Set.of("MAINT_SUP"))).getCode());
+        assertEquals(1404, assertThrows(BizException.class,
+                () -> svc.signRequest("ur_missing", Set.of("MAINT_TECH"))).getCode());
+        assertEquals(1404, assertThrows(BizException.class,
+                () -> svc.archiveView("ur_missing")).getCode());
+        verify(records, never()).updateById(any(MaintainRecord.class));
     }
 
     /** T4-I4：已确认（含归档异常残留 CONFIRMED+PENDING_CLIENT_SIGNATURE）不得拒签回滚已签 */

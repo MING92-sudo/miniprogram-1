@@ -140,7 +140,7 @@ public class RecordLifecycleService {
      * 不注入上报服务，结构保证拒签不触发平台 2.6。
      */
     public Map<String, Object> refuseByToken(String recordId, String token, String reason) {
-        MaintainRecord r = findOr404(recordId);
+        MaintainRecord r = findOr401(recordId); // C-25⑧：不存在 → 401 同错 token 文案（匿名端点无存在性 oracle）
         if (token == null || token.isEmpty() || !token.equals(r.shareToken)) {
             throw new BizException(401, "确认链接无效或已失效");
         }
@@ -209,6 +209,20 @@ public class RecordLifecycleService {
         MaintainRecord r = recordMapper.selectById(id);
         if (r == null) {
             throw new BizException(1404, "维保记录不存在");
+        }
+        return r;
+    }
+
+    /**
+     * C-25⑧ 匿名 token 端点归一（refuseByToken）：shareToken 校验依赖已载记录，
+     * 无法「先验 token 后查库」，故记录不存在时抛与错 token 完全一致的 401 文案——
+     * 匿名探测者无法据 1404/401 区分记录 id 是否存在（消除存在性 oracle）。
+     * 内部认证路径（review/signRequest/archiveView）仍走 findOr404（1404），不归一。
+     */
+    private MaintainRecord findOr401(String id) {
+        MaintainRecord r = recordMapper.selectById(id);
+        if (r == null) {
+            throw new BizException(401, "确认链接无效或已失效");
         }
         return r;
     }

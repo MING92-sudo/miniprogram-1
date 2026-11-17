@@ -189,6 +189,20 @@ public class UnitRecordService {
         return r;
     }
 
+    /**
+     * C-25⑧ 匿名 token 端点归一（signView/confirmByToken）：shareToken 校验依赖已载记录，
+     * 无法「先验 token 后查库」，故记录不存在时抛与错 token 完全一致的 401 文案——
+     * 匿名探测者无法据 1404/401 区分记录 id 是否存在（消除存在性 oracle）。
+     * 内部认证路径（getAs/confirmAs/confirm/get）仍走 findOr404（1404），不归一。
+     */
+    private MaintainRecord findOr401(String id) {
+        MaintainRecord r = recordMapper.selectById(id);
+        if (r == null) {
+            throw new BizException(401, "确认链接无效或已失效");
+        }
+        return r;
+    }
+
     public Map<String, Object> pending(Map<String, String> query) {
         List<Map<String, Object>> list = recordMapper.selectList(new LambdaQueryWrapper<MaintainRecord>()
                         .eq(MaintainRecord::getConfirmStatus, "PENDING")
@@ -226,7 +240,7 @@ public class UnitRecordService {
     }
 
     public Map<String, Object> signView(String id, String token) {
-        MaintainRecord r = findOr404(id);
+        MaintainRecord r = findOr401(id); // C-25⑧：不存在 → 401 同错 token 文案（匿名端点无存在性 oracle）
         if (token == null || token.isEmpty() || !token.equals(r.shareToken)) {
             throw new BizException(401, "确认链接无效或已失效");
         }
@@ -268,7 +282,7 @@ public class UnitRecordService {
      * 并发 token 后写还会覆盖首签。已签/旧版本一律 422（先签为准），不再回 already 幂等体。
      */
     public Map<String, Object> confirmByToken(String id, String token, Map<String, Object> body) {
-        MaintainRecord r = findOr404(id);
+        MaintainRecord r = findOr401(id); // C-25⑧：不存在 → 401 同错 token 文案（匿名端点无存在性 oracle）
         if (token == null || token.isEmpty() || !token.equals(r.shareToken)) {
             throw new BizException(401, "确认链接无效或已失效");
         }

@@ -351,6 +351,13 @@ async function check(name, fn) {
     const seed = d.db.unitRecords.find((x) => x.id === OWN_RECORD)
     assert(!Object.prototype.hasOwnProperty.call(seed, 'refuseReason'), '断言后 refuseReason 残留')
   })
+  await check('F12 匿名端点记录不存在 → 401 归一（C-25⑧，同错 token 文案消除存在性 oracle；认证路径仍 1404）', async () => {
+    await expectCode(401, 'GET', '/unit/records/ur_missing/sign-view?token=' + OWN_TOKEN)
+    await expectCode(401, 'POST', '/unit/records/ur_missing/confirm-by-token?token=' + OWN_TOKEN, { signatureUrl: 'https://mock/s.png' })
+    await expectCode(401, 'POST', '/unit/records/ur_missing/refuse-by-token?token=' + OWN_TOKEN, { reason: '数据不符' })
+    // 对照：客户认证路径（本机确认）不归一，记录不存在仍 1404（后端 confirmAs.findOr404 同口径）
+    await expectCode(1404, 'POST', '/unit/records/ur_missing/confirm', { signatureUrl: 'https://mock/s.png' })
+  })
 
   // ── G. 菜单角标与 T6 保留项 ──
   await login(CLIENT_ACCOUNT)
