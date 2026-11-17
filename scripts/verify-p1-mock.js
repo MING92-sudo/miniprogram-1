@@ -122,13 +122,24 @@ async function check(name, fn) {
       d.db.unitRecords = d.db.unitRecords.filter((x) => x.id !== 'ur_tmp_v2')
     }
   })
-  // 员工会话保留内部投影（pkg-maintenance/record-detail 预览依赖）；差异登记：后端 P1 getAs 仅客户可达
-  await check('B7 员工会话读记录详情保留内部投影（不被客户白名单裁剪）', async () => {
+  // C-24：员工读记录详情走内部端点 GET /records/:id（后端 RecordController 同口径：
+  // record:view + V7 班组谓词 + 内部全量投影）；/unit/records/:id 还原客户专用契约（后端 getAs）
+  await check('B7 员工读记录详情走内部端点保留内部投影（C-24 GET /records/:id）', async () => {
     await login(TECH_ACCOUNT)
-    const r = await req('GET', '/unit/records/' + OWN_RECORD)
+    const r = await req('GET', '/records/' + OWN_RECORD)
     assert(r.reportPayload, '员工投影缺 reportPayload（内部全量投影）')
     assert(r.shareToken, '员工投影缺 shareToken（发起签署/分享链接依赖）')
     assert((r.items || []).some((i) => i.abnormalDesc || i.freqLabel), '员工投影 items 明细被裁剪')
+    assert(r.lifecycleStatus, '员工投影缺 lifecycleStatus（record-detail 生命周期状态条依赖）')
+    assert(r.version != null, '员工投影缺 version（record-detail 版本核对依赖）')
+  })
+  await check('B8 内部端点班组谓词镜像：他班组记录 1403；/unit/records/:id 员工不可达（客户专用）', async () => {
+    await login(TECH_ACCOUNT)
+    // 李振国（MAINT_TECH，platformId=张伟）：把记录主/配合人员改成他人 → 越权 1403 无副作用
+    await withRecord(OWN_RECORD, { workerPlatformId: 'P_OTHER', assistantPlatformId: 'P_OTHER2' },
+      () => expectCode(1403, 'GET', '/records/' + OWN_RECORD))
+    // 门户端点客户专用（后端 getAs requireClient）：员工令牌 1403
+    await expectCode(1403, 'GET', '/unit/records/' + OWN_RECORD)
   })
   await login(CLIENT_ACCOUNT)
   await check('B6 只读可见集合 SIGNED/ARCHIVED/REFUSED_RETURNED 可查看但不可签', async () => {
@@ -404,16 +415,19 @@ async function check(name, fn) {
     await login(INST_PM_ACCOUNT)
     await expectCode(1403, 'GET', '/unit/records/' + OWN_RECORD)
     await expectCode(1403, 'GET', '/unit/records/不存在的记录id')
+    // C-24 内部端点同口径：门禁最先，无 record:view（含不存在 id）1403 不泄漏存在性
+    await expectCode(1403, 'GET', '/records/' + OWN_RECORD)
+    await expectCode(1403, 'GET', '/records/不存在的记录id')
   })
-  await check('I2 员工读记录详情须 record:view，且返回浅拷贝不外泄 db 单例', async () => {
+  await check('I2 员工读记录详情须 record:view，且返回浅拷贝不外泄 db 单例（C-24 内部端点）', async () => {
     await login(TECH_ACCOUNT)
-    const r1 = await req('GET', '/unit/records/' + OWN_RECORD)
+    const r1 = await req('GET', '/records/' + OWN_RECORD)
     assert.strictEqual(r1.id, OWN_RECORD)
     const seed = d.db.unitRecords.find((x) => x.id === OWN_RECORD)
     assert(r1 !== seed, '返回了 db 共享引用（调用方可改写演示数据）')
     r1.elevatorName = '被调用方改写'
     r1.confirmStatus = 'HACKED'
-    const r2 = await req('GET', '/unit/records/' + OWN_RECORD)
+    const r2 = await req('GET', '/records/' + OWN_RECORD)
     assert.notStrictEqual(r2.elevatorName, '被调用方改写', '浅拷贝未生效')
     assert.strictEqual(seed.confirmStatus, 'PENDING', 'db 记录被外部改写: ' + seed.confirmStatus)
   })

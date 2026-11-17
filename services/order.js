@@ -81,6 +81,13 @@ function signRequest(recordId) {
   return post(`/work-orders/${recordId}/sign-request`, {})
 }
 
+// 员工内部读记录详情（C-24，后端 RecordController GET /records/{id}）：record:view 门禁 + V7 班组谓词，
+// 内部全量投影（生命周期/版本链/shareToken/context/items 明细）；
+// 客户门户读契约见 services/unit.getRecord（/unit/records/{id}，契约保留）
+function getRecordDetail(recordId) {
+  return get(`/records/${recordId}`)
+}
+
 // 归档投影（PDF 重签 URL + SHA-256）：同 sign-request，后端按记录 id 定位
 function getRecordArchive(recordId) {
   return get(`/work-orders/${recordId}/archive`)
@@ -102,5 +109,6 @@ module.exports = {
   signatureRefuse,
   reviewRecord,
   signRequest,
-  getRecordArchive
+  getRecordArchive,
+  getRecordDetail
 }

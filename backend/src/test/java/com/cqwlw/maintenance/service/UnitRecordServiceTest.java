@@ -104,6 +104,40 @@ class UnitRecordServiceTest {
         assertEquals("", out.get("hashPrefix"));
     }
 
+    /**
+     * C-24：toMap 内部投影补生命周期/版本链字段（GET /records/{id} 员工链路，record-detail 页消费）；
+     * hashPrefix = 归档 SHA-256 前 8 位（与 signView 同口径）；shareToken 仍在内部投影（copySignLink 依赖）。
+     * 客户路径不受影响：toClientMap 白名单由 ClientRecordGateTest 锁定。
+     */
+    @Test
+    void toMapProjectsLifecycleAndVersionChain() {
+        MaintainRecord r = record();
+        r.lifecycleStatus = "PENDING_CLIENT_SIGNATURE";
+        r.version = 2;
+        r.prevVersionId = "ur_0";
+        r.shareToken = "sg-1";
+        r.archiveHash = "9f3c7a21b8d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e";
+
+        Map<String, Object> out = service.toMap(r);
+
+        assertEquals("PENDING_CLIENT_SIGNATURE", out.get("lifecycleStatus"));
+        assertEquals(2, out.get("version"));
+        assertEquals("ur_0", out.get("prevVersionId"));
+        assertEquals("9f3c7a21", out.get("hashPrefix"));
+        assertEquals("sg-1", out.get("shareToken"));
+    }
+
+    /** C-24：未归档（archiveHash 空）→ toMap.hashPrefix 空串，不报错（与 signView 同口径） */
+    @Test
+    void toMapHashPrefixEmptyBeforeArchive() {
+        Map<String, Object> out = service.toMap(record());
+
+        assertEquals("", out.get("hashPrefix"));
+        assertTrue(out.containsKey("lifecycleStatus"));
+        assertTrue(out.containsKey("version"));
+        assertTrue(out.containsKey("prevVersionId"));
+    }
+
     private static MaintainRecord record() {
         MaintainRecord r = new MaintainRecord();
         r.id = "ur_1";

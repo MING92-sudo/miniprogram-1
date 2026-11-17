@@ -173,6 +173,35 @@ function requireRead(code) {
     throw { code: 1403, message: '无权访问该资源' }
   }
 }
+// C-24：V7 班组读谓词镜像（后端 EmployeeScopeService.visibleReadPlatformIds，按主角色 role 旧码判定）：
+// ADMIN/SYS_ADMIN（平台）与 MAINT_MANAGER/MAINT_QUALITY（维保管理）→ null 不限；
+// 安装部三岗与 MAINT_BIZ（非现场岗）→ 空集（任何记录 1403）；其余 → 本人 + LEADER 本班组。
+// 与后端同缺口径：规范码主角色（如 MAINT_MGR/PLATFORM_ADMIN）不落旧码集合 → 走本人兜底（fail-closed）；
+// mock 员工无 regionId 概念，区域分支省略（mock 数据未分区，与后端"未分区按原口径"一致）。
+function visibleReadPlatformIds() {
+  const emp = d.db.employees[currentRole] || {}
+  const role = emp.role || ''
+  if (['ADMIN', 'SYS_ADMIN', 'MAINT_MANAGER', 'MAINT_QUALITY'].indexOf(role) > -1) return null
+  if (['INSTALL_MANAGER', 'INSTALL_CLERK', 'INSTALL_WORKER', 'MAINT_BIZ'].indexOf(role) > -1) return new Set()
+  const ids = new Set()
+  if (role === 'LEADER' && emp.groupName) {
+    Object.keys(d.db.employees).forEach((k) => {
+      const m = d.db.employees[k]
+      if (m.groupName === emp.groupName && m.platformId) ids.add(m.platformId)
+    })
+  }
+  if (!ids.size && emp.platformId) ids.add(emp.platformId)
+  return ids
+}
+// 记录归属校验（后端 RecordController 同谓词，WorkOrderService.scopeOrders 同款）：
+// null=管理角色不限；非 null 须命中主维保或配合人员 platformId，越权 1403 无副作用；空集任何记录 1403
+function requireRecordScope(r) {
+  const ids = visibleReadPlatformIds()
+  if (ids === null) return
+  if (!ids.has(r.workerPlatformId) && !ids.has(r.assistantPlatformId)) {
+    throw { code: 1403, message: '仅可查看本人或本班组记录' }
+  }
+}
 // 移交/外接建档 mock 状态（模块级，进程重启即清空）
 const mockHandovers = []
 const mockFilings = []
@@ -815,21 +844,25 @@ const routes = [
     return paginate(list, query)
   }],
   ['GET', '/unit/records/:id', ({ params }) => {
-    // 门禁顺序与后端 getAs 一致：requireClient 最先——不存在的 id 也不得以 1404 泄漏存在性
-    if (isCustomerPrincipal(currentRoles)) {
-      const unitId = requireClientUnit()
-      const r = findOr404(d.db.unitRecords, params.id, '维保记录')
-      // 归属（跨单位 1403 无副作用）→ 可见性（§4.6 可见性表）→ 白名单投影
-      if (recordUnitId(r) !== unitId) throw { code: 1403, message: '仅本单位记录可查看' }
-      requireViewable(r)
-      return toClientRecord(r)
-    }
-    // 员工会话：内部全量投影（含 context/reportPayload，pkg-maintenance/record-detail 预览依赖），
-    // 但须持 record:view（与后端 MultiRoleGate.requireRead 同口径），且只回浅拷贝——
-    // 不外泄 db 共享单例引用，避免调用方改写演示数据。
-    // 差异登记：后端 P1 getAs 仅客户可达（员工令牌 1403），员工读记录详情端点待补（docs/12）。
+    // 门禁顺序与后端 getAs 一致：requireClient 最先——不存在的 id 也不得以 1404 泄漏存在性。
+    // C-24：员工记录详情移至内部端点 GET /records/:id，本端点还原客户专用契约（后端员工令牌 1403）。
+    const unitId = requireClientUnit()
+    const r = findOr404(d.db.unitRecords, params.id, '维保记录')
+    // 归属（跨单位 1403 无副作用）→ 可见性（§4.6 可见性表）→ 白名单投影
+    if (recordUnitId(r) !== unitId) throw { code: 1403, message: '仅本单位记录可查看' }
+    requireViewable(r)
+    return toClientRecord(r)
+  }],
+  // ── 员工内部读记录详情（C-24，后端 RecordController GET /records/{id} 同口径） ──
+  // record:view 门禁（Y=MAINT_SUP/MAINT_MGR/PLATFORM_ADMIN/SYS_ADMIN，C=MAINT_TECH）→ V7 班组读谓词 →
+  // 内部全量投影（含 lifecycleStatus/version/shareToken/context/reportPayload/items 明细，
+  // pkg-maintenance/record-detail 依赖）；只回浅拷贝，不外泄 db 共享单例引用。
+  ['GET', '/records/:id', ({ params }) => {
+    // 门禁最先：无 record:view 的会话（安装部/商务/客户）读任何 id（含不存在）一律 1403，不以 1404 泄漏存在性
     requireRead('record:view')
-    return Object.assign({}, findOr404(d.db.unitRecords, params.id, '维保记录'))
+    const r = findOr404(d.db.unitRecords, params.id, '维保记录')
+    requireRecordScope(r)
+    return Object.assign({}, r)
   }],
   ['POST', '/unit/records/:id/confirm', ({ params, body }) => {
     const unitId = requireClientUnit()

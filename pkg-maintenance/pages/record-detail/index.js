@@ -1,7 +1,8 @@
 // 记录单详情（M3 迁自 order/record-preview + 生命周期 UI）：展示实际执行项 + 生命周期状态条 + 发起签署/归档投影。
 // 生命周期叠加在签退之后（V42）；record:review 在管理端执行，小程序仅展示状态（M0 澄清）。
-const { getRecord } = require('../../../services/unit')
-const { getOrderDetail, signRequest, getRecordArchive } = require('../../../services/order')
+// C-24：数据源为员工内部端点 GET /records/{id}（record:view + V7 班组谓词）；
+// /unit/records/{id} 为客户门户契约（后端 getAs 员工令牌 1403），本页不再调用。
+const { getOrderDetail, signRequest, getRecordArchive, getRecordDetail } = require('../../../services/order')
 const { CHECK_RESULT_TEXT, TOAST_TEXT, RECORD_TEXT } = require('../../../constants/index')
 const { buildRecordSummary } = require('../../../utils/record-view')
 const { definePage } = require('../../../utils/guard')
@@ -39,7 +40,7 @@ definePage(ROUTES['/pkg-maintenance/pages/record-detail/index'], {
   load() {
     if (!this.recordId) { this.setData({ loading: false, error: '未找到记录单' }); return }
     this.setData({ loading: true, error: '' })
-    getRecord(this.recordId).then((r) => {
+    getRecordDetail(this.recordId).then((r) => {
       const all = r.items || []
       const executed = all.filter((i) => i.notInThisRun !== true)
       const ctx = r.context || {}
@@ -53,7 +54,8 @@ definePage(ROUTES['/pkg-maintenance/pages/record-detail/index'], {
       const abnormalDesc = summary.abnormalDesc
       const conclusion = summary.conclusion
       const signatures = { main: r.workerSignatureUrl || '', mainName: r.workerName || '', assist: r.assistantSignatureUrl || '', assistName: r.assistantName || '', client: r.signatureUrl || '', clientPending: r.confirmStatus !== 'CONFIRMED' }
-      const verify = (r.recordVersion || r.hashPrefix) ? { version: r.recordVersion || 'v1', hash: r.hashPrefix || '', time: r.frozenAt || '' } : null
+      // C-24：内部投影版本字段为 version（数值，后端 toMap/版本链），展示口径统一 v 前缀；hashPrefix=归档 SHA-256 前 8 位
+      const verify = (r.version || r.hashPrefix) ? { version: r.version ? 'v' + r.version : 'v1', hash: r.hashPrefix || '', time: r.frozenAt || '' } : null
       this.setData({ stats, groups, abnormalDesc, conclusion, signatures, verify,
         loading: false, record: r, context: ctx,
         items: executed.map((i) => Object.assign({}, i, {

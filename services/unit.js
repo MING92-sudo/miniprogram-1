@@ -4,7 +4,9 @@
 // 后端 /unit/login* 契约保留至生产清库（docs/12 G 组），前端不再提供入口。
 const { get, post } = require('../utils/request')
 
-// 记录完整视图（GET /unit/records/:id，与维保记录预览页/使用单位确认同源，docs/03 V2.1 §3.3）
+// 记录完整视图（GET /unit/records/:id，客户门户契约，docs/03 V2.1 §3.3）
+// 契约保留、暂无页面调用方：C-24 起员工记录详情走 order.getRecordDetail（GET /records/{id} 内部端点）；
+// 本端点后端 getAs 仅客户可达（requireClient + toClientMap 白名单，员工令牌 1403）
 function getRecord(id) {
   return get('/unit/records/' + id)
 }

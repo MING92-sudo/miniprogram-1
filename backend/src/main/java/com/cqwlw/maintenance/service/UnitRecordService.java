@@ -303,6 +303,12 @@ public class UnitRecordService {
         m.put("retryCount", r.retryCount);
         m.put("nextMaintenanceDate", TimeUtil.formatDate(r.nextMaintenanceDate));
         m.put("confirmStatus", r.confirmStatus);
+        // C-24：生命周期/版本链投影（GET /records/{id} 员工链路，record-detail 页消费）；
+        // hashPrefix=归档 SHA-256 前 8 位（与 signView 同口径，未归档空串）；客户路径仍走 toClientMap 白名单
+        m.put("lifecycleStatus", r.lifecycleStatus);
+        m.put("version", r.version);
+        m.put("prevVersionId", r.prevVersionId);
+        m.put("hashPrefix", hashPrefix(r.archiveHash));
         m.put("satisfaction", r.satisfaction);
         m.put("signatureFileId", r.signatureFileId);
         m.put("signatureUrl", fileStorageService.resolveStoredUrl(r.signatureUrl));
