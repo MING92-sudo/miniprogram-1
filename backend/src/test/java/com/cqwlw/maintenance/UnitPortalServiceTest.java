@@ -22,6 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.atMost;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -93,6 +94,35 @@ class UnitPortalServiceTest {
         assertEquals("EM-1", svc.records("uu_1").get(0).get("elevatorCode"));
         assertEquals(1, svc.faults("uu_1").size());
         assertEquals("EM-1", svc.faults("uu_1").get(0).get("elevatorCode"));
+    }
+
+    /**
+     * C-25②（投影补齐）：Fault 表无 elevatorName 列，急修行电梯名按 elevatorCode 批量联本单位电梯
+     * （一次 .in 查询建 code→name，查询次数不随急修行数增长 = 无 N+1）；
+     * 缺名回退 elevatorCode（与 pkg-client orders 页 `item.elevatorName || item.elevatorCode` 同显示语义）；
+     * 跨单位过滤口径不变。trapped 依赖 C-18 增列，不改表裁决，本投影暂不下发。
+     */
+    @Test
+    void faultsCarryElevatorNameFromBatchJoin() {
+        Elevator nameless = elevator("el_2", "EM-2", "uu_1", null);
+        nameless.elevatorName = null; // 档案缺名：投影回退设备码
+        when(elevatorMapper.selectList(any())).thenReturn(List.of(
+                elevator("el_1", "EM-1", "uu_1", null),
+                nameless,
+                elevator("el_9", "EM-9", "uu_2", null))); // 他单位：被过滤，名称不得进入本单位行
+        when(faultMapper.selectList(any())).thenReturn(List.of(
+                fault("ft_1", "EM-1"), fault("ft_2", "EM-1"),
+                fault("ft_3", "EM-2"), fault("ft_4", "EM-9")));
+
+        List<Map<String, Object>> out = service().faults("uu_1");
+
+        // 跨单位急修仍被过滤（ft_4/EM-9 非 uu_1 名下电梯）
+        assertEquals(List.of("ft_1", "ft_2", "ft_3"), out.stream().map(r -> r.get("id")).toList());
+        assertEquals("EM-1 梯", out.get(0).get("elevatorName"));
+        assertEquals("EM-1 梯", out.get(1).get("elevatorName"));
+        assertEquals("EM-2", out.get(2).get("elevatorName"));
+        // 无 N+1：3 条急修行，电梯表查询至多 2 次（本单位谓词 1 次 + 批量联名 1 次），不得逐行查
+        verify(elevatorMapper, atMost(2)).selectList(any());
     }
 
     /** 待签字 = 唯一可签状态（PENDING_CLIENT_SIGNATURE + confirmStatus=PENDING）；已签（SIGNED/CONFIRMED）不列 */

@@ -1141,6 +1141,10 @@ const routes = [
     const unitId = requirePortalUnit()
     return clientVisibleRecords(unitId).filter(isSignableRow).map(clientPendingSignRow)
   }],
+  // 客户急修列表（C-25② 契约对齐）：后端投影白名单 id/faultNo/elevatorCode/elevatorName/faultType/desc/
+  // status/createdAt/finishedAt/result——elevatorName 按 elevatorCode 批量联电梯（一次 .in，无 N+1），
+  // 缺名回退 elevatorCode；mock 回整行（字段超集），种子行 elevatorName 口径一致。
+  // trapped 依赖 C-18 增列（不改表缓议），两侧暂不作为锁定契约。
   ['GET', '/unit/faults', () => {
     const unitId = requirePortalUnit()
     const codes = ownElevatorCodes(unitId)

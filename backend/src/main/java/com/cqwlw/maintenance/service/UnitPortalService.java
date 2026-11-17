@@ -144,7 +144,13 @@ public class UnitPortalService {
         return next == null || next == 0;
     }
 
-    /** 本单位急修单（按报修时间倒序） */
+    /**
+     * 本单位急修单（按报修时间倒序）。
+     * C-25②（投影补齐）：Fault 表无电梯名列，elevatorName 按 elevatorCode 批量联电梯取——
+     * 一次 .in 查询建 code→name（elevatorNameMap），不随行数逐行联（无 N+1）；
+     * 缺名回退 elevatorCode（与 pkg-client orders 页 `item.elevatorName || item.elevatorCode` 同显示语义）。
+     * trapped 依赖 C-18 增列，不改表裁决，本投影暂不下发。
+     */
     public List<Map<String, Object>> faults(String useUnitId) {
         Set<String> codes = ownCodes(useUnitId);
         if (codes.isEmpty()) {
@@ -154,6 +160,7 @@ public class UnitPortalService {
                 .in(Fault::getElevatorCode, codes)
                 .orderByDesc(Fault::getCreatedAt)
                 .last("LIMIT " + LIST_LIMIT));
+        Map<String, String> elevatorNames = elevatorNameMap(codes);
         List<Map<String, Object>> out = new ArrayList<>();
         for (Fault f : list == null ? List.<Fault>of() : list) {
             if (!codes.contains(f.elevatorCode)) {
@@ -163,6 +170,8 @@ public class UnitPortalService {
             m.put("id", f.id);
             m.put("faultNo", f.faultNo);
             m.put("elevatorCode", f.elevatorCode);
+            String name = elevatorNames.get(f.elevatorCode);
+            m.put("elevatorName", name == null || name.isBlank() ? f.elevatorCode : name);
             m.put("faultType", f.faultType);
             m.put("desc", f.descr);
             m.put("status", f.status);
@@ -172,6 +181,22 @@ public class UnitPortalService {
             out.add(m);
         }
         return out;
+    }
+
+    /** 批量取电梯名（C-25②）：一次 .in 查询建 code→name，避免逐行联电梯（N+1）；缺名/空白名不入 map，由投影层回退 */
+    private Map<String, String> elevatorNameMap(Set<String> codes) {
+        if (codes.isEmpty()) {
+            return Map.of();
+        }
+        List<Elevator> list = elevatorMapper.selectList(new LambdaQueryWrapper<Elevator>()
+                .in(Elevator::getElevatorCode, codes));
+        Map<String, String> map = new LinkedHashMap<>();
+        for (Elevator el : list == null ? List.<Elevator>of() : list) {
+            if (el.elevatorCode != null && el.elevatorName != null && !el.elevatorName.isBlank()) {
+                map.putIfAbsent(el.elevatorCode, el.elevatorName);
+            }
+        }
+        return map;
     }
 
     /**
