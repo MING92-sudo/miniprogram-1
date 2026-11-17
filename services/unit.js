@@ -41,7 +41,7 @@ function getUnitElevators() {
   return get('/unit/elevators')
 }
 
-// 本单位维保记录（契约保留、暂无页面入口；记录详情走 getRecord）
+// 本单位维保记录（契约保留、暂无页面入口；员工记录详情 C-24 起走 order.getRecordDetail，GET /records/{id}）
 function getUnitRecords() {
   return get('/unit/records/list')
 }

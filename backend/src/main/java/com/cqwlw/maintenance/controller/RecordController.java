@@ -45,8 +45,13 @@ public class RecordController {
         Employee e = scopeService.require(empId == null ? null : String.valueOf(empId));
         Set<String> ids = scopeService.visibleReadPlatformIds(e);
         MaintainRecord r = unitRecordService.findOr404(id);
-        // V7 班组读谓词：越权 1403 且不产生副作用（读路径无写操作；防全量记录泄漏）
-        if (ids != null && !ids.contains(r.workerPlatformId) && !ids.contains(r.assistantPlatformId)) {
+        // V7 班组读谓词：越权 1403 且不产生副作用（读路径无写操作；防全量记录泄漏）。
+        // NULL 守卫（ElevatorService.profile 同款范式）：存量记录 worker/assistant_platform_id 可为 NULL，
+        // NO_FIELD 空集为 Set.of() 不可变集，contains(null) 抛 NPE→500 且丢失 BLOCKED 审计；
+        // NULL 一律视为不命中 → 1403（空集任何记录 1403 的不变量对 NULL 行同样成立）
+        if (ids != null
+                && (r.workerPlatformId == null || !ids.contains(r.workerPlatformId))
+                && (r.assistantPlatformId == null || !ids.contains(r.assistantPlatformId))) {
             throw new BizException(1403, "仅可查看本人或本班组记录");
         }
         return ApiResponse.ok(unitRecordService.toMap(r));

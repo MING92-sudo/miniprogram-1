@@ -160,15 +160,21 @@ class RecordControllerTest {
      * NO_FIELD 主角色（MAINT_BIZ）→ 空集，任何记录 1403——即使 workerPlatformId=本人也不放行。
      * 多角色权限并集（§3.9）：门禁经 MAINT_TECH 的 C 通过，数据范围仍按主角色判（防御纵深：
      * 即使未来矩阵给 MAINT_BIZ 授 record:view，谓词层仍拦）。
+     * fix round 1：存量 NULL 列（worker/assistant_platform_id 可 NULL，V38 有 IS NULL 处理）必须
+     * 1403 而非 NPE→500——NO_FIELD 空集为 Set.of() 不可变集，contains(null) 抛 NPE 且丢失
+     * BLOCKED 审计，谓词须带 null 守卫（ElevatorService.profile L115-118 同款范式）。
      */
     @Test
     void bizPrimaryRoleEmptyScopeGets1403EvenForOwnPlatformId() {
         when(employees.selectById("emp_b")).thenReturn(emp("emp_b", "MAINT_BIZ", "P_B", ""));
-        when(records.selectById("ur_1")).thenReturn(record("ur_1", "P_B", ""));
+        when(records.selectById("ur_1")).thenReturn(record("ur_1", "P_B", null)); // assistant NULL 存量行
+        when(records.selectById("ur_2")).thenReturn(record("ur_2", null, null));  // 双 NULL 存量行
 
         BizException ex = assertThrows(BizException.class,
                 () -> controller.get("ur_1", req(Set.of("MAINT_TECH", "MAINT_BIZ"), "emp_b")));
         assertEquals(1403, ex.getCode());
+        assertEquals(1403, assertThrows(BizException.class,
+                () -> controller.get("ur_2", req(Set.of("MAINT_TECH", "MAINT_BIZ"), "emp_b"))).getCode());
     }
 
     /** 无 record:view 的角色（INSTALLER/MAINT_BIZ 单角色/客户令牌）→ 403，门禁先于任何查询（无副作用） */
