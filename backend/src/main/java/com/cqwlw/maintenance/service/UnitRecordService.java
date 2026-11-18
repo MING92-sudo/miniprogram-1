@@ -12,7 +12,6 @@ import com.cqwlw.maintenance.util.TimeUtil;
 import org.springframework.stereotype.Service;
 
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -62,12 +61,10 @@ public class UnitRecordService {
                 // 内存双保险：与 SQL 同谓词（历史数据 lifecycle 为 NULL 不作为客户可见记录，§4.6 表）
                 .filter(r -> "PENDING".equals(r.confirmStatus) && "PENDING_CLIENT_SIGNATURE".equals(r.lifecycleStatus))
                 .collect(Collectors.toList());
-        // P2 T5（N+1 消除）：电梯归属批量化——一次 .in(elevatorCode) 建 code→useUnitId，
-        // 替代逐记录 unitOf selectOne；判定口径与 unitOf 完全一致（缺档/NULL 归属归一空串，
-        // 与非空 unitId 永不相等 → fail-closed），可见集合逐条等价
-        Map<String, String> unitByCode = elevatorUnitMap(candidates);
+        // P2b T9（权限 P2）：归属直接取记录快照列，不再回查电梯当前归属（电梯表零查询）；
+        // NULL 快照归一空串，与非空 token unitId 永不相等 → fail-closed，客户不可见
         List<MaintainRecord> own = candidates.stream()
-                .filter(r -> unitId.equals(r.elevatorCode == null ? "" : unitByCode.getOrDefault(r.elevatorCode, "")))
+                .filter(r -> unitId.equals(r.useUnitId == null ? "" : r.useUnitId))
                 .collect(Collectors.toList());
         // P2 T5：链末端最新版本批量化——共享 supersededIds（一次 IN 查询替代逐记录 selectCount，
         // docs/14 §4.6 规则 1，判定逐集合相等）
@@ -78,33 +75,6 @@ public class UnitRecordService {
                 .map(this::toClientMap)
                 .collect(Collectors.toList());
         return workOrderService.paginate(list, query);
-    }
-
-    /**
-     * P2 T5（N+1 消除）：批量电梯归属——一次 .in(elevatorCode) 查询建 code→useUnitId。
-     * 与逐条 unitOf 同口径：缺档/归属 NULL 归一为空串（永不等于非空 unitId）；
-     * 重复 code 保留首行（与旧 selectOne LIMIT 1 任取一行的口径一致，elevator_code 业务唯一）。
-     * 空 code 集短路不发起查询（MyBatis-Plus in() 空集会退化为无条件=全表，必须守卫）。
-     */
-    private Map<String, String> elevatorUnitMap(List<MaintainRecord> candidates) {
-        Set<String> codes = candidates.stream()
-                .map(r -> r.elevatorCode)
-                .filter(c -> c != null)
-                .collect(Collectors.toCollection(LinkedHashSet::new));
-        Map<String, String> map = new LinkedHashMap<>();
-        if (codes.isEmpty()) {
-            return map;
-        }
-        List<com.cqwlw.maintenance.entity.Elevator> rows = elevatorMapper.selectList(
-                new LambdaQueryWrapper<com.cqwlw.maintenance.entity.Elevator>()
-                        .in(com.cqwlw.maintenance.entity.Elevator::getElevatorCode, codes));
-        for (com.cqwlw.maintenance.entity.Elevator el : rows == null
-                ? List.<com.cqwlw.maintenance.entity.Elevator>of() : rows) {
-            if (el != null && el.elevatorCode != null) {
-                map.putIfAbsent(el.elevatorCode, el.useUnitId == null ? "" : el.useUnitId);
-            }
-        }
-        return map;
     }
 
     public Map<String, Object> getAs(String id, java.util.Set<String> roles, String unitId) {
@@ -171,7 +141,7 @@ public class UnitRecordService {
         }
     }
 
-    /** 门禁链③：记录归属——P1 仍按电梯当前 useUnitId（unitOf），P2 改记录快照列；越权 1403 无副作用 */
+    /** 门禁链③：记录归属——P2b T9 改看记录快照列（unitOf），NULL 快照 fail-closed；越权 1403 无副作用 */
     private void requireOwnUnit(MaintainRecord r, String unitId, String message) {
         if (!unitId.equals(unitOf(r))) {
             throw new BizException(1403, message);
@@ -217,11 +187,9 @@ public class UnitRecordService {
         return next == null || next == 0;
     }
 
+    /** P2b T9：归属取记录快照列；不再回查电梯当前归属。NULL 归一空串 → 非空 unitId 永不相等（fail-closed） */
     private String unitOf(MaintainRecord r) {
-        com.cqwlw.maintenance.entity.Elevator el = elevatorMapper.selectOne(
-                new LambdaQueryWrapper<com.cqwlw.maintenance.entity.Elevator>()
-                        .eq(com.cqwlw.maintenance.entity.Elevator::getElevatorCode, r.elevatorCode).last("LIMIT 1"));
-        return el == null || el.useUnitId == null ? "" : el.useUnitId;
+        return r.useUnitId == null ? "" : r.useUnitId;
     }
 
     public MaintainRecord findOr404(String id) {

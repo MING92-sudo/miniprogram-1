@@ -111,10 +111,12 @@ class UnitTokenScopeTest {
     void clientPendingOnlyOwnUnit() {
         var records = mock(com.cqwlw.maintenance.mapper.MaintainRecordMapper.class);
         var elevators = mock(com.cqwlw.maintenance.mapper.ElevatorMapper.class);
-        when(records.selectList(org.mockito.ArgumentMatchers.any())).thenReturn(java.util.List.of(
-                record("r1", "DT-1"), record("r2", "DT-2")));
-        // P2 T5（N+1 消除）：pendingAs 电梯归属改为一次批量 .in(elevatorCode) 查询（不再逐条 selectOne）；
-        // DT-2 属另一单位 u2 → r2 被归属过滤
+        // P2b T9：归属改看记录快照列；r1 快照 u1、r2 快照 u2（他单位）→ 只见 r1
+        com.cqwlw.maintenance.entity.MaintainRecord r1 = record("r1", "DT-1");
+        r1.useUnitId = "u1";
+        com.cqwlw.maintenance.entity.MaintainRecord r2 = record("r2", "DT-2");
+        r2.useUnitId = "u2";
+        when(records.selectList(org.mockito.ArgumentMatchers.any())).thenReturn(java.util.List.of(r1, r2));
         when(elevators.selectList(org.mockito.ArgumentMatchers.any()))
                 .thenReturn(java.util.List.of(elFor("DT-1", "u1"), elFor("DT-2", "u2")));
         var out = recordService(records, elevators).pendingAs(Map.of(), java.util.Set.of("CLIENT_ADMIN"), "u1");
@@ -133,7 +135,9 @@ class UnitTokenScopeTest {
     void crossUnitGetForbidden() {
         var records = mock(com.cqwlw.maintenance.mapper.MaintainRecordMapper.class);
         var elevators = mock(com.cqwlw.maintenance.mapper.ElevatorMapper.class);
-        when(records.selectById("r1")).thenReturn(record("r1", "DT-1"));
+        com.cqwlw.maintenance.entity.MaintainRecord r1 = record("r1", "DT-1");
+        r1.useUnitId = "u-other"; // P2b T9：跨单位由记录快照列判定
+        when(records.selectById("r1")).thenReturn(r1);
         elevator(elevators, "DT-1", "u-other");
         BizException ex = assertThrows(BizException.class,
                 () -> recordService(records, elevators).getAs("r1", java.util.Set.of("CLIENT_ADMIN"), "u1"));

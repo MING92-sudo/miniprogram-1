@@ -1,6 +1,9 @@
 package com.cqwlw.maintenance.service;
 
+import com.cqwlw.maintenance.common.BizException;
+import com.cqwlw.maintenance.entity.Elevator;
 import com.cqwlw.maintenance.entity.MaintainRecord;
+import com.cqwlw.maintenance.mapper.ElevatorMapper;
 import com.cqwlw.maintenance.mapper.MaintainRecordMapper;
 import com.cqwlw.maintenance.util.JsonUtil;
 import org.junit.jupiter.api.BeforeEach;
@@ -9,11 +12,16 @@ import org.junit.jupiter.api.Test;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
@@ -25,15 +33,21 @@ class UnitRecordServiceTest {
 
     private FileStorageService fileStorage;
     private MaintainRecordMapper recordMapper;
+    private ElevatorMapper elevatorMapper;
+    private WorkOrderService workOrderService;
     private UnitRecordService service;
 
     @BeforeEach
     void setUp() {
         fileStorage = mock(FileStorageService.class);
         recordMapper = mock(MaintainRecordMapper.class);
-        service = new UnitRecordService(recordMapper,
-                mock(WorkOrderService.class), fileStorage,
-                mock(com.cqwlw.maintenance.mapper.ElevatorMapper.class));
+        elevatorMapper = mock(ElevatorMapper.class);
+        workOrderService = mock(WorkOrderService.class);
+        when(workOrderService.paginate(any(), any())).thenAnswer(inv -> {
+            List<?> list = inv.getArgument(0);
+            return Map.of("list", list, "total", list.size());
+        });
+        service = new UnitRecordService(recordMapper, workOrderService, fileStorage, elevatorMapper);
     }
 
     @Test
@@ -155,6 +169,57 @@ class UnitRecordServiceTest {
         Map<String, Object> out = service.toMap(r);
 
         assertEquals("2026-11-17 10:30:00", out.get("archivedAt"));
+    }
+
+    /**
+     * P2b T9（越权 fail-closed）：归属判定改看 r.useUnitId 快照，不再回查电梯当前归属。
+     * r.useUnitId=uuB 但电梯档案仍属 uuA（旧谓词会放行），持 uuA 令牌读 → 1403 且零副作用。
+     */
+    @Test
+    void getAsCrossUnitBySnapshot1403() {
+        MaintainRecord r = record();
+        r.elevatorCode = "DT-1";
+        r.useUnitId = "uuB";
+        r.lifecycleStatus = "PENDING_CLIENT_SIGNATURE";
+        when(recordMapper.selectById("ur_1")).thenReturn(r);
+        Elevator el = new Elevator();
+        el.elevatorCode = "DT-1";
+        el.useUnitId = "uuA"; // 旧实现回查电梯会误判为 uuA 本单位 → 放行（本测试须 RED）
+        when(elevatorMapper.selectOne(any())).thenReturn(el);
+
+        BizException ex = assertThrows(BizException.class,
+                () -> service.getAs("ur_1", Set.of("CLIENT_ADMIN"), "uuA"));
+
+        assertEquals(1403, ex.getCode());
+        verify(recordMapper, never()).update(any(), any());
+        verify(recordMapper, never()).updateById(any(MaintainRecord.class));
+    }
+
+    /**
+     * P2b T9：待签列表直接按 r.useUnitId 快照过滤，不再发起任何电梯归属查询；
+     * NULL 快照 fail-closed（非空 unitId 永不匹配）。
+     */
+    @Test
+    void pendingAsUsesSnapshotColumnWithoutElevatorQuery() {
+        MaintainRecord own = record();
+        own.useUnitId = "uuA";
+        own.lifecycleStatus = "PENDING_CLIENT_SIGNATURE";
+        MaintainRecord nullSnapshot = record();
+        nullSnapshot.id = "ur_null";
+        nullSnapshot.useUnitId = null;
+        nullSnapshot.lifecycleStatus = "PENDING_CLIENT_SIGNATURE";
+        MaintainRecord foreign = record();
+        foreign.id = "ur_foreign";
+        foreign.useUnitId = "uuB";
+        foreign.lifecycleStatus = "PENDING_CLIENT_SIGNATURE";
+        when(recordMapper.selectList(any())).thenReturn(List.of(own, nullSnapshot, foreign));
+
+        Map<String, Object> out = service.pendingAs(Map.of(), Set.of("CLIENT_ADMIN"), "uuA");
+
+        List<?> list = (List<?>) out.get("list");
+        assertEquals(List.of("ur_1"), list.stream().map(m -> ((Map<?, ?>) m).get("id")).toList());
+        verify(elevatorMapper, never()).selectList(any());
+        verify(elevatorMapper, never()).selectOne(any());
     }
 
     private static MaintainRecord record() {

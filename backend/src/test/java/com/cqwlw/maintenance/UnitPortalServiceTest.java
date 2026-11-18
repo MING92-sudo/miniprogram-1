@@ -56,6 +56,11 @@ class UnitPortalServiceTest {
 
     /** T4-I5 fixture 同步：客户可见性按 §4.6 表过滤后，列表 fixture 须为可签状态才可见 */
     private static MaintainRecord record(String id, String code) {
+        return record(id, code, "uu_1");
+    }
+
+    /** P2b T9：客户读路径改按记录快照 useUnitId 过滤，fixture 须显式钉住快照列 */
+    private static MaintainRecord record(String id, String code, String useUnitId) {
         MaintainRecord r = new MaintainRecord();
         r.id = id;
         r.elevatorCode = code;
@@ -64,15 +69,22 @@ class UnitPortalServiceTest {
         r.confirmStatus = "PENDING";
         r.lifecycleStatus = "PENDING_CLIENT_SIGNATURE";
         r.version = 1;
+        r.useUnitId = useUnitId;
         return r;
     }
 
     private static Fault fault(String id, String code) {
+        return fault(id, code, "uu_1");
+    }
+
+    /** P2b T9：急修读路径改按 Fault 快照 useUnitId 过滤，fixture 须显式钉住快照列 */
+    private static Fault fault(String id, String code, String useUnitId) {
         Fault f = new Fault();
         f.id = id;
         f.elevatorCode = code;
         f.status = "OPEN";
         f.descr = "门关不上";
+        f.useUnitId = useUnitId;
         return f;
     }
 
@@ -83,9 +95,9 @@ class UnitPortalServiceTest {
                 elevator("el_1", "EM-1", "uu_1", null),
                 elevator("el_2", "EM-2", "uu_2", null)));
         when(recordMapper.selectList(any())).thenReturn(List.of(
-                record("ur_1", "EM-1"), record("ur_2", "EM-2")));
+                record("ur_1", "EM-1", "uu_1"), record("ur_2", "EM-2", "uu_2")));
         when(faultMapper.selectList(any())).thenReturn(List.of(
-                fault("ft_1", "EM-1"), fault("ft_2", "EM-2")));
+                fault("ft_1", "EM-1", "uu_1"), fault("ft_2", "EM-2", "uu_2")));
 
         UnitPortalService svc = service();
         assertEquals(1, svc.elevators("uu_1").size());
@@ -111,8 +123,8 @@ class UnitPortalServiceTest {
                 nameless,
                 elevator("el_9", "EM-9", "uu_2", null))); // 他单位：被过滤，名称不得进入本单位行
         when(faultMapper.selectList(any())).thenReturn(List.of(
-                fault("ft_1", "EM-1"), fault("ft_2", "EM-1"),
-                fault("ft_3", "EM-2"), fault("ft_4", "EM-9")));
+                fault("ft_1", "EM-1", "uu_1"), fault("ft_2", "EM-1", "uu_1"),
+                fault("ft_3", "EM-2", "uu_1"), fault("ft_4", "EM-9", "uu_2")));
 
         List<Map<String, Object>> out = service().faults("uu_1");
 
@@ -273,6 +285,54 @@ class UnitPortalServiceTest {
                 () -> service().reportFault("uu_1", Map.of("elevatorCode", "EM-1")));
         assertEquals(422, noDesc.getCode());
         assertTrue(noDesc.getMessage().contains("描述"));
+    }
+
+    /**
+     * P2b T9（快照谓词）：记录归属以 r.useUnitId 快照为准，不再看当前电梯归属。
+     * r.elevatorCode=EM-1 属 uu_1 电梯，但快照 useUnitId=uuB → uuA 不含、uuB 含。
+     */
+    @Test
+    void recordsFilteredBySnapshotUnitNotElevatorCode() {
+        when(elevatorMapper.selectList(any())).thenReturn(List.of(elevator("el_1", "EM-1", "uu_1", null)));
+        when(recordMapper.selectList(any())).thenReturn(List.of(record("ur_snap_b", "EM-1", "uuB")));
+
+        UnitPortalService svc = service();
+        assertTrue(svc.records("uu_1").stream().noneMatch(r -> "ur_snap_b".equals(r.get("id"))),
+                "快照属 uuB 的记录不得出现在 uuA 的客户列表");
+        List<Map<String, Object>> b = svc.records("uuB");
+        assertEquals(1, b.size());
+        assertEquals("ur_snap_b", b.get(0).get("id"));
+    }
+
+    /**
+     * P2b T9（NULL fail-closed）：use_unit_id 为 NULL 的历史记录对客户完全隐藏，
+     * records() 与 pendingSigns() 两条读路径均不得下发。
+     */
+    @Test
+    void nullSnapshotHiddenFromClient() {
+        when(elevatorMapper.selectList(any())).thenReturn(List.of(elevator("el_1", "EM-1", "uu_1", null)));
+        when(recordMapper.selectList(any())).thenReturn(List.of(record("ur_null", "EM-1", null)));
+
+        UnitPortalService svc = service();
+        assertTrue(svc.records("uu_1").isEmpty(), "NULL 快照记录不得出现在客户记录列表");
+        assertTrue(svc.pendingSigns("uu_1").isEmpty(), "NULL 快照记录不得出现在客户待签列表");
+    }
+
+    /**
+     * P2b T9（快照谓词）：急修单归属以 f.useUnitId 快照为准，不再看当前电梯归属。
+     * 电梯名 map 仍按本单位在保档案投影（缺名回退 elevatorCode 口径不变）。
+     */
+    @Test
+    void faultsFilteredBySnapshotUnit() {
+        when(elevatorMapper.selectList(any())).thenReturn(List.of(elevator("el_1", "EM-1", "uu_1", null)));
+        when(faultMapper.selectList(any())).thenReturn(List.of(fault("ft_snap_b", "EM-1", "uuB")));
+
+        UnitPortalService svc = service();
+        assertTrue(svc.faults("uu_1").isEmpty(), "快照属 uuB 的急修单不得出现在 uuA 的客户列表");
+        List<Map<String, Object>> b = svc.faults("uuB");
+        assertEquals(1, b.size());
+        assertEquals("ft_snap_b", b.get(0).get("id"));
+        assertEquals("EM-1", b.get(0).get("elevatorName"), "本单位无档案时缺名回退 elevatorCode");
     }
 
     private static Employee employee(String id, String platformId) {

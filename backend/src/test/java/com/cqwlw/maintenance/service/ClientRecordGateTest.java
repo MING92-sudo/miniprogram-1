@@ -88,6 +88,9 @@ class ClientRecordGateTest {
         MaintainRecord r = new MaintainRecord();
         r.id = id;
         r.elevatorCode = "DT-1";
+        // P2b T9：客户归属改看记录快照列（不再回查电梯当前归属）；既有门禁夹具补快照，
+        // 门禁断言一律不动——只让夹具对齐新的快照口径。
+        r.useUnitId = UNIT;
         r.elevatorName = "1号楼电梯";
         r.workType = "半月保";
         r.workTypeCode = "FM";
@@ -398,21 +401,21 @@ class ClientRecordGateTest {
         Elevator el = new Elevator();
         el.elevatorCode = "DT-1";
         el.useUnitId = UNIT;
-        when(elevators.selectList(any())).thenReturn(List.of(el)); // P2 T5：归属批量 .in(elevatorCode)
+        when(elevators.selectList(any())).thenReturn(List.of(el)); // P2b T9 后 pendingAs 不再查电梯，此桩保留仅作兼容
 
         Map<String, Object> out = service.pendingAs(Map.of(), CLIENT, UNIT);
         List<?> list = (List<?>) out.get("list");
         assertEquals(1, list.size());
         assertEquals(RECORD_ID, ((Map<?, ?>) list.get(0)).get("id"));
-        // P2 T5（N+1 消除）：归属 + 链末端判定批量化——记录表至多 2 次（候选 1 + supersededIds 1），
-        // 电梯表至多 1 次；不再逐条 selectCount / selectOne
+        // P2b T9：归属改看记录快照列，电梯表 0 次查询；链末端仍批量判定，记录表至多 2 次
+        // （候选 1 + supersededIds 1）；不再逐条 selectCount / selectOne
         verify(records, never()).selectCount(any());
         verify(records, atMost(2)).selectList(any());
         verify(elevators, never()).selectOne(any());
         verify(elevators, atMost(1)).selectList(any());
     }
 
-    /** P2 T5 查询次数锁定：记录数/电梯数增长时 pendingAs 查询次数恒定（2+1），判定与旧逐条实现等价 */
+    /** P2b T9 查询次数锁定：记录数/电梯数增长时 pendingAs 查询次数恒定（2+0），判定与旧逐条实现等价 */
     @Test
     void pendingAsQueryCountIsConstantAcrossRecords() {
         MaintainRecord a = record("ur_a", "PENDING_CLIENT_SIGNATURE");   // DT-1 本单位
@@ -421,6 +424,7 @@ class ClientRecordGateTest {
         MaintainRecord old = record("ur_c", "PENDING_CLIENT_SIGNATURE"); // 旧版本 → 被替代
         MaintainRecord foreign = record("ur_d", "PENDING_CLIENT_SIGNATURE");
         foreign.elevatorCode = "DT-9";                                    // 他单位 → 归属过滤
+        foreign.useUnitId = "u-other";                                    // P2b T9：快照列钉住他单位
         MaintainRecord nextOfOld = record("ur_c_v2", "PENDING_CLIENT_SIGNATURE");
         nextOfOld.prevVersionId = "ur_c";
         when(records.selectList(any()))
@@ -435,7 +439,7 @@ class ClientRecordGateTest {
 
         verify(records, times(2)).selectList(any());   // 候选 + supersededIds，恒定不随记录数增长
         verify(records, never()).selectCount(any());
-        verify(elevators, times(1)).selectList(any()); // 一次 .in(elevatorCode) 批量归属，恒定
+        verify(elevators, never()).selectList(any()); // P2b T9：快照谓词不再查电梯归属（原 times(1) 为旧实现细节）
         verify(elevators, never()).selectOne(any());
     }
 

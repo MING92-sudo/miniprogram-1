@@ -17,15 +17,15 @@ import org.springframework.stereotype.Service;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
 /**
  * 使用单位门户（W3，Task 10，docs/14 §4）：数据域 = 本 useUnitId 名下的电梯，
- * 以及这些电梯的维保记录与急修单。列表在内存里再按电梯编码过滤一次——
- * 谓词写在查询条件上的同时保留这层防御，避免将来改查询时漏条件（AGENTS §3.1 越权无副作用）。
+ * 以及快照 useUnitId 归属本单位的维保记录与急修单（P2b T9：不再按当前电梯归属过滤）。
+ * 记录/急修列表在内存里再按快照列过滤一次——谓词写在查询条件上的同时保留这层防御，
+ * 避免将来改查询时漏条件（AGENTS §3.1 越权无副作用）。
  * 报修复用急修链路（DirectoryService.createFault），并派给该梯责任人；无责任人留 OPEN 待调度。
  */
 @Service
@@ -111,20 +111,21 @@ public class UnitPortalService {
         return out;
     }
 
-    /** 客户可见记录实体集：本单位电梯 + §4.6 可见集合 + 链末端最新版本，签退时间倒序（谓词进查询 + 内存防御双保险） */
+    /** 客户可见记录实体集：记录快照归属本单位 + §4.6 可见集合 + 链末端最新版本，签退时间倒序（谓词进查询 + 内存防御双保险） */
     private List<MaintainRecord> visibleRecords(String useUnitId) {
-        Set<String> codes = ownCodes(useUnitId);
-        if (codes.isEmpty()) {
+        // 空/缺单位锚点必须先短路：MyBatis-Plus 的 eq(null) 会忽略条件退化为全表，且下方 equals 会 NPE
+        if (useUnitId == null || useUnitId.isBlank()) {
             return List.of();
         }
+        // P2b T9（权限 P2）：归属改看记录快照列；use_unit_id NULL 行天然不命中 → 客户隐藏（fail-closed）
         List<MaintainRecord> list = recordMapper.selectList(new LambdaQueryWrapper<MaintainRecord>()
-                .in(MaintainRecord::getElevatorCode, codes)
+                .eq(MaintainRecord::getUseUnitId, useUnitId)
                 .in(MaintainRecord::getLifecycleStatus, CLIENT_VISIBLE_LIFECYCLES)
                 .orderByDesc(MaintainRecord::getCheckoutTime)
                 .last("LIMIT " + LIST_LIMIT));
         List<MaintainRecord> candidates = new ArrayList<>();
         for (MaintainRecord r : list == null ? List.<MaintainRecord>of() : list) {
-            if (!codes.contains(r.elevatorCode)) {
+            if (!useUnitId.equals(r.useUnitId)) {
                 continue;
             }
             if (r.lifecycleStatus == null || !CLIENT_VISIBLE_LIFECYCLES.contains(r.lifecycleStatus)) {
@@ -152,24 +153,20 @@ public class UnitPortalService {
     /**
      * 本单位急修单（按报修时间倒序）。
      * C-25②（投影补齐）：Fault 表无电梯名列，elevatorName 按 elevatorCode 联电梯档案取；
-     * P2 T5（T3 minor）：codes 与电梯名 map 复用同一次 ownElevators 已载入结果（一次遍历建成），
-     * 不再按 codes 重查电梯（省 1 次查询），电梯/急修单空列表均短路；
+     * P2b T9：归属改看急修单快照列；电梯名 map 复用同一次 ownElevators 已载入结果（一次遍历建成），
+     * 不再重查电梯（省 1 次查询），电梯/急修单空列表均短路；
      * 缺名回退 elevatorCode（与 pkg-client orders 页 `item.elevatorName || item.elevatorCode` 同显示语义）。
      * trapped 依赖 C-18 增列，不改表裁决，本投影暂不下发。
      */
     public List<Map<String, Object>> faults(String useUnitId) {
+        if (useUnitId == null || useUnitId.isBlank()) {
+            return List.of(); // 空锚点短路：eq(null) 会退化为全表，且下方 equals 会 NPE
+        }
+        // 电梯列表仍按当前归属（spec §5）；此处 own 只用于电梯名 map，不再参与急修单归属判定
         List<Elevator> own = ownElevators(useUnitId);
-        Set<String> codes = new LinkedHashSet<>();
-        for (Elevator el : own) {
-            if (el.elevatorCode != null) {
-                codes.add(el.elevatorCode);
-            }
-        }
-        if (codes.isEmpty()) {
-            return List.of();
-        }
+        // P2b T9：急修单归属改看快照列；NULL 快照永不等于非空 useUnitId → 客户隐藏（fail-closed）
         List<Fault> list = faultMapper.selectList(new LambdaQueryWrapper<Fault>()
-                .in(Fault::getElevatorCode, codes)
+                .eq(Fault::getUseUnitId, useUnitId)
                 .orderByDesc(Fault::getCreatedAt)
                 .last("LIMIT " + LIST_LIMIT));
         if (list == null || list.isEmpty()) {
@@ -185,7 +182,7 @@ public class UnitPortalService {
         }
         List<Map<String, Object>> out = new ArrayList<>();
         for (Fault f : list) {
-            if (!codes.contains(f.elevatorCode)) {
+            if (!useUnitId.equals(f.useUnitId)) {
                 continue;
             }
             Map<String, Object> m = new LinkedHashMap<>();
@@ -260,16 +257,6 @@ public class UnitPortalService {
                 .filter(el -> useUnitId.equals(el.useUnitId))
                 .sorted(Comparator.comparing(el -> el.id == null ? "" : el.id))
                 .toList();
-    }
-
-    private Set<String> ownCodes(String useUnitId) {
-        Set<String> codes = new LinkedHashSet<>();
-        for (Elevator el : ownElevators(useUnitId)) {
-            if (el.elevatorCode != null) {
-                codes.add(el.elevatorCode);
-            }
-        }
-        return codes;
     }
 
     /** 列表行投影（客户安全字段）：T4-I5 增 lifecycleStatus/version 供前端区分 待签/只读 与版本链 */
