@@ -48,5 +48,8 @@ public class Fault {
     public String evaluateText;
     public LocalDateTime evaluatedAt;
     public LocalDateTime escalatedAt;
+    /** P2 租户快照（V47）：登记时冻结的租户归属/单位名称 */
+    public String useUnitId;
+    public String useUnitName;
     public LocalDateTime createdAt;
 }

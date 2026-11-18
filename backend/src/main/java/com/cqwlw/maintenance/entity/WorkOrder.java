@@ -55,4 +55,7 @@ public class WorkOrder {
     /** M4 SLA 快照（创建时冻结） */
     public Integer slaMinutes;
     public LocalDateTime deadline;
+    /** P2 租户快照（V47）：派单时冻结的租户归属/单位名称 */
+    public String useUnitId;
+    public String useUnitName;
 }

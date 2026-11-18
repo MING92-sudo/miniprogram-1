@@ -63,5 +63,9 @@ public class MaintainRecord {
     public LocalDateTime archivedAt;
     public String archiveFileId;
     public String archiveHash;
+    /** P2 租户快照（V47）：生成时冻结的租户归属/单位名称/电梯 id */
+    public String useUnitId;
+    public String useUnitName;
+    public String elevatorId;
     public LocalDateTime createdAt;
 }
