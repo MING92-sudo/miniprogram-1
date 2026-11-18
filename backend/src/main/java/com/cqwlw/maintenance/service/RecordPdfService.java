@@ -99,7 +99,7 @@ public class RecordPdfService {
             doc.add(subtitle("记录编号：" + recordNo + "　·　"
                     + rangeLabel(appendixOf(el == null ? null : el.category), workTypeCodeOf(r)), f));
 
-            doc.add(kvTable("一、使用单位与设备基本情况", deviceRows(el, uu), f));
+            doc.add(kvTable("一、使用单位与设备基本情况", deviceRows(el, uu, r.useUnitName), f));
             doc.add(kvTable("二、维保作业信息", workRows(r, executed.size(), items.size()), f));
             doc.add(itemsTable(executed, f));
             Paragraph legend = new Paragraph(
@@ -126,9 +126,9 @@ public class RecordPdfService {
     }
 
     /** 一、使用单位与设备基本情况（第七条(一)(二)、第八条）：设备档案 + 品种追加技术参数行 */
-    private List<String[]> deviceRows(Elevator el, UseUnit uu) {
+    private List<String[]> deviceRows(Elevator el, UseUnit uu, String snapshotUnitName) {
         Map<String, String> v = new LinkedHashMap<>();
-        v.put("使用单位", uu == null ? "" : nz(uu.unitName));
+        v.put("使用单位", unitNameForSnapshot(snapshotUnitName, uu));
         v.put("使用单位内编号", el == null ? "" : nz(el.insideNumber));
         v.put("使用地点", el == null ? "" : nz(el.location));
         v.put("项目名称（小区）", el == null ? "" : nz(el.projectName));
@@ -512,6 +512,20 @@ public class RecordPdfService {
         c.setPadding(4);
         c.setHorizontalAlignment(align);
         return c;
+    }
+
+    /**
+     * P2b/R13：维保记录 PDF「使用单位」单元格取值——记录快照名优先（避免改名后的档案名覆盖快照），
+     * null/blank 快照回退内部标注「归属待核对」（客户侧因 Task 9 NULL 隐藏拿不到该 PDF）。
+     *
+     * @param snapshotUnitName 记录冻结的使用单位名（r.useUnitName）
+     * @param uu               兼容调用形态保留，不再用于单位名取值
+     */
+    static String unitNameForSnapshot(String snapshotUnitName, UseUnit uu) {
+        if (snapshotUnitName != null && !snapshotUnitName.isBlank()) {
+            return snapshotUnitName.trim();
+        }
+        return "归属待核对";
     }
 
     /** 附件 A—D 与表号（docs/13 §3.6）：品种 → 附件字母 */

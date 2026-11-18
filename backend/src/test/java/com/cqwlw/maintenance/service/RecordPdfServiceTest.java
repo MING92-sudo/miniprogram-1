@@ -1,6 +1,7 @@
 package com.cqwlw.maintenance.service;
 
 import com.cqwlw.maintenance.entity.MaintainRecord;
+import com.cqwlw.maintenance.entity.UseUnit;
 import com.cqwlw.maintenance.mapper.AppFileMapper;
 import com.cqwlw.maintenance.util.JsonUtil;
 import com.lowagie.text.pdf.PdfReader;
@@ -45,6 +46,13 @@ class RecordPdfServiceTest {
                 return url == null || url.isBlank() ? null : TINY_PNG.clone();
             }
         };
+    }
+
+    /** 构造带单位名的 UseUnit（P2b 快照优先级断言用） */
+    private UseUnit uu(String unitName) {
+        UseUnit u = new UseUnit();
+        u.unitName = unitName;
+        return u;
     }
 
     private MaintainRecord record() {
@@ -138,6 +146,30 @@ class RecordPdfServiceTest {
     void pdfStartsWithHeaderAndContainsContent() {
         byte[] pdf = service.render(record(), null, null);
         assertTrue(pdf.length > 2000);
+        assertEquals("%PDF", new String(pdf, 0, 4, StandardCharsets.US_ASCII));
+    }
+
+    /** P2b/R13：快照名优先于档案现名（改名后物业不得覆盖快照） */
+    @Test
+    void deviceRowUsesSnapshotUnitName() {
+        assertEquals("启元物业（快照）",
+                RecordPdfService.unitNameForSnapshot("启元物业（快照）", uu("改名后物业")));
+    }
+
+    /** P2b/R13：NULL/blank 快照 → 内部标注「归属待核对」 */
+    @Test
+    void nullSnapshotShowsPendingLabel() {
+        assertEquals("归属待核对", RecordPdfService.unitNameForSnapshot(null, uu("改名后物业")));
+        assertEquals("归属待核对", RecordPdfService.unitNameForSnapshot("", uu("改名后物业")));
+        assertEquals("归属待核对", RecordPdfService.unitNameForSnapshot("   ", uu("改名后物业")));
+    }
+
+    /** P2b/R13：接线冒烟——r.useUnitName=快照名时 render 仍能产出 PDF */
+    @Test
+    void renderWithSnapshotStillProducesPdf() {
+        MaintainRecord r = record();
+        r.useUnitName = "启元物业（快照）";
+        byte[] pdf = service.render(r, null, uu("改名后物业"));
         assertEquals("%PDF", new String(pdf, 0, 4, StandardCharsets.US_ASCII));
     }
 
