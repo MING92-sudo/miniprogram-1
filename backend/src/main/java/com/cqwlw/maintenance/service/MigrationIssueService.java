@@ -83,9 +83,10 @@ public class MigrationIssueService {
                 .eq(ClientMigrationIssue::getIssueType, issueType)
                 .last("LIMIT 1"));
         if (exist != null) {
-            exist.evidence = evidence;
-            exist.confidence = confidence;
-            issueMapper.updateById(exist);
+            issueMapper.update(null, new LambdaUpdateWrapper<ClientMigrationIssue>()
+                    .eq(ClientMigrationIssue::getId, exist.id)
+                    .set(ClientMigrationIssue::getEvidence, evidence)
+                    .set(ClientMigrationIssue::getConfidence, confidence));
             return;
         }
         ClientMigrationIssue row = new ClientMigrationIssue();

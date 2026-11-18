@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.cqwlw.maintenance.common.BizException;
 import com.cqwlw.maintenance.entity.ClientMigrationIssue;
+import com.cqwlw.maintenance.entity.Fault;
 import com.cqwlw.maintenance.entity.MaintainRecord;
 import com.cqwlw.maintenance.entity.SysAuditLog;
 import com.cqwlw.maintenance.entity.UseUnit;
@@ -108,6 +109,36 @@ class MigrationIssueServiceTest {
         assertEquals(true, out.get("ok"));
     }
 
+    /** m-1：BACKFILLED 成功回填——FAULT 分支钉住 faultMapper.updateById */
+    @Test
+    void resolveBackfillsFaultRowWithUnitIdAndName() {
+        issue("FAULT", "f1");
+        when(useUnitMapper.selectById("uu1")).thenReturn(unit());
+        Fault saved = new Fault();
+        saved.id = "f1";
+        when(faultMapper.selectById("f1")).thenReturn(saved);
+        Map<String, Object> out = svc.resolve("mi1", "BACKFILLED", "uu1", null, "已核对合同", "emp1");
+        assertEquals("uu1", saved.useUnitId);
+        assertEquals("启元物业", saved.useUnitName);
+        verify(faultMapper).updateById(saved);
+        assertEquals(true, out.get("ok"));
+    }
+
+    /** m-1：BACKFILLED 成功回填——ORDER 分支钉住 orderMapper.updateById */
+    @Test
+    void resolveBackfillsOrderRowWithUnitIdAndName() {
+        issue("ORDER", "wo1");
+        when(useUnitMapper.selectById("uu1")).thenReturn(unit());
+        WorkOrder saved = new WorkOrder();
+        saved.id = "wo1";
+        when(orderMapper.selectById("wo1")).thenReturn(saved);
+        Map<String, Object> out = svc.resolve("mi1", "BACKFILLED", "uu1", null, "已核对合同", "emp1");
+        assertEquals("uu1", saved.useUnitId);
+        assertEquals("启元物业", saved.useUnitName);
+        verify(orderMapper).updateById(saved);
+        assertEquals(true, out.get("ok"));
+    }
+
     @Test
     void resolveTwiceSecondRejected422() {
         issue("RECORD", "ur1");
@@ -139,6 +170,8 @@ class MigrationIssueServiceTest {
         verify(recordMapper, never()).updateById(any(MaintainRecord.class));
     }
 
+    /** I-1/R11：upsert 已存在分支只 set evidence/confidence 两列——SQL 级断言（整行回写会覆盖人工裁定） */
+    @SuppressWarnings("unchecked")
     @Test
     void upsertUpdatesEvidenceWithoutTouchingResolution() {
         ClientMigrationIssue exist = new ClientMigrationIssue();
@@ -154,10 +187,24 @@ class MigrationIssueServiceTest {
         when(issueMapper.selectOne(any())).thenReturn(exist);
         svc.upsert("RECORD", "ur1", "UNMATCHED", "310101001", null, null, "复核仍未匹配", "MID");
         verify(issueMapper, never()).insert(any(ClientMigrationIssue.class));
-        verify(issueMapper).updateById(exist);
-        assertEquals("复核仍未匹配", exist.evidence);
-        assertEquals("MID", exist.confidence);
-        assertEquals("MANUAL_DONE", exist.resolution); // 不覆盖已有裁定
+        verify(issueMapper, never()).updateById(any(ClientMigrationIssue.class));
+        ArgumentCaptor<Wrapper<ClientMigrationIssue>> captor = ArgumentCaptor.forClass(Wrapper.class);
+        verify(issueMapper).update(isNull(), captor.capture());
+        LambdaUpdateWrapper<ClientMigrationIssue> uw = (LambdaUpdateWrapper<ClientMigrationIssue>) captor.getValue();
+        String sqlSet = uw.getSqlSet();
+        assertTrue(sqlSet.contains("evidence"), sqlSet);
+        assertTrue(sqlSet.contains("confidence"), sqlSet);
+        assertTrue(!sqlSet.contains("resolution"), sqlSet);
+        assertTrue(!sqlSet.contains("decision_json"), sqlSet);
+        assertTrue(!sqlSet.contains("resolve_note"), sqlSet);
+        assertTrue(uw.getParamNameValuePairs().containsValue("复核仍未匹配"));
+        assertTrue(uw.getParamNameValuePairs().containsValue("MID"));
+        assertTrue(!uw.getParamNameValuePairs().containsValue("{\"anchorUnitId\":\"uu1\"}"));
+        assertTrue(!uw.getParamNameValuePairs().containsValue("已带外处理"));
+        // 补充：入参实体内存字段未变（新实现只发条件更新，不回写 selectOne 快照对象）
+        assertEquals("旧证据", exist.evidence);
+        assertEquals("LOW", exist.confidence);
+        assertEquals("MANUAL_DONE", exist.resolution);
         assertEquals("{\"anchorUnitId\":\"uu1\"}", exist.decisionJson);
         assertEquals("已带外处理", exist.resolveNote);
     }
