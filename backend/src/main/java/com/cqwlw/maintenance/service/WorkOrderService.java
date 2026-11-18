@@ -98,6 +98,14 @@ public class WorkOrderService {
         this.recordLifecycleService = recordLifecycleService;
     }
 
+    /** 租户快照（权限 P2 T4）：可选注入，未注入时快照留空、不阻断签退（保护既有测试构造器） */
+    private TenantSnapshotService tenantSnapshotService;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    public void setTenantSnapshotService(TenantSnapshotService tenantSnapshotService) {
+        this.tenantSnapshotService = tenantSnapshotService;
+    }
+
     public WorkOrderService(WorkOrderMapper orderMapper, ElevatorMapper elevatorMapper,
                             UseUnitMapper useUnitMapper, EmployeeMapper employeeMapper,
                             CompanyMapper companyMapper, MaintainRecordMapper recordMapper,
@@ -819,6 +827,7 @@ public class WorkOrderService {
         r.confirmStatus = "PENDING";
         // M1：记录生命周期初始化（复核开关分流）+ 来源工单关联（复核退回回写用）
         r.workOrderId = o.id;
+        if (tenantSnapshotService != null) tenantSnapshotService.applyRecord(r, o, el);
         r.lifecycleStatus = recordLifecycleService == null ? null : recordLifecycleService.initialStatus();
         // M7：SecureRandom 128bit——旧实现时间36进制+Math.random 可猜，令牌可写签名与满意度
         byte[] shareTokenBytes = new byte[16];

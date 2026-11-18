@@ -3,6 +3,7 @@ package com.cqwlw.maintenance;
 import com.cqwlw.maintenance.config.AppProperties;
 import com.cqwlw.maintenance.entity.Elevator;
 import com.cqwlw.maintenance.entity.Employee;
+import com.cqwlw.maintenance.entity.Fault;
 import com.cqwlw.maintenance.entity.MaintainRecord;
 import com.cqwlw.maintenance.entity.UseUnit;
 import com.cqwlw.maintenance.entity.WorkOrder;
@@ -57,6 +58,7 @@ class DemoDataSeederTest {
     private EmployeeMapper employeeMapper;
     private ElevatorMapper elevatorMapper;
     private UseUnitMapper useUnitMapper;
+    private FaultMapper faultMapper;
     private WorkOrderMapper orderMapper;
     private MaintainRecordMapper recordMapper;
     private DemoDataSeeder seeder;
@@ -66,12 +68,14 @@ class DemoDataSeederTest {
         employeeMapper = mock(EmployeeMapper.class);
         elevatorMapper = mock(ElevatorMapper.class);
         useUnitMapper = mock(UseUnitMapper.class);
+        faultMapper = mock(FaultMapper.class);
         orderMapper = mock(WorkOrderMapper.class);
         recordMapper = mock(MaintainRecordMapper.class);
         // 工单种子内联快照：按 elevatorId 找到电梯 → useUnitId → 单位名
         Elevator seededElevator = new Elevator();
         seededElevator.useUnitId = "uu_1";
         when(elevatorMapper.selectById(any())).thenReturn(seededElevator);
+        when(elevatorMapper.selectOne(any())).thenReturn(seededElevator);
         UseUnit unit = new UseUnit();
         unit.unitName = "启元物业";
         when(useUnitMapper.selectById(any())).thenReturn(unit);
@@ -82,7 +86,7 @@ class DemoDataSeederTest {
         when(employeeMapper.selectCount(any())).thenReturn(0L);
         seeder = new DemoDataSeeder(props, mock(CompanyMapper.class), employeeMapper,
                 useUnitMapper, elevatorMapper, orderMapper, recordMapper,
-                mock(MessageMapper.class), mock(RescueMapper.class), mock(FaultMapper.class),
+                mock(MessageMapper.class), mock(RescueMapper.class), faultMapper,
                 mock(DrillMapper.class), mock(InspectRecordMapper.class), mock(KnowledgeMapper.class),
                 checklistService, mock(WorkOrderService.class),
                 mock(com.cqwlw.maintenance.mapper.SysOrgMapper.class),
@@ -189,6 +193,27 @@ class DemoDataSeederTest {
                     "种子工单 " + o.id + " 缺 useUnitId 快照");
             assertTrue(o.useUnitName != null && !o.useUnitName.isBlank(),
                     "种子工单 " + o.id + " 缺 useUnitName 快照");
+        });
+    }
+
+    /** 租户快照（权限 P2 T4）：种子急修单/维保记录必须带非空 useUnitId/useUnitName */
+    @Test
+    void seededFaultsAndRecordsCarryTenantSnapshot() throws Exception {
+        seeder.run(null);
+
+        ArgumentCaptor<Fault> faults = ArgumentCaptor.forClass(Fault.class);
+        verify(faultMapper, atLeastOnce()).insert(faults.capture());
+        assertFalse(faults.getAllValues().isEmpty(), "应播种至少一条急修单");
+        faults.getAllValues().forEach(f -> {
+            assertEquals("uu_1", f.useUnitId, "种子急修 " + f.id + " 缺 useUnitId 快照");
+            assertEquals("启元物业", f.useUnitName, "种子急修 " + f.id + " 缺 useUnitName 快照");
+        });
+
+        ArgumentCaptor<MaintainRecord> records = ArgumentCaptor.forClass(MaintainRecord.class);
+        verify(recordMapper, atLeastOnce()).insert(records.capture());
+        records.getAllValues().forEach(r -> {
+            assertEquals("uu_1", r.useUnitId, "种子记录 " + r.id + " 缺 useUnitId 快照");
+            assertEquals("启元物业", r.useUnitName, "种子记录 " + r.id + " 缺 useUnitName 快照");
         });
     }
 

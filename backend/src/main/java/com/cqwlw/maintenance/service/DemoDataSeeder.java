@@ -511,6 +511,14 @@ public class DemoDataSeeder implements ApplicationRunner {
         f.status = status;
         f.handleDesc = handleDesc;
         f.createdAt = TimeUtil.parse(createdAt);
+        // 租户快照（权限 P2 T4）：种子急修按电梯编码内联使用单位（不注入服务，沿用 order() 口径）
+        Elevator el = elevatorMapper.selectOne(new LambdaQueryWrapper<Elevator>()
+                .eq(Elevator::getElevatorCode, elevatorCode).last("LIMIT 1"));
+        if (el != null && el.useUnitId != null && !el.useUnitId.isBlank()) {
+            f.useUnitId = el.useUnitId;
+            UseUnit uu = useUnitMapper.selectById(el.useUnitId);
+            f.useUnitName = uu == null ? null : uu.unitName;
+        }
         faultMapper.insert(f);
     }
 
@@ -564,6 +572,11 @@ public class DemoDataSeeder implements ApplicationRunner {
                 new LambdaQueryWrapper<Elevator>()
                         .eq(Elevator::getElevatorCode, elevatorCode).last("LIMIT 1"));
         UseUnit uu = el == null ? null : useUnitMapper.selectById(el.useUnitId);
+        // 租户快照（权限 P2 T4）：种子记录内联使用单位，与签退新链路口径一致
+        if (el != null && el.useUnitId != null && !el.useUnitId.isBlank()) {
+            r.useUnitId = el.useUnitId;
+            r.useUnitName = uu == null ? null : uu.unitName;
+        }
         r.reportPayloadJson = JsonUtil.write(workOrderService.buildReportPayload(r, el, uu));
         recordMapper.insert(r);
     }

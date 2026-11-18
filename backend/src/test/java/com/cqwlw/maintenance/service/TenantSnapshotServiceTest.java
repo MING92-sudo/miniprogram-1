@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.Wrapper;
 import com.cqwlw.maintenance.entity.BizElevatorChange;
 import com.cqwlw.maintenance.entity.Elevator;
 import com.cqwlw.maintenance.entity.Fault;
+import com.cqwlw.maintenance.entity.MaintainRecord;
 import com.cqwlw.maintenance.entity.UseUnit;
 import com.cqwlw.maintenance.entity.WorkOrder;
 import com.cqwlw.maintenance.mapper.BizElevatorChangeMapper;
@@ -18,9 +19,12 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 /**
@@ -31,6 +35,7 @@ class TenantSnapshotServiceTest {
 
     private UseUnitMapper units;
     private BizElevatorChangeMapper changes;
+    private MigrationIssueService issues;
     private TenantSnapshotService svc;
 
     /** 条件查询的 LambdaQueryWrapper 列解析需 TableInfo 缓存（MigrationIssueServiceTest 同款先例） */
@@ -45,7 +50,8 @@ class TenantSnapshotServiceTest {
     void setUp() {
         units = mock(UseUnitMapper.class);
         changes = mock(BizElevatorChangeMapper.class);
-        svc = new TenantSnapshotService(units, changes, mock(MigrationIssueService.class));
+        issues = mock(MigrationIssueService.class);
+        svc = new TenantSnapshotService(units, changes, issues);
     }
 
     private static UseUnit unit(String name) {
@@ -131,5 +137,66 @@ class TenantSnapshotServiceTest {
     void unitNameOfUnknownUnitReturnsNull() {
         when(units.selectById("uu_missing")).thenReturn(null);
         assertNull(svc.unitNameOf("uu_missing"));
+    }
+
+    private static MaintainRecord record(String id, String elevatorCode) {
+        MaintainRecord r = new MaintainRecord();
+        r.id = id;
+        r.elevatorCode = elevatorCode;
+        return r;
+    }
+
+    @Test
+    void applyRecordInheritsOrderSnapshot() {
+        WorkOrder o = new WorkOrder();
+        o.elevatorId = "e1";
+        o.useUnitId = "uu1";
+        o.useUnitName = "启元物业";
+        MaintainRecord r = record("ur1", "EM-2024-001");
+        svc.applyRecord(r, o, elevator("uu9"));
+        assertEquals("e1", r.elevatorId);
+        assertEquals("uu1", r.useUnitId);
+        assertEquals("启元物业", r.useUnitName);
+        verifyNoInteractions(issues);
+    }
+
+    @Test
+    void applyRecordSuspectStaysNullAndIssues() {
+        WorkOrder o = new WorkOrder();
+        o.elevatorId = "e1"; // 工单快照 useUnitId 缺失
+        when(changes.selectCount(any())).thenReturn(1L);
+        MaintainRecord r = record("ur1", "EM-2024-001");
+        svc.applyRecord(r, o, elevator("uu9"));
+        assertNull(r.useUnitId);
+        assertNull(r.useUnitName);
+        assertEquals("e1", r.elevatorId);
+        verify(issues).upsert(eq("RECORD"), eq("ur1"), eq("TRANSFER_SUSPECT"),
+                eq("EM-2024-001"), isNull(), eq("uu9"),
+                eq("工单快照缺失且电梯有过户确认记录"), eq("LOW"));
+    }
+
+    @Test
+    void applyRecordFallsBackToElevatorWhenNotSuspect() {
+        WorkOrder o = new WorkOrder();
+        o.elevatorId = "e1";
+        when(changes.selectCount(any())).thenReturn(0L);
+        when(units.selectById("uu9")).thenReturn(unit("启元物业"));
+        MaintainRecord r = record("ur1", "EM-2024-001");
+        svc.applyRecord(r, o, elevator("uu9"));
+        assertEquals("uu9", r.useUnitId);
+        assertEquals("启元物业", r.useUnitName);
+        verifyNoInteractions(issues);
+    }
+
+    @Test
+    void applyRecordWithNullOrderUsesElevatorIdAndDoesNotThrow() {
+        when(changes.selectCount(any())).thenReturn(0L);
+        when(units.selectById("uu9")).thenReturn(unit("启元物业"));
+        MaintainRecord r = record("ur1", "EM-2024-001");
+        svc.applyRecord(r, null, elevator("uu9"));
+        assertEquals("e1", r.elevatorId);
+        assertEquals("uu9", r.useUnitId);
+        assertEquals("启元物业", r.useUnitName);
+        verifyNoInteractions(issues);
     }
 }

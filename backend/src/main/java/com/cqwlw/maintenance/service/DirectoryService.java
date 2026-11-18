@@ -63,6 +63,7 @@ public class DirectoryService {
     private final WorkOrderMapper workOrderMapper;
     private final CompanyMapper companyMapper;
     private final FileStorageService fileStorageService;
+    private final TenantSnapshotService tenantSnapshotService;
 
     public DirectoryService(RescueMapper rescueMapper, FaultMapper faultMapper,
                             DrillMapper drillMapper, InspectRecordMapper inspectMapper,
@@ -71,7 +72,8 @@ public class DirectoryService {
                             WorkOrderService workOrderService, EmployeeScopeService scopeService,
                             EmployeeMapper employeeMapper, UseUnitMapper useUnitMapper,
                             WorkOrderMapper workOrderMapper, CompanyMapper companyMapper,
-                            FileStorageService fileStorageService) {
+                            FileStorageService fileStorageService,
+                            TenantSnapshotService tenantSnapshotService) {
         this.rescueMapper = rescueMapper;
         this.faultMapper = faultMapper;
         this.drillMapper = drillMapper;
@@ -87,6 +89,7 @@ public class DirectoryService {
         this.workOrderMapper = workOrderMapper;
         this.companyMapper = companyMapper;
         this.fileStorageService = fileStorageService;
+        this.tenantSnapshotService = tenantSnapshotService;
     }
 
     // ── 救援 ──
@@ -186,6 +189,12 @@ public class DirectoryService {
         f.arrivedAt = firstCheckinToday(f.elevatorCode);
         if (f.arrivedAt == null) {
             f.arrivedAt = f.createdAt;
+        }
+        // 租户快照（权限 P2 T4）：按电梯编码回填使用单位；查不到时两列留 NULL（Runner 兜底）
+        Elevator el = elevatorMapper.selectOne(new LambdaQueryWrapper<Elevator>()
+                .eq(Elevator::getElevatorCode, f.elevatorCode).last("LIMIT 1"));
+        if (el != null) {
+            tenantSnapshotService.applyFault(f, el);
         }
         faultMapper.insert(f);
         return faultView(f);

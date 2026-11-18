@@ -1,8 +1,11 @@
 package com.cqwlw.maintenance;
 
 import com.cqwlw.maintenance.common.BizException;
+import com.cqwlw.maintenance.entity.Elevator;
 import com.cqwlw.maintenance.entity.Fault;
 import com.cqwlw.maintenance.entity.Rescue;
+import com.cqwlw.maintenance.entity.UseUnit;
+import com.cqwlw.maintenance.mapper.BizElevatorChangeMapper;
 import com.cqwlw.maintenance.mapper.DrillMapper;
 import com.cqwlw.maintenance.mapper.EmployeeMapper;
 import com.cqwlw.maintenance.mapper.ElevatorMapper;
@@ -18,6 +21,8 @@ import com.cqwlw.maintenance.service.ChecklistService;
 import com.cqwlw.maintenance.service.DirectoryService;
 import com.cqwlw.maintenance.service.EmployeeScopeService;
 import com.cqwlw.maintenance.service.FileStorageService;
+import com.cqwlw.maintenance.service.MigrationIssueService;
+import com.cqwlw.maintenance.service.TenantSnapshotService;
 import com.cqwlw.maintenance.service.WorkOrderService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -28,7 +33,9 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -39,6 +46,8 @@ class DirectoryServiceTest {
     private RescueMapper rescueMapper;
     private FaultMapper faultMapper;
     private InspectRecordMapper inspectMapper;
+    private ElevatorMapper elevators;
+    private UseUnitMapper useUnits;
     private DirectoryService service;
 
     @BeforeEach
@@ -46,9 +55,15 @@ class DirectoryServiceTest {
         rescueMapper = mock(RescueMapper.class);
         faultMapper = mock(FaultMapper.class);
         inspectMapper = mock(InspectRecordMapper.class);
+        elevators = mock(ElevatorMapper.class);
+        useUnits = mock(UseUnitMapper.class);
+        TenantSnapshotService tenantSnapshot = new TenantSnapshotService(
+                useUnits, mock(BizElevatorChangeMapper.class), mock(MigrationIssueService.class));
         service = new DirectoryService(rescueMapper, faultMapper, mock(DrillMapper.class), inspectMapper,
-                mock(MessageMapper.class), mock(KnowledgeMapper.class), mock(ElevatorMapper.class),
-                mock(ChecklistService.class), mock(WorkOrderService.class), mock(EmployeeScopeService.class), mock(EmployeeMapper.class), mock(UseUnitMapper.class), mock(WorkOrderMapper.class), mock(CompanyMapper.class), mock(FileStorageService.class));
+                mock(MessageMapper.class), mock(KnowledgeMapper.class), elevators,
+                mock(ChecklistService.class), mock(WorkOrderService.class), mock(EmployeeScopeService.class),
+                mock(EmployeeMapper.class), useUnits, mock(WorkOrderMapper.class), mock(CompanyMapper.class),
+                mock(FileStorageService.class), tenantSnapshot);
     }
 
     @Test
@@ -64,6 +79,36 @@ class DirectoryServiceTest {
         assertEquals("厅门异响", c.getValue().descr);
         assertEquals("emp_1", c.getValue().createdBy);
         assertEquals("OPEN", ok.get("status"));
+    }
+
+    @Test
+    void createFaultSetsTenantSnapshotFromElevator() {
+        Elevator el = new Elevator();
+        el.elevatorCode = "EM-2024-002";
+        el.useUnitId = "uu1";
+        when(elevators.selectOne(any())).thenReturn(el);
+        UseUnit u = new UseUnit();
+        u.unitName = "启元物业";
+        when(useUnits.selectById("uu1")).thenReturn(u);
+
+        service.createFault(Map.of("elevatorCode", "EM-2024-002", "desc", "厅门异响"), "emp_1");
+
+        ArgumentCaptor<Fault> c = ArgumentCaptor.forClass(Fault.class);
+        verify(faultMapper).insert(c.capture());
+        assertEquals("uu1", c.getValue().useUnitId);
+        assertEquals("启元物业", c.getValue().useUnitName);
+    }
+
+    @Test
+    void createFaultWithoutElevatorLeavesTenantSnapshotNull() {
+        when(elevators.selectOne(any())).thenReturn(null);
+
+        service.createFault(Map.of("elevatorCode", "EM-9999", "desc", "厅门异响"), "emp_1");
+
+        ArgumentCaptor<Fault> c = ArgumentCaptor.forClass(Fault.class);
+        verify(faultMapper).insert(c.capture());
+        assertNull(c.getValue().useUnitId);
+        assertNull(c.getValue().useUnitName);
     }
 
     @Test

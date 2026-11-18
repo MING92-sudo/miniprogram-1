@@ -47,7 +47,8 @@ class FaultLifecycleTest {
                 mock(InspectRecordMapper.class), mock(MessageMapper.class), mock(KnowledgeMapper.class),
                 elevators, mock(ChecklistService.class), mock(WorkOrderService.class),
                 mock(EmployeeScopeService.class), employees, mock(UseUnitMapper.class),
-                mock(WorkOrderMapper.class), mock(CompanyMapper.class), mock(FileStorageService.class));
+                mock(WorkOrderMapper.class), mock(CompanyMapper.class), mock(FileStorageService.class),
+                mock(TenantSnapshotService.class));
     }
 
     private Fault fault(String status) {

@@ -9,6 +9,8 @@ import com.cqwlw.maintenance.entity.UseUnit;
 import com.cqwlw.maintenance.entity.WorkOrder;
 import com.cqwlw.maintenance.mapper.BizElevatorChangeMapper;
 import com.cqwlw.maintenance.mapper.UseUnitMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 /**
@@ -18,6 +20,8 @@ import org.springframework.stereotype.Service;
  */
 @Service
 public class TenantSnapshotService {
+
+    private static final Logger log = LoggerFactory.getLogger(TenantSnapshotService.class);
 
     private final UseUnitMapper useUnitMapper;
     private final BizElevatorChangeMapper bizElevatorChangeMapper;
@@ -44,9 +48,33 @@ public class TenantSnapshotService {
         f.useUnitName = unitNameOf(el.useUnitId);
     }
 
-    /** 签退记录快照：规格与测试留 Task 4（裁决 R3）。 */
+    /** 签退记录快照：继承工单快照；缺失时过户嫌疑置 NULL 留痕，否则回退电梯（权限 P2 T4，裁决 R3）。 */
     public void applyRecord(MaintainRecord r, WorkOrder o, Elevator el) {
-        // TODO T4: 实现继承/过户嫌疑/回填口径
+        if (r == null) {
+            return;
+        }
+        r.elevatorId = o != null ? o.elevatorId : (el == null ? null : el.id);
+        if (o != null && o.useUnitId != null) {
+            r.useUnitId = o.useUnitId;
+            r.useUnitName = o.useUnitName;
+            return;
+        }
+        if (el != null && isTransferSuspect(el.id)) {
+            // 工单快照缺失且电梯有过户确认记录：两列保持 NULL，仅留 LOW 级问题，不阻断签退
+            r.useUnitId = null;
+            r.useUnitName = null;
+            try {
+                migrationIssueService.upsert("RECORD", r.id, "TRANSFER_SUSPECT", r.elevatorCode,
+                        null, el.useUnitId, "工单快照缺失且电梯有过户确认记录", "LOW");
+            } catch (Exception e) {
+                log.warn("签退记录过户嫌疑留痕失败（不阻断签退）：{}", e.getMessage());
+            }
+            return;
+        }
+        String unitId = el == null ? null : el.useUnitId;
+        r.useUnitId = unitId;
+        r.useUnitName = unitNameOf(unitId);
+        log.warn("签退记录 {} 工单快照缺失且电梯无过户嫌疑，回退电梯使用单位 {}（新链路不应发生）", r.id, unitId);
     }
 
     /** 过户嫌疑：存在 change_type='TRANSFER' AND status='CONFIRMED' AND elevator_id=? 即 true。 */
