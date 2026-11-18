@@ -107,15 +107,22 @@ public class TenantSnapshotBackfillRunner {
     // ---------- ORDER ----------
 
     private void backfillOrders(Report rep, Set<String> suspects, Map<String, String> unitNames) {
+        String lastId = null;
         while (true) {
-            List<WorkOrder> batch = orderMapper.selectList(new LambdaQueryWrapper<WorkOrder>()
-                    .isNull(WorkOrder::getUseUnitId).last(BATCH_LIMIT));
+            LambdaQueryWrapper<WorkOrder> q = new LambdaQueryWrapper<WorkOrder>()
+                    .isNull(WorkOrder::getUseUnitId);
+            if (lastId != null) {
+                q.gt(WorkOrder::getId, lastId);
+            }
+            List<WorkOrder> batch = orderMapper.selectList(q.orderByAsc(WorkOrder::getId).last(BATCH_LIMIT));
             if (batch == null || batch.isEmpty()) {
                 return;
             }
             for (WorkOrder o : batch) {
                 handleOrder(o, rep, suspects, unitNames);
             }
+            // orderByAsc(id) 下末元素即本批最大 id，推进游标跳过本批（含只写 issue 的未回填行）
+            lastId = batch.get(batch.size() - 1).id;
         }
     }
 
@@ -148,15 +155,22 @@ public class TenantSnapshotBackfillRunner {
     // ---------- RECORD ----------
 
     private void backfillRecords(Report rep, Set<String> suspects, Map<String, String> unitNames) {
+        String lastId = null;
         while (true) {
-            List<MaintainRecord> batch = recordMapper.selectList(new LambdaQueryWrapper<MaintainRecord>()
-                    .isNull(MaintainRecord::getUseUnitId).last(BATCH_LIMIT));
+            LambdaQueryWrapper<MaintainRecord> q = new LambdaQueryWrapper<MaintainRecord>()
+                    .isNull(MaintainRecord::getUseUnitId);
+            if (lastId != null) {
+                q.gt(MaintainRecord::getId, lastId);
+            }
+            List<MaintainRecord> batch = recordMapper.selectList(q.orderByAsc(MaintainRecord::getId).last(BATCH_LIMIT));
             if (batch == null || batch.isEmpty()) {
                 return;
             }
             for (MaintainRecord r : batch) {
                 handleRecord(r, rep, suspects, unitNames);
             }
+            // orderByAsc(id) 下末元素即本批最大 id，推进游标跳过本批（含只写 issue 的未回填行）
+            lastId = batch.get(batch.size() - 1).id;
         }
     }
 
@@ -213,15 +227,22 @@ public class TenantSnapshotBackfillRunner {
     // ---------- FAULT ----------
 
     private void backfillFaults(Report rep, Set<String> suspects, Map<String, String> unitNames) {
+        String lastId = null;
         while (true) {
-            List<Fault> batch = faultMapper.selectList(new LambdaQueryWrapper<Fault>()
-                    .isNull(Fault::getUseUnitId).last(BATCH_LIMIT));
+            LambdaQueryWrapper<Fault> q = new LambdaQueryWrapper<Fault>()
+                    .isNull(Fault::getUseUnitId);
+            if (lastId != null) {
+                q.gt(Fault::getId, lastId);
+            }
+            List<Fault> batch = faultMapper.selectList(q.orderByAsc(Fault::getId).last(BATCH_LIMIT));
             if (batch == null || batch.isEmpty()) {
                 return;
             }
             for (Fault f : batch) {
                 handleFault(f, rep, suspects, unitNames);
             }
+            // orderByAsc(id) 下末元素即本批最大 id，推进游标跳过本批（含只写 issue 的未回填行）
+            lastId = batch.get(batch.size() - 1).id;
         }
     }
 

@@ -1,6 +1,8 @@
 package com.cqwlw.maintenance.service;
 
 import com.baomidou.mybatisplus.core.MybatisConfiguration;
+import com.baomidou.mybatisplus.core.conditions.AbstractWrapper;
+import com.baomidou.mybatisplus.core.conditions.Wrapper;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.cqwlw.maintenance.entity.BizElevatorChange;
 import com.cqwlw.maintenance.entity.Elevator;
@@ -24,7 +26,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -359,5 +363,80 @@ class TenantSnapshotBackfillRunnerTest {
         ArgumentCaptor<WorkOrder> cap = ArgumentCaptor.forClass(WorkOrder.class);
         verify(orders).updateById(cap.capture());
         assertEquals("o-good", cap.getValue().id);
+    }
+
+    // ---------- 回归：keyset 游标分页消除 issue-only 行死循环（C-1 / R12） ----------
+
+    /**
+     * issue-only 行（UNMATCHED，use_unit_id 恒 null）在旧实现会被 while(true) 反复取回 → 死循环。
+     * 本用例用 thenAnswer 计数（首批返回该行、之后空批）保证有限终止；再用 captor 钉住
+     * “第二次查询带 gt(id,lastId) 且游标值为上批末元素”——旧实现无 gt → RED。
+     */
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    @Test
+    void cursorSkipsIssueOnlyRowsNoInfiniteLoop() {
+        final int[] calls = {0};
+        when(orders.selectList(any())).thenAnswer(inv -> {
+            if (calls[0]++ == 0) {
+                return new ArrayList<>(List.of(order("o1", "missing")));
+            }
+            return new ArrayList<WorkOrder>();
+        });
+        when(elevators.selectById("missing")).thenReturn(null);
+
+        TenantSnapshotBackfillRunner.Report rep = runner.backfill();
+
+        assertEquals(1, rep.orders);
+        assertEquals(1, rep.issues); // UNMATCHED 留痕，行仍 use_unit_id IS NULL
+
+        ArgumentCaptor<Wrapper> cap = ArgumentCaptor.forClass(Wrapper.class);
+        verify(orders, times(2)).selectList(cap.capture()); // 必须发生第二次查询（游标推进后重查）
+        Wrapper first = cap.getAllValues().get(0);
+        Wrapper second = cap.getAllValues().get(1);
+        assertFalse(first.getSqlSegment().contains(">"), "首批不应带游标");
+        assertTrue(second.getSqlSegment().contains(">"), "第二批必须带 gt(id,lastId) 游标推进");
+        assertTrue(((AbstractWrapper) second).getParamNameValuePairs().containsValue("o1"),
+                "游标值必须是上批末元素 id=o1");
+    }
+
+    /** RECORD / FAULT 两处循环同样必须以游标推进，避免 issue-only 行死循环。 */
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    @Test
+    void recordAndFaultLoopsAdvanceCursorPastIssueOnlyRows() {
+        final int[] recordCalls = {0};
+        when(records.selectList(any())).thenAnswer(inv -> {
+            if (recordCalls[0]++ == 0) {
+                return new ArrayList<>(List.of(record("ur1", "none", null)));
+            }
+            return new ArrayList<MaintainRecord>();
+        });
+        final int[] faultCalls = {0};
+        when(faults.selectList(any())).thenAnswer(inv -> {
+            if (faultCalls[0]++ == 0) {
+                return new ArrayList<>(List.of(fault("f1", "none")));
+            }
+            return new ArrayList<Fault>();
+        });
+        when(elevators.selectList(any())).thenReturn(new ArrayList<>());
+
+        TenantSnapshotBackfillRunner.Report rep = runner.backfill();
+
+        assertEquals(1, rep.records);
+        assertEquals(1, rep.faults);
+        assertEquals(2, rep.issues);
+
+        ArgumentCaptor<Wrapper> recCap = ArgumentCaptor.forClass(Wrapper.class);
+        verify(records, times(2)).selectList(recCap.capture());
+        assertTrue(recCap.getAllValues().get(1).getSqlSegment().contains(">"),
+                "RECORD 第二批必须带游标");
+        assertTrue(((AbstractWrapper) recCap.getAllValues().get(1)).getParamNameValuePairs().containsValue("ur1"),
+                "RECORD 游标值必须是上批末元素 id=ur1");
+
+        ArgumentCaptor<Wrapper> faultCap = ArgumentCaptor.forClass(Wrapper.class);
+        verify(faults, times(2)).selectList(faultCap.capture());
+        assertTrue(faultCap.getAllValues().get(1).getSqlSegment().contains(">"),
+                "FAULT 第二批必须带游标");
+        assertTrue(((AbstractWrapper) faultCap.getAllValues().get(1)).getParamNameValuePairs().containsValue("f1"),
+                "FAULT 游标值必须是上批末元素 id=f1");
     }
 }
