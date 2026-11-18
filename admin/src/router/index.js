@@ -24,6 +24,7 @@ const OrderDetailView = () => import('../views/OrderDetailView.vue')
 // M5 数据域
 const StatsView = () => import('../views/StatsView.vue')
 const AuditView = () => import('../views/AuditView.vue')
+const MigrationIssuesView = () => import('../views/MigrationIssuesView.vue')
 const SettingsView = () => import('../views/SettingsView.vue')
 // 监管与档案（M5 迁至自建组件）
 const FailedRecordsView = () => import('../views/FailedRecordsView.vue')
@@ -56,6 +57,7 @@ export const routes = [
     { path: 'order/:id', component: OrderDetailView, meta: { title: '工单详情', group: '急修报修', perm: 'order:view_own' } },
     { path: 'stats', component: StatsView, meta: { title: '统计报表', group: '数据与系统', perm: 'stats:view' } },
     { path: 'audit', component: AuditView, meta: { title: '审计日志', group: '数据与系统', perm: 'audit:view' } },
+    { path: 'migration-issues', component: MigrationIssuesView, meta: { title: '迁移核对', group: '数据与系统', perm: 'audit:view' } },
     { path: 'settings', component: SettingsView, meta: { title: '系统配置', group: '数据与系统', perm: 'config:manage' } },
     { path: 'reports/failed', component: FailedRecordsView, meta: { title: '上报异常清单', group: '监管与档案', perm: 'report:view' } },
     { path: 'reports/logs', component: UploadLogsView, meta: { title: '上报日志', group: '监管与档案', perm: 'report:view' } },
