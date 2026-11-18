@@ -11,6 +11,7 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -58,6 +59,32 @@ class WorkDomainServiceTest {
     void amendRequiresReason() {
         when(recordMapper.selectById("r1")).thenReturn(archived());
         assertThrows(BizException.class, () -> service.amend("r1", "", "mgr"));
+    }
+
+    @Test
+    void amendCopiesTenantSnapshotFromV1() {
+        MaintainRecord v1 = archived();
+        v1.useUnitId = "uu1";
+        v1.useUnitName = "启元物业";
+        v1.elevatorId = "e1";
+        when(recordMapper.selectById("r1")).thenReturn(v1);
+        MaintainRecord v2 = service.amend("r1", "内容有误", "emp1");
+        assertEquals("uu1", v2.useUnitId);
+        assertEquals("启元物业", v2.useUnitName);
+        assertEquals("e1", v2.elevatorId);
+    }
+
+    @Test
+    void amendCopiesNullSnapshotWithoutElevatorLookup() {
+        MaintainRecord v1 = archived();
+        v1.useUnitId = null;
+        v1.useUnitName = null;
+        v1.elevatorId = null;
+        when(recordMapper.selectById("r1")).thenReturn(v1);
+        MaintainRecord v2 = service.amend("r1", "内容有误", "emp1");
+        assertNull(v2.useUnitId);
+        assertNull(v2.useUnitName);
+        assertNull(v2.elevatorId);
     }
 
     @Test

@@ -46,6 +46,9 @@ public class WorkDomainService {
         v2.id = Ids.next("rec");
         v2.elevatorName = v1.elevatorName;
         v2.elevatorCode = v1.elevatorCode;
+        v2.useUnitId = v1.useUnitId;
+        v2.useUnitName = v1.useUnitName;
+        v2.elevatorId = v1.elevatorId;
         v2.workType = v1.workType;
         v2.workTypeCode = v1.workTypeCode;
         v2.workerName = v1.workerName;
