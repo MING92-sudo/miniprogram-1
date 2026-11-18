@@ -391,3 +391,4 @@ CREATE INDEX idx_emp_principal ON sys_employee (principal_type);
 20. **兼容期匿名签字留痕**：`actor_type=ANONYMOUS` + token 前 8 位 + 租户，快照列 NULL 不虚构签字人（§11）。
 21. **P2a 交付最小管理端核对视图**（平台域管理门控；操作者=平台管理员/维保经理），不推迟到 P4、不依赖脚本直连（§6.6）。
 22. **迁移编号修正（writing-plans 期发现）**：`client_migration_issue` 表与 `idx_record_unit/idx_fault_unit/idx_order_unit` 三索引由 V49 移至 **V47**——P2a 先于 P3 独立上线即依赖它们，而 Flyway 随 jar 全量执行、无法只挑 V47 不跑 V48/V49；V49 保留审计两列 + `idx_audit_unit` + `idx_emp_principal`。蓝图 §9.2「V49 含回填辅助表」相应顺延修正。
+23. **V47 建表显式存储引擎与字符集（builder 审查补充）**：client_migration_issue 建表收尾补 ENGINE=InnoDB DEFAULT CHARSET=utf8mb4（V35/V40 先例；evidence/resolve_note 存中文，不依赖库默认字符集），§4 代码块相应措辞以本条为准。

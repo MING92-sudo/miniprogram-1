@@ -32,6 +32,7 @@ class V47SnapshotSqlTest {
         assertTrue(s.contains("decision_json"), "缺 decision_json 列");
         assertTrue(s.contains("UNIQUE KEY uk_issue (object_type, object_id, issue_type)"), "缺 uk_issue 唯一键");
         assertTrue(s.contains("KEY idx_issue_pending (resolution, issue_type)"), "缺 idx_issue_pending");
+        assertTrue(s.contains("utf8mb4"), "建表须显式 utf8mb4（evidence/resolve_note 存中文，§19-23）");
     }
 
     @Test

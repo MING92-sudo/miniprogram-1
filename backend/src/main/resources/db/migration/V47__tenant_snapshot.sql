@@ -33,4 +33,4 @@ CREATE TABLE client_migration_issue (
   created_at        DATETIME NOT NULL,
   UNIQUE KEY uk_issue (object_type, object_id, issue_type),
   KEY idx_issue_pending (resolution, issue_type)
-) COMMENT='P2 回填 / P3 账号迁移的人工核对清单（幂等 upsert）';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='P2 回填 / P3 账号迁移的人工核对清单（幂等 upsert）';
