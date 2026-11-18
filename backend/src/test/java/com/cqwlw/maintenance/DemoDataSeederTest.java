@@ -4,6 +4,7 @@ import com.cqwlw.maintenance.config.AppProperties;
 import com.cqwlw.maintenance.entity.Elevator;
 import com.cqwlw.maintenance.entity.Employee;
 import com.cqwlw.maintenance.entity.MaintainRecord;
+import com.cqwlw.maintenance.entity.UseUnit;
 import com.cqwlw.maintenance.entity.WorkOrder;
 import com.cqwlw.maintenance.mapper.CompanyMapper;
 import com.cqwlw.maintenance.mapper.DrillMapper;
@@ -55,6 +56,7 @@ class DemoDataSeederTest {
 
     private EmployeeMapper employeeMapper;
     private ElevatorMapper elevatorMapper;
+    private UseUnitMapper useUnitMapper;
     private WorkOrderMapper orderMapper;
     private MaintainRecordMapper recordMapper;
     private DemoDataSeeder seeder;
@@ -63,15 +65,23 @@ class DemoDataSeederTest {
     void setUp() throws Exception {
         employeeMapper = mock(EmployeeMapper.class);
         elevatorMapper = mock(ElevatorMapper.class);
+        useUnitMapper = mock(UseUnitMapper.class);
         orderMapper = mock(WorkOrderMapper.class);
         recordMapper = mock(MaintainRecordMapper.class);
+        // 工单种子内联快照：按 elevatorId 找到电梯 → useUnitId → 单位名
+        Elevator seededElevator = new Elevator();
+        seededElevator.useUnitId = "uu_1";
+        when(elevatorMapper.selectById(any())).thenReturn(seededElevator);
+        UseUnit unit = new UseUnit();
+        unit.unitName = "启元物业";
+        when(useUnitMapper.selectById(any())).thenReturn(unit);
         ChecklistService checklistService = new ChecklistService();
         checklistService.load();
         AppProperties props = new AppProperties();
         props.setSeedDemoData(true);
         when(employeeMapper.selectCount(any())).thenReturn(0L);
         seeder = new DemoDataSeeder(props, mock(CompanyMapper.class), employeeMapper,
-                mock(UseUnitMapper.class), elevatorMapper, orderMapper, recordMapper,
+                useUnitMapper, elevatorMapper, orderMapper, recordMapper,
                 mock(MessageMapper.class), mock(RescueMapper.class), mock(FaultMapper.class),
                 mock(DrillMapper.class), mock(InspectRecordMapper.class), mock(KnowledgeMapper.class),
                 checklistService, mock(WorkOrderService.class),
@@ -165,6 +175,21 @@ class DemoDataSeederTest {
         Employee zhangWei = employees.getAllValues().stream()
                 .filter(e -> "emp_1".equals(e.id)).findFirst().orElse(null);
         assertTrue(zhangWei != null && "WORKER".equals(zhangWei.role), "张伟 emp_1 不得升任");
+    }
+
+    /** 租户快照（权限 P2 T3）：种子工单必须带非空 useUnitId/useUnitName */
+    @Test
+    void seededOrdersCarryTenantSnapshot() throws Exception {
+        seeder.run(null);
+        ArgumentCaptor<WorkOrder> orders = ArgumentCaptor.forClass(WorkOrder.class);
+        verify(orderMapper, atLeastOnce()).insert(orders.capture());
+        assertFalse(orders.getAllValues().isEmpty(), "应播种至少一张工单");
+        orders.getAllValues().forEach(o -> {
+            assertTrue(o.useUnitId != null && !o.useUnitId.isBlank(),
+                    "种子工单 " + o.id + " 缺 useUnitId 快照");
+            assertTrue(o.useUnitName != null && !o.useUnitName.isBlank(),
+                    "种子工单 " + o.id + " 缺 useUnitName 快照");
+        });
     }
 
     private void collect(List<String> into, String platformId) {

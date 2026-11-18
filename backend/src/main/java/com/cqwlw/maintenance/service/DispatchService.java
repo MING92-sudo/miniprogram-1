@@ -37,15 +37,17 @@ public class DispatchService {
     private final MessageMapper messageMapper;
     private final ChecklistService checklistService;
     private final OrderNoIssuer orderNoIssuer;
+    private final TenantSnapshotService tenantSnapshots;
 
     public DispatchService(ElevatorMapper elevatorMapper, WorkOrderMapper orderMapper,
                            MessageMapper messageMapper, ChecklistService checklistService,
-                           OrderNoIssuer orderNoIssuer) {
+                           OrderNoIssuer orderNoIssuer, TenantSnapshotService tenantSnapshots) {
         this.elevatorMapper = elevatorMapper;
         this.orderMapper = orderMapper;
         this.messageMapper = messageMapper;
         this.checklistService = checklistService;
         this.orderNoIssuer = orderNoIssuer;
+        this.tenantSnapshots = tenantSnapshots;
     }
 
     /** 每日 09:00 定时派单（scripts/verify-dispatch.js 验收口径）；zone 必须显式指定，
@@ -192,6 +194,7 @@ public class DispatchService {
         o.autoDispatched = auto;
         o.checklistJson = com.cqwlw.maintenance.util.JsonUtil.write(
                 checklistService.buildChecklist(code, el.category, el.specialType));
+        tenantSnapshots.applyOrder(o, el);
         orderNoIssuer.insert(o);
         Message msg = new Message();
         msg.id = Ids.next("msg");

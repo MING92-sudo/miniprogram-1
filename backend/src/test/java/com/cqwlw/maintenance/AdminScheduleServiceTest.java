@@ -6,7 +6,9 @@ import com.cqwlw.maintenance.entity.Elevator;
 import com.cqwlw.maintenance.entity.Employee;
 import com.cqwlw.maintenance.entity.MaintainPlan;
 import com.cqwlw.maintenance.entity.PlanDelay;
+import com.cqwlw.maintenance.entity.UseUnit;
 import com.cqwlw.maintenance.entity.WorkOrder;
+import com.cqwlw.maintenance.mapper.BizElevatorChangeMapper;
 import com.cqwlw.maintenance.mapper.CompanyMapper;
 import com.cqwlw.maintenance.mapper.ElevatorMapper;
 import com.cqwlw.maintenance.mapper.EmployeeMapper;
@@ -18,7 +20,9 @@ import com.cqwlw.maintenance.mapper.UseUnitMapper;
 import com.cqwlw.maintenance.mapper.WorkOrderMapper;
 import com.cqwlw.maintenance.service.AdminScheduleService;
 import com.cqwlw.maintenance.service.ChecklistService;
+import com.cqwlw.maintenance.service.MigrationIssueService;
 import com.cqwlw.maintenance.service.OrderNoIssuer;
+import com.cqwlw.maintenance.service.TenantSnapshotService;
 import com.cqwlw.maintenance.util.TimeUtil;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -61,6 +65,11 @@ class AdminScheduleServiceTest {
         elevatorMapper = mock(ElevatorMapper.class);
         employeeMapper = mock(EmployeeMapper.class);
         UseUnitMapper useUnitMapper = mock(UseUnitMapper.class);
+        UseUnit unit = new UseUnit();
+        unit.unitName = "启元物业";
+        when(useUnitMapper.selectById(any())).thenReturn(unit);
+        TenantSnapshotService snapshots = new TenantSnapshotService(useUnitMapper,
+                mock(BizElevatorChangeMapper.class), mock(MigrationIssueService.class));
         companyMapper = mock(CompanyMapper.class);
         recordMapper = mock(MaintainRecordMapper.class);
         MessageMapper messageMapper = mock(MessageMapper.class);
@@ -68,7 +77,7 @@ class AdminScheduleServiceTest {
         checklistService.load();
         service = new AdminScheduleService(planMapper, delayMapper, orderMapper, elevatorMapper,
                 employeeMapper, useUnitMapper, companyMapper, recordMapper, messageMapper,
-                checklistService, new OrderNoIssuer(orderMapper));
+                checklistService, new OrderNoIssuer(orderMapper), snapshots);
 
         Company c = new Company();
         c.id = "co_1";
@@ -94,6 +103,7 @@ class AdminScheduleServiceTest {
         el.id = id;
         el.elevatorCode = code;
         el.elevatorName = "电梯" + code;
+        el.useUnitId = "uu_" + id;
         el.category = "曳引与强制驱动电梯";
         el.workTypeCode = "HM";
         el.intervalDays = 15;
@@ -177,6 +187,8 @@ class AdminScheduleServiceTest {
         assertEquals("PENDING", captor.getValue().status);
         assertEquals(Boolean.FALSE, captor.getValue().autoDispatched);
         assertEquals("张伟", captor.getValue().workerName);
+        assertEquals("uu_el_1", captor.getValue().useUnitId, "排班工单应冻结电梯的 useUnitId");
+        assertEquals("启元物业", captor.getValue().useUnitName, "排班工单应冻结解析后的单位名");
         assertEquals(TimeUtil.now().plusDays(3).toLocalDate() + "T09:00",
                 captor.getValue().planTime.toString());
         ArgumentCaptor<MaintainPlan> planCaptor = ArgumentCaptor.forClass(MaintainPlan.class);

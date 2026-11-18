@@ -5,13 +5,18 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.cqwlw.maintenance.entity.Elevator;
 import com.cqwlw.maintenance.entity.Message;
+import com.cqwlw.maintenance.entity.UseUnit;
 import com.cqwlw.maintenance.entity.WorkOrder;
+import com.cqwlw.maintenance.mapper.BizElevatorChangeMapper;
 import com.cqwlw.maintenance.mapper.ElevatorMapper;
 import com.cqwlw.maintenance.mapper.MessageMapper;
+import com.cqwlw.maintenance.mapper.UseUnitMapper;
 import com.cqwlw.maintenance.mapper.WorkOrderMapper;
 import com.cqwlw.maintenance.service.ChecklistService;
 import com.cqwlw.maintenance.service.DispatchService;
+import com.cqwlw.maintenance.service.MigrationIssueService;
 import com.cqwlw.maintenance.service.OrderNoIssuer;
+import com.cqwlw.maintenance.service.TenantSnapshotService;
 import com.cqwlw.maintenance.util.TimeUtil;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
 import org.junit.jupiter.api.BeforeAll;
@@ -59,8 +64,14 @@ class DispatchServiceTest {
         messageMapper = mock(MessageMapper.class);
         ChecklistService checklistService = new ChecklistService();
         checklistService.load();
+        UseUnitMapper useUnitMapper = mock(UseUnitMapper.class);
+        UseUnit unit = new UseUnit();
+        unit.unitName = "启元物业";
+        when(useUnitMapper.selectById(any())).thenReturn(unit);
+        TenantSnapshotService snapshots = new TenantSnapshotService(useUnitMapper,
+                mock(BizElevatorChangeMapper.class), mock(MigrationIssueService.class));
         service = new DispatchService(elevatorMapper, orderMapper, messageMapper,
-                checklistService, new OrderNoIssuer(orderMapper));
+                checklistService, new OrderNoIssuer(orderMapper), snapshots);
         when(orderMapper.selectCount(any())).thenReturn(0L);
         when(orderMapper.selectList(any())).thenReturn(List.of());
     }
@@ -81,6 +92,7 @@ class DispatchServiceTest {
         el.id = id;
         el.elevatorCode = "EM-" + id;
         el.elevatorName = "电梯" + id;
+        el.useUnitId = "uu_" + id;
         el.category = "曳引与强制驱动电梯";
         el.workTypeCode = "HM";
         el.intervalDays = 15;
@@ -110,6 +122,10 @@ class DispatchServiceTest {
             assertEquals(today + " 09:00:00", TimeUtil.format(o.planTime));
             assertEquals("半月维保", o.workType);
             assertEquals(Boolean.TRUE, o.autoDispatched);
+            Elevator source = elevators.stream().filter(e -> e.id.equals(o.elevatorId))
+                    .findFirst().orElseThrow();
+            assertEquals(source.useUnitId, o.useUnitId, "工单应冻结派单时电梯的 useUnitId");
+            assertEquals("启元物业", o.useUnitName, "工单应冻结解析后的单位名");
         }
         verify(messageMapper, times(6)).insert(any(Message.class));
     }

@@ -481,6 +481,13 @@ public class DemoDataSeeder implements ApplicationRunner {
         o.originalRecordId = originalRecordId;
         o.reportStatus = reportStatus;
         o.autoDispatched = false;
+        // 租户快照（权限 P2 T3）：与 TenantSnapshotService.applyOrder 同语义，Seeder 上下文直接用已有 Mapper
+        Elevator el = elevatorMapper.selectById(elevatorId);
+        if (el != null && el.useUnitId != null && !el.useUnitId.isBlank()) {
+            o.useUnitId = el.useUnitId;
+            UseUnit uu = useUnitMapper.selectById(el.useUnitId);
+            o.useUnitName = uu == null ? null : uu.unitName;
+        }
         orderMapper.insert(o);
     }
 

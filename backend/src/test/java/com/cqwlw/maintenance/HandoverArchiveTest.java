@@ -20,6 +20,7 @@ import com.cqwlw.maintenance.service.ChecklistService;
 import com.cqwlw.maintenance.service.DispatchService;
 import com.cqwlw.maintenance.service.HandoverService;
 import com.cqwlw.maintenance.service.OrderNoIssuer;
+import com.cqwlw.maintenance.service.TenantSnapshotService;
 import com.cqwlw.maintenance.util.TimeUtil;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
 import org.junit.jupiter.api.BeforeAll;
@@ -71,7 +72,7 @@ class HandoverArchiveTest {
         ChecklistService checklistService = new ChecklistService();
         checklistService.load();
         dispatch = new DispatchService(elevatorMapper, workOrderMapper, messageMapper,
-                checklistService, new OrderNoIssuer(workOrderMapper));
+                checklistService, new OrderNoIssuer(workOrderMapper), mock(TenantSnapshotService.class));
         service = new HandoverService(handoverMapper, mock(HandoverCheckMapper.class),
                 mock(HandoverCheckItemMapper.class), mock(HandoverRectificationMapper.class),
                 mock(HandoverSignMapper.class), elevatorMapper, employeeMapper, workOrderMapper, dispatch);
