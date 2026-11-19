@@ -358,6 +358,121 @@ const routes = [
   // GET /employees：后端 AdminArchiveController 回纯数组；接收工程师候选按旧码 WORKER/ASSISTANT 过滤
   ['GET', '/employees', () => Object.keys(d.db.employees).map((k) => { const e = d.db.employees[k]; return { id: e.id, name: e.name, role: e.role === 'MAINT_TECH' ? 'WORKER' : e.role, groupName: e.groupName, enabled: e.enabled !== false } })],
   ['GET', '/use-units', () => d.db.useUnits],
+  // 使用单位档案写路由（docs/04 A 部分 / docs/09 §4.1；三处同步）。手机号互斥 1002 对齐后端 checkUseUnit：负责人手机 ≠ 安全管理员手机。
+  ['POST', '/use-units', ({ body }) => {
+    if (!body.unitName || !String(body.unitName).trim()) throw { code: 422, message: '使用单位名称必填' }
+    if (body.unitPrincipalPhone && body.unitPrincipalPhone === body.elevatorAdministerPhone) {
+      throw { code: 1002, message: '手机号互斥', data: { conflicts: [{ field: 'elevatorAdministerPhone', owner: body.elevatorAdminister || '安全管理员', target: '使用单位负责人' }] } }
+    }
+    const u = Object.assign({ id: 'uu_' + Date.now() }, body)
+    d.db.useUnits.push(u)
+    return u
+  }],
+  ['PUT', '/use-units/:id', ({ params, body }) => {
+    const u = d.db.useUnits.find((x) => x.id === params.id)
+    if (!u) throw { code: 1404, message: '使用单位不存在' }
+    if (body.unitPrincipalPhone && body.unitPrincipalPhone === body.elevatorAdministerPhone) {
+      throw { code: 1002, message: '手机号互斥', data: { conflicts: [{ field: 'elevatorAdministerPhone', owner: body.elevatorAdminister || '安全管理员', target: '使用单位负责人' }] } }
+    }
+    Object.assign(u, body)
+    return u
+  }],
+  ['DELETE', '/use-units/:id', ({ params }) => {
+    const idx = d.db.useUnits.findIndex((x) => x.id === params.id)
+    if (idx < 0) throw { code: 1404, message: '使用单位不存在' }
+    const linked = (d.db.elevators || []).filter((e) => e.useUnitId === params.id).length
+    if (linked) throw { code: 422, message: '该单位名下有 ' + linked + ' 台电梯，请先移除关联后再删除' }
+    d.db.useUnits.splice(idx, 1)
+    return { ok: true }
+  }],
+
+  // ── P3 客户账号（docs/14 §6；三处同步 mock/server.js + services/admin api + docs/04）──
+  ['GET', '/use-units/:id/accounts', ({ params }) => (d.db.clientAccounts || []).filter((a) => a.useUnitId === params.id)],
+  ['POST', '/use-units/:id/accounts', ({ params, body }) => {
+    const unit = d.db.useUnits.find((u) => u.id === params.id)
+    if (!unit) throw { code: 1404, message: '使用单位档案不存在' }
+    if (!body.name || !String(body.name).trim()) throw { code: 422, message: '客户联系人姓名必填' }
+    const phone = String(body.phone || '').replace(/\s/g, '')
+    if (!/^1\d{10}$/.test(phone)) throw { code: 422, message: '手机号格式不正确' }
+    const role = body.role || 'CLIENT_ADMIN'
+    if (!['CLIENT_ADMIN', 'CLIENT_SIGNER'].includes(role)) throw { code: 422, message: '客户角色仅支持 CLIENT_ADMIN/CLIENT_SIGNER' }
+    const dup = (d.db.clientAccounts || []).find((a) => a.useUnitId === params.id && a.phone === phone && a.status !== 'DISABLED')
+    if (dup) throw { code: 1002, message: '该手机号在本单位已开通客户账号' }
+    const emp = Object.values(d.db.employees).find((e) => e.phone === phone)
+    if (emp) throw { code: 1002, message: '该手机号已绑定内部员工账号' }
+    const rawPwd = body.password || phone.slice(-6)
+    if (String(rawPwd).length < 6) throw { code: 422, message: '初始口令至少 6 位' }
+    const row = {
+      id: 'ca_' + Date.now(), useUnitId: params.id, name: body.name.trim(), phone,
+      password: rawPwd, role, roleText: role === 'CLIENT_ADMIN' ? '使用单位管理员' : '使用单位签字人',
+      principalType: 'CUSTOMER', status: 'ACTIVE', enabled: 1, graceUntil: '', wechatBound: false,
+      createdBy: '', createdAt: formatTime(new Date()), lastLoginAt: '', disabledReason: ''
+    }
+    d.db.clientAccounts.push(row)
+    return Object.assign({}, row, { initialPassword: rawPwd })
+  }],
+  ['PUT', '/use-units/:unitId/accounts/:accountId', ({ params, body }) => {
+    const a = (d.db.clientAccounts || []).find((x) => x.id === params.accountId && x.useUnitId === params.unitId)
+    if (!a) throw { code: 1404, message: '客户账号不存在' }
+    if (body.name) a.name = body.name
+    if (body.phone && /^1\d{10}$/.test(body.phone)) a.phone = body.phone
+    if (body.role) { a.role = body.role; a.roleText = body.role === 'CLIENT_ADMIN' ? '使用单位管理员' : '使用单位签字人' }
+    return a
+  }],
+  ['PATCH', '/use-units/:unitId/accounts/:accountId/disable', ({ params, body }) => {
+    const a = (d.db.clientAccounts || []).find((x) => x.id === params.accountId && x.useUnitId === params.unitId)
+    if (!a) throw { code: 1404, message: '客户账号不存在' }
+    a.status = 'DISABLED'; a.enabled = 0; a.disabledReason = 'MANUAL_' + (body && body.reason ? body.reason : 'OPERATOR'); a.graceUntil = ''
+    return a
+  }],
+  ['PATCH', '/use-units/:unitId/accounts/:accountId/enable', ({ params }) => {
+    const a = (d.db.clientAccounts || []).find((x) => x.id === params.accountId && x.useUnitId === params.unitId)
+    if (!a) throw { code: 1404, message: '客户账号不存在' }
+    a.status = 'ACTIVE'; a.enabled = 1; a.disabledReason = ''; a.graceUntil = ''
+    return a
+  }],
+  ['POST', '/use-units/:unitId/accounts/:accountId/reset-password', ({ params, body }) => {
+    const a = (d.db.clientAccounts || []).find((x) => x.id === params.accountId && x.useUnitId === params.unitId)
+    if (!a) throw { code: 1404, message: '客户账号不存在' }
+    const pwd = (body && body.password) || a.phone.slice(-6)
+    if (String(pwd).length < 6) throw { code: 422, message: '新口令至少 6 位' }
+    a.password = pwd
+    return Object.assign({}, a, { password: pwd })
+  }],
+  ['POST', '/use-units/:unitId/accounts/:accountId/bind-wechat', ({ params }) => {
+    const a = (d.db.clientAccounts || []).find((x) => x.id === params.accountId && x.useUnitId === params.unitId)
+    if (!a) throw { code: 1404, message: '客户账号不存在' }
+    a.wechatBound = true
+    return a
+  }],
+  ['POST', '/use-units/:unitId/accounts/:accountId/restore-grace', ({ params, body }) => {
+    const a = (d.db.clientAccounts || []).find((x) => x.id === params.accountId && x.useUnitId === params.unitId)
+    if (!a) throw { code: 1404, message: '客户账号不存在' }
+    if (a.status !== 'DISABLED') throw { code: 422, message: '仅停用账号可临时恢复宽限' }
+    a.status = 'GRACE'; a.enabled = 1; a.graceUntil = (body && body.graceUntil) || ''; a.disabledReason = ''
+    return a
+  }],
+  // 客户登录：先验口令，命中单单位直接签发，多单位返回候选（mock 无 JWT，用 token 串模拟）
+  ['POST', '/auth/client/login', ({ body }) => {
+    const phone = String(body.phone || '').replace(/\s/g, '')
+    const matched = (d.db.clientAccounts || []).filter((a) => a.phone === phone && a.status !== 'DISABLED' && a.password === body.password)
+    if (!matched.length) throw { code: 401, message: '账号或密码错误' }
+    currentRole = matched[0].role; currentRoles = [matched[0].role]
+    if (matched.length === 1) {
+      return { token: 'mock-client-token-' + matched[0].id, principalType: 'CUSTOMER', role: matched[0].role, useUnitId: matched[0].useUnitId, needSelectUnit: false, perms: ['client:elevator_view', 'client:sign', 'client:download'] }
+    }
+    return { needSelectUnit: true, selectionToken: 'mock-sel-' + phone, units: matched.map((a) => { const u = d.db.useUnits.find((x) => x.id === a.useUnitId); return { useUnitId: a.useUnitId, unitName: u ? u.unitName : '', accountId: a.id, role: a.role } }) }
+  }],
+  ['POST', '/auth/client/select-unit', ({ body }) => {
+    const a = (d.db.clientAccounts || []).find((x) => x.useUnitId === body.useUnitId && x.status !== 'DISABLED')
+    if (!a) throw { code: 1403, message: '该单位下无此客户账号' }
+    currentRole = a.role; currentRoles = [a.role]
+    return { token: 'mock-client-token-' + a.id, principalType: 'CUSTOMER', role: a.role, useUnitId: a.useUnitId, needSelectUnit: false, perms: ['client:elevator_view', 'client:sign', 'client:download'] }
+  }],
+  ['GET', '/auth/client/me', () => {
+    const id = (typeof currentRole === 'string' && currentRole.startsWith('CLIENT')) ? (d.db.clientAccounts || [])[0] : null
+    return id ? { id: id.id, name: id.name, phone: id.phone, role: id.role, useUnitId: id.useUnitId, principalType: 'CUSTOMER' } : { principalType: 'CUSTOMER' }
+  }],
   ['POST', '/handovers/:id/assign-receiver', ({ params, body }) => {
     const o = findOr404(mockHandovers, params.id, '移交单')
     Object.assign(o, { receiverId: body.receiverId || '', receiverName: body.receiverName || '' })
@@ -756,6 +871,23 @@ const routes = [
       throw {
         code: 422,
         message: '作业时长不足 ' + config.minWorkDurationMinutes + ' 分钟（当前 ' + Math.floor(minutes) + ' 分钟），请继续作业后再签退'
+      }
+    }
+    // 设备信息档案门禁（用户 2026-11-19，与后端 DeviceProfileValidator 同口径）：
+    // 电梯编码/设备代码/注册代码/单位内编号/出厂编号为上传维保记录的必传项
+    const el = d.getElevator(o.elevatorId)
+    const deviceRequired = [
+      ['elevatorCode', '电梯编码'], ['deviceCode', '设备代码'], ['registrationCode', '注册代码'],
+      ['insideNumber', '单位内编号'], ['factoryNumber', '出厂编号']
+    ]
+    const deviceMissing = deviceRequired
+      .filter(([k]) => !String((el && (k === 'registrationCode' ? el.regCode : el[k])) || '').trim())
+      .map(([, label]) => label)
+    if (deviceMissing.length) {
+      throw {
+        code: 422,
+        message: '设备信息档案缺少上传维保记录的必传项：' + deviceMissing.join('、') +
+          '；请先在 电梯台账 › 设备信息档案 补全后再上传维保记录'
       }
     }
     const r = d.markCheckout(o.id, body)

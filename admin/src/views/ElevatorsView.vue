@@ -5,18 +5,21 @@
     </ViewHead>
     <div class="mt16">
       <DataTable :columns="cols" :rows="rows" :loading="loading" clickable selectable
-        :search-keys="['elevatorCode', 'elevatorName', 'projectName']" search-placeholder="搜索设备码 / 梯号 / 型号"
+        :search-keys="['elevatorCode', 'deviceCode', 'registrationCode', 'insideNumber', 'projectName']" search-placeholder="搜索电梯编码 / 设备代码 / 注册代码 / 项目名称"
         :filters="[{ key: 'status', label: '状态', options: statusOptions }, { key: 'projectName', label: '项目', options: projOptions }]"
         :bulk-actions="[{ code: 'elevator:export', label: '批量导出', variant: 'ghost', icon: 'download' }]"
         empty-hint="当前数据范围内没有电梯。" @row-click="openArchive" @bulk="exportElev">
         <template #toolbar>
-          <PermButton code="elevator:edit" label="新建电梯" variant="primary" icon="plus" @click="openCreate" />
-          <PermButton code="elevator:export" label="导出台账" variant="ghost" icon="download" c-tip="导出需审批，按权限脱敏" @click="exportElev" />
+          <PermButton code="elevator:edit" label="新建设备信息档案" variant="primary" icon="plus" @click="openCreate" />
+          <PermButton code="elevator:export" label="导出台账" variant="ghost" icon="download" c-tip="按导出人数据范围导出 CSV" @click="exportElev" />
         </template>
-        <template #cell-elevatorCode="{ value }"><span class="mono">{{ value }}</span></template>
-        <template #cell-elevatorName="{ row }"><b>{{ row.elevatorName }}</b><div class="cell-2">{{ row.model || row.category || '' }}</div></template>
-        <template #cell-fld="{ row }"><span class="num">{{ row.stationsDoors || '—' }}</span></template>
-        <template #cell-reg="{ row }"><span class="mono f12">{{ row.registrationCode || '—' }}</span></template>
+        <template #cell-elevatorCode="{ row }">
+          <span class="mono">{{ row.elevatorCode || '—' }}</span>
+          <span v-if="missingOf(row).length" class="tag tag-amber f11" style="margin-left:6px"
+            :title="'缺必传项：' + missingOf(row).join('、')">待补全</span>
+        </template>
+        <template #cell-deviceCode="{ value }"><span class="mono f12">{{ value || '—' }}</span></template>
+        <template #cell-registrationCode="{ value }"><span class="mono f12">{{ value || '—' }}</span></template>
         <template #cell-last="{ row }"><span class="mono f12">{{ row.lastMaintenanceDate || '—' }}</span></template>
         <template #cell-next="{ row }"><span class="mono f12">{{ row.nextMaintenanceDate || '—' }}</span></template>
         <template #cell-status="{ value }"><StatusTag :status="value" /></template>
@@ -54,17 +57,19 @@
     <Drawer :open="archiveOpen" :title="(current.elevatorName || '') + ' · ' + (current.elevatorCode || '')" :sub="current.projectName || ''" note="elevator:view" @close="archiveOpen = false">
       <template #meta><ScopePill :scope="perspective.scope" :label="scopeLabel(perspective.scope)" /></template>
       <div class="sec">
-        <div class="sec-t"><svg class="ic" aria-hidden="true"><use href="#i-elevator" /></svg>设备档案</div>
+        <div class="sec-t"><svg class="ic" aria-hidden="true"><use href="#i-elevator" /></svg>设备信息档案</div>
+        <RuleNote v-if="missingOf(current).length" icon="alert" class="mb8">
+          上传维保记录的必传项缺失：{{ missingOf(current).join('、') }}（补齐后方可上传维保记录）
+        </RuleNote>
         <div class="kv-grid">
-          <div class="kv"><span class="k">设备码</span><span class="v mono">{{ current.elevatorCode || '—' }}</span></div>
-          <div class="kv"><span class="k">梯号</span><span class="v">{{ current.elevatorName || '—' }}</span></div>
-          <div class="kv"><span class="k">项目</span><span class="v">{{ current.projectName || '—' }}</span></div>
-          <div class="kv"><span class="k">层/站/门</span><span class="v">{{ (profile && profile.local && profile.local?.stationsDoors) || current.stationsDoors || '—' }}</span></div>
-          <div class="kv"><span class="k">注册代码</span><span class="v mono">{{ (profile && profile.platform && profile.platform?.registrationCode) || current.registrationCode || '—' }}</span></div>
+          <div v-for="f in DEVICE_FIELDS" :key="f.key" class="kv">
+            <span class="k">{{ f.label }}<em v-if="f.required" class="req-mark">必传</em></span>
+            <span class="v" :class="f.mono ? 'mono' : ''">{{ devInfo[f.key] || '—' }}</span>
+          </div>
           <div class="kv"><span class="k">上次维保</span><span class="v mono">{{ current.lastMaintenanceDate || '—' }}</span></div>
-          <div class="kv"><span class="k">下次到期</span><span class="v mono">{{ (profile && profile.local && profile.local?.nextMaintenanceDate) || current.nextMaintenanceDate || '—' }}</span></div>
+          <div class="kv"><span class="k">下次到期</span><span class="v mono">{{ current.nextMaintenanceDate || '—' }}</span></div>
           <div class="kv"><span class="k">状态</span><span class="v">{{ statusLabel(current.status) }}</span></div>
-          <div class="kv"><span class="k">详细地址</span><span class="v">{{ (profile && profile.local && profile.local?.address) || current.location || '—' }}</span></div>
+          <div class="kv"><span class="k">详细地址</span><span class="v">{{ current.location || '—' }}</span></div>
         </div>
       </div>
       <div class="sec">
@@ -86,16 +91,12 @@
             <div class="kv"><span class="k">驱动方式</span><span class="v">{{ profile.local?.driveMode || '—' }}</span></div>
             <div class="kv"><span class="k">额定载重</span><span class="v">{{ profile.local?.ratedLoad || '—' }}</span></div>
             <div class="kv"><span class="k">额定速度</span><span class="v">{{ profile.local?.ratedSpeed || '—' }}</span></div>
-            <div class="kv"><span class="k">下次检验</span><span class="v mono">{{ profile.local?.nextCheckDate || '—' }}</span></div>
           </div>
         </div>
         <div class="sec">
-          <div class="sec-t"><svg class="ic" aria-hidden="true"><use href="#i-cloud-upload" /></svg>平台同步字段</div>
+          <div class="sec-t"><svg class="ic" aria-hidden="true"><use href="#i-cloud-upload" /></svg>平台同步信息</div>
           <div class="kv-grid">
-            <div class="kv"><span class="k">设备代码</span><span class="v mono">{{ profile.platform?.deviceCode || '—' }}</span></div>
-            <div class="kv"><span class="k">注册代码</span><span class="v mono">{{ profile.platform?.registrationCode || '—' }}</span></div>
-            <div class="kv"><span class="k">出厂编号</span><span class="v mono">{{ profile.platform?.factoryNumber || '—' }}</span></div>
-            <div class="kv"><span class="k">使用单位负责人</span><span class="v">{{ profile.platform?.elevatorAdminister || '—' }}</span></div>
+            <div class="kv"><span class="k">使用单位安全管理员</span><span class="v">{{ profile.platform?.elevatorAdminister || '—' }}</span></div>
             <div class="kv"><span class="k">应急电话</span><span class="v mono">{{ profile.platform?.emergencyPhone || '—' }}</span></div>
             <div class="kv"><span class="k">同步时间</span><span class="v mono">{{ profile.platform?.syncedAt || '—' }}</span></div>
           </div>
@@ -147,27 +148,38 @@
       </div>
     </Modal>
 
-    <!-- 新建 / 编辑电梯 -->
-    <Modal :open="showForm" :title="formMode === 'create' ? '新建电梯' : '编辑电梯基础信息'" :sub="(current.elevatorCode || '') + ' · 关键字段变更需审核'" icon="edit" note="elevator:edit"
-      :confirm-label="formMode === 'create' ? '确认创建' : '提交'" @close="showForm = false" @confirm="submitForm">
+    <!-- 新建 / 编辑：设备信息档案（8 字段；前 5 项为上传维保记录的必传项） -->
+    <Modal :open="showForm" :title="formMode === 'create' ? '新建设备信息档案' : '编辑设备信息档案'"
+      :sub="formMode === 'create' ? '前 5 项为上传维保记录的必传项' : (current.elevatorCode || '') + ' · 必传项不可清空'"
+      icon="edit" note="elevator:edit" :confirm-label="formMode === 'create' ? '确认创建' : '提交'"
+      @close="showForm = false" @confirm="submitForm">
       <Form ref="formRef" :rules="formRules" v-model="formModel" v-slot="{ errors }">
         <div class="form-grid">
-          <FormField label="项目名称（小区）" required :error="errors.projectName"><input v-model="formModel.projectName" class="ctl" /></FormField>
-          <FormField label="设备代码" :error="errors.elevatorCode"><input v-model="formModel.elevatorCode" class="ctl mono" /></FormField>
-          <FormField label="品种" required :error="errors.category">
+          <FormField v-for="f in DEVICE_FIELDS" :key="f.key" :label="f.label" :required="f.required" :error="errors[f.key]">
+            <select v-if="f.type === 'region'" v-model="formModel.regionId" class="ctl">
+              <option value="">未设置（不限区域）</option>
+              <option v-for="r in regions" :key="r.id" :value="r.id">{{ r.name }}</option>
+            </select>
+            <input v-else-if="f.type === 'date'" v-model="formModel.nextCheckDate" class="ctl mono" type="date" />
+            <input v-else v-model="formModel[f.key]" class="ctl" :class="f.mono ? 'mono' : ''" :placeholder="f.placeholder || ''" />
+          </FormField>
+          <FormField label="品种（选填，影响检查项模板）">
             <select v-model="formModel.category" class="ctl">
               <option value="">请选择</option>
               <option v-for="c in categories" :key="c" :value="c">{{ c }}</option>
             </select>
           </FormField>
+        </div>
+        <div class="sec-t mt16">其他信息（选填，不参与上传维保记录校验）</div>
+        <div class="form-grid">
           <FormField label="安装地址"><input v-model="formModel.location" class="ctl" /></FormField>
           <FormField label="品牌"><input v-model="formModel.brand" class="ctl" /></FormField>
           <FormField label="制造单位"><input v-model="formModel.manufacturer" class="ctl" /></FormField>
-          <FormField label="产品编号"><input v-model="formModel.productNo" class="ctl mono" /></FormField>
+          <FormField label="产品编号（≠ 注册代码）"><input v-model="formModel.productNo" class="ctl mono" /></FormField>
           <FormField label="驱动方式"><input v-model="formModel.driveMode" class="ctl" /></FormField>
         </div>
       </Form>
-      <RuleNote class="mt12">注册代码 / 层站门等关键字段变更提交后进入「待关键字段审核」，写审计。</RuleNote>
+      <RuleNote class="mt12">前 5 项（电梯编码 / 设备代码 / 注册代码 / 单位内编号 / 出厂编号）为上传维保记录的必传项，缺任一项签退即被拦截；项目名称（小区名称）、所在区域、年检日期可留空后补。</RuleNote>
     </Modal>
 
     <!-- 删除确认 -->
@@ -220,6 +232,8 @@ import StatusTag from '../ui/StatusTag.vue'
 import ScopePill from '../ui/ScopePill.vue'
 import RuleNote from '../ui/RuleNote.vue'
 import { useToast } from '../ui/stores/ui'
+import { exportCsv } from '../ui/export-csv'
+import { DEVICE_FIELDS, deviceRules, deviceFormOf, missingRequiredOf } from '../ui/device-fields'
 import { usePerspectiveStore } from '../ui/stores/perspective'
 import { useAuthStore } from '../stores/auth'
 import { elevatorActionLabel, statusLabel, scopeLabel } from '../ui/labels'
@@ -232,12 +246,12 @@ const rows = ref([])
 const changes = ref([])
 const loading = ref(false)
 const categories = ['曳引与强制驱动电梯', '液压驱动电梯', '杂物电梯', '自动扶梯与自动人行道']
+// 列口径：电梯编码（内部编码）与设备代码（平台设备代码）是两个字段，标签不得互换
 const cols = [
-  { key: 'elevatorCode', label: '设备码', sortable: true },
-  { key: 'projectName', label: '项目' },
-  { key: 'elevatorName', label: '梯号' },
-  { key: 'fld', label: '层/站/门', cls: 'num' },
-  { key: 'reg', label: '注册代码' },
+  { key: 'elevatorCode', label: '电梯编码', sortable: true },
+  { key: 'projectName', label: '项目名称（小区）' },
+  { key: 'deviceCode', label: '设备代码' },
+  { key: 'registrationCode', label: '注册代码' },
   { key: 'last', label: '上次维保', sortable: true },
   { key: 'next', label: '下次到期', sortable: true },
   { key: 'status', label: '状态', sortable: true },
@@ -256,14 +270,32 @@ async function load() {
     changes.value = await listChanges()
   } catch (e) { toast.error(e.message || '加载失败') } finally { loading.value = false }
 }
-onMounted(load)
-function exportElev() { toast.success('已导出 电梯台账（演示）· 按导出人权限脱敏', '写审计 导出') }
+// 所在区域下拉（GET /regions，管理端主数据；空列表时仅可留空）
+const regions = ref([])
+async function loadRegions() {
+  try {
+    const r = await http.get('/regions')
+    regions.value = Array.isArray(r) ? r : r.list || []
+  } catch { regions.value = [] }
+}
+onMounted(() => { load(); loadRegions() })
+function exportElev() {
+  const n = exportCsv('电梯台账', cols, rows.value)
+  toast.success('已导出 ' + n + ' 台电梯', 'CSV · 按导出人权限脱敏')
+}
 
 // 档案 + 一梯一档
 const archiveOpen = ref(false)
 const current = ref({})
 const profile = ref(null)
 const archive = ref([])
+// 档案展示值：所在区域显示名称（不暴露内部 id）；缺必传项时抽屉顶部给出明确清单
+const devInfo = computed(() => {
+  const f = deviceFormOf(current.value, profile.value)
+  f.regionId = current.value.regionName || (regions.value.find(r => r.id === f.regionId) || {}).name || ''
+  return f
+})
+const missingOf = missingRequiredOf
 const records = ref([])
 const recordsLoaded = ref(false)
 async function ensureRecords() {
@@ -303,13 +335,18 @@ function printQr() {
   if (w) { w.document.write('<img src="' + qrUrl.value + '" style="width:240px" onload="window.print()" />'); w.document.close() }
 }
 
-// 新建 / 编辑
+// 新建 / 编辑（设备信息档案：8 字段，前 5 项必传——校验文案带标签，如「注册代码必填」）
 const showForm = ref(false)
 const formMode = ref('create')
 const formRef = ref(null)
 const formModel = ref({})
-const formRules = { projectName: [(v) => (v ? '' : '项目名称必填')], category: [(v) => (v ? '' : '品种必填')] }
-function blankForm() { return { projectName: '', elevatorCode: '', category: '', location: '', brand: '', manufacturer: '', productNo: '', driveMode: '' } }
+const formRules = deviceRules()
+function blankForm() {
+  return {
+    ...deviceFormOf(null, null),
+    location: '', brand: '', manufacturer: '', productNo: '', driveMode: ''
+  }
+}
 function openCreate() { formMode.value = 'create'; current.value = {}; formModel.value = blankForm(); showForm.value = true }
 async function openEditRow(row) {
   current.value = row
@@ -319,16 +356,13 @@ async function openEditRow(row) {
 }
 function openEdit() {
   formMode.value = 'edit'
-  const p = profile.value || {}
+  const l = (profile.value && profile.value.local) || {}
   formModel.value = {
-    projectName: (p.local && p.local.projectName) || current.value.projectName || '',
-    elevatorCode: current.value.elevatorCode || '',
-    category: p.category || '',
-    location: (p.local && p.local.address) || '',
-    brand: (p.local && p.local.brand) || '',
-    manufacturer: (p.local && p.local.manufacturer) || '',
-    productNo: (p.local && p.local.productNo) || '',
-    driveMode: (p.local && p.local.driveMode) || ''
+    ...deviceFormOf(current.value, profile.value),
+    // 其他信息（选填）：非设备档案 8 字段，沿用既有的本地维护字段
+    location: l.address || current.value.location || '',
+    brand: l.brand || '', manufacturer: l.manufacturer || '',
+    productNo: l.productNo || '', driveMode: l.driveMode || ''
   }
   showForm.value = true
 }

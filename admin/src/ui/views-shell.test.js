@@ -21,16 +21,16 @@ describe('LoginView（原型 split 布局 + 真实鉴权）', () => {
     await w.find('form').trigger('submit')
     expect(w.text()).toContain('密码')
   })
-  it('renders brand panel, business chains and demo account quick-fill', async () => {
+  it('renders brand panel and business chains without any preset account', async () => {
     router.push('/login'); await router.isReady()
     const w = mount(LoginView, { global: { plugins: [router] } })
     expect(w.text()).toContain('博威无纸化')
     expect(w.find('.login-h1').exists()).toBe(true)
     expect(w.findAll('.chain').length).toBe(3)
-    const demos = w.findAll('.demo-acct')
-    expect(demos.length).toBe(5)
-    await demos[0].trigger('click')
-    expect(w.find('input[name="phone"]').element.value).toBe('13800000009')
+    // 空库只应有管理员真实账号：页面不提供任何演示账号快捷填充
+    expect(w.findAll('.demo-acct').length).toBe(0)
+    expect(w.text()).not.toContain('演示账号')
+    expect(w.text()).not.toContain('123456')
   })
 })
 

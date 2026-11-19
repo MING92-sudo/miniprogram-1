@@ -86,11 +86,20 @@ public class UnitRecordService {
     }
 
     public Map<String, Object> confirmAs(String id, Map<String, Object> body, java.util.Set<String> roles, String unitId) {
+        return confirmAs(id, body, roles, unitId, null, null);
+    }
+
+    /**
+     * P3 客户账号签字（docs/14 §12 验收项）：带真实客户账号 id + 姓名快照（由 Controller 从令牌身份查库得到，
+     * 绝不采信客户端 body）。匿名分享链签字（confirmByToken）传 null，不写客户账号快照。
+     */
+    public Map<String, Object> confirmAs(String id, Map<String, Object> body, java.util.Set<String> roles,
+                                         String unitId, String signerAccountId, String signerName) {
         requireClient(roles, unitId);
         MaintainRecord r = findOr404(id);
         requireOwnUnit(r, unitId, "仅本单位记录可确认");
         requireSignable(r);
-        return signRecord(r, body);
+        return signRecord(r, body, signerAccountId, signerName);
     }
 
     /**
@@ -101,18 +110,32 @@ public class UnitRecordService {
      * （onClientSigned 只置 SIGNED+归档，不注入上报服务，结构保证不触发平台 2.6）。
      */
     private Map<String, Object> signRecord(MaintainRecord r, Map<String, Object> body) {
+        return signRecord(r, body, null, null);
+    }
+
+    /** 签字落库（P3：带客户账号快照 + 审计）。signerAccountId/signerName 来自令牌身份，不可信客户端 body。 */
+    private Map<String, Object> signRecord(MaintainRecord r, Map<String, Object> body,
+                                           String signerAccountId, String signerName) {
         String signatureUrl = WorkOrderService.strOrEmpty(body.get("signatureUrl"));
         String signatureFileId = WorkOrderService.strOrEmpty(body.get("signatureFileId"));
         if (signatureUrl.isEmpty() && signatureFileId.isEmpty()) {
             throw new BizException(422, "请先完成签名");
         }
-        int affected = recordMapper.update(null, new LambdaUpdateWrapper<MaintainRecord>()
+        java.time.LocalDateTime signedAt = TimeUtil.now();
+        LambdaUpdateWrapper<MaintainRecord> uw = new LambdaUpdateWrapper<MaintainRecord>()
                 .eq(MaintainRecord::getId, r.id)
                 .eq(MaintainRecord::getConfirmStatus, "PENDING")
                 .eq(MaintainRecord::getLifecycleStatus, "PENDING_CLIENT_SIGNATURE")
                 .set(MaintainRecord::getConfirmStatus, "CONFIRMED")
                 .set(MaintainRecord::getSignatureFileId, signatureFileId)
-                .set(MaintainRecord::getSignatureUrl, signatureUrl));
+                .set(MaintainRecord::getSignatureUrl, signatureUrl);
+        // P3 客户签字人快照：仅当从客户令牌身份解析到账号时落库（兼容匿名分享链为空）
+        if (signerAccountId != null && !signerAccountId.isBlank()) {
+            uw.set(MaintainRecord::getClientAccountId, signerAccountId)
+              .set(MaintainRecord::getClientSignerName, signerName == null ? "" : signerName)
+              .set(MaintainRecord::getClientSignedAt, signedAt);
+        }
+        int affected = recordMapper.update(null, uw);
         if (affected == 0) {
             throw new BizException(422, "记录已被签署（先签为准），请刷新后查看");
         }
@@ -120,10 +143,47 @@ public class UnitRecordService {
         r.confirmStatus = "CONFIRMED";
         r.signatureFileId = signatureFileId;
         r.signatureUrl = signatureUrl;
+        if (signerAccountId != null && !signerAccountId.isBlank()) {
+            r.clientAccountId = signerAccountId;
+            r.clientSignerName = signerName;
+            r.clientSignedAt = signedAt;
+        }
         if (recordLifecycleService != null) {
             recordLifecycleService.onClientSigned(r);
         }
+        // P3 验收项：成功签字写审计（客户租户 id 单列，不复用 org_id）。落库失败不影响主流程。
+        appendSignAudit(r, signerAccountId, signerName);
         return JsonUtil.map("ok", true);
+    }
+
+    /** 客户签字审计（docs/14 §7）：actor_type=CUSTOMER，use_unit_id 写租户。审计失败吞异常。 */
+    private void appendSignAudit(MaintainRecord r, String signerAccountId, String signerName) {
+        if (auditLogService == null) {
+            return;
+        }
+        try {
+            com.cqwlw.maintenance.entity.SysAuditLog a = new com.cqwlw.maintenance.entity.SysAuditLog();
+            a.id = com.cqwlw.maintenance.common.Ids.next("audit");
+            a.actorId = signerAccountId == null ? "" : signerAccountId;
+            a.actorRole = signerAccountId == null ? "ANONYMOUS" : "CUSTOMER";
+            a.action = "CLIENT_RECORD_SIGN";
+            a.target = r.id;
+            a.useUnitId = r.useUnitId;
+            a.reason = "客户签字：" + (signerName == null ? "匿名链" : signerName);
+            a.result = "SUCCESS";
+            a.createdAt = TimeUtil.now();
+            auditLogService.append(a);
+        } catch (Exception e) {
+            // 审计落库失败不影响签字主流程（AuditLogService 契约）
+        }
+    }
+
+    /** P3 客户账号审计服务（setter 注入，兼容既有单测构造器） */
+    private AuditLogService auditLogService;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    public void setAuditLogService(AuditLogService auditLogService) {
+        this.auditLogService = auditLogService;
     }
 
     /**

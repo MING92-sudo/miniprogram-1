@@ -44,3 +44,7 @@ page{background:var(--ink);color:var(--text)}
 .lg-role-mini .i{display:block;color:var(--amber);font-size:22rpx;margin-bottom:8rpx}
 .lg-role-note{line-height:1.6;margin-top:16rpx}
 .lg-foot{font-size:20rpx;color:var(--dim);text-align:center;line-height:1.7;margin-top:20rpx}
+/* P3 登录模式切换（内部员工 / 使用单位客户） */
+.lg-mode-switch{display:flex;border:1rpx solid #2b3a42;border-radius:6rpx;overflow:hidden}
+.lg-mode-item{flex:1;text-align:center;padding:14rpx 0;font-size:20rpx;color:#9FB0B6;background:rgba(255,255,255,.02)}
+.lg-mode-item.on{color:#0d1114;background:var(--amber);font-weight:600}

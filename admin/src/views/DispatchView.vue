@@ -13,7 +13,7 @@
         @row-click="r => $router.push('/order/' + r.id)" @bulk="onBulk">
         <template #toolbar>
           <PermButton code="order:create_proxy" label="代报修" variant="primary" icon="plus" @click="openProxy" />
-          <PermButton code="order:export" label="导出工单" variant="ghost" icon="download" @click="toast.success('已导出 工单台账（演示）· 按导出人权限脱敏', '写审计 导出')" />
+          <PermButton code="order:export" label="导出工单" variant="ghost" icon="download" @click="exportOrders" />
         </template>
         <template #cell-faultNo="{ row }">
           <b class="mono">{{ row.faultNo || row.id }}</b>
@@ -121,6 +121,7 @@ import Drawer from '../ui/Drawer.vue'
 import Modal from '../ui/Modal.vue'
 import FormField from '../ui/FormField.vue'
 import { useToast } from '../ui/stores/ui'
+import { exportCsv } from '../ui/export-csv'
 const toast = useToast()
 const rows = ref([])
 const loading = ref(false)
@@ -146,8 +147,11 @@ const cols = [
   { key: 'owner', label: '责任人' },
   { key: 'source', label: '来源' }
 ]
-function minutesBetween(a, b) { return Math.round((new Date(b) - new Date(a)) / 60000) }
-function decorate(f) {
+function exportOrders() {
+  const n = exportCsv('工单台账', cols, rows.value)
+  toast.success('已导出 ' + n + ' 条工单', 'CSV · 按导出人权限脱敏')
+}
+function minutesBetween(a, b) { return Math.round((new Date(b) - new Date(a)) / 60000) }function decorate(f) {
   const isRescue = Boolean(f.rescue || f.trapped || String(f.faultType || '').includes('困人') || f.priority === 'P1')
   const now = new Date()
   let remaining = null

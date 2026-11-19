@@ -14,7 +14,7 @@
         search-placeholder="搜索操作人 / 对象 / 哈希" :search-keys="['actorId', 'target', 'action', 'hashRef']"
         :filters="filters" empty-hint="没有符合条件的审计记录。">
         <template #toolbar>
-          <PermButton code="stats:export" label="导出日志" variant="ghost" icon="download" @click="toast.success('已导出 审计日志（演示）· 按导出人权限脱敏', '写审计 导出')" />
+          <PermButton code="stats:export" label="导出日志" variant="ghost" icon="download" @click="exportAudit" />
         </template>
         <template #cell-createdAt="{ row }"><span class="mono f12">{{ fmtTime(row.createdAt) }}</span></template>
         <template #cell-actorId="{ row }">
@@ -43,6 +43,7 @@ import ViewHead from '../ui/ViewHead.vue'
 import PageMeta from '../ui/PageMeta.vue'
 import PermButton from '../ui/PermButton.vue'
 import { useToast } from '../ui/stores/ui'
+import { exportCsv } from '../ui/export-csv'
 import { roleLabel, permLabel } from '../ui/labels'
 const toast = useToast()
 const rows = ref([])
@@ -63,6 +64,10 @@ const filters = computed(() => [
   { key: 'result', label: '结果', options: [{ value: 'SUCCESS', label: '成功' }, { value: 'FAILED', label: '失败' }, { value: 'BLOCKED', label: '被拦截' }] }
 ])
 function fmtTime(t) { return String(t || '').replace('T', ' ').slice(0, 16) }
+function exportAudit() {
+  const n = exportCsv('审计日志', cols, rows.value)
+  toast.success('已导出 ' + n + ' 条审计日志', 'CSV · 按导出人权限脱敏')
+}
 function resultLabel(r) { return r === 'SUCCESS' ? '成功' : r === 'BLOCKED' ? '被拦截' : r === 'FAILED' ? '失败' : (r || '—') }
 function resultTone(r) { return r === 'SUCCESS' ? 'tag-ok' : r === 'BLOCKED' ? 'tag-signal' : 'tag-amber' }
 onMounted(async () => {

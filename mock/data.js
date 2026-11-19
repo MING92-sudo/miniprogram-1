@@ -118,6 +118,12 @@ const db = {
     { id: 'uu_2', unitName: '重庆蓝湾物业服务有限公司', unitPrincipal: '周涛', unitPrincipalPhone: '13930003002', elevatorAdminister: '吴静', elevatorAdministerPhone: '13800003005', emergencyPhone: '023-67991234' }
   ],
 
+  // P3 客户账号（独立于员工体系；一单位 1..N 账号，同一单位活跃手机号唯一）。password 仅 mock 明文，真实环境 BCrypt。
+  clientAccounts: [
+    { id: 'ca_1', useUnitId: 'uu_1', name: '王芳', phone: '13800000003', password: '000003', role: 'CLIENT_ADMIN', roleText: '使用单位管理员', principalType: 'CUSTOMER', status: 'ACTIVE', enabled: 1, graceUntil: '', wechatBound: false, createdBy: '', createdAt: '2026-11-19 10:00:00', lastLoginAt: '', disabledReason: '' },
+    { id: 'ca_2', useUnitId: 'uu_2', name: '吴静', phone: '13800003005', password: '030005', role: 'CLIENT_ADMIN', roleText: '使用单位管理员', principalType: 'CUSTOMER', status: 'ACTIVE', enabled: 1, graceUntil: '', wechatBound: false, createdBy: '', createdAt: '2026-11-19 10:05:00', lastLoginAt: '', disabledReason: '' }
+  ],
+
   // 演示账号（正式版由 /auth/wx-login + 绑定流程产生）；platformId 为平台人员ID（2.5 同步产物）
   // 2.5 规范字段对齐：workManCertificate=同步匹配键（严禁姓名匹配）、workStartDate/workEndDate=
   // 合同期（到期从平台列表消失→不可派工）、workStat=normal 才可派工、syncStatus=本地同步状态

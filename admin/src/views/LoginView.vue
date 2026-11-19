@@ -36,31 +36,21 @@
           </div>
           <p v-if="serverError" class="f12 c-sig mt8">{{ serverError }}</p>
         </Form>
-        <div class="label-mono mt20 mb8">演示账号快捷填充</div>
-        <div class="demo-accts">
-          <div v-for="p in personas" :key="p.role" class="demo-acct" @click="fill(p)">
-            <svg class="ic" aria-hidden="true"><use href="#i-user-check" /></svg>
-            <span>{{ p.name }} · {{ roleLabel(p.role) }}</span><code>{{ p.phone }}</code>
-          </div>
-        </div>
-        <div class="login-foot">演示账号来自种子数据（密码 123456）。<br>生产环境：角色只从服务端读取，绝不接受客户端传入角色；脱敏在服务端完成。</div>
+        <div class="login-foot">账号由系统管理员在「账号管理」中开通。<br>角色与数据范围只从服务端读取，绝不接受客户端传入；脱敏在服务端完成。</div>
       </div>
     </div>
   </div>
 </template>
 <script setup>
-// 登录页（原型 Views.login 布局对齐）：左右分栏 + 业务链 + 演示账号快捷填充；鉴权仍走真实后端
+// 登录页：左右分栏 + 业务链；鉴权走真实后端，页面不提供任何预置账号
 import { reactive, ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import Form from '../ui/Form.vue'
 import FormField from '../ui/FormField.vue'
 import { useAuthStore } from '../stores/auth'
-import { roleLabel } from '../ui/labels'
-import { DEMO_PERSONAS, DEMO_PASSWORD } from '../ui/demo-personas'
 const router = useRouter()
 const route = useRoute()
 const auth = useAuthStore()
-const personas = DEMO_PERSONAS
 const model = reactive({ phone: '', password: '' })
 const loading = ref(false)
 const serverError = ref('')
@@ -68,7 +58,6 @@ const rules = {
   phone: [(v) => (v ? '' : '请输入后台账号')],
   password: [(v) => ((v && v.length >= 6) ? '' : '密码至少 6 位')]
 }
-function fill(p) { model.phone = p.phone; model.password = DEMO_PASSWORD; serverError.value = '' }
 async function onSubmit() {
   loading.value = true; serverError.value = ''
   try {

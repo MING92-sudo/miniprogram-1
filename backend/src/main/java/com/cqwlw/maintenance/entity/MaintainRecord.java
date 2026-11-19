@@ -67,5 +67,13 @@ public class MaintainRecord {
     public String useUnitId;
     public String useUnitName;
     public String elevatorId;
+    /** P3 客户签字人快照（V48）：签字/拒签写入具体账号与姓名，先签为准可追溯 */
+    public String clientAccountId;
+    public String clientSignerName;
+    public LocalDateTime clientSignedAt;
+    public String refusedByClientAccountId;
+    public String clientRefuserName;
+    public String clientRefuseReason;
+    public LocalDateTime clientRefusedAt;
     public LocalDateTime createdAt;
 }

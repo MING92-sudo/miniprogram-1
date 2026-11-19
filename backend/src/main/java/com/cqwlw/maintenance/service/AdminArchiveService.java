@@ -48,6 +48,13 @@ public class AdminArchiveService {
     private final WorkOrderMapper workOrderMapper;
     private final PlatformClient platformClient;
     private final BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
+    /** 区域名称解析（电梯档案「所在区域」展示）；setter 注入保持既有构造器签名不变（单测不传） */
+    private com.cqwlw.maintenance.mapper.RegionMapper regionMapper;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    public void setRegionMapper(com.cqwlw.maintenance.mapper.RegionMapper regionMapper) {
+        this.regionMapper = regionMapper;
+    }
 
     public AdminArchiveService(CompanyMapper companyMapper, UseUnitMapper useUnitMapper,
                                EmployeeMapper employeeMapper, SysUserRoleMapper userRoleMapper,
@@ -410,12 +417,15 @@ public class AdminArchiveService {
     }
 
     public Map<String, Object> createElevator(Map<String, Object> body) {
-        if (str(body, "elevatorCode").isBlank() || str(body, "projectName").isBlank()) {
-            throw new BizException(422, "电梯编号与项目名称（小区）必填");
-        }
         Elevator el = new Elevator();
         el.id = Ids.next("el");
         applyElevator(el, body);
+        // 设备信息档案 5 项必传（电梯编码/设备代码/注册代码/单位内编号/出厂编号，docs/01 §3.4.1）
+        DeviceProfileValidator.requireForCreate(el);
+        // elevator_name 为库表 NOT NULL：未填项目名称时以单位内编号（梯号）兜底，再退电梯编码
+        if (isBlank(el.elevatorName)) {
+            el.elevatorName = isBlank(el.insideNumber) ? el.elevatorCode : el.insideNumber;
+        }
         requireNoConflict(phoneMutexService.checkElevator(el.workerPhone));
         elevatorMapper.insert(el);
         return elevatorAdminRow(el);
@@ -426,20 +436,34 @@ public class AdminArchiveService {
         if (el == null) {
             throw new BizException(1404, "电梯不存在");
         }
+        // 必传项不得清空：上传维保记录依赖这 5 项，清空会让设备档案与记录单脱钩
+        for (DeviceProfileValidator.Field f : DeviceProfileValidator.REQUIRED) {
+            if (body.containsKey(f.key()) && isBlank(str(body, f.key()))) {
+                throw new BizException(422, f.label() + "为上传维保记录的必传项，不能清空");
+            }
+        }
         applyElevator(el, body);
+        if (isBlank(el.elevatorName)) {
+            el.elevatorName = isBlank(el.insideNumber) ? nz(el.elevatorCode) : el.insideNumber;
+        }
         requireNoConflict(phoneMutexService.checkElevator(el.workerPhone));
         elevatorMapper.updateById(el);
         // 经纬度清空（留空保存）必须显式置 NULL——updateById 默认跳过 null 字段，
         // 否则错误的首采坐标永远无法清除（清空后下次签到重新现场采集，docs/02 §5.4）
         boolean clearLng = body.get("lng") != null && str(body, "lng").isBlank();
         boolean clearLat = body.get("lat") != null && str(body, "lat").isBlank();
-        if (clearLng || clearLat) {
+        // 所在区域置空同理（updateById 跳过 null 字段，必须显式 SET NULL）
+        boolean clearRegion = body.get("regionId") != null && str(body, "regionId").isBlank();
+        if (clearLng || clearLat || clearRegion) {
             LambdaUpdateWrapper<Elevator> uw = new LambdaUpdateWrapper<Elevator>().eq(Elevator::getId, id);
             if (clearLng) {
                 uw.set(Elevator::getLng, null);
             }
             if (clearLat) {
                 uw.set(Elevator::getLat, null);
+            }
+            if (clearRegion) {
+                uw.set(Elevator::getRegionId, null);
             }
             elevatorMapper.update(null, uw);
         }
@@ -489,7 +513,10 @@ public class AdminArchiveService {
         } else if (body.get("elevatorName") != null) {
             el.elevatorName = str(body, "elevatorName");
         }
-        if (body.get("regCode") != null) {
+        // 注册代码：对外接口字段名为 registrationCode（用户口径），DB 列沿用 reg_code；兼容旧字段 regCode
+        if (body.get("registrationCode") != null) {
+            el.regCode = str(body, "registrationCode");
+        } else if (body.get("regCode") != null) {
             el.regCode = str(body, "regCode");
         }
         if (body.get("deviceCode") != null) {
@@ -510,6 +537,18 @@ public class AdminArchiveService {
         }
         if (body.get("category") != null) {
             el.category = str(body, "category");
+        }
+        // 所在区域（region_id，选填）：空串=清空（不限区域）；非空须存在
+        if (body.get("regionId") != null) {
+            String regionId = str(body, "regionId");
+            if (regionId.isBlank()) {
+                el.regionId = null;
+            } else {
+                if (regionMapper == null || regionMapper.selectById(regionId) == null) {
+                    throw new BizException(422, "区域不存在：" + regionId);
+                }
+                el.regionId = regionId;
+            }
         }
         if (body.get("inspectionReportFileId") != null && !str(body, "inspectionReportFileId").isBlank()) {
             el.inspectionReportFileId = str(body, "inspectionReportFileId");
@@ -664,6 +703,15 @@ public class AdminArchiveService {
         return m;
     }
 
+    /** 区域名称（所在区域展示用）；未配置区域或未注入 mapper 时返回空串 */
+    private String regionNameOf(String regionId) {
+        if (regionId == null || regionId.isBlank() || regionMapper == null) {
+            return "";
+        }
+        com.cqwlw.maintenance.entity.Region r = regionMapper.selectById(regionId);
+        return r == null ? "" : nz(r.name);
+    }
+
     private Map<String, Object> elevatorAdminRow(Elevator el) {
         UseUnit uu = el.useUnitId == null ? null : useUnitMapper.selectById(el.useUnitId);
         Map<String, Object> m = new LinkedHashMap<>();
@@ -673,9 +721,14 @@ public class AdminArchiveService {
         m.put("projectName", nz(el.projectName));
         m.put("location", nz(el.location));
         m.put("regCode", nz(el.regCode));
+        // 注册代码：管理端「设备信息档案」对外字段名（用户口径）；regCode 保留给旧调用方
+        m.put("registrationCode", nz(el.regCode));
         m.put("deviceCode", nz(el.deviceCode));
         // 区域与建档来源（Task 14 Step 2）：区域决定维保人员可见范围，来源区分 存量/移交/外接
         m.put("regionId", nz(el.regionId));
+        m.put("regionName", regionNameOf(el.regionId));
+        // 上传维保记录的必传项（前 5 项）缺失清单：管理端据此显示「待补全」
+        m.put("missingRequired", DeviceProfileValidator.missingRequired(el));
         m.put("archiveSource", el.archiveSource == null ? 0 : el.archiveSource);
         m.put("insideNumber", nz(el.insideNumber));
         m.put("model", nz(el.model));
@@ -961,6 +1014,10 @@ public class AdminArchiveService {
 
     private static String nz(String s) {
         return s == null ? "" : s;
+    }
+
+    private static boolean isBlank(String s) {
+        return s == null || s.trim().isEmpty();
     }
 
     private static Integer intOrNull(String s) {

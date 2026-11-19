@@ -8,7 +8,7 @@
         :search-keys="['name', 'phone', 'empNo', 'jobNo']" search-placeholder="搜索姓名 / 工号 / 手机号"
         :filters="[{ key: 'status', label: '状态', options: statusOptions }]"
         :bulk-actions="[{ code: 'user:disable', label: '批量停用', variant: 'danger', icon: 'ban' }]"
-        empty-hint="当前数据范围内没有账号。" @row-click="openDetail" @bulk="onBulk">
+        empty-hint="当前数据范围内没有账号，点击「开通账号」创建。" @row-click="openDetail" @bulk="onBulk">
         <template #toolbar>
           <PermButton code="user:create" label="开通账号" variant="primary" icon="plus" @click="openCreate" />
           <PermButton code="invite:manage" label="生成邀请" variant="ghost" icon="key" @click="$router.push('/grants')" />

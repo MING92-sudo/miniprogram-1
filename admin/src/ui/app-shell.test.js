@@ -3,17 +3,20 @@ import { setActivePinia, createPinia } from 'pinia'
 import { mount } from '@vue/test-utils'
 import { createRouter, createWebHashHistory } from 'vue-router'
 import AppShell from './AppShell.vue'
-import { usePerspectiveStore } from './stores/perspective'
+import { useAuthStore } from '../stores/auth'
 
 const router = createRouter({ history: createWebHashHistory(), routes: [
   { path: '/dashboard', component: { template: '<div>workbench</div>' }, meta: { title: '工作台', group: '概览' } }
 ] })
 
-describe('AppShell（原型 shellHtml 对齐）', () => {
-  beforeEach(() => { setActivePinia(createPinia()); window.innerWidth = 1440 })
+describe('AppShell（真实登录角色驱动）', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    window.innerWidth = 1440
+    useAuthStore().role = 'MAINT_MGR'
+  })
   it('renders sidebar groups, brand and scope pill', async () => {
     router.push('/dashboard'); await router.isReady()
-    const p = usePerspectiveStore(); p.setRoleSet(['MAINT_MGR']); p.setRole('MAINT_MGR')
     const w = mount(AppShell, { global: { plugins: [router] } })
     expect(w.text()).toContain('工作台')
     expect(w.text()).toContain('博威无纸化')
@@ -26,15 +29,12 @@ describe('AppShell（原型 shellHtml 对齐）', () => {
     await w.find('button[aria-label="折叠侧边栏"]').trigger('click')
     expect(w.find('.shell').classes()).toContain('collapsed')
   })
-  it('role switcher menu lists demo personas and switches perspective', async () => {
+  it('shows the server-issued role as read-only (no switcher menu)', async () => {
     router.push('/dashboard'); await router.isReady()
     const w = mount(AppShell, { global: { plugins: [router] } })
-    await w.find('.role-switch > button').trigger('click')
-    expect(w.find('.role-menu').classes()).toContain('open')
-    const opts = w.findAll('.role-opt')
-    expect(opts.length).toBe(5)
-    await opts[1].trigger('click') // MAINT_MGR
-    expect(usePerspectiveStore().activeRole).toBe('MAINT_MGR')
+    expect(w.find('.role-switch > button').exists()).toBe(false)
+    expect(w.find('.role-switch .rs-static').text().length).toBeGreaterThan(0)
+    expect(w.find('.role-menu').exists()).toBe(false)
   })
   it('sim toggle shows error state with retry', async () => {
     router.push('/dashboard'); await router.isReady()

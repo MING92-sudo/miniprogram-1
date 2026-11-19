@@ -20,6 +20,8 @@ const LIST = [
   R('/pages/install/home/index', '安装工作台', { roles: INST.concat(['INSTALLER']), tab: true, built: true }),
   R('/pages/maint/home/index', '维保工作台', { roles: MAINT_EXT, tab: true, built: true }),
   R('/pages/client/home/index', '使用单位首页', { roles: CLIENT, tab: true, built: true }),
+  // P3 客户账号：选单位页（登录链中途，凭证已验但尚未签发令牌 → auth:false）
+  R('/pages/client/select-unit/index', '选择使用单位', { auth: false, built: true }),
   R('/pages/order/list/index', '报修接单', { roles: MAINT, perm: 'order:view_pool', tab: true, batch: 'M3' }),
   R('/pages/order/detail/index', '急修单详情', { roles: MAINT.concat(CLIENT), perm: ['order:view_pool', 'order:view_own'], batch: 'M3' }),
   // P1 T8-B4：客户报修入口下线（client:report 收回，重开由 P3 裁决）；维保主管代报修保留

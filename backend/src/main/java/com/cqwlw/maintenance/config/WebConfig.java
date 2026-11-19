@@ -32,8 +32,10 @@ public class WebConfig implements WebMvcConfigurer {
                 .addPathPatterns("/**")
                 .excludePathPatterns(
                         "/health", "/api/count",
-                        "/auth/login", "/auth/wx-login", "/auth/logout",
-                        "/auth/reset-password-by-wechat",
+                "/auth/login", "/auth/wx-login", "/auth/logout",
+                "/auth/reset-password-by-wechat",
+                // P3 客户登录入口免令牌：口令/微信登录先验凭据；select-unit 用短时 sel 令牌（AuthInterceptor 校验）
+                "/auth/client/login", "/auth/client/wx-login",
                         // bind-* 是登录后写操作，统一走 AuthInterceptor（校验 JWT + 单端会话 sid），
                         // AuthController 内仍保留 currentUser 防御，避免未来路由配置回退时越权
                         "/unit/records/*/sign-view", "/unit/records/*/confirm-by-token",

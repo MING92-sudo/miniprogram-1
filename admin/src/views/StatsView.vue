@@ -2,7 +2,7 @@
   <div>
     <ViewHead title="统计报表" :sub="'当前口径：' + scopeText">
       <template #actions>
-        <PermButton code="stats:export" label="导出报表" variant="ghost" icon="download" @click="toast.success('已导出 统计报表（演示）· 按导出人权限脱敏', '写审计 导出')" />
+        <PermButton code="stats:export" label="导出报表" variant="ghost" icon="download" @click="exportReport" />
         <PermButton code="data:export_sensitive" label="敏感数据导出" variant="solid-sig" icon="lock" @click="sensitiveOpen = true" />
       </template>
       <template #meta><PageMeta perm="stats:view" :extra="[{ k: '口径', v: scopeText, icon: 'database' }]" /></template>
@@ -90,6 +90,7 @@ import PermButton from '../ui/PermButton.vue'
 import Modal from '../ui/Modal.vue'
 import FormField from '../ui/FormField.vue'
 import { useToast } from '../ui/stores/ui'
+import { exportCsv } from '../ui/export-csv'
 import { usePerspectiveStore } from '../ui/stores/perspective'
 import { scopeLabel } from '../ui/labels'
 const toast = useToast()
@@ -163,6 +164,21 @@ async function load() {
   approvals.value = await safe('/export-approvals', asList)
 }
 onMounted(load)
+
+// 普通报表导出：KPI 指标 + 分项目台量（敏感字段导出仍走审批链 data:export_sensitive）
+function exportReport() {
+  const metricCols = [
+    { key: 'label', label: '指标' },
+    { key: 'value', label: '数值' },
+    { key: 'unit', label: '单位' },
+    { key: 'sub', label: '口径' }
+  ]
+  const n = exportCsv('统计报表-指标', metricCols, metrics.value)
+  const p = exportCsv('统计报表-分项目台量',
+    [{ key: 'name', label: '项目' }, { key: 'elevators', label: '台量' }, { key: 'records', label: '记录单' }, { key: 'orders', label: '工单' }],
+    byProject.value)
+  toast.success('已导出 ' + n + ' 项指标 · ' + p + ' 个项目', 'CSV · 按导出人权限脱敏')
+}
 
 // ── 敏感导出申请 ──
 const sensitiveOpen = ref(false)

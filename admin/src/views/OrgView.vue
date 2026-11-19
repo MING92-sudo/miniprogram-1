@@ -104,6 +104,7 @@ import PermButton from '../ui/PermButton.vue'
 import StatusTag from '../ui/StatusTag.vue'
 import LoadingSkeleton from '../ui/states/LoadingSkeleton.vue'
 import { useToast } from '../ui/stores/ui'
+import { exportCsv } from '../ui/export-csv'
 import { usePerspectiveStore } from '../ui/stores/perspective'
 import { orgTypeLabel, scopeLabel } from '../ui/labels'
 import { listOrg, createOrg, updateOrg } from '../api/ledger'
@@ -182,6 +183,16 @@ async function submitDisable() {
     toast.success('组织已停用'); showDisable.value = false; detail.value = null; load()
   } catch (e) { toast.error(e.message || '停用失败') }
 }
-function exportOrg() { toast.success('已导出 组织名单（演示）· 按导出人权限脱敏', '写审计 导出') }
+function exportOrg() {
+  const n = exportCsv('组织名单', [
+    { key: 'name', label: '组织名称' },
+    { key: 'type', label: '类型' },
+    { key: 'code', label: '编码' },
+    { key: 'leader', label: '负责人' },
+    { key: 'phone', label: '联系电话' },
+    { key: 'status', label: '状态' }
+  ], rows.value)
+  toast.success('已导出 ' + n + ' 个组织', 'CSV · 按导出人权限脱敏')
+}
 onMounted(load)
 </script>

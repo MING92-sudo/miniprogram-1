@@ -80,6 +80,50 @@ public class JwtService {
                 .compact();
     }
 
+    /**
+     * P3 客户账号令牌（docs/14 §8）：subject=client_account.id，claim ut=2 走客户分支；
+     * 携带 role（CLIENT_*）、useUnitId（租户锚点）、sid（单会话）、sv（scope_version）。
+     * 客户账号独立于员工目录，不参与 sessionAdmin/sessionId 覆盖，故单独签发。
+     */
+    public String issueClient(String accountId, String role, String useUnitId, String openid,
+                              String sessionId, int scopeVersion) {
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("ut", "2");
+        claims.put("role", role);
+        claims.put("useUnitId", useUnitId);
+        claims.put("sid", sessionId);
+        claims.put("sv", scopeVersion);
+        claims.put("client", "mp");
+        if (openid != null) {
+            claims.put("openid", openid);
+        }
+        Instant now = Instant.now();
+        return Jwts.builder()
+                .subject(accountId)
+                .claims(claims)
+                .issuedAt(Date.from(now))
+                .expiration(Date.from(now.plusSeconds(expireHours * 3600)))
+                .signWith(key)
+                .compact();
+    }
+
+    /**
+     * P3 多单位选单位短时令牌（docs/14 §6.4）：口令校验通过后签发，subject=手机号，claim sel=1；
+     * 仅用于 /auth/client/select-unit 换取正式客户令牌，不能访问业务端点（白名单不含）。有效期 5 分钟。
+     */
+    public String issueSelection(String phone) {
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("sel", "1");
+        Instant now = Instant.now();
+        return Jwts.builder()
+                .subject(phone)
+                .claims(claims)
+                .issuedAt(Date.from(now))
+                .expiration(Date.from(now.plusSeconds(5 * 60)))
+                .signWith(key)
+                .compact();
+    }
+
     /** 校验并返回 claims；无效/过期抛 401（前端统一清登录态） */
     public Claims verify(String token) {
         try {

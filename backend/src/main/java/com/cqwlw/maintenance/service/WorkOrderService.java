@@ -748,14 +748,21 @@ public class WorkOrderService {
             throw new BizException(422, "请完成配合人员签名（双人签字）");
         }
 
+        // 设备信息档案门禁（用户 2026-11-19）：电梯编码/设备代码/注册代码/单位内编号/出厂编号
+        // 为上传维保记录（平台 2.6）的必传项，缺任一项不得生成记录、不得上报
+        Elevator el = elevatorMapper.selectById(o.elevatorId);
+        if (el == null) {
+            throw new BizException(1404, "电梯档案不存在，无法上传维保记录");
+        }
+        DeviceProfileValidator.requireForRecord(el);
+
         o.status = "DONE";
         o.checkoutTime = checkoutTime;
         o.originalRecordId = Ids.nextRecordId();
         o.reportStatus = "SUBMITTED";
         o.duration = TimeUtil.formatDuration(TimeUtil.toMillis(checkoutTime) - TimeUtil.toMillis(o.checkinTime));
 
-        Elevator el = elevatorMapper.selectById(o.elevatorId);
-        UseUnit uu = el == null || el.useUnitId == null ? null : useUnitMapper.selectById(el.useUnitId);
+        UseUnit uu = el.useUnitId == null ? null : useUnitMapper.selectById(el.useUnitId);
         List<Map<String, Object>> frozen = items.stream().map(i -> new LinkedHashMap<>(i)).collect(Collectors.toList());
         // 照片以 fileId 解析出的可访问 URL 为准；历史/演示数据的本地临时路径（wxfile://、http://tmp/）不入档（2026-10-05 管理端乱图）
         List<String> photos = frozen.stream()

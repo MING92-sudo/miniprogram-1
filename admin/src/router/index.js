@@ -14,6 +14,7 @@ const RolesView = () => import('../views/RolesView.vue')
 const GrantsView = () => import('../views/GrantsView.vue')
 const ProjectsView = () => import('../views/ProjectsView.vue')
 const ContractsView = () => import('../views/ContractsView.vue')
+const UseUnitsView = () => import('../views/UseUnitsView.vue')
 const ElevatorsView = () => import('../views/ElevatorsView.vue')
 // M4 作业域
 const HandoversView = () => import('../views/HandoversView.vue')
@@ -33,7 +34,7 @@ const FilingView = () => import('../views/FilingView.vue')
 const RegionView = () => import('../views/RegionView.vue')
 const TemplateManageView = () => import('../views/TemplateManageView.vue')
 const RegisterWorkersView = () => import('../views/RegisterWorkersView.vue')
-// 二期：监管与运营（原型同款 mock 演示，后端接口后续接入）
+// 二期：监管与运营（数据来自 /admin/records、/reg/* 等真实接口）
 const SyncView = () => import('../views/SyncView.vue')
 const MsgTemplatesView = () => import('../views/MsgTemplatesView.vue')
 const ReviewsView = () => import('../views/ReviewsView.vue')
@@ -49,6 +50,7 @@ export const routes = [
     { path: 'grants', component: GrantsView, meta: { title: '授权管理', group: '组织与权限', perm: 'invite:manage' } },
     { path: 'projects', component: ProjectsView, meta: { title: '项目台账', group: '台账中心', perm: 'project:view' } },
     { path: 'contracts', component: ContractsView, meta: { title: '合同管理', group: '台账中心', perm: 'contract:view' } },
+    { path: 'use-units', component: UseUnitsView, meta: { title: '使用单位档案', group: '组织与权限', perm: 'client:edit' } },
     { path: 'elevators', component: ElevatorsView, meta: { title: '电梯台账', group: '台账中心', perm: 'elevator:view' } },
     { path: 'handovers', component: HandoversView, meta: { title: '移交管理', group: '安装移交', perm: 'handover:view' } },
     { path: 'plans', component: PlansView, meta: { title: '维保计划', group: '维保作业', perm: 'plan:view' } },
@@ -74,11 +76,10 @@ export const routes = [
   { path: '/403', component: ForbiddenView, meta: { public: true, title: '无权限' } },
   { path: '/:pathMatch(.*)*', component: NotFoundView, meta: { public: true, title: '页面不存在' } }
 ]
-// 开发态工具路由（D-A3，仅 DEV，不进生产导航）
+// 开发态工具路由（仅 DEV，不进生产导航）
 if (import.meta.env.DEV) {
   routes.splice(2, 0,
-    { path: '/dev/components', component: () => import('../views/dev/ComponentsGallery.vue'), meta: { public: true, title: '组件廊' } },
-    { path: '/dev/spec', component: () => import('../views/dev/DataSelfCheck.vue'), meta: { public: true, title: '数据自检' } }
+    { path: '/dev/components', component: () => import('../views/dev/ComponentsGallery.vue'), meta: { public: true, title: '组件廊' } }
   )
 }
 const router = createRouter({ history: createWebHashHistory(), routes })

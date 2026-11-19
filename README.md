@@ -82,6 +82,17 @@
 - Node.js 18+（建议 20 LTS）
 - 微信开发者工具
 
+#### 本地 MySQL 初始化（一次性）
+
+建库 + 建应用专用账号（只授权 `maintenance.*`，后端不用 root 跑）：
+
+```bash
+mysql -h127.0.0.1 -P3306 -uroot -p < backend/scripts/local-db-init.sql
+```
+
+字符集固定 `utf8mb4` / `utf8mb4_general_ci`（**不用 8.0 专属的 `utf8mb4_0900_ai_ci`**，否则将来导入云上 5.7 库会报错）。
+表结构不手工建，交给 Flyway 在首次启动时按 V1—V50 建全。
+
 ### 5.2 启动后端
 
 ```bash
@@ -91,7 +102,11 @@ cp .env.example .env
 # 需要演示数据时首次启动设 SEED_DEMO_DATA=true，播种完成后改回 false
 
 # 2) 从仓库根目录启动（加载根目录 .env；-f 指定 backend/pom.xml）
-mvn -f backend/pom.xml spring-boot:run -Dspring-boot.run.workingDirectory=.
+# ⚠️ workingDirectory 会被解析为「相对 backend 目录」，写 "." 实际仍是 backend/ → 读不到根 .env，
+#    后端回落到 DB_USER/DB_PASSWORD 默认值 root/root，报 Access denied for user 'root'@'localhost'。
+#    必须传绝对路径（2026-11-19 实测踩坑）。
+mvn -f backend/pom.xml spring-boot:run \
+  "-Dspring-boot.run.workingDirectory=$(pwd -W 2>/dev/null || pwd)"
 # 健康检查：http://localhost:8080/health  →  {"code":0,"data":{"status":"UP"}}
 ```
 
@@ -107,6 +122,20 @@ npm ci
 npm run dev
 # http://localhost:5173 ，/api 由 Vite 代理到 http://localhost:8080
 ```
+
+**开发时请一律用 `5173`。** 后端 `8080` 也会提供一份管理端，但它读的是
+`backend/src/main/resources/static/` 里的**构建产物**（.gitignore 目录，不会跟随源码自动更新），
+所以才会有「代码明明改了，8080 打开还是几天前的旧界面、新页面找不到」——
+Dockerfile 第 20 行 `rm -rf .../static` 规避的就是同一个问题（#195「旧版管理端根因」）。
+
+需要让 `8080` 也显示最新界面时（单端口联调、或验证生产同构）：
+
+```bash
+cd admin
+npm run build:backend   # = vite build + 清空并用 dist 覆盖后端 static（含 target/classes）
+```
+
+> 同步后浏览器仍可能命中旧的 `index.html` 缓存，按 `Ctrl+F5` 强制刷新。
 
 ### 5.4 运行小程序
 

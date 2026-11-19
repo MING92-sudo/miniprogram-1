@@ -32,6 +32,27 @@ public class UnitRecordController {
 
     private final com.cqwlw.maintenance.mapper.SysUserRoleMapper userRoleMapper;
     private final com.cqwlw.maintenance.service.RecordLifecycleService recordLifecycleService;
+    /** P3 客户账号 Mapper（setter 注入，客户令牌签字时取真实账号身份） */
+    private com.cqwlw.maintenance.mapper.ClientAccountMapper clientAccountMapper;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    public void setClientAccountMapper(com.cqwlw.maintenance.mapper.ClientAccountMapper clientAccountMapper) {
+        this.clientAccountMapper = clientAccountMapper;
+    }
+
+    /** P3：客户令牌（ut=2）签字身份——从令牌 subject 查库取真实账号 id + 姓名；非客户令牌返回 null。 */
+    private String[] signerOf(jakarta.servlet.http.HttpServletRequest request) {
+        Object principal = request.getAttribute(com.cqwlw.maintenance.auth.AuthInterceptor.ATTR_PRINCIPAL_TYPE);
+        if (principal == null || !"CUSTOMER".equals(String.valueOf(principal)) || clientAccountMapper == null) {
+            return null;
+        }
+        Object id = request.getAttribute(com.cqwlw.maintenance.auth.AuthInterceptor.ATTR_EMP_ID);
+        if (id == null) {
+            return null;
+        }
+        com.cqwlw.maintenance.entity.ClientAccount c = clientAccountMapper.selectById(String.valueOf(id));
+        return c == null ? null : new String[]{c.id, c.name};
+    }
 
     /** M1：门户读端点改统一令牌 + CLIENT 谓词；旧门户令牌（ut=1）兜底 */
     private java.util.Set<String> portalRoles(jakarta.servlet.http.HttpServletRequest request) {
@@ -82,8 +103,10 @@ public class UnitRecordController {
         if (guard.replayed()) {
             return ApiResponse.ok(guard.replayedResult());
         }
+        String[] signer = signerOf(request);
         Map<String, Object> result = unitRecordService.confirmAs(id, body == null ? Map.of() : body,
-                portalRoles(request), resolveUnit(request));
+                portalRoles(request), resolveUnit(request),
+                signer == null ? null : signer[0], signer == null ? null : signer[1]);
         guard.commit(result);
         return ApiResponse.ok(result);
     }

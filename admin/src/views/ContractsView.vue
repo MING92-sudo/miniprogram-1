@@ -10,7 +10,7 @@
         empty-hint="当前数据范围内没有合同。">
         <template #toolbar>
           <PermButton code="contract:edit" label="续签 / 变更" variant="primary" icon="edit" c-tip="平台 / 经理可用；主管只读" @click="openRenew(null)" />
-          <PermButton code="stats:export" label="导出" variant="ghost" icon="download" c-tip="导出需审批" @click="exportContracts" />
+          <PermButton code="stats:export" label="导出" variant="ghost" icon="download" c-tip="按导出人数据范围导出 CSV" @click="exportContracts" />
         </template>
         <template #cell-contractNo="{ value }"><span class="mono">{{ value }}</span></template>
         <template #cell-proj="{ row }">{{ row.useUnitName || '—' }}</template>
@@ -80,6 +80,7 @@ import PageMeta from '../ui/PageMeta.vue'
 import StatusTag from '../ui/StatusTag.vue'
 import RuleNote from '../ui/RuleNote.vue'
 import { useToast } from '../ui/stores/ui'
+import { exportCsv } from '../ui/export-csv'
 import { usePerspectiveStore } from '../ui/stores/perspective'
 import { statusLabel, roleLabel } from '../ui/labels'
 import { listContractsLedger, listUseUnits } from '../api/ledger'
@@ -124,22 +125,25 @@ async function load() {
 }
 onMounted(load)
 
-// 续签 / 变更（后端续签接口待接入，当前为原型演示口径）
+// 续签 / 变更：后端仅提供 GET /contracts/{id}，续签写接口尚未接入——表单一律明确拒绝，不伪造成功
 const showRenew = ref(false)
 const renewTarget = ref(null)
 const renewForm = ref(null)
 const renewModel = ref({ end: '', amount: '' })
 const renewRules = { end: [(v) => (v ? '' : '新到期日必填')], amount: [(v) => (v !== '' && v != null ? '' : '金额必填')] }
 function openRenew(row) {
-  if (!row) { toast.success('请选择合同续签（演示）', 'contract:edit'); return }
+  if (!row) { toast.warn('请先从列表选择一份合同'); return }
   renewTarget.value = row
   renewModel.value = { end: row.endDate || '', amount: row.amount != null ? row.amount : '' }
   showRenew.value = true
 }
 function submitRenew() {
   if (!renewForm.value.validate()) return
-  toast.warn('续签接口待后端接入 · 演示留痕', renewTarget.value ? renewTarget.value.contractNo : '')
+  toast.error('合同续签接口尚未接入', '后端暂无 POST/PUT /contracts 写接口，请联系平台侧处理')
   showRenew.value = false
 }
-function exportContracts() { toast.success('已导出 合同台账（演示）· 按导出人权限脱敏', '写审计 导出') }
+function exportContracts() {
+  const n = exportCsv('合同台账', cols, rows.value)
+  toast.success('已导出 ' + n + ' 条合同台账', 'CSV · 按导出人权限脱敏')
+}
 </script>

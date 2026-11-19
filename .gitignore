@@ -55,6 +55,8 @@ reg-*.json
 # 平台联调请求/响应报文（含脱敏手机号，暂不入库）
 reg-capture/
 *.har
+# 本地开发库初始化脚本含明文口令，仅本地使用，不入库
+/backend/scripts/local-db-init.sql
 
 # 说明：.env.example 只放变量名与占位说明，绝不放真实值
 !.env.example
@@ -64,6 +66,8 @@ reg-capture/
 /.omo/
 /opencode.json
 AGENTS.md.backup.*
+/.codex/
+/.workbuddy/
 
 # admin 本地构建缓存
 admin/.tmp-build/

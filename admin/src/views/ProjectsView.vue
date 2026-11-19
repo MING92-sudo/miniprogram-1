@@ -10,7 +10,7 @@
         empty-hint="当前数据范围内没有项目。" @row-click="openDetail">
         <template #toolbar>
           <PermButton code="project:edit" label="新增项目" variant="primary" icon="plus" c-tip="仅维保经理 / 平台" @click="openCreate" />
-          <PermButton code="elevator:export" label="导出台账" variant="ghost" icon="download" c-tip="导出需审批，按导出人权限脱敏" @click="exportLedger" />
+          <PermButton code="elevator:export" label="导出台账" variant="ghost" icon="download" c-tip="按导出人数据范围导出 CSV" @click="exportLedger" />
         </template>
         <template #cell-projectNo="{ value }"><span class="mono">{{ value }}</span></template>
         <template #cell-name="{ value }"><b>{{ value }}</b></template>
@@ -117,6 +117,7 @@ import PageMeta from '../ui/PageMeta.vue'
 import StatusTag from '../ui/StatusTag.vue'
 import ScopePill from '../ui/ScopePill.vue'
 import { useToast } from '../ui/stores/ui'
+import { exportCsv } from '../ui/export-csv'
 import { usePerspectiveStore } from '../ui/stores/perspective'
 import { statusLabel, scopeLabel } from '../ui/labels'
 import { listProjects, createProject, updateProject, listUseUnits, listOrg, listContractsLedger } from '../api/ledger'
@@ -223,5 +224,8 @@ async function submit() {
     load()
   } catch (e) { toast.error(e.message || '保存失败') }
 }
-function exportLedger() { toast.success('已导出 项目台账（演示）· 按导出人权限脱敏', '写审计 导出') }
+function exportLedger() {
+  const n = exportCsv('项目台账', cols, rows.value)
+  toast.success('已导出 ' + n + ' 条项目台账', 'CSV · 按导出人权限脱敏')
+}
 </script>

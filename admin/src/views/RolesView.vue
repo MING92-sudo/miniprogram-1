@@ -96,6 +96,7 @@ import Drawer from '../ui/Drawer.vue'
 import PermButton from '../ui/PermButton.vue'
 import LoadingSkeleton from '../ui/states/LoadingSkeleton.vue'
 import { useToast } from '../ui/stores/ui'
+import { exportCsv } from '../ui/export-csv'
 import { roleLabel, permLabel } from '../ui/labels'
 import { canonicalRoles, canonicalCodes, state, defaultScope } from '../ui/permission-v2'
 import { MENU_GROUPS } from '../ui/menu-config'
@@ -157,7 +158,14 @@ const allViews = MENU_GROUPS.flatMap(g => g.items).filter(i => i.perm)
 function visibleViews(r) { return allViews.filter(i => state(r, i.perm) !== 'DENY') }
 function hiddenViews(r) { return allViews.filter(i => state(r, i.perm) === 'DENY') }
 function openRole(r) { roleDetail.value = r }
-function exportMatrix() { toast.success('已导出 角色权限矩阵（演示）· 按导出人权限脱敏', '写审计 导出') }
+function exportMatrix() {
+  const cols = [
+    { key: 'code', label: '权限码' },
+    ...roles.value.map(r => ({ key: r, label: r, value: row => (row.states && row.states[r]) || '' }))
+  ]
+  const n = exportCsv('角色权限矩阵', cols, rows.value)
+  toast.success('已导出 ' + n + ' 个权限码', 'CSV · 按导出人权限脱敏')
+}
 function buildFromMirror() {
   return [...canonicalCodes()].map(code => ({
     code,

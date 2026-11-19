@@ -58,6 +58,47 @@ export function deleteUseUnit(id) {
   return http.delete(`/use-units/${id}`)
 }
 
+// ── P3 客户账号（docs/14 §6，独立于员工体系；路径挂 /use-units/{id}/accounts）──
+
+/** 某单位的客户账号列表 */
+export function clientAccounts(useUnitId) {
+  return http.get(`/use-units/${useUnitId}/accounts`)
+}
+
+/** 开通客户账号（返回 initialPassword 供转交，仅一次） */
+export function createClientAccount(useUnitId, body) {
+  return http.post(`/use-units/${useUnitId}/accounts`, body)
+}
+
+/** 编辑客户账号（姓名/角色/手机号） */
+export function updateClientAccount(useUnitId, accountId, body) {
+  return http.put(`/use-units/${useUnitId}/accounts/${accountId}`, body)
+}
+
+/** 停用 / 启用（不删除，审计留存） */
+export function disableClientAccount(useUnitId, accountId, reason) {
+  return http.patch(`/use-units/${useUnitId}/accounts/${accountId}/disable`, { reason: reason || '' })
+}
+
+export function enableClientAccount(useUnitId, accountId) {
+  return http.patch(`/use-units/${useUnitId}/accounts/${accountId}/enable`, {})
+}
+
+/** 重置口令（返回 password 供转交，仅一次） */
+export function resetClientPassword(useUnitId, accountId, password) {
+  return http.post(`/use-units/${useUnitId}/accounts/${accountId}/reset-password`, password ? { password } : {})
+}
+
+/** 换绑微信（code 由服务端换取 openid，禁止客户端传 openid） */
+export function bindClientWechat(useUnitId, accountId, code) {
+  return http.post(`/use-units/${useUnitId}/accounts/${accountId}/bind-wechat`, { code })
+}
+
+/** 临时恢复宽限（按账号单条，留审计） */
+export function restoreClientGrace(useUnitId, accountId, graceUntil) {
+  return http.post(`/use-units/${useUnitId}/accounts/${accountId}/restore-grace`, { graceUntil: graceUntil || '' })
+}
+
 export function deleteElevator(id) {
   return http.delete(`/elevators/${id}`)
 }

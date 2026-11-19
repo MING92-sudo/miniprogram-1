@@ -2,6 +2,7 @@
 // 登录后由账号权限自动进入对应工作台（resolveHome）。微信免密为已绑定账号可选能力（R5）。
 // 单账号单会话：门户 unit_token 体系已废（V41 账号统一），登录即清旧会话。品牌=博威无纸化（D4/D5）。
 const auth = require('../../services/auth')
+const client = require('../../services/client')
 const { clearUnitSession } = require('../../services/unit')
 const { isLoggedIn, getRoles, getHome } = require('../../utils/auth')
 const { resolveHome } = require('../../config/menus')
@@ -21,7 +22,15 @@ Page({
   data: {
     phone: '', password: '', showPassword: false,
     agreed: false, logging: false, remember: false, wechatBound: false,
+    loginMode: 'staff', // P3：staff=内部员工，client=使用单位客户
     text: LOGIN_TEXT, appName: BRAND.APP_NAME, versionBadge: BRAND.VERSION_BADGE, companyFoot: BRAND.LOGIN_FOOT
+  },
+
+  // P3 登录模式切换（内部员工 / 使用单位客户）
+  switchLoginMode(e) {
+    const mode = e.currentTarget.dataset.mode || 'staff'
+    if (mode === this.data.loginMode) return
+    this.setData({ loginMode: mode, phone: '', password: '', wechatBound: false })
   },
 
   onLoad(query) {
@@ -78,14 +87,37 @@ Page({
     if (!this.data.agreed) return wx.showToast({ title: '请先勾选同意用户协议与隐私政策', icon: 'none' })
     this.setData({ logging: true })
     try {
-      const data = await auth.accountLogin(account, this.data.password)
-      if (this.data.remember) wx.setStorageSync(REMEMBER_KEY, { phone: account })
-      else wx.removeStorageSync(REMEMBER_KEY)
-      this.enterApp(data)
+      if (this.data.loginMode === 'client') {
+        await this.clientSubmit(account)
+      } else {
+        const data = await auth.accountLogin(account, this.data.password)
+        if (this.data.remember) wx.setStorageSync(REMEMBER_KEY, { phone: account })
+        else wx.removeStorageSync(REMEMBER_KEY)
+        this.enterApp(data)
+      }
     } catch (err) {
       wx.showToast({ title: err.message || TOAST_TEXT.LOGIN_FAILED, icon: 'none' })
     }
     this.setData({ logging: false })
+  },
+
+  // P3 客户登录：多单位跳选单位页；单单位直接落客户工作台
+  async clientSubmit(account) {
+    const data = await client.clientLogin(account, this.data.password)
+    if (data && data.needSelectUnit) {
+      wx.setStorageSync('em_client_selection', {
+        selectionToken: data.selectionToken,
+        units: data.units,
+        phone: account
+      })
+      wx.navigateTo({ url: '/pages/client/select-unit/index' })
+      return
+    }
+    clearUnitSession()
+    auth.applyLoginResult(data)
+    getApp().setAuth(data)
+    wx.showToast({ title: '登录成功', icon: 'success' })
+    setTimeout(() => wx.reLaunch({ url: '/pages/client/home/index' }), 300)
   },
 
   // 微信一键登录（仅本机已绑定后显示，R5）：openid 只信服务端换取

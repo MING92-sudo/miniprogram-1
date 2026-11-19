@@ -94,6 +94,11 @@ class HandoverIssueClosureTest {
         el.id = "el_1";
         el.elevatorName = "1号楼客梯";
         el.elevatorCode = "EM-001";
+        // 上传维保记录的 5 项必传项（docs/01 §3.4.1）：签退门禁要求齐备
+        el.deviceCode = "DT-CQ-2024-001";
+        el.regCode = "TSCQ5001120001";
+        el.insideNumber = "KT-01";
+        el.factoryNumber = "SGL20131212-1";
         when(elevatorMapper.selectById("el_1")).thenReturn(el);
         Company company = new Company();
         company.workMenegerName = "王经理";

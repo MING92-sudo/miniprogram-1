@@ -3,11 +3,11 @@
     <header class="board-head">
       <div class="board-title">
         <svg class="ic" aria-hidden="true"><use href="#i-monitor" /></svg>
-        <div><b>调度大屏</b><span class="board-sub">博威无纸化 · 实时调度 · {{ scopeLabel }}（演示数据）</span></div>
+        <div><b>调度大屏</b><span class="board-sub">博威无纸化 · 实时调度 · {{ scopeText }}</span></div>
       </div>
       <div class="board-clock">{{ clock }}</div>
       <div class="board-head-right">
-        <ScopePill :scope="perspective.scope" :label="scopeLabel" />
+        <ScopePill :scope="perspective.scope" :label="scopeLabel(perspective.scope)" />
         <button class="btn btn-ghost" type="button" @click="$router.push('/dashboard')">
           <svg class="ic" aria-hidden="true"><use href="#i-logout" /></svg>退出大屏
         </button>
@@ -28,7 +28,7 @@
       </div>
       <div class="bkpi b-ok">
         <div class="bkpi-ico"><svg class="ic" aria-hidden="true"><use href="#i-check" /></svg></div>
-        <div class="bkpi-n num">{{ closed.length }}</div><div class="bkpi-k">今日闭环</div>
+        <div class="bkpi-n num">{{ closedToday.length }}</div><div class="bkpi-k">今日闭环</div>
       </div>
     </div>
     <div class="board-main">
@@ -37,87 +37,135 @@
           <svg class="ic" aria-hidden="true"><use href="#i-inbox" /></svg><b>待接单池</b><span class="bp-tag">{{ pending.length }}</span>
         </div>
         <div class="bp-body">
-          <div v-for="o in pending" :key="o.no" :class="['b-order', { over: o.overtime }]">
-            <span :class="['tag', o.level === 'P1' ? 'tag-signal' : 'tag-ghost']">{{ o.level }}</span>
+          <div v-for="o in pending" :key="o.id" :class="['b-order', { over: isOverdue(o) }]">
+            <span :class="['tag', 'tag-ghost']">{{ o.workTypeCode || '—' }}</span>
             <div class="grow">
-              <div class="f12 w6">{{ o.no }} · {{ o.type }}</div>
-              <div class="f11 dim">{{ projName(o.projectId) }} · {{ elevName(o.deviceCode) }}</div>
+              <div class="f12 w6">{{ o.orderNo }} · {{ o.workType || '维保' }}</div>
+              <div class="f11 dim">{{ elevLabel(o.elevatorId) }} · 计划 {{ shortTime(o.planTime) }}</div>
             </div>
-            <span v-if="o.remaining <= 0" class="num c-sig">超时 {{ Math.abs(o.remaining) }}′</span>
-            <span v-else :class="['num', o.remaining <= 30 ? 'c-amber' : '']">{{ o.remaining }}′</span>
+            <span v-if="isOverdue(o)" class="num c-sig">超时</span>
+            <span v-else class="num c-amber">{{ shortTime(o.planTime) }}</span>
           </div>
           <div v-if="!pending.length" class="dim f12">当前无待接单</div>
         </div>
       </section>
       <section class="board-panel board-map">
-        <div class="bp-head"><svg class="ic" aria-hidden="true"><use href="#i-map-pin" /></svg><b>项目调度态势</b></div>
+        <div class="bp-head"><svg class="ic" aria-hidden="true"><use href="#i-map-pin" /></svg><b>项目调度态势</b><span class="bp-tag">{{ projects.length }}</span></div>
         <div class="board-grid">
           <div v-for="p in projects" :key="p.id" :class="['bg-cell', { over: projOver(p.id) }]">
             <div class="bgc-name">{{ p.name }}</div>
-            <div class="bgc-count num">{{ p.elevatorCount }} 台</div>
+            <div class="bgc-count num">{{ p.count }} 台</div>
             <div class="bgc-meta">
-              <span class="dot amber" />待接单 {{ projCount(p.id, '待接单') }} ·
+              <span class="dot amber" />待接单 {{ projCount(p.id) }} ·
               <span class="dot ok" />处置中 {{ projHandling(p.id) }}
               <template v-if="projOver(p.id)"> · <span class="dot sig" />超时 {{ projOver(p.id) }}</template>
             </div>
           </div>
+          <div v-if="!projects.length" class="dim f12">暂无项目</div>
         </div>
       </section>
     </div>
     <section class="board-panel board-tech">
       <div class="bp-head">
-        <svg class="ic" aria-hidden="true"><use href="#i-users" /></svg><b>班组在线</b><span class="bp-tag">{{ techs.length }}</span>
+        <svg class="ic" aria-hidden="true"><use href="#i-users" /></svg><b>维保人员</b><span class="bp-tag">{{ workers.length }}</span>
       </div>
       <div class="bp-body board-techs">
-        <div v-for="a in techs" :key="a.id" class="bt-item">
-          <div class="avatar">{{ a.name.slice(0, 1) }}</div>
+        <div v-for="a in workers" :key="a.id" class="bt-item">
+          <div class="avatar">{{ (a.name || '?').slice(0, 1) }}</div>
           <div class="grow">
-            <div class="f12 w6">{{ a.name }}</div>
-            <div class="f11 dim">{{ a.empNo }} · {{ orgName(a.orgId) }}</div>
+            <div class="f12 w6">{{ a.name || '—' }}</div>
+            <div class="f11 dim">{{ a.empNo || a.id }}</div>
           </div>
-          <span :class="['tag', a.status === '正常' ? 'tag-ok' : 'tag-dim']">{{ a.status === '正常' ? '在岗' : '离线' }}</span>
-          <span class="num f11">{{ myOrders(a.id) }} 单</span>
+          <span class="num f11">{{ myOrders(a.name) }} 单</span>
         </div>
+        <div v-if="!workers.length" class="dim f12">暂无维保人员</div>
       </div>
     </section>
+    <ErrorState v-if="error" :reason="error" @retry="load" />
   </div>
 </template>
 <script setup>
-// 二期：大屏调度（原型 Views.board 对齐，独立全屏不渲染侧栏/顶栏；演示数据＝原型基准集）
+// 调度大屏：工单/项目/人员全部取自真实接口（GET /work-orders、/projects、/elevators、/employees）
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { M } from '../ui/prototype-mock'
+import http from '../api/client'
 import { usePerspectiveStore } from '../ui/stores/perspective'
+import { scopeLabel } from '../ui/labels'
 import ScopePill from '../ui/ScopePill.vue'
+import ErrorState from '../ui/states/ErrorState.vue'
 const perspective = usePerspectiveStore()
-const scopeLabel = computed(() => (M.switchByRole(perspective.activeRole) || {}).scopeLabel || '全量')
-const orders = computed(() => {
-  const pids = M.scopeProjects(perspective.activeRole)
-  return M.ORDERS.filter(o => pids.includes(o.projectId))
+const scopeText = computed(() => scopeLabel(perspective.scope) + ' · ' + perspective.scope)
+const orders = ref([])
+const projects = ref([])
+const elevators = ref([])
+const employees = ref([])
+const error = ref('')
+
+const asList = (d) => (Array.isArray(d) ? d : (d && d.list) || [])
+async function safe(url, pick) {
+  try { return pick(await http.get(url)) } catch { return [] }
+}
+
+async function load() {
+  error.value = ''
+  const [orderRes, projRes, elevRes, empRes] = await Promise.all([
+    safe('/work-orders', (d) => (Array.isArray(d) ? d : (d && d.list) || [])),
+    safe('/projects', asList),
+    safe('/elevators', asList),
+    safe('/employees', asList)
+  ])
+  orders.value = orderRes
+  projects.value = projRes.map((p) => ({
+    id: p.id,
+    name: p.name || p.projectNo || p.id,
+    count: elevRes.filter((e) => e.projectId === p.id || e.projectName === p.name).length
+  }))
+  elevators.value = elevRes
+  employees.value = empRes
+}
+onMounted(load)
+
+const todayStr = () => new Date().toISOString().slice(0, 10)
+const pending = computed(() => orders.value.filter((o) => o.status === 'PENDING'))
+const handling = computed(() => orders.value.filter((o) => o.status === 'PROCESSING'))
+const active = computed(() => orders.value.filter((o) => o.status !== 'DONE' && o.status !== 'CANCELLED'))
+const overtime = computed(() => active.value.filter(isOverdue))
+const closedToday = computed(() => orders.value.filter((o) => o.status === 'DONE'
+  && String(o.checkoutTime || '').slice(0, 10) === todayStr()))
+
+function isOverdue(o) {
+  if (!o.planTime) return false
+  if (o.status === 'DONE' || o.status === 'CANCELLED') return false
+  return new Date(o.planTime) < new Date()
+}
+function shortTime(t) { return t ? String(t).replace('T', ' ').slice(5, 16) : '—' }
+function elevLabel(id) {
+  const e = elevators.value.find((x) => x.id === id)
+  return e ? (e.elevatorCode || e.elevatorName || id) : (id || '—')
+}
+function projOf(o) {
+  const e = elevators.value.find((x) => x.id === o.elevatorId)
+  return e ? (e.projectId || e.projectName) : null
+}
+function projCount(pid) { return orders.value.filter((o) => o.status === 'PENDING' && projOf(o) === pid).length }
+function projHandling(pid) { return orders.value.filter((o) => o.status === 'PROCESSING' && projOf(o) === pid).length }
+function projOver(pid) { return overtime.value.filter((o) => projOf(o) === pid).length }
+function myOrders(name) { return active.value.filter((o) => o.workerName === name).length }
+
+const workers = computed(() => {
+  const all = employees.value
+  const tech = all.filter((e) => String(e.role || '').includes('MAINT_TECH')
+    || (Array.isArray(e.roles) && e.roles.includes('MAINT_TECH')))
+  return (tech.length ? tech : []).slice(0, 12)
 })
-const pending = computed(() => orders.value.filter(o => o.status === '待接单'))
-const handling = computed(() => orders.value.filter(o => o.status === '已接单' || o.status === '处置中'))
-const overtime = computed(() => orders.value.filter(o => o.overtime && o.status !== '已闭环' && o.status !== '已取消'))
-const closed = computed(() => orders.value.filter(o => o.status === '已闭环'))
-const projects = computed(() => M.PROJECTS.filter(p => M.scopeProjects(perspective.activeRole).includes(p.id)))
-const techs = computed(() => M.ACCOUNTS.filter(a => a.roles.includes('MAINT_TECH')))
-function projName(pid) { const p = M.projectById(pid); return p ? p.name : pid }
-function orgName(oid) { const o = M.orgById(oid); return o ? o.name : oid }
-function elevName(code) { const e = M.elevatorByCode(code); return e ? e.name : code }
-function projCount(pid, status) { return orders.value.filter(o => o.projectId === pid && o.status === status).length }
-function projHandling(pid) { return orders.value.filter(o => o.projectId === pid && (o.status === '已接单' || o.status === '处置中')).length }
-function projOver(pid) { return orders.value.filter(o => o.projectId === pid && o.overtime && o.status !== '已闭环' && o.status !== '已取消').length }
-function myOrders(aid) { return orders.value.filter(o => o.owner === aid && o.status !== '已闭环' && o.status !== '已取消').length }
-// 时钟（原型 liveNow：基准时刻 + 运行秒数）
+
+// 时钟：本地实时
 const clock = ref('')
 let timer = null
-let bootMs = null
 function tick() {
-  const bt = new Date(M.meta.NOW)
-  const now = new Date()
-  if (bootMs == null) bootMs = now.getTime()
-  bt.setSeconds(bt.getSeconds() + Math.floor((now.getTime() - bootMs) / 1000))
-  const p = n => (n < 10 ? '0' : '') + n
-  clock.value = M.meta.TODAY + ' ' + p(bt.getHours()) + ':' + p(bt.getMinutes()) + ':' + p(bt.getSeconds())
+  const d = new Date()
+  const p = (n) => (n < 10 ? '0' : '') + n
+  clock.value = d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + ' '
+    + p(d.getHours()) + ':' + p(d.getMinutes()) + ':' + p(d.getSeconds())
 }
 onMounted(() => { tick(); timer = setInterval(tick, 1000) })
 onUnmounted(() => clearInterval(timer))

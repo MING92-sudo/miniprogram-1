@@ -1,4 +1,4 @@
-// 壳层 UI 状态：侧栏折叠（localStorage）+ Toast 队列 + 模拟异常开关（原型演示机制）
+// 壳层 UI 状态：侧栏折叠（localStorage）+ Toast 队列 + 视图切换骨架
 import { defineStore } from 'pinia'
 let seq = 0
 export const useUiStore = defineStore('ui', {
@@ -7,7 +7,6 @@ export const useUiStore = defineStore('ui', {
     toasts: [],
     simError: false,
     retryOnce: false,
-    roleMenuOpen: false,
     mobileOpen: false
   }),
   actions: {

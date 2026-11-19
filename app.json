@@ -6,6 +6,7 @@
     "pages/install/home/index",
     "pages/maint/home/index",
     "pages/client/home/index",
+    "pages/client/select-unit/index",
     "pages/order/list/index",
     "pages/order/detail/index",
     "pages/order/report/index",

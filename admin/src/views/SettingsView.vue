@@ -63,7 +63,7 @@
               <code>{{ model[m.key] === '1' ? '脱敏' : '明文' }}</code>
             </label>
           </div>
-          <RuleNote class="mt12">关闭开关后全站对应字段出明文（演示）。生产环境脱敏在服务端完成，前端开关仅用于原型演示。</RuleNote>
+          <RuleNote class="mt12">开关保存到后端配置（<span class="mono">PUT /settings/{key}</span>），脱敏在服务端执行；关闭后对应字段以明文返回。</RuleNote>
         </div>
       </div>
 
@@ -122,7 +122,7 @@
 // 系统配置（原型 Views.settings 对齐）：SLA / 保养周期 / 抽查 / 脱敏开关 / 签字模板，分组保存即时生效 + 写审计
 // 真实 API：GET /settings（key→value map）、PUT /settings/{key} {value}（后端校验范围并写审计）
 // 扩展键（sla_urgent_minutes/sla_report_minutes/maint_cycle_quarter_days/mask_*/sign_templates）后端按非数值配置放行；
-// 脱敏开关为演示口径（生产脱敏在服务端）。敏感导出审批已按原型移至统计报表页。
+// 脱敏开关写入后端配置，实际脱敏由服务端按配置执行。敏感导出审批已按原型移至统计报表页。
 import { ref, reactive, onMounted } from 'vue'
 import http from '../api/client'
 import ViewHead from '../ui/ViewHead.vue'
@@ -138,14 +138,9 @@ const DEFAULTS = {
   maint_cycle_days: '15', maint_cycle_quarter_days: '90', spotcheck_ratio: '20',
   mask_contact_phone: '1', mask_staff_phone: '1', mask_id_reg: '1', mask_amount: '1', mask_photo: '1', mask_address: '1'
 }
-const DEFAULT_TPLS = [
-  { id: 'TPL-01', name: '半月保记录单标准模板', enabled: true },
-  { id: 'TPL-02', name: '季度保记录单模板', enabled: true },
-  { id: 'TPL-03', name: '急修处置单模板', enabled: false }
-]
 const model = reactive({ ...DEFAULTS })
 const errors = reactive({})
-const templates = ref(DEFAULT_TPLS.map(t => ({ ...t })))
+const templates = ref([])
 const maskFields = [
   { key: 'mask_contact_phone', label: '使用单位联系人手机号' },
   { key: 'mask_staff_phone', label: '安装/维保人员手机号' },
@@ -196,7 +191,7 @@ async function toggleMask(key) {
   try {
     await put(key, next)
     model[key] = next
-    toast.success('脱敏规则已更新（演示）', key)
+    toast.success('脱敏规则已更新', key)
   } catch (e) { toast.error(e.message || '保存失败') }
 }
 // ── 签字模板 ──

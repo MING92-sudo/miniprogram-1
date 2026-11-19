@@ -6,6 +6,7 @@ export const MENU_GROUPS = [
   { title: '概览', items: [{ path: '/dashboard', title: '概览工作台', perm: null, icon: 'gauge' }] },
   { title: '组织与权限', items: [
     { path: '/org', title: '组织架构', perm: 'user:view', icon: 'sitemap' },
+    { path: '/use-units', title: '使用单位档案', perm: 'client:edit', icon: 'building' },
     { path: '/users', title: '账号管理', perm: 'user:view', icon: 'users' },
     { path: '/roles', title: '角色权限矩阵', perm: 'role:assign', icon: 'shield' },
     { path: '/grants', title: '授权管理', perm: 'invite:manage', icon: 'key' }
@@ -43,6 +44,13 @@ export const MENU_GROUPS = [
     { path: '/board', title: '大屏调度', perm: 'order:view_pool', icon: 'monitor' }
   ] }
 ]
+// 已落地视图白名单：AppShell 用它过滤「配置了菜单但页面还没做」的项。
+// 新增页面必须同步登记，否则菜单里根本不出现（回归守卫见 menu.test.js）。
+export const IMPLEMENTED_PATHS = ['/dashboard', '/org', '/use-units', '/users', '/roles', '/grants',
+  '/projects', '/contracts', '/elevators', '/handovers', '/plans', '/records', '/dispatch', '/order',
+  '/stats', '/audit', '/settings', '/reports/failed', '/reports/logs', '/filings', '/regions',
+  '/templates', '/register/workers', '/sync', '/msg-templates', '/reviews', '/board']
+
 function visible(i, role) { return i.perm == null || state(role, i.perm) !== 'DENY' }
 export function visibleMenus(role, implementedPaths) {
   const impl = new Set(implementedPaths)

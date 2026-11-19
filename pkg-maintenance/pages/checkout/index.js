@@ -185,7 +185,14 @@ definePage(ROUTES['/pkg-maintenance/pages/checkout/index'], {
           wx.reLaunch({ url: '/pages/maint/home/index' })
         }, 1200)
       } else {
-        wx.showToast({ title: e.message || '签退失败', icon: 'none' })
+        // 长文案用弹窗完整展示：设备信息档案必传项缺失的提示会把「缺哪几项、去哪补」说全，
+        // toast 单行会被截断（后端 422 文案见 DeviceProfileValidator）
+        const msg = (e && e.message) || '签退失败'
+        if (msg.length > 24) {
+          wx.showModal({ title: '无法签退', content: msg, showCancel: false, confirmText: '知道了' })
+        } else {
+          wx.showToast({ title: msg, icon: 'none' })
+        }
       }
     }
     this.setData({ submitting: false })

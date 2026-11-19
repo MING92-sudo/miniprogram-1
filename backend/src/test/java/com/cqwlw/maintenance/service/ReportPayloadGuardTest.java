@@ -79,6 +79,18 @@ class ReportPayloadGuardTest {
                 fileStorage, tx.template, new AppProperties());
     }
 
+    /** 设备信息档案齐备（上传维保记录的 5 项必传项，docs/01 §3.4.1） */
+    private static Elevator completeElevator() {
+        Elevator el = new Elevator();
+        el.id = "el_1";
+        el.elevatorCode = "EM-001";
+        el.deviceCode = "DT-CQ-2024-001";
+        el.regCode = "TSCQ5001120001";
+        el.insideNumber = "KT-01";
+        el.factoryNumber = "SGL20131212-1";
+        return el;
+    }
+
     private MaintainRecord record(String workerName, String workerPlatformId) {
         MaintainRecord r = new MaintainRecord();
         r.id = Ids.next("ur");
@@ -140,7 +152,7 @@ class ReportPayloadGuardTest {
         o.checkinTime = TimeUtil.now().minusMinutes(40);
         o.checklistJson = "[{\"id\":\"it_1\",\"name\":\"曳引机\",\"isKey\":false,\"photoRequired\":false,\"result\":\"NORMAL\",\"notInThisRun\":false}]";
         when(orderMapper.selectById("wo_1")).thenReturn(o);
-        when(elevatorMapper.selectById("el_1")).thenReturn(new Elevator());
+        when(elevatorMapper.selectById("el_1")).thenReturn(completeElevator());
         when(employeeMapper.selectById(EMP_LI)).thenReturn(employee("李四", PID_LI, "13800000001"));
 
         BizException e = assertThrows(BizException.class,
@@ -148,6 +160,36 @@ class ReportPayloadGuardTest {
         assertEquals(422, e.getCode());
         verify(orderMapper, never()).updateById(any(WorkOrder.class));
         verify(recordMapper, never()).insert(any(MaintainRecord.class));
+    }
+
+    /** 设备信息档案必传项缺失（此处缺设备代码）→ 422 拒绝签退：不改工单、不落记录、不上报 */
+    @Test
+    void checkoutBlockedWhenDeviceProfileIncomplete() {
+        WorkOrder o = new WorkOrder();
+        o.id = "wo_1";
+        o.elevatorId = "el_1";
+        o.workTypeCode = "HM";
+        o.status = "PROCESSING";
+        o.workerName = "张三";
+        o.workerPlatformId = PID_LI;
+        o.assistantPlatformId = "";
+        o.checkinTime = TimeUtil.now().minusMinutes(40);
+        o.checklistJson = "[{\"id\":\"it_1\",\"name\":\"曳引机\",\"isKey\":false,\"photoRequired\":false,\"result\":\"NORMAL\",\"notInThisRun\":false}]";
+        when(orderMapper.selectById("wo_1")).thenReturn(o);
+        Elevator el = completeElevator();
+        el.deviceCode = "";
+        el.factoryNumber = null;
+        when(elevatorMapper.selectById("el_1")).thenReturn(el);
+        when(employeeMapper.selectById(EMP_LI)).thenReturn(employee("李四", PID_LI, "13800000001"));
+
+        BizException e = assertThrows(BizException.class,
+                () -> service.checkout("wo_1", Map.of("signatureUrl", "https://x/sign.png"), EMP_LI));
+        assertEquals(422, e.getCode());
+        assertTrue(e.getMessage().contains("设备代码"), e.getMessage());
+        assertTrue(e.getMessage().contains("出厂编号"), e.getMessage());
+        verify(orderMapper, never()).updateById(any(WorkOrder.class));
+        verify(recordMapper, never()).insert(any(MaintainRecord.class));
+        verify(reportService, never()).attemptUpload(any());
     }
 
     /** B3：维保记录落库失败 → 事务回滚、不上传平台、工单相关写不生效 */
@@ -165,7 +207,7 @@ class ReportPayloadGuardTest {
         o.checkinTime = TimeUtil.now().minusMinutes(40);
         o.checklistJson = "[{\"id\":\"it_1\",\"name\":\"曳引机\",\"isKey\":false,\"photoRequired\":false,\"result\":\"NORMAL\",\"notInThisRun\":false}]";
         when(orderMapper.selectById("wo_1")).thenReturn(o);
-        when(elevatorMapper.selectById("el_1")).thenReturn(new Elevator());
+        when(elevatorMapper.selectById("el_1")).thenReturn(completeElevator());
         when(employeeMapper.selectById(EMP_LI)).thenReturn(employee("李四", PID_LI, "13800000001"));
         when(employeeMapper.selectList(any())).thenReturn(List.of(employee("李四", PID_LI, "13800000001")));
         when(companyMapper.selectList(any())).thenReturn(List.of(new Company()));

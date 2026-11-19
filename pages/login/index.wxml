@@ -31,8 +31,12 @@
 
     <view class="lg-card">
       <view class="row between">
-        <text class="fs22 w6">{{text.CARD_TITLE}}</text>
+        <text class="fs22 w6">{{loginMode === 'client' ? '使用单位登录' : text.CARD_TITLE}}</text>
         <text class="mono fs18 dim ls12">{{text.CARD_TAG}}</text>
+      </view>
+      <view class="lg-mode-switch mt8">
+        <view class="lg-mode-item {{loginMode === 'staff' ? 'on' : ''}}" data-mode="staff" bindtap="switchLoginMode">内部员工</view>
+        <view class="lg-mode-item {{loginMode === 'client' ? 'on' : ''}}" data-mode="client" bindtap="switchLoginMode">使用单位</view>
       </view>
       <view class="col gap4 mt10">
         <text class="fs20 muted">{{text.ACCOUNT}}</text>
@@ -52,8 +56,9 @@
         </view>
         <text class="fs20 dim lg-forgot" bindtap="forgotPassword">{{text.FORGOT}}</text>
       </view>
-      <button class="btn btn-primary lg-submit" disabled="{{logging}}" bindtap="onSubmit">{{logging ? text.SUBMITTING : text.SUBMIT}}</button>
-      <button wx:if="{{wechatBound}}" class="btn btn-ghost lg-wechat" bindtap="onWechatLogin"><text class="i i-weixin"></text> {{text.WECHAT}}</button>
+      <button class="btn btn-primary lg-submit" disabled="{{logging}}" bindtap="onSubmit">{{logging ? text.SUBMITTING : (loginMode === 'client' ? '使用单位登录' : text.SUBMIT)}}</button>
+      <button wx:if="{{wechatBound && loginMode === 'staff'}}" class="btn btn-ghost lg-wechat" bindtap="onWechatLogin"><text class="i i-weixin"></text> {{text.WECHAT}}</button>
+      <view wx:if="{{loginMode === 'client'}}" class="fs18 dim mt8">客户账号由使用单位管理员在维保单位处开通；忘记密码请联系使用单位管理员重置。</view>
       <view class="row gap6 mt10" bindtap="toggleAgreed">
         <view class="cb {{agreed ? 'on' : ''}}"><text wx:if="{{agreed}}" class="i i-check cb-ico"></text></view>
         <text class="fs20 dim">{{text.AGREE_PRE}} <text class="lg-link" catchtap="openAgreement">《用户协议》</text> {{text.AGREE_MID}} <text class="lg-link" catchtap="openPrivacy">《隐私政策》</text></text>

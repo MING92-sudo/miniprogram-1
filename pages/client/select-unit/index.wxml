@@ -1,0 +1,21 @@
+<view class="bw">
+  <nav-bar title="选择使用单位" back="{{false}}"></nav-bar>
+  <view class="page-pad col gap12">
+    <view class="card col gap4">
+      <view class="disp fs38">选择使用单位</view>
+      <view class="fs20 muted">该手机号在多个使用单位开通了客户账号，请选择要登录的单位。</view>
+      <view wx:if="{{phone}}" class="mono fs18 dim mt4">登录账号：{{phone}}</view>
+    </view>
+
+    <view wx:for="{{units}}" wx:key="useUnitId" class="card row between unit-item" data-unitid="{{item.useUnitId}}" bindtap="choose">
+      <view class="col gap2">
+        <view class="fs24 w6">{{item.unitName}}</view>
+        <view class="fs18 dim">{{item.role === 'CLIENT_ADMIN' ? '使用单位管理员' : '使用单位签字人'}}</view>
+      </view>
+      <text class="i i-chevron-right dim"></text>
+    </view>
+
+    <view class="rule-note"><text class="i i-circle-info"></text><text>仅显示口令校验通过的单位；选择前不会加载任何单位业务数据。</text></view>
+    <button class="btn btn-ghost" bindtap="backLogin">返回重新登录</button>
+  </view>
+</view>

@@ -19,6 +19,8 @@ public class AuthInterceptor implements HandlerInterceptor {
     public static final String ATTR_UNIT_ID = "useUnitId";
     /** 使用单位令牌标记（JWT claim ut=1），与员工令牌分流 */
     public static final String CLAIM_UNIT_TOKEN = "ut";
+    /** P3 主体类型属性：客户令牌（ut=2）写 CUSTOMER，员工令牌不写（默认 EMPLOYEE） */
+    public static final String ATTR_PRINCIPAL_TYPE = "principalType";
     public static final String ATTR_OPENID = "openid";
     /** 规范角色码集（Set<String>，M1 多角色）；员工分支由 sys_user_role 填，门户分支含 CLIENT_ADMIN */
     public static final String ATTR_ROLES = "roles";
@@ -26,6 +28,8 @@ public class AuthInterceptor implements HandlerInterceptor {
     private final JwtService jwtService;
     private final com.cqwlw.maintenance.mapper.EmployeeMapper employeeMapper;
     private final com.cqwlw.maintenance.mapper.SysUserRoleMapper userRoleMapper; // 可为 null（2 参兼容）
+    /** P3 客户账号 Mapper（setter 注入，可为 null——2 参/3 参兼容构造器单测不覆盖客户令牌） */
+    private com.cqwlw.maintenance.mapper.ClientAccountMapper clientAccountMapper;
 
     @org.springframework.beans.factory.annotation.Autowired
     public AuthInterceptor(JwtService jwtService,
@@ -34,6 +38,12 @@ public class AuthInterceptor implements HandlerInterceptor {
         this.jwtService = jwtService;
         this.employeeMapper = employeeMapper;
         this.userRoleMapper = userRoleMapper;
+    }
+
+    /** P3 客户账号 Mapper 注入（生产 Spring 调用；单测可忽略） */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    public void setClientAccountMapper(com.cqwlw.maintenance.mapper.ClientAccountMapper clientAccountMapper) {
+        this.clientAccountMapper = clientAccountMapper;
     }
 
     /** 2 参兼容构造器（AuthInterceptorTest/UnitTokenScopeTest 锁定）：无 sys_user_role 查询，回退主角色。 */
@@ -68,6 +78,19 @@ public class AuthInterceptor implements HandlerInterceptor {
             request.setAttribute(ATTR_UNIT_ID, claims.getSubject());
             request.setAttribute(ATTR_ROLE, "UNIT_ADMIN");
             request.setAttribute(ATTR_ROLES, java.util.Set.of("CLIENT_ADMIN", "UNIT_ADMIN"));
+            return true;
+        }
+        // P3 客户账号令牌（ut=2，docs/14 §8）：subject=client_account.id，独立于员工目录。
+        // 校验：账号存在 + 状态 ACTIVE/GRACE + 单会话 sid + scope_version；任一失败 401。
+        // 路由：客户白名单（/client/** + 自身账号端点 + 读接口），其余 403。
+        if ("2".equals(claims.get(CLAIM_UNIT_TOKEN, String.class))) {
+            return handleClientAccount(claims, request);
+        }
+        // 多单位选单位短时令牌（sel=1）：仅可用于 /auth/client/select-unit，其余一律 403。
+        if ("1".equals(claims.get("sel", String.class))) {
+            if (!"/auth/client/select-unit".equals(request.getRequestURI())) {
+                throw new BizException(403, "选单位令牌仅可用于选择单位");
+            }
             return true;
         }
         String client = claims.get("client", String.class);
@@ -126,17 +149,66 @@ public class AuthInterceptor implements HandlerInterceptor {
      * /admin/ /reg/ /platform/ /employees/ /use-units/ /home/summary。
      */
     private static boolean clientAllowed(String uri, String method) {
+        // P3 客户主体新端点族：/client/** 全部放行（内部谓词在服务层按 token useUnitId 收敛）
+        if (uri.startsWith("/client/")) {
+            return true;
+        }
         if (uri.startsWith("/unit/")) {
             return true;
         }
         if (uri.equals("/me/menus") || uri.equals("/auth/me") || uri.equals("/auth/change-password")
-                || uri.equals("/auth/bind-wechat") || uri.equals("/auth/logout") || uri.equals("/health")) {
+                || uri.equals("/auth/bind-wechat") || uri.equals("/auth/client/switch-unit")
+                || uri.equals("/auth/client/change-password") || uri.equals("/auth/client/bind-wechat")
+                || uri.equals("/auth/logout") || uri.equals("/health")) {
             return true;
         }
         // 读口径与 AdminRoleInterceptor 的「GET /elevators* 小程序共用读接口」一致；写操作（派单等）不放行。
         // 斜杠边界（P1 终审 M8）：equals("/elevators") || startsWith("/elevators/")，防 /elevators-xxx 前缀形 URI 误放行
         return "GET".equalsIgnoreCase(method)
                 && (uri.startsWith("/files/") || uri.equals("/elevators") || uri.startsWith("/elevators/"));
+    }
+
+    /**
+     * P3 客户令牌（ut=2）校验（docs/14 §4/§8）：
+     * 账号存在 + 状态 ACTIVE/GRACE（DISABLED 立即 401）+ 单会话 sid + scope_version + 路径白名单。
+     * 与员工分支同口径 fail-closed；客户令牌绝不进入员工目录查询。
+     */
+    private boolean handleClientAccount(io.jsonwebtoken.Claims claims, HttpServletRequest request) {
+        String accountId = claims.getSubject();
+        if (clientAccountMapper == null) {
+            throw new BizException(401, "客户鉴权未就绪，请重新登录");
+        }
+        com.cqwlw.maintenance.entity.ClientAccount c = clientAccountMapper.selectById(accountId);
+        if (c == null) {
+            throw new BizException(401, "登录已过期，请重新登录");
+        }
+        // 状态门禁：DISABLED 不可登录；GRACE 可登录但按业务收敛（服务层按 status 判定能力）
+        if (com.cqwlw.maintenance.entity.ClientAccount.STATUS_DISABLED.equals(c.status)
+                || (c.enabled != null && c.enabled == 0
+                    && !com.cqwlw.maintenance.entity.ClientAccount.STATUS_GRACE.equals(c.status))) {
+            throw new BizException(401, "账号已停用，请联系使用单位管理员");
+        }
+        String sid = claims.get("sid", String.class);
+        if (sid == null || !sid.equals(c.sessionId)) {
+            throw new BizException(401, "账号已在其他设备登录，请重新登录");
+        }
+        int tokenSv = claims.get("sv") == null ? 0 : ((Number) claims.get("sv")).intValue();
+        int dbSv = c.scopeVersion == null ? 0 : c.scopeVersion;
+        if (tokenSv != dbSv) {
+            throw new BizException(401, "登录已过期，请重新登录");
+        }
+        String role = c.roleCode;
+        String uri = request.getRequestURI();
+        if (!clientAllowed(uri, request.getMethod())) {
+            throw new BizException(403, "客户账号仅可访问客户门户接口");
+        }
+        request.setAttribute(ATTR_EMP_ID, accountId);
+        request.setAttribute(ATTR_ROLE, role);
+        request.setAttribute(ATTR_ROLES, java.util.Set.of(role));
+        request.setAttribute(ATTR_UNIT_ID, c.useUnitId);
+        request.setAttribute(ATTR_OPENID, claims.get("openid"));
+        request.setAttribute(ATTR_PRINCIPAL_TYPE, RoleCatalog.PrincipalType.CUSTOMER.name());
+        return true;
     }
 
     /**

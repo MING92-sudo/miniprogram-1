@@ -271,8 +271,8 @@ async function submitDispatch() {
     load()
   } catch (e) { toast.error(e.message || '派单失败') }
 }
-// ── 升级（后端端点待建，演示提示；不伪造状态） ──
-function escalate() { toast.warn('超时升级已通知主管（演示）· 升级端点待后端接入', 'order:escalate') }
+// ── 升级：后端无升级端点，明确拒绝，不伪造状态 ──
+function escalate() { toast.error('超时升级接口尚未接入', '后端暂无 /work-orders/{id}/escalate，请联系平台侧处理') }
 // ── 关闭 ──
 const closeOpen = ref(false)
 const closeForm = ref({ result: '', signature: '' })

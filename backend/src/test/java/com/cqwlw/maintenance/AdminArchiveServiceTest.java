@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -170,8 +171,60 @@ class AdminArchiveServiceTest {
     void createElevatorRejectsUnknownUseUnit() {
         when(useUnitMapper.selectById("uu_none")).thenReturn(null);
         BizException e = assertThrows(BizException.class, () -> service.createElevator(Map.of(
-                "elevatorCode", "EM-9", "projectName", "测试梯", "useUnitId", "uu_none")));
+                "elevatorCode", "EM-9", "deviceCode", "DT-9", "registrationCode", "REG-9",
+                "insideNumber", "KT-9", "factoryNumber", "FN-9",
+                "projectName", "测试梯", "useUnitId", "uu_none")));
         assertEquals(422, e.getCode());
+        assertTrue(e.getMessage().contains("使用单位不存在"), e.getMessage());
+    }
+
+    /** 设备信息档案：5 项必传（电梯编码/设备代码/注册代码/单位内编号/出厂编号），缺失即 422 且一次列全 */
+    @Test
+    void createElevatorRequiresFiveDeviceFields() {
+        BizException e = assertThrows(BizException.class, () -> service.createElevator(Map.of(
+                "elevatorCode", "EM-9", "projectName", "测试梯")));
+        assertEquals(422, e.getCode());
+        assertTrue(e.getMessage().contains("设备代码"), e.getMessage());
+        assertTrue(e.getMessage().contains("注册代码"), e.getMessage());
+        assertTrue(e.getMessage().contains("单位内编号"), e.getMessage());
+        assertTrue(e.getMessage().contains("出厂编号"), e.getMessage());
+        // 已填的电梯编码不得被列为缺失项
+        assertFalse(e.getMessage().contains("电梯编码"), e.getMessage());
+        verify(elevatorMapper, never()).insert(any(Elevator.class));
+    }
+
+    /** 5 项齐备时允许创建；选填字段（项目名称/所在区域/年检日期）可为空 */
+    @Test
+    void createElevatorAcceptsRequiredOnly() {
+        Map<String, Object> body = new java.util.HashMap<>();
+        body.put("elevatorCode", "EM-9");
+        body.put("deviceCode", "DT-9");
+        body.put("registrationCode", "REG-9");
+        body.put("insideNumber", "KT-9");
+        body.put("factoryNumber", "FN-9");
+        Map<String, Object> row = service.createElevator(body);
+        assertEquals("EM-9", row.get("elevatorCode"));
+        assertEquals("REG-9", row.get("registrationCode"));
+        assertTrue(((List<?>) row.get("missingRequired")).isEmpty());
+        verify(elevatorMapper).insert(any(Elevator.class));
+    }
+
+    /** 必传项不得清空：更新时传空串直接 422，避免设备档案与维保记录脱钩 */
+    @Test
+    void updateElevatorRejectsClearingRequiredField() {
+        Elevator el = new Elevator();
+        el.id = "el_9";
+        el.elevatorCode = "EM-9";
+        el.deviceCode = "DT-9";
+        el.regCode = "REG-9";
+        el.insideNumber = "KT-9";
+        el.factoryNumber = "FN-9";
+        when(elevatorMapper.selectById("el_9")).thenReturn(el);
+        BizException e = assertThrows(BizException.class,
+                () -> service.updateElevator("el_9", Map.of("registrationCode", "")));
+        assertEquals(422, e.getCode());
+        assertTrue(e.getMessage().contains("注册代码"), e.getMessage());
+        verify(elevatorMapper, never()).updateById(any(Elevator.class));
     }
 
     @Test
