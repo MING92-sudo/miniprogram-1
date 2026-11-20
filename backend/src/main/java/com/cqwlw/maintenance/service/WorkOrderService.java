@@ -316,26 +316,56 @@ public class WorkOrderService {
         return toMap(o, true);
     }
 
-    /** 班组数据权限（V7）：组长看本组，组员看本人，管理角色不限；Task 8 起读范围扩到本区域 */
+    /**
+     * 班组数据权限（V7）：组长看本组，组员看本人，管理角色不限；Task 8 起读范围扩到本区域。
+     * 区域抢单池（2026-11-20 设计 §4.2）：未认领工单再按 {@link #poolVisible} 池谓词放行。
+     */
     public List<WorkOrder> scopeOrders(List<WorkOrder> list, String empId) {
-        Set<String> ids = scopeService.visibleReadPlatformIds(scopeService.require(empId));
+        Employee emp = scopeService.require(empId);
+        Set<String> ids = scopeService.visibleReadPlatformIds(emp);
         if (ids == null) {
             return list;
         }
-        return list.stream().filter(o -> ids.contains(o.workerPlatformId)
-                || ids.contains(o.assistantPlatformId)).collect(Collectors.toList());
+        return list.stream().filter(o -> in(ids, o.workerPlatformId)
+                || in(ids, o.assistantPlatformId)
+                || poolVisible(o, emp)).collect(Collectors.toList());
     }
 
     /**
      * 工单归属校验（V7 班组数据权限）：读（详情/清单）与写（签到/检查项/签退）共用同一谓词。
      * 写端点若缺此校验，任一已登录作业人员凭他人工单 id 即可代签到、代填检查项、代签退；
      * 签退会自动转发平台 2.6，等于向监管平台写入虚假维保数据（AGENTS §6 合规底线 → Blocker）。
+     * 区域抢单池（M9/M11）：未认领工单按 {@link #poolVisible} 放行同区域持平台ID者；
+     * 已认领工单不走池分支，仍按 主/配合人 platformId 命中判断。
      */
     public void requireOrderScope(WorkOrder o, String empId) {
-        Set<String> ids = scopeService.visibleWorkerPlatformIds(scopeService.require(empId));
-        if (ids != null && !ids.contains(o.workerPlatformId) && !ids.contains(o.assistantPlatformId)) {
-            throw new BizException(1403, "仅可查看或操作本人工单或本班组工单");
+        Employee emp = scopeService.require(empId);
+        Set<String> ids = scopeService.visibleWorkerPlatformIds(emp);
+        if (ids == null || in(ids, o.workerPlatformId) || in(ids, o.assistantPlatformId)
+                || poolVisible(o, emp)) {
+            return;
         }
+        throw new BizException(1403, "仅可查看或操作本人工单或本班组工单");
+    }
+
+    /** null 安全 contains：未认领先兆（workerPlatformId 为 null）不得触发不可变集合 NPE */
+    private static boolean in(Set<String> ids, String platformId) {
+        return platformId != null && ids.contains(platformId);
+    }
+
+    /**
+     * 区域抢单池谓词（2026-11-20 设计 M9/M11）：仅未认领（workerPlatformId 空）工单进入池分支——
+     * 登录人持平台ID（D4 门禁：无平台ID 不可见/不可认领）且工单不限区域（regionId 空）
+     * 或工单 regionId == 登录人 regionId。不按角色再限（M11），管理角色在 ids==null 处已先行放行。
+     */
+    private static boolean poolVisible(WorkOrder o, Employee emp) {
+        if (o.workerPlatformId != null && !o.workerPlatformId.isBlank()) {
+            return false; // 已认领：维持 worker/assistant 命中判断
+        }
+        if (emp.platformId == null || emp.platformId.isBlank()) {
+            return false;
+        }
+        return o.regionId == null || o.regionId.isBlank() || o.regionId.equals(emp.regionId);
     }
 
     public Map<String, Object> resolveByElevator(String elevatorCode, String empId) {
