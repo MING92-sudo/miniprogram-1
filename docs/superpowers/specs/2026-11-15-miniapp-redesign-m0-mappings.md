@@ -51,7 +51,7 @@
 | 到场时间现状 | DirectoryService.java:224 | 到场打卡 | 现以最早签到推导 arrivedAt；新增显式打卡节点后以打卡为准，签到推导兜底留痕 |
 | 评价 | 无端点 | 已闭环→待评价 | 新增 POST /faults/{id}/evaluate（client:evaluate，1–5 星+文字） |
 
-## 4 路由对照（50 页）
+## 4 路由对照（51 页）
 
 > 旧页存在性核实（2026-11-15 实测）：app.json 40 页逐页 fs.existsSync(p+'.js')，missing=[]。
 > 守卫 routes-old/new 按表格单元格精确解析（非子串匹配），防旧路径误匹配新路由前缀。
@@ -64,6 +64,7 @@
 | pages/install/home/index | 新建 | M2 |
 | pages/maint/home/index | pages/home/index | M2 |
 | pages/client/home/index | pages/unit/home | M2 |
+| pages/client/select-unit/index | 新建（P3 多单位登录：`/auth/client/select-unit` 换正式客户令牌） | P3 |
 | pages/order/list/index | pages/fault/list | M3 |
 | pages/order/detail/index | pages/fault/detail | M3 |
 | pages/order/report/index | pages/fault/report + pages/unit/report | M3 |

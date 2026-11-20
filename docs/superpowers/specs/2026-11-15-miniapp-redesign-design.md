@@ -56,6 +56,7 @@
 | 登录 | pages/login/index | pages/login/index（重建：单入口、不选角色） | M2 |
 | 登录 | pages/login/agreement | pages/login/agreement（保留） | M2 |
 | 登录 | （新） | pages/login/forgot（V2.19 忘记密码·微信验证重置） | V2.19 |
+| 登录 | （新） | pages/client/select-unit/index（P3 多单位账号登录后选单位，`/auth/client/select-unit` 换正式客户令牌） | P3 |
 | 我的 | pages/mine/index + pages/unit/mine/index | pages/profile/index（合并：单身份卡 + 切换工作台） | M2 |
 | 我的 | pages/mine/password | pages/profile/password | M2 |
 | 我的 | pages/mine/offline | pages/offline/index（保留非 Tab） | M2 |
