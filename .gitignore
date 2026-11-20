@@ -84,3 +84,8 @@ scripts/asset-build/out/
 scripts/e2e/node_modules/
 scripts/e2e/shots/
 scripts/e2e/walkthrough-result.json
+# E2E 运行产物（每次跑都变，只留 latest 供本地排障，不入库）
+scripts/e2e/reports/
+
+# 后端本地排障产物（临时 SQL 快照/启动日志，不入库）
+backend/.tmp/
