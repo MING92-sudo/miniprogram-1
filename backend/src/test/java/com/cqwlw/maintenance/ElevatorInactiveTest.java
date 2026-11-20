@@ -5,6 +5,7 @@ import com.cqwlw.maintenance.common.BizException;
 import com.cqwlw.maintenance.entity.Elevator;
 import com.cqwlw.maintenance.entity.Employee;
 import com.cqwlw.maintenance.mapper.ElevatorMapper;
+import com.cqwlw.maintenance.mapper.EmployeeMapper;
 import com.cqwlw.maintenance.mapper.MessageMapper;
 import com.cqwlw.maintenance.mapper.UseUnitMapper;
 import com.cqwlw.maintenance.mapper.WorkOrderMapper;
@@ -58,7 +59,7 @@ class ElevatorInactiveTest {
         ElevatorMapper elevatorMapper = mock(ElevatorMapper.class);
         WorkOrderMapper orderMapper = mock(WorkOrderMapper.class);
         DispatchService dispatch = new DispatchService(elevatorMapper, orderMapper,
-                mock(MessageMapper.class), mock(ChecklistService.class),
+                mock(MessageMapper.class), mock(EmployeeMapper.class), mock(ChecklistService.class),
                 new OrderNoIssuer(orderMapper), mock(TenantSnapshotService.class));
         when(elevatorMapper.selectList(any())).thenReturn(List.of(elevator("el_off", "INACTIVE")));
 
@@ -73,7 +74,7 @@ class ElevatorInactiveTest {
         ChecklistService checklistService = mock(ChecklistService.class);
         when(checklistService.label(any())).thenReturn("半月维保");
         DispatchService dispatch = new DispatchService(elevatorMapper, orderMapper,
-                mock(MessageMapper.class), checklistService,
+                mock(MessageMapper.class), mock(EmployeeMapper.class), checklistService,
                 new OrderNoIssuer(orderMapper), mock(TenantSnapshotService.class));
         Elevator active = elevator("el_on", null);
         when(elevatorMapper.selectList(any())).thenReturn(List.of(active));
@@ -86,7 +87,7 @@ class ElevatorInactiveTest {
     void manualDispatchRejectsInactiveElevator() {
         ElevatorMapper elevatorMapper = mock(ElevatorMapper.class);
         DispatchService dispatch = new DispatchService(elevatorMapper, mock(WorkOrderMapper.class),
-                mock(MessageMapper.class), mock(ChecklistService.class),
+                mock(MessageMapper.class), mock(EmployeeMapper.class), mock(ChecklistService.class),
                 new OrderNoIssuer(mock(WorkOrderMapper.class)), mock(TenantSnapshotService.class));
         when(elevatorMapper.selectById("el_off")).thenReturn(elevator("el_off", "INACTIVE"));
 

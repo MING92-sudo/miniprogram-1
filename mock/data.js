@@ -369,9 +369,11 @@ function nextRecordId() {
 
 // ── 自动排期引擎（mock 演示：对齐 docs/04 设计的 /plans/generate + /plans/assign）─────
 // 规则：
-//   1) 电梯维护配置（maintenance）绑定：维保频次周期 + 主维保/配合人员（含平台ID）；
+//   1) 电梯维护配置（maintenance）：维保频次周期；区域抢单池（D2/M4，2026-11-20）后
+//      派单不带人——工单 worker*/assistant* 一律留空，落 regionId 快照（电梯所在区域），
+//      由同区域持平台ID的维保员签到认领（maintenance 里的绑定字段保留但派单链路不再读取）；
 //   2) 上次签退时间（无历史时取 lastMaintenanceAt）+ 周期天数 = 下次维保到期日；
-//   3) **到期前一天**自动把名下全部到期电梯派给对应维保人员（一次性全部派单，不限时段/台数——
+//   3) **到期前一天**自动把名下全部到期电梯一次性派单（不限时段/台数——
 //      作业时长由签退时 30 分钟校验把关，即"只验证作业时间"，用户确认 2026-09-30）；
 //   4) 保养类型按时间自动升级（TSG 累加式：年365/半年180/季90/半月15）；
 //   5) 派单同时写入消息中心通知。
@@ -446,11 +448,13 @@ function ensureDueOrders() {
       workType: WORK_TYPE_LABEL[code] || code,
       workTypeCode: code,
       planTime: planTime,
-      status: 'PENDING',
-      workerName: cfg.workerName,
-      assistantName: cfg.assistantName || '',
-      workerPlatformId: cfg.workerPlatformId || '',
-      assistantPlatformId: cfg.assistantPlatformId || '',
+      status: 'PENDING', // 池化语义 = 待接单
+      // 区域抢单池（D2/M4）：派单不带人，落 regionId 快照；认领人由签到写入
+      workerName: '',
+      assistantName: '',
+      workerPlatformId: '',
+      assistantPlatformId: '',
+      regionId: el.regionId || null,
       checkinTime: '', checkoutTime: '', duration: '', originalRecordId: '', reportStatus: '',
       autoDispatched: true, // 自动派单标识（管理端/后端可追溯）
       checklist: buildChecklist(code, el.category)
@@ -460,7 +464,7 @@ function ensureDueOrders() {
       id: nextId('msg'),
       title: '自动派单通知',
       content: el.elevatorName + ' ' + order.workType + '已到维保周期（上次维保 ' +
-        formatTime(last).slice(0, 10) + '），按绑定关系自动派给 ' + cfg.workerName + '，请及时扫码签到。',
+        formatTime(last).slice(0, 10) + '），已发布到区域池，请同区域维保员到场签到接单。',
       createdAt: formatTime(),
       read: false
     })

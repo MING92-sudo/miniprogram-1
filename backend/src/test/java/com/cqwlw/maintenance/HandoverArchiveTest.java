@@ -33,6 +33,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -72,7 +73,7 @@ class HandoverArchiveTest {
         ChecklistService checklistService = new ChecklistService();
         checklistService.load();
         dispatch = new DispatchService(elevatorMapper, workOrderMapper, messageMapper,
-                checklistService, new OrderNoIssuer(workOrderMapper), mock(TenantSnapshotService.class));
+                employeeMapper, checklistService, new OrderNoIssuer(workOrderMapper), mock(TenantSnapshotService.class));
         service = new HandoverService(handoverMapper, mock(HandoverCheckMapper.class),
                 mock(HandoverCheckItemMapper.class), mock(HandoverRectificationMapper.class),
                 mock(HandoverSignMapper.class), elevatorMapper, employeeMapper, workOrderMapper, dispatch);
@@ -132,8 +133,9 @@ class HandoverArchiveTest {
         assertEquals("PENDING", wo.status);
         assertEquals("ho_1", wo.sourceHandoverId, "首保工单应回指来源移交单");
         assertEquals(Boolean.FALSE, wo.autoDispatched, "首保预建为非自动派单");
-        assertEquals("李工", wo.workerName);
-        assertEquals("pid_li", wo.workerPlatformId);
+        // 区域抢单池（D2）：预建首保同样不带人，发布到区域池由同区域维保员签到认领
+        assertNull(wo.workerName, "首保预建工单不得写主维保");
+        assertNull(wo.workerPlatformId, "首保预建工单不得写主维保平台ID");
         assertEquals("09:00:00", TimeUtil.format(wo.planTime).substring(11), "首保计划时间应为当日 09:00");
 
         assertEquals(el.id, order.elevatorId, "移交单应回填电梯 id");

@@ -23,9 +23,23 @@ import java.util.Map;
 public class AdminScheduleController {
 
     private final AdminScheduleService scheduleService;
+    private final com.cqwlw.maintenance.service.DispatchService dispatchService;
 
-    public AdminScheduleController(AdminScheduleService scheduleService) {
+    public AdminScheduleController(AdminScheduleService scheduleService,
+                                 com.cqwlw.maintenance.service.DispatchService dispatchService) {
         this.scheduleService = scheduleService;
+        this.dispatchService = dispatchService;
+    }
+
+    /**
+     * 到期投影（2026-11-21 管理端维保计划页改版）：与自动派单同一基线的只读投影，
+     * 解决 maintain_plan 表无数据（D-A1 不做批量生成）导致计划页恒空的问题。不落库、不触发派单。
+     * 区域抢单池（D2）：行内 regionStaffed 为区域覆盖提示（false = 该区域无持平台ID的在职维保员，
+     * 前端标「区域无人」预警），取代原绑定标记 bound。
+     */
+    @GetMapping("/admin/plans/projection")
+    public ApiResponse<Object> projection() {
+        return ApiResponse.ok(dispatchService.dueProjection());
     }
 
     @GetMapping("/admin/plans")

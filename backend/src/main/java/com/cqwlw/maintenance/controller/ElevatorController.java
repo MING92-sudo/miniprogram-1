@@ -134,7 +134,8 @@ public class ElevatorController {
         return String.valueOf(request.getAttribute(com.cqwlw.maintenance.auth.AuthInterceptor.ATTR_EMP_ID));
     }
 
-    /** 手动派单（无首次维保时间的电梯由管理员在此触发，跳过到期检查） */
+    /** 手动派单（无首次维保时间的电梯由管理员在此触发，跳过到期检查）：
+     *  区域抢单池（D2）语义 = 立即发布到区域池——工单不带人，由同区域持平台ID的维保员签到认领 */
     @PostMapping("/elevators/{id}/dispatch")
     public ApiResponse<WorkOrder> dispatchNow(@PathVariable String id) {
         return ApiResponse.ok(dispatchService.dispatchNow(id));
