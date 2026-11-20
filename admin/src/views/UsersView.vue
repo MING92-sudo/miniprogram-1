@@ -121,7 +121,7 @@
             </label>
           </div>
           <span v-if="roleErr" class="err" style="display:flex">
-            <svg class="ic ic-sm" aria-hidden="true"><use href="#i-alert" /></svg><span class="err-t">请至少选择一个角色</span>
+            <svg class="ic ic-sm" aria-hidden="true"><use href="#i-alert" /></svg><span class="err-t">{{ roleErr }}</span>
           </span>
         </fieldset>
       </Form>
@@ -200,7 +200,7 @@ import PermButton from '../ui/PermButton.vue'
 import StatusTag from '../ui/StatusTag.vue'
 import { useToast } from '../ui/stores/ui'
 import { usePerspectiveStore } from '../ui/stores/perspective'
-import { roleLabel, deptLabel } from '../ui/labels'
+import { roleLabel, deptLabel, roleDept } from '../ui/labels'
 import { canonicalRoles, defaultScope } from '../ui/permission-v2'
 import { listUsers, disableUser, assignRoles } from '../api/ledger'
 import { employees, createEmployee, updateEmployee } from '../api/archive'
@@ -218,7 +218,7 @@ const editTarget = ref(null)
 const editModel = ref({ name: '', phone: '', regionId: '' })
 const editForm = ref(null)
 const initialPwd = ref('')
-const roleErr = ref(false)
+const roleErr = ref('')
 const createForm = ref(null)
 const resignForm = ref(null)
 const createModel = ref({ name: '', phone: '', roles: [], regionId: '' })
@@ -263,8 +263,9 @@ async function load() {
   loading.value = true
   try {
     // 列表主数据取 GET /users（角色集来自 sys_user_role 多角色行）；
-    // regionId/regionName 仅在 GET /employees 行投影（Task 1），按 id 合并进列表行
-    const [list, emps] = await Promise.all([listUsers(), employees()])
+    // regionId/regionName 仅在 GET /employees 行投影（Task 1），按 id 合并进列表行；
+    // 区域富化失败不得拖垮主列表——employees() 独立降级为空（口径同下方 loadRegions）
+    const [list, emps] = await Promise.all([listUsers(), employees().catch(() => [])])
     const regionById = new Map((Array.isArray(emps) ? emps : []).map(e => [e.id, e]))
     // 所属组织统一口径：优先后端 orgName，其次部门码中文化（PLATFORM/INSTALL/MAINT/UNIT），最后班组名；
     // 统一写入 org 字段供列排序使用（后端 department 是码值，直接排序/展示会出现 "MAINT" 这种英文）
@@ -284,9 +285,18 @@ async function loadRegions() {
   try { regions.value = await http.get('/regions') } catch { regions.value = [] }
 }
 function openDetail(row) { detail.value = row }
-function openCreate() { createModel.value = { name: '', phone: '', roles: [], regionId: '' }; initialPwd.value = ''; roleErr.value = false; showCreate.value = true }
+function openCreate() { createModel.value = { name: '', phone: '', roles: [], regionId: '' }; initialPwd.value = ''; roleErr.value = ''; showCreate.value = true }
+// 角色集校验（开通表单）：必选 ≥1 + R7 同部门预检（与后端 UserController.validateSameDepartment 同口径，
+// 部门推导取 labels.roleDept 单一事实源）。预检不通过不发起任何请求——否则会出现
+// 「POST /employees 建档成功、assignRoles 422 跨部门」半成品（账号已建但只有主角色、初始口令随 catch 丢失、重试撞账号查重）
+function roleErrOf(roles) {
+  if (!roles.length) return '请至少选择一个角色'
+  const depts = new Set(roles.map(roleDept).filter(Boolean))
+  if (depts.size > 1) return '跨部门兼任禁止（R7）：所选角色须同属一个部门'
+  return ''
+}
 async function submitCreate() {
-  roleErr.value = createModel.value.roles.length === 0
+  roleErr.value = roleErrOf(createModel.value.roles)
   if (!createForm.value.validate() || roleErr.value) { toast.warn('请修正表单错误后再提交'); return }
   try {
     // 开通统一走 POST /employees（D5：regionId 随建档写入；后端空串=不限区域、非空校验存在 422）

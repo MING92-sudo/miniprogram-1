@@ -108,4 +108,33 @@ describe('UsersView 所属区域维护（D5）', () => {
     const w = await mountUsers()
     expect(w.text()).toContain('渝北区')
   })
+
+  // Fix 1：区域富化（GET /employees）失败不得拖垮主列表——降级为无区域列（口径同 loadRegions）
+  it('list still renders when region enrichment fails', async () => {
+    http.get.mockImplementation((url) => {
+      if (url === '/users') return Promise.resolve(USERS)
+      if (url === '/employees') return Promise.reject(new Error('boom'))
+      if (url === '/regions') return Promise.resolve(REGIONS)
+      return Promise.resolve([])
+    })
+    const w = await mountUsers()
+    expect(w.text()).toContain('张三')
+    expect(w.text()).not.toContain('渝北区')
+  })
+
+  // Fix 2：跨部门兼任（R7）提交前本地拦截——不发起任何请求，避免「建档成功、补角色 422」半成品
+  it('cross-department roles blocked locally without any request', async () => {
+    const w = await mountUsers()
+    await openCreateModal(w)
+    const modal = createModal(w)
+    await modal.find('input[placeholder="真实姓名"]').setValue('王五')
+    await modal.find('input[placeholder="11 位手机号"]').setValue('13912345679')
+    await modal.find('input[value="MAINT_TECH"]').setValue(true)
+    await modal.find('input[value="INSTALLER"]').setValue(true)
+    const ok = modal.findAll('button').find(b => b.text().includes('确认开通'))
+    await ok.trigger('click')
+    await flushPromises()
+    expect(http.post).not.toHaveBeenCalled()
+    expect(w.text()).toContain('跨部门')
+  })
 })

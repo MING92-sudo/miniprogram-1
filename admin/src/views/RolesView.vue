@@ -97,7 +97,7 @@ import PermButton from '../ui/PermButton.vue'
 import LoadingSkeleton from '../ui/states/LoadingSkeleton.vue'
 import { useToast } from '../ui/stores/ui'
 import { exportCsv } from '../ui/export-csv'
-import { roleLabel, permLabel } from '../ui/labels'
+import { roleLabel, permLabel, roleDept, deptLabel } from '../ui/labels'
 import { canonicalRoles, canonicalCodes, state, defaultScope } from '../ui/permission-v2'
 import { MENU_GROUPS } from '../ui/menu-config'
 import { rolesMatrix } from '../api/ledger'
@@ -148,11 +148,11 @@ function webView(code) {
   return ''
 }
 function deptOf(r) {
+  // 部门推导单一事实源在 labels.roleDept（与后端 RoleCatalog.departmentOf 同口径）；
   // 使用单位是外部客户主体（非内部部门），旧码 UNIT_ADMIN 同归此类，不能落到「平台」
-  if (r.startsWith('CLIENT') || r === 'UNIT_ADMIN' || r.startsWith('UNIT')) return '使用单位'
-  if (r.startsWith('INST') || r === 'INSTALLER') return '安装部'
-  if (r.startsWith('MAINT')) return '维保部'
-  return '平台'
+  if (!r) return '平台'
+  const d = roleDept(r)
+  return d ? deptLabel(d) : '使用单位'
 }
 function countState(r, s) { return rows.value.filter(x => x.states[r] === s).length }
 const allViews = MENU_GROUPS.flatMap(g => g.items).filter(i => i.perm)

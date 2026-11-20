@@ -69,6 +69,17 @@ export function deptLabel(v) {
   return DEPT[String(v).toUpperCase()] || String(v)
 }
 
+// 角色 → 部门码（docs/14 §2；与后端 RoleCatalog.departmentOf 同口径的前缀推导，RolesView/UsersView 共用单一事实源）：
+// INST_*/INSTALLER→INSTALL、MAINT_*→MAINT、其余内部管理角色→PLATFORM；客户主体（CLIENT_*/UNIT_*）无内部部门返回 ''
+export function roleDept(v) {
+  const r = String(v || '').toUpperCase()
+  if (!r) return ''
+  if (r.startsWith('CLIENT') || r.startsWith('UNIT')) return ''
+  if (r.startsWith('INST') || r === 'INSTALLER') return 'INSTALL'
+  if (r.startsWith('MAINT')) return 'MAINT'
+  return 'PLATFORM'
+}
+
 const PERM = {
   'handover:view': '查看移交', 'handover:create': '发起移交', 'handover:edit': '编辑移交',
   'handover:doc_upload': '上传移交资料', 'handover:doc_delete': '删除移交资料', 'handover:submit': '提交移交',
