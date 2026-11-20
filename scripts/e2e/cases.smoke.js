@@ -82,7 +82,6 @@ async function runSmokeCases(ctx) {
     record('PUT /elevators/{id}', await put(`/elevators/${tmp.elevatorId}`, { elevatorName: 'E2E测试电梯改名' }, admin), 'ok')
     record('POST /elevators/{id}/qrcode', await post(`/elevators/${tmp.elevatorId}/qrcode`, {}, admin), 'any')
   }
-  record('POST /elevators/batch-assign-workers', await post('/elevators/batch-assign-workers', { elevatorIds: [seed.elevators.el1], workerName: '李振国' }, admin), 'any')
   record('POST /elevators/batch-geo', await post('/elevators/batch-geo', { elevatorIds: [seed.elevators.el1] }, admin), 'any')
   record('POST /company/sync-entity-id', await post('/company/sync-entity-id', {}, admin), 'any')
   if (tmp.unitId) {

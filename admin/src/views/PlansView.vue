@@ -1,38 +1,34 @@
 <template>
   <div>
-    <ViewHead title="维保计划" sub="到期基线只读投影 · 半月保 = 15 天间隔 · 手动指派 / 延期审批（自动派单仅定时任务驱动）">
-      <template #meta><PageMeta perm="plan:view" :extra="[{ k: '计划数', v: rows.length, icon: 'calendar', cls: 'count' }]" /></template>
+    <ViewHead title="维保计划" sub="到期投影 · 与自动派单同一基线（最近完成 + 间隔天数，类型累加式升级）· 自动派单仅定时任务驱动">
+      <template #meta><PageMeta perm="plan:view" :extra="[{ k: '电梯数', v: rows.length, icon: 'calendar', cls: 'count' }]" /></template>
     </ViewHead>
 
     <div class="mt16">
-      <DataTable :columns="cols" :rows="rows" :loading="loading" selectable
-        :search-keys="['elevatorCode', 'elevatorName', 'useUnitName', 'orderNo']" search-placeholder="搜索设备码 / 梯号 / 使用单位 / 工单号"
-        :filters="filters" empty-hint="当前数据范围内没有维保计划。"
-        :bulk-actions="[{ code: 'plan:generate', label: '批量调整日期', icon: 'calendar' }]" @bulk="onBulk">
+      <DataTable :columns="cols" :rows="viewRows" :loading="loading"
+        :search-keys="['elevatorCode', 'elevatorName', 'projectName', 'regionName']" search-placeholder="搜索电梯编码 / 名称 / 项目 / 区域"
+        :filters="filters" empty-hint="当前数据范围内没有电梯。"
+        :row-class="rowClass">
         <template #toolbar>
           <PermButton code="plan:generate" label="延期审批" variant="ghost" icon="clock" @click="loadDelays(true)" />
         </template>
-        <template #cell-planNo="{ row }"><b class="mono">{{ row.orderNo || row.id }}</b></template>
+        <template #cell-dueDate="{ row }"><b class="mono">{{ row.dueDate || '—' }}</b></template>
         <template #cell-elevatorCode="{ row }">
           <span class="mono f12">{{ row.elevatorCode }}</span>
           <div class="cell-2">{{ row.elevatorName }}</div>
         </template>
-        <template #cell-workType="{ value }"><span class="tag tag-ghost">{{ value }}</span></template>
-        <template #cell-planDate="{ value }"><span class="mono f12">{{ value }}</span></template>
-        <template #cell-principal="{ row }">
-          {{ row.principal ? row.principal.name : '待指派' }}
-          <div class="cell-2">{{ row.assistant ? '配合 ' + row.assistant.name : '无配合人' }}</div>
+        <template #cell-workType="{ row }"><span class="tag tag-ghost">{{ typeLabel(row.workTypeCode) }}</span></template>
+        <template #cell-lastDoneAt="{ value }"><span class="mono f12">{{ value || '—' }}</span></template>
+        <template #cell-regionName="{ row }">
+          {{ row.regionName || '不限区域' }}
+          <span v-if="row.regionStaffed === false" class="tag tag-amber f11" style="margin-left:6px">区域无人</span>
         </template>
-        <template #cell-status="{ value }"><StatusTag :status="value" :label="planStatusLabel(value)" /></template>
-        <template #row-actions="{ row }">
-          <PermButton v-if="row.status === 'UNASSIGNED' || row.status === 'ASSIGNED'" code="plan:generate"
-            :label="row.status === 'UNASSIGNED' ? '指派' : '改派'" variant="ghost" size="xs" icon="user-check" @click="openAssign(row)" />
-          <PermButton v-if="row.status !== 'CANCELLED' && row.status !== 'DISPATCHED'" code="plan:generate"
-            label="申请延期" variant="ghost" size="xs" icon="clock" @click="openDelay(row)" />
+        <template #cell-status="{ row }">
+          <StatusTag :status="row.status" :label="statusTextOf(row)" />
         </template>
       </DataTable>
     </div>
-    <RuleNote class="mt12">自动派单仅由定时任务驱动（每日 09:00 主扫描 + 每 13 分钟兜底，AGENTS §3.6）；本页为只读投影 + 手动指派/延期（D-A1，不做按合同周期批量生成）。平台为运维只读（D3）；指派校验主/配合互斥、证件有效与 platform_id 同步（1004/1007）。</RuleNote>
+    <RuleNote class="mt12">自动派单仅由定时任务驱动（每日 09:00 主扫描 + 每 13 分钟兜底，AGENTS §3.6）：到期前一日 09:00 发布到区域抢单池（不带人），同区域持平台ID的维保员先签到者认领；「区域无人」= 该区域暂无持平台ID的在职维保员（请在账号管理维护所属区域），「无基线」电梯需手动首保。</RuleNote>
 
     <!-- 延期审批 -->
     <div v-if="delaysOpen" class="card card-pad0 mt16">
@@ -67,47 +63,6 @@
       <div v-else class="card-body dim">暂无延期申请。</div>
     </div>
 
-    <!-- 指派 / 改派 -->
-    <Modal :open="assignModal" :title="assignForm.id ? '指派 / 改派' : '批量调整日期'" :sub="assignSub" icon="user-check"
-      note="plan:generate · 手动派单" confirm-label="确认指派" @close="assignModal = false" @confirm="confirmAssign">
-      <div class="form-grid one">
-        <template v-if="!bulkMode">
-          <FormField label="主维保" required :error="assignErr.principal">
-            <select v-model="assignForm.principalId" class="ctl">
-              <option value="">请选择主维保</option>
-              <option v-for="e in employees" :key="e.id" :value="e.id">{{ e.name }}{{ e.groupName ? ' · ' + e.groupName : '' }}</option>
-            </select>
-          </FormField>
-          <FormField label="配合人员" hint="新工单强制双人（P-4）">
-            <select v-model="assignForm.assistantId" class="ctl">
-              <option value="">请选择配合人员</option>
-              <option v-for="e in employees" :key="e.id" :value="e.id">{{ e.name }}{{ e.groupName ? ' · ' + e.groupName : '' }}</option>
-            </select>
-          </FormField>
-        </template>
-        <FormField label="计划日期" required :error="assignErr.date" :hint="'≥ ' + today">
-          <input v-model="assignForm.planDate" type="date" class="ctl mono" />
-        </FormField>
-      </div>
-      <RuleNote class="mt12">主/配合须为不同账号且均非维保经理；证件过期或 platform_id 未同步将被拦截（1004/1007）。</RuleNote>
-    </Modal>
-
-    <!-- 申请延期 -->
-    <Modal :open="delayModal" title="申请延期" :sub="delayTarget ? delayTarget.elevatorName : ''" icon="clock"
-      note="plan:generate · 延期申请" confirm-label="提交申请" @close="delayModal = false" @confirm="confirmDelay">
-      <div class="form-grid one">
-        <FormField label="延期原因" required :error="delayErr.reason">
-          <textarea v-model="delayForm.reason" class="ctl" placeholder="必填，说明延期原因" />
-        </FormField>
-        <FormField label="延期天数" required :error="delayErr.days">
-          <input v-model="delayForm.delayDays" type="number" min="1" max="90" class="ctl mono" />
-        </FormField>
-        <FormField label="期望日期" required :error="delayErr.date">
-          <input v-model="delayForm.expectedDate" type="date" class="ctl mono" />
-        </FormField>
-      </div>
-    </Modal>
-
     <!-- 延期审批决定 -->
     <Modal :open="decideModal" :title="decideForm.approved ? '延期审批 · 通过' : '延期审批 · 驳回'" :sub="decideTarget ? decideTarget.elevatorName : ''"
       :icon="decideForm.approved ? 'check' : 'x'" :danger="!decideForm.approved" note="plan:generate · 延期审批"
@@ -119,8 +74,11 @@
   </div>
 </template>
 <script setup>
-// 维保计划（原型 Views.plans 布局对齐）：到期基线只读投影 + 手动指派/改派/延期申请/延期审批。
-// 合规偏离 D-A1：不做「按合同周期批量生成 N 条」——自动派单仅定时任务驱动（AGENTS §3.6）。
+// 维保计划（2026-11-21 改版）：GET /admin/plans/projection 到期投影（与自动派单同一基线），
+// 解决 maintain_plan 表无数据（D-A1 不做批量生成）导致页面恒空的问题；延期审批沿用原端点。
+// 区域抢单池（D2，Task 10）：投影行 bound 已由 regionStaffed 取代——区域覆盖提示
+//（false = 该区域无持平台ID的在职维保员，行内标「区域无人」预警）；「主维保 / 配合」
+// 计划绑定人列下线（池化派单不带人），改为「区域」列（regionId 经 GET /regions 解析名称）。
 import { ref, reactive, computed, onMounted } from 'vue'
 import http from '../api/client'
 import DataTable from '../ui/DataTable.vue'
@@ -135,116 +93,63 @@ import { useToast } from '../ui/stores/ui'
 import { statusLabel } from '../ui/labels'
 
 const toast = useToast()
-const today = new Date().toISOString().slice(0, 10)
 
-const PLAN_LABEL = { UNASSIGNED: '待指派', ASSIGNED: '已指派', POSTPONE_PENDING: '延期待审', DISPATCHED: '已派单', CANCELLED: '已取消' }
-function planStatusLabel(s) { return PLAN_LABEL[s] || statusLabel(s) }
-const DELAY_LABEL = { PENDING: '待审批', APPROVED: '已通过', REJECTED: '已驳回' }
-function delayStatusLabel(s) { return DELAY_LABEL[s] || statusLabel(s) }
+const TYPE_LABEL = { HM: '半月维保', TM: '季度维保', SM: '半年维保', OY: '年度维保', FM: '按需维保' }
+function typeLabel(c) { return TYPE_LABEL[c] || c || '—' }
 
 const rows = ref([])
 const loading = ref(false)
-const employees = ref([])
 const cols = [
-  { key: 'planNo', label: '计划 / 工单号' },
-  { key: 'elevatorCode', label: '设备码', sortable: true },
-  { key: 'useUnitName', label: '使用单位', sortable: true },
-  { key: 'workType', label: '类型' },
-  { key: 'planDate', label: '计划日期', sortable: true },
-  { key: 'principal', label: '主检 / 配合' },
+  { key: 'dueDate', label: '到期日', sortable: true },
+  { key: 'elevatorCode', label: '电梯', sortable: true },
+  { key: 'projectName', label: '项目名称', sortable: true },
+  { key: 'workType', label: '应做类别' },
+  { key: 'lastDoneAt', label: '上次维保', sortable: true },
+  { key: 'regionName', label: '区域' },
   { key: 'status', label: '状态', sortable: true }
 ]
+const STATUS_TEXT = {
+  NO_BASELINE: '无基线（需手动首保）',
+  OVERDUE: '超期', TODAY: '今日到期', SOON: '临期', NORMAL: '正常'
+}
+function statusTextOf(r) {
+  if (r.status === 'OVERDUE') return '超期 ' + (-r.daysToDue) + ' 天'
+  if (r.status === 'SOON') return r.daysToDue + ' 天后到期'
+  return STATUS_TEXT[r.status] || r.statusText || r.status
+}
+const STATUS_ORDER = ['NO_BASELINE', 'OVERDUE', 'TODAY', 'SOON', 'NORMAL']
 const filters = [
-  { key: 'status', label: '状态', options: Object.keys(PLAN_LABEL).map((c) => ({ value: c, label: PLAN_LABEL[c] })) },
-  { key: 'workTypeCode', label: '类别', options: ['FM', 'HM', 'TM', 'SM', 'OY'].map((c) => ({ value: c, label: { FM: '按需', HM: '半月', TM: '季度', SM: '半年', OY: '年度' }[c] })) }
+  { key: 'status', label: '状态', options: STATUS_ORDER.map(s => ({ value: s, label: STATUS_TEXT[s] })) },
+  { key: 'workTypeCode', label: '类别', options: ['HM', 'TM', 'SM', 'OY'].map(c => ({ value: c, label: TYPE_LABEL[c] })) }
 ]
+// 区域名解析（regionId → GET /regions 主数据；解析失败回空串显示「不限区域」，不阻断列表）
+const regions = ref([])
+function regionNameOf(id) {
+  if (!id) return ''
+  const r = regions.value.find(x => x.id === id)
+  return r ? r.name : ''
+}
+const viewRows = computed(() => rows.value.map(r => ({ ...r, regionName: regionNameOf(r.regionId) })))
+function rowClass(r) { return r.status === 'OVERDUE' ? 'row-bad' : r.status === 'TODAY' ? 'row-warn' : '' }
 
 async function load() {
   loading.value = true
-  try { rows.value = (await http.get('/admin/plans', { params: { size: 200 } })).list || [] }
-  catch (e) { toast.error(e.message || '加载计划失败') } finally { loading.value = false }
-}
-async function loadEmployees() {
-  try { employees.value = (await http.get('/employees')) || [] } catch { employees.value = [] }
-}
-onMounted(() => { load(); loadEmployees() })
-
-// 指派 / 改派 / 批量调整日期
-const assignModal = ref(false)
-const bulkMode = ref(false)
-const bulkRows = ref([])
-const assignForm = reactive({ id: '', principalId: '', assistantId: '', planDate: '' })
-const assignErr = reactive({ principal: '', date: '' })
-const assignSub = computed(() => {
-  if (bulkMode.value) return bulkRows.value.length + ' 条计划 · 仅调整日期（保留原主检/配合）'
-  const r = rows.value.find((x) => x.id === assignForm.id)
-  return r ? r.elevatorName + ' · ' + r.elevatorCode : ''
-})
-function openAssign(row) {
-  bulkMode.value = false
-  assignForm.id = row.id
-  assignForm.principalId = row.principal ? row.principal.id : ''
-  assignForm.assistantId = row.assistant ? row.assistant.id : ''
-  assignForm.planDate = row.planDate || today
-  assignErr.principal = ''; assignErr.date = ''
-  assignModal.value = true
-}
-function onBulk({ ids }) {
-  const selected = rows.value.filter((r) => ids.includes(r.id))
-  if (!selected.length) { toast.warn('请先选择计划'); return }
-  if (selected.some((r) => !r.principal || !r.principal.id)) { toast.warn('批量调整仅支持已指派计划（保留原主检/配合）'); return }
-  if (selected.some((r) => r.status !== 'ASSIGNED' && r.status !== 'UNASSIGNED')) { toast.warn('仅待指派/已指派计划可调整日期'); return }
-  bulkMode.value = true
-  bulkRows.value = selected
-  assignForm.id = ''; assignForm.planDate = today
-  assignErr.principal = ''; assignErr.date = ''
-  assignModal.value = true
-}
-async function confirmAssign() {
-  assignErr.date = assignForm.planDate && assignForm.planDate >= today ? '' : '计划日期不能早于今天（' + today + '）'
-  if (!bulkMode.value) assignErr.principal = assignForm.principalId ? '' : '请选择主维保'
-  if (assignErr.date || assignErr.principal) return
   try {
-    if (bulkMode.value) {
-      for (const r of bulkRows.value) {
-        await http.put(`/admin/plans/${r.id}/assign`, { principalId: r.principal.id, assistantId: r.assistant ? r.assistant.id : '', planDate: assignForm.planDate })
-      }
-      toast.success('已调整 ' + bulkRows.value.length + ' 条计划',assignForm.planDate)
-    } else {
-      await http.put(`/admin/plans/${assignForm.id}/assign`, { principalId: assignForm.principalId, assistantId: assignForm.assistantId, planDate: assignForm.planDate })
-      toast.success('指派已保存',assignForm.planDate)
-    }
-    assignModal.value = false
-    await load()
-  } catch (e) { toast.error(e.message || '指派失败') }
+    const d = await http.get('/admin/plans/projection')
+    rows.value = Array.isArray(d) ? d : d.list || []
+  } catch (e) { toast.error(e.message || '加载到期投影失败') } finally { loading.value = false }
 }
-
-// 延期申请
-const delayModal = ref(false)
-const delayTarget = ref(null)
-const delayForm = reactive({ reason: '', delayDays: 1, expectedDate: '' })
-const delayErr = reactive({ reason: '', days: '', date: '' })
-function openDelay(row) {
-  delayTarget.value = row
-  delayForm.reason = ''; delayForm.delayDays = 1; delayForm.expectedDate = row.planDate || today
-  delayErr.reason = ''; delayErr.days = ''; delayErr.date = ''
-  delayModal.value = true
-}
-async function confirmDelay() {
-  delayErr.reason = delayForm.reason.trim() ? '' : '延期原因必填'
-  const days = parseInt(delayForm.delayDays, 10)
-  delayErr.days = days >= 1 && days <= 90 ? '' : '延期天数须为 1–90'
-  delayErr.date = delayForm.expectedDate ? '' : '期望日期必填'
-  if (delayErr.reason || delayErr.days || delayErr.date) return
+async function loadRegions() {
   try {
-    await http.post(`/admin/plans/${delayTarget.value.id}/delay`, { reason: delayForm.reason, delayDays: days, expectedDate: delayForm.expectedDate })
-    delayModal.value = false
-    toast.success('延期申请已提交 · 待审批',delayTarget.value.elevatorName)
-    await load()
-  } catch (e) { toast.error(e.message || '延期申请失败') }
+    const r = await http.get('/regions')
+    regions.value = Array.isArray(r) ? r : r.list || []
+  } catch { regions.value = [] }
 }
+onMounted(() => { load(); loadRegions() })
 
-// 延期审批
+// ── 延期审批（沿用 maintain_plan 延期流端点）──
+const DELAY_LABEL = { PENDING: '待审批', APPROVED: '已通过', REJECTED: '已驳回' }
+function delayStatusLabel(s) { return DELAY_LABEL[s] || statusLabel(s) }
 const delaysOpen = ref(false)
 const delays = ref([])
 async function loadDelays(open) {
@@ -269,8 +174,8 @@ async function confirmDecide() {
   try {
     await http.put(`/admin/plans/delays/${decideTarget.value.id}/decide`, { approved: decideForm.approved, comment: decideForm.comment })
     decideModal.value = false
-    toast.success(decideForm.approved ? '延期已通过' : '延期已驳回',decideTarget.value.elevatorName)
-    await Promise.all([loadDelays(false), load()])
+    toast.success(decideForm.approved ? '延期已通过' : '延期已驳回', decideTarget.value.elevatorName)
+    await loadDelays(false)
   } catch (e) { toast.error(e.message || '审批失败') }
 }
 </script>

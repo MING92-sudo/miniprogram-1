@@ -120,11 +120,6 @@ export function elevatorArchive(id) {
 
 // ── 范围收敛新增（docs/04 V2.9 A.9.0 / docs/09 V3.3）──
 
-/** 批量绑定维保人员与电梯（docs/04 A.9.0）：返回 {success[], failed[]} 逐台明细 */
-export function batchAssignWorkers(body) {
-  return http.post('/elevators/batch-assign-workers', body)
-}
-
 /** 批量导入经纬度：{items:[{code,lng,lat}]}，逐条回显成败 */
 export function batchGeo(items) {
   return http.post('/elevators/batch-geo', { items })

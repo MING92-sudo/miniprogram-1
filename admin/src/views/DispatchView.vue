@@ -5,7 +5,11 @@
         <PageMeta perm="order:view_pool" :extra="[{ k: '工单', v: rows.length, icon: 'bolt', cls: 'count' }, { k: '超时', v: overtimeCount, icon: 'alert', cls: 'count' }]" />
       </template>
     </ViewHead>
-    <div class="mt16">
+    <div class="seg mt16">
+      <button type="button" :class="['seg-i', { on: tab === 'faults' }]" @click="switchTab('faults')">急修 / 报修</button>
+      <button type="button" :class="['seg-i', { on: tab === 'pool' }]" @click="switchTab('pool')">维保工单池</button>
+    </div>
+    <div v-if="tab === 'faults'" class="mt16">
       <DataTable :columns="cols" :rows="rows" :loading="loading" clickable index
         search-placeholder="搜索工单号 / 设备码 / 报修人" :search-keys="['faultNo', 'elevatorCode', 'createdByName']"
         :filters="filters" :bulk-actions="[{ code: 'order:dispatch', label: '批量派单', icon: 'user-check', cTip: '仅同状态（待接单）可用' }]"
@@ -48,7 +52,35 @@
         </template>
       </DataTable>
     </div>
-    <RuleNote class="mt12" icon="clock">剩余 &lt;0 → 超时（红）；≤30% → 临期（黄）；P1 困人默认 {{ slaP1 }} 分钟（读系统配置）。平台为运维只读（D3）；使用单位仅见本单位工单且接单前可取消。</RuleNote>
+
+    <!-- 维保工单池（区域抢单池 D2/M7）：待接单显示「待接单 · 区域名」，已认领显示认领人；行内退回池（D10/M12） -->
+    <div v-else class="mt16">
+      <DataTable :columns="poolCols" :rows="poolRows" :loading="poolLoading"
+        :search-keys="['orderNo', 'elevatorCode', 'elevatorName', 'projectName']" search-placeholder="搜索工单号 / 设备码 / 项目"
+        :filters="poolFilters" empty-hint="当前数据范围内没有维保工单。">
+        <template #cell-orderNo="{ row }"><b class="mono">{{ row.orderNo || row.id }}</b></template>
+        <template #cell-elevator="{ row }">
+          <span class="mono f12">{{ row.elevatorCode || '—' }}</span>
+          <div class="cell-2">{{ row.elevatorName || row.projectName || '' }}</div>
+        </template>
+        <template #cell-workType="{ row }"><span class="tag tag-ghost">{{ row.workType || row.workTypeCode || '—' }}</span></template>
+        <template #cell-planTime="{ value }"><span class="mono f12">{{ value ? String(value).slice(0, 16) : '—' }}</span></template>
+        <template #cell-claim="{ row }">
+          <span v-if="isUnclaimed(row)" class="tag tag-amber">待接单 · {{ row.regionName || '不限区域' }}</span>
+          <template v-else>
+            {{ row.workerName || '—' }}
+            <div v-if="row.assistantName" class="cell-2">配合 {{ row.assistantName }}</div>
+          </template>
+        </template>
+        <template #cell-status="{ row }"><StatusTag :status="row.status" :label="poolStatusLabel(row.status)" /></template>
+        <template #row-actions="{ row }">
+          <PermButton v-if="row.status !== 'DONE' && row.status !== 'CANCELLED'" code="order:dispatch"
+            label="退回池" variant="ghost" size="xs" icon="refresh" c-tip="清空认领回区域池，审计先行" @click="askRelease(row)" />
+        </template>
+      </DataTable>
+    </div>
+    <RuleNote v-if="tab === 'faults'" class="mt12" icon="clock">剩余 &lt;0 → 超时（红）；≤30% → 临期（黄）；P1 困人默认 {{ slaP1 }} 分钟（读系统配置）。平台为运维只读（D3）；使用单位仅见本单位工单且接单前可取消。</RuleNote>
+    <RuleNote v-else class="mt12" icon="refresh">区域抢单池：派单只落区域快照不带人，同区域持平台ID的维保员先签到者认领。「退回池」审计先行——已签到工单的签到留痕转入审计快照后清空，工单回待接单重新入池；已签退（DONE）工单不可退回。</RuleNote>
 
     <!-- 派单 / 改派（原型 openDispatch Drawer） -->
     <Drawer :open="dispatchOpen" :title="dispatchIds.length > 1 ? '批量派单（' + dispatchIds.length + ' 单）' : '派单 / 改派'"
@@ -104,13 +136,24 @@
         </FormField>
       </div>
     </Modal>
+
+    <!-- 退回池（D10/M12，order:dispatch）：审计先行，已签到留痕转入审计快照后清空 -->
+    <Modal :open="!!releaseTarget" title="退回池" :sub="releaseTarget ? (releaseTarget.orderNo || releaseTarget.id) : ''"
+      icon="refresh" danger note="order:dispatch · 审计先行" require-confirm
+      :confirm-text="releaseConfirmText" confirm-label="确认退回池"
+      @close="releaseTarget = null" @confirm="submitRelease">
+      <RuleNote icon="alert">{{ releaseNote }}</RuleNote>
+    </Modal>
   </div>
 </template>
 <script setup>
 // 工单调度（原型 Views.dispatch 对齐）：急修/报修统一池 + SLA 倒计时 + 派单/批量派单/代报修
 // 真实 API：GET /faults（.list）、POST /admin/faults/{id}/dispatch、POST /faults + /faults/{id}/proxy、GET /employees、GET /elevators
+// 2026-11-20 区域抢单池（D2/D10）：新增「维保工单池」页签——GET /work-orders（行含 regionId/regionName 快照），
+// 未认领 PENDING 显示「待接单 · 区域名」，行内「退回池」调 POST /admin/orders/{id}/release-to-pool（审计先行 M12）。
 import { ref, computed, onMounted } from 'vue'
 import http from '../api/client'
+import { workOrders, releaseToPool } from '../api/orders'
 import DataTable from '../ui/DataTable.vue'
 import ViewHead from '../ui/ViewHead.vue'
 import PageMeta from '../ui/PageMeta.vue'
@@ -261,4 +304,64 @@ async function submitProxy() {
     load()
   } catch (e) { toast.error(e.message || '代报修提交失败') }
 }
+
+// ── 维保工单池（区域抢单池 D2/M7，退回池 D10/M12） ──
+const tab = ref('faults')
+const poolRows = ref([])
+const poolLoading = ref(false)
+const poolLoaded = ref(false)
+const POOL_STATUS = { PENDING: '待接单', PROCESSING: '进行中', DONE: '已完成', CANCELLED: '已取消' }
+function poolStatusLabel(s) { return POOL_STATUS[s] || s || '—' }
+const poolCols = [
+  { key: 'orderNo', label: '工单号', sortable: true },
+  { key: 'elevator', label: '电梯' },
+  { key: 'workType', label: '类别' },
+  { key: 'planTime', label: '计划时间', sortable: true },
+  { key: 'claim', label: '认领 / 区域' },
+  { key: 'status', label: '状态', sortable: true }
+]
+const poolFilters = [
+  { key: 'status', label: '状态', options: Object.keys(POOL_STATUS).map(k => ({ value: k, label: POOL_STATUS[k] })) }
+]
+// 待接单 = PENDING 且无人认领（区域池语义 M1/M7：谁先签到谁认领）
+function isUnclaimed(row) { return row.status === 'PENDING' && !row.workerName && !row.workerPlatformId }
+function switchTab(t) {
+  tab.value = t
+  if (t === 'pool' && !poolLoaded.value) loadPool()
+}
+async function loadPool() {
+  poolLoading.value = true
+  try {
+    const d = await workOrders({ size: 200 })
+    poolRows.value = Array.isArray(d) ? d : (d && d.list) || []
+    poolLoaded.value = true
+  } catch (e) { toast.error(e.message || '维保工单池加载失败') } finally { poolLoading.value = false }
+}
+
+// 退回池：未签到直接清认领回池；已签到（PROCESSING/有签到留痕）二次确认须明示留痕转审计
+const releaseTarget = ref(null)
+function askRelease(row) { releaseTarget.value = row }
+const releaseSignedIn = computed(() => {
+  const t = releaseTarget.value
+  return !!t && (t.status === 'PROCESSING' || t.principalCheckedIn || t.assistantCheckedIn)
+})
+const releaseNote = computed(() =>
+  '退回后清空认领人与配合人，工单回「待接单」重新进入区域池；操作人与退回前快照写入审计日志。'
+  + (releaseSignedIn.value ? '该工单已有签到记录：已签到留痕将转入审计快照后再清空。' : ''))
+const releaseConfirmText = computed(() =>
+  releaseSignedIn.value ? '我已知悉已签到留痕将转入审计，确认退回池' : '我已知悉，确认退回池')
+async function submitRelease() {
+  const t = releaseTarget.value
+  try {
+    const r = await releaseToPool(t.id)
+    toast.success(r && r.released === false ? '工单本就在池中（未认领），无需退回' : '已退回池 · 工单重新进入区域待接单', t.orderNo || t.id)
+    releaseTarget.value = null
+    loadPool()
+  } catch (e) { toast.error(e.message || '退回池失败') }
+}
 </script>
+<style scoped>
+.seg { display: inline-flex; gap: 4px; padding: 3px; border: 1px solid var(--line-2, #2a3340); border-radius: var(--r-card, 10px) }
+.seg-i { padding: 5px 14px; border: 0; border-radius: 7px; background: transparent; color: var(--ink-2, #9aa7b8); cursor: pointer; font-size: 13px }
+.seg-i.on { background: var(--brand, #e8a020); color: #141414; font-weight: 600 }
+</style>

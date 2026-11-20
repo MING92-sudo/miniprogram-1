@@ -187,19 +187,6 @@ public class AdminArchiveController {
 
     // ── 范围收敛新增（docs/04 V2.9 A.9.0 / docs/09 V3.3）──
 
-    /** 批量绑定维保人员与电梯（docs/04 A.9.0，自动派单的数据前提） */
-    @PostMapping("/elevators/batch-assign-workers")
-    public ApiResponse<Object> batchAssignWorkers(@RequestBody Map<String, Object> body,
-                                                  @RequestHeader(value = "X-Idempotency-Key", required = false) String idemKey) {
-        IdempotencyService.Guard guard = idempotencyService.begin(idemKey, "/elevators/batch-assign-workers");
-        if (guard.replayed()) {
-            return ApiResponse.ok(guard.replayedResult());
-        }
-        Map<String, Object> result = archiveService.batchAssignWorkers(body);
-        guard.commit(result);
-        return ApiResponse.ok(result);
-    }
-
     /** 批量导入经纬度（位置待补补录，docs/09 §6.6） */
     @PostMapping("/elevators/batch-geo")
     public ApiResponse<Object> batchGeo(@RequestBody Map<String, Object> body,
