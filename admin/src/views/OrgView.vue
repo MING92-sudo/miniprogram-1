@@ -46,6 +46,29 @@
           </div>
           <div v-else class="dim f12">暂无下级组织。</div>
         </div>
+        <div class="sec">
+          <div class="sec-t"><svg class="ic" aria-hidden="true"><use href="#i-users" /></svg>成员</div>
+          <div v-if="membersLoading" class="dim f12">成员加载中…</div>
+          <template v-else-if="members.length">
+            <div v-for="m in members" :key="m.id" class="member-row">
+              <div class="member-info">
+                <span class="m-name">{{ m.name }}</span>
+                <span class="mono">{{ m.phone || '—' }}</span>
+                <span>{{ m.roleText || roleLabel(m.role) }}</span>
+                <span>{{ m.regionName || '—' }}</span>
+                <span>{{ enabledLabel(m.enabled) }}</span>
+              </div>
+              <div class="member-move">
+                <select v-model="moveTarget[m.id]" class="ctl" aria-label="调到班组">
+                  <option value="">调到班组…</option>
+                  <option v-for="t in teamOptions(m)" :key="t.id" :value="t.name">{{ t.name }}</option>
+                </select>
+                <button class="btn btn-ghost" type="button" :disabled="!moveTarget[m.id]" @click="askMove(m)">调人</button>
+              </div>
+            </div>
+          </template>
+          <div v-else class="dim f12">暂无成员。</div>
+        </div>
       </template>
       <template #footer>
         <span v-if="detail && isFlat(detail)" class="perm-wrap" data-tip="使用单位单级节点，禁止新增下级">
@@ -93,6 +116,14 @@
         <span>停用后该组织账号登录受限，历史数据与审计保留。确认停用？</span>
       </div>
     </Modal>
+
+    <Modal :open="!!moveConfirm" title="调到班组" :sub="moveConfirm ? moveConfirm.member.name : ''" icon="users"
+      confirm-label="确认调人" @close="moveConfirm = null" @confirm="submitMove">
+      <div v-if="moveConfirm" class="rule-note">
+        <svg class="ic" aria-hidden="true"><use href="#i-alert" /></svg>
+        <span>确认把 {{ moveConfirm.member.name }} 调到 {{ moveConfirm.target }}？</span>
+      </div>
+    </Modal>
   </div>
 </template>
 <script setup>
@@ -111,13 +142,18 @@ import LoadingSkeleton from '../ui/states/LoadingSkeleton.vue'
 import { useToast } from '../ui/stores/ui'
 import { exportCsv } from '../ui/export-csv'
 import { usePerspectiveStore } from '../ui/stores/perspective'
-import { orgTypeLabel, scopeLabel } from '../ui/labels'
-import { listOrg, createOrg, updateOrg } from '../api/ledger'
+import { orgTypeLabel, scopeLabel, roleLabel, enabledLabel } from '../ui/labels'
+import { listOrg, createOrg, updateOrg, orgMembers, moveEmployee } from '../api/ledger'
 const toast = useToast()
 const perspective = usePerspectiveStore()
 const rows = ref([])
 const loading = ref(false)
 const detail = ref(null)
+// D1 成员区块：打开详情抽屉时懒加载 GET /org/{id}/members；调人走 PUT /employees/{id} {groupName}
+const members = ref([])
+const membersLoading = ref(false)
+const moveTarget = ref({})
+const moveConfirm = ref(null)
 const showForm = ref(false)
 const showDisable = ref(false)
 const formId = ref(null)
@@ -192,6 +228,31 @@ function onTreeClick(e) {
   if (!n) return
   const o = rows.value.find(x => x.id === n.getAttribute('data-org'))
   if (o) detail.value = o
+}
+// 详情切换即重拉成员（含「下级组织」chip 跳转）；失败仅提示不阻塞抽屉其余区块
+watch(detail, (d) => {
+  members.value = []; moveTarget.value = {}; moveConfirm.value = null
+  if (d) loadMembers(d.id)
+})
+async function loadMembers(id) {
+  membersLoading.value = true
+  try { members.value = await orgMembers(id) } catch (e) { toast.error(e.message || '成员加载失败') } finally { membersLoading.value = false }
+}
+// 调人下拉候选 = 组织树全部 TEAM 节点名，排除该成员当前所在班组
+function teamOptions(m) { return rows.value.filter(o => o.type === 'TEAM' && o.name !== m.groupName) }
+function askMove(m) {
+  const target = moveTarget.value[m.id]
+  if (!target) return
+  moveConfirm.value = { member: m, target }
+}
+async function submitMove() {
+  const { member, target } = moveConfirm.value
+  try {
+    await moveEmployee(member.id, target)
+    toast.success('已把 ' + member.name + ' 调到 ' + target)
+    moveConfirm.value = null
+    await loadMembers(detail.value.id)
+  } catch (e) { toast.error(e.message || '调人失败') }
 }
 async function load() { loading.value = true; try { rows.value = await listOrg() } finally { loading.value = false } }
 function openForm(id, parentId) {

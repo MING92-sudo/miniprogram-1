@@ -4,6 +4,9 @@ import http from './client'
 export const listOrg = () => http.get('/org')
 export const createOrg = (b) => http.post('/org', b)
 export const updateOrg = (id, b) => http.put(`/org/${id}`, b)
+// D1 节点成员与调人：GET /org/{id}/members（Task 2）；调人经 PUT /employees/{id} {groupName}（Task 3，目标须为既有 TEAM 节点名，否则 422）
+export const orgMembers = (id) => http.get(`/org/${id}/members`)
+export const moveEmployee = (id, groupName) => http.put(`/employees/${id}`, { groupName })
 
 export const listProjects = () => http.get('/projects')
 export const createProject = (b) => http.post('/projects', b)
