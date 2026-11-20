@@ -55,6 +55,13 @@ public class LedgerController {
         return ApiResponse.ok(ledger.orgTree());
     }
 
+    /** 组织节点可见成员（组织架构成员面板数据源，D1）；与 GET /org 同码门禁 */
+    @GetMapping("/org/{id}/members")
+    public ApiResponse<List<Map<String, Object>>> orgMembers(@PathVariable String id, HttpServletRequest req) {
+        MultiRoleGate.requireRead(req, PermissionMatrix.USER_VIEW);
+        return ApiResponse.ok(ledger.orgMembers(id));
+    }
+
     @PostMapping("/org")
     public ApiResponse<SysOrg> createOrg(@RequestBody Map<String, Object> body, HttpServletRequest req) {
         MultiRoleGate.requireWrite(req, PermissionMatrix.ROLE_ASSIGN);

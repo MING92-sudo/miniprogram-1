@@ -6,18 +6,23 @@ import com.cqwlw.maintenance.common.Ids;
 import com.cqwlw.maintenance.entity.BizElevatorChange;
 import com.cqwlw.maintenance.entity.BizProject;
 import com.cqwlw.maintenance.entity.Elevator;
+import com.cqwlw.maintenance.entity.Employee;
+import com.cqwlw.maintenance.entity.Region;
 import com.cqwlw.maintenance.entity.SysAuditLog;
 import com.cqwlw.maintenance.entity.SysInvite;
 import com.cqwlw.maintenance.entity.SysOrg;
 import com.cqwlw.maintenance.mapper.BizElevatorChangeMapper;
 import com.cqwlw.maintenance.mapper.BizProjectMapper;
 import com.cqwlw.maintenance.mapper.ElevatorMapper;
+import com.cqwlw.maintenance.mapper.EmployeeMapper;
+import com.cqwlw.maintenance.mapper.RegionMapper;
 import com.cqwlw.maintenance.mapper.SysInviteMapper;
 import com.cqwlw.maintenance.mapper.SysOrgMapper;
 import com.cqwlw.maintenance.util.TimeUtil;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -37,16 +42,21 @@ public class LedgerService {
     private final SysInviteMapper inviteMapper;
     private final BizElevatorChangeMapper changeMapper;
     private final ElevatorMapper elevatorMapper;
+    private final EmployeeMapper employeeMapper;
+    private final RegionMapper regionMapper;
     private final AuditLogService audit;
 
     public LedgerService(SysOrgMapper orgMapper, BizProjectMapper projectMapper,
                          SysInviteMapper inviteMapper, BizElevatorChangeMapper changeMapper,
-                         ElevatorMapper elevatorMapper, AuditLogService audit) {
+                         ElevatorMapper elevatorMapper, EmployeeMapper employeeMapper,
+                         RegionMapper regionMapper, AuditLogService audit) {
         this.orgMapper = orgMapper;
         this.projectMapper = projectMapper;
         this.inviteMapper = inviteMapper;
         this.changeMapper = changeMapper;
         this.elevatorMapper = elevatorMapper;
+        this.employeeMapper = employeeMapper;
+        this.regionMapper = regionMapper;
         this.audit = audit;
     }
 
@@ -66,6 +76,82 @@ public class LedgerService {
             }
         }
         return out;
+    }
+
+    /**
+     * 组织节点成员（GET /org/{id}/members，组织架构可见成员 D1）：
+     * TEAM 节点按 groupName=节点名；DEPT 节点按名称映射部门码（维保→MAINT / 安装→INSTALL /
+     * 平台→PLATFORM）；COMPANY 节点=维保部+安装部全部（UNIT/客户主体天然不在 MAINT/INSTALL 内）；
+     * UNIT 节点或无匹配规则的名称→空列表（UNIT 是外部客户主体，无内部成员）。
+     * 只读，不写审计。regionName 解析口径同 AdminArchiveService.regionNameOf（空/查不到回空串）。
+     */
+    public List<Map<String, Object>> orgMembers(String orgId) {
+        SysOrg org = orgMapper.selectById(orgId);
+        if (org == null) {
+            throw new BizException(1404, "组织不存在");
+        }
+        String type = org.type == null ? "" : org.type;
+        String deptCode = "DEPT".equals(type) ? deptCodeOf(org.name) : null;
+        if ("UNIT".equals(type) || ("DEPT".equals(type) && deptCode == null)) {
+            return List.of();
+        }
+        List<Map<String, Object>> out = new ArrayList<>();
+        for (Employee e : employeeMapper.selectList(new LambdaQueryWrapper<Employee>().orderByAsc(Employee::getId))) {
+            boolean match = switch (type) {
+                case "TEAM" -> org.name != null && org.name.equals(e.groupName);
+                case "DEPT" -> deptCode.equals(e.department);
+                case "COMPANY" -> "MAINT".equals(e.department) || "INSTALL".equals(e.department);
+                default -> false;
+            };
+            if (match) {
+                out.add(memberRow(e));
+            }
+        }
+        return out;
+    }
+
+    /** DEPT 节点名称 → 部门码；无匹配规则返回 null（视为无成员） */
+    private static String deptCodeOf(String name) {
+        if (name == null) {
+            return null;
+        }
+        if (name.contains("维保")) {
+            return "MAINT";
+        }
+        if (name.contains("安装")) {
+            return "INSTALL";
+        }
+        if (name.contains("平台")) {
+            return "PLATFORM";
+        }
+        return null;
+    }
+
+    private Map<String, Object> memberRow(Employee e) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("id", e.id);
+        m.put("name", nz(e.name));
+        m.put("phone", nz(e.phone));
+        m.put("role", nz(e.role));
+        m.put("roleText", nz(e.roleText));
+        m.put("groupName", nz(e.groupName));
+        m.put("regionId", nz(e.regionId));
+        m.put("regionName", regionNameOf(e.regionId));
+        m.put("enabled", !Boolean.FALSE.equals(e.enabled));
+        return m;
+    }
+
+    /** 区域名称（成员行展示用）；未配置区域或查不到时返回空串 */
+    private String regionNameOf(String regionId) {
+        if (regionId == null || regionId.isBlank()) {
+            return "";
+        }
+        Region r = regionMapper.selectById(regionId);
+        return r == null ? "" : nz(r.name);
+    }
+
+    private static String nz(String s) {
+        return s == null ? "" : s;
     }
 
     public SysOrg createOrg(Map<String, Object> body, String actor) {

@@ -8,6 +8,8 @@ import com.cqwlw.maintenance.entity.SysOrg;
 import com.cqwlw.maintenance.mapper.BizElevatorChangeMapper;
 import com.cqwlw.maintenance.mapper.BizProjectMapper;
 import com.cqwlw.maintenance.mapper.ElevatorMapper;
+import com.cqwlw.maintenance.mapper.EmployeeMapper;
+import com.cqwlw.maintenance.mapper.RegionMapper;
 import com.cqwlw.maintenance.mapper.SysInviteMapper;
 import com.cqwlw.maintenance.mapper.SysOrgMapper;
 import org.junit.jupiter.api.Test;
@@ -31,7 +33,8 @@ class LedgerServiceTest {
     private final BizElevatorChangeMapper changeMapper = mock(BizElevatorChangeMapper.class);
     private final ElevatorMapper elevatorMapper = mock(ElevatorMapper.class);
     private final AuditLogService audit = mock(AuditLogService.class);
-    private final LedgerService service = new LedgerService(orgMapper, projectMapper, inviteMapper, changeMapper, elevatorMapper, audit);
+    private final LedgerService service = new LedgerService(orgMapper, projectMapper, inviteMapper, changeMapper,
+            elevatorMapper, mock(EmployeeMapper.class), mock(RegionMapper.class), audit);
 
     @Test
     void unitOrgCannotHaveChildren() {

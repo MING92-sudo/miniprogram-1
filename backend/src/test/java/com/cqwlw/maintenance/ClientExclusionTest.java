@@ -17,6 +17,7 @@ import com.cqwlw.maintenance.mapper.ElevatorMapper;
 import com.cqwlw.maintenance.mapper.EmployeeMapper;
 import com.cqwlw.maintenance.mapper.FaultMapper;
 import com.cqwlw.maintenance.mapper.MaintainRecordMapper;
+import com.cqwlw.maintenance.mapper.RegionMapper;
 import com.cqwlw.maintenance.mapper.SysAuditLogMapper;
 import com.cqwlw.maintenance.mapper.SysConfigMapper;
 import com.cqwlw.maintenance.mapper.SysInviteMapper;
@@ -169,7 +170,8 @@ class ClientExclusionTest {
                 org("org_c", "COMPANY"), org("org_d", "DEPT"), org("org_t", "TEAM"), org("org_u", "UNIT")));
         LedgerService service = new LedgerService(orgMapper, mock(BizProjectMapper.class),
                 mock(SysInviteMapper.class), mock(BizElevatorChangeMapper.class),
-                mock(ElevatorMapper.class), mock(AuditLogService.class));
+                mock(ElevatorMapper.class), mock(EmployeeMapper.class), mock(RegionMapper.class),
+                mock(AuditLogService.class));
 
         List<SysOrg> out = service.orgTree();
 
@@ -183,7 +185,8 @@ class ClientExclusionTest {
     void createOrgRejectsUnitType() {
         LedgerService service = new LedgerService(mock(SysOrgMapper.class), mock(BizProjectMapper.class),
                 mock(SysInviteMapper.class), mock(BizElevatorChangeMapper.class),
-                mock(ElevatorMapper.class), mock(AuditLogService.class));
+                mock(ElevatorMapper.class), mock(EmployeeMapper.class), mock(RegionMapper.class),
+                mock(AuditLogService.class));
 
         BizException ex = assertThrows(BizException.class,
                 () -> service.createOrg(Map.of("type", "UNIT", "name", "某物业公司"), "emp_1"));
