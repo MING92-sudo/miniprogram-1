@@ -6,8 +6,10 @@
 @import './styles/brand.wxss';
 @import './styles/legacy-dark.wxss';
 
-/* 新壳按钮重置（仅 .bw 内，避免影响旧页原生 button） */
-.bw button{background:none;border:none;padding:0;margin:0;font-size:inherit;line-height:inherit;color:inherit}
+/* 新壳按钮重置（仅 .bw 内，避免影响旧页原生 button）；
+   width:auto 根治 wx button UA 固定 width:184px（2026-11-20 真机反馈：
+   group-head 等自定义类按钮被 UA 宽度挤压换行；.btn/.link 已在 tokens 同步修复） */
+.bw button{background:none;border:none;padding:0;margin:0;font-size:inherit;line-height:inherit;color:inherit;width:auto}
 .bw button::after{border:none}
 .bw .page-pad{padding:18rpx 28rpx 20rpx}
 .bw .tabbar-pad{padding-bottom:calc(152rpx + env(safe-area-inset-bottom,0px))}

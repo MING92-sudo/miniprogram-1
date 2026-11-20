@@ -106,6 +106,14 @@ public class MiniappMenuService {
                 return ROLE_HOME.get(r);
             }
         }
+        // 扩展角色归属最近工作台（与 resolveTabs/TABS_ALIAS 同口径、与 menus.js 镜像一致：
+        // INSTALLER→安装工作台、MAINT_QUALITY/MAINT_BIZ→维保工作台），缺省回退「我的」
+        for (String r : roles) {
+            String alias = TABS_ALIAS.get(r);
+            if (alias != null) {
+                return ROLE_HOME.get(alias);
+            }
+        }
         return "/pages/profile/index";
     }
 

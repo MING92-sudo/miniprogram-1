@@ -28,8 +28,8 @@
       <!-- 分组 collapsible + 逐项行内留证 -->
       <view wx:for="{{sections}}" wx:key="label" class="col gap6">
         <button class="group-head" data-label="{{item.label}}" bindtap="onToggleGroup" aria-role="button" aria-label="{{item.label}}">
-          <text class="row gap6"><text class="i {{collapsed[item.label] ? 'i-chevron-right' : 'i-chevron-down'}} fs18 dim"></text>{{item.label}}</text>
-          <text class="mono fs18 dim">{{item.done}} / {{item.total}}{{collapsed[item.label] ? ' · 折叠' : ''}}</text>
+          <text class="row gap6 tk-gh-title"><text class="i {{collapsed[item.label] ? 'i-chevron-right' : 'i-chevron-down'}} fs18 dim"></text>{{item.label}}</text>
+          <text class="mono fs18 dim tk-gh-count">{{item.done}} / {{item.total}}{{collapsed[item.label] ? ' · 折叠' : ''}}</text>
         </button>
         <block wx:if="{{!collapsed[item.label]}}">
           <view

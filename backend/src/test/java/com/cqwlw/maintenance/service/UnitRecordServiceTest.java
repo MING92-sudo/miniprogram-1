@@ -222,6 +222,47 @@ class UnitRecordServiceTest {
         verify(elevatorMapper, never()).selectOne(any());
     }
 
+    /**
+     * 2026-11-20 使用单位签署核对扩项：signView 返回检查项明细（过滤 notInThisRun，白名单投影
+     * 含 abnormalDesc/freqLabel/照片）、现场照片墙、useUnitName/workDate/confirmStatus，供 sign 页
+     * 「核对项目/异常整改/照片」；禁令字段（shareToken/reportPayload/context/satisfaction/
+     * refuseReason）仍不返回（docs/14 §4.7）。
+     */
+    @Test
+    void signViewProjectsItemsForClientCheck() {
+        MaintainRecord r = record();
+        r.shareToken = "sg-1";
+        r.useUnitName = "重庆世纪物业管理有限公司";
+        r.checkinTime = LocalDateTime.of(2026, 11, 20, 8, 52, 0);
+        r.checkoutTime = LocalDateTime.of(2026, 11, 20, 11, 20, 0);
+        r.itemsJson = JsonUtil.write(List.of(
+                Map.of("name", "曳引机", "result", "NORMAL", "freqLabel", "半月"),
+                Map.of("name", "报警装置", "result", "ABNORMAL", "abnormalDesc", "通话杂音大，已复测",
+                        "photoFileIds", List.of("file_abn"), "freqLabel", "半月"),
+                Map.of("name", "年度试验", "notInThisRun", true, "freqLabel", "年度")));
+        when(fileStorage.urlOf("file_abn")).thenReturn("https://api.example.com/files/file_abn?s=fresh");
+        when(recordMapper.selectById("ur_1")).thenReturn(r);
+
+        Map<String, Object> out = service.signView("ur_1", "sg-1");
+
+        assertEquals("重庆世纪物业管理有限公司", out.get("useUnitName"));
+        assertEquals("2026-11-20", out.get("workDate"));
+        assertEquals("PENDING", out.get("confirmStatus"));
+        List<?> items = (List<?>) out.get("items");
+        assertEquals(2, items.size()); // notInThisRun 未执行项过滤
+        assertEquals(2, out.get("itemTotal"));
+        Map<?, ?> ab = (Map<?, ?>) items.get(1);
+        assertEquals("通话杂音大，已复测", ab.get("abnormalDesc"));
+        assertEquals(List.of("https://api.example.com/files/file_abn?s=fresh"), ab.get("photos"));
+        assertEquals(List.of("https://api.example.com/files/file_abn?s=fresh"), out.get("photos"));
+        assertEquals(1, out.get("photoCount"));
+        assertFalse(out.containsKey("shareToken"));
+        assertFalse(out.containsKey("reportPayload"));
+        assertFalse(out.containsKey("context"));
+        assertFalse(out.containsKey("satisfaction"));
+        assertFalse(out.containsKey("refuseReason"));
+    }
+
     private static MaintainRecord record() {
         MaintainRecord r = new MaintainRecord();
         r.id = "ur_1";

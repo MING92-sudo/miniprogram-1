@@ -8,8 +8,8 @@ const nav = require('../../../utils/nav')
 const { EMPTY_TEXT, ELEVATOR_TEXT } = require('../../../constants/index')
 
 definePage(ROUTES['/pages/elevator/list/index'], {
-  data: { keyword: '', allList: [], list: [], loading: true, error: '', emptyMode: 'empty', emptyTitle: '', emptyDesc: '', text: ELEVATOR_TEXT },
-  onShow() { this.fetchList() },
+  data: { keyword: '', allList: [], list: [], loading: true, error: '', emptyMode: 'empty', emptyTitle: '', emptyDesc: '', text: ELEVATOR_TEXT, customer: false },
+  onShow() { this.setData({ customer: isCustomerPrincipal() }); this.fetchList() },
   fetchList() {
     this.setData({ loading: true, error: '' })
     // 客户主体必须走门户接口 /unit/elevators：/elevators 是员工读接口，按员工数据域过滤，

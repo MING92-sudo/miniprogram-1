@@ -190,6 +190,7 @@ npm run build:backend   # = vite build + 清空并用 dist 覆盖后端 static�
 | `REG_AUTH_LOGIN_URL` / `REG_API_BASE_URL` | 平台登录地址与业务根路径 |
 | `REG_USERNAME` / `REG_KEY` / `REG_APPCODE` / `REG_SECRET` | 平台凭证，只允许环境变量 |
 | `REG_LEGACY_UPLOAD_ENABLED` | 平台 2.8 存量记录提交开关，默认 `false` |
+| `APP_LEGACY_MODULES_ENABLED` | 已裁合规矩阵台账模块开关（救援/演练/自检/知识库 9 条端点），默认 `false`（一律 403） |
 | `SEED_DEMO_DATA` | 演示种子开关（别名 `DB_SEED_DEMO`），生产必须 `false` |
 | `APP_WORK_DURATION_MINUTES` | 签到→签退最短作业时长，默认 30 |
 | `APP_CHECKIN_THRESHOLD_METERS` | 签到定位全局阈值（米），默认 200 |

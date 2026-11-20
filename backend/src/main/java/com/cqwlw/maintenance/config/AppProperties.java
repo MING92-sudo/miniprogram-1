@@ -31,6 +31,11 @@ public class AppProperties {
     private String publicBaseUrl;
     private String lbsAmapKey;
     private String lbsTencentKey;
+    /**
+     * 已裁合规矩阵台账模块总开关（docs/01 §10.2：救援/演练/自检/知识库，前端零调用）。
+     * 默认 false：9 条端点一律 403；恢复交付时置 true（APP_LEGACY_MODULES_ENABLED）。
+     */
+    private boolean legacyModulesEnabled = false;
 
     public boolean cosConfigured() {
         return cosBucket != null && !cosBucket.isEmpty()
@@ -175,5 +180,13 @@ public class AppProperties {
 
     public void setLbsTencentKey(String lbsTencentKey) {
         this.lbsTencentKey = lbsTencentKey;
+    }
+
+    public boolean isLegacyModulesEnabled() {
+        return legacyModulesEnabled;
+    }
+
+    public void setLegacyModulesEnabled(boolean legacyModulesEnabled) {
+        this.legacyModulesEnabled = legacyModulesEnabled;
     }
 }

@@ -53,6 +53,56 @@ class HandoverServiceTest {
         assertEquals("消防员电梯", o.specialType);
     }
 
+    /**
+     * 2026-11-20 真机反馈③：纯维保部角色列表默认只返回维保验收阶段
+     * （INSPECTING/RECTIFYING/PENDING_CONFIRM/ARCHIVED），安装内部阶段
+     * （INIT/DOC_SUBMITTING/PENDING_INST_REVIEW）不下发；显式 status 查询尊重入参；
+     * 安装部/平台/混合角色不过滤。
+     */
+    @Test
+    void listScopesMaintenanceOnlyRolesToAcceptanceStages() {
+        HandoverOrderMapper orderMapper = mock(HandoverOrderMapper.class);
+        HandoverService svc = service(orderMapper, mock(HandoverCheckMapper.class),
+                mock(HandoverCheckItemMapper.class), mock(HandoverRectificationMapper.class),
+                mock(HandoverSignMapper.class));
+        java.util.function.Function<String, HandoverOrder> orderOf = (st) -> {
+            HandoverOrder o = new HandoverOrder();
+            o.id = "h_" + st;
+            o.status = st;
+            o.createdAt = java.time.LocalDateTime.of(2026, 11, 20, 10, 0);
+            return o;
+        };
+        List<HandoverOrder> all = List.of(orderOf.apply("INIT"), orderOf.apply("DOC_SUBMITTING"),
+                orderOf.apply("PENDING_INST_REVIEW"), orderOf.apply("INSPECTING"),
+                orderOf.apply("RECTIFYING"), orderOf.apply("PENDING_CONFIRM"), orderOf.apply("ARCHIVED"),
+                orderOf.apply("VOIDED"));
+        when(orderMapper.selectList(any())).thenReturn(all);
+
+        // 纯维保部：隐藏安装内部 3 阶段
+        Map<String, Object> out = svc.list(Map.of("page", "1", "size", "20"),
+                java.util.Set.of("MAINT_TECH"));
+        List<?> ids = ((List<?>) out.get("list")).stream()
+                .map(o -> ((HandoverOrder) o).id).toList();
+        assertEquals(List.of("h_INSPECTING", "h_RECTIFYING", "h_PENDING_CONFIRM", "h_ARCHIVED"), ids);
+
+        // 显式 status=ARCHIVED 尊重入参
+        Map<String, Object> archived = svc.list(Map.of("status", "ARCHIVED", "page", "1", "size", "20"),
+                java.util.Set.of("MAINT_TECH"));
+        assertEquals(1, ((List<?>) archived.get("list")).size());
+
+        // 平台管理不过滤；安装+维保混合角色不过滤
+        Map<String, Object> platform = svc.list(Map.of("page", "1", "size", "20"),
+                java.util.Set.of("PLATFORM_ADMIN"));
+        assertEquals(8, ((List<?>) platform.get("list")).size());
+        Map<String, Object> mixed = svc.list(Map.of("page", "1", "size", "20"),
+                java.util.Set.of("MAINT_TECH", "INST_PM"));
+        assertEquals(8, ((List<?>) mixed.get("list")).size());
+
+        // 旧签名（无角色）不过滤，行为不变
+        Map<String, Object> legacy = svc.list(Map.of("page", "1", "size", "20"));
+        assertEquals(8, ((List<?>) legacy.get("list")).size());
+    }
+
     /** init 后 submitDocs 缺整机质量证明 → 422 拦截（3 必传资料卡点） */
     @Test
     void submitDocsBlocksOnMissingRequired() {

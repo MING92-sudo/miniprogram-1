@@ -21,7 +21,7 @@
       </view>
       <view wx:if="{{list.length < total}}" class="hint">上拉加载更多</view>
     </block>
-    <empty-state wx:else mode="{{emptyMode}}" title="{{emptyMode === 'filtered' ? '当前筛选没有匹配工单' : '本区域暂无待接单工单'}}" desc="{{emptyMode === 'filtered' ? '数据仍在，换个筛选条件试试。' : '新工单进入待接单池后按急修优先排序，并通过消息提醒。'}}" actionText="一键报修" bind:action="goReport"></empty-state>
+    <empty-state wx:else mode="{{emptyMode}}" title="{{emptyMode === 'filtered' ? '当前筛选没有匹配工单' : '本区域暂无待接单工单'}}" desc="{{emptyMode === 'filtered' ? '数据仍在，换个筛选条件试试。' : '新工单进入待接单池后按急修优先排序，并通过消息提醒。'}}" actionText="{{canReport ? '一键报修' : ''}}" bind:action="goReport"></empty-state>
   </view>
   <custom-tabbar></custom-tabbar>
 </view>

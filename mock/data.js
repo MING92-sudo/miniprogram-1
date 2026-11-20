@@ -292,6 +292,7 @@ const db = {
   unitRecords: [
     {
       id: 'ur_1', elevatorName: '世纪大厦 1# 客梯', elevatorCode: 'EM-2024-001', shareToken: 'sg-mock-1', recordVersion: 'v1', hashPrefix: '9F3C7A21', frozenAt: today('10:06:00'), assistantSignatureUrl: DEMO_SIGNATURE,
+      useUnitName: '重庆世纪物业管理有限公司',
       workType: '半月维保', workTypeCode: 'HM',
       workerName: '张伟', assistantName: '李强', workerPlatformId: '6901282369105174537', assistantPlatformId: '6901284774286860288',
       checkinTime: today('08:52:00'), checkoutTime: today('11:20:00'), duration: '02:28:00',
@@ -306,6 +307,7 @@ const db = {
     },
     {
       id: 'ur_2', elevatorName: '蓝湾国际 A 座货梯', elevatorCode: 'EM-2024-003', shareToken: 'sg-mock-2', recordVersion: 'v1', hashPrefix: '9F3C7A21', frozenAt: today('18:10:00'), assistantSignatureUrl: '',
+      useUnitName: '重庆蓝湾物业服务有限公司',
       workType: '困人救援', workTypeCode: 'FM',
       workerName: '张伟', assistantName: '', workerPlatformId: '6901282369105174537', assistantPlatformId: '',
       checkinTime: today('16:28:00'), checkoutTime: today('18:05:00'), duration: '01:37:00',

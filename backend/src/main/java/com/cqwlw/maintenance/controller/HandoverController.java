@@ -18,10 +18,8 @@ import java.util.Map;
 
 /**
  * 移交单（W1，Task 4）端点。
- * 角色门禁待 Task 8（INSTALLER/USE_UNIT 角色 + 端点级门禁 + 数据范围谓词）：
- * 移交涉及安装部/维保部经理/接收工程师三类人，无一 ADMIN-only，故本任务不强加 requireAdmin；
- * /handovers/** 不在 AdminRoleInterceptor 覆盖清单，天然只要求已登录（AuthInterceptor 默认）。
- * 状态机逻辑本身与角色无关，Task 8 补齐角色与数据范围后再行收敛。
+ * /handovers/** 不在 AdminRoleInterceptor 覆盖清单，读端点走 MultiRoleGate.requireRead(HANDOVER_VIEW)；
+ * 创建（init）走 requireWrite(HANDOVER_CREATE)（2026-11-21 对齐矩阵 §4.1：仅 INST_PM，越权 403 无副作用）。
  */
 @RestController
 public class HandoverController {
@@ -32,9 +30,11 @@ public class HandoverController {
         this.handoverService = handoverService;
     }
 
-    /** 安装部发起移交（进入 DOC_SUBMITTING） */
+    /** 安装部发起移交（进入 DOC_SUBMITTING）；handover:create 仅 INST_PM（矩阵 §4.1） */
     @PostMapping("/handovers")
-    public ApiResponse<HandoverOrder> init(@RequestBody(required = false) Map<String, Object> body) {
+    public ApiResponse<HandoverOrder> init(@RequestBody(required = false) Map<String, Object> body,
+                                           HttpServletRequest req) {
+        MultiRoleGate.requireWrite(req, PermissionMatrix.HANDOVER_CREATE);
         return ApiResponse.ok(handoverService.init(body));
     }
 
@@ -49,7 +49,10 @@ public class HandoverController {
         query.put("status", status == null ? "" : status);
         query.put("page", page == null ? "" : page);
         query.put("size", size == null ? "" : size);
-        return ApiResponse.ok(handoverService.list(query));
+        @SuppressWarnings("unchecked")
+        java.util.Set<String> roles = (java.util.Set<String>) req.getAttribute(
+                com.cqwlw.maintenance.auth.AuthInterceptor.ATTR_ROLES);
+        return ApiResponse.ok(handoverService.list(query, roles));
     }
 
     /** 移交单详情 */

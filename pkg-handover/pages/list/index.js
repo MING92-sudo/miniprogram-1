@@ -12,8 +12,18 @@ const {
   LOADING_TEXT
 } = require('../../../constants/index')
 const { ensureLogin } = require('../../../utils/guard')
+const { getRoles } = require('../../../utils/auth')
 
 const SIZE = 20
+
+// 维保部读收敛（2026-11-20 真机反馈③，与后端 HandoverService.list 同口径）：纯维保部角色
+// 的筛选 Tab 只保留维保验收阶段，安装内部阶段（资料移交中/内部审核中）不出现
+const MAINT_VISIBLE_FILTERS = ['', 'INSPECTING', 'RECTIFYING', 'PENDING_CONFIRM', 'ARCHIVED']
+function filtersFor(roles) {
+  const maintOnly = (roles || []).some((r) => r.indexOf('MAINT') === 0)
+    && !(roles || []).some((r) => r.indexOf('INST') === 0 || r === 'INSTALLER' || r === 'PLATFORM_ADMIN' || r === 'SYS_ADMIN' || r === 'ADMIN')
+  return maintOnly ? FILTERS.filter((f) => MAINT_VISIBLE_FILTERS.indexOf(f.key) > -1) : FILTERS
+}
 
 const FILTERS = [
   { key: '', label: '全部' },
@@ -50,7 +60,7 @@ definePage(ROUTES['/pkg-handover/pages/list/index'], {
   onLoad() {
     if (!ensureLogin()) return
     const role = (getApp().globalData && getApp().globalData.role) || ''
-    this.setData({ canWrite: HANDOVER_WRITE_ROLES.indexOf(role) > -1 })
+    this.setData({ canWrite: HANDOVER_WRITE_ROLES.indexOf(role) > -1, filters: filtersFor(getRoles()) })
     this._ready = true
   },
 

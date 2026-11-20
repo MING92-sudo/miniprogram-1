@@ -15,4 +15,14 @@ page{background:var(--ink);color:var(--text)}
 .cs-submit{flex:1.2}
 .cs-gated{opacity:.35}.cs-f-ghost{flex:.9}
 .cs-f-main{flex:1.1}
-.page-pad{padding-bottom:calc(160rpx + env(safe-area-inset-bottom,0px))}
+.bw .page-pad{padding-bottom:280rpx;padding-bottom:calc(280rpx + env(safe-area-inset-bottom))}
+
+.ci-row{display:flex;justify-content:space-between;align-items:flex-start;gap:16rpx;padding:14rpx 0;border-top:1rpx solid var(--line)}
+.ci-row:first-of-type{border-top:none}
+.ci-main{flex:1;min-width:0}
+.ci-name{font-size:22rpx;color:var(--text);line-height:1.5}
+.ci-val{font-size:20rpx;color:var(--muted);margin-top:4rpx}
+.ci-ab{font-size:20rpx;color:var(--signal-soft);margin-top:4rpx}
+.ci-badge{flex:none;font-size:18rpx;padding:4rpx 12rpx;border-radius:4rpx;border:1rpx solid var(--line);color:var(--muted)}
+.ci-badge.ok{color:var(--ok-soft);border-color:rgba(47,196,141,.4)}
+.ci-badge.ab{color:var(--signal-soft);border-color:rgba(255,75,43,.45)}

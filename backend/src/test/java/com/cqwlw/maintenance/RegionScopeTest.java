@@ -128,4 +128,42 @@ class RegionScopeTest {
         BizException ex = assertThrows(BizException.class, () -> svc.require("nobody"));
         assertEquals(401, ex.getCode());
     }
+
+    /** C-26 规范码归一（2026-11-20）：MAINT_MGR=旧码 MAINT_MANAGER 同口径部门级全量读（null 不限），
+     *  修复前规范码主角色落空回退本人兜底，经理读列表恒空（真机实测缺陷） */
+    @Test
+    void canonicalMaintMgrGetsDeptWideRead() {
+        Employee mgr = emp("emp_m", "MAINT_MGR", null, null, "wp_m");
+        EmployeeScopeService svc = service(List.of(), List.of());
+        assertNull(svc.visibleReadPlatformIds(mgr));
+    }
+
+    /** C-26：MAINT_SUP=旧码 LEADER 同口径——本班组读+写谓词，不再本人兜底 */
+    @Test
+    void canonicalMaintSupGetsTeamScope() {
+        Employee sup = emp("emp_s", "MAINT_SUP", null, "g1", "wp_s");
+        Employee mate = emp("emp_t", "MAINT_TECH", null, "g1", "wp_t");
+        EmployeeScopeService svc = service(List.of(sup, mate), List.of(sup, mate));
+        assertEquals(Set.of("wp_s", "wp_t"), svc.visibleReadPlatformIds(sup));
+        assertEquals(Set.of("wp_s", "wp_t"), svc.visibleWorkerPlatformIds(sup));
+    }
+
+    /** C-26：PLATFORM_ADMIN=旧码 ADMIN 同口径——读/写/急修谓词均不限（null） */
+    @Test
+    void canonicalPlatformAdminUnrestricted() {
+        Employee pa = emp("emp_p", "PLATFORM_ADMIN", null, null, null);
+        EmployeeScopeService svc = service(List.of(), List.of());
+        assertNull(svc.visibleReadPlatformIds(pa));
+        assertNull(svc.visibleWorkerPlatformIds(pa));
+        assertNull(svc.visibleCreatorIds(pa));
+    }
+
+    /** C-26：规范安装码不接触作业域（空集 fail-closed，与旧码三岗同口径） */
+    @Test
+    void canonicalInstallRolesNoFieldAccess() {
+        EmployeeScopeService svc = service(List.of(), List.of());
+        assertTrue(svc.visibleReadPlatformIds(emp("emp_pm", "INST_PM", null, null, "wp_pm")).isEmpty());
+        assertTrue(svc.visibleReadPlatformIds(emp("emp_iw", "INSTALLER", null, null, "wp_iw")).isEmpty());
+        assertTrue(svc.visibleReadPlatformIds(emp("emp_im", "INST_MGR", null, null, "wp_im")).isEmpty());
+    }
 }

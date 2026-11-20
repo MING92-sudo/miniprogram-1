@@ -1,13 +1,15 @@
-// 签署确认（M5，屏 11）：一次性任务 taskId+token（免登录）；核对项目/异常整改/照片 → 勾选确认门控（§8.4 第二档）
-// → 手写签名 → 时间戳/GPS（后端写入）→ 锁定；拒签必填原因。token 重放/转发由后端一次性校验拦截。
+// 签署确认（M5，屏 11）：一次性任务 taskId+token（免登录）；核对项目明细/异常整改/现场照片（2026-11-20
+// sign-view 扩项，docs/14 §4.7）→ 勾选确认门控（§8.4 第二档）→ 手写签名 → 时间戳/GPS（后端写入）→ 锁定；
+// 拒签必填原因。token 重放/转发由后端一次性校验拦截。
 const unit = require('../../../services/unit')
 const { definePage } = require('../../../utils/guard')
 const { ROUTES } = require('../../../config/routes')
+const { buildRecordSummary } = require('../../../utils/record-view')
 const nav = require('../../../utils/nav')
 
 definePage(ROUTES['/pkg-client/pages/sign/index'], {
   data: {
-    rid: '', token: '', view: null, confirmed: false, refused: false,
+    rid: '', token: '', view: null, summary: null, confirmed: false, refused: false,
     hasDrawn: false, consent: false, submitting: false, loadError: ''
   },
   onLoad(query) {
@@ -18,7 +20,20 @@ definePage(ROUTES['/pkg-client/pages/sign/index'], {
   onBack() { nav.back() },
   fetchView() {
     unit.getSignView(this.data.rid, this.data.token)
-      .then((view) => this.setData({ view, confirmed: !!view.confirmed, refused: view.confirmStatus === 'REFUSED', loadError: '' }))
+      .then((view) => {
+        const items = (view.items || []).map((it, i) => Object.assign({}, it, {
+          seq: i + 1,
+          resultText: it.result === 'NORMAL' ? '正常' : (it.result === 'ABNORMAL' ? '异常' : (it.result === 'NA' ? '不适用' : (it.result || '—'))),
+          resultClass: it.result === 'ABNORMAL' ? 'ab' : (it.result === 'NORMAL' ? 'ok' : ''),
+          valueShow: it.value !== null && it.value !== undefined && it.value !== ''
+            ? String(it.value) + (it.valueUnit || '') : (it.valueText || '')
+        }))
+        this.setData({
+          view: Object.assign({}, view, { items }),
+          summary: buildRecordSummary(view.items || []),
+          confirmed: !!view.confirmed, refused: view.confirmStatus === 'REFUSED', loadError: ''
+        })
+      })
       .catch((e) => this.setData({ loadError: (e && e.message) || '链接无效或已失效' }))
   },
   initCanvas() {

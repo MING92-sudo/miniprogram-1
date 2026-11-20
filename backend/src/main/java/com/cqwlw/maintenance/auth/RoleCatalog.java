@@ -155,6 +155,11 @@ public final class RoleCatalog {
     /** 管理端是否可登录（docs/14 §3「可登录端」列 + §10 #1/#2 越权用例） */
     public static boolean canUseAdminConsole(String role) {
         Role r = role(role);
+        if (r == null) {
+            // v2 规范码账号（INST_PM/MAINT_MGR/MAINT_SUP…）与旧字面量同口径：
+            // 只查历史 ROLES 会把规范码判为不可登录，/admin/** 旧两档门禁误拒（docs/14 §3.1 别名表）
+            r = canonicalRole(role);
+        }
         return r != null && r.adminConsole();
     }
 

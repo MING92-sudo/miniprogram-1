@@ -343,7 +343,7 @@ public final class PermissionMatrix {
         y(HANDOVER_REVIEW, IM);
         y(HANDOVER_REVIEW_RETURN, IM);
         y(HANDOVER_RECEIVE, MS);
-        y(HANDOVER_INSPECT, IW); c(HANDOVER_INSPECT, MT);
+        y(HANDOVER_INSPECT, IW, MT);
         y(HANDOVER_RECTIFY, IP, IC, IW);
         y(HANDOVER_SIGN_INSTALL, IM, IW);
         y(HANDOVER_SIGN_MAINT, MS, MM);

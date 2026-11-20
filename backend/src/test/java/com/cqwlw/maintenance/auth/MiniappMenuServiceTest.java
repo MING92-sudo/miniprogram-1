@@ -211,6 +211,14 @@ class MiniappMenuServiceTest {
                 keys(svc().menusOf(Set.of("INSTALLER"), null, null)));
     }
 
+    /** 2026-11-21 修复：别名角色 home 归属最近工作台（原 resolveHome 无 TABS_ALIAS 兜底，落在「我的」页） */
+    @Test
+    void extensionRolesHomeFallsToAliasWorkspace() {
+        assertEquals("/pages/maint/home/index", svc().menusOf(Set.of("MAINT_QUALITY"), null, null).get("home"));
+        assertEquals("/pages/maint/home/index", svc().menusOf(Set.of("MAINT_BIZ"), null, null).get("home"));
+        assertEquals("/pages/install/home/index", svc().menusOf(Set.of("INSTALLER"), null, null).get("home"));
+    }
+
     @Test
     void badgeKeyOnOrdersTab() {
         Map<String, Object> out = svc().menusOf(Set.of("MAINT_TECH"), null, null);

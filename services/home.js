@@ -45,14 +45,16 @@ function getMaintHome() {
       title: '急修 · ' + (f.elevatorName || f.elevatorCode || ''),
       desc: f.desc || '', tagText: '急修', tagTone: 'signal'
     }))
-    const sosSrc = trapped[0] || faults.filter((f) => f.status === 'CLOSED')[0] || null
+    // 急修横幅只显示未闭环工单（2026-11-20 真机反馈④）：无在途困人急修时隐藏横幅，
+    // 不再回退展示已闭环工单（已闭环属历史，不该占据警示位）
+    const sosSrc = trapped[0] || open[0] || null
     const sos = sosSrc ? {
       id: sosSrc.id,
       title: sosSrc.elevatorName || sosSrc.elevatorCode || '急修单',
       desc: sosSrc.desc || '',
       no: sosSrc.id, time: hm(sosSrc.createdAt),
-      statusText: sosSrc.status === 'CLOSED' ? '困人急修 · 已闭环' : '困人急修 · 待接单',
-      statusTone: sosSrc.status === 'CLOSED' ? 'ok' : 'signal'
+      statusText: (sosSrc.trappedCount || 0) > 0 ? '困人急修 · 待接单' : '急修 · 待接单',
+      statusTone: 'signal'
     } : null
     const doneWeek = orders.filter((o) => o.status === 'DONE').length
     const week = [

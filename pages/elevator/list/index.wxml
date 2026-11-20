@@ -21,7 +21,7 @@
         <text class="tag {{item.workStat === 'normal' ? 'tag-ok' : 'tag-amber'}}">{{item.workStat === 'normal' ? text.NORMAL : item.workStat}}</text>
         <text class="i i-chevron-right dim"></text>
       </view>
-      <view class="card">
+      <view wx:if="{{!customer}}" class="card">
         <view class="sec-head"><text class="panel-title mono">{{text.QR_TITLE}}</text><text class="fs18 dim">{{text.QR_SUB}}</text></view>
         <view class="row gap10 mt8">
           <view class="el-qr"><text class="i i-qrcode"></text></view>

@@ -38,13 +38,13 @@
         <text wx:elif="{{item.state === 'none'}}" class="fs18 dim">{{text.NO_PERM}}</text>
         <text wx:else class="i i-chevron-right dim"></text>
       </view>
-      <view class="pf-note mt8"><text class="i i-circle-info"></text> {{text.NOTE}}</view>
+      <view wx:if="{{workbenchList.length > 1}}" class="pf-note mt8"><text class="i i-circle-info"></text> {{text.NOTE}}</view>
     </view>
 
     <view class="card pf-entries">
       <view class="pf-entry" bindtap="goMaskDoc"><text class="i i-eye-slash pf-eico"></text><text class="grow">{{text.MASK}}</text><text class="i i-chevron-right dim"></text></view>
       <view class="pf-entry" bindtap="goMessage"><text class="i i-bell-r pf-eico"></text><text class="grow">{{text.MESSAGE}}</text><text class="i i-chevron-right dim"></text></view>
-      <view class="pf-entry" bindtap="goOffline"><text class="i i-cloud-arrow-up pf-eico"></text><text class="grow">{{text.OFFLINE}}</text><text class="i i-chevron-right dim"></text></view>
+      <view wx:if="{{!customer}}" class="pf-entry" bindtap="goOffline"><text class="i i-cloud-arrow-up pf-eico"></text><text class="grow">{{text.OFFLINE}}</text><text class="i i-chevron-right dim"></text></view>
       <view class="pf-entry" bindtap="goPassword"><text class="i i-key pf-eico"></text><text class="grow">{{text.PASSWORD}}</text><text class="i i-chevron-right dim"></text></view>
       <view class="pf-entry" bindtap="onBindWechat"><text class="i i-weixin pf-eico"></text><text class="grow">{{text.WECHAT}}{{wechatBound ? text.WECHAT_BOUND : ''}}</text><text class="i i-chevron-right dim"></text></view>
     </view>

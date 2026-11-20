@@ -1,6 +1,9 @@
 // 我的维保工单（M3 迁自 pages/order/list，逻辑保留）：状态筛选 + 搜索/扫码 + 到期下钻 + 分页。
+// 2026-11-20 卡片 UI 重做：工单类型徽标 + 设备档案行（设备代码/注册代码/编号/型号）+ 计划/工单号/人员网格 +
+// 到期标记（今日/3日内/超期）+ 进行中已作业时长 + 已完成上报状态，字段均为列表行投影既有字段（docs/04 A.2）。
 const { getOrderList, resolveByElevatorCode } = require('../../../services/order')
 const { STATUS_TEXT, TOAST_TEXT, EMPTY_TEXT } = require('../../../constants/index')
+const { formatTime, parseTime } = require('../../../utils/util')
 const { definePage } = require('../../../utils/guard')
 const { ROUTES } = require('../../../config/routes')
 const nav = require('../../../utils/nav')
@@ -12,6 +15,32 @@ const TABS = [
   { key: 'DONE', label: '已完成' }
 ]
 const DUE_LABEL = { today: '今日到期', soon: '即将到期（3 天内）', overdue: '保养超期' }
+
+// 卡片展示投影（纯函数）：到期标记/已作业时长/上报状态/人员与设备行，不新增接口字段
+function enrich(o) {
+  const item = Object.assign({}, o, { statusText: STATUS_TEXT[o.status] || o.status })
+  const today = formatTime().slice(0, 10)
+  const soonEnd = formatTime(new Date(Date.now() + 3 * 86400000)).slice(0, 10)
+  const day = (o.planTime || '').slice(0, 10)
+  if (o.status !== 'DONE' && day) {
+    item.dueTag = day < today ? { text: '已超期', cls: 'sig' }
+      : (day === today ? { text: '今日到期', cls: 'amber' }
+        : (day <= soonEnd ? { text: '3 日内到期', cls: '' } : null))
+  }
+  const t0 = parseTime(o.checkinTime)
+  if (o.status === 'PROCESSING' && t0) {
+    const mins = Math.max(0, Math.floor((Date.now() - t0) / 60000))
+    item.elapsedText = '已作业 ' + (mins >= 60 ? Math.floor(mins / 60) + ' 小时 ' + (mins % 60) + ' 分' : mins + ' 分钟')
+  }
+  if (o.status === 'DONE') {
+    item.reportTag = o.reportStatus === 'REPORTED' ? { text: '已上报平台', cls: 'ok' }
+      : (o.reportStatus === 'FAILED' ? { text: '上报异常', cls: 'sig' } : { text: '待上报', cls: '' })
+  }
+  item.workerLine = (o.workerName || '') + (o.assistantName ? ' · 配合 ' + o.assistantName : '')
+  item.metaLine = [o.projectName, o.insideNumber ? '编号 ' + o.insideNumber : '', o.model].filter(Boolean).join(' · ')
+  item.deviceLine = [o.deviceCode ? '设备代码 ' + o.deviceCode : '', o.regCode ? '注册代码 ' + o.regCode : ''].filter(Boolean).join(' · ')
+  return item
+}
 
 definePage(ROUTES['/pkg-maintenance/pages/orders/index'], {
   data: {
@@ -56,7 +85,7 @@ definePage(ROUTES['/pkg-maintenance/pages/orders/index'], {
     this.setData({ loading: reset, error: '' })
     return getOrderList({ page, size: this.data.size, keyword: this.data.keyword, status: this.data.status, due: this._due || '' })
       .then((data) => {
-        const list = ((data && data.list) || []).map((o) => Object.assign({}, o, { statusText: STATUS_TEXT[o.status] || o.status }))
+        const list = ((data && data.list) || []).map(enrich)
         const merged = reset ? list : this.data.list.concat(list)
         this.setData({ list: merged, total: (data && data.total) || 0, page, loading: false, emptyMode: this.data.keyword || this.data.status || this._due ? 'filtered' : 'empty' })
       })

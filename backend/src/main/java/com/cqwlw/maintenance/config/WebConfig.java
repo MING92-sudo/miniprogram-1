@@ -3,6 +3,7 @@ package com.cqwlw.maintenance.config;
 import com.cqwlw.maintenance.auth.AdminRoleInterceptor;
 import com.cqwlw.maintenance.auth.AuditInterceptor;
 import com.cqwlw.maintenance.auth.AuthInterceptor;
+import com.cqwlw.maintenance.auth.LegacyModuleInterceptor;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
@@ -18,12 +19,14 @@ public class WebConfig implements WebMvcConfigurer {
     private final AuthInterceptor authInterceptor;
     private final AdminRoleInterceptor adminRoleInterceptor;
     private final AuditInterceptor auditInterceptor;
+    private final LegacyModuleInterceptor legacyModuleInterceptor;
 
     public WebConfig(AuthInterceptor authInterceptor, AdminRoleInterceptor adminRoleInterceptor,
-                     AuditInterceptor auditInterceptor) {
+                     AuditInterceptor auditInterceptor, LegacyModuleInterceptor legacyModuleInterceptor) {
         this.authInterceptor = authInterceptor;
         this.adminRoleInterceptor = adminRoleInterceptor;
         this.auditInterceptor = auditInterceptor;
+        this.legacyModuleInterceptor = legacyModuleInterceptor;
     }
 
     @Override
@@ -58,5 +61,12 @@ public class WebConfig implements WebMvcConfigurer {
                 .addPathPatterns(
                         "/admin/**", "/reg/**", "/platform/**",
                         "/company", "/use-units/**", "/employees/**", "/elevators/**");
+        // 已裁合规矩阵台账模块总开关（docs/01 §10.2）：默认 403，APP_LEGACY_MODULES_ENABLED=true 恢复
+        registry.addInterceptor(legacyModuleInterceptor)
+                .addPathPatterns(
+                        "/rescues", "/rescues/**",
+                        "/drills", "/drills/**",
+                        "/inspects", "/inspects/**",
+                        "/knowledge", "/knowledge/**");
     }
 }

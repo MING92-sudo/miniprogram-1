@@ -58,7 +58,8 @@ class PermissionMatrixV2Test {
         assertEquals(PermissionMatrix.TriState.C, PermissionMatrix.state("INSTALLER", "handover:view"));
         // 维保人员现场验收需读移交单（菜单「移交验收」下发 MAINT 全工作区，权限面=渲染面）
         assertEquals(PermissionMatrix.TriState.C, PermissionMatrix.state("MAINT_TECH", "handover:view"));
-        assertEquals(PermissionMatrix.TriState.C, PermissionMatrix.state("MAINT_TECH", "handover:inspect"));
+        // 2026-11-20 用户裁决：74 项现场查验（逐项留证+提交）由维保人员执行，handover:inspect C→Y
+        assertEquals(PermissionMatrix.TriState.Y, PermissionMatrix.state("MAINT_TECH", "handover:inspect"));
         // P1 T2（2026-11-16 裁决）：客户收回全部内部码，handover:view 由 C → DENY
         assertEquals(PermissionMatrix.TriState.DENY, PermissionMatrix.state("CLIENT_ADMIN", "handover:view"));
     }

@@ -39,7 +39,7 @@ page{
 .bw .plate{position:relative;border:1rpx solid #2C3B42;border-radius:8rpx;padding:24rpx;background:linear-gradient(150deg,var(--panel-2),#101A1F);box-shadow:inset 0 1rpx 0 rgba(255,255,255,.03);overflow:hidden}
 
 /* ---------- 按钮（每屏最多一个页面级 primary） ---------- */
-.bw .btn{height:80rpx;border-radius:10rpx;display:flex;align-items:center;justify-content:center;gap:14rpx;font-size:26rpx;font-weight:700;letter-spacing:.03em;border:1rpx solid transparent;white-space:nowrap}
+.bw .btn{height:80rpx;border-radius:10rpx;display:flex;align-items:center;justify-content:center;gap:14rpx;font-size:26rpx;font-weight:700;letter-spacing:.03em;border:1rpx solid transparent;white-space:nowrap;margin:0;width:auto}
 .bw .btn-primary{background:var(--amber);color:#1A1203;box-shadow:0 4rpx 0 #8E6000}
 .bw .btn-primary:active{transform:translateY(2rpx);box-shadow:0 2rpx 0 #8E6000}
 .bw .btn-ghost{background:transparent;border-color:#34454D;color:#DCE6E9}
@@ -49,7 +49,7 @@ page{
 .bw .btn[disabled]{opacity:.35}
 
 /* ---------- 可点文本动作 ---------- */
-.bw .link{background:none;border:none;padding:0;display:inline-flex;align-items:center;gap:8rpx;font-size:inherit;line-height:inherit;color:var(--amber);white-space:nowrap}
+.bw .link{background:none;border:none;padding:0;display:inline-flex;align-items:center;gap:8rpx;font-size:inherit;line-height:inherit;color:var(--amber);white-space:nowrap;width:auto;margin:0}
 .bw .link.quiet{color:var(--muted)}
 
 /* ---------- chip 筛选 ---------- */
@@ -154,6 +154,9 @@ page{
 .bw .photo-row .thumb{width:auto;flex:1;height:84rpx}
 /* ---------- 原型共享部件（屏 02/03/05/06/08/09/11/24 复用，避免各页重复定义） ---------- */
 .bw .sec-head{display:flex;justify-content:space-between;align-items:center;padding:2rpx 2rpx 0}
+/* sec-head 动作按钮（2026-11-20 真机反馈）：wx button UA 固定 width:184px 致动作被挤到行中央，
+   .link 已全局重置 width:auto/margin:0（同修复 .btn），此处仅保险 flex 不伸缩 */
+.bw .sec-head .link{flex:none;font-size:20rpx}
 .bw .panel-title{font-size:20rpx;letter-spacing:.16em;color:var(--dim)}
 .bw .hero-grid{display:grid;grid-template-columns:1fr 1fr;gap:16rpx 24rpx;border-top:1rpx dashed #2A383F;padding-top:18rpx}
 .bw .hg-label{display:block;font-family:'SFMono-Regular',Consolas,monospace;font-size:18rpx;letter-spacing:.12em;color:var(--dim)}

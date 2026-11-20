@@ -31,4 +31,5 @@ page{background:var(--ink);color:var(--text)}
 .ck-skip{border-top:1rpx dashed #243138;padding-top:10rpx}
 .ck-edit{border-top:1rpx solid #243138;padding-top:14rpx}
 .sync-row{display:flex;align-items:center;gap:10rpx;font-size:20rpx;color:var(--dim);padding:6rpx 4rpx}
-.tk-footer{position:fixed;left:0;right:0;bottom:0;padding:16rpx 24rpx calc(16rpx + env(safe-area-inset-bottom));background:rgba(10,15,18,.96);border-top:1rpx solid #243138;backdrop-filter:blur(8rpx)}
+.tk-footer{position:fixed;left:0;right:0;bottom:0;padding:16rpx 24rpx calc(16rpx + env(safe-area-inset-bottom));background:rgba(10,15,18,.96);border-top:1rpx solid #243138;backdrop-filter:blur(8rpx)}.tk-gh-title{flex:1;min-width:0;overflow:hidden}
+.tk-gh-count{flex:none;white-space:nowrap}

@@ -67,4 +67,36 @@ class LegacyCapabilityTranslatorTest {
         assertFalse(LegacyCapabilityTranslator.allows("HACKER", "console:read"));
         assertFalse(LegacyCapabilityTranslator.allows("ADMIN", null));
     }
+
+    /**
+     * v2 规范码账号与旧字面量同判定（2026-11-21 修复：存规范码的 INST_PM/INST_CLERK/MAINT_MGR/MAINT_SUP
+     * 此前在 /admin/**、/platform/** 等旧两档门禁被误拒 403，同角色旧码账号却放行）。
+     */
+    @Test
+    void canonicalRolesInheritLegacyGrants() {
+        // console:read 门控：规范码 adminConsole 角色放行（含 INST_MGR——CANONICAL 设计 adminConsole=true）
+        for (String role : new String[]{"PLATFORM_ADMIN", "SYS_ADMIN", "INST_MGR", "INST_PM", "INST_CLERK",
+                "MAINT_MGR", "MAINT_SUP", "MAINT_BIZ", "MAINT_QUALITY"}) {
+            assertTrue(LegacyCapabilityTranslator.allows(role, "console:read"), role);
+        }
+        for (String role : new String[]{"MAINT_TECH", "INSTALLER", "CLIENT_ADMIN", "CLIENT_SIGNER"}) {
+            assertFalse(LegacyCapabilityTranslator.allows(role, "console:read"), role);
+        }
+        // console:write 仍仅平台层（规范码 PLATFORM_ADMIN 等效 ADMIN）
+        assertTrue(LegacyCapabilityTranslator.allows("PLATFORM_ADMIN", "console:write"));
+        assertTrue(LegacyCapabilityTranslator.allows("SYS_ADMIN", "console:write"));
+        assertFalse(LegacyCapabilityTranslator.allows("MAINT_MGR", "console:write"));
+        assertFalse(LegacyCapabilityTranslator.allows("INST_MGR", "console:write"));
+        // 其余旧码按别名表反向等效：plan:write 班组长及以上、contract:read 安装经理/维保经理
+        assertTrue(LegacyCapabilityTranslator.allows("MAINT_SUP", "plan:write"));
+        assertTrue(LegacyCapabilityTranslator.allows("MAINT_MGR", "plan:write"));
+        assertFalse(LegacyCapabilityTranslator.allows("MAINT_TECH", "plan:write"));
+        assertTrue(LegacyCapabilityTranslator.allows("MAINT_MGR", "contract:read"));
+        assertTrue(LegacyCapabilityTranslator.allows("INST_PM", "contract:read"));
+        assertFalse(LegacyCapabilityTranslator.allows("INST_CLERK", "contract:read"));
+        assertTrue(LegacyCapabilityTranslator.allows("MAINT_TECH", "order:read"));
+        assertTrue(LegacyCapabilityTranslator.allows("INSTALLER", "fault:write"));
+        // 未知/空角色一律拒绝（fail-closed）
+        assertFalse(LegacyCapabilityTranslator.allows(null, "plan:write"));
+    }
 }

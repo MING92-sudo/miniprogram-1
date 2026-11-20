@@ -125,6 +125,12 @@ class HandoverChecklistServiceTest {
         assertEquals(74, check.totalItems);
         verify(itemMapper, times(74)).insert(any(HandoverCheckItem.class));
         verify(checkMapper, times(1)).insert(any(HandoverCheck.class));
+        // result 列 NOT NULL 无默认值：生成时必须置空串（未填写），否则真实库插入失败、清单 0 项（2026-11-20 真机缺陷）
+        org.mockito.ArgumentCaptor<HandoverCheckItem> captor = org.mockito.ArgumentCaptor.forClass(HandoverCheckItem.class);
+        verify(itemMapper, org.mockito.Mockito.atLeastOnce()).insert(captor.capture());
+        for (HandoverCheckItem it : captor.getAllValues()) {
+            assertEquals("", it.result);
+        }
     }
 
     @Test
@@ -134,9 +140,40 @@ class HandoverChecklistServiceTest {
         existing.id = "hc_old";
         existing.handoverId = "ho_1";
         when(checkMapper.selectList(any())).thenReturn(List.of(existing));
+        when(itemMapper.selectCount(any())).thenReturn(74L);
         HandoverCheck out = svc().generateChecklist("ho_1");
         assertEquals("hc_old", out.id);
         verify(itemMapper, never()).insert(any(HandoverCheckItem.class));
+    }
+
+    /** 0 项缺陷行自愈（2026-11-20 真机缺陷：result 未置空串时代生成失败留下的空清单）：查验中删除重建 */
+    @Test
+    void generateHealsZeroItemCheck() {
+        order("INSPECTING");
+        HandoverCheck poisoned = new HandoverCheck();
+        poisoned.id = "hc_bad";
+        poisoned.handoverId = "ho_1";
+        when(checkMapper.selectList(any())).thenReturn(List.of(poisoned));
+        when(itemMapper.selectCount(any())).thenReturn(0L);
+        HandoverCheck out = svc().generateChecklist("ho_1");
+        org.junit.jupiter.api.Assertions.assertNotEquals("hc_bad", out.id);
+        verify(checkMapper).deleteById("hc_bad");
+        verify(itemMapper, times(74)).insert(any(HandoverCheckItem.class));
+    }
+
+    /** 提交齐备基线为模板 74 项（2026-11-20 真机缺陷：0 项缺陷行曾空转判定 QUALIFIED 并推进状态） */
+    @Test
+    void submitRejectsAbnormalItemCount() {
+        order("INSPECTING");
+        HandoverCheck check = new HandoverCheck();
+        check.id = "hc_1";
+        when(checkMapper.selectList(any())).thenReturn(List.of(check));
+        when(itemMapper.selectCount(any())).thenReturn(74L);
+        when(itemMapper.selectList(any())).thenReturn(new ArrayList<>(List.of(new HandoverCheckItem())));
+        BizException e = assertThrows(BizException.class,
+                () -> svc().submitChecklist("ho_1", List.of(), Map.of()));
+        assertEquals(422, e.getCode());
+        org.junit.jupiter.api.Assertions.assertTrue(e.getMessage().contains("数据异常"));
     }
 
     @Test

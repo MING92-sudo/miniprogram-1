@@ -170,10 +170,22 @@ function signRecord(r, body) {
   r.lifecycleStatus = 'SIGNED' // 后端 onClientSigned：SIGNED → 自动归档（mock 不生成 PDF）
   return { ok: true }
 }
+// 已裁合规矩阵台账模块总开关（docs/01 §10.2，2026-11-21 对齐后端 LegacyModuleInterceptor）：
+// /rescues /drills /inspects /knowledge 共 9 条端点默认 403；恢复交付时连同后端 APP_LEGACY_MODULES_ENABLED 一起打开
+const LEGACY_MODULES_ENABLED = false
+function requireLegacyModule() {
+  if (!LEGACY_MODULES_ENABLED) throw { code: 403, message: '该模块已裁剪停用（docs/01 §10.2），恢复需开启 APP_LEGACY_MODULES_ENABLED' }
+}
 // 部门互斥读门禁（与后端 MultiRoleGate.requireRead 同口径，2026-11-15 对齐）
 function requireRead(code) {
   if (!currentRoles.some((r) => permMirror.state(r, code) !== 'DENY')) {
     throw { code: 1403, message: '无权访问该资源' }
+  }
+}
+// 写门禁（与后端 MultiRoleGate.requireWrite 同口径：仅 Y 放行，C 是条件读不算写）
+function requireWrite(code) {
+  if (!currentRoles.some((r) => permMirror.state(r, code) === 'Y')) {
+    throw { code: 1403, message: '无权限: ' + code }
   }
 }
 // C-24：V7 班组读谓词镜像（后端 EmployeeScopeService.visibleReadPlatformIds，按主角色 role 旧码判定）：
@@ -943,10 +955,10 @@ const routes = [
     return { ok: true, id: rec.id, reportStatus: rec.reportStatus }
   }],
 
-  // ── 救援 ──
-  ['POST', '/rescues', ({ body }) => d.createRescue(body)],
-  ['GET', '/rescues', ({ query }) => paginate(d.db.rescues, query)],
-  ['GET', '/rescues/:id', ({ params }) => findOr404(d.db.rescues, params.id, '救援记录')],
+  // ── 救援（已裁模块，默认 403）──
+  ['POST', '/rescues', ({ body }) => { requireLegacyModule(); return d.createRescue(body) }],
+  ['GET', '/rescues', ({ query }) => { requireLegacyModule(); return paginate(d.db.rescues, query) }],
+  ['GET', '/rescues/:id', ({ params }) => { requireLegacyModule(); return findOr404(d.db.rescues, params.id, '救援记录') }],
 
   // ── 故障 ──
   ['POST', '/faults', ({ body }) => d.createFault(body)],
@@ -966,11 +978,12 @@ const routes = [
   ['POST', '/admin/faults/:id/dispatch', ({ params, body }) =>
     d.dispatchFault(params.id, body && body.workerId)],
 
-  // ── 合规台账（TSG 法定项，数据暂存本地不上报平台）──
-  ['GET', '/drills', () => d.listDrills()],
-  ['POST', '/drills', ({ body }) => d.createDrill(body)],
-  ['GET', '/inspects', () => d.listInspects()],
+  // ── 合规台账（TSG 法定项，数据暂存本地不上报平台；已裁模块，默认 403）──
+  ['GET', '/drills', () => { requireLegacyModule(); return d.listDrills() }],
+  ['POST', '/drills', ({ body }) => { requireLegacyModule(); return d.createDrill(body) }],
+  ['GET', '/inspects', () => { requireLegacyModule(); return d.listInspects() }],
   ['GET', '/inspects/template', ({ query }) => {
+    requireLegacyModule()
     // 自行检查项 = 该电梯品种对应附件的年度维保项并集；不同品种分别取 A/B/C/D（docs/01 §3.17）
     const el = query && query.elevatorId ? d.getElevator(query.elevatorId) : null
     const appendix = d.CATEGORY_APPENDIX[el && el.category] || 'A'
@@ -982,7 +995,7 @@ const routes = [
     })
     return { appendix: appendix, items: items }
   }],
-  ['POST', '/inspects', ({ body }) => d.createInspect(body)],
+  ['POST', '/inspects', ({ body }) => { requireLegacyModule(); return d.createInspect(body) }],
 
   // ── 消息 ──
   ['GET', '/messages', ({ query }) => {
@@ -1051,19 +1064,36 @@ const routes = [
     if (!query.token || query.token !== r.shareToken) {
       throw { code: 401, message: '确认链接无效或已失效' }
     }
-    // 与后端 signView 同口径：白名单摘要，不返回 satisfaction（§4.7）、不回显 shareToken
+    // 与后端 signView 同口径：白名单摘要 + 检查项明细（过滤本轮未执行项）+ 现场照片墙 +
+    // 使用单位/维保日期/确认状态（2026-11-20 签署核对扩项，docs/14 §4.7）；
+    // 不返回 satisfaction（§4.7）、不回显 shareToken
+    const items = (r.items || []).filter(function (i) { return !i.notInThisRun }).map(function (i) {
+      return {
+        name: i.name, result: i.result, value: i.value, valueUnit: i.valueUnit,
+        valueText: i.valueText, abnormalDesc: i.abnormalDesc, skipReason: i.skipReason,
+        freqLabel: i.freqLabel, photos: i.photos || []
+      }
+    })
+    const itemPhotos = []
+    items.forEach(function (i) { (i.photos || []).forEach(function (p) { itemPhotos.push(p) }) })
+    const photos = itemPhotos.length ? itemPhotos : (r.photos || [])
     return {
       confirmed: r.confirmStatus === 'CONFIRMED',
+      confirmStatus: r.confirmStatus || '',
       elevatorName: r.elevatorName || '',
       elevatorCode: r.elevatorCode || '',
+      useUnitName: r.useUnitName || '',
+      workDate: (r.checkoutTime || r.checkinTime || '').slice(0, 10),
       workType: r.workType || '',
       workerName: r.workerName || '',
       assistantName: r.assistantName || '',
       checkinTime: r.checkinTime || '',
       checkoutTime: r.checkoutTime || '',
       duration: r.duration || '',
-      itemTotal: (r.items || []).length,
-      photoCount: (r.photos || []).length,
+      items: items,
+      itemTotal: items.length,
+      photos: photos,
+      photoCount: photos.length,
       // mock 演示字段（原型「记录单版本号 / SHA-256 前 8 位」；后端 P1 无对应列）
       recordVersion: r.recordVersion || '',
       hashPrefix: r.hashPrefix || '',
@@ -1081,8 +1111,9 @@ const routes = [
     return signRecord(r, body)
   }],
 
-  // ── 知识库 ──
+  // ── 知识库（已裁模块，默认 403）──
   ['GET', '/knowledge', ({ query }) => {
+    requireLegacyModule()
     let list = d.db.knowledge
     if (query && query.keyword) {
       const k = String(query.keyword).toLowerCase()
@@ -1096,9 +1127,16 @@ const routes = [
   // ── 移交单 / 外接建档 / 使用单位门户 / 维保日历（Task 12/13/14 最小 mock）──
   ['GET', '/handovers', ({ query }) => {
     requireRead('handover:view')
-    return paginate(mockHandovers.filter((h) => !query.status || h.status === query.status), query)
+    // 维保部读收敛（与后端 HandoverService.list 同口径，2026-11-20 真机反馈③）：
+    // 纯维保部角色默认隐藏安装内部阶段，显式 status 查询尊重入参
+    const maintOnly = currentRoles.some((r) => r.indexOf('MAINT') === 0) &&
+      !currentRoles.some((r) => r.indexOf('INST') === 0 || r === 'INSTALLER' || r === 'PLATFORM_ADMIN' || r === 'SYS_ADMIN' || r === 'ADMIN')
+    const VISIBLE = ['INSPECTING', 'RECTIFYING', 'PENDING_CONFIRM', 'ARCHIVED']
+    const explicit = !!(query && query.status)
+    return paginate(mockHandovers.filter((h) => explicit ? h.status === query.status : !(maintOnly && VISIBLE.indexOf(h.status) < 0)), query)
   }],
   ['POST', '/handovers', ({ body }) => {
+    requireWrite('handover:create') // 2026-11-21 对齐后端：仅 INST_PM（矩阵 §4.1）
     const o = Object.assign({ id: 'ho_' + Date.now(), handoverNo: 'HO' + Date.now(), status: 'DOC_SUBMITTING',
       createdAt: formatTime(new Date()), checks: [], rectifications: [], signs: [] }, body)
     mockHandovers.unshift(o)
@@ -1246,14 +1284,21 @@ const routes = [
     findOr404(mockHandovers, params.id, '移交单')
     return handoverArchiveEntries(params.id)
   }],
-  ['GET', '/filings', ({ query }) => paginate(mockFilings.filter((f) => !query.status || f.status === query.status), query)],
+  ['GET', '/filings', ({ query }) => {
+    requireRead('filing:view') // 2026-11-21 对齐后端：Y=PA/MM/MS/MB，C=MQ/IM/IP/IC
+    return paginate(mockFilings.filter((f) => !query.status || f.status === query.status), query)
+  }],
   ['POST', '/filings', ({ body }) => {
+    requireWrite('filing:write') // 2026-11-21 对齐后端：仅 PA/MM/MS/MB（矩阵 M0 §2.2）
     const o = Object.assign({ id: 'ef_' + Date.now(), filingNo: 'EF' + Date.now(), status: 'DOC_COLLECTING',
       createdAt: formatTime(new Date()), docs: [], takeoverChecks: [], confirmation: null }, body)
     mockFilings.unshift(o)
     return o
   }],
-  ['GET', '/filings/:id', ({ params }) => findOr404(mockFilings, params.id, '外接建档单')],
+  ['GET', '/filings/:id', ({ params }) => {
+    requireRead('filing:view')
+    return findOr404(mockFilings, params.id, '外接建档单')
+  }],
   ['POST', '/filings/:id/submit-docs', ({ params, body }) => {
     const o = findOr404(mockFilings, params.id, '外接建档单')
     o.docs = (body.docs || []).map((x, i) => Object.assign({ id: 'fd_' + i }, x))

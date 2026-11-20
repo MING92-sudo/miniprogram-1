@@ -21,7 +21,23 @@
           <view>维保日期<b>{{view.workDate || '—'}}</b></view>
           <view>维保人<b>{{view.workerName || '—'}}</b></view>
         </view>
-        <view wx:if="{{view.problemText}}" class="cs-note">异常整改：{{view.problemText}}</view>
+        <view wx:if="{{summary.abnormalDesc}}" class="cs-note">异常整改：{{summary.abnormalDesc}}</view>
+      </view>
+
+      <view wx:if="{{view.items.length}}" class="card">
+        <view class="panel-title">维保项目（{{view.items.length}} 项）</view>
+        <view class="ci-row" wx:for="{{view.items}}" wx:key="seq">
+          <view class="ci-main">
+            <view class="ci-name">{{item.seq}}. {{item.name}}</view>
+            <view wx:if="{{item.valueShow}}" class="ci-val">实测：{{item.valueShow}}</view>
+            <view wx:if="{{item.result === 'ABNORMAL' && item.abnormalDesc}}" class="ci-ab">{{item.abnormalDesc}}</view>
+            <view wx:if="{{item.result === 'NA' && item.skipReason}}" class="ci-val">未执行原因：{{item.skipReason}}</view>
+            <view wx:if="{{item.photos.length}}" class="photo-row mt6">
+              <image wx:for="{{item.photos}}" wx:for-item="p" wx:key="*this" class="thumb" src="{{p}}" mode="aspectFill"></image>
+            </view>
+          </view>
+          <text class="ci-badge {{item.resultClass}}">{{item.resultText}}</text>
+        </view>
       </view>
 
       <view wx:if="{{view.photos.length}}" class="card">

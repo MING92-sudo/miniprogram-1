@@ -1,5 +1,8 @@
 // 电梯档案（M2，屏 08）：平台同步字段 + 本地维护字段（现场更正）+ 设备码 + 导出台账（双档权限）。
+// 客户主体只读（2026-11-20 真机反馈）：不渲染更正入口，onEditLocal 前置拦截（后端客户白名单
+// 本就只放行 GET /elevators*，PUT 项目名更正 403，此处为渲染面收敛 docs/14 §7.1）。
 const { getElevatorProfile, updateElevatorLocal } = require('../../../services/elevator')
+const { isCustomerPrincipal } = require('../../../utils/auth')
 const { definePage } = require('../../../utils/guard')
 const { ROUTES } = require('../../../config/routes')
 const nav = require('../../../utils/nav')
@@ -20,9 +23,9 @@ const LOCAL_FIELDS = {
 }
 
 definePage(ROUTES['/pages/elevator/detail/index'], {
-  data: { id: '', profile: null, overview: null, loading: true, error: '', localFields: [], text: ELEVATOR_TEXT },
+  data: { id: '', profile: null, overview: null, loading: true, error: '', localFields: [], text: ELEVATOR_TEXT, customer: false },
   onLoad(query) {
-    this.setData({ id: (query && query.id) || '' })
+    this.setData({ id: (query && query.id) || '', customer: isCustomerPrincipal() })
     this.fetchProfile()
   },
   fetchProfile() {
@@ -46,6 +49,9 @@ definePage(ROUTES['/pages/elevator/detail/index'], {
   onRetry() { this.fetchProfile() },
   onBack() { nav.back() },
   onEditLocal(e) {
+    if (this.data.customer) {
+      return wx.showToast({ title: '使用单位账号仅可查看档案', icon: 'none' })
+    }
     const field = e.currentTarget.dataset.field
     const cfg = LOCAL_FIELDS[field]
     if (!cfg) return

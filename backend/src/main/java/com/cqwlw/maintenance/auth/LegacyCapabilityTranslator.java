@@ -56,6 +56,8 @@ public final class LegacyCapabilityTranslator {
     /**
      * 旧别名二值判定（兼容期）。冻结 GRANTS 是 oracle；console:read 用 adminConsole 门控
      * 计算并断言与冻结集一致。未知角色→false，未知/null 码→false（与 PermissionMatrix.allows 现状一致）。
+     * v2 规范码账号：冻结 GRANTS 只含旧字面量，按 docs/14 §3.1 别名表反向等效判定
+     * （否则同一角色存规范码（INST_PM/MAINT_MGR/MAINT_SUP…）会被旧两档门禁误拒）。
      */
     public static boolean allows(String role, String oldCode) {
         if (role == null || oldCode == null || !MAP.containsKey(oldCode)) {
@@ -65,8 +67,29 @@ public final class LegacyCapabilityTranslator {
             return consoleReadGate(role);
         }
         // 其余 23 码：冻结授权（M1 保留旧行为，目标态差异推迟 M5）
-        return PermissionMatrix.holders(oldCode).contains(role);
+        Set<String> holders = PermissionMatrix.holders(oldCode);
+        if (holders.contains(role)) {
+            return true;
+        }
+        String canonical = RoleCatalog.canonical(role);
+        String legacy = canonical == null ? null : LEGACY_LITERAL.get(canonical);
+        return legacy != null && holders.contains(legacy);
     }
+
+    /** 规范码→旧字面量（ALIAS 反向，docs/14 §3.1）；无旧码对应（INST_MGR/CLIENT_SIGNER）不在表 */
+    private static final Map<String, String> LEGACY_LITERAL = Map.ofEntries(
+            Map.entry("PLATFORM_ADMIN", "ADMIN"),
+            Map.entry("SYS_ADMIN", "SYS_ADMIN"),
+            Map.entry("INST_PM", "INSTALL_MANAGER"),
+            Map.entry("INST_CLERK", "INSTALL_CLERK"),
+            Map.entry("INSTALLER", "INSTALL_WORKER"),
+            Map.entry("MAINT_MGR", "MAINT_MANAGER"),
+            Map.entry("MAINT_SUP", "LEADER"),
+            Map.entry("MAINT_TECH", "WORKER"),
+            Map.entry("MAINT_BIZ", "MAINT_BIZ"),
+            Map.entry("MAINT_QUALITY", "MAINT_QUALITY"),
+            Map.entry("CLIENT_ADMIN", "UNIT_ADMIN")
+    );
 
     /** console:read(role) = adminConsole(role) ∧ 任一域 view∈{Y,C}（M1-4）。 */
     private static boolean consoleReadGate(String role) {

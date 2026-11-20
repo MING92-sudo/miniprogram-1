@@ -43,7 +43,7 @@ definePage(ROUTES['/pages/profile/index'], {
       const rep = menus.ROLE_PRIORITY.find((r) => held.indexOf(r) > -1) || held[0] || ''
       const state = grp.key === curGroup ? 'current' : (held.length ? 'held' : 'none')
       return { key: grp.key, label: grp.label, icon: grp.icon, ws: rep, state }
-    })
+    }).filter((g) => g.state !== 'none') // 2026-11-20 真机反馈⑤：无权限工作台不渲染（权限面=渲染面），不再显示「无权限」占位行
     this.setData({
       userInfo: u,
       avatarChar: (u.name || '').charAt(0) || '我',
@@ -51,6 +51,7 @@ definePage(ROUTES['/pages/profile/index'], {
       roleList,
       scope: g.scope || '',
       workbenchList,
+      customer: isCustomerPrincipal(),
       wechatBound: !!wx.getStorageSync(WECHAT_BOUND_KEY),
       versionText: this.readVersion(),
       adminEntries: this.buildAdminEntries()

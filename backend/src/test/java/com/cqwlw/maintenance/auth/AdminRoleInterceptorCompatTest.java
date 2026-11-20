@@ -139,7 +139,8 @@ class AdminRoleInterceptorCompatTest {
         InterceptorRegistry registry = mock(InterceptorRegistry.class);
         InterceptorRegistration registration = mock(InterceptorRegistration.class, RETURNS_SELF);
         when(registry.addInterceptor(any())).thenReturn(registration);
-        new WebConfig(mock(AuthInterceptor.class), interceptor, mock(AuditInterceptor.class))
+        new WebConfig(mock(AuthInterceptor.class), interceptor, mock(AuditInterceptor.class),
+                mock(LegacyModuleInterceptor.class))
                 .addInterceptors(registry);
 
         ArgumentCaptor<String[]> captor = ArgumentCaptor.forClass(String[].class);

@@ -71,7 +71,17 @@ public class HandoverChecklistService {
         HandoverOrder o = requireOrder(handoverId);
         HandoverCheck existing = latestCheck(handoverId);
         if (existing != null) {
-            return existing; // 已有清单任意状态可读（整改/待确认/归档态查看）
+            long cnt = itemMapper.selectCount(new LambdaQueryWrapper<HandoverCheckItem>()
+                    .eq(HandoverCheckItem::getCheckId, existing.id));
+            if (cnt > 0) {
+                return existing; // 已有清单任意状态可读（整改/待确认/归档态查看）
+            }
+            // 历史缺陷行自愈（2026-11-20）：result 未置空串时代生成失败留下的 0 项清单——
+            // 查验中删除重建（幂等）；非查验中不重建（只读展示，下方 getChecklist 返回空明细）
+            if (!INSPECTING.equals(o.status)) {
+                return existing;
+            }
+            checkMapper.deleteById(existing.id);
         }
         if (!INSPECTING.equals(o.status)) {
             throw new BizException(422, "仅查验中可生成检查清单");
@@ -93,6 +103,9 @@ public class HandoverChecklistService {
             it.itemName = t.name();
             it.requirement = t.requirement();
             it.important = t.important();
+            // result 列 NOT NULL 无默认值（V40）：置空串=未填写（前端/管理端 '' 即待检口径）；
+            // 此前不设值 → 严格模式插入失败 → 清单生成后 0 项（2026-11-20 真机缺陷）
+            it.result = "";
             itemMapper.insert(it);
         }
         return check;
@@ -119,6 +132,11 @@ public class HandoverChecklistService {
         HandoverCheck check = generateChecklist(handoverId);
         List<HandoverCheckItem> items = itemMapper.selectList(
                 new LambdaQueryWrapper<HandoverCheckItem>().eq(HandoverCheckItem::getCheckId, check.id));
+        // 齐备基线是模板 74 项而非存量行数（2026-11-20 真机缺陷：0 项缺陷行曾空转判定 QUALIFIED）
+        if (items.size() != HandoverChecklistTemplate.items().size()) {
+            throw new BizException(422, "检查清单数据异常（" + items.size() + "/"
+                    + HandoverChecklistTemplate.items().size() + " 项），请重新进入查验生成");
+        }
         Map<Integer, HandoverCheckItem> byNo = new HashMap<>();
         for (HandoverCheckItem it : items) byNo.put(it.itemNo, it);
 

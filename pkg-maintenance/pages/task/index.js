@@ -1,6 +1,8 @@
 // 作业执行（M3，屏 04）：合并 order/detail+checklist+item-form 为单页双态（list 清单 / edit 填写）。
 // 合规逻辑逐字保留：周期项 notInThisRun 豁免、关键项 photoRequired≥1 照片（NA 除外）、异常显式 S1–S7、
 // 数值超限不得按正常保存、离线快照补传。清单按真实模板 freqLabel 分节（附件 A—D）。
+// 2026-11-20 真机修复：goItemForm 补写 data.itemId（此前恒空串 → 保存检查项 POST 空路径 404「接口不存在」）；
+// 「下一项」改从当前展开项之后推进（旧逻辑恒命中当前项被 toggle 收起）；周期性条目并入默认折叠组（⑨）。
 const { getChecklist, getOrderDetail, runItemThisTime, submitChecklistItem } = require('../../../services/order')
 const { uploadImage } = require('../../../services/upload')
 const { reverseGeocode } = require('../../../services/location')
@@ -51,6 +53,33 @@ function groupByFreq(items) {
   return sections
 }
 
+// 周期性条目合并组（2026-11-20 真机反馈⑨）：半月保单只展开本周期项目，
+// 季度/半年/年度等「本次无需执行」条目收进默认折叠组，仍可「本次执行」加回
+const PERIODIC_LABEL = '周期性项目（本次无需执行）'
+function splitSections(items, collapsed) {
+  const active = []; const periodic = []
+  groupByFreq(items).forEach((s) => {
+    s.items.forEach((i) => { if (i.notInThisRun) periodic.push(i) })
+    const rest = s.items.filter((i) => !i.notInThisRun)
+    if (rest.length) active.push({ label: s.label, items: rest, done: rest.filter((i) => i.result).length, total: rest.length })
+  })
+  if (periodic.length) {
+    active.push({ label: PERIODIC_LABEL, items: periodic, done: 0, total: periodic.length })
+    if (collapsed[PERIODIC_LABEL] === undefined) collapsed[PERIODIC_LABEL] = true
+  }
+  return active
+}
+
+// 下一个待检项：从当前展开项之后开始找（排除自身与周期性条目），到底回头
+function nextUnfinished(sections, afterId) {
+  const flat = []
+  sections.forEach((s) => s.items.forEach((i) => { if (!i.notInThisRun) flat.push(i) }))
+  const idx = flat.findIndex((i) => i.id === afterId)
+  const ordered = idx > -1 ? flat.slice(idx + 1).concat(flat.slice(0, idx)) : flat
+  const hit = ordered.filter((i) => i.id !== afterId).find((i) => !i.result)
+  return hit || null
+}
+
 definePage(ROUTES['/pkg-maintenance/pages/task/index'], {
   data: {
     orderId: '', order: null, collapsed: {}, expandedId: '', nextItemName: '',
@@ -80,11 +109,13 @@ definePage(ROUTES['/pkg-maintenance/pages/task/index'], {
       items.forEach((i) => (i.photos || []).forEach((p) => photos.push({ src: p, itemName: i.name })))
       const requiredTotal = items.filter((i) => !i.notInThisRun).length
       const doneCount = items.filter((i) => !i.notInThisRun && i.result).length
-      const nextItem = items.find((i) => !i.notInThisRun && !i.result)
+      const collapsed = Object.assign({}, this.data.collapsed)
+      const sections = splitSections(items, collapsed)
+      const nextItem = nextUnfinished(sections, this.data.expandedId)
       this.setData({
         workTypeCode: checklist.workTypeCode || '', workType: checklist.workType || '',
         elevatorName: checklist.elevatorName || '', projectName: checklist.projectName || '',
-        sections: groupByFreq(items), photos, doneCount, requiredTotal,
+        collapsed, sections, photos, doneCount, requiredTotal,
         nextItemName: nextItem ? nextItem.name : '',
         normalCount: items.filter((i) => i.result === 'NORMAL').length,
         abnormalCount: items.filter((i) => i.result === 'ABNORMAL').length,
@@ -97,7 +128,7 @@ definePage(ROUTES['/pkg-maintenance/pages/task/index'], {
   onRetry() { this.fetchChecklist() },
   goItemForm(e) {
     const itemId = e.currentTarget.dataset.id
-    if (this.data.expandedId === itemId) { this.setData({ expandedId: '', item: null }); return }
+    if (this.data.expandedId === itemId) { this.setData({ expandedId: '', item: null, itemId: '' }); return }
     let item = null
     this.data.sections.forEach((s) => s.items.forEach((i) => { if (i.id === itemId) item = i }))
     if (!item) return
@@ -105,21 +136,25 @@ definePage(ROUTES['/pkg-maintenance/pages/task/index'], {
     const urls = item.photos || []
     const editPhotos = urls.map((u, i) => ({ url: u, fileId: fileIds[i] || '' }))
     this.setData({
-      expandedId: itemId, item,
+      expandedId: itemId, itemId, item,
       result: item.result || '', value: item.value != null ? String(item.value) : '', valueText: item.valueText || '',
       abnormalDesc: item.abnormalDesc || '', problemCode: item.problemCode || '',
       problemDesc: item.problemCode ? PROBLEM_CODES[item.problemCode] : '', skipReason: item.skipReason || '', editPhotos
     })
   },
-  backToList() { this.setData({ expandedId: '', item: null }); this.fetchChecklist() },
+  backToList() { this.setData({ expandedId: '', item: null, itemId: '' }); this.fetchChecklist() },
   onToggleGroup(e) {
     const label = e.currentTarget.dataset.label
     this.setData({ ['collapsed.' + label]: !this.data.collapsed[label] })
   },
   onNextItem() {
-    let target = null
-    this.data.sections.forEach((s) => s.items.forEach((i) => { if (!target && !i.notInThisRun && !i.result) target = i }))
-    if (!target) return wx.showToast({ title: '全部检查项已完成', icon: 'none' })
+    const target = nextUnfinished(this.data.sections, this.data.expandedId)
+    if (!target) {
+      return wx.showToast({ title: this.data.expandedId ? '当前已是最后一项待检' : '全部检查项已完成', icon: 'none' })
+    }
+    // 2026-11-20 真机反馈⑧：展开状态下「下一项」必须推进到下一待检项
+    // （旧逻辑恒定位首个未完成项=当前展开项，toggle 后原地收起，看似不跳转）
+    if (this.data.expandedId) this.setData({ expandedId: '', item: null, itemId: '' })
     this.goItemForm({ currentTarget: { dataset: { id: target.id } } })
     wx.pageScrollTo({ selector: '#item-' + target.id, offsetTop: -120, duration: 200 })
   },

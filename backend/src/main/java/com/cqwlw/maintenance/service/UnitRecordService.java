@@ -315,19 +315,28 @@ public class UnitRecordService {
         if (token == null || token.isEmpty() || !token.equals(r.shareToken)) {
             throw new BizException(401, "确认链接无效或已失效");
         }
-        List<Map<String, Object>> items = resolveItems(r.itemsJson);
-        List<String> photos = resolveRecordPhotos(items, r.photosJson);
+        List<Map<String, Object>> allItems = resolveItems(r.itemsJson);
+        List<String> photos = resolveRecordPhotos(allItems, r.photosJson);
+        // 使用单位签署核对扩项（2026-11-20，docs/14 §4.7 白名单增补）：检查项明细（过滤本轮未执行项）
+        // + 现场照片墙 + 使用单位/维保日期/确认状态，供 sign 页「核对项目/异常整改/照片」；
+        // 白名单禁令不变：不回显 shareToken/reportPayload/context/平台ID/refuseReason/satisfaction
+        List<Map<String, Object>> items = previewItems(allItems);
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("confirmed", "CONFIRMED".equals(r.confirmStatus));
+        m.put("confirmStatus", WorkOrderService.nz(r.confirmStatus));
         m.put("elevatorName", WorkOrderService.nz(r.elevatorName));
         m.put("elevatorCode", WorkOrderService.nz(r.elevatorCode));
+        m.put("useUnitName", WorkOrderService.nz(r.useUnitName));
+        m.put("workDate", TimeUtil.date(r.checkoutTime != null ? r.checkoutTime : r.checkinTime));
         m.put("workType", WorkOrderService.nz(r.workType));
         m.put("workerName", WorkOrderService.nz(r.workerName));
         m.put("assistantName", WorkOrderService.nz(r.assistantName));
         m.put("checkinTime", TimeUtil.format(r.checkinTime));
         m.put("checkoutTime", TimeUtil.format(r.checkoutTime));
         m.put("duration", WorkOrderService.nz(r.duration));
-        m.put("itemTotal", items == null ? 0 : items.size());
+        m.put("items", items);
+        m.put("itemTotal", items.size());
+        m.put("photos", photos);
         m.put("photoCount", photos.size());
         // P1 T8-A3（与 mock sign-view 契约对齐，sign 页「签署前核对」）：记录版本号 + 归档 SHA-256 前 8 位；
         // 未归档（签字前常态）hashPrefix 为空串，前端隐藏该行
@@ -422,22 +431,7 @@ public class UnitRecordService {
         // 明细列表再过滤未执行项，两者不互相影响
         List<Map<String, Object>> allItems = resolveItems(r.itemsJson);
         List<String> photos = resolveRecordPhotos(allItems, r.photosJson);
-        List<Map<String, Object>> items = allItems.stream()
-                .filter(i -> !Boolean.TRUE.equals(i.get("notInThisRun")))
-                .map(i -> {
-                    Map<String, Object> c = new LinkedHashMap<>();
-                    c.put("name", i.get("name"));
-                    c.put("result", i.get("result"));
-                    c.put("value", i.get("value"));
-                    c.put("valueUnit", i.get("valueUnit"));
-                    c.put("valueText", i.get("valueText"));
-                    c.put("abnormalDesc", i.get("abnormalDesc"));
-                    c.put("skipReason", i.get("skipReason"));
-                    c.put("freqLabel", i.get("freqLabel"));
-                    c.put("photos", i.get("photos"));
-                    return c;
-                })
-                .collect(Collectors.toList());
+        List<Map<String, Object>> items = previewItems(allItems);
 
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("id", r.id);
@@ -480,6 +474,30 @@ public class UnitRecordService {
         m.put("context", r.previewContextJson == null
                 ? Map.of() : JsonUtil.readMap(r.previewContextJson));
         return m;
+    }
+
+    /**
+     * 检查项明细投影（过滤 notInThisRun 未执行项——不得把「本轮未执行」显示成「正常」误导核对）：
+     * 名称/结果/实测值/异常描述/跳过原因/周期标签/照片URL，均为记录内容字段、不含内部标识。
+     * 管理端预览（adminPreview）与使用单位签署核对（signView）共用同一口径。
+     */
+    private List<Map<String, Object>> previewItems(List<Map<String, Object>> allItems) {
+        return allItems.stream()
+                .filter(i -> !Boolean.TRUE.equals(i.get("notInThisRun")))
+                .map(i -> {
+                    Map<String, Object> c = new LinkedHashMap<>();
+                    c.put("name", i.get("name"));
+                    c.put("result", i.get("result"));
+                    c.put("value", i.get("value"));
+                    c.put("valueUnit", i.get("valueUnit"));
+                    c.put("valueText", i.get("valueText"));
+                    c.put("abnormalDesc", i.get("abnormalDesc"));
+                    c.put("skipReason", i.get("skipReason"));
+                    c.put("freqLabel", i.get("freqLabel"));
+                    c.put("photos", i.get("photos"));
+                    return c;
+                })
+                .collect(Collectors.toList());
     }
 
     /**

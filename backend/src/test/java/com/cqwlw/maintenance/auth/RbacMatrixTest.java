@@ -172,6 +172,18 @@ class RbacMatrixTest {
         assertFalse(RoleCatalog.canUseAdminConsole("HACKER"));
     }
 
+    /** 2026-11-21 修复：v2 规范码账号与旧字面量同口径（原只查历史 ROLES 表误拒规范码） */
+    @Test
+    void adminConsoleEntryCanonicalCodes() {
+        for (String role : List.of("PLATFORM_ADMIN", "SYS_ADMIN", "INST_MGR", "INST_PM", "INST_CLERK",
+                "MAINT_MGR", "MAINT_SUP", "MAINT_BIZ", "MAINT_QUALITY")) {
+            assertTrue(RoleCatalog.canUseAdminConsole(role), role);
+        }
+        for (String role : List.of("MAINT_TECH", "INSTALLER", "CLIENT_ADMIN", "CLIENT_SIGNER")) {
+            assertFalse(RoleCatalog.canUseAdminConsole(role), role);
+        }
+    }
+
     /** docs/14 §3 角色码表：部门、中文名、上级 */
     @Test
     void roleCatalogMatchesDesignDoc() {

@@ -461,16 +461,36 @@ public class HandoverService {
 
     /** 管理端列表（Task 14）：按状态过滤，发起时间倒序；内存再过滤一次防谓词漏条件 */
     public Map<String, Object> list(Map<String, String> query) {
+        return list(query, null);
+    }
+
+    /**
+     * 列表（小程序/管理端共用）。维保部读收敛（2026-11-20 真机反馈③）：生效角色为纯维保部
+     * （含 MAINT_*、不含安装部/平台管理）且未显式按状态查询时，只返回维保验收阶段
+     * （INSPECTING/RECTIFYING/PENDING_CONFIRM/ARCHIVED，正向白名单——VOIDED 作废单与安装内部
+     * 阶段 INIT/DOC_SUBMITTING/PENDING_INST_REVIEW 均不下发）；显式 status 查询尊重入参。
+     */
+    public Map<String, Object> list(Map<String, String> query, java.util.Set<String> roles) {
         String status = query == null ? null : query.get("status");
+        boolean maintenanceOnly = roles != null && !roles.isEmpty()
+                && roles.stream().anyMatch(r -> r.startsWith("MAINT"))
+                && roles.stream().noneMatch(r -> r.startsWith("INST") || "INSTALLER".equals(r)
+                        || "PLATFORM_ADMIN".equals(r) || "SYS_ADMIN".equals(r) || "ADMIN".equals(r));
+        boolean explicitStatus = status != null && !status.isBlank();
         List<HandoverOrder> all = orderMapper.selectList(new LambdaQueryWrapper<HandoverOrder>()
                 .orderByDesc(HandoverOrder::getCreatedAt));
         List<HandoverOrder> filtered = (all == null ? List.<HandoverOrder>of() : all).stream()
-                .filter(o -> status == null || status.isBlank() || status.equals(o.status))
+                .filter(o -> explicitStatus ? status.equals(o.status)
+                        : !(maintenanceOnly && !MAINT_VISIBLE_STATUSES.contains(o.status)))
                 .sorted(java.util.Comparator.comparing(
                         (HandoverOrder o) -> o.createdAt == null ? LocalDateTime.MIN : o.createdAt).reversed())
                 .toList();
         return Paginate.of(filtered, query == null ? Map.of() : query);
     }
+
+    /** 维保部读收敛可见的验收阶段白名单（见 list 注释） */
+    private static final java.util.Set<String> MAINT_VISIBLE_STATUSES = java.util.Set.of(
+            "INSPECTING", "RECTIFYING", "PENDING_CONFIRM", "ARCHIVED");
 
     /**
      * 详情（管理端 Task 14 / 小程序详情页共用）：单据字段保持顶层不变，另加

@@ -61,9 +61,10 @@
 
       <view class="card">
         <view class="panel-title">{{text.LOCAL}}</view>
-        <view wx:for="{{localFields}}" wx:key="key" class="kv-row ed-edit" data-field="{{item.key}}" bindtap="onEditLocal" aria-role="button" aria-label="更正{{item.label}}">
+        <!-- 客户（使用单位安全管理账号）档案只读：不渲染更正入口，点击亦由 onEditLocal 前置拦截（2026-11-20 真机反馈） -->
+        <view wx:for="{{localFields}}" wx:key="key" class="kv-row {{customer ? '' : 'ed-edit'}}" data-field="{{item.key}}" bindtap="onEditLocal" aria-role="{{customer ? 'text' : 'button'}}" aria-label="{{customer ? item.label : '更正' + item.label}}">
           <text class="dim">{{item.label}}</text>
-          <text>{{item.value || '—'}} <text class="i i-chevron-right fs18 dim"></text></text>
+          <text>{{item.value || '—'}}<text wx:if="{{!customer}}" class="i i-chevron-right fs18 dim"></text></text>
         </view>
       </view>
 

@@ -20,15 +20,43 @@
     <skeleton wx:if="{{loading}}" rows="{{[{h:120},{h:120},{h:120}]}}"></skeleton>
     <error-retry wx:elif="{{error}}" message="{{error}}" bind:retry="onRetry"></error-retry>
     <block wx:elif="{{list.length}}">
-      <view wx:for="{{list}}" wx:key="id" class="card ol-card" data-id="{{item.id}}" bindtap="goDetail" aria-role="button" aria-label="{{item.elevatorName}}">
+      <view wx:for="{{list}}" wx:key="id" class="card oc" data-id="{{item.id}}" bindtap="goDetail" aria-role="button" aria-label="{{item.elevatorName}}">
         <view class="row between">
-          <view class="fs24 w7 grow">{{item.elevatorName || item.elevatorCode}}</view>
+          <view class="oc-type">{{item.workType || '维保'}}</view>
           <status-tag text="{{item.statusText}}" tone="{{item.status === 'DONE' ? 'ok' : 'amber'}}"></status-tag>
         </view>
-        <view class="fs20 dim mt4">{{item.workType || '维保'}} · {{item.projectName || ''}}</view>
-        <view class="row between mt8">
-          <text class="mono fs20 dim">计划 {{item.planTime}}</text>
-          <button class="btn btn-ghost btn-xs" data-id="{{item.id}}" data-status="{{item.status}}" catchtap="onAction">
+        <view class="oc-name">{{item.elevatorName || item.elevatorCode}}</view>
+        <view wx:if="{{item.metaLine}}" class="oc-meta">{{item.metaLine}}</view>
+        <view wx:if="{{item.deviceLine}}" class="oc-dev mono">{{item.deviceLine}}</view>
+        <view class="oc-grid">
+          <view class="oc-cell">
+            <text class="oc-k">计划时间</text>
+            <text class="oc-v mono">{{item.planTime || '—'}}</text>
+          </view>
+          <view class="oc-cell">
+            <text class="oc-k">工单号</text>
+            <text class="oc-v mono">{{item.orderNo || '—'}}</text>
+          </view>
+          <view class="oc-cell">
+            <text class="oc-k">作业人员</text>
+            <text class="oc-v">{{item.workerLine || '—'}}</text>
+          </view>
+          <view class="oc-cell" wx:if="{{item.status === 'PROCESSING'}}">
+            <text class="oc-k">签到时间</text>
+            <text class="oc-v mono">{{item.checkinTime || '—'}}</text>
+          </view>
+          <view class="oc-cell" wx:if="{{item.status === 'DONE'}}">
+            <text class="oc-k">作业时长</text>
+            <text class="oc-v mono">{{item.duration || '—'}}</text>
+          </view>
+        </view>
+        <view class="row between oc-foot">
+          <view class="row gap6 oc-tags">
+            <text wx:if="{{item.dueTag}}" class="oc-tag {{item.dueTag.cls}}">{{item.dueTag.text}}</text>
+            <text wx:if="{{item.elapsedText}}" class="oc-tag amber">{{item.elapsedText}}</text>
+            <text wx:if="{{item.reportTag}}" class="oc-tag {{item.reportTag.cls}}">{{item.reportTag.text}}</text>
+          </view>
+          <button class="btn {{item.status === 'DONE' ? 'btn-ghost' : 'btn-primary'}} btn-xs" data-id="{{item.id}}" data-status="{{item.status}}" catchtap="onAction">
             {{item.status === 'PENDING' ? '去签到' : (item.status === 'PROCESSING' ? '继续作业' : '查看')}}
           </button>
         </view>
