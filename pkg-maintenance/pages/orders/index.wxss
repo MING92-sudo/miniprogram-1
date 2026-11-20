@@ -17,3 +17,4 @@ page{background:var(--ink);color:var(--text)}
 .oc-tag.amber{color:var(--amber);border-color:rgba(255,176,32,.4)}
 .oc-tag.sig{color:var(--signal-soft);border-color:rgba(255,75,43,.45)}
 .oc-tag.ok{color:var(--ok-soft);border-color:rgba(47,196,141,.4)}
+.pool-head{margin-top:8rpx}

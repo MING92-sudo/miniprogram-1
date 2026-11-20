@@ -16,9 +16,20 @@ function resolveByElevatorCode(elevatorCode) {
   return get('/work-orders/resolve-by-elevator', { elevatorCode })
 }
 
-// 签到（定位 + 水印自拍照片）
+// 签到（定位 + 水印自拍照片）；区域抢单池口径（M1/D4）：PRINCIPAL 首次签到未认领工单即原子认领，
+// 落败 1003「该工单已被 XX 认领」、无平台ID 422「请先在管理端完成平台人员登记」
 function checkin(orderId, data) {
   return post(`/work-orders/${orderId}/checkin`, data)
+}
+
+// 配合人候选（D3/D4/M10：仅主维保本人；同区域快照+持平台ID+在职，排除本人）→ {list:[{id,name,platformId,phone}]}
+function partnerCandidates(orderId) {
+  return get(`/work-orders/${orderId}/partner-candidates`)
+}
+
+// 指派/改选配合人（D3/D8：仅主维保本人，配合人未签到前可改选）
+function assignPartner(orderId, employeeId) {
+  return post(`/work-orders/${orderId}/assign-partner`, { employeeId })
 }
 
 // 主维保生成双人动态码（每 5 秒刷新、60 秒有效、绑定工单、一次性；docs/03 §3.2 项6）
@@ -98,6 +109,8 @@ module.exports = {
   getOrderDetail,
   resolveByElevatorCode,
   checkin,
+  partnerCandidates,
+  assignPartner,
   issueDynamicCode,
   verifyDynamicCode,
   getChecklist,

@@ -9,6 +9,8 @@ const ENDPOINTS = [
   ['POST', '/work-orders/:id/review'],
   ['POST', '/work-orders/:id/sign-request'],
   ['GET', '/work-orders/:id/archive'],
+  ['GET', '/work-orders/:id/partner-candidates'],
+  ['POST', '/work-orders/:id/assign-partner'],
   ['POST', '/unit/records/:id/refuse-by-token'],
   ['POST', '/faults/:id/grab'],
   ['POST', '/faults/:id/arrive'],

@@ -3,11 +3,12 @@
 // 数值超限不得按正常保存、离线快照补传。清单按真实模板 freqLabel 分节（附件 A—D）。
 // 2026-11-20 真机修复：goItemForm 补写 data.itemId（此前恒空串 → 保存检查项 POST 空路径 404「接口不存在」）；
 // 「下一项」改从当前展开项之后推进（旧逻辑恒命中当前项被 toggle 收起）；周期性条目并入默认折叠组（⑨）。
-const { getChecklist, getOrderDetail, runItemThisTime, submitChecklistItem } = require('../../../services/order')
+const { getChecklist, getOrderDetail, runItemThisTime, submitChecklistItem, partnerCandidates, assignPartner } = require('../../../services/order')
 const { uploadImage } = require('../../../services/upload')
 const { reverseGeocode } = require('../../../services/location')
 const { formatTime } = require('../../../utils/util')
-const { CHECK_RESULT_TEXT, PROBLEM_CODES, TOAST_TEXT } = require('../../../constants/index')
+const { CHECK_RESULT_TEXT, PROBLEM_CODES, TOAST_TEXT, POOL_TEXT } = require('../../../constants/index')
+const { getUserInfo } = require('../../../utils/auth')
 const offline = require('../../../utils/offline')
 const { definePage } = require('../../../utils/guard')
 const { ROUTES } = require('../../../config/routes')
@@ -86,6 +87,8 @@ definePage(ROUTES['/pkg-maintenance/pages/task/index'], {
     workTypeCode: '', workType: '', elevatorName: '', projectName: '',
     sections: [], photos: [], doneCount: 0, requiredTotal: 0, normalCount: 0, abnormalCount: 0, naCount: 0, pendingCount: 0, progress: 0,
     loading: true, error: '',
+    // 配合人选择（D3/D8：认领后主维保指定同区域配合人，未签到前可改选；候选来自 partner-candidates）
+    poolText: POOL_TEXT, needPartner: false, partnerList: [], partnerOptions: [], partnerIndex: -1, partnerName: '', assigning: false,
     // edit 态字段（迁自 item-form）
     itemId: '', item: null, result: '', value: '', valueText: '', abnormalDesc: '', problemCode: '', problemDesc: '',
     problemKeys: PROBLEM_KEYS, problemOptions: PROBLEM_KEYS.map((k) => k + ' ' + PROBLEM_CODES[k]),
@@ -99,7 +102,46 @@ definePage(ROUTES['/pkg-maintenance/pages/task/index'], {
   onShow() { if (this.data.orderId) this.fetchChecklist() },
   onBack() { nav.back() },
   fetchOrder() {
-    getOrderDetail(this.data.orderId).then((order) => this.setData({ order })).catch(() => {})
+    getOrderDetail(this.data.orderId).then((order) => {
+      this.setData({ order })
+      this.refreshPartnerGate(order)
+    }).catch(() => {})
+  },
+  // 配合人选择卡片门禁（D3/D8）：本人=主维保（platformId 匹配）、工单未签退、尚未指定配合人时展示。
+  // 存量在途单人豁免工单（M8）assistantName 可能为「无」，同样视为未指定——改选由后端复核放行。
+  refreshPartnerGate(order) {
+    const me = getUserInfo() || {}
+    const isPrincipal = !!(order && order.workerPlatformId && me.platformId && order.workerPlatformId === me.platformId)
+    const noPartner = !order.assistantName || order.assistantName === '无'
+    const needPartner = isPrincipal && noPartner && order.status !== 'DONE'
+    this.setData({ needPartner, partnerName: '' })
+    if (!needPartner) return
+    partnerCandidates(this.data.orderId).then((r) => {
+      const list = (r && r.list) || []
+      this.setData({ partnerList: list, partnerOptions: list.map((c) => c.name + '（' + (c.phone || '—') + '）') })
+    }).catch(() => {
+      // 非主维保/越权（1403）或网络异常：隐藏卡片，不阻断作业页
+      this.setData({ needPartner: false })
+    })
+  },
+  onPartnerChange(e) {
+    const idx = Number(e.detail.value)
+    this.setData({ partnerIndex: idx, partnerName: this.data.partnerOptions[idx] || '' })
+  },
+  onAssignPartner() {
+    const cand = this.data.partnerList[this.data.partnerIndex]
+    if (!cand) return wx.showToast({ title: TOAST_TEXT.PARTNER_REQUIRED, icon: 'none' })
+    this.setData({ assigning: true })
+    assignPartner(this.data.orderId, cand.id)
+      .then(() => {
+        wx.showToast({ title: POOL_TEXT.PARTNER_DONE + '：' + cand.name, icon: 'success' })
+        this.setData({ assigning: false, needPartner: false, partnerIndex: -1, partnerName: '' })
+        this.fetchOrder()
+      })
+      .catch((e) => {
+        this.setData({ assigning: false })
+        wx.showToast({ title: (e && e.message) || TOAST_TEXT.OPERATE_FAILED, icon: 'none' })
+      })
   },
   fetchChecklist() {
     this.setData({ loading: true, error: '' })

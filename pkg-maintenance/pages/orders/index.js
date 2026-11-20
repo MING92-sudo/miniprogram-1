@@ -1,8 +1,10 @@
 // 我的维保工单（M3 迁自 pages/order/list，逻辑保留）：状态筛选 + 搜索/扫码 + 到期下钻 + 分页。
 // 2026-11-20 卡片 UI 重做：工单类型徽标 + 设备档案行（设备代码/注册代码/编号/型号）+ 计划/工单号/人员网格 +
 // 到期标记（今日/3日内/超期）+ 进行中已作业时长 + 已完成上报状态，字段均为列表行投影既有字段（docs/04 A.2）。
+// 2026-11-20 区域抢单池（D2/M1）：列表分「待接单池」与「我的工单」两段——池谓词（同区域+持平台ID）由后端做，
+// 前端只按「PENDING 且未认领（workerName/workerPlatformId 空）」拆段；签到按钮即认领（无独立接单按钮）。
 const { getOrderList, resolveByElevatorCode } = require('../../../services/order')
-const { STATUS_TEXT, TOAST_TEXT, EMPTY_TEXT } = require('../../../constants/index')
+const { STATUS_TEXT, TOAST_TEXT, EMPTY_TEXT, POOL_TEXT } = require('../../../constants/index')
 const { formatTime, parseTime } = require('../../../utils/util')
 const { definePage } = require('../../../utils/guard')
 const { ROUTES } = require('../../../config/routes')
@@ -42,10 +44,16 @@ function enrich(o) {
   return item
 }
 
+// 池工单判定（D2/M1）：待接单池 = PENDING 且未认领；认领人由签到写入（M1 签到即认领）
+function isPoolOrder(o) {
+  return o.status === 'PENDING' && !o.workerName && !o.workerPlatformId
+}
+
 definePage(ROUTES['/pkg-maintenance/pages/orders/index'], {
   data: {
-    tabs: TABS, activeTab: '', list: [], page: 1, size: 20, total: 0,
+    tabs: TABS, activeTab: '', list: [], poolList: [], mineList: [], page: 1, size: 20, total: 0,
     keyword: '', status: '', due: '', dueLabel: '', loading: true, error: '',
+    poolText: POOL_TEXT,
     emptyMode: 'empty', emptyTitle: EMPTY_TEXT.ORDER || '暂无工单'
   },
   onLoad(query) {
@@ -87,7 +95,13 @@ definePage(ROUTES['/pkg-maintenance/pages/orders/index'], {
       .then((data) => {
         const list = ((data && data.list) || []).map(enrich)
         const merged = reset ? list : this.data.list.concat(list)
-        this.setData({ list: merged, total: (data && data.total) || 0, page, loading: false, emptyMode: this.data.keyword || this.data.status || this._due ? 'filtered' : 'empty' })
+        this.setData({
+          list: merged,
+          poolList: merged.filter(isPoolOrder),
+          mineList: merged.filter((o) => !isPoolOrder(o)),
+          total: (data && data.total) || 0, page, loading: false,
+          emptyMode: this.data.keyword || this.data.status || this._due ? 'filtered' : 'empty'
+        })
       })
       .catch((e) => this.setData({ loading: false, error: (e && e.message) || TOAST_TEXT.LOAD_FAILED }))
   },

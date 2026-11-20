@@ -217,6 +217,31 @@ function requireRecordScope(r) {
     throw { code: 1403, message: '仅可查看本人或本班组记录' }
   }
 }
+// 当前会话员工（mock 无 JWT 解析：登录时记录的演示账号，等价后端 scopeService.require(empId)）
+function currentEmployee() {
+  return d.db.employees[currentRole] || {}
+}
+// 区域抢单池读谓词（2026-11-20 设计 §4.2 / M9/M11，后端 WorkOrderService.scopeOrders+poolVisible 同口径）：
+// 管理角色（ids==null）不限；已认领工单按主/配合人 platformId（V7 班组集合）放行；
+// 未认领 PENDING 池工单仅对持平台ID（D4）且 工单 regionId 快照为空（不限区域）或等于员工区域 的账号可见
+function orderVisible(o) {
+  const ids = visibleReadPlatformIds()
+  if (ids === null) return true
+  if (o.workerPlatformId && ids.has(o.workerPlatformId)) return true
+  if (o.assistantPlatformId && ids.has(o.assistantPlatformId)) return true
+  const me = currentEmployee()
+  if (o.status === 'PENDING' && !o.workerPlatformId && !o.workerName && me.platformId &&
+      (o.regionId == null || o.regionId === '' || o.regionId === me.regionId)) return true
+  return false
+}
+// 配合人候选谓词（后端 WorkOrderService.partnerEligible 同口径）：
+// 同区域快照（空=不限）∧ 持平台ID ∧ 在职 ∧ 排除主维保本人
+function partnerEligible(o, e) {
+  if (!e || !e.platformId) return false
+  if (e.enabled === false) return false
+  if (e.platformId === o.workerPlatformId) return false
+  return o.regionId == null || o.regionId === '' || o.regionId === e.regionId
+}
 // 移交/外接建档 mock 状态（模块级，进程重启即清空）
 const mockHandovers = []
 const mockFilings = []
@@ -701,7 +726,9 @@ const routes = [
       category: el.category
     }
   }],
-  ['GET', '/work-orders', ({ query }) => paginate(d.listOrders(query), query)],
+  // 工单列表（V7 班组谓词 + 区域池谓词 orderVisible，后端 listOrders/scopeOrders 同口径；
+  // 池化工单行 workerName/workerPlatformId 为空，regionId 为派单时电梯区域快照）
+  ['GET', '/work-orders', ({ query }) => paginate(d.listOrders(query).filter(orderVisible), query)],
   ['GET', '/work-orders/:id', ({ params }) => {
     const order = d.getOrder(params.id)
     if (!order) throw { code: 1404, message: '工单不存在' }
@@ -767,6 +794,12 @@ const routes = [
     const o = findOr404(d.db.orders, params.id, '工单')
     if (o.status === 'DONE') throw { code: 1003, message: '当前状态不允许签到' }
     const assistant = body.role === 'ASSISTANT'
+    const me = currentEmployee()
+    // 区域抢单池「签到即认领」（M1/D4，后端 claimOrderAsPrincipal 同口径）：
+    // 主维保签到已被他人认领的工单 → 1003 并回显认领人（原子条件更新命中 0 行的等价语义）
+    if (!assistant && o.workerPlatformId && me.platformId && o.workerPlatformId !== me.platformId) {
+      throw { code: 1003, message: '该工单已被 ' + (o.workerName || '其他维保人员') + ' 认领' }
+    }
     // 主维保与配合人员分别签到，各自一条留痕（docs/01 §3.7.2）
     if (assistant ? o.assistantCheckinExtra : o.checkinExtra) {
       throw { code: 1003, message: (assistant ? '配合人员' : '主维保人员') + '已签到，不可重复签到' }
@@ -778,6 +811,15 @@ const routes = [
     }
     // 配合人员须携带主维保生成、未过期且未使用的动态码（一次性消费）
     if (assistant) d.consumeDynamicCode(o, body.dynamicCode)
+    // 认领写库在任何校验通过之后、签到留痕之前（与后端顺序一致：校验失败零副作用）；
+    // 无平台ID 不得认领（D4：2.6 workMan1Id/workMan2Id 必填的源头门禁）
+    let claimedNow = false
+    if (!assistant && !o.workerPlatformId) {
+      if (!me.platformId) throw { code: 422, message: '请先在管理端完成平台人员登记' }
+      o.workerName = me.name
+      o.workerPlatformId = me.platformId
+      claimedNow = true
+    }
     // 定位校验：与后端同口径计算距离；mock 只回显不拦截，拦截口径以后端为准（docs/04 A.0.1 说明）
     const el = d.getElevator(o.elevatorId)
     const threshold = (el && el.checkinThreshold) || 200
@@ -785,6 +827,8 @@ const routes = [
     const distance = raw < 0 ? -1 : Math.round(raw * 10) / 10
     const geoStatus = distance < 0 ? 'UNKNOWN' : 'PROVIDED'
     d.markCheckin(o.id, body, { distance: distance, threshold: threshold, geoStatus: geoStatus })
+    // D8 池化认领打标（后端 checkinExtraJson.claimedViaPool 同口径）：签退恒双人门禁据此覆盖不限区域池单
+    if (claimedNow && o.checkinExtra) o.checkinExtra.claimedViaPool = true
     return {
       checkinId: 'chk_' + Date.now(),
       role: assistant ? 'ASSISTANT' : 'PRINCIPAL',
@@ -805,6 +849,41 @@ const routes = [
     const o = findOr404(d.db.orders, params.id, '工单')
     d.requireDynamicCode(o, body.code)
     return { ok: true }
+  }],
+  // ── 配合人候选与指派（2026-11-20 区域抢单池设计 D3/D4/D8/M5/M10，后端 WorkOrderService 同口径）──
+  // 配合人候选：仅主维保本人（1403）；候选 = 工单 regionId 快照同区域（快照空=不限区域 → 全部）
+  // ∧ 持平台ID（D4）∧ 在职 ∧ 排除主维保本人（M10：与池可见性同用 regionId 快照）
+  ['GET', '/work-orders/:id/partner-candidates', ({ params }) => {
+    const o = findOr404(d.db.orders, params.id, '工单')
+    const me = currentEmployee()
+    if (!me.platformId || me.platformId !== o.workerPlatformId) {
+      throw { code: 1403, message: '仅主维保本人可查看配合人候选' }
+    }
+    const list = Object.keys(d.db.employees).map((k) => d.db.employees[k])
+      .filter((e) => partnerEligible(o, e))
+      .map((e) => ({ id: e.id, name: e.name, platformId: e.platformId, phone: e.phone }))
+    return { list }
+  }],
+  // 指派/改选配合人：仅主维保本人（1403）；PENDING/PROCESSING 且配合人未签到才可改选（1003）；
+  // 候选人服务端复核与 partner-candidates 同一谓词（不信任前端列表），不符 422
+  ['POST', '/work-orders/:id/assign-partner', ({ params, body }) => {
+    const o = findOr404(d.db.orders, params.id, '工单')
+    const me = currentEmployee()
+    if (!me.platformId || me.platformId !== o.workerPlatformId) {
+      throw { code: 1403, message: '仅主维保本人可指定配合人' }
+    }
+    if (o.status !== 'PENDING' && o.status !== 'PROCESSING') {
+      throw { code: 1003, message: '当前状态不允许指定配合人' }
+    }
+    if (o.assistantCheckinExtra) throw { code: 1003, message: '配合人员已签到，不可改选' }
+    const cand = Object.keys(d.db.employees).map((k) => d.db.employees[k])
+      .find((e) => e.id === String((body && body.employeeId) || ''))
+    if (!partnerEligible(o, cand)) {
+      throw { code: 422, message: '该员工不在配合人候选范围（需与本工单同区域且已完成平台人员登记）' }
+    }
+    o.assistantName = cand.name
+    o.assistantPlatformId = cand.platformId
+    return { ok: true, assistantName: cand.name, assistantPlatformId: cand.platformId }
   }],
   ['GET', '/work-orders/:id/checklist', ({ params }) => {
     const o = findOr404(d.db.orders, params.id, '工单')
@@ -887,6 +966,18 @@ const routes = [
   ['POST', '/work-orders/:id/checkout', ({ params, body }) => {
     const o = findOr404(d.db.orders, params.id, '工单')
     if (o.status !== 'PROCESSING') throw { code: 1003, message: '请先完成签到' }
+    // ── D8 签退恒双人门禁（后端 WorkOrderService.checkout 同口径，平台 2.6 workMan2Id 必填）──
+    // 池化新单（regionId 快照非空 或 认领打标 claimedViaPool）：未选配合人/配合人未签到一律 422，
+    // 先于签字与检查项校验、不产生任何写副作用；存量在途工单（M8）不触发，维持旧口径
+    const pooled = !!o.regionId || !!(o.checkinExtra && o.checkinExtra.claimedViaPool)
+    if (pooled) {
+      if (!o.assistantPlatformId) {
+        throw { code: 422, message: '请选择配合人员（双人作业，未选配合人不得签退）' }
+      }
+      if (!o.assistantCheckinExtra) {
+        throw { code: 422, message: '配合人员未签到，无法签退（双人作业须双人签到留痕）' }
+      }
+    }
     // 签字已在各自手机完成（docs/01 §3.7.5）：签退前校验双签名齐全（后端同口径）
     if (!o.workerSignatureFileId) throw { code: 422, message: '请完成主维保签字' }
     if (o.assistantName && o.assistantName !== '无' && !o.assistantSignatureFileId) {

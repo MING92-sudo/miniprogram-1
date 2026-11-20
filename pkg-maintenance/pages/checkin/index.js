@@ -1,4 +1,6 @@
 // 签到流程：定位（实时距离三态）→ 水印自拍 → 提交
+// 区域抢单池（2026-11-20 设计 §4.2/M1/D4）：主维保首次签到未认领工单即原子认领；
+// 落败 1003 回显认领人、无平台ID 422，认领成功引导选择配合人（D8 双人作业）
 const { definePage } = require('../../../utils/guard')
 const { ROUTES } = require('../../../config/routes')
 // 错误码约定：1001 定位超阈（服务端拦截，定位申诉审核流已裁 docs/01 §10.2）、1003 状态/动态码类拦截；
@@ -8,6 +10,7 @@ const { uploadImage } = require('../../../services/upload')
 const { reverseGeocode } = require('../../../services/location')
 const { formatTime, distanceMeters } = require('../../../utils/util')
 const { getUserInfo } = require('../../../utils/auth')
+const { POOL_TEXT } = require('../../../constants/index')
 
 // 角色（docs/04 A.2）：主维保 PRINCIPAL / 配合人员 ASSISTANT
 const ROLES = [
@@ -54,6 +57,8 @@ definePage(ROUTES['/pkg-maintenance/pages/checkin/index'], {
     try {
       const order = await getOrderDetail(this.data.orderId)
       const el = order.elevator || {}
+      // 认领判定（M1）：载入时工单未认领 → 本次主维保签到即认领，成功后引导选择配合人
+      this._wasUnclaimed = !order.workerName && !order.workerPlatformId
       this.setData({
         elevatorName: el.elevatorName || '',
         elevatorGeo: {
@@ -86,7 +91,9 @@ definePage(ROUTES['/pkg-maintenance/pages/checkin/index'], {
       (me.name === order.assistantName ||
         (!!order.assistantPlatformId && me.platformId === order.assistantPlatformId))
     if (!isDual) {
-      this.setData({ role: 'PRINCIPAL', roleLocked: true, isDual: false, identityText: '单人作业 · 主维保人' })
+      // 池化未认领工单（D2/M1）：签到即认领，身份恒为主维保；存量单人工单维持旧文案
+      const identity = this._wasUnclaimed ? POOL_TEXT.CLAIM_IDENTITY : '单人作业 · 主维保人'
+      this.setData({ role: 'PRINCIPAL', roleLocked: true, isDual: false, identityText: identity })
     } else if (isPrincipal) {
       this.setData({ role: 'PRINCIPAL', roleLocked: true, isDual: true, identityText: '主维保人（下方动态码供配合人员输入）' })
       this.startCodeTimer()
@@ -258,6 +265,18 @@ definePage(ROUTES['/pkg-maintenance/pages/checkin/index'], {
       // docs/04 A.2：role=ASSISTANT 时 dynamicCode 必传，服务端校验有效期/工单匹配
       if (this.data.role === 'ASSISTANT') payload.dynamicCode = this.data.dynamicCode
       await checkin(this.data.orderId, payload)
+      // 认领成功（M1）：引导选择配合人（D8 双人作业），跳作业页由 picker 选择候选
+      if (this.data.role === 'PRINCIPAL' && this._wasUnclaimed) {
+        wx.showModal({
+          title: POOL_TEXT.CLAIMED_GUIDE_TITLE,
+          content: POOL_TEXT.CLAIMED_GUIDE,
+          showCancel: false,
+          confirmText: POOL_TEXT.CLAIMED_GUIDE_CONFIRM,
+          success: () => wx.redirectTo({ url: `/pkg-maintenance/pages/task/index?orderId=${this.data.orderId}` })
+        })
+        this.setData({ submitting: false })
+        return
+      }
       wx.showToast({ title: '签到成功', icon: 'success' })
       wx.redirectTo({ url: `/pkg-maintenance/pages/task/index?orderId=${this.data.orderId}` })
     } catch (e) {

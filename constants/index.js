@@ -85,7 +85,29 @@ const TOAST_TEXT = {
   LOAD_FAILED: '加载失败',
   SAVE_FAILED: '保存失败',
   OPERATE_FAILED: '操作失败',
-  LOGIN_FAILED: '登录失败'
+  LOGIN_FAILED: '登录失败',
+  // 区域抢单池（D8 签退恒双人门禁前置提示；服务端 422 同文案兜底）
+  PARTNER_REQUIRED: '请选择配合人员',
+  PARTNER_NOT_CHECKED_IN: '配合人员未签到'
+}
+
+// 区域抢单池（2026-11-20 区域抢单池设计 §4.5 / D2/M1）：待接单池与配合人选择文案
+const POOL_TEXT = {
+  SECTION_TITLE: '待接单池',
+  SECTION_SUB: '同区域工单 · 到场签到即认领',
+  MINE_TITLE: '我的工单',
+  EMPTY: '暂无待接单',
+  CLAIM_BTN: '签到接单',
+  CLAIM_IDENTITY: '主维保人（本单到场签到即认领）',
+  CLAIMED_GUIDE_TITLE: '认领成功',
+  CLAIMED_GUIDE: '你已成为本单主维保。双人作业：请先选择配合人员，配合人凭你签到页的动态码到场签到。',
+  CLAIMED_GUIDE_CONFIRM: '去选择配合人',
+  PARTNER_TITLE: '选择配合人员',
+  PARTNER_TIP: '候选为本区域已完成平台人员登记的维保员；配合人未签到前可改选',
+  PARTNER_PH: '请选择配合人员',
+  PARTNER_EMPTY: '本区域暂无可选配合人（需持平台ID）',
+  PARTNER_BTN: '确认配合人',
+  PARTNER_DONE: '已指定配合人'
 }
 
 // 空状态文案（列表/汇总无数据时展示）
@@ -498,6 +520,7 @@ module.exports = {
   ERROR_CODES,
   IMAGE_LIMIT,
   TOAST_TEXT,
+  POOL_TEXT,
   EMPTY_TEXT,
   LOADING_TEXT,
   HANDOVER_STATUS,

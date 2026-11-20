@@ -132,14 +132,14 @@ const db = {
   // 合同期（到期从平台列表消失→不可派工）、workStat=normal 才可派工、syncStatus=本地同步状态
   // 登录方式（用户需求）：账号由维保单位系统分配，手机号为账号（account），演示密码统一 123456
   employees: {
-    WORKER: { id: 'emp_1', name: '张伟', phone: '13800000001', account: '13800000001', password: '123456', role: 'WORKER', roleText: '维保人员', groupName: '维保一班', platformId: '6901282369105174537',
+    WORKER: { id: 'emp_1', name: '张伟', phone: '13800000001', account: '13800000001', password: '123456', role: 'WORKER', roleText: '维保人员', groupName: '维保一班', platformId: '6901282369105174537', regionId: 'rg_yubei',
       certificate: 'CQ3601030001', workStartDate: '2024-03-01', workEndDate: addDays(400), workStat: 'normal', syncStatus: 'ACTIVE' },
-    LEADER: { id: 'emp_2', name: '陈刚', phone: '13800000002', account: '13800000002', password: '123456', role: 'LEADER', roles: ['MAINT_SUP'], roleText: '班组长', groupName: '维保一班', platformId: '990002',
+    LEADER: { id: 'emp_2', name: '陈刚', phone: '13800000002', account: '13800000002', password: '123456', role: 'LEADER', roles: ['MAINT_SUP'], roleText: '班组长', groupName: '维保一班', platformId: '990002', regionId: 'rg_yubei',
       certificate: 'CQ3601030002', workStartDate: '2023-06-01', workEndDate: addDays(250), workStat: 'normal', syncStatus: 'ACTIVE' },
-    WORKER2: { id: 'emp_3', name: '李强', phone: '13800000004', account: '13800000004', password: '123456', role: 'WORKER', roleText: '维保人员', groupName: '维保一班', platformId: '6901284774286860288',
+    WORKER2: { id: 'emp_3', name: '李强', phone: '13800000004', account: '13800000004', password: '123456', role: 'WORKER', roleText: '维保人员', groupName: '维保一班', platformId: '6901284774286860288', regionId: 'rg_jiangbei',
       certificate: 'CQ3601030003', workStartDate: '2024-08-01', workEndDate: addDays(500), workStat: 'normal', syncStatus: 'ACTIVE' },
     // ── M2 蓝图基准演示人物（spec §5.2-6，多角色；旧账号保留兼容） ──
-    MAINT_TECH: { id: 'emp_lzg', name: '李振国', phone: '13800000011', account: '13800000011', password: '123456', role: 'MAINT_TECH', roles: ['MAINT_TECH'], roleText: '维保人员', groupName: '维保一组', jobNo: 'T3101', platformId: '6901282369105174537',
+    MAINT_TECH: { id: 'emp_lzg', name: '李振国', phone: '13800000011', account: '13800000011', password: '123456', role: 'MAINT_TECH', roles: ['MAINT_TECH'], roleText: '维保人员', groupName: '维保一组', jobNo: 'T3101', platformId: '6901282369105174537', regionId: 'rg_jiangbei',
       certificate: 'CQ3601030011', workStartDate: '2023-03-01', workEndDate: addDays(400), workStat: 'normal', syncStatus: 'ACTIVE' },
     INST_PM: { id: 'emp_wq', name: '王强', phone: '13800000013', account: '13800000013', password: '123456', role: 'INST_PM', roles: ['INST_PM'], roleText: '安装部项目负责人', groupName: '安装一部', platformId: '',
       certificate: '', workStartDate: '2022-05-01', workEndDate: addDays(500), workStat: 'normal', syncStatus: 'ACTIVE' },
@@ -163,7 +163,7 @@ const db = {
   },
 
   elevators: [
-    { id: 'el_1', elevatorCode: 'EM-2024-001', elevatorName: '世纪大厦 1# 客梯', projectName: '世纪大厦', location: '渝北区龙山一路 88 号世纪大厦', regCode: 'TSCQ5001120001', deviceCode: 'DT-CQ-2024-001', insideNumber: 'KT-01', model: 'OTIS 300VF', useUnitId: 'uu_1', category: '曳引与强制驱动电梯', nextCheckDate: addDays(45),
+    { id: 'el_1', elevatorCode: 'EM-2024-001', elevatorName: '世纪大厦 1# 客梯', projectName: '世纪大厦', location: '渝北区龙山一路 88 号世纪大厦', regCode: 'TSCQ5001120001', deviceCode: 'DT-CQ-2024-001', insideNumber: 'KT-01', model: 'OTIS 300VF', useUnitId: 'uu_1', category: '曳引与强制驱动电梯', nextCheckDate: addDays(45), regionId: 'rg_yubei',
       // 下次维保日期（上次 addDays(-3) + 半月周期 15 天，与 ensureDueOrders 到期口径一致）
       nextMaintenanceDate: addDays(12),
       // ── 平台 2.7 自动获取字段（8 个，电话未脱敏，可直接回填用于 2.6 上报）──
@@ -176,7 +176,7 @@ const db = {
       driveMode: '曳引驱动', ratedLoad: 1000, ratedLoadUnit: 'kg', ratedSpeed: 1.75, ratedSpeedUnit: 'm/s', stationsDoors: '11/11',
       // 维保绑定配置：到期自动派单的人员与频次（正式版为维保合同 + 排班表）
       maintenance: { workTypeCode: 'HM', intervalDays: 15, workerName: '张伟', workerPhone: '13800000001', workerPlatformId: '6901282369105174537', assistantName: '李强', assistantPlatformId: '6901284774286860288', lastMaintenanceAt: addDays(-3) } },
-    { id: 'el_2', elevatorCode: 'EM-2024-002', elevatorName: '世纪大厦 2# 客梯', projectName: '世纪大厦', location: '渝北区龙山一路 88 号世纪大厦', regCode: 'TSCQ5001120002', deviceCode: 'DT-CQ-2024-002', insideNumber: 'KT-02', model: 'OTIS 300VF', useUnitId: 'uu_1', category: '曳引与强制驱动电梯', nextCheckDate: addDays(18),
+    { id: 'el_2', elevatorCode: 'EM-2024-002', elevatorName: '世纪大厦 2# 客梯', projectName: '世纪大厦', location: '渝北区龙山一路 88 号世纪大厦', regCode: 'TSCQ5001120002', deviceCode: 'DT-CQ-2024-002', insideNumber: 'KT-02', model: 'OTIS 300VF', useUnitId: 'uu_1', category: '曳引与强制驱动电梯', nextCheckDate: addDays(18), regionId: 'rg_yubei',
       nextMaintenanceDate: addDays(12), // 上次 addDays(-3) + 半月周期 15 天
       factoryNumber: 'SGL20131212-2', useUnitEntityId: '5633318206815862786',
       elevatorAdminister: '王芳', elevatorAdministerPhone: '13800000003', emergencyPhone: '023-67612345',
@@ -185,7 +185,7 @@ const db = {
       brand: '奥的斯', manufacturer: '奥的斯电梯（中国）有限公司', productNo: 'OTIS-2013-8818',
       driveMode: '曳引驱动', ratedLoad: 1000, ratedLoadUnit: 'kg', ratedSpeed: 1.75, ratedSpeedUnit: 'm/s', stationsDoors: '11/11',
       maintenance: { workTypeCode: 'HM', intervalDays: 15, workerName: '张伟', workerPlatformId: '6901282369105174537', assistantName: '李强', assistantPlatformId: '6901284774286860288', lastMaintenanceAt: addDays(-3) } },
-    { id: 'el_3', elevatorCode: 'EM-2024-003', elevatorName: '蓝湾国际 A 座货梯', projectName: '蓝湾国际', location: '江北区滨江路 6 号蓝湾国际', regCode: 'TSCQ5001120003', deviceCode: 'DT-CQ-2024-003', insideNumber: 'HT-01', model: '三菱 GPS-III', useUnitId: 'uu_2', category: '曳引与强制驱动电梯', nextCheckDate: addDays(200),
+    { id: 'el_3', elevatorCode: 'EM-2024-003', elevatorName: '蓝湾国际 A 座货梯', projectName: '蓝湾国际', location: '江北区滨江路 6 号蓝湾国际', regCode: 'TSCQ5001120003', deviceCode: 'DT-CQ-2024-003', insideNumber: 'HT-01', model: '三菱 GPS-III', useUnitId: 'uu_2', category: '曳引与强制驱动电梯', nextCheckDate: addDays(200), regionId: 'rg_jiangbei',
       factoryNumber: 'MITS-2018-0331', useUnitEntityId: '5633318206815862790',
       elevatorAdminister: '吴静', elevatorAdministerPhone: '13800003005', emergencyPhone: '023-67991234',
       platformSyncedAt: '2026-09-29 14:25:00',
@@ -193,7 +193,7 @@ const db = {
       brand: '三菱', manufacturer: '上海三菱电梯有限公司', productNo: 'MLS-2018-0331',
       driveMode: '曳引驱动', ratedLoad: 2000, ratedLoadUnit: 'kg', ratedSpeed: 1.0, ratedSpeedUnit: 'm/s', stationsDoors: '6/6',
       maintenance: { workTypeCode: 'FM', intervalDays: 30, workerName: '张伟', workerPhone: '13800000001', workerPlatformId: '6901282369105174537', assistantName: '', assistantPlatformId: '', lastMaintenanceAt: addDays(-10) } },
-    { id: 'el_4', elevatorCode: 'EM-2024-004', elevatorName: '蓝湾国际 B 座客梯', projectName: '蓝湾国际', location: '江北区滨江路 6 号蓝湾国际', regCode: 'TSCQ5001120004', deviceCode: 'DT-CQ-2024-004', insideNumber: 'KT-01', model: '日立 YK', useUnitId: 'uu_2', category: '曳引与强制驱动电梯', nextCheckDate: addDays(240),
+    { id: 'el_4', elevatorCode: 'EM-2024-004', elevatorName: '蓝湾国际 B 座客梯', projectName: '蓝湾国际', location: '江北区滨江路 6 号蓝湾国际', regCode: 'TSCQ5001120004', deviceCode: 'DT-CQ-2024-004', insideNumber: 'KT-01', model: '日立 YK', useUnitId: 'uu_2', category: '曳引与强制驱动电梯', nextCheckDate: addDays(240), regionId: 'rg_jiangbei',
       factoryNumber: 'HIT-2021-1102', useUnitEntityId: '5633318206815862790',
       elevatorAdminister: '吴静', elevatorAdministerPhone: '13800003005', emergencyPhone: '023-67991234',
       platformSyncedAt: '2026-09-29 14:25:00',
@@ -205,6 +205,16 @@ const db = {
   ],
 
   orders: [
+    {
+      // 区域抢单池演示件（D2/M4）：已发布未认领——worker*/assistant* 一律留空，落 regionId 快照，
+      // 同区域持平台ID的维保员到场签到即认领（M1）；类型升级为季度保（el_2 今日已完成半月保 wo_3）
+      id: 'wo_pool_1', orderNo: 'WO20261120-101', elevatorId: 'el_2',
+      workType: '季度维保', workTypeCode: 'TM', planTime: today('09:00:00'), status: 'PENDING',
+      workerName: '', assistantName: '', workerPlatformId: '', assistantPlatformId: '',
+      regionId: 'rg_yubei', autoDispatched: true,
+      checkinTime: '', checkoutTime: '', duration: '', originalRecordId: '', reportStatus: '',
+      checklist: buildChecklist('TM', '曳引与强制驱动电梯')
+    },
     {
       id: 'wo_1', orderNo: 'WO20260929-001', elevatorId: 'el_1',
       workType: '半月维保', workTypeCode: 'HM', planTime: today('09:00:00'), status: 'PENDING',

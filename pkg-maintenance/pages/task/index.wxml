@@ -25,6 +25,17 @@
         <button wx:if="{{order && order.status === 'DONE'}}" class="btn btn-ghost btn-sm" bindtap="goRecord">查看记录单</button>
       </view>
 
+      <!-- 配合人选择（D3/D8：认领后必选，双人作业才可签退；候选=同区域持平台ID，未签到前可改选） -->
+      <view wx:if="{{needPartner}}" class="card col gap6">
+        <view class="fs22 w6">{{poolText.PARTNER_TITLE}}</view>
+        <view class="fs18 dim">{{poolText.PARTNER_TIP}}</view>
+        <picker wx:if="{{partnerList.length}}" mode="selector" range="{{partnerOptions}}" bindchange="onPartnerChange">
+          <view class="tk-input">{{partnerName || poolText.PARTNER_PH}}</view>
+        </picker>
+        <view wx:else class="fs18 sig">{{poolText.PARTNER_EMPTY}}</view>
+        <button wx:if="{{partnerList.length}}" class="btn btn-primary btn-sm" disabled="{{partnerIndex < 0 || assigning}}" bindtap="onAssignPartner">{{poolText.PARTNER_BTN}}</button>
+      </view>
+
       <!-- 分组 collapsible + 逐项行内留证 -->
       <view wx:for="{{sections}}" wx:key="label" class="col gap6">
         <button class="group-head" data-label="{{item.label}}" bindtap="onToggleGroup" aria-role="button" aria-label="{{item.label}}">

@@ -5,6 +5,7 @@ const { ROUTES } = require('../../../config/routes')
 // 提交后触发记录生成与监管平台上报（后端）
 const { getOrderDetail, getChecklist, checkout } = require('../../../services/order')
 const { formatDuration, parseTime } = require('../../../utils/util')
+const { TOAST_TEXT } = require('../../../constants/index')
 const config = require('../../../config/index')
 const offline = require('../../../utils/offline')
 
@@ -26,6 +27,8 @@ definePage(ROUTES['/pkg-maintenance/pages/checkout/index'], {
     workerSigned: false, // 主维保已签字（各自手机签，docs/01 §3.7.5）
     assistantSigned: false, // 配合人员已签字
     hasAssistant: false, // 工单配有配合人员时需双人签字（docs/04 A.2 签退自检）
+    assistantCheckedIn: false, // 配合人员已签到（D8 前置提示）
+    pooled: false, // 池化新单（regionId 快照；D8 恒双人门禁，存量 M8 工单不触发）
     checkDone: 0,
     checkTotal: 0,
     naCount: 0,
@@ -84,6 +87,10 @@ definePage(ROUTES['/pkg-maintenance/pages/checkout/index'], {
         elevatorName: (order.elevator && order.elevator.elevatorName) || '',
         checkinTime: order.checkinTime || '',
         hasAssistant: !!(order.assistantName && order.assistantName !== '无'),
+        assistantCheckedIn: !!order.assistantCheckedIn,
+        // 池化判定以 regionId 快照为准（mock 行透出）；真实后端列表/详情未透出时跳过前置，
+        // 由后端 422「请选择配合人员/配合人员未签到」拦截（文案同 TOAST_TEXT，弹层完整展示）
+        pooled: !!order.regionId,
         workerSigned: !!order.workerSigned,
         assistantSigned: !!order.assistantSigned
       })
@@ -147,6 +154,13 @@ definePage(ROUTES['/pkg-maintenance/pages/checkout/index'], {
     if (!allChecked) return wx.showToast({ title: '请完成全部自检项', icon: 'none' })
     // 签字已在各自手机完成（docs/01 §3.7.5），此处仅做完整性预检，后端 422 双保险
     if (!this.data.workerSigned) return wx.showToast({ title: '请完成主维保签字', icon: 'none' })
+    // D8 池化新单恒双人前置提示（服务端 422 同文案兜底）：未选配合人 → 回作业页选择；已选未签到 → 等配合人到场
+    if (this.data.pooled && !this.data.hasAssistant) {
+      return wx.showToast({ title: TOAST_TEXT.PARTNER_REQUIRED, icon: 'none' })
+    }
+    if (this.data.pooled && this.data.hasAssistant && !this.data.assistantCheckedIn) {
+      return wx.showToast({ title: TOAST_TEXT.PARTNER_NOT_CHECKED_IN, icon: 'none' })
+    }
     if (this.data.hasAssistant && !this.data.assistantSigned) {
       return wx.showToast({ title: '请完成配合人员签字（双人签字）', icon: 'none' })
     }
