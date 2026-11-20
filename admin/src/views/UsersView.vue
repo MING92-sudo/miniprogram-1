@@ -19,6 +19,7 @@
         <template #cell-roles="{ row }">
           <span v-for="r in roleArr(row)" :key="r" class="tag tag-ghost">{{ roleLabel(r) }}</span>
         </template>
+        <template #cell-regionName="{ row }">{{ row.regionName || '—' }}</template>
         <template #cell-scope="{ row }"><span class="scope-pill">{{ row.scope || defaultScope(roleArr(row)[0]) || '—' }}</span></template>
         <template #cell-status="{ row }"><StatusTag :status="statusOf(row)" /></template>
         <template #cell-lastLogin="{ row }"><span class="mono f12">{{ row.lastLogin || '—' }}</span></template>
@@ -45,6 +46,7 @@
             <div class="kv"><span class="k">工号</span><span class="v mono">{{ detail.empNo || detail.jobNo || '—' }}</span></div>
             <div class="kv"><span class="k">手机号</span><span class="v mono">{{ detail.phone || '—' }}</span></div>
             <div class="kv"><span class="k">所属组织</span><span class="v">{{ detail.orgName || deptLabel(detail.department) || detail.groupName || '—' }}</span></div>
+            <div class="kv"><span class="k">所属区域</span><span class="v">{{ detail.regionName || '—' }}</span></div>
             <div class="kv"><span class="k">数据范围</span><span class="v mono">{{ detail.scope || defaultScope(roleArr(detail)[0]) || '—' }}</span></div>
             <div class="kv"><span class="k">状态</span><span class="v"><StatusTag :status="statusOf(detail)" /></span></div>
             <div class="kv"><span class="k">最近登录</span><span class="v mono">{{ detail.lastLogin || '—' }}</span></div>
@@ -82,6 +84,12 @@
           <FormField label="手机号" required hint="同时作为默认登录账号" :error="errors.phone">
             <input v-model="editModel.phone" class="ctl mono" placeholder="11 位手机号" />
           </FormField>
+          <FormField label="所属区域" hint="不选择=不限区域">
+            <select v-model="editModel.regionId" class="ctl">
+              <option value="">不限区域</option>
+              <option v-for="r in regions" :key="r.id" :value="r.id">{{ r.name }}</option>
+            </select>
+          </FormField>
         </div>
         <div class="fhelp mt8">手机号须符合 11 位格式且不与既有账号冲突（冲突由服务端 1002 拦截）。角色请通过「分配角色」单独维护。</div>
       </Form>
@@ -94,6 +102,12 @@
         <div class="form-grid">
           <FormField label="姓名" required :error="errors.name"><input v-model="createModel.name" class="ctl" placeholder="真实姓名" /></FormField>
           <FormField label="手机号" required hint="^1[3-9]\d{9}$" :error="errors.phone"><input v-model="createModel.phone" class="ctl mono" placeholder="11 位手机号" /></FormField>
+          <FormField label="所属区域" hint="不选择=不限区域">
+            <select v-model="createModel.regionId" class="ctl">
+              <option value="">不限区域</option>
+              <option v-for="r in regions" :key="r.id" :value="r.id">{{ r.name }}</option>
+            </select>
+          </FormField>
         </div>
         <RuleNote class="mt12">
           使用单位客户账号不在此开通：请到「使用单位档案 → 客户账号」开通，客户登录走「使用单位客户」入口。
@@ -188,8 +202,9 @@ import { useToast } from '../ui/stores/ui'
 import { usePerspectiveStore } from '../ui/stores/perspective'
 import { roleLabel, deptLabel } from '../ui/labels'
 import { canonicalRoles, defaultScope } from '../ui/permission-v2'
-import { listUsers, createUser, disableUser, assignRoles } from '../api/ledger'
-import { updateEmployee } from '../api/archive'
+import { listUsers, disableUser, assignRoles } from '../api/ledger'
+import { employees, createEmployee, updateEmployee } from '../api/archive'
+import http from '../api/client'
 const toast = useToast()
 const perspective = usePerspectiveStore()
 const rows = ref([])
@@ -200,15 +215,17 @@ const disableTarget = ref(null)
 const resignTarget = ref(null)
 const rolesTarget = ref(null)
 const editTarget = ref(null)
-const editModel = ref({ name: '', phone: '' })
+const editModel = ref({ name: '', phone: '', regionId: '' })
 const editForm = ref(null)
 const initialPwd = ref('')
 const roleErr = ref(false)
 const createForm = ref(null)
 const resignForm = ref(null)
-const createModel = ref({ name: '', phone: '', roles: [] })
+const createModel = ref({ name: '', phone: '', roles: [], regionId: '' })
 const resignModel = ref({ heir: '' })
 const rolesDraft = ref([])
+// 所属区域（D5）：下拉选项来自 GET /regions；可空=不限区域（空串提交=清除，后端 null=不动/空串=清除）
+const regions = ref([])
 // 客户角色（CLIENT_*）不在人员目录分配：客户账号在「使用单位档案 → 客户账号」独立开通
 const CUSTOMER_ROLES = ['CLIENT_ADMIN', 'CLIENT_SIGNER']
 const roleOptions = [...canonicalRoles()].filter(r => !CUSTOMER_ROLES.includes(r))
@@ -236,6 +253,7 @@ const cols = [
   { key: 'phone', label: '手机号' },
   { key: 'org', label: '所属组织', sortable: true },
   { key: 'roles', label: '角色' },
+  { key: 'regionName', label: '区域' },
   { key: 'scope', label: '数据范围' },
   { key: 'status', label: '状态', sortable: true },
   { key: 'lastLogin', label: '最近登录', sortable: true },
@@ -244,23 +262,45 @@ const cols = [
 async function load() {
   loading.value = true
   try {
-    const list = await listUsers()
+    // 列表主数据取 GET /users（角色集来自 sys_user_role 多角色行）；
+    // regionId/regionName 仅在 GET /employees 行投影（Task 1），按 id 合并进列表行
+    const [list, emps] = await Promise.all([listUsers(), employees()])
+    const regionById = new Map((Array.isArray(emps) ? emps : []).map(e => [e.id, e]))
     // 所属组织统一口径：优先后端 orgName，其次部门码中文化（PLATFORM/INSTALL/MAINT/UNIT），最后班组名；
     // 统一写入 org 字段供列排序使用（后端 department 是码值，直接排序/展示会出现 "MAINT" 这种英文）
-    rows.value = (Array.isArray(list) ? list : []).map(r => ({
-      ...r,
-      org: r.orgName || deptLabel(r.department) || r.groupName || '—'
-    }))
+    rows.value = (Array.isArray(list) ? list : []).map(r => {
+      const emp = regionById.get(r.id) || {}
+      return {
+        ...r,
+        regionId: r.regionId || emp.regionId || '',
+        regionName: r.regionName || emp.regionName || '',
+        org: r.orgName || deptLabel(r.department) || r.groupName || '—'
+      }
+    })
   } finally { loading.value = false }
 }
+// 区域下拉选项（开通/编辑表单共用）；区域为主数据只读消费，失败时降级为空下拉
+async function loadRegions() {
+  try { regions.value = await http.get('/regions') } catch { regions.value = [] }
+}
 function openDetail(row) { detail.value = row }
-function openCreate() { createModel.value = { name: '', phone: '', roles: [] }; initialPwd.value = ''; roleErr.value = false; showCreate.value = true }
+function openCreate() { createModel.value = { name: '', phone: '', roles: [], regionId: '' }; initialPwd.value = ''; roleErr.value = false; showCreate.value = true }
 async function submitCreate() {
   roleErr.value = createModel.value.roles.length === 0
   if (!createForm.value.validate() || roleErr.value) { toast.warn('请修正表单错误后再提交'); return }
   try {
-    const body = { name: createModel.value.name, phone: createModel.value.phone, roles: createModel.value.roles }
-    const res = await createUser(body)
+    // 开通统一走 POST /employees（D5：regionId 随建档写入；后端空串=不限区域、非空校验存在 422）
+    const body = {
+      name: createModel.value.name,
+      phone: createModel.value.phone,
+      role: createModel.value.roles[0],
+      regionId: createModel.value.regionId || ''
+    }
+    const res = await createEmployee(body)
+    // 多角色：建档写入主角色行后，再经「分配角色」端点补齐完整角色集（与行内分配角色同口径）
+    if (createModel.value.roles.length > 1) {
+      await assignRoles(res.id, { roles: createModel.value.roles })
+    }
     initialPwd.value = res.initialPassword || ''
     toast.success('账号已开通（待激活）', res.id || '')
     load()
@@ -292,13 +332,17 @@ async function submitResign() {
 }
 function openEdit(row) {
   if (!row) return
-  editModel.value = { name: row.name || '', phone: row.phone || '' }
+  editModel.value = { name: row.name || '', phone: row.phone || '', regionId: row.regionId || '' }
   editTarget.value = row
 }
 async function submitEdit() {
   if (!editForm.value.validate()) { toast.warn('请修正表单错误后再提交'); return }
   try {
-    await updateEmployee(editTarget.value.id, { name: editModel.value.name, phone: editModel.value.phone })
+    await updateEmployee(editTarget.value.id, {
+      name: editModel.value.name,
+      phone: editModel.value.phone,
+      regionId: editModel.value.regionId || ''
+    })
     toast.success('账号已更新', editTarget.value.id)
     editTarget.value = null; detail.value = null; load()
   } catch (e) { toast.error(e.message || '更新失败') }
@@ -312,5 +356,5 @@ async function submitRoles() {
     rolesTarget.value = null; detail.value = null; load()
   } catch (e) { toast.error(e.message || '角色分配失败') }
 }
-onMounted(() => { load() })
+onMounted(() => { load(); loadRegions() })
 </script>
