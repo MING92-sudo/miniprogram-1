@@ -326,7 +326,6 @@ async function runSmokeCases(ctx) {
     record('PUT /regions/{id}', await put(`/regions/${tmpRegionId}`, { name: 'E2E测试区改名' }, admin), 'ok')
   }
   record('PUT /elevators/{id}/region', await put(`/elevators/${seed.elevators.el1}/region`, { regionId: seed.regions.rg1 }, admin), 'any')
-  record('PUT /employees/{id}/region', await put(`/employees/${seed.employees.worker}/region`, { regionId: seed.regions.rg1 }, admin), 'any')
 
   // ══════════ 18. UnitAccount（旧门户）══════════
   suite('C18. 使用单位门户 /unit/**')

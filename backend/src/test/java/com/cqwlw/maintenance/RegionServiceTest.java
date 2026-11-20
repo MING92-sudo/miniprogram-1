@@ -2,10 +2,8 @@ package com.cqwlw.maintenance;
 
 import com.cqwlw.maintenance.common.BizException;
 import com.cqwlw.maintenance.entity.Elevator;
-import com.cqwlw.maintenance.entity.Employee;
 import com.cqwlw.maintenance.entity.Region;
 import com.cqwlw.maintenance.mapper.ElevatorMapper;
-import com.cqwlw.maintenance.mapper.EmployeeMapper;
 import com.cqwlw.maintenance.mapper.RegionMapper;
 import com.cqwlw.maintenance.service.RegionService;
 import org.junit.jupiter.api.Test;
@@ -23,20 +21,20 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * 区域主数据（Task 1）：region 表 CRUD + 电梯/员工 region_id 分配。
+ * 区域主数据（Task 1）：region 表 CRUD + 电梯 region_id 分配。
  * 区域为移交/外接建档/使用单位门户的可见性范围谓词（后续任务消费）。
+ * 员工所属区域不在此服务：随 POST/PUT /employees 维护（D5，AdminArchiveService 链路测试覆盖）。
  */
 class RegionServiceTest {
 
-    private static RegionService service(RegionMapper regionMapper, ElevatorMapper elevatorMapper,
-                                         EmployeeMapper employeeMapper) {
-        return new RegionService(regionMapper, elevatorMapper, employeeMapper);
+    private static RegionService service(RegionMapper regionMapper, ElevatorMapper elevatorMapper) {
+        return new RegionService(regionMapper, elevatorMapper);
     }
 
     @Test
     void listCreatesAndFilters() {
         RegionMapper regionMapper = mock(RegionMapper.class);
-        RegionService svc = service(regionMapper, mock(ElevatorMapper.class), mock(EmployeeMapper.class));
+        RegionService svc = service(regionMapper, mock(ElevatorMapper.class));
 
         Region created = svc.create(Map.of("name", " 渝北区 ", "sortOrder", 1, "remark", "北区"));
 
@@ -49,7 +47,7 @@ class RegionServiceTest {
     @Test
     void createRejectsBlankName() {
         RegionMapper regionMapper = mock(RegionMapper.class);
-        RegionService svc = service(regionMapper, mock(ElevatorMapper.class), mock(EmployeeMapper.class));
+        RegionService svc = service(regionMapper, mock(ElevatorMapper.class));
 
         BizException e = assertThrows(BizException.class, () -> svc.create(Map.of("name", "   ")));
         assertEquals(422, e.getCode(), "区域名称留空应拒绝");
@@ -59,7 +57,7 @@ class RegionServiceTest {
     @Test
     void createRejectsNonNumericSortOrder() {
         RegionMapper regionMapper = mock(RegionMapper.class);
-        RegionService svc = service(regionMapper, mock(ElevatorMapper.class), mock(EmployeeMapper.class));
+        RegionService svc = service(regionMapper, mock(ElevatorMapper.class));
 
         BizException e = assertThrows(BizException.class,
                 () -> svc.create(Map.of("name", "渝北区", "sortOrder", "abc")));
@@ -71,7 +69,7 @@ class RegionServiceTest {
     void assignElevatorRegionSetsRegionId() {
         RegionMapper regionMapper = mock(RegionMapper.class);
         ElevatorMapper elevatorMapper = mock(ElevatorMapper.class);
-        RegionService svc = service(regionMapper, elevatorMapper, mock(EmployeeMapper.class));
+        RegionService svc = service(regionMapper, elevatorMapper);
 
         when(elevatorMapper.selectById("el_1")).thenReturn(new Elevator());
         Region region = new Region();
@@ -91,7 +89,7 @@ class RegionServiceTest {
     void assignElevatorRegionRejectsMissingRegion() {
         RegionMapper regionMapper = mock(RegionMapper.class);
         ElevatorMapper elevatorMapper = mock(ElevatorMapper.class);
-        RegionService svc = service(regionMapper, elevatorMapper, mock(EmployeeMapper.class));
+        RegionService svc = service(regionMapper, elevatorMapper);
 
         when(elevatorMapper.selectById("el_1")).thenReturn(new Elevator());
         when(regionMapper.selectById("rg_missing")).thenReturn(null);
@@ -99,18 +97,5 @@ class RegionServiceTest {
         BizException e = assertThrows(BizException.class, () -> svc.assignElevatorRegion("el_1", "rg_missing"));
         assertEquals(1404, e.getCode(), "区域不存在应拒绝分配");
         verify(elevatorMapper, never()).updateById(any(Elevator.class));
-    }
-
-    @Test
-    void assignEmployeeRegionRejectsMissingEmployee() {
-        RegionMapper regionMapper = mock(RegionMapper.class);
-        EmployeeMapper employeeMapper = mock(EmployeeMapper.class);
-        RegionService svc = service(regionMapper, mock(ElevatorMapper.class), employeeMapper);
-
-        when(employeeMapper.selectById("emp_x")).thenReturn(null);
-
-        BizException e = assertThrows(BizException.class, () -> svc.assignEmployeeRegion("emp_x", "rg_1"));
-        assertEquals(1404, e.getCode(), "员工不存在应拒绝分配");
-        verify(employeeMapper, never()).updateById(any(Employee.class));
     }
 }
