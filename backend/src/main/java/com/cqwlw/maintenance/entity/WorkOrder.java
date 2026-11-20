@@ -58,4 +58,6 @@ public class WorkOrder {
     /** P2 租户快照（V47）：派单时冻结的租户归属/单位名称 */
     public String useUnitId;
     public String useUnitName;
+    /** 区域池快照（派单时取电梯 regionId，2026-11-20 区域抢单池设计，V57 迁移） */
+    public String regionId;
 }
