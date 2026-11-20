@@ -145,6 +145,26 @@ public class WorkOrderController {
         return ApiResponse.ok(workOrderService.verifyDynamicCode(id, body, empId(request)));
     }
 
+    /** 配合人候选（D3/D4/M10：工单区域快照同区域+持平台ID+在职+排除主维保；仅主维保本人） */
+    @GetMapping("/work-orders/{id}/partner-candidates")
+    public ApiResponse<Map<String, Object>> partnerCandidates(@PathVariable String id, HttpServletRequest request) {
+        return ApiResponse.ok(workOrderService.partnerCandidates(id, empId(request)));
+    }
+
+    /** 指派/改选配合人（仅主维保本人，配合人未签到前可改选；写操作带幂等键去重） */
+    @PostMapping("/work-orders/{id}/assign-partner")
+    public ApiResponse<Object> assignPartner(@PathVariable String id, @RequestBody Map<String, Object> body,
+                                             @RequestHeader(value = "X-Idempotency-Key", required = false) String idemKey,
+                                             HttpServletRequest request) {
+        IdempotencyService.Guard guard = idempotencyService.begin(idemKey, "/work-orders/assign-partner");
+        if (guard.replayed()) {
+            return ApiResponse.ok(guard.replayedResult());
+        }
+        Map<String, Object> result = workOrderService.assignPartner(id, body, empId(request));
+        guard.commit(result);
+        return ApiResponse.ok(result);
+    }
+
     @GetMapping("/work-orders/{id}/checklist")
     public ApiResponse<Map<String, Object>> checklist(@PathVariable String id, HttpServletRequest request) {
         return ApiResponse.ok(workOrderService.getChecklist(id, empId(request)));

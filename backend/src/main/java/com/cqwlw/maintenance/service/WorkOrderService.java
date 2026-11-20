@@ -414,6 +414,8 @@ public class WorkOrderService {
         requirePhoneMutexForOrder(o, el);
         // 动态码校验与消费在任何写操作之前：校验失败不产生副作用（不落库、不改状态）
         if (assistant) {
+            // M5：身份比对必须先于动态码消费——顺序反了错误人选会吞掉正确人选的码
+            requireAssignedAssistant(o, empId);
             consumeDynamicCode(o, str(body.get("dynamicCode")));
         }
         // 定位校验（docs/02 §5.4）：电梯坐标缺失 → UNKNOWN，只留痕不拦截（docs/04 A.0.1 码表 1005）
@@ -422,12 +424,18 @@ public class WorkOrderService {
         // 阈值三级解析：电梯级 → 品种级（sys_param）→ 全局（sys_param → app 配置），docs/02 §5.4
         int threshold = thresholdService.resolve(el);
         if (el != null && el.lat != null && el.lng != null) {
-            geoStatus = el.geoStatus == null || el.geoStatus.isEmpty() ? "PROVIDED" : el.geoStatus;
             distance = GeoUtil.distanceMeters(lat, lng, el.lat.doubleValue(), el.lng.doubleValue());
-            // M11：SELF_COLLECTED 基准由首个签到者 GPS 自证回填，不作为围栏拦截依据（仅留痕，1005 语义）
-            if (!"SELF_COLLECTED".equals(el.geoStatus) && distance > threshold) {
-                throw new BizException(1001, "签到位置超出允许范围：距电梯 " + round1(distance)
-                        + " 米，阈值 " + threshold + " 米；请到现场后重试");
+            if (assistant) {
+                // D6：配合人免距离围栏——永不 1001 拦截，geoStatus 记 ASSISTANT_EXEMPT；
+                // 定位仍必填（M2），算出的距离照常写入留痕（extra.distance）
+                geoStatus = "ASSISTANT_EXEMPT";
+            } else {
+                geoStatus = el.geoStatus == null || el.geoStatus.isEmpty() ? "PROVIDED" : el.geoStatus;
+                // M11：SELF_COLLECTED 基准由首个签到者 GPS 自证回填，不作为围栏拦截依据（仅留痕，1005 语义）
+                if (!"SELF_COLLECTED".equals(el.geoStatus) && distance > threshold) {
+                    throw new BizException(1001, "签到位置超出允许范围：距电梯 " + round1(distance)
+                            + " 米，阈值 " + threshold + " 米；请到现场后重试");
+                }
             }
         }
         // 区域抢单池「签到即认领」（2026-11-20 设计 §4.2 / M1/D4）：主维保签到未认领工单即原子认领。
@@ -501,6 +509,94 @@ public class WorkOrderService {
         }
         o.workerName = login.name;
         o.workerPlatformId = login.platformId;
+    }
+
+    // ── 配合人候选与指派（2026-11-20 区域抢单池设计 D3/D4/D8/M5/M10） ──
+
+    /**
+     * 配合人身份比对（M5）：工单已指定配合人（assistantPlatformId 非空）时，签到者必须为该配合人本人，
+     * 否则 1003「你未被指定为配合人」——防「码给错人」冒签；必须先于动态码消费，错误人选不得吞码。
+     * M8 兼容分支：存量工单 assistantPlatformId 为空（配合人仅有建档绑定姓名）时跳过比对，维持原动态码口径。
+     */
+    private void requireAssignedAssistant(WorkOrder o, String empId) {
+        if (isBlank(o.assistantPlatformId)) {
+            return;
+        }
+        Employee login = scopeService.require(empId);
+        if (isBlank(login.platformId) || !login.platformId.equals(o.assistantPlatformId)) {
+            throw new BizException(1003, "你未被指定为配合人（本工单配合人已由主维保指定）");
+        }
+    }
+
+    /**
+     * 配合人候选（M10：与池可见性同用工单 regionId 快照，电梯事后改区域不影响在池工单）：
+     * 候选 = 同区域快照（快照空=不限区域 → 全部）∧ 持平台ID（D4）∧ 在职 ∧ 排除主维保本人。
+     * 仅主维保本人可调用（1403）。
+     */
+    public Map<String, Object> partnerCandidates(String orderId, String empId) {
+        WorkOrder o = findOr404(orderId);
+        requireOrderScope(o, empId);
+        requirePrincipal(o, scopeService.require(empId));
+        List<Map<String, Object>> list = new ArrayList<>();
+        for (Employee e : employeeMapper.selectList(null)) {
+            if (!partnerEligible(o, e)) {
+                continue;
+            }
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("id", e.id);
+            m.put("name", e.name);
+            m.put("platformId", e.platformId);
+            m.put("phone", e.phone);
+            list.add(m);
+        }
+        return JsonUtil.map("list", list);
+    }
+
+    /**
+     * 指派/改选配合人（D3/D8）：仅主维保本人（1403）；PENDING/PROCESSING 且配合人未签到
+     * （assistantCheckinExtra 空）才可改选；候选人服务端复核与 partner-candidates 同一谓词
+     * （不信任前端列表），不符 422。
+     */
+    public Map<String, Object> assignPartner(String orderId, Map<String, Object> body, String empId) {
+        WorkOrder o = findOr404(orderId);
+        requireOrderScope(o, empId);
+        requirePrincipal(o, scopeService.require(empId));
+        if (!"PENDING".equals(o.status) && !"PROCESSING".equals(o.status)) {
+            throw new BizException(1003, "当前状态不允许指定配合人");
+        }
+        if (hasCheckin(o.assistantCheckinExtraJson)) {
+            throw new BizException(1003, "配合人员已签到，不可改选");
+        }
+        String employeeId = str(body.get("employeeId"));
+        Employee cand = isBlank(employeeId) ? null : employeeMapper.selectById(employeeId);
+        if (cand == null || !partnerEligible(o, cand)) {
+            throw new BizException(422, "该员工不在配合人候选范围（需与本工单同区域且已完成平台人员登记）");
+        }
+        o.assistantName = cand.name;
+        o.assistantPlatformId = cand.platformId;
+        orderMapper.updateById(o);
+        return JsonUtil.map("ok", true, "assistantName", nz(cand.name), "assistantPlatformId", cand.platformId);
+    }
+
+    /** 仅主维保本人：登录人 platformId == 工单 workerPlatformId（认领后 worker* 指向认领人） */
+    private void requirePrincipal(WorkOrder o, Employee login) {
+        if (isBlank(login.platformId) || !login.platformId.equals(o.workerPlatformId)) {
+            throw new BizException(1403, "仅主维保本人可指定配合人");
+        }
+    }
+
+    /** 配合人候选谓词（M10/D4）：同区域快照（空=不限）∧ 持平台ID ∧ 在职 ∧ 排除主维保本人 */
+    private static boolean partnerEligible(WorkOrder o, Employee e) {
+        if (e == null || isBlank(e.platformId)) {
+            return false;
+        }
+        if (Boolean.FALSE.equals(e.enabled)) {
+            return false;
+        }
+        if (e.platformId.equals(o.workerPlatformId)) {
+            return false;
+        }
+        return isBlank(o.regionId) || o.regionId.equals(e.regionId);
     }
 
     // ── 双人动态码（docs/03 §3.2 项6：60 秒有效、前端每 5 秒刷新倒计时；绑定工单、一次性使用） ──
