@@ -563,7 +563,7 @@ public class AdminArchiveService {
         if (isBlank(el.elevatorName)) {
             el.elevatorName = isBlank(el.insideNumber) ? el.elevatorCode : el.insideNumber;
         }
-        requireNoConflict(phoneMutexService.checkElevator(el.workerPhone));
+        // 区域抢单池（D2/M6）：建档不再写维保人员绑定（worker*/assistant*），绑定手机号互斥预校验随之取消
         // 建档即排期（用户口径 2026-11-20：首次建档就把一年维保计划排出来，进维保日历）：
         // 基线缺省 = 建档时间（维保责任起始，AGENTS §3.6「无已完成维保回退建档 lastMaintenanceAt」）；
         // 下次到期缺省 = 基线 + intervalDays（缺省 15）= 首保计划日。此后到期前一日定时派单接管、
@@ -594,7 +594,6 @@ public class AdminArchiveService {
         if (isBlank(el.elevatorName)) {
             el.elevatorName = isBlank(el.insideNumber) ? nz(el.elevatorCode) : el.insideNumber;
         }
-        requireNoConflict(phoneMutexService.checkElevator(el.workerPhone));
         elevatorMapper.updateById(el);
         // 经纬度清空（留空保存）必须显式置 NULL——updateById 默认跳过 null 字段，
         // 否则错误的首采坐标永远无法清除（清空后下次签到重新现场采集，docs/02 §5.4）
@@ -784,21 +783,6 @@ public class AdminArchiveService {
         }
         if (body.get("emergencyPhone") != null) {
             el.emergencyPhone = str(body, "emergencyPhone");
-        }
-        if (body.get("workerName") != null) {
-            el.workerName = str(body, "workerName");
-        }
-        if (body.get("workerPhone") != null) {
-            el.workerPhone = str(body, "workerPhone");
-        }
-        if (body.get("workerPlatformId") != null) {
-            el.workerPlatformId = str(body, "workerPlatformId");
-        }
-        if (body.get("assistantName") != null) {
-            el.assistantName = str(body, "assistantName");
-        }
-        if (body.get("assistantPlatformId") != null) {
-            el.assistantPlatformId = str(body, "assistantPlatformId");
         }
         if (body.get("lng") != null) {
             String s = str(body, "lng");

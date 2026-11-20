@@ -373,8 +373,8 @@ public class HandoverService {
 
     /**
      * 归档副作用（Task 5 前半）：把移交单电梯信息快照建为电梯档案（archiveSource=1）、
-     * 责任人=接收工程师（按 receiverId 查 sys_employee 的 platformId；查不到则只记姓名不阻断）、
      * 并预建首保（HM）工单（sourceHandoverId 回指移交单，planTime=归档日+15 自然日）。
+     * 区域抢单池（D2/M6）：归档建梯不写主维保/配合人绑定，首保工单发布到区域池认领。
      * 幂等：已归档（elevatorId 非空）直接返回，不重复建电梯/首保工单。
      */
     @Transactional(rollbackFor = Exception.class)
@@ -407,10 +407,8 @@ public class HandoverService {
         el.supervisionPassDate = order.supervisionPassDate;
         el.archiveSource = 1;
         el.handoverAt = LocalDateTime.now();
-        // 责任人=接收工程师；配合人安装移交时未定，留空
-        el.workerName = order.receiverName;
-        Employee receiver = order.receiverId == null ? null : employeeMapper.selectById(order.receiverId);
-        el.workerPlatformId = receiver == null ? null : receiver.platformId;
+        // 区域抢单池（D2/M6）：归档建梯不再写 worker*/assistant* 绑定——电梯归属=所在区域，
+        // 首保预建工单池化不带人，由同区域持平台ID的维保员签到认领
         elevatorMapper.insert(el);
         order.elevatorId = el.id;
         orderMapper.updateById(order);

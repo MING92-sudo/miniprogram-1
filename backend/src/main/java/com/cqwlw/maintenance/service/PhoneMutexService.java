@@ -141,16 +141,6 @@ public class PhoneMutexService {
         return findConflicts(parties);
     }
 
-    /** 电梯保存预校验：维保人员手机 vs 全局 */
-    public List<Map<String, Object>> checkElevator(String workerPhone) {
-        if (nz(workerPhone) == null) {
-            return List.of();
-        }
-        List<Party> parties = new ArrayList<>(globalParties(null, null));
-        parties.add(new Party("维保人员", "", workerPhone));
-        return findConflicts(parties);
-    }
-
     /** 维保单位保存预校验：维保经理手机 vs 全局 */
     public List<Map<String, Object>> checkCompany(String workMenegerPhone) {
         List<Party> parties = new ArrayList<>(globalParties("company", null));

@@ -41,8 +41,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * 移交归档副作用（Task 5 前半）：archive() 建电梯（archiveSource=1 + 责任人=接收工程师）
- * + 预建首保工单（HM + sourceHandoverId 回指移交单）+ 幂等 + 预建首保阻塞定时派单。
+ * 移交归档副作用（Task 5 前半）：archive() 建电梯（archiveSource=1；区域抢单池 D2/M6 后不再写
+ * 主维保/配合人绑定）+ 预建首保工单（HM + sourceHandoverId 回指移交单）+ 幂等 + 预建首保阻塞定时派单。
  */
 class HandoverArchiveTest {
 
@@ -103,7 +103,7 @@ class HandoverArchiveTest {
         return e;
     }
 
-    /** 归档后：电梯 archiveSource=1、责任人=接收工程师（含平台 ID）、存在 HM 首保工单且 sourceHandoverId 回指移交单 */
+    /** 归档后：电梯 archiveSource=1、不写主维保/配合人绑定（区域抢单池 D2/M6）、存在 HM 首保工单且 sourceHandoverId 回指移交单 */
     @Test
     void archiveCreatesElevatorAndFirstOrder() {
         HandoverOrder order = handover("ho_1", true);
@@ -116,8 +116,8 @@ class HandoverArchiveTest {
         verify(elevatorMapper).insert(elCap.capture());
         Elevator el = elCap.getValue();
         assertEquals(Integer.valueOf(1), el.archiveSource, "归档建梯 archiveSource 应为 1（移交）");
-        assertEquals("李工", el.workerName, "责任人应为接收工程师");
-        assertEquals("pid_li", el.workerPlatformId, "责任人平台 ID 应取接收工程师");
+        assertNull(el.workerName, "归档建梯不写主维保绑定（区域抢单池 D2/M6）");
+        assertNull(el.workerPlatformId, "归档建梯不写主维保平台ID（区域抢单池 D2/M6）");
         assertEquals("EM-001", el.elevatorCode);
         assertEquals("1号楼客梯", el.elevatorName);
         assertEquals("曳引与强制驱动电梯", el.category);
