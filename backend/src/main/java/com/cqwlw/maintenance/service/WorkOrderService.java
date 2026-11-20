@@ -132,6 +132,26 @@ public class WorkOrderService {
     }
 
     /**
+     * 工单区域名解析（Task 10：管理端工单池「待接单 · 区域名」与小程序池卡片依赖 toMap 透出
+     * regionId/regionName）；setter 注入保护既有测试构造器，未注入时 regionName 回空串。
+     */
+    private com.cqwlw.maintenance.mapper.RegionMapper regionMapper;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    public void setRegionMapper(com.cqwlw.maintenance.mapper.RegionMapper regionMapper) {
+        this.regionMapper = regionMapper;
+    }
+
+    /** 区域名称（与 AdminArchiveService.regionNameOf 同口径：空/查不到/未注入回空串） */
+    private String regionNameOf(String regionId) {
+        if (regionId == null || regionId.isBlank() || regionMapper == null) {
+            return "";
+        }
+        com.cqwlw.maintenance.entity.Region r = regionMapper.selectById(regionId);
+        return r == null ? "" : nz(r.name);
+    }
+
+    /**
      * 作业门禁：本次工单五角色手机号互斥预校验（1002 + conflicts[]）。
      * 与 buildReportPayload 取数口径一致；未注入校验服务时跳过（兼容旧测试）。
      */
@@ -1342,6 +1362,10 @@ public class WorkOrderService {
         m.put("workTypeCode", o.workTypeCode);
         m.put("planTime", TimeUtil.format(o.planTime));
         m.put("status", o.status);
+        // 区域抢单池快照（M4）：管理端工单池「待接单 · 区域名」与小程序池段共用；
+        // 快照不回溯——电梯事后改区域不影响在池工单（M10）
+        m.put("regionId", nz(o.regionId));
+        m.put("regionName", regionNameOf(o.regionId));
         m.put("workerName", o.workerName);
         m.put("assistantName", o.assistantName);
         m.put("workerPlatformId", o.workerPlatformId);
