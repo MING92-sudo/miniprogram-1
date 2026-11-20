@@ -18,6 +18,11 @@ describe('StatusTag（原型 .tag 语义色）', () => {
     const w = mount(StatusTag, { props: { status: '待复核' } })
     expect(w.find('.tag.tag-amber').exists()).toBe(true)
   })
+  it('REFUSED_RETURNED renders signal tone with 已拒签退回', () => {
+    const w = mount(StatusTag, { props: { status: 'REFUSED_RETURNED' } })
+    expect(w.text()).toContain('已拒签退回')
+    expect(w.find('.tag.tag-signal').exists()).toBe(true)
+  })
 })
 
 describe('Timeline（原型 tlItem 对齐）', () => {

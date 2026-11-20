@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   statusLabel, roleLabel, roleCodeFromName, scopeLabel, permLabel,
   workTypeLabel, orgTypeLabel, channelLabel, enabledLabel, inviteTypeLabel,
-  triStateSymbol, formatCell
+  triStateSymbol, formatCell, refuseCodeLabel
 } from './labels'
 
 describe('中文标签层', () => {
@@ -40,6 +40,20 @@ describe('中文标签层', () => {
     expect(triStateSymbol('Y')).toBe('✓')
     expect(triStateSymbol('C')).toBe('◐')
     expect(triStateSymbol('DENY')).toBe('✕')
+  })
+  it('拒签分类码中文化（V56，与后端 REFUSE_CODES / 小程序 REFUSE_REASON_OPTIONS 镜像）', () => {
+    expect(refuseCodeLabel('R1')).toBe('记录内容与现场不符')
+    expect(refuseCodeLabel('R2')).toBe('维保项目漏项或未按单执行')
+    expect(refuseCodeLabel('R3')).toBe('现场照片不清晰或与实际不符')
+    expect(refuseCodeLabel('R4')).toBe('时间或人员信息有误')
+    expect(refuseCodeLabel('R5')).toBe('其他')
+    expect(refuseCodeLabel('r3')).toBe('现场照片不清晰或与实际不符')
+    expect(refuseCodeLabel('')).toBe('')
+    expect(refuseCodeLabel(null)).toBe('')
+    expect(refuseCodeLabel('R9')).toBe('R9')
+  })
+  it('拒签退回生命周期状态中文', () => {
+    expect(statusLabel('REFUSED_RETURNED')).toBe('已拒签退回')
   })
   it('formatCell 自动中文化常见枚举列', () => {
     expect(formatCell({ key: 'status' }, 'RECTIFYING')).toBe('整改中')

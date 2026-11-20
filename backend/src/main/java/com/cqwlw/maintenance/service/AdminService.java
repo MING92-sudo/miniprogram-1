@@ -211,6 +211,10 @@ public class AdminService {
         m.put("uploadStatus", UnitRecordService.uploadStatus(r.reportStatus));
         m.put("retryCount", r.retryCount == null ? 0 : r.retryCount);
         m.put("confirmStatus", nz(r.confirmStatus));
+        // V56：拒签分类投影（列表行「拒签 + 分类码」标记与拒签筛选；与详情 adminPreview 同源）
+        m.put("lifecycleStatus", nz(r.lifecycleStatus));
+        m.put("refuseCode", nz(r.refuseCode));
+        m.put("refuseReason", nz(r.refuseReason));
         m.put("satisfaction", r.satisfaction == null ? 0 : r.satisfaction);
         m.put("originalRecordId", nz(r.originalRecordId));
         m.put("createdAt", TimeUtil.format(r.createdAt));

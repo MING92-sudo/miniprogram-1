@@ -26,6 +26,9 @@
         </template>
         <template #cell-confirmStatus="{ row }">
           <StatusTag :status="row.confirmStatus" />
+          <div v-if="row.lifecycleStatus === 'REFUSED_RETURNED'" class="cell-2">
+            <span class="tag tag-signal">拒签{{ row.refuseCode ? ' ' + row.refuseCode : '' }}</span>
+          </div>
           <div class="cell-2"><span :class="['tag', row.reportStatus === 'FAILED' ? 'tag-signal' : row.reportStatus === 'REPORTED' ? 'tag-ok' : 'tag-dim']">{{ reportLabel(row.reportStatus) }}</span></div>
         </template>
         <template #cell-createdAt="{ value }"><span class="mono f12">{{ value }}</span></template>
@@ -48,6 +51,15 @@
       </template>
 
       <div v-if="detail.id">
+        <div v-if="detail.lifecycleStatus === 'REFUSED_RETURNED'" class="sec refuse-sec">
+          <div class="sec-t"><svg class="ic" aria-hidden="true"><use href="#i-x" /></svg>使用单位拒签（V56 分类码）</div>
+          <div class="kv-grid">
+            <div class="kv"><span class="k">拒签分类</span><span class="v"><b class="mono">{{ detail.refuseCode || '—' }}</b> · {{ refuseCodeLabel(detail.refuseCode) || '未分类' }}</span></div>
+            <div class="kv"><span class="k">拒签原因</span><span class="v">{{ detail.refuseReason || '—' }}</span></div>
+          </div>
+          <RuleNote class="mt8">拒签记录已退回维保侧整改，不产生归档哈希，不触发监管平台上报；整改完成后重新走送签流程。</RuleNote>
+        </div>
+
         <div class="sec">
           <div class="sec-t"><svg class="ic" aria-hidden="true"><use href="#i-shield" /></svg>双签核验</div>
           <div class="chk-list">
@@ -225,7 +237,7 @@ import RuleNote from '../ui/RuleNote.vue'
 import StatusTag from '../ui/StatusTag.vue'
 import PermButton from '../ui/PermButton.vue'
 import { useToast } from '../ui/stores/ui'
-import { statusLabel } from '../ui/labels'
+import { statusLabel, refuseCodeLabel } from '../ui/labels'
 
 const toast = useToast()
 const REPORT_LABEL = { DRAFT: '草稿', SUBMITTED: '已提交', REPORTING: '上报中', REPORTED: '已上报', RETRY_WAIT: '待重试', FAILED_MAX: '重试超限', FAILED: '上报失败', CONFIRMED: '已确认' }
@@ -245,7 +257,8 @@ const cols = [
 ]
 const filters = [
   { key: 'confirmStatus', label: '确认', options: [{ value: 'PENDING', label: '待确认' }, { value: 'CONFIRMED', label: '已确认' }] },
-  { key: 'reportStatus', label: '上报', options: Object.keys(REPORT_LABEL).map((c) => ({ value: c, label: REPORT_LABEL[c] })) }
+  { key: 'reportStatus', label: '上报', options: Object.keys(REPORT_LABEL).map((c) => ({ value: c, label: REPORT_LABEL[c] })) },
+  { key: 'lifecycleStatus', label: '拒签', options: [{ value: 'REFUSED_RETURNED', label: '已拒签退回' }] }
 ]
 
 async function load() {

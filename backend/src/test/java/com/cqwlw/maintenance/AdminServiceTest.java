@@ -162,6 +162,31 @@ class AdminServiceTest {
     }
 
     @Test
+    void recordsRowsExposeRefuseClassification() {
+        // V56：列表行须携带拒签分类码/原因/生命周期，供管理端「拒签」标记与筛选（详情同源 adminPreview）
+        MaintainRecord refused = new MaintainRecord();
+        refused.id = "ur_r1";
+        refused.originalRecordId = "REC-0001";
+        refused.lifecycleStatus = "REFUSED_RETURNED";
+        refused.refuseCode = "R3";
+        refused.refuseReason = "现场照片不清晰或与实际不符：井道照片模糊";
+        refused.reportStatus = "REPORTED";
+        refused.createdAt = TimeUtil.now();
+        Page<MaintainRecord> mp = new Page<>(1, 20);
+        mp.setRecords(List.of(refused));
+        mp.setTotal(1);
+        when(recordMapper.selectPage(any(), any())).thenReturn(mp);
+
+        Map<String, Object> out = service.records(Map.of());
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> list = (List<Map<String, Object>>) out.get("list");
+        assertEquals(1, list.size());
+        assertEquals("REFUSED_RETURNED", list.get(0).get("lifecycleStatus"));
+        assertEquals("R3", list.get(0).get("refuseCode"));
+        assertEquals("现场照片不清晰或与实际不符：井道照片模糊", list.get(0).get("refuseReason"));
+    }
+
+    @Test
     void uploadLogsPaginateAndExposeDigestOnly() {
         RegUploadLog g = new RegUploadLog();
         g.id = "log_1";

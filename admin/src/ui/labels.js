@@ -12,8 +12,9 @@ const STATUS = {
   URGENT: '紧急', TRAPPED: '困人', FAULT: '故障',
   // 记录单
   REVIEWING: '待复核', SIGNING: '待签字', SIGNED: '已签字', CONFIRMED: '已确认', AMENDING: '修订中', REJECTED: '已驳回',
+  REFUSED_RETURNED: '已拒签退回',
   // 通用
-  ACTIVE: '启用', DISABLED: '停用', INACTIVE: '停用', NORMAL: '正常', PENDING: '待处理', IN_PROGRESS: '进行中',
+  ACTIVE: '启用', DISABLED: '停用', INACTIVE: '停保', NORMAL: '正常', PENDING: '待处理', IN_PROGRESS: '进行中',
   APPROVED: '已批准', EXPIRED: '已过期', REVOKED: '已回收', VOID: '已作废', SCRAPPED: '已报废', TRANSFER: '已移交',
   SUCCESS: '成功', BLOCKED: '已拦截',
   // 检查项结果 / 判定结论 / 复验
@@ -121,6 +122,17 @@ export function channelLabel(v) { return CHANNEL[String(v || '').toUpperCase()] 
 const WORK_TYPE = { FM: '按需维保', HM: '半月维保', TM: '季度维保', SM: '半年维保', OY: '年度维保' }
 export function workTypeLabel(v) { return WORK_TYPE[String(v || '').toUpperCase()] || String(v || '') }
 
+// 使用单位拒签原因分类码（V56；与后端 RecordLifecycleService.REFUSE_CODES、小程序 constants
+// REFUSE_REASON_OPTIONS 三方镜像同步，改动必须三侧同改；小程序侧 R5 文案带「需填写说明」录入提示，展示侧统一用「其他」）
+const REFUSE_CODE = {
+  R1: '记录内容与现场不符', R2: '维保项目漏项或未按单执行', R3: '现场照片不清晰或与实际不符',
+  R4: '时间或人员信息有误', R5: '其他'
+}
+export function refuseCodeLabel(v) {
+  if (v == null || v === '') return ''
+  return REFUSE_CODE[String(v).toUpperCase()] || String(v)
+}
+
 export function enabledLabel(v) {
   if (v === true || v === 'true' || v === 1 || v === '1') return '启用'
   if (v === false || v === 'false' || v === 0 || v === '0') return '停用'
@@ -130,7 +142,7 @@ export function enabledLabel(v) {
 const INVITE_TYPE = { INVITE: '邀请码', EMPLOYEE: '员工', UNIT: '使用单位', ROLE: '角色' }
 export function inviteTypeLabel(v) { return INVITE_TYPE[String(v || '').toUpperCase()] || String(v || '') }
 
-const ELEVATOR_ACTION = { TRANSFER: '移装', DISABLE: '停用', SCRAP: '报废' }
+const ELEVATOR_ACTION = { TRANSFER: '移装', DISABLE: '停保', SCRAP: '报废' }
 export function elevatorActionLabel(v) { return ELEVATOR_ACTION[String(v || '').toUpperCase()] || String(v || '') }
 
 // 权限三态：文字与紧凑符号（矩阵用符号，避免拉丁字母）
