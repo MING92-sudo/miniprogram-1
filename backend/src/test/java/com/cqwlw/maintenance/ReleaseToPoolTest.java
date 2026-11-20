@@ -131,6 +131,7 @@ class ReleaseToPoolTest {
     @Test
     void releaseClaimedAuditsBeforeClearing() {
         when(orderMapper.selectById(ORDER)).thenReturn(claimed("PROCESSING"));
+        when(orderMapper.update(isNull(), any())).thenReturn(1);
 
         service.releaseToPool(ORDER, ACTOR);
 
@@ -155,6 +156,7 @@ class ReleaseToPoolTest {
     @SuppressWarnings("unchecked")
     void clearedOrderReentersPool() {
         when(orderMapper.selectById(ORDER)).thenReturn(claimed("PROCESSING"));
+        when(orderMapper.update(isNull(), any())).thenReturn(1);
 
         Map<String, Object> r = service.releaseToPool(ORDER, ACTOR);
 
@@ -178,5 +180,41 @@ class ReleaseToPoolTest {
                 + wrapper.getParamNameValuePairs());
         assertFalse(sqlSet.contains("region_id"), "regionId 快照不变（M10）：" + sqlSet);
         assertFalse(sqlSet.contains("plan_time"), "计划时间不得被清：" + sqlSet);
+        // 读-改竞态守卫（Fix round 1）：清库 UPDATE 必须带 status<>DONE 条件，
+        // 否则并发签退在「读 PENDING」与「清库」之间提交时会被覆写回 PENDING（第二条 2.6 上报）
+        String where = wrapper.getSqlSegment();
+        assertTrue(where.contains("status"), "清库须带 DONE 状态守卫：" + where);
+        assertTrue(wrapper.getParamNameValuePairs().containsValue("DONE"),
+                "清库须带 status<>DONE 守卫：" + where);
+    }
+
+    @Test
+    void concurrentDoneAbortRelease() {
+        // 并发用例：管理员读到的还是 PROCESSING，工人签退事务在读与清库之间提交（status 已 DONE）。
+        // 条件更新命中 0 行 → 抛 422 并整体回滚（审计一并回滚），不得覆写 DONE 抹掉签到/签名留痕。
+        TxTestSupport.CapturingTx tx = TxTestSupport.capturingTx();
+        AppProperties props = new AppProperties();
+        props.setJwtSecret("unit-test-secret-key-0123456789-abcdefghijk");
+        WorkOrderService svc = new WorkOrderService(orderMapper, mock(ElevatorMapper.class),
+                mock(UseUnitMapper.class), mock(EmployeeMapper.class), mock(CompanyMapper.class),
+                mock(MaintainRecordMapper.class), mock(FaultMapper.class), mock(InspectRecordMapper.class),
+                mock(HandoverOrderMapper.class), mock(MessageMapper.class), mock(ChecklistService.class),
+                mock(PlatformReportService.class), mock(EmployeeScopeService.class),
+                mock(CheckinThresholdService.class), mock(FileStorageService.class), tx.template, props);
+        svc.setAuditLogService(auditLogService);
+        WorkOrder processing = claimed("PROCESSING");
+        WorkOrder done = claimed("DONE");
+        when(orderMapper.selectById(ORDER)).thenReturn(processing, done);
+        when(orderMapper.update(isNull(), any())).thenReturn(0); // 守卫命中 0 行 = 竞态落败
+
+        BizException e = assertThrows(BizException.class, () -> svc.releaseToPool(ORDER, ACTOR));
+
+        assertEquals(422, e.getCode(), "并发签退已 DONE：退回必须 422 中止");
+        assertTrue(tx.rolledBack, "竞态落败必须回滚事务（审计与清库不落）");
+        assertFalse(tx.committed, "竞态落败不得提交");
+        // 状态不被破坏：内存工单仍是原认领态，无任何字段被清
+        assertEquals("PROCESSING", processing.status);
+        assertEquals("pid_zhang", processing.workerPlatformId);
+        assertTrue(processing.checkinExtraJson.contains("29.6"), "签到留痕不得被抹");
     }
 }

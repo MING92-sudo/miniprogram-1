@@ -659,7 +659,19 @@ public class WorkOrderService {
         transactionTemplate.executeWithoutResult(tx -> {
             // 审计先行 + 清库同一事务：append 抛异常 → 整体回滚，清库不落
             auditLogService.append(audit);
-            orderMapper.update(null, releasePoolWrapper(orderId));
+            int updated = orderMapper.update(null, releasePoolWrapper(orderId));
+            if (updated == 0) {
+                // 读-改竞态守卫（Fix round 1）：工人签退事务在「读 PROCESSING」与清库之间提交，
+                // status 已 DONE——条件更新命中 0 行即竞态落败。此处抛异常回滚整个事务
+                //（审计一并回滚），绝不能覆写 DONE 回 PENDING：否则抹掉签到/签名留痕，
+                // 且 originalRecordId/MaintainRecord/2.6 上报已存在，工单重入池被二次认领
+                // 再签退 → 同一工单向监管平台产生第二条记录（AGENTS §6 合规底线）。
+                WorkOrder fresh = orderMapper.selectById(orderId);
+                if (fresh == null) {
+                    throw new BizException(1404, "工单不存在");
+                }
+                throw new BizException(422, "该工单已签退完成，不可退回池（请刷新工单状态）");
+            }
         });
         return JsonUtil.map("ok", true, "released", true, "status", "PENDING", "orderId", o.id);
     }
@@ -684,10 +696,13 @@ public class WorkOrderService {
     /**
      * 清库条件更新（updateById 默认跳过 null 字段，清库必须显式 SET NULL，
      * 同 AdminArchiveService 电梯 clearRegion 口径）；regionId/planTime/checklist 不动。
+     * WHERE 带 {@code status <> 'DONE'} 状态守卫（claimOrder/consumeDynamicCodeIfUnused 同一
+     * 并发防护范式）：读时 422 检查挡不住读-改竞态，命中 0 行由调用方判竞态落败回滚。
      */
     private static LambdaUpdateWrapper<WorkOrder> releasePoolWrapper(String orderId) {
         return new LambdaUpdateWrapper<WorkOrder>()
                 .eq(WorkOrder::getId, orderId)
+                .ne(WorkOrder::getStatus, "DONE")
                 .set(WorkOrder::getWorkerName, null)
                 .set(WorkOrder::getWorkerPlatformId, null)
                 .set(WorkOrder::getAssistantName, null)
