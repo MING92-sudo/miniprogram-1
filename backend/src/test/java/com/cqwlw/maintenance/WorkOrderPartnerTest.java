@@ -236,6 +236,24 @@ class WorkOrderPartnerTest {
         assertNull(order.assistantCheckinExtraJson);
     }
 
+    /** D9：坐标回填仅限主维保——配合人免围栏（D6）后其远距定位不得污染围栏基线 */
+    @Test
+    void assistantCheckinDoesNotBackfillElevatorCoordinates() {
+        order.assistantName = "王五";
+        order.assistantPlatformId = "pid_wang";
+        // 电梯无坐标（setUp 默认）；配合人在北京远距签到
+        String code = String.valueOf(service.issueDynamicCode(ORDER, "emp_zhang").get("code"));
+
+        Map<String, Object> r = service.checkin(ORDER, assistantBody(code, 39.9042, 116.4074), "emp_wang");
+
+        assertEquals(Boolean.TRUE, r.get("passed"));
+        assertEquals(Boolean.FALSE, r.get("geoBackfilled"), "D9：配合人签到不得回填电梯坐标");
+        assertNull(elevator.lat, "电梯坐标应保持为空，围栏基线仅由主维保现场回填");
+        assertNull(elevator.lng, "电梯坐标应保持为空，围栏基线仅由主维保现场回填");
+        assertNull(elevator.geoStatus);
+        verify(elevatorMapper, never()).updateById(any(Elevator.class));
+    }
+
     /** M8 兼容分支：存量工单 assistantPlatformId 为空（配合人仅有建档绑定姓名）→ 维持原动态码口径，不做身份比对 */
     @Test
     void legacyOrderWithoutAssistantPlatformIdKeepsCodeOnlyFlow() {

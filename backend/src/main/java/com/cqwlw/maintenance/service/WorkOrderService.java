@@ -431,8 +431,9 @@ public class WorkOrderService {
                 geoStatus = "ASSISTANT_EXEMPT";
             } else {
                 geoStatus = el.geoStatus == null || el.geoStatus.isEmpty() ? "PROVIDED" : el.geoStatus;
-                // M11：SELF_COLLECTED 基准由首个签到者 GPS 自证回填，不作为围栏拦截依据（仅留痕，1005 语义）
-                if (!"SELF_COLLECTED".equals(el.geoStatus) && distance > threshold) {
+                // D7/D9：自采（SELF_COLLECTED）坐标自回填起即为围栏基准，存量立即生效、不设豁免；
+                // 坐标不准致现场 1001 被拦的由管理端人工修正电梯坐标（2026-11-20 区域抢单池设计 §4.3）
+                if (distance > threshold) {
                     throw new BizException(1001, "签到位置超出允许范围：距电梯 " + round1(distance)
                             + " 米，阈值 " + threshold + " 米；请到现场后重试");
                 }
@@ -475,9 +476,10 @@ public class WorkOrderService {
         }
         o.status = "PROCESSING";
         orderMapper.updateById(o);
-        // 用户需求③：电梯无坐标时，以签到定位自动回填电梯坐标档案（坐标来源=现场采集，docs/02 §5.4）
+        // 用户需求③：电梯无坐标时，以签到定位自动回填电梯坐标档案（坐标来源=现场采集，docs/02 §5.4）。
+        // D9：回填仅限主维保——配合人免围栏（D6），其远距定位不得污染围栏基线
         boolean geoBackfilled = false;
-        if (el != null && (el.lng == null || el.lat == null)) {
+        if (!assistant && el != null && (el.lng == null || el.lat == null)) {
             el.lng = java.math.BigDecimal.valueOf(lng);
             el.lat = java.math.BigDecimal.valueOf(lat);
             el.geoStatus = "SELF_COLLECTED";
