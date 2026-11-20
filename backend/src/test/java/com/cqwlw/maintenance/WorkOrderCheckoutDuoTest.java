@@ -178,6 +178,23 @@ class WorkOrderCheckoutDuoTest {
         verify(recordMapper).insert(any(MaintainRecord.class));
     }
 
+    /** D8 判定双信号：不限区域池化新单（regionId 空但签到认领打标 claimedViaPool）未选配合人 → 422 且零写库 */
+    @Test
+    void noRegionPoolOrderSoloCheckoutRejected() {
+        WorkOrder o = legacyOrder(); // regionId 空（不限区域电梯的池化新单）
+        o.assistantName = null;
+        o.assistantPlatformId = null;
+        o.checkinExtraJson = "{\"role\":\"PRINCIPAL\",\"claimedViaPool\":true}";
+        when(orderMapper.selectById(LEGACY_ORDER)).thenReturn(o);
+
+        BizException e = assertThrows(BizException.class,
+                () -> service.checkout(LEGACY_ORDER, Map.of("signatureUrl", "https://x/sign.png"), EMP_LI));
+        assertEquals(422, e.getCode());
+        assertTrue(e.getMessage().contains("请选择配合人员"), e.getMessage());
+        verify(orderMapper, never()).updateById(any(WorkOrder.class));
+        verify(recordMapper, never()).insert(any(MaintainRecord.class));
+    }
+
     /** M8 回归：存量在途单人豁免工单（regionId 空 + assistantName="无"）不受新门禁拦截，按旧口径放行 */
     @Test
     void legacySoloOrderStillAllowed() {

@@ -441,7 +441,8 @@ public class WorkOrderService {
         // 区域抢单池「签到即认领」（2026-11-20 设计 §4.2 / M1/D4）：主维保签到未认领工单即原子认领。
         // 位置刻意放在围栏校验通过之后、写签到留痕之前——围栏拦截（1001）说明人未到现场，
         // 不得抢走工单；认领前的 422 平台ID门禁同样不产生任何写副作用。
-        if (!assistant && isBlank(o.workerPlatformId)) {
+        boolean claimedNow = !assistant && isBlank(o.workerPlatformId);
+        if (claimedNow) {
             claimOrderAsPrincipal(o, empId);
         }
         String collectedAt = str(body.get("collectedAt"));
@@ -453,6 +454,11 @@ public class WorkOrderService {
         extra.put("longitude", body.get("longitude"));
         extra.put("locationAccuracy", body.get("locationAccuracy") == null ? 0 : body.get("locationAccuracy"));
         extra.put("role", assistant ? "ASSISTANT" : "PRINCIPAL");
+        if (claimedNow) {
+            // D8 池化认领打标：签退恒双人门禁据此覆盖不限区域池单（regionId 空的新单），
+            // 存量单留痕无此标记，不受影响
+            extra.put("claimedViaPool", true);
+        }
         extra.put("dynamicCode", strOrEmpty(body.get("dynamicCode")));
         extra.put("selfPhotoFileId", strOrEmpty(body.get("photoFileId")));
         extra.put("distance", distance < 0 ? "" : String.valueOf(round1(distance)));
@@ -687,6 +693,19 @@ public class WorkOrderService {
         return json != null && !json.isEmpty();
     }
 
+    /**
+     * D8 池化认领标记（2026-11-20 区域抢单池）：主维保签到认领时在 checkinExtraJson 写入
+     * claimedViaPool=true，签退恒双人门禁据此把「不限区域（regionId 空）的池化新单」也纳入门禁。
+     * 存量工单留痕无此字段 → false，维持旧口径（M8）。
+     */
+    private static boolean claimedViaPool(String checkinExtraJson) {
+        if (checkinExtraJson == null || checkinExtraJson.isBlank()) {
+            return false;
+        }
+        Map<String, Object> extra = JsonUtil.readMap(checkinExtraJson);
+        return extra != null && Boolean.TRUE.equals(extra.get("claimedViaPool"));
+    }
+
     private static Double dbl(Object v) {
         if (v == null) {
             return null;
@@ -895,12 +914,15 @@ public class WorkOrderService {
             throw new BizException(1003, "请先完成签到");
         }
         // ── D8 签退恒双人门禁（2026-11-20 区域抢单池设计 §4.2，平台 2.6 workMan2Id 必填）──
-        // 适用范围：池化新单（V57 起派单落 regionId 快照）。存量在途工单（regionId 空，M8，
-        // 含派单时代 assistantName="无" 的单人豁免路径）不触发本门禁，维持旧口径跑完。
+        // 适用范围（池化新单，双信号或运算）：①V57 起派单落 regionId 快照非空；②或主维保签到认领
+        // 打标 claimedViaPool=true（覆盖不限区域电梯的池单——regionId 空但确属新单）。
+        // 存量在途工单（regionId 空且留痕无认领标记，M8，含派单时代 assistantName="无" 的
+        // 单人豁免路径）不触发本门禁，维持旧口径跑完。
         // 门禁①②置于检查项/时长校验与任何写操作之前；门禁③（双签）在下方签名校验处恒触发。
-        boolean pooledOrder = o.regionId != null && !o.regionId.isBlank();
+        boolean pooledOrder = (o.regionId != null && !o.regionId.isBlank())
+                || claimedViaPool(o.checkinExtraJson);
         if (pooledOrder) {
-            if (isBlank(o.assistantPlatformId)) {
+            if (o.assistantPlatformId == null || o.assistantPlatformId.isBlank()) {
                 throw new BizException(422, "请选择配合人员（双人作业，未选配合人不得签退）");
             }
             if (!hasCheckin(o.assistantCheckinExtraJson)) {
@@ -945,7 +967,8 @@ public class WorkOrderService {
         if (workerSignature.isEmpty()) {
             throw new BizException(422, "请完成主维保人员签名");
         }
-        // D8：池化新单双签恒必填（不再存在单人工单）；存量工单（regionId 空）维持"有配合人时必填"旧口径（M8）
+        // D8：池化新单双签恒必填（不再存在单人工单）；存量工单（regionId 空且无认领标记）
+        // 维持"有配合人时必填"旧口径（M8）。本门禁同样先于全部业务状态写。
         if ((pooledOrder || hasAssistant) && assistantSignature.isEmpty()) {
             throw new BizException(422, "请完成配合人员签名（双人签字）");
         }
