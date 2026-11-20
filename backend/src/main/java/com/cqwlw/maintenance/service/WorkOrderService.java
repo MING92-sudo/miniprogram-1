@@ -430,6 +430,12 @@ public class WorkOrderService {
                         + " 米，阈值 " + threshold + " 米；请到现场后重试");
             }
         }
+        // 区域抢单池「签到即认领」（2026-11-20 设计 §4.2 / M1/D4）：主维保签到未认领工单即原子认领。
+        // 位置刻意放在围栏校验通过之后、写签到留痕之前——围栏拦截（1001）说明人未到现场，
+        // 不得抢走工单；认领前的 422 平台ID门禁同样不产生任何写副作用。
+        if (!assistant && isBlank(o.workerPlatformId)) {
+            claimOrderAsPrincipal(o, empId);
+        }
         String collectedAt = str(body.get("collectedAt"));
         // 客户端 collectedAt 非法/空时回退服务器时间，避免 checkinTime 落 null（记录时间缺失 + 时长异常）
         LocalDateTime parsed = collectedAt != null && !collectedAt.isEmpty() ? TimeUtil.parse(collectedAt) : null;
@@ -474,6 +480,27 @@ public class WorkOrderService {
         out.put("geoStatus", geoStatus);
         out.put("geoBackfilled", geoBackfilled);
         return out;
+    }
+
+    /**
+     * 原子认领（M1/D4）：登录人无平台ID → 422「请先在管理端完成平台人员登记」（零写副作用）；
+     * 否则经 {@link WorkOrderMapper#claimOrder} 条件更新，命中 0 行即被并发认领——
+     * 重查工单回显现认领人姓名后 1003。认领成功后把 worker* 写入内存工单，
+     * 由签到主流程的 updateById 与签到留痕同事务语义落库（status→PROCESSING 不变）。
+     */
+    private void claimOrderAsPrincipal(WorkOrder o, String empId) {
+        Employee login = scopeService.require(empId);
+        if (login.platformId == null || login.platformId.isBlank()) {
+            throw new BizException(422, "请先在管理端完成平台人员登记");
+        }
+        int updated = orderMapper.claimOrder(o.id, login.name, login.platformId);
+        if (updated == 0) {
+            WorkOrder fresh = orderMapper.selectById(o.id);
+            String claimer = fresh != null && !isBlank(fresh.workerName) ? fresh.workerName : "其他维保人员";
+            throw new BizException(1003, "该工单已被 " + claimer + " 认领");
+        }
+        o.workerName = login.name;
+        o.workerPlatformId = login.platformId;
     }
 
     // ── 双人动态码（docs/03 §3.2 项6：60 秒有效、前端每 5 秒刷新倒计时；绑定工单、一次性使用） ──
