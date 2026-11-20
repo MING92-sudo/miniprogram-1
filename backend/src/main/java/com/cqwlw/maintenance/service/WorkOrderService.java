@@ -894,6 +894,19 @@ public class WorkOrderService {
         if (!"PROCESSING".equals(o.status)) {
             throw new BizException(1003, "请先完成签到");
         }
+        // ── D8 签退恒双人门禁（2026-11-20 区域抢单池设计 §4.2，平台 2.6 workMan2Id 必填）──
+        // 适用范围：池化新单（V57 起派单落 regionId 快照）。存量在途工单（regionId 空，M8，
+        // 含派单时代 assistantName="无" 的单人豁免路径）不触发本门禁，维持旧口径跑完。
+        // 门禁①②置于检查项/时长校验与任何写操作之前；门禁③（双签）在下方签名校验处恒触发。
+        boolean pooledOrder = o.regionId != null && !o.regionId.isBlank();
+        if (pooledOrder) {
+            if (isBlank(o.assistantPlatformId)) {
+                throw new BizException(422, "请选择配合人员（双人作业，未选配合人不得签退）");
+            }
+            if (!hasCheckin(o.assistantCheckinExtraJson)) {
+                throw new BizException(422, "配合人员未签到，无法签退（双人作业须双人签到留痕）");
+            }
+        }
         List<Map<String, Object>> items = items(o);
         List<Map<String, Object>> mustRun = items.stream()
                 .filter(i -> !Boolean.TRUE.equals(i.get("notInThisRun"))).collect(Collectors.toList());
@@ -932,7 +945,8 @@ public class WorkOrderService {
         if (workerSignature.isEmpty()) {
             throw new BizException(422, "请完成主维保人员签名");
         }
-        if (hasAssistant && assistantSignature.isEmpty()) {
+        // D8：池化新单双签恒必填（不再存在单人工单）；存量工单（regionId 空）维持"有配合人时必填"旧口径（M8）
+        if ((pooledOrder || hasAssistant) && assistantSignature.isEmpty()) {
             throw new BizException(422, "请完成配合人员签名（双人签字）");
         }
 
