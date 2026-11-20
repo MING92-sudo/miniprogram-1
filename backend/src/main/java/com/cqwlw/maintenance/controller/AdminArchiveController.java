@@ -119,12 +119,16 @@ public class AdminArchiveController {
     @PutMapping("/employees/{id}")
     public ApiResponse<Object> updateEmployee(@PathVariable String id,
                                               @RequestBody Map<String, Object> body,
-                                              @RequestHeader(value = "X-Idempotency-Key", required = false) String idemKey) {
+                                              @RequestHeader(value = "X-Idempotency-Key", required = false) String idemKey,
+                                              jakarta.servlet.http.HttpServletRequest request) {
         IdempotencyService.Guard guard = idempotencyService.begin(idemKey, "/employees/update");
         if (guard.replayed()) {
             return ApiResponse.ok(guard.replayedResult());
         }
-        Map<String, Object> result = archiveService.updateEmployee(id, body);
+        // 操作人（调人审计 actor）：AuthInterceptor 写入的登录员工 id
+        String actorId = String.valueOf(request.getAttribute(
+                com.cqwlw.maintenance.auth.AuthInterceptor.ATTR_EMP_ID));
+        Map<String, Object> result = archiveService.updateEmployee(id, body, actorId);
         guard.commit(result);
         return ApiResponse.ok(result);
     }

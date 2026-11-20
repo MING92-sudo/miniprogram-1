@@ -42,7 +42,9 @@ class EmployeeRoleAssignmentTest {
         return new AdminArchiveService(mock(CompanyMapper.class), mock(UseUnitMapper.class),
                 employeeMapper, mock(com.cqwlw.maintenance.mapper.SysUserRoleMapper.class),
                 mock(ElevatorMapper.class), phoneMutex,
-                mock(WorkOrderMapper.class), mock(PlatformClient.class));
+                mock(WorkOrderMapper.class), mock(PlatformClient.class),
+                mock(com.cqwlw.maintenance.mapper.SysOrgMapper.class),
+                mock(com.cqwlw.maintenance.service.AuditLogService.class));
     }
 
     private Employee created(String role) {
@@ -117,7 +119,7 @@ class EmployeeRoleAssignmentTest {
         existing.department = RoleCatalog.MAINT;
         when(employeeMapper.selectById("emp_1")).thenReturn(existing);
 
-        svc.updateEmployee("emp_1", Map.of("role", RoleCatalog.INSTALL_WORKER));
+        svc.updateEmployee("emp_1", Map.of("role", RoleCatalog.INSTALL_WORKER), "emp_admin");
         assertEquals(RoleCatalog.INSTALL_WORKER, existing.role);
         assertEquals(RoleCatalog.INSTALL, existing.department);
         assertEquals("安装员", existing.roleText);
@@ -133,7 +135,9 @@ class EmployeeRoleAssignmentTest {
         when(employeeMapper.selectCount(any())).thenReturn(0L);
         AdminArchiveService svc = new AdminArchiveService(mock(CompanyMapper.class), mock(UseUnitMapper.class),
                 employeeMapper, roleMapper, mock(ElevatorMapper.class), phoneMutex,
-                mock(WorkOrderMapper.class), mock(PlatformClient.class));
+                mock(WorkOrderMapper.class), mock(PlatformClient.class),
+                mock(com.cqwlw.maintenance.mapper.SysOrgMapper.class),
+                mock(com.cqwlw.maintenance.service.AuditLogService.class));
 
         svc.createEmployee(Map.of("name", "新维保员", "phone", "13800000077", "role", RoleCatalog.WORKER));
 
@@ -158,7 +162,7 @@ class EmployeeRoleAssignmentTest {
         existing.account = "13800000088"; // 默认账号=手机号
         when(employeeMapper.selectById("emp_2")).thenReturn(existing);
 
-        svc.updateEmployee("emp_2", Map.of("phone", "13900000999"));
+        svc.updateEmployee("emp_2", Map.of("phone", "13900000999"), "emp_admin");
         assertEquals("13900000999", existing.phone);
         assertEquals("13900000999", existing.account);
     }

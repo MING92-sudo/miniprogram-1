@@ -104,7 +104,9 @@ class ClientExclusionTest {
     private AdminArchiveService archiveService(EmployeeMapper employees, SysUserRoleMapper userRoles) {
         return new AdminArchiveService(mock(CompanyMapper.class), mock(UseUnitMapper.class),
                 employees, userRoles, mock(ElevatorMapper.class),
-                mock(PhoneMutexService.class), mock(WorkOrderMapper.class), mock(PlatformClient.class));
+                mock(PhoneMutexService.class), mock(WorkOrderMapper.class), mock(PlatformClient.class),
+                mock(com.cqwlw.maintenance.mapper.SysOrgMapper.class),
+                mock(com.cqwlw.maintenance.service.AuditLogService.class));
     }
 
     // ── ① 员工目录 / 账号视图排除客户主体行 ──

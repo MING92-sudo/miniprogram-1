@@ -9,11 +9,14 @@ import com.cqwlw.maintenance.common.Ids;
 import com.cqwlw.maintenance.entity.Company;
 import com.cqwlw.maintenance.entity.Elevator;
 import com.cqwlw.maintenance.entity.Employee;
+import com.cqwlw.maintenance.entity.SysAuditLog;
+import com.cqwlw.maintenance.entity.SysOrg;
 import com.cqwlw.maintenance.entity.SysUserRole;
 import com.cqwlw.maintenance.entity.UseUnit;
 import com.cqwlw.maintenance.mapper.CompanyMapper;
 import com.cqwlw.maintenance.mapper.EmployeeMapper;
 import com.cqwlw.maintenance.mapper.ElevatorMapper;
+import com.cqwlw.maintenance.mapper.SysOrgMapper;
 import com.cqwlw.maintenance.mapper.SysUserRoleMapper;
 import com.cqwlw.maintenance.mapper.UseUnitMapper;
 import com.cqwlw.maintenance.entity.WorkOrder;
@@ -50,6 +53,10 @@ public class AdminArchiveService {
     private final PhoneMutexService phoneMutexService;
     private final WorkOrderMapper workOrderMapper;
     private final PlatformClient platformClient;
+    /** 组织树（调人校验：目标班组必须等于某个 status≠DISABLED 的 TEAM 节点名） */
+    private final SysOrgMapper sysOrgMapper;
+    /** 业务审计（班组变更留痕；落库失败吞异常不影响主流程，同 GrantService 口径） */
+    private final AuditLogService auditLogService;
     private final BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
     /** 区域名称解析（电梯档案「所在区域」展示）；setter 注入保持既有构造器签名不变（单测不传） */
     private com.cqwlw.maintenance.mapper.RegionMapper regionMapper;
@@ -77,7 +84,8 @@ public class AdminArchiveService {
                                EmployeeMapper employeeMapper, SysUserRoleMapper userRoleMapper,
                                ElevatorMapper elevatorMapper,
                                PhoneMutexService phoneMutexService,
-                               WorkOrderMapper workOrderMapper, PlatformClient platformClient) {
+                               WorkOrderMapper workOrderMapper, PlatformClient platformClient,
+                               SysOrgMapper sysOrgMapper, AuditLogService auditLogService) {
         this.companyMapper = companyMapper;
         this.useUnitMapper = useUnitMapper;
         this.employeeMapper = employeeMapper;
@@ -86,6 +94,8 @@ public class AdminArchiveService {
         this.phoneMutexService = phoneMutexService;
         this.workOrderMapper = workOrderMapper;
         this.platformClient = platformClient;
+        this.sysOrgMapper = sysOrgMapper;
+        this.auditLogService = auditLogService;
     }
 
     // ── 维保单位（GET/PUT /company）──
@@ -412,11 +422,12 @@ public class AdminArchiveService {
         return out;
     }
 
-    public Map<String, Object> updateEmployee(String id, Map<String, Object> body) {
+    public Map<String, Object> updateEmployee(String id, Map<String, Object> body, String actorId) {
         Employee e = employeeMapper.selectById(id);
         if (e == null) {
             throw new BizException(1404, "人员不存在");
         }
+        String oldGroupName = e.groupName;
         if (body.get("name") != null) {
             e.name = str(body, "name");
         }
@@ -461,7 +472,19 @@ public class AdminArchiveService {
             e.platformId = str(body, "platformId");
         }
         if (body.get("groupName") != null) {
-            e.groupName = str(body, "groupName");
+            String newGroup = str(body, "groupName");
+            // 调人校验（D1）：目标班组非空且与旧值不同时，必须等于组织树中某个 type=TEAM 且
+            // status≠DISABLED 节点的 name；空串=清除班组不校验。校验失败不落库（不改任何状态）。
+            if (!newGroup.isBlank() && !newGroup.equals(nz(oldGroupName))) {
+                boolean teamExists = sysOrgMapper.selectList(new LambdaQueryWrapper<SysOrg>()
+                        .eq(SysOrg::getType, "TEAM")
+                        .eq(SysOrg::getName, newGroup)).stream()
+                        .anyMatch(o -> !"DISABLED".equals(o.status));
+                if (!teamExists) {
+                    throw new BizException(422, "目标班组不存在");
+                }
+            }
+            e.groupName = newGroup;
         }
         // 所属区域（region_id，选填；区域工单池前置）：null=不动 / 空串=清除 / 非空须存在（口径同电梯）
         if (body.get("regionId") != null) {
@@ -495,7 +518,28 @@ public class AdminArchiveService {
                 insertPrimaryRole(e.id, e.role);
             }
         }
+        // 调人审计（D1）：班组实际发生变化（含清除为空）时留痕——操作人、员工 id、原班组→新班组
+        if (body.get("groupName") != null && !java.util.Objects.equals(nz(oldGroupName), nz(e.groupName))) {
+            appendGroupChangeAudit(actorId, e.id, oldGroupName, e.groupName);
+        }
         return employeeRow(e);
+    }
+
+    /** 调人审计：落库失败吞异常不影响主流程（AuditLogService 契约，同 GrantService/ClientAccountService 口径） */
+    private void appendGroupChangeAudit(String actorId, String employeeId, String oldGroup, String newGroup) {
+        try {
+            SysAuditLog a = new SysAuditLog();
+            a.actorId = actorId;
+            a.actorRole = "EMPLOYEE";
+            a.action = "employee:change-group";
+            a.target = employeeId;
+            a.reason = "班组变更：" + nz(oldGroup) + " → " + nz(newGroup);
+            a.result = "SUCCESS";
+            auditLogService.append(a);
+        } catch (RuntimeException ex) {
+            org.slf4j.LoggerFactory.getLogger(AdminArchiveService.class)
+                    .warn("班组变更审计写入失败: target={}", employeeId);
+        }
     }
 
     // ── 电梯（POST /elevators、PUT /elevators/{id}；管理端富视图 GET /admin/elevators）──

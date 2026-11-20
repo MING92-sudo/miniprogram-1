@@ -45,6 +45,8 @@ class AdminArchiveServiceTest {
     private EmployeeMapper employeeMapper;
     private ElevatorMapper elevatorMapper;
     private PlatformClient platformClient;
+    private com.cqwlw.maintenance.mapper.SysOrgMapper sysOrgMapper;
+    private com.cqwlw.maintenance.service.AuditLogService auditLogService;
     private AdminArchiveService service;
 
     @BeforeEach
@@ -53,6 +55,8 @@ class AdminArchiveServiceTest {
         useUnitMapper = mock(UseUnitMapper.class);
         employeeMapper = mock(EmployeeMapper.class);
         elevatorMapper = mock(ElevatorMapper.class);
+        sysOrgMapper = mock(com.cqwlw.maintenance.mapper.SysOrgMapper.class);
+        auditLogService = mock(com.cqwlw.maintenance.service.AuditLogService.class);
 
         Company c = new Company();
         c.id = "co_1";
@@ -79,7 +83,7 @@ class AdminArchiveServiceTest {
         service = new AdminArchiveService(companyMapper, useUnitMapper,
                 employeeMapper, mock(com.cqwlw.maintenance.mapper.SysUserRoleMapper.class), elevatorMapper,
                 new PhoneMutexService(companyMapper, useUnitMapper, employeeMapper),
-                mock(WorkOrderMapper.class), platformClient);
+                mock(WorkOrderMapper.class), platformClient, sysOrgMapper, auditLogService);
     }
 
     @Test
@@ -482,9 +486,96 @@ class AdminArchiveServiceTest {
         e.regionId = "reg_1";
         when(employeeMapper.selectById("emp_r2")).thenReturn(e);
 
-        service.updateEmployee("emp_r2", Map.of("regionId", ""));
+        service.updateEmployee("emp_r2", Map.of("regionId", ""), "emp_admin");
         org.junit.jupiter.api.Assertions.assertNull(e.regionId);
         // 锁定显式 SET NULL 清除路径：updateById 跳过 null 字段，缺这条 update(null, wrapper) 库中旧值清不掉
         verify(employeeMapper).update(isNull(), any(LambdaUpdateWrapper.class));
+    }
+
+    // ── 调人校验与审计（Task 3：目标班组必须存在于组织树 TEAM 节点，变更写审计）──
+
+    /** 目标班组必须是组织树中 status≠DISABLED 的 TEAM 节点名；不存在或已停用 → 422「目标班组不存在」且不落库 */
+    @Test
+    void updateEmployeeRejectsUnknownTeam() {
+        Employee e = new Employee();
+        e.id = "emp_t1";
+        e.name = "赵六";
+        e.role = "WORKER";
+        e.phone = "13900001111";
+        e.groupName = "维保一班";
+        when(employeeMapper.selectById("emp_t1")).thenReturn(e);
+        when(sysOrgMapper.selectList(any())).thenReturn(List.of());
+
+        BizException ex = assertThrows(BizException.class,
+                () -> service.updateEmployee("emp_t1", Map.of("groupName", "维保九十九组"), "emp_admin"));
+        assertEquals(422, ex.getCode());
+        assertTrue(ex.getMessage().contains("目标班组不存在"), ex.getMessage());
+        verify(employeeMapper, never()).updateById(any(Employee.class));
+
+        // 同名但已停用（DISABLED）的班组同样拒绝
+        com.cqwlw.maintenance.entity.SysOrg disabled = new com.cqwlw.maintenance.entity.SysOrg();
+        disabled.id = "org_team_x";
+        disabled.type = "TEAM";
+        disabled.name = "维保九十九组";
+        disabled.status = "DISABLED";
+        when(sysOrgMapper.selectList(any())).thenReturn(List.of(disabled));
+        BizException ex2 = assertThrows(BizException.class,
+                () -> service.updateEmployee("emp_t1", Map.of("groupName", "维保九十九组"), "emp_admin"));
+        assertEquals(422, ex2.getCode());
+        assertTrue(ex2.getMessage().contains("目标班组不存在"), ex2.getMessage());
+        verify(employeeMapper, never()).updateById(any(Employee.class));
+    }
+
+    /** 目标班组存在于组织树（TEAM 且未停用）→ 落库成功 */
+    @Test
+    void updateEmployeeAcceptsExistingTeam() {
+        com.cqwlw.maintenance.entity.SysOrg team = new com.cqwlw.maintenance.entity.SysOrg();
+        team.id = "org_team_maint_2";
+        team.type = "TEAM";
+        team.name = "维保二组";
+        team.status = "ACTIVE";
+        when(sysOrgMapper.selectList(any())).thenReturn(List.of(team));
+
+        Employee e = new Employee();
+        e.id = "emp_t2";
+        e.name = "钱七";
+        e.role = "WORKER";
+        e.phone = "13900002222";
+        e.groupName = "维保一班";
+        when(employeeMapper.selectById("emp_t2")).thenReturn(e);
+
+        Map<String, Object> row = service.updateEmployee("emp_t2", Map.of("groupName", "维保二组"), "emp_admin");
+        assertEquals("维保二组", row.get("groupName"));
+        verify(employeeMapper).updateById(any(Employee.class));
+    }
+
+    /** 班组变更成功写审计：操作人、员工 id、原班组→新班组 */
+    @Test
+    void updateEmployeeTeamChangeWritesAudit() {
+        com.cqwlw.maintenance.entity.SysOrg team = new com.cqwlw.maintenance.entity.SysOrg();
+        team.id = "org_team_maint_2";
+        team.type = "TEAM";
+        team.name = "维保二组";
+        team.status = "ACTIVE";
+        when(sysOrgMapper.selectList(any())).thenReturn(List.of(team));
+
+        Employee e = new Employee();
+        e.id = "emp_t3";
+        e.name = "孙八";
+        e.role = "WORKER";
+        e.phone = "13900003333";
+        e.groupName = "维保一班";
+        when(employeeMapper.selectById("emp_t3")).thenReturn(e);
+
+        service.updateEmployee("emp_t3", Map.of("groupName", "维保二组"), "emp_admin_1");
+
+        ArgumentCaptor<com.cqwlw.maintenance.entity.SysAuditLog> captor =
+                ArgumentCaptor.forClass(com.cqwlw.maintenance.entity.SysAuditLog.class);
+        verify(auditLogService).append(captor.capture());
+        com.cqwlw.maintenance.entity.SysAuditLog entry = captor.getValue();
+        assertEquals("emp_admin_1", entry.actorId);
+        assertEquals("emp_t3", entry.target);
+        assertTrue(entry.reason.contains("维保一班"), entry.reason);
+        assertTrue(entry.reason.contains("维保二组"), entry.reason);
     }
 }
