@@ -97,7 +97,8 @@ definePage(ROUTES['/pkg-handover/pages/detail/index'], {
     const id = (query && query.id) || ''
     this.setData({ id: id })
     if (!id) {
-      this.setData({ loading: false, error: TOAST_TEXT.LOAD_FAILED })
+      // 缺参数时不请求后端（onShow 里会因 id 为空跳过 fetch），提示要能指导用户
+      this.setData({ loading: false, error: '缺少移交单参数，请从移交单列表进入' })
     }
   },
 

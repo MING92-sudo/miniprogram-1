@@ -1,16 +1,7 @@
-// P3 客户账号认证（docs/14 §6.4）：独立于员工登录，先验口令 → 多单位选单位 → 客户令牌。
+// P3 客户账号（docs/14 §6.4）：登录已并入统一入口 /auth/login（服务 auth.accountLogin），
+// 本模块只保留「登录后」能力——多单位选单位、本人信息、自助改密。
 // 客户账号 principalType=CUSTOMER，仅可看本单位电梯/待签记录（/unit/** 兼容前缀 + /client/** 新端点）。
 const { post, get } = require('../utils/request')
-
-/** 客户口令登录：单单位直接返回令牌；多单位返回 needSelectUnit + selectionToken + units */
-function clientLogin(phone, password) {
-  return post('/auth/client/login', { phone, password }, { needAuth: false })
-}
-
-/** 微信一键登录（code 服务端换 openid，命中客户账号候选） */
-function clientWxLogin(code) {
-  return post('/auth/client/wx-login', { code }, { needAuth: false })
-}
 
 /** 选单位：selectionToken + useUnitId → 正式客户令牌 */
 function selectUnit(selectionToken, useUnitId) {
@@ -31,8 +22,6 @@ function clientChangePassword(oldPassword, newPassword) {
 }
 
 module.exports = {
-  clientLogin,
-  clientWxLogin,
   selectUnit,
   clientMe,
   clientChangePassword

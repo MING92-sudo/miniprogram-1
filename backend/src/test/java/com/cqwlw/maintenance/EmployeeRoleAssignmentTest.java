@@ -122,4 +122,44 @@ class EmployeeRoleAssignmentTest {
         assertEquals(RoleCatalog.INSTALL, existing.department);
         assertEquals("安装员", existing.roleText);
     }
+
+    /** 建档（含平台登记自动建号）必须写 sys_user_role，否则账号管理页角色列为空 */
+    @Test
+    void createEmployeeWritesPrimaryRoleRow() {
+        com.cqwlw.maintenance.mapper.SysUserRoleMapper roleMapper =
+                mock(com.cqwlw.maintenance.mapper.SysUserRoleMapper.class);
+        PhoneMutexService phoneMutex = mock(PhoneMutexService.class);
+        when(phoneMutex.checkEmployee(any(), anyString(), anyString())).thenReturn(List.of());
+        when(employeeMapper.selectCount(any())).thenReturn(0L);
+        AdminArchiveService svc = new AdminArchiveService(mock(CompanyMapper.class), mock(UseUnitMapper.class),
+                employeeMapper, roleMapper, mock(ElevatorMapper.class), phoneMutex,
+                mock(WorkOrderMapper.class), mock(PlatformClient.class));
+
+        svc.createEmployee(Map.of("name", "新维保员", "phone", "13800000077", "role", RoleCatalog.WORKER));
+
+        ArgumentCaptor<com.cqwlw.maintenance.entity.SysUserRole> captor =
+                ArgumentCaptor.forClass(com.cqwlw.maintenance.entity.SysUserRole.class);
+        verify(roleMapper).insert(captor.capture());
+        com.cqwlw.maintenance.entity.SysUserRole row = captor.getValue();
+        assertEquals("EMPLOYEE", row.userType);
+        assertEquals(RoleCatalog.WORKER, row.roleCode);
+        assertTrue(row.userId != null && !row.userId.isBlank());
+        assertTrue(row.createdAt != null);
+    }
+
+    /** 改手机号时默认账号(account)需同步，否则改号后登录不上 */
+    @Test
+    void phoneChangeSyncsDefaultAccount() {
+        AdminArchiveService svc = service();
+        Employee existing = new Employee();
+        existing.id = "emp_2";
+        existing.role = RoleCatalog.WORKER;
+        existing.phone = "13800000088";
+        existing.account = "13800000088"; // 默认账号=手机号
+        when(employeeMapper.selectById("emp_2")).thenReturn(existing);
+
+        svc.updateEmployee("emp_2", Map.of("phone", "13900000999"));
+        assertEquals("13900000999", existing.phone);
+        assertEquals("13900000999", existing.account);
+    }
 }

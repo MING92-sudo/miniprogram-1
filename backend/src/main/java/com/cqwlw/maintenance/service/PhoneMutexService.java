@@ -160,6 +160,55 @@ public class PhoneMutexService {
         return findConflicts(parties);
     }
 
+    /**
+     * 工单口径五角色互斥校验（docs/01 §3.2.4 + 2.6 备注；用户 2026-11-19 要求前移至"维保作业前"）：
+     * 使用单位负责人 / 使用单位安全管理员 / 维保经理 / 维保人员1 / 维保人员2，
+     * emergencyPhone / recorderPhone 不参与。角色标签刻意用"维保人员1/2"区分，
+     * 使两人同号也能被 findConflicts 判为跨角色冲突（规范要求两人手机号不得重复）。
+     *
+     * 取数口径与 WorkOrderService.buildReportPayload（2.6 报文快照）完全一致：
+     * 安全管理员取电梯档案优先、回退使用单位；维保人员按工单 platformId 反查本人手机号
+     *（禁止按姓名/任意 WORKER 兜底，避免把他人号码冻结进报文）。
+     *
+     * @param workerPlatformId    主维保人员平台ID（工单 workerPlatformId）
+     * @param assistantPlatformId 配合人员平台ID（工单 assistantPlatformId，可空=单人作业）
+     * @param el                  工单对应电梯（可为 null；为 null 时跳过单位侧角色）
+     */
+    public List<Map<String, Object>> checkWorkOrder(String workerPlatformId, String assistantPlatformId,
+                                                    Elevator el) {
+        List<Party> parties = new ArrayList<>();
+        if (el != null) {
+            UseUnit uu = el.useUnitId == null ? null : useUnitMapper.selectById(el.useUnitId);
+            if (uu != null && nz(uu.unitPrincipalPhone) != null) {
+                parties.add(new Party("使用单位负责人", uu.unitName, uu.unitPrincipalPhone));
+            }
+            String adminPhone = nz(el.elevatorAdministerPhone) != null
+                    ? el.elevatorAdministerPhone : (uu == null ? null : uu.elevatorAdministerPhone);
+            if (nz(adminPhone) != null) {
+                parties.add(new Party("使用单位安全管理员", uu == null ? "" : uu.unitName, adminPhone));
+            }
+        }
+        Company c = companyMapper.selectList(null).stream().findFirst().orElse(null);
+        if (c != null && nz(c.workMenegerPhone) != null) {
+            parties.add(new Party("维保经理", c.name, c.workMenegerPhone));
+        }
+        addWorkerParty(parties, "维保人员1", workerPlatformId);
+        addWorkerParty(parties, "维保人员2", assistantPlatformId);
+        return findConflicts(parties);
+    }
+
+    /** 按平台人员ID强关联本人手机号（与 2.6 recorderPhone 取数同口径）；解析不到则跳过，不误报 */
+    private void addWorkerParty(List<Party> parties, String role, String platformId) {
+        if (nz(platformId) == null) {
+            return;
+        }
+        Employee e = employeeMapper.selectList(new LambdaQueryWrapper<Employee>()
+                .eq(Employee::getPlatformId, platformId)).stream().findFirst().orElse(null);
+        if (e != null && nz(e.phone) != null) {
+            parties.add(new Party(role, e.name, e.phone));
+        }
+    }
+
     private static String roleOf(String role) {
         if (role == null) {
             return null;

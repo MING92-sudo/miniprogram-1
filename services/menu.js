@@ -46,6 +46,13 @@ function applyToGlobal(data) {
 
 // 按当前会话（可指定 workspace 切换工作台）拉取菜单；失败兜底镜像
 function getMenus(workspace) {
+  // 客户主体没有员工菜单：/me/menus 只服务员工目录，客户令牌调它会被判「登录已过期」，
+  // 而 request 层把 401 当登录失效 → clearAuth + 跳登录页，表现为「登录成功后立刻被踢回登录页」。
+  // 客户工作台用固定 tab（config/menus 镜像），这里直接走兜底，不发起请求。
+  const { isCustomerPrincipal } = require('../utils/auth')
+  if (isCustomerPrincipal()) {
+    return Promise.resolve(applyToGlobal(fallbackMenus(workspace)))
+  }
   return get('/me/menus', workspace ? { workspace } : {})
     .then(applyToGlobal)
     .catch((err) => {

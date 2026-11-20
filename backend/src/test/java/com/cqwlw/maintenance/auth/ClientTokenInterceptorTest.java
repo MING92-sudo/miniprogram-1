@@ -78,6 +78,16 @@ class ClientTokenInterceptorTest {
         assertEquals("ca_1", r.getAttribute(AuthInterceptor.ATTR_EMP_ID));
     }
 
+    /** 客户自身账号端点必须放行：/auth/client/me 此前漏在白名单外，客户「我的」页 403 */
+    @Test
+    void clientOwnProfileEndpointAllowed() {
+        clientClaims("ca_1", "sess_1", 2);
+        when(clientMapper.selectById("ca_1")).thenReturn(account("ACTIVE", "sess_1", 2));
+        HttpServletRequest r = req("/auth/client/me", "GET");
+        assertTrue(interceptor.preHandle(r, response, handler));
+        assertEquals("CUSTOMER", r.getAttribute(AuthInterceptor.ATTR_PRINCIPAL_TYPE));
+    }
+
     @Test
     void disabledAccountRejected() {
         clientClaims("ca_1", "sess_1", 2);

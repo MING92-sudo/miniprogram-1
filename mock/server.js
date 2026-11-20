@@ -9,6 +9,8 @@ const menus = require('../config/menus')
 let currentRole = 'WORKER'
 // M2 单账号多角色：当前会话角色集（登录写入），/me/menus 投影用
 let currentRoles = ['MAINT_TECH']
+// 统一登录客户分支：当前客户账号（clientAccounts 行），员工会话为 null
+let currentClient = null
 // 运行时重载后从本地会话恢复当前角色（与生产 JWT 解析同口径：会话持久，菜单按会话角色投影）
 try {
   const sr = wx.getStorageSync('em_roles')
@@ -44,6 +46,7 @@ function principalTypeOf(roles) {
 // CLIENT 角色本单位锚点（use_unit.id）；非客户返回 undefined，客户无锚点返回 null（fail-closed）
 function clientUnitAnchor() {
   if (!isCustomerPrincipal(currentRoles)) return undefined
+  if (currentClient) return currentClient.useUnitId || null
   const u = d.db.employees[currentRole]
   return (u && u.useUnitId) || null
 }
@@ -327,6 +330,42 @@ function loginPayload(roleKey) {
   }
 }
 
+// 统一登录客户分支（client_account，与后端 ClientLoginService 同形状）：
+// 串单位直接签发；多单位返回 needSelectUnit + 候选（口令已验证才调用）。
+function clientLoginPayload(matched) {
+  if (matched.length === 1) {
+    const a = matched[0]
+    const u = d.db.useUnits.find((x) => x.id === a.useUnitId)
+    const unitName = u ? u.unitName : ''
+    currentRole = a.role
+    currentRoles = [a.role]
+    currentClient = a
+    return {
+      token: 'mock-client-token-' + a.id,
+      principalType: 'CUSTOMER',
+      role: a.role,
+      roles: [a.role],
+      useUnitId: a.useUnitId,
+      needSelectUnit: false,
+      perms: ['client:elevator_view', 'client:sign', 'client:download'],
+      home: '/pages/client/home/index',
+      activeWorkspace: 'CLIENT',
+      scope: (unitName ? unitName : '本单位') + '·本单位',
+      userInfo: { id: a.id, name: a.name, phone: a.phone, role: a.role, unitName, useUnitId: a.useUnitId }
+    }
+  }
+  return {
+    principalType: 'CUSTOMER',
+    needSelectUnit: true,
+    selectionToken: 'mock-sel-' + matched[0].phone,
+    units: matched.map((a) => {
+      const u = d.db.useUnits.find((x) => x.id === a.useUnitId)
+      return { useUnitId: a.useUnitId, unitName: u ? u.unitName : '', accountId: a.id, role: a.role }
+    })
+  }
+}
+const activeClientAccounts = () => (d.db.clientAccounts || []).filter((a) => a.status !== 'DISABLED' && a.enabled !== 0)
+
 // 电梯档案概览（屏 08）：规格卡/服务履历/统计/联系，全部由 db 推导，不硬编码
 function buildElevatorOverview(el) {
   const unit = d.getUseUnit(el.useUnitId) || {}
@@ -452,26 +491,15 @@ const routes = [
     a.status = 'GRACE'; a.enabled = 1; a.graceUntil = (body && body.graceUntil) || ''; a.disabledReason = ''
     return a
   }],
-  // 客户登录：先验口令，命中单单位直接签发，多单位返回候选（mock 无 JWT，用 token 串模拟）
-  ['POST', '/auth/client/login', ({ body }) => {
-    const phone = String(body.phone || '').replace(/\s/g, '')
-    const matched = (d.db.clientAccounts || []).filter((a) => a.phone === phone && a.status !== 'DISABLED' && a.password === body.password)
-    if (!matched.length) throw { code: 401, message: '账号或密码错误' }
-    currentRole = matched[0].role; currentRoles = [matched[0].role]
-    if (matched.length === 1) {
-      return { token: 'mock-client-token-' + matched[0].id, principalType: 'CUSTOMER', role: matched[0].role, useUnitId: matched[0].useUnitId, needSelectUnit: false, perms: ['client:elevator_view', 'client:sign', 'client:download'] }
-    }
-    return { needSelectUnit: true, selectionToken: 'mock-sel-' + phone, units: matched.map((a) => { const u = d.db.useUnits.find((x) => x.id === a.useUnitId); return { useUnitId: a.useUnitId, unitName: u ? u.unitName : '', accountId: a.id, role: a.role } }) }
-  }],
+  // 客户选单位（登录已并入 /auth/login，多单位时凭 selectionToken 到这里换正式令牌）
   ['POST', '/auth/client/select-unit', ({ body }) => {
-    const a = (d.db.clientAccounts || []).find((x) => x.useUnitId === body.useUnitId && x.status !== 'DISABLED')
+    const a = activeClientAccounts().find((x) => x.useUnitId === body.useUnitId)
     if (!a) throw { code: 1403, message: '该单位下无此客户账号' }
-    currentRole = a.role; currentRoles = [a.role]
-    return { token: 'mock-client-token-' + a.id, principalType: 'CUSTOMER', role: a.role, useUnitId: a.useUnitId, needSelectUnit: false, perms: ['client:elevator_view', 'client:sign', 'client:download'] }
+    return clientLoginPayload([a])
   }],
   ['GET', '/auth/client/me', () => {
-    const id = (typeof currentRole === 'string' && currentRole.startsWith('CLIENT')) ? (d.db.clientAccounts || [])[0] : null
-    return id ? { id: id.id, name: id.name, phone: id.phone, role: id.role, useUnitId: id.useUnitId, principalType: 'CUSTOMER' } : { principalType: 'CUSTOMER' }
+    const a = currentClient
+    return a ? { id: a.id, name: a.name, phone: a.phone, role: a.role, useUnitId: a.useUnitId, principalType: 'CUSTOMER' } : { principalType: 'CUSTOMER' }
   }],
   ['POST', '/handovers/:id/assign-receiver', ({ params, body }) => {
     const o = findOr404(mockHandovers, params.id, '移交单')
@@ -576,6 +604,8 @@ const routes = [
   ['POST', '/faults/:id/evaluate', () => ({ ok: true })],
   // ── 鉴权 ──
   // 账号密码登录（用户需求：账号由维保单位系统分配，手机号为账号）
+  // 统一登录（唯一入口，与后端 AuthController.login 同口径）：员工目录命中即员工；
+  // 否则按 client_account 校验客户账号（多单位返回候选），前端不区分通道。
   ['POST', '/auth/login', ({ body }) => {
     const phone = String(body.phone || '').trim()
     const password = String(body.password || '')
@@ -584,10 +614,19 @@ const routes = [
     Object.keys(d.db.employees).forEach(function (k) {
       if (d.db.employees[k].account === phone) { roleKey = k; user = d.db.employees[k] }
     })
-    if (!user) throw { code: 401, message: '账号不存在，请联系维保单位管理员分配' }
-    if (user.password !== password) throw { code: 401, message: '账号或密码错误' }
-    currentRole = roleKey
-    return loginPayload(roleKey)
+    if (user) {
+      if (user.password !== password) throw { code: 401, message: '账号或密码错误' }
+      currentClient = null
+      currentRole = roleKey
+      return loginPayload(roleKey)
+    }
+    const all = (d.db.clientAccounts || []).filter((a) => a.phone === phone)
+    const matched = activeClientAccounts().filter((a) => a.phone === phone && a.password === password)
+    if (all.length && !activeClientAccounts().some((a) => a.phone === phone)) {
+      throw { code: 403, message: '该客户账号已停用，请联系使用单位管理员' }
+    }
+    if (!matched.length) throw { code: 401, message: '账号或密码错误' }
+    return clientLoginPayload(matched)
   }],
   // 自助改密（docs/04 A.0.1；与后端 AuthController 同口径：校验原密码、新密码 ≥6 位且不同）
   ['POST', '/auth/change-password', ({ body }) => {
@@ -607,6 +646,7 @@ const routes = [
   }],
   ['POST', '/auth/wx-login', ({ body }) => {
     const role = d.db.employees[body.role] ? body.role : 'WORKER'
+    currentClient = null
     currentRole = role
     return loginPayload(role)
   }],
@@ -620,13 +660,6 @@ const routes = [
     user.password = newPassword
     return { ok: true, account: user.account }
   }],
-  ['POST', '/auth/bind-employee', ({ body }) => {
-    const role = body.role === 'LEADER' ? 'LEADER' : 'WORKER'
-    return { token: 'mock-token-' + Date.now(), userInfo: d.db.employees[role], role }
-  }],
-  ['POST', '/auth/bind-use-unit', () => (
-    { token: 'mock-token-' + Date.now(), userInfo: d.db.employees.UNIT_ADMIN, role: 'UNIT_ADMIN' }
-  )],
   ['POST', '/auth/logout', () => ({ ok: true })],
 
   // ── 工单 ──

@@ -183,6 +183,23 @@ class RecordPdfServiceTest {
         assertEquals("%PDF", new String(pdf, 0, 4, StandardCharsets.US_ASCII));
     }
 
+    /**
+     * E2E 回归：safety_json 存成字符串 "null"（旧签退代码 JsonUtil.write(null) 的产物）时，
+     * Jackson 对字面量 null 正常返回 null 对象，safetyLine 直接 flags.get() → NPE → PDF 生成失败，
+     * 连带客户签字确认 500。必须兜底为空 Map 并正常出 PDF。
+     */
+    @Test
+    void literalNullSafetyJsonStillRenders() {
+        MaintainRecord r = record();
+        r.safetyJson = "null";
+        byte[] pdf = service.render(r, null, null);
+        assertEquals("%PDF", new String(pdf, 0, 4, StandardCharsets.US_ASCII));
+
+        r.safetyJson = "{\"twoPerson\":true,\"powerOff\":\"true\"}";
+        byte[] pdf2 = service.render(r, null, null);
+        assertEquals("%PDF", new String(pdf2, 0, 4, StandardCharsets.US_ASCII));
+    }
+
     /** 年度维保 76 项必须跨页：验证分页与每页表头重复不抛错（docs/13 §7-1） */
     @Test
     void annualRecordSpansMultiplePages() throws Exception {

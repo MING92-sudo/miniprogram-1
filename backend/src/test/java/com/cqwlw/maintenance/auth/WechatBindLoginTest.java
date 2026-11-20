@@ -3,7 +3,7 @@ package com.cqwlw.maintenance.auth;
 import com.cqwlw.maintenance.common.BizException;
 import com.cqwlw.maintenance.entity.Employee;
 import com.cqwlw.maintenance.mapper.EmployeeMapper;
-import com.cqwlw.maintenance.service.UnitAccountService;
+import com.cqwlw.maintenance.service.ClientLoginService;
 import com.cqwlw.maintenance.service.WxAuthService;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.http.HttpServletRequest;
@@ -28,10 +28,11 @@ class WechatBindLoginTest {
     private final WxAuthService wxAuthService = mock(WxAuthService.class);
     private final JwtService jwtService = mock(JwtService.class);
     private final UserRoleService userRoleService = mock(UserRoleService.class);
+    private final ClientLoginService clientLoginService = mock(ClientLoginService.class);
 
     private AuthController controller() {
         return new AuthController(employeeMapper, jwtService, wxAuthService,
-                mock(MenuService.class), mock(UnitAccountService.class), userRoleService);
+                clientLoginService, userRoleService);
     }
 
     private HttpServletRequest bearer() {

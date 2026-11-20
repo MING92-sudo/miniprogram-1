@@ -112,10 +112,27 @@ public class LedgerController {
     @PostMapping("/grants")
     public ApiResponse<SysGrant> createGrant(@RequestBody Map<String, Object> body, HttpServletRequest req) {
         MultiRoleGate.requireWrite(req, PermissionMatrix.ROLE_ASSIGN);
-        LocalDateTime start = LocalDateTime.parse(String.valueOf(body.get("startAt")));
-        LocalDateTime end = LocalDateTime.parse(String.valueOf(body.get("endAt")));
+        // 授权必须有起止时间：缺字段/格式错按业务 422 返回，不能 String.valueOf(null) 抛解析异常（500）
+        LocalDateTime start = requireDateTime(body, "startAt", "授权生效时间");
+        LocalDateTime end = requireDateTime(body, "endAt", "授权失效时间");
+        if (!end.isAfter(start)) {
+            throw new com.cqwlw.maintenance.common.BizException(422, "授权失效时间必须晚于生效时间");
+        }
         return ApiResponse.ok(grantService.create(str(body, "granteeId"), str(body, "permCode"),
                 str(body, "scope"), str(body, "scopeRef"), start, end, actor(req), str(body, "reason")));
+    }
+
+    /** 时间参数必填且可解析（yyyy-MM-dd HH:mm:ss）；缺失或格式错统一 422 */
+    private static LocalDateTime requireDateTime(Map<String, Object> body, String key, String label) {
+        String raw = str(body, key);
+        if (raw == null || raw.isBlank()) {
+            throw new com.cqwlw.maintenance.common.BizException(422, label + "必填");
+        }
+        try {
+            return LocalDateTime.parse(raw.trim().replace(' ', 'T'));
+        } catch (RuntimeException e) {
+            throw new com.cqwlw.maintenance.common.BizException(422, label + "格式应为 yyyy-MM-dd HH:mm:ss");
+        }
     }
 
     @PostMapping("/grants/{id}/withdraw")

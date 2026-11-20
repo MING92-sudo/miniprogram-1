@@ -62,6 +62,13 @@ export function roleCodeFromName(input) {
 const SCOPE = { ALL: '全部', ORG: '本部门', PROJECT: '本项目', SELF: '本人', TEAM: '本班组', ORG_FLAT: '本单位' }
 export function scopeLabel(v) { return SCOPE[String(v || '').toUpperCase()] || String(v || '') }
 
+// 员工 department 码 → 中文（使用单位是外部客户主体，不进内部组织树，故单独标注）
+const DEPT = { PLATFORM: '平台', INSTALL: '安装部', MAINT: '维保部', UNIT: '使用单位（客户）' }
+export function deptLabel(v) {
+  if (v == null || v === '') return ''
+  return DEPT[String(v).toUpperCase()] || String(v)
+}
+
 const PERM = {
   'handover:view': '查看移交', 'handover:create': '发起移交', 'handover:edit': '编辑移交',
   'handover:doc_upload': '上传移交资料', 'handover:doc_delete': '删除移交资料', 'handover:submit': '提交移交',

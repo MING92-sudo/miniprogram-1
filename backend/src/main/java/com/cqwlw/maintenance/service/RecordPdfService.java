@@ -655,6 +655,11 @@ public class RecordPdfService {
         } catch (Exception e) {
             flags = Map.of();
         }
+        // 存量数据里有把缺省值写成字符串 "null" 的记录（JsonUtil.write(null)），
+        // Jackson 对字面量 null 会正常返回 null 而非抛错，必须再兜一层，否则整份 PDF 生成失败
+        if (flags == null) {
+            flags = Map.of();
+        }
         boolean twoPerson = Boolean.TRUE.equals(flags.get("twoPerson"))
                 || "true".equals(String.valueOf(flags.get("twoPerson")));
         return box(flags.get("warning")) + "警示标志　"

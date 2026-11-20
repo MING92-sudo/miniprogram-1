@@ -84,8 +84,39 @@
             <div class="kv"><span class="k">隐患码</span><span class="v mono">{{ (detail.problemCodes || []).join(' ') || 'S0' }}</span></div>
             <div class="kv"><span class="k">上报状态</span><span class="v">{{ reportLabel(detail.reportStatus) }}</span></div>
             <div class="kv"><span class="k">确认状态</span><span class="v">{{ statusLabel(detail.confirmStatus) }}</span></div>
+            <div class="kv"><span class="k">使用单位</span><span class="v">{{ ctx.useUnitName || '—' }}</span></div>
+            <div class="kv"><span class="k">作业地点</span><span class="v">{{ ctx.address || '—' }}</span></div>
+            <div class="kv"><span class="k">记录版本</span><span class="v mono">{{ detail.version ? 'v' + detail.version : 'v1' }}</span></div>
             <div class="kv"><span class="k">创建时间</span><span class="v mono">{{ detail.createdAt }}</span></div>
           </div>
+        </div>
+
+        <div class="sec">
+          <div class="sec-t"><svg class="ic" aria-hidden="true"><use href="#i-clipboard" /></svg>检查项明细
+            <span class="sec-tag">{{ detail.itemTotal || 0 }} 项 · 异常 {{ detail.itemAbnormal || 0 }}</span>
+          </div>
+          <div v-if="detailLoading" class="dim f12">正在加载明细…</div>
+          <ul v-else-if="items.length" class="rec-items">
+            <li v-for="(it, i) in items" :key="i" :class="['rec-item', it.result === 'ABNORMAL' ? 'bad' : '']">
+              <span class="ri-name">{{ it.name }}</span>
+              <span class="ri-val">{{ itemNote(it) }}</span>
+              <span :class="['tag', it.result === 'ABNORMAL' ? 'tag-signal' : it.result === 'NORMAL' ? 'tag-ok' : 'tag-dim']">{{ resultLabel(it.result) }}</span>
+            </li>
+          </ul>
+          <div v-else class="dim f12">该记录无检查项明细（存量记录可能未冻结明细，以归档 PDF 为准）。</div>
+        </div>
+
+        <div class="sec">
+          <div class="sec-t"><svg class="ic" aria-hidden="true"><use href="#i-eye" /></svg>现场照片
+            <span class="sec-tag">{{ photos.length }} 张</span>
+          </div>
+          <div v-if="photos.length" class="rec-photos">
+            <button v-for="(url, i) in photos" :key="url + i" class="rec-photo" type="button"
+              :aria-label="'查看现场照片 ' + (i + 1)" @click="openPhoto(url)">
+              <img :src="url" :alt="'现场照片 ' + (i + 1)" loading="lazy" />
+            </button>
+          </div>
+          <div v-else class="dim f12">{{ detailLoading ? '正在加载照片…' : '该记录无现场照片（以归档 PDF 为准）' }}</div>
         </div>
 
         <div class="sec">
@@ -96,22 +127,38 @@
             <div class="p-row mt8"><span>作业起止</span><b>{{ detail.checkinTime || '—' }} → {{ detail.checkoutTime || '—' }}</b></div>
             <div class="p-row"><span>作业时长</span><b>{{ detail.duration || '—' }}</b></div>
             <div class="p-row"><span>隐患码</span><b>{{ (detail.problemCodes || []).join(' ') || 'S0' }}</b></div>
+            <template v-if="!detailLoading">
             <div class="grid2 mt8">
-              <div :class="['sign-box', detail.workerName ? '' : 'todo']">
-                <template v-if="detail.workerName">
-                  <div class="sb-name">{{ detail.workerName }}</div>
-                  <div class="sb-meta">主检 · 签字留痕以服务端为准</div>
+              <div :class="['sign-box', detail.workerSignatureUrl ? '' : 'todo']">
+                <template v-if="detail.workerName || detail.workerSignatureUrl">
+                  <div class="sb-name">{{ detail.workerName || '主检' }}</div>
+                  <img v-if="detail.workerSignatureUrl" class="sig-img" :src="detail.workerSignatureUrl" alt="主检签字"
+                    @click="openPhoto(detail.workerSignatureUrl)" />
+                  <div class="sb-meta">主检 · {{ detail.workerSignatureUrl ? '已签字' : '待签字' }}</div>
                 </template>
                 <template v-else>待主检签字</template>
               </div>
-              <div :class="['sign-box', detail.assistantName ? '' : 'todo']">
-                <template v-if="detail.assistantName">
-                  <div class="sb-name">{{ detail.assistantName }}</div>
-                  <div class="sb-meta">配合人 · 签字留痕以服务端为准</div>
+              <div :class="['sign-box', detail.assistantSignatureUrl ? '' : 'todo']">
+                <template v-if="detail.assistantName || detail.assistantSignatureUrl">
+                  <div class="sb-name">{{ detail.assistantName || '配合人' }}</div>
+                  <img v-if="detail.assistantSignatureUrl" class="sig-img" :src="detail.assistantSignatureUrl" alt="配合人签字"
+                    @click="openPhoto(detail.assistantSignatureUrl)" />
+                  <div class="sb-meta">配合人 · {{ detail.assistantSignatureUrl ? '已签字' : '待签字' }}</div>
                 </template>
                 <template v-else>待配合人签字</template>
               </div>
             </div>
+            <div :class="['sign-box', 'mt8', detail.clientSignatureUrl ? '' : 'todo']">
+              <template v-if="detail.clientSignerName || detail.clientSignatureUrl">
+                <div class="sb-name">{{ detail.clientSignerName || '使用单位安全管理人员' }}</div>
+                <img v-if="detail.clientSignatureUrl" class="sig-img" :src="detail.clientSignatureUrl" alt="使用单位签字"
+                  @click="openPhoto(detail.clientSignatureUrl)" />
+                <div class="sb-meta">使用单位安全管理人员 · {{ detail.clientSignatureUrl ? ('已签字 ' + (detail.clientSignedAt || '')).trim() : '待签字' }}</div>
+              </template>
+              <template v-else>待使用单位安全管理人员签字</template>
+            </div>
+            </template>
+            <div v-else class="dim f12 mt8">正在加载签字留痕…</div>
             <div v-if="archiveInfo.hash" class="hash-line">
               <svg class="ic ic-sm" aria-hidden="true"><use href="#i-hash" /></svg>
               <span>SHA-256</span><code>{{ archiveInfo.hash }}</code>
@@ -135,6 +182,14 @@
         <PermButton code="record:export" label="导出 PDF" variant="ghost" icon="download" @click="exportPdf(detail)" />
       </template>
     </Drawer>
+
+    <!-- 照片 / 签字原图预览（抽屉之上，点遮罩或按钮关闭） -->
+    <div v-if="previewUrl" class="rec-lightbox" role="dialog" aria-modal="true" aria-label="原图预览" @click="closePhoto">
+      <img :src="previewUrl" alt="原图" />
+      <button class="icon-btn rec-lb-x" type="button" aria-label="关闭原图" @click.stop="closePhoto">
+        <svg class="ic" aria-hidden="true"><use href="#i-x" /></svg>
+      </button>
+    </div>
 
     <!-- 退回 -->
     <Modal :open="returnModal" title="退回记录单" :sub="detail.originalRecordId || detail.id" icon="refresh"
@@ -203,18 +258,54 @@ onMounted(load)
 const detailOpen = ref(false)
 const detail = ref({})
 const archiveInfo = ref({})
+// 预览详情（docs/09 §6.12）：单条懒加载，列表行只带摘要，明细/照片/签字由 /admin/records/{id} 补齐。
+// items_json/photos_json 是 MEDIUMTEXT，不能塞进分页列表，所以必须二次拉取。
+const detailLoading = ref(false)
+const previewUrl = ref('')
+const items = computed(() => detail.value.items || [])
+const photos = computed(() => detail.value.photos || [])
+const ctx = computed(() => detail.value.context || {})
+const RESULT_LABEL = { NORMAL: '正常', ABNORMAL: '异常' }
+function resultLabel(r) { return RESULT_LABEL[r] || (r || '—') }
+// 与小程序 record-detail 同口径：异常说明 > 实测值文本 > 读数 > 未执行原因
+function itemNote(it) {
+  return it.abnormalDesc || it.valueText
+    || (it.value != null && it.value !== '' ? '读数 ' + it.value + (it.valueUnit || '') : '')
+    || it.skipReason || ''
+}
+function openPhoto(url) { if (url) previewUrl.value = url }
+function closePhoto() { previewUrl.value = '' }
 const dualOk = computed(() => Boolean(detail.value.workerName && detail.value.assistantName && detail.value.workerName !== detail.value.assistantName))
 
 function openDetail(row) {
-  detail.value = row
+  detail.value = { ...row }
   archiveInfo.value = {}
+  previewUrl.value = ''
   detailOpen.value = true
+  loadDetail(row.id)
   if (row.confirmStatus === 'CONFIRMED') loadArchiveView(false)
 }
-async function loadArchiveView(notify) {
+async function loadDetail(id) {
+  detailLoading.value = true
   try {
-    archiveInfo.value = await http.get(`/work-orders/${detail.value.id}/archive`)
-    if (notify) toast.success('归档投影已加载',archiveInfo.value.hash)
+    const d = await http.get(`/admin/records/${id}`)
+    // 竞态防护：抽屉已切到另一条记录时丢弃迟到的响应（否则会把 A 的明细显示在 B 上）
+    if (!detailOpen.value || detail.value.id !== id) return
+    detail.value = { ...detail.value, ...d }
+  } catch (e) {
+    // 降级不阻断复核：保留列表摘要 + PDF 导出入口，明确提示明细未加载
+    toast.warn(e.message || '记录详情加载失败，暂仅显示摘要')
+  } finally {
+    detailLoading.value = false
+  }
+}
+async function loadArchiveView(notify) {
+  const id = detail.value.id
+  try {
+    const info = await http.get(`/work-orders/${id}/archive`)
+    if (detail.value.id !== id) return
+    archiveInfo.value = info
+    if (notify) toast.success('归档投影已加载', archiveInfo.value.hash)
   } catch (e) {
     if (notify) toast.warn(e.message || '记录尚未归档')
   }

@@ -15,7 +15,7 @@
         </template>
         <template #cell-name="{ row }"><b>{{ row.name }}</b><div class="cell-2">{{ row.empNo || row.jobNo || '—' }}</div></template>
         <template #cell-phone="{ row }"><span class="mono">{{ row.phone || '—' }}</span></template>
-        <template #cell-org="{ row }">{{ row.orgName || row.department || row.groupName || '—' }}</template>
+        <template #cell-org="{ row }">{{ row.orgName || deptLabel(row.department) || row.groupName || '—' }}</template>
         <template #cell-roles="{ row }">
           <span v-for="r in roleArr(row)" :key="r" class="tag tag-ghost">{{ roleLabel(r) }}</span>
         </template>
@@ -24,6 +24,7 @@
         <template #cell-lastLogin="{ row }"><span class="mono f12">{{ row.lastLogin || '—' }}</span></template>
         <template #cell-openOrders="{ row }"><span class="num">{{ row.openOrders ?? '—' }}</span></template>
         <template #row-actions="{ row }">
+          <PermButton code="user:create" label="编辑" variant="ghost" size="xs" c-tip="需 user:create（ADMIN+）" @click="openEdit(row)" />
           <PermButton code="user:disable" label="停用" variant="ghost" size="xs" c-tip="需 user:disable" @click="openDisable(row)" />
           <PermButton code="user:disable" label="离职转交" variant="ghost" size="xs" @click="openResign(row)" />
           <PermButton code="role:assign" label="分配角色" variant="ghost" size="xs" c-tip="仅限非管理角色，需平台授予（roles §4.6）" @click="openRoles(row)" />
@@ -34,7 +35,7 @@
 
     <!-- 账号详情抽屉 -->
     <Drawer :open="!!detail" :title="detail ? detail.name + ' · ' + (detail.empNo || detail.jobNo || detail.id) : ''"
-      :sub="detail ? (detail.orgName || detail.department || detail.groupName || '') : ''" :meta="{ scope: perspective.scope }"
+      :sub="detail ? (detail.orgName || deptLabel(detail.department) || detail.groupName || '') : ''" :meta="{ scope: perspective.scope }"
       note="写操作按权限码渲染" @close="detail = null">
       <template v-if="detail">
         <div class="sec">
@@ -43,7 +44,7 @@
             <div class="kv"><span class="k">姓名</span><span class="v">{{ detail.name }}</span></div>
             <div class="kv"><span class="k">工号</span><span class="v mono">{{ detail.empNo || detail.jobNo || '—' }}</span></div>
             <div class="kv"><span class="k">手机号</span><span class="v mono">{{ detail.phone || '—' }}</span></div>
-            <div class="kv"><span class="k">所属组织</span><span class="v">{{ detail.orgName || detail.department || detail.groupName || '—' }}</span></div>
+            <div class="kv"><span class="k">所属组织</span><span class="v">{{ detail.orgName || deptLabel(detail.department) || detail.groupName || '—' }}</span></div>
             <div class="kv"><span class="k">数据范围</span><span class="v mono">{{ detail.scope || defaultScope(roleArr(detail)[0]) || '—' }}</span></div>
             <div class="kv"><span class="k">状态</span><span class="v"><StatusTag :status="statusOf(detail)" /></span></div>
             <div class="kv"><span class="k">最近登录</span><span class="v mono">{{ detail.lastLogin || '—' }}</span></div>
@@ -64,11 +65,27 @@
         </div>
       </template>
       <template #footer>
+        <PermButton code="user:create" label="编辑账号" variant="ghost" icon="edit" c-tip="需 user:create（ADMIN+）" @click="openEdit(detail)" />
         <PermButton code="user:disable" label="停用账号" variant="danger" icon="ban" @click="openDisable(detail)" />
         <PermButton code="user:disable" label="离职转交" variant="ghost" icon="user-x" @click="openResign(detail)" />
         <PermButton code="role:assign" label="分配角色" variant="ghost" icon="shield" c-tip="仅限非管理角色，需平台授予" @click="openRoles(detail)" />
       </template>
     </Drawer>
+
+    <!-- 编辑账号（姓名 / 手机号；后端同步默认登录账号 account） -->
+    <Modal :open="!!editTarget" :title="'编辑账号 · ' + (editTarget ? (editTarget.name || editTarget.id) : '')"
+      sub="姓名 / 手机号；改手机号会自动同步默认登录账号" icon="edit" note="user:create"
+      @close="editTarget = null" @confirm="submitEdit">
+      <Form ref="editForm" :rules="editRules" v-model="editModel" v-slot="{ errors }">
+        <div class="form-grid">
+          <FormField label="姓名" required :error="errors.name"><input v-model="editModel.name" class="ctl" placeholder="真实姓名" /></FormField>
+          <FormField label="手机号" required hint="同时作为默认登录账号" :error="errors.phone">
+            <input v-model="editModel.phone" class="ctl mono" placeholder="11 位手机号" />
+          </FormField>
+        </div>
+        <div class="fhelp mt8">手机号须符合 11 位格式且不与既有账号冲突（冲突由服务端 1002 拦截）。角色请通过「分配角色」单独维护。</div>
+      </Form>
+    </Modal>
 
     <!-- 开通账号 -->
     <Modal :open="showCreate" title="开通账号" sub="仅限本单位 / 本范围；不能越级授权（roles §4.6）" icon="user-check" note="user:create"
@@ -77,13 +94,10 @@
         <div class="form-grid">
           <FormField label="姓名" required :error="errors.name"><input v-model="createModel.name" class="ctl" placeholder="真实姓名" /></FormField>
           <FormField label="手机号" required hint="^1[3-9]\d{9}$" :error="errors.phone"><input v-model="createModel.phone" class="ctl mono" placeholder="11 位手机号" /></FormField>
-          <FormField v-if="isUnitRole" label="所属使用单位（先建单位档案再开通账号）" required :error="errors.useUnitId">
-            <select v-model="createModel.useUnitId" class="ctl">
-              <option value="">请选择使用单位</option>
-              <option v-for="u in units" :key="u.id" :value="u.id">{{ u.unitName }}</option>
-            </select>
-          </FormField>
         </div>
+        <RuleNote class="mt12">
+          使用单位客户账号不在此开通：请到「使用单位档案 → 客户账号」开通，客户登录走「使用单位客户」入口。
+        </RuleNote>
         <fieldset class="fs mt12">
           <legend>角色（必选 ≥1，同部门兼任）</legend>
           <div class="perm-list">
@@ -172,43 +186,50 @@ import PermButton from '../ui/PermButton.vue'
 import StatusTag from '../ui/StatusTag.vue'
 import { useToast } from '../ui/stores/ui'
 import { usePerspectiveStore } from '../ui/stores/perspective'
-import { roleLabel } from '../ui/labels'
+import { roleLabel, deptLabel } from '../ui/labels'
 import { canonicalRoles, defaultScope } from '../ui/permission-v2'
-import { listUsers, createUser, disableUser, assignRoles, listUseUnits } from '../api/ledger'
+import { listUsers, createUser, disableUser, assignRoles } from '../api/ledger'
+import { updateEmployee } from '../api/archive'
 const toast = useToast()
 const perspective = usePerspectiveStore()
 const rows = ref([])
-const units = ref([])
 const loading = ref(false)
 const detail = ref(null)
 const showCreate = ref(false)
 const disableTarget = ref(null)
 const resignTarget = ref(null)
 const rolesTarget = ref(null)
+const editTarget = ref(null)
+const editModel = ref({ name: '', phone: '' })
+const editForm = ref(null)
 const initialPwd = ref('')
 const roleErr = ref(false)
 const createForm = ref(null)
 const resignForm = ref(null)
-const createModel = ref({ name: '', phone: '', useUnitId: '', roles: [] })
+const createModel = ref({ name: '', phone: '', roles: [] })
 const resignModel = ref({ heir: '' })
 const rolesDraft = ref([])
-const roleOptions = [...canonicalRoles()]
+// 客户角色（CLIENT_*）不在人员目录分配：客户账号在「使用单位档案 → 客户账号」独立开通
+const CUSTOMER_ROLES = ['CLIENT_ADMIN', 'CLIENT_SIGNER']
+const roleOptions = [...canonicalRoles()].filter(r => !CUSTOMER_ROLES.includes(r))
 const statusOptions = [
   { value: 'NORMAL', label: '正常' }, { value: 'PENDING', label: '待激活' },
   { value: 'DISABLED', label: '停用' }, { value: 'LEFT', label: '离职' }
 ]
 function roleArr(row) { return Array.isArray(row.roles) ? row.roles : String(row.roles || row.role || '').split(',').map(s => s.trim()).filter(Boolean) }
 function statusOf(row) { return row.status || (row.enabled === false ? 'DISABLED' : 'NORMAL') }
-const isUnitRole = computed(() => createModel.value.roles.some(r => r === 'CLIENT_ADMIN' || r === 'CLIENT_SIGNER'))
 const createRules = {
   name: [(v) => (v ? '' : '请输入姓名')],
   phone: [
     (v) => (/^1[3-9]\d{9}$/.test(v || '') ? '' : '手机号格式不正确（11 位，1[3-9] 开头）'),
     (v) => (rows.value.some(u => u.phone === v) ? '该手机号已存在账号（一个手机号 = 一个账号）' : '')
-  ],
-  useUnitId: [(v) => (!isUnitRole.value || v ? '' : '使用单位账号须选择所属单位')]
+  ]
 }
 const resignRules = { heir: [(v) => (v ? '' : '请选择接手人')] }
+const editRules = {
+  name: [(v) => (v ? '' : '请输入姓名')],
+  phone: [(v) => (/^1[3-9]\d{9}$/.test(v || '') ? '' : '手机号格式不正确（11 位，1[3-9] 开头）')]
+}
 const heirOptions = computed(() => rows.value.filter(u => resignTarget.value && u.id !== resignTarget.value.id && statusOf(u) === 'NORMAL'))
 const cols = [
   { key: 'name', label: '姓名', sortable: true },
@@ -222,16 +243,23 @@ const cols = [
 ]
 async function load() {
   loading.value = true
-  try { rows.value = await listUsers() } finally { loading.value = false }
+  try {
+    const list = await listUsers()
+    // 所属组织统一口径：优先后端 orgName，其次部门码中文化（PLATFORM/INSTALL/MAINT/UNIT），最后班组名；
+    // 统一写入 org 字段供列排序使用（后端 department 是码值，直接排序/展示会出现 "MAINT" 这种英文）
+    rows.value = (Array.isArray(list) ? list : []).map(r => ({
+      ...r,
+      org: r.orgName || deptLabel(r.department) || r.groupName || '—'
+    }))
+  } finally { loading.value = false }
 }
 function openDetail(row) { detail.value = row }
-function openCreate() { createModel.value = { name: '', phone: '', useUnitId: '', roles: [] }; initialPwd.value = ''; roleErr.value = false; showCreate.value = true }
+function openCreate() { createModel.value = { name: '', phone: '', roles: [] }; initialPwd.value = ''; roleErr.value = false; showCreate.value = true }
 async function submitCreate() {
   roleErr.value = createModel.value.roles.length === 0
   if (!createForm.value.validate() || roleErr.value) { toast.warn('请修正表单错误后再提交'); return }
   try {
     const body = { name: createModel.value.name, phone: createModel.value.phone, roles: createModel.value.roles }
-    if (isUnitRole.value) body.useUnitId = createModel.value.useUnitId
     const res = await createUser(body)
     initialPwd.value = res.initialPassword || ''
     toast.success('账号已开通（待激活）', res.id || '')
@@ -262,6 +290,19 @@ async function submitResign() {
     resignTarget.value = null; detail.value = null; load()
   } catch (e) { toast.error(e.message || '离职转交失败') }
 }
+function openEdit(row) {
+  if (!row) return
+  editModel.value = { name: row.name || '', phone: row.phone || '' }
+  editTarget.value = row
+}
+async function submitEdit() {
+  if (!editForm.value.validate()) { toast.warn('请修正表单错误后再提交'); return }
+  try {
+    await updateEmployee(editTarget.value.id, { name: editModel.value.name, phone: editModel.value.phone })
+    toast.success('账号已更新', editTarget.value.id)
+    editTarget.value = null; detail.value = null; load()
+  } catch (e) { toast.error(e.message || '更新失败') }
+}
 function openRoles(row) { if (row) { rolesDraft.value = [...roleArr(row)]; rolesTarget.value = row } }
 async function submitRoles() {
   if (!rolesDraft.value.length) { toast.warn('至少保留一个角色'); return }
@@ -271,5 +312,5 @@ async function submitRoles() {
     rolesTarget.value = null; detail.value = null; load()
   } catch (e) { toast.error(e.message || '角色分配失败') }
 }
-onMounted(() => { load(); listUseUnits().then(u => { units.value = u || [] }).catch(() => {}) })
+onMounted(() => { load() })
 </script>

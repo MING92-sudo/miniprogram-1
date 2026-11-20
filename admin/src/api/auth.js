@@ -10,4 +10,4 @@ export function logout() {
 }
 
 // getMenus 已删（2026-11-16 审查清理）：M5 起菜单走 ui/menu-config + permission-v2 本地投影；
-// 后端 /auth/menus 旧契约保留（MenuService 已注废弃），前端无调用者。
+// 后端 GET /auth/menus 旧契约已于 2026-11-20 连同 MenuService 一并删除（客户端与小程序统一只认 /me/menus）。

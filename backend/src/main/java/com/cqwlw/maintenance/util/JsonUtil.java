@@ -2,16 +2,38 @@ package com.cqwlw.maintenance.util;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import com.fasterxml.jackson.datatype.jsr310.deser.LocalDateTimeDeserializer;
+import com.fasterxml.jackson.datatype.jsr310.ser.LocalDateTimeSerializer;
 
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
 
 /**
  * JSON 帮助器：复杂嵌套结构（检查项/记录明细/报文快照）在 JSON 列与 Map 间转换。
+ *
+ * <p><b>MAPPER 必须与 Spring MVC 的 ObjectMapper 同口径</b>：注册 JavaTimeModule 并把
+ * LocalDateTime 固定为 yyyy-MM-dd HH:mm:ss。历史实现是裸 {@code new ObjectMapper()}，
+ * 序列化含 LocalDateTime 的实体（移交单/外接备案详情、计划冲突视图等）会抛
+ * 「Java 8 date/time type not supported」，接口直接 500。
  */
 public final class JsonUtil {
 
-    public static final ObjectMapper MAPPER = new ObjectMapper();
+    private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+
+    public static final ObjectMapper MAPPER = buildMapper();
+
+    private static ObjectMapper buildMapper() {
+        JavaTimeModule timeModule = new JavaTimeModule();
+        timeModule.addSerializer(LocalDateTime.class, new LocalDateTimeSerializer(FORMATTER));
+        timeModule.addDeserializer(LocalDateTime.class, new LocalDateTimeDeserializer(FORMATTER));
+        return new ObjectMapper()
+                .registerModule(timeModule)
+                .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+    }
 
     private JsonUtil() {
     }

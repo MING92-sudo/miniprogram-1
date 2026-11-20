@@ -408,6 +408,81 @@ public class UnitRecordService {
     }
 
     /**
+     * 管理端记录预览投影（docs/09 §6.12：抽屉预览 = 基本信息 + 检查项明细 + 现场照片 + 三方签字，与 PDF 同源）。
+     * 与 {@link #toMap} 的差异：① 不返回 shareToken/reportPayload/幂等键等预览用不到的字段（纵深防御，
+     * 也避免管理端页面成为匿名签署链接的泄露源）；② 补安全防护勾选与待办事项（PDF「五、落实情况」同源，
+     * 列表投影不含）；③ 过滤 notInThisRun 未执行项——不得把「本轮未执行」显示成「正常」误导复核，
+     * 与小程序 record-detail 的 executed 口径一致。
+     *
+     * <p>仅供单条查询使用：items_json/photos_json 是 MEDIUMTEXT，禁止下放到 /admin/records 分页列表
+     * （AdminService.records 的 SQL 分页下推注释即为此约束）。
+     */
+    public Map<String, Object> adminPreview(MaintainRecord r) {
+        // 照片墙先按全量明细解析（photoFileIds 优先，历史记录可恢复已上传但快照仍为本地路径的照片），
+        // 明细列表再过滤未执行项，两者不互相影响
+        List<Map<String, Object>> allItems = resolveItems(r.itemsJson);
+        List<String> photos = resolveRecordPhotos(allItems, r.photosJson);
+        List<Map<String, Object>> items = allItems.stream()
+                .filter(i -> !Boolean.TRUE.equals(i.get("notInThisRun")))
+                .map(i -> {
+                    Map<String, Object> c = new LinkedHashMap<>();
+                    c.put("name", i.get("name"));
+                    c.put("result", i.get("result"));
+                    c.put("value", i.get("value"));
+                    c.put("valueUnit", i.get("valueUnit"));
+                    c.put("valueText", i.get("valueText"));
+                    c.put("abnormalDesc", i.get("abnormalDesc"));
+                    c.put("skipReason", i.get("skipReason"));
+                    c.put("freqLabel", i.get("freqLabel"));
+                    c.put("photos", i.get("photos"));
+                    return c;
+                })
+                .collect(Collectors.toList());
+
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("id", r.id);
+        m.put("elevatorCode", WorkOrderService.nz(r.elevatorCode));
+        m.put("elevatorName", WorkOrderService.nz(r.elevatorName));
+        m.put("workType", WorkOrderService.nz(r.workType));
+        m.put("workTypeCode", WorkOrderService.nz(r.workTypeCode));
+        m.put("workerName", WorkOrderService.nz(r.workerName));
+        m.put("assistantName", WorkOrderService.nz(r.assistantName));
+        m.put("checkinTime", TimeUtil.format(r.checkinTime));
+        m.put("checkoutTime", TimeUtil.format(r.checkoutTime));
+        m.put("duration", WorkOrderService.nz(r.duration));
+        m.put("problemCodes", JsonUtil.readStringList(r.problemCodesJson));
+        m.put("originalRecordId", WorkOrderService.nz(r.originalRecordId));
+        m.put("confirmStatus", WorkOrderService.nz(r.confirmStatus));
+        m.put("lifecycleStatus", WorkOrderService.nz(r.lifecycleStatus));
+        m.put("reportStatus", WorkOrderService.nz(r.reportStatus));
+        // 版本链（M4）：修订后为 v2，v1 与签名永久保留，抽屉需让复核人看到当前版本
+        m.put("version", r.version);
+        m.put("archivedAt", TimeUtil.format(r.archivedAt));
+        m.put("hashPrefix", hashPrefix(r.archiveHash));
+        // 检查项明细（异常项由前端标红，不做任何「已整改」虚报）
+        m.put("items", items);
+        m.put("itemTotal", items.size());
+        m.put("itemAbnormal", (int) items.stream().filter(i -> "ABNORMAL".equals(i.get("result"))).count());
+        // 现场照片墙（已重签 URL，前端缩略图 + 点击放大）
+        m.put("photos", photos);
+        m.put("photoCount", photos.size());
+        // 三方签字（docs/13 §3.7）：主检 / 配合人 / 使用单位安全管理人员；缺失返回空串，前端渲染「待签字」占位
+        m.put("workerSignatureUrl", fileStorageService.resolveStoredUrl(r.workerSignatureUrl));
+        m.put("assistantSignatureUrl", fileStorageService.resolveStoredUrl(r.assistantSignatureUrl));
+        m.put("clientSignatureUrl", fileStorageService.resolveStoredUrl(r.signatureUrl));
+        m.put("clientSignerName", WorkOrderService.nz(r.clientSignerName));
+        m.put("clientSignedAt", TimeUtil.format(r.clientSignedAt));
+        // 现场安全防护勾选（V20）+ 待办事项：PDF「五、落实情况」同源
+        m.put("safety", r.safetyJson == null || r.safetyJson.isBlank()
+                ? Map.of() : JsonUtil.readMap(r.safetyJson));
+        m.put("todoDesc", WorkOrderService.nz(r.todoDesc));
+        // 预览上下文快照（V11）：使用单位/地址/签到经纬度，复核人据此核对作业地点
+        m.put("context", r.previewContextJson == null
+                ? Map.of() : JsonUtil.readMap(r.previewContextJson));
+        return m;
+    }
+
+    /**
      * 客户字段白名单投影（P1 T4，docs/14 §4.7，只取现有列）：仅返回客户签署确认所需内容。
      * 明确不返回：reportStatus/uploadStatus/retryCount/reportPayload/context(previewContext)/shareToken/
      * originalRecordId/workerPlatformId/assistantPlatformId/refuseReason（内部复核退回）/satisfaction/幂等键/平台日志。

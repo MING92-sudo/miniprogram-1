@@ -25,6 +25,19 @@ public class AuthInterceptor implements HandlerInterceptor {
     /** 规范角色码集（Set<String>，M1 多角色）；员工分支由 sys_user_role 填，门户分支含 CLIENT_ADMIN */
     public static final String ATTR_ROLES = "roles";
 
+    /**
+     * 当前请求是否为客户主体（client_account）。
+     *
+     * <p>统一登录改造后，客户令牌的 subject 是 {@code client_account.id}，查员工目录必然为空。
+     * 端点若不先判主体就调 {@code currentUser()}，会对客户返回 401；前端 request 层把 401 当
+     * 登录失效并清登录态，表现为「客户登录后被莫名踢回登录页」。
+     * 白名单内的端点一律先过这个方法，再决定走员工分支还是客户分支（缺陷 BUG-1 的成因）。
+     */
+    public static boolean isCustomerRequest(jakarta.servlet.http.HttpServletRequest request) {
+        return RoleCatalog.PrincipalType.CUSTOMER.name()
+                .equals(String.valueOf(request.getAttribute(ATTR_PRINCIPAL_TYPE)));
+    }
+
     private final JwtService jwtService;
     private final com.cqwlw.maintenance.mapper.EmployeeMapper employeeMapper;
     private final com.cqwlw.maintenance.mapper.SysUserRoleMapper userRoleMapper; // 可为 null（2 参兼容）
@@ -111,6 +124,7 @@ public class AuthInterceptor implements HandlerInterceptor {
             throw new BizException(401, "登录已过期，请重新登录");
         }
         request.setAttribute(ATTR_EMP_ID, claims.getSubject());
+        request.setAttribute(ATTR_PRINCIPAL_TYPE, RoleCatalog.PrincipalType.EMPLOYEE.name());
         // M2：角色以数据库为准——DB 降权/停用后旧 token 里的 role 不再生效
         request.setAttribute(ATTR_ROLE, user.role);
         request.setAttribute(ATTR_OPENID, claims.get("openid"));
@@ -147,9 +161,16 @@ public class AuthInterceptor implements HandlerInterceptor {
      * GET /elevators*（含 profile，本单位谓词在 ElevatorController 已有，跨单位 1403）。
      * 其余一律拒绝——尤其 /users /org /stats /audit /invites /grants /projects /roles-matrix
      * /admin/ /reg/ /platform/ /employees/ /use-units/ /home/summary。
+     *
+     * <p>维护规则（2026-11-20 静态排查后收紧）：精确端点必须与真实存在的端点一一对应。
+     * 曾登记 `/auth/client/switch-unit`、`/auth/client/bind-wechat` 两个不存在的端点，
+     * 属无效放行——会让人误以为客户有对应能力。现按 fail-closed 删除；新增客户端点必须显式登记，
+     * 并由 {@code scripts/e2e/scan-customer-principal.js} 复核「放行 + 主体支持」是否成对。
      */
     private static boolean clientAllowed(String uri, String method) {
-        // P3 客户主体新端点族：/client/** 全部放行（内部谓词在服务层按 token useUnitId 收敛）
+        // P3 客户主体新端点族：/client/** 全部放行（内部谓词在服务层按 token useUnitId 收敛）。
+        // 现状（2026-11-20 排查）：该前缀下尚无任何端点，访问会 404；保留是既定设计预留，
+        // 但它属"前缀全放"，将来新增 /client/* 会自动对客户开放——若要长期不用建议整体删除。
         if (uri.startsWith("/client/")) {
             return true;
         }
@@ -157,15 +178,21 @@ public class AuthInterceptor implements HandlerInterceptor {
             return true;
         }
         if (uri.equals("/me/menus") || uri.equals("/auth/me") || uri.equals("/auth/change-password")
-                || uri.equals("/auth/bind-wechat") || uri.equals("/auth/client/switch-unit")
-                || uri.equals("/auth/client/change-password") || uri.equals("/auth/client/bind-wechat")
+                || uri.equals("/auth/bind-wechat")
+                || uri.equals("/auth/client/me")
+                || uri.equals("/auth/client/change-password")
                 || uri.equals("/auth/logout") || uri.equals("/health")) {
             return true;
         }
         // 读口径与 AdminRoleInterceptor 的「GET /elevators* 小程序共用读接口」一致；写操作（派单等）不放行。
-        // 斜杠边界（P1 终审 M8）：equals("/elevators") || startsWith("/elevators/")，防 /elevators-xxx 前缀形 URI 误放行
+        // 精确到三个客户真正需要的读端点，而不是 /elevators/** 前缀全放：
+        // GET /elevators/{id}/archive 属移交档案（handover:view），客户角色无该能力，
+        // 前缀全放会让客户"够得着"一个与自身无关的内部档案端点（虽被权限矩阵 403 兜住）。
         return "GET".equalsIgnoreCase(method)
-                && (uri.startsWith("/files/") || uri.equals("/elevators") || uri.startsWith("/elevators/"));
+                && (uri.startsWith("/files/")
+                    || uri.equals("/elevators")
+                    || uri.equals("/elevators/by-code")
+                    || uri.matches("/elevators/[^/]+/profile"));
     }
 
     /**

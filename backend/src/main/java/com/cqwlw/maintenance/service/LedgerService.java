@@ -23,10 +23,14 @@ import java.util.Map;
 
 /**
  * M3 台账域：组织树 / 项目台账 / 邀请码 / 电梯移装停用报废双人确认。
- * 写操作先校验后落库并写审计；使用单位组织单级（禁挂子节点）；电梯变更确认人必须不同于发起人。
+ * 写操作先校验后落库并写审计；组织层级口径为「公司 → 部门 → 班组」三层且单公司
+ * （与 V51 修正后的存量数据一致）；电梯变更确认人必须不同于发起人。
  */
 @Service
 public class LedgerService {
+
+    /** 组织树只允许这三层：公司（顶级且唯一）→ 部门 → 班组 */
+    private static final java.util.Set<String> ORG_TYPES = java.util.Set.of("COMPANY", "DEPT", "TEAM");
 
     private final SysOrgMapper orgMapper;
     private final BizProjectMapper projectMapper;
@@ -47,9 +51,12 @@ public class LedgerService {
     }
 
     /**
-     * 组织树（GET /org）。P1（T5）临时口径：内部组织树只渲染 公司/部门/班组；
-     * UNIT（使用单位）节点数据保留、不进本视图（客户是外部租户主体，不属内部组织；
-     * P3 组织树重建后再定正式口径）。内存过滤避免 SQL ne 把 type=NULL 的历史行一并丢掉。
+     * 组织树（GET /org）：只渲染内部组织（公司 → 部门 → 班组）。
+     *
+     * UNIT（使用单位）是外部客户主体，归「使用单位档案」维护，不进本视图；
+     * V51 已下线 V36 遗留的「使用单位」DEPT 分组占位节点并解除 UNIT 父子关系，
+     * 这里保留 type=UNIT 的内存过滤作为历史数据兜底。
+     * 内存过滤（而非 SQL ne）避免把 type=NULL 的历史行一并丢掉。
      */
     public List<SysOrg> orgTree() {
         List<SysOrg> out = new ArrayList<>();
@@ -67,9 +74,17 @@ public class LedgerService {
         if (type == null || name == null || name.isBlank()) {
             throw new BizException(422, "组织类型与名称必填");
         }
+        // 使用单位是外部客户主体（use_unit / client_account），不进内部组织树
+        if ("UNIT".equals(type)) {
+            throw new BizException(422, "使用单位为外部客户主体，请在「使用单位档案」中开通");
+        }
+        if (!ORG_TYPES.contains(type)) {
+            throw new BizException(422, "组织类型仅支持 公司/部门/班组");
+        }
         String parentId = str(body, "parentId");
+        SysOrg parent = null;
         if (parentId != null) {
-            SysOrg parent = orgMapper.selectById(parentId);
+            parent = orgMapper.selectById(parentId);
             if (parent == null) {
                 throw new BizException(422, "上级组织不存在");
             }
@@ -77,6 +92,7 @@ public class LedgerService {
                 throw new BizException(422, "使用单位节点为单级，禁止挂子节点");
             }
         }
+        requireValidParent(type, parentId, parent);
         SysOrg org = new SysOrg();
         org.id = Ids.next("org");
         org.type = type;
@@ -90,6 +106,38 @@ public class LedgerService {
         orgMapper.insert(org);
         audit(actor, "org:create", org.id, "SUCCESS", null);
         return org;
+    }
+
+    /**
+     * 组织层级口径校验（修复 V51 暴露的同类问题：部门/班组与公司平级）。
+     *
+     * <p>规则与 V51 迁移后的存量数据一致：
+     * 公司必须是唯一根；部门必须挂在公司下；班组必须挂在部门下。
+     * 缺了这一层校验，「新建组织」可以再次造出 parent_id 为空的部门——
+     * 组织树上就会重新出现与公司并排的「安装部/维保部」。</p>
+     */
+    private void requireValidParent(String type, String parentId, SysOrg parent) {
+        if ("COMPANY".equals(type)) {
+            if (parentId != null) {
+                throw new BizException(422, "公司为顶级组织，不能指定上级");
+            }
+            // 单公司模型（V51 取 sort_order 最小的 COMPANY 挂部门，多公司会挂错）
+            Long companies = orgMapper.selectCount(
+                    new LambdaQueryWrapper<SysOrg>().eq(SysOrg::getType, "COMPANY"));
+            if (companies != null && companies > 0) {
+                throw new BizException(422, "已存在公司节点，单公司模型不支持新增公司");
+            }
+            return;
+        }
+        if (parentId == null) {
+            throw new BizException(422, "部门与班组必须归属上级：部门挂公司下，班组挂部门下");
+        }
+        if ("DEPT".equals(type) && !"COMPANY".equals(parent.getType())) {
+            throw new BizException(422, "部门只能挂在公司下");
+        }
+        if ("TEAM".equals(type) && !"DEPT".equals(parent.getType())) {
+            throw new BizException(422, "班组只能挂在部门下");
+        }
     }
 
     public SysOrg updateOrg(String id, Map<String, Object> body, String actor) {
@@ -120,8 +168,8 @@ public class LedgerService {
         p.projectNo = no;
         p.name = name;
         p.useUnitId = str(body, "useUnitId");
-        p.maintOrgId = str(body, "maintOrgId");
-        p.installOrgId = str(body, "installOrgId");
+        p.maintOrgId = requireDeptOrg(str(body, "maintOrgId"), "维保部门");
+        p.installOrgId = requireDeptOrg(str(body, "installOrgId"), "安装部门");
         p.elevatorCount = body.get("elevatorCount") == null ? 0 : Integer.parseInt(String.valueOf(body.get("elevatorCount")));
         p.contractId = str(body, "contractId");
         p.contractEndDate = str(body, "contractEndDate");
@@ -130,6 +178,26 @@ public class LedgerService {
         projectMapper.insert(p);
         audit(actor, "project:edit", p.id, "SUCCESS", null);
         return p;
+    }
+
+    /**
+     * 项目挂靠部门只接受 DEPT 节点（维保部/安装部）。历史上这两列可存任意字符串，
+     * 若存成公司/班组/使用单位，组织口径统计与派单归属都会错位。
+     *
+     * @param orgId 允许为空（草稿项目尚未指定部门）
+     */
+    private String requireDeptOrg(String orgId, String label) {
+        if (orgId == null) {
+            return null;
+        }
+        SysOrg org = orgMapper.selectById(orgId);
+        if (org == null) {
+            throw new BizException(422, label + "不存在");
+        }
+        if (!"DEPT".equals(org.getType())) {
+            throw new BizException(422, label + "只能选择部门节点");
+        }
+        return orgId;
     }
 
     public BizProject updateProject(String id, Map<String, Object> body, String actor) {

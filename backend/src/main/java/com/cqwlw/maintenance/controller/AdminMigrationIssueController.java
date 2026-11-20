@@ -52,7 +52,9 @@ public class AdminMigrationIssueController {
                                                      @RequestBody Map<String, Object> body,
                                                      HttpServletRequest req) {
         MultiRoleGate.requireWrite(req, PermissionMatrix.CONFIG_MANAGE);
-        Map<String, Object> decision = body == null ? null : (Map<String, Object>) body.get("decision");
+        // decision 是对象（按对象类型下发的裁定项）；用 instanceof 判型，错误类型按缺省处理而不是 500
+        Object rawDecision = body == null ? null : body.get("decision");
+        Map<String, Object> decision = rawDecision instanceof Map ? (Map<String, Object>) rawDecision : null;
         return ApiResponse.ok(service.resolve(id,
                 body == null ? null : (String) body.get("resolution"),
                 body == null ? null : (String) body.get("backfillUnitId"),

@@ -1,6 +1,7 @@
 package com.cqwlw.maintenance;
 
 import com.cqwlw.maintenance.entity.Company;
+import com.cqwlw.maintenance.entity.Elevator;
 import com.cqwlw.maintenance.entity.Employee;
 import com.cqwlw.maintenance.entity.UseUnit;
 import com.cqwlw.maintenance.mapper.CompanyMapper;
@@ -127,5 +128,129 @@ class PhoneMutexServiceTest {
         assertTrue(service.checkEmployee(null, "ADMIN", "13930003002").isEmpty());
         // 维保人员手机与既有使用单位负责人同号 → 冲突
         assertEquals(1, service.checkEmployee(null, "WORKER", "13930003002").size());
+    }
+
+    // ── 工单口径五角色互斥（用户 2026-11-19：作业前门禁） ──
+
+    private Elevator workOrderElevator(String useUnitId, String adminPhone, String emergencyPhone) {
+        Elevator el = new Elevator();
+        el.id = "el_1";
+        el.useUnitId = useUnitId;
+        el.elevatorAdministerPhone = adminPhone;
+        el.emergencyPhone = emergencyPhone;
+        return el;
+    }
+
+    private Employee workerByPlatform(String platformId, String name, String phone) {
+        Employee e = new Employee();
+        e.platformId = platformId;
+        e.name = name;
+        e.phone = phone;
+        e.role = "WORKER";
+        return e;
+    }
+
+    /**
+     * 按调用顺序模拟"按 platformId 反查员工"：checkWorkOrder 内 addWorkerParty 依次查维保人员1、2。
+     * 纯单元测试环境无 MyBatis-Plus lambda 缓存，无法解析 wrapper 条件，故用按序返回替代。
+     */
+    @SafeVarargs
+    private final void stubWorkersByPlatform(java.util.List<Employee>... resultsPerCall) {
+        org.mockito.stubbing.OngoingStubbing<List<Employee>> stubbing =
+                when(employeeMapper.selectList(any()));
+        for (java.util.List<Employee> r : resultsPerCall) {
+            stubbing = stubbing.thenReturn(r);
+        }
+        // 兜底：超出预设调用次数时返回空列表，避免误报
+        stubbing.thenReturn(List.of());
+    }
+
+    @Test
+    void checkWorkOrderDistinctPhonesPasses() {
+        // 五角色手机号各不相同 → 通过
+        UseUnit uu = new UseUnit();
+        uu.id = "uu_1";
+        uu.unitName = "世纪物业";
+        uu.unitPrincipalPhone = "13910001001";
+        uu.elevatorAdministerPhone = "13910001002";
+        when(useUnitMapper.selectById("uu_1")).thenReturn(uu);
+
+        Company c = new Company();
+        c.name = "维保单位";
+        c.workMenegerPhone = "13700000001";
+        when(companyMapper.selectList(any())).thenReturn(List.of(c));
+        stubWorkersByPlatform(
+                List.of(workerByPlatform("pid_1", "张伟", "13800000001")),
+                List.of(workerByPlatform("pid_2", "陈刚", "13800000002")));
+
+        List<Map<String, Object>> conflicts = service.checkWorkOrder(
+                "pid_1", "pid_2", workOrderElevator("uu_1", "13910001002", "13910001001"));
+        assertTrue(conflicts.isEmpty());
+    }
+
+    @Test
+    void checkWorkOrderWorker1AndWorker2SamePhoneIsConflict() {
+        // 维保人员1、维保人员2 同号 → 角色标签不同（维保人员1/2）→ 1002 冲突
+        when(companyMapper.selectList(any())).thenReturn(List.of());
+        stubWorkersByPlatform(
+                List.of(workerByPlatform("pid_1", "张伟", "13800000001")),
+                List.of(workerByPlatform("pid_2", "陈刚", "13800000001")));
+
+        List<Map<String, Object>> conflicts = service.checkWorkOrder("pid_1", "pid_2", null);
+        assertEquals(1, conflicts.size());
+        assertEquals("13800000001", conflicts.get(0).get("phone"));
+        List<?> roles = (List<?>) conflicts.get(0).get("roles");
+        assertEquals(2, roles.size());
+    }
+
+    @Test
+    void checkWorkOrderWorkerEqualsManagerIsConflict() {
+        // 维保经理与维保人员1 同号 → 冲突（2.6 备注：经理不能兼任本次作业人员）
+        Company c = new Company();
+        c.name = "维保单位";
+        c.workMenegerPhone = "13800000001";
+        when(companyMapper.selectList(any())).thenReturn(List.of(c));
+        stubWorkersByPlatform(List.of(workerByPlatform("pid_1", "张伟", "13800000001")));
+
+        assertEquals(1, service.checkWorkOrder("pid_1", "", null).size());
+    }
+
+    @Test
+    void checkWorkOrderElevatorAdminOverridesUseUnitAndEmergencyIgnored() {
+        // 电梯级安全管理员优先于使用单位档案；emergencyPhone 与负责人同号不参与
+        UseUnit uu = new UseUnit();
+        uu.id = "uu_1";
+        uu.unitName = "世纪物业";
+        uu.unitPrincipalPhone = "13910001001";
+        uu.elevatorAdministerPhone = "13910001999"; // 单位档案旧号，应被电梯档案覆盖
+        when(useUnitMapper.selectById("uu_1")).thenReturn(uu);
+
+        Company c = new Company();
+        c.name = "维保单位";
+        c.workMenegerPhone = "13700000001";
+        when(companyMapper.selectList(any())).thenReturn(List.of(c));
+        stubWorkersByPlatform(List.of(workerByPlatform("pid_1", "张伟", "13800000001")));
+
+        // 电梯档案安管员=负责人同号 → 冲突；若误用单位档案旧号则不冲突
+        List<Map<String, Object>> conflicts = service.checkWorkOrder(
+                "pid_1", "", workOrderElevator("uu_1", "13910001001", "13910001001"));
+        assertEquals(1, conflicts.size());
+        assertEquals("13910001001", conflicts.get(0).get("phone"));
+    }
+
+    @Test
+    void checkWorkOrderSingleWorkerDoesNotFalseAlarm() {
+        // 单人作业（配合为空）→ 只查维保人员1，不误报
+        when(companyMapper.selectList(any())).thenReturn(List.of());
+        stubWorkersByPlatform(List.of(workerByPlatform("pid_1", "张伟", "13800000001")));
+        assertTrue(service.checkWorkOrder("pid_1", "", null).isEmpty());
+    }
+
+    @Test
+    void checkWorkOrderUnknownPlatformIdDoesNotFalseAlarm() {
+        // platformId 未回填（员工查不到）→ 跳过，不误报
+        when(companyMapper.selectList(any())).thenReturn(List.of());
+        stubWorkersByPlatform(List.of(), List.of());
+        assertTrue(service.checkWorkOrder("pid_unknown", "pid_2", null).isEmpty());
     }
 }

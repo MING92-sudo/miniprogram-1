@@ -36,14 +36,11 @@ public class UserController {
 
     private final EmployeeMapper employeeMapper;
     private final SysUserRoleMapper userRoleMapper;
-    private final com.cqwlw.maintenance.mapper.UseUnitMapper useUnitMapper;
     private final BCryptPasswordEncoder enc = new BCryptPasswordEncoder();
 
-    public UserController(EmployeeMapper employeeMapper, SysUserRoleMapper userRoleMapper,
-                          com.cqwlw.maintenance.mapper.UseUnitMapper useUnitMapper) {
+    public UserController(EmployeeMapper employeeMapper, SysUserRoleMapper userRoleMapper) {
         this.employeeMapper = employeeMapper;
         this.userRoleMapper = userRoleMapper;
-        this.useUnitMapper = useUnitMapper;
     }
 
     private static String actor(HttpServletRequest req) {
@@ -90,7 +87,7 @@ public class UserController {
             throw new BizException(422, "姓名/手机号/角色必填且格式正确");
         }
         validateSameDepartment(roles);
-        String unitId = requireUnitAnchor(roles, str(body, "useUnitId"));
+        requireInternalRoles(roles);
         Employee e = new Employee();
         e.id = Ids.next("emp");
         e.name = name;
@@ -106,7 +103,7 @@ public class UserController {
         e.syncStatus = "NOT_SYNCED";
         employeeMapper.insert(e);
         for (String r : roles) {
-            insertRole(e.id, r, unitId);
+            insertRole(e.id, r);
         }
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("id", e.id);
@@ -135,14 +132,14 @@ public class UserController {
             throw new BizException(422, "至少一个角色");
         }
         validateSameDepartment(roles);
+        requireInternalRoles(roles);
         Employee e = employeeMapper.selectById(id);
         if (e == null) {
             throw new BizException(404, "账号不存在");
         }
-        String unitId = requireUnitAnchor(roles, str(body, "useUnitId"));
         userRoleMapper.delete(new LambdaQueryWrapper<SysUserRole>().eq(SysUserRole::getUserId, id));
         for (String r : roles) {
-            insertRole(id, r, unitId);
+            insertRole(id, r);
         }
         e.role = roles.get(0);
         e.roleText = RoleCatalog.nameOf(roles.get(0));
@@ -160,31 +157,27 @@ public class UserController {
         return out;
     }
 
-    private void insertRole(String userId, String role, String unitId) {
+    private void insertRole(String userId, String role) {
         SysUserRole ur = new SysUserRole();
         ur.id = Ids.next("ur");
         ur.userId = userId;
         ur.userType = "EMPLOYEE";
         ur.roleCode = role;
-        // 使用单位角色锚点 org_id=use_unit.id（本单位电梯/记录谓词用，2026-11-15 裁决；P1 起按主体类型判定）
-        if (RoleCatalog.principalTypeOf(role) == RoleCatalog.PrincipalType.CUSTOMER) {
-            ur.orgId = unitId;
-        }
         ur.createdAt = TimeUtil.now();
         userRoleMapper.insert(ur);
     }
 
-    /** 使用单位账号须先建单位档案并在其下开通；非客户主体返回 null（P1 按 principalType 判定）。 */
-    private String requireUnitAnchor(List<String> roles, String useUnitId) {
-        boolean unitRole = roles.stream()
-                .anyMatch(r -> RoleCatalog.principalTypeOf(r) == RoleCatalog.PrincipalType.CUSTOMER);
-        if (!unitRole) {
-            return null;
+    /**
+     * 人员目录只承载内部主体（P3 客户账号独立）：客户角色一律拒绝并引导到「使用单位档案 → 客户账号」。
+     * 客户账号存 client_account，登录统一走 /auth/login（按账号自动分流）；混入员工表会造成「停用一处、另一处仍可登录」。
+     */
+    private static void requireInternalRoles(List<String> roles) {
+        for (String r : roles) {
+            if (RoleCatalog.principalTypeOf(r) == RoleCatalog.PrincipalType.CUSTOMER) {
+                throw new BizException(422,
+                        "使用单位客户账号不在人员目录开通，请在「使用单位档案 → 客户账号」中开通");
+            }
         }
-        if (useUnitId == null || useUnitId.isBlank() || useUnitMapper.selectById(useUnitId) == null) {
-            throw new BizException(422, "使用单位账号须先建立单位档案并在其下开通");
-        }
-        return useUnitId;
     }
 
     private static void validateSameDepartment(List<String> roles) {

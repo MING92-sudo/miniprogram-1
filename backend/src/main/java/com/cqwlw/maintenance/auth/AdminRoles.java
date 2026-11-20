@@ -35,9 +35,9 @@ public final class AdminRoles {
         return RoleCatalog.canUseAdminConsole(role);
     }
 
-    /** 建档允许分配的角色（docs/14 §3）：除使用单位外的全部角色，规则见 RoleCatalog.assignableRoles */
+    /** 建档允许分配的角色（docs/14 §3）：历史码与规范码等价接受，客户主体排除，规则见 RoleCatalog.assignable */
     public static boolean assignable(String role) {
-        return RoleCatalog.assignableRoles().stream().anyMatch(r -> r.code().equals(role));
+        return RoleCatalog.assignable(role);
     }
 
     public static boolean known(String role) {

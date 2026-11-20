@@ -19,6 +19,11 @@ export function uploadLogs(params) {
   return http.get('/reg/upload-logs', { params })
 }
 
+/** 存量维保人员 platform_id 回填（docs/04 B.5）：按证书号查 2.5 补齐已建档但缺 ID 的人员 */
+export function backfillWorkers() {
+  return http.post('/platform/workers/backfill', {}, { timeout: 60000 })
+}
+
 export function registerWorker(form) {
   const fd = new FormData()
   Object.entries(form).forEach(([k, v]) => {

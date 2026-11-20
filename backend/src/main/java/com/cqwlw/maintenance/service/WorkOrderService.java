@@ -106,6 +106,33 @@ public class WorkOrderService {
         this.tenantSnapshotService = tenantSnapshotService;
     }
 
+    /**
+     * 手机号互斥校验（2.6 备注五角色，用户 2026-11-19 要求前移至"维保作业前"）：
+     * 可选注入，未注入时跳过（保护既有 6 处 new WorkOrderService 的测试构造器；生产 Spring 必注入）。
+     */
+    private PhoneMutexService phoneMutexService;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    public void setPhoneMutexService(PhoneMutexService phoneMutexService) {
+        this.phoneMutexService = phoneMutexService;
+    }
+
+    /**
+     * 作业门禁：本次工单五角色手机号互斥预校验（1002 + conflicts[]）。
+     * 与 buildReportPayload 取数口径一致；未注入校验服务时跳过（兼容旧测试）。
+     */
+    private void requirePhoneMutexForOrder(WorkOrder o, Elevator el) {
+        if (phoneMutexService == null) {
+            return;
+        }
+        List<Map<String, Object>> conflicts = phoneMutexService.checkWorkOrder(
+                o.workerPlatformId, o.assistantPlatformId, el);
+        if (!conflicts.isEmpty()) {
+            throw new BizException(1002, "手机号互斥冲突：本次维保作业的五个角色手机号存在重复，请核对档案后再作业（docs/01 §3.2.4）",
+                    Map.of("conflicts", conflicts));
+        }
+    }
+
     public WorkOrderService(WorkOrderMapper orderMapper, ElevatorMapper elevatorMapper,
                             UseUnitMapper useUnitMapper, EmployeeMapper employeeMapper,
                             CompanyMapper companyMapper, MaintainRecordMapper recordMapper,
@@ -169,14 +196,19 @@ public class WorkOrderService {
         }
         long unconfirmed = recordMapper.selectCount(new LambdaQueryWrapper<MaintainRecord>()
                 .eq(MaintainRecord::getConfirmStatus, "PENDING"));
-        long openFaults = faultMapper.selectCount(new LambdaQueryWrapper<Fault>()
-                .eq(Fault::getStatus, "OPEN")
-                .and(w -> {
-                    Set<String> creatorIds = scopeService.visibleCreatorIds(scopeService.require(empId));
-                    if (creatorIds != null) {
-                        w.in(Fault::getCreatedBy, creatorIds).or().isNull(Fault::getCreatedBy);
-                    }
-                }));
+        // 班组数据权限：privileged 返回 null（不限），其余限定本人/本组登记人 + 历史 created_by 为 NULL 的行。
+        // 注意：条件块必须在 SQL 里完全缺席，不能写成空的 .and(w -> {})——MyBatis-Plus 仍会拼出「AND ()」，
+        // 导致 MySQL 语法错误 1064（管理角色首页 500 的根因）；空集合也不能 .in()，同样生成「IN ()」。
+        LambdaQueryWrapper<Fault> openFaultQuery = new LambdaQueryWrapper<Fault>().eq(Fault::getStatus, "OPEN");
+        Set<String> faultyCreatorIds = scopeService.visibleCreatorIds(scopeService.require(empId));
+        if (faultyCreatorIds != null) {
+            if (faultyCreatorIds.isEmpty()) {
+                openFaultQuery.isNull(Fault::getCreatedBy);
+            } else {
+                openFaultQuery.and(w -> w.in(Fault::getCreatedBy, faultyCreatorIds).or().isNull(Fault::getCreatedBy));
+            }
+        }
+        long openFaults = faultMapper.selectCount(openFaultQuery);
         // 年检预警：自行检查逾期未检台数（须在下次定期检验前完成，docs/01 §3.17）
         int overdueInspects = 0;
         for (Elevator el : elevatorMapper.selectList(null)) {
@@ -347,6 +379,9 @@ public class WorkOrderService {
             throw new BizException(422, "签到必须携带定位坐标；定位失败请重试（严禁伪造坐标）");
         }
         Elevator el = elevatorMapper.selectById(o.elevatorId);
+        // 用户 2026-11-19：作业前门禁——2.6 五角色手机号互斥预校验，置于任何写操作之前
+        //（冲突不落库、不消费动态码、不改状态；docs/01 §3.2.4 + docs/04 第⑤级前移）。
+        requirePhoneMutexForOrder(o, el);
         // 动态码校验与消费在任何写操作之前：校验失败不产生副作用（不落库、不改状态）
         if (assistant) {
             consumeDynamicCode(o, str(body.get("dynamicCode")));
@@ -755,6 +790,9 @@ public class WorkOrderService {
             throw new BizException(1404, "电梯档案不存在，无法上传维保记录");
         }
         DeviceProfileValidator.requireForRecord(el);
+        // 用户 2026-11-19：签退冻结快照前复核五角色互斥（docs/04 第⑤级），
+        // 拦截在写状态之前——覆盖"签到后档案被改动"导致的漏网冲突，与 2.6 取数同源。
+        requirePhoneMutexForOrder(o, el);
 
         o.status = "DONE";
         o.checkoutTime = checkoutTime;
@@ -822,7 +860,9 @@ public class WorkOrderService {
         r.duration = o.duration;
         r.itemsJson = JsonUtil.write(frozen);
         r.photosJson = JsonUtil.write(photos);
-        r.safetyJson = JsonUtil.write(body.get("safetyConfirm"));
+        // 缺省安全防护勾选时写 SQL NULL，不要写成字符串 "null"：
+        // Jackson 读 "null" 得到 null 对象，PDF 渲染 safetyLine 会 NPE（E2E 实测客户签字 500）
+        r.safetyJson = body.get("safetyConfirm") == null ? null : JsonUtil.write(body.get("safetyConfirm"));
         r.todoDesc = strOrEmpty(body.get("todoDesc"));
         r.workerSignatureUrl = workerSignature;
         r.assistantSignatureUrl = assistantSignature;

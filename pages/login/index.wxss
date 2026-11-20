@@ -1,5 +1,5 @@
-/* 登录页（屏 00 · 原型 V1.4 对齐）：品牌=博威无纸化（圆形徽标/公司名/程序名不变，D4/D5）；
-   账号口令唯一表单不变（AGENTS §3.9）；补原型 hero 副标题/井道插画/统计条/ACCESS BY ROLE。 */
+/* 登录页（屏 00）：品牌=博威无纸化（圆形徽标/公司名/程序名不变，D4/D5）；
+   账号口令唯一表单不变（AGENTS §3.9）；hero 仅保留井道插画 + 标题，不再有副标题/角色说明（用户要求删除）。 */
 page{background:var(--ink);color:var(--text)}
 .lg-page{padding:24rpx 40rpx 32rpx;display:flex;flex-direction:column;min-height:calc(100vh - 120rpx);box-sizing:border-box}
 .lg-hero{position:relative;min-height:524rpx;padding-top:4rpx}
@@ -17,7 +17,6 @@ page{background:var(--ink);color:var(--text)}
 .lg-mark{width:92rpx;height:92rpx;flex:none}
 .lg-title{font-size:62rpx;line-height:1.14;letter-spacing:.02em;margin-top:44rpx;position:relative;z-index:1}
 .lg-title-line{display:block}
-.lg-sub{font-size:20rpx;color:var(--muted);line-height:1.75;max-width:400rpx;margin-top:18rpx;position:relative;z-index:1}
 .lg-hazard{height:8rpx;border-radius:2rpx;background:repeating-linear-gradient(45deg,var(--amber) 0 18rpx,var(--ink) 18rpx 36rpx);opacity:.72;margin:0 0 24rpx}
 .lg-card{position:relative;border:1rpx solid #2C3B42;border-radius:8rpx;padding:26rpx;background:linear-gradient(160deg,#162127,#0E171C);overflow:hidden;box-shadow:0 40rpx 80rpx -56rpx #000}
 .lg-card::before{content:'';position:absolute;left:0;top:0;right:0;height:6rpx;background:repeating-linear-gradient(90deg,var(--amber) 0 24rpx,var(--ink) 24rpx 48rpx);opacity:.85}
@@ -38,13 +37,4 @@ page{background:var(--ink);color:var(--text)}
 .lg-points view{display:flex;align-items:center;gap:8rpx;font-size:20rpx;color:var(--dim);white-space:nowrap}
 .lg-points .i{color:var(--amber);font-size:18rpx}
 .lg-stats{margin-top:20rpx}
-.lg-roles{margin-top:auto;padding-top:22rpx;border-top:1rpx dashed var(--line-2)}
-.lg-role-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12rpx}
-.lg-role-mini{border:1rpx solid #243138;background:rgba(255,255,255,.02);border-radius:4rpx;padding:14rpx 8rpx;text-align:center;font-size:20rpx;color:#B9C7CC;white-space:nowrap}
-.lg-role-mini .i{display:block;color:var(--amber);font-size:22rpx;margin-bottom:8rpx}
-.lg-role-note{line-height:1.6;margin-top:16rpx}
-.lg-foot{font-size:20rpx;color:var(--dim);text-align:center;line-height:1.7;margin-top:20rpx}
-/* P3 登录模式切换（内部员工 / 使用单位客户） */
-.lg-mode-switch{display:flex;border:1rpx solid #2b3a42;border-radius:6rpx;overflow:hidden}
-.lg-mode-item{flex:1;text-align:center;padding:14rpx 0;font-size:20rpx;color:#9FB0B6;background:rgba(255,255,255,.02)}
-.lg-mode-item.on{color:#0d1114;background:var(--amber);font-weight:600}
+.lg-foot{font-size:20rpx;color:var(--dim);text-align:center;line-height:1.7;margin-top:auto;padding-top:20rpx}

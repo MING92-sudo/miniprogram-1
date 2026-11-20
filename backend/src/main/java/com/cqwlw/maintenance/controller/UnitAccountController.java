@@ -22,6 +22,13 @@ import java.util.Map;
 public class UnitAccountController {
 
     private final UnitAccountService accountService;
+    /** 客户主体改密走 client_account（setter 注入，保持既有构造器签名） */
+    private com.cqwlw.maintenance.service.ClientAccountService clientAccountService;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    public void setClientAccountService(com.cqwlw.maintenance.service.ClientAccountService clientAccountService) {
+        this.clientAccountService = clientAccountService;
+    }
 
     public UnitAccountController(UnitAccountService accountService) {
         this.accountService = accountService;
@@ -58,6 +65,20 @@ public class UnitAccountController {
     @PostMapping("/unit/account/password")
     public ApiResponse<Map<String, Object>> changePassword(@RequestBody(required = false) Map<String, Object> body,
                                                            HttpServletRequest request) {
+        // 客户主体（client_account）：口令在 client_account.password_hash，
+        // 不能走 use_unit.password_hash（V41 迁移后该列已清空，会返回 401 并把客户踢回登录页）。
+        if (AuthInterceptor.isCustomerRequest(request)) {
+            if (clientAccountService == null) {
+                throw new BizException(500, "客户账号服务未就绪");
+            }
+            Object accountId = request.getAttribute(AuthInterceptor.ATTR_EMP_ID);
+            if (accountId == null) {
+                throw new BizException(401, "登录已过期，请重新登录");
+            }
+            clientAccountService.changePassword(String.valueOf(accountId),
+                    str(body, "oldPassword"), str(body, "newPassword"));
+            return ApiResponse.ok(Map.of("ok", true));
+        }
         Object unitId = request.getAttribute(AuthInterceptor.ATTR_UNIT_ID);
         if (unitId == null) {
             throw new BizException(403, "请使用使用单位账号登录门户");

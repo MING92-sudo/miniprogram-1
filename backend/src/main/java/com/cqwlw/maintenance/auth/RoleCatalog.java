@@ -119,19 +119,37 @@ public final class RoleCatalog {
         return ROLES.keySet();
     }
 
-    /** 部门码：PLATFORM/INSTALL/MAINT；客户主体（P1）与未知角色返回 null */
+    /**
+     * 部门码：PLATFORM/INSTALL/MAINT；客户主体（P1）与未知角色返回 null。
+     *
+     * <p>先按历史码查（保持既有文案/口径不变），再按规范码归一 —— 账号管理、人员建档等
+     * 入口传的是 13 个规范码（MAINT_TECH/INSTALLER/…），只查历史码会返回 null，
+     * 导致新建账号 department 落空、部门数据域谓词失效。
+     */
     public static String departmentOf(String role) {
         if (principalTypeOf(role) == PrincipalType.CUSTOMER) {
             return null; // P1：使用单位是外部租户，不再投影 UNIT 部门（旧 ROLES 表字段保留，仅供历史展示）
         }
         Role r = role(role);
+        if (r == null) {
+            r = canonicalRole(role);
+        }
         return r == null ? null : r.department();
     }
 
-    /** 中文名；未知角色返回 null */
+    /** 中文名；历史码优先（保留既有文案），再按规范码归一；未知角色返回 null */
     public static String nameOf(String role) {
         Role r = role(role);
+        if (r == null) {
+            r = canonicalRole(role);
+        }
         return r == null ? null : r.name();
+    }
+
+    /** 平台层（跨部门全权）：ADMIN/SYS_ADMIN，历史码与规范码（PLATFORM_ADMIN）等价 */
+    public static boolean isPlatformRole(String role) {
+        String c = canonical(role);
+        return "PLATFORM_ADMIN".equals(c) || SYS_ADMIN.equals(c);
     }
 
     /** 管理端是否可登录（docs/14 §3「可登录端」列 + §10 #1/#2 越权用例） */
@@ -140,8 +158,22 @@ public final class RoleCatalog {
         return r != null && r.adminConsole();
     }
 
+    /**
+     * 是否已知角色码：历史码与规范码都算（canonical 先查规范表再经 ALIAS 翻译）。
+     * 只查历史 {@code ROLES} 会让 MAINT_TECH/INSTALLER 等规范码被判未知——登录响应、种子数据、
+     * 角色分配都已切规范码，判定必须同口径。
+     */
     public static boolean known(String role) {
-        return role(role) != null;
+        return canonical(role) != null;
+    }
+
+    /**
+     * 建档可分配的角色（管理端「新建人员」判定）：仅员工主体。
+     * 接受历史码（WORKER…）与规范码（MAINT_TECH…）两种写法；客户主体（CLIENT_* / UNIT_ADMIN）
+     * 一律不可在人员目录建档——使用单位账号走「使用单位档案 → 客户账号」。
+     */
+    public static boolean assignable(String role) {
+        return principalTypeOf(role) == PrincipalType.EMPLOYEE;
     }
 
     /**

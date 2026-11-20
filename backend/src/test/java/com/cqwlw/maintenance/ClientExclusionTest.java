@@ -2,6 +2,7 @@ package com.cqwlw.maintenance;
 
 import com.cqwlw.maintenance.auth.AuthInterceptor;
 import com.cqwlw.maintenance.auth.MiniappMenuService;
+import com.cqwlw.maintenance.common.BizException;
 import com.cqwlw.maintenance.controller.UserController;
 import com.cqwlw.maintenance.entity.Elevator;
 import com.cqwlw.maintenance.entity.Employee;
@@ -37,6 +38,7 @@ import java.util.Map;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.atMost;
@@ -147,7 +149,7 @@ class ClientExclusionTest {
                 List.of(ur("emp_1", "MAINT_TECH", null)),
                 List.of(ur("emp_zw", "CLIENT_ADMIN", "uu_1"), ur("emp_zw", "CLIENT_SIGNER", "uu_1")),
                 List.of());
-        UserController controller = new UserController(employees, userRoles, mock(UseUnitMapper.class));
+        UserController controller = new UserController(employees, userRoles);
         HttpServletRequest req = mock(HttpServletRequest.class);
         when(req.getAttribute(AuthInterceptor.ATTR_ROLES)).thenReturn(Set.of("SYS_ADMIN"));
 
@@ -173,6 +175,21 @@ class ClientExclusionTest {
 
         assertTrue(out.stream().noneMatch(o -> "UNIT".equals(o.type)), "内部组织树不得渲染 UNIT 节点");
         assertEquals(List.of("org_c", "org_d", "org_t"), out.stream().map(o -> o.id).toList());
+    }
+
+    // ── ②' 使用单位不得作为内部组织新建（外部客户主体走「使用单位档案」） ──
+
+    @Test
+    void createOrgRejectsUnitType() {
+        LedgerService service = new LedgerService(mock(SysOrgMapper.class), mock(BizProjectMapper.class),
+                mock(SysInviteMapper.class), mock(BizElevatorChangeMapper.class),
+                mock(ElevatorMapper.class), mock(AuditLogService.class));
+
+        BizException ex = assertThrows(BizException.class,
+                () -> service.createOrg(Map.of("type", "UNIT", "name", "某物业公司"), "emp_1"));
+
+        assertEquals(422, ex.getCode());
+        assertTrue(ex.getMessage().contains("使用单位档案"), "应引导至「使用单位档案」开通");
     }
 
     // ── ③ 统计口径（无人数键，内部全量保持；客户令牌不可达由 T3 锁定） ──

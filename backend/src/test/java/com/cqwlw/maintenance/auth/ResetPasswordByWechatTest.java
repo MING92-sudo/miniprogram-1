@@ -1,9 +1,10 @@
 package com.cqwlw.maintenance.auth;
 
 import com.cqwlw.maintenance.common.BizException;
+import com.cqwlw.maintenance.entity.ClientAccount;
 import com.cqwlw.maintenance.entity.Employee;
 import com.cqwlw.maintenance.mapper.EmployeeMapper;
-import com.cqwlw.maintenance.service.UnitAccountService;
+import com.cqwlw.maintenance.service.ClientLoginService;
 import com.cqwlw.maintenance.service.WxAuthService;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -24,11 +25,12 @@ class ResetPasswordByWechatTest {
 
     private final EmployeeMapper employeeMapper = mock(EmployeeMapper.class);
     private final WxAuthService wxAuthService = mock(WxAuthService.class);
+    private final ClientLoginService clientLoginService = mock(ClientLoginService.class);
     private final BCryptPasswordEncoder enc = new BCryptPasswordEncoder();
 
     private AuthController controller() {
         return new AuthController(employeeMapper, mock(JwtService.class), wxAuthService,
-                mock(MenuService.class), mock(UnitAccountService.class), mock(UserRoleService.class));
+                clientLoginService, mock(UserRoleService.class));
     }
 
     private Employee bound() {
@@ -66,6 +68,7 @@ class ResetPasswordByWechatTest {
     void unboundWechatRejectedWithoutWrite() {
         when(wxAuthService.openidFromCode("code_ok")).thenReturn("wx_unknown");
         when(employeeMapper.selectOne(any())).thenReturn(null);
+        when(clientLoginService.activeAccountsByOpenid("wx_unknown")).thenReturn(java.util.List.of());
 
         BizException ex = assertThrows(BizException.class, () -> controller().resetPasswordByWechat(
                 Map.of("code", "code_ok", "newPassword", "NewPass123")));
@@ -102,6 +105,26 @@ class ResetPasswordByWechatTest {
 
         assertEquals(403, ex.getCode());
         verify(employeeMapper, never()).updateById(any(Employee.class));
+    }
+
+    /** 客户账号（client_account）绑定微信命中：重置客户口令，回传手机号 + CUSTOMER 主体 */
+    @Test
+    void resetsClientAccountPasswordByWechat() {
+        when(wxAuthService.openidFromCode("code_c")).thenReturn("wx_client_1");
+        when(employeeMapper.selectOne(any())).thenReturn(null);
+        ClientAccount c = new ClientAccount();
+        c.id = "ca_1";
+        c.phone = "13800000003";
+        c.status = ClientAccount.STATUS_ACTIVE;
+        when(clientLoginService.activeAccountsByOpenid("wx_client_1")).thenReturn(java.util.List.of(c));
+
+        Map<String, Object> data = controller().resetPasswordByWechat(
+                Map.of("code", "code_c", "newPassword", "NewPass123")).getData();
+
+        assertEquals(true, data.get("ok"));
+        assertEquals("13800000003", data.get("account"));
+        assertEquals("CUSTOMER", data.get("principalType"));
+        verify(clientLoginService).resetPasswordByWechat("ca_1", "NewPass123");
     }
 
     /** code 无效：WxAuthService 422 透传，不得落库 */

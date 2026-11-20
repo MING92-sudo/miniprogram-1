@@ -26,6 +26,12 @@ definePage(ROUTES['/pages/elevator/detail/index'], {
     this.fetchProfile()
   },
   fetchProfile() {
+    // 缺 id（扫码/分享直达）时不得发起请求：/elevators//profile 会被网关判成不存在的接口，
+    // 用户看到的是「接口不存在」而不是「参数缺失」（小程序实测）。
+    if (!this.data.id) {
+      this.setData({ loading: false, error: '缺少电梯参数，请从电梯列表进入' })
+      return
+    }
     this.setData({ loading: true, error: '' })
     getElevatorProfile(this.data.id)
       .then((profile) => {

@@ -86,6 +86,43 @@ public class GlobalExceptionHandler {
         return ApiResponse.error(405, "请求方法不支持");
     }
 
+    /**
+     * 缺少必填查询参数（如 /admin/plans/conflicts 少 planId）：客户端错误 400。
+     * 未映射时会被兜底 handler 报成 500，把「调用方漏参」伪装成「服务端故障」。
+     */
+    @ExceptionHandler(org.springframework.web.bind.MissingServletRequestParameterException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ApiResponse<Void> handleMissingParam(org.springframework.web.bind.MissingServletRequestParameterException e) {
+        return ApiResponse.error(400, "缺少必填参数：" + e.getParameterName());
+    }
+
+    /** 路径变量缺失（路由模板含 {x} 但未匹配）：400 */
+    @ExceptionHandler(org.springframework.web.bind.MissingPathVariableException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ApiResponse<Void> handleMissingPathVar(org.springframework.web.bind.MissingPathVariableException e) {
+        return ApiResponse.error(400, "缺少路径参数：" + e.getVariableName());
+    }
+
+    /** 参数类型不匹配（如把 id 传成非数字）：400 */
+    @ExceptionHandler(org.springframework.web.method.annotation.MethodArgumentTypeMismatchException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ApiResponse<Void> handleTypeMismatch(org.springframework.web.method.annotation.MethodArgumentTypeMismatchException e) {
+        return ApiResponse.error(400, "参数类型错误：" + e.getName());
+    }
+
+    /** 非 multipart 请求打上传端点：415（不支持的媒体类型），不是 500 */
+    @ExceptionHandler(org.springframework.web.multipart.MultipartException.class)
+    @ResponseStatus(HttpStatus.UNSUPPORTED_MEDIA_TYPE)
+    public ApiResponse<Void> handleNotMultipart(org.springframework.web.multipart.MultipartException e) {
+        return ApiResponse.error(415, "上传接口须使用 multipart/form-data");
+    }
+
+    @ExceptionHandler(org.springframework.web.HttpMediaTypeNotSupportedException.class)
+    @ResponseStatus(HttpStatus.UNSUPPORTED_MEDIA_TYPE)
+    public ApiResponse<Void> handleMediaType(org.springframework.web.HttpMediaTypeNotSupportedException e) {
+        return ApiResponse.error(415, "不支持的 Content-Type");
+    }
+
     @ExceptionHandler(Exception.class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     public ApiResponse<Void> handleUnknown(Exception e) {

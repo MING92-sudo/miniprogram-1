@@ -24,6 +24,9 @@ public class ElevatorController {
     private final DispatchService dispatchService;
     private final com.cqwlw.maintenance.mapper.SysUserRoleMapper userRoleMapper;
 
+    /** P3 客户账号（setter 注入，保持既有构造器签名不波及测试） */
+    private com.cqwlw.maintenance.mapper.ClientAccountMapper clientAccountMapper;
+
     public ElevatorController(ElevatorService elevatorService, DispatchService dispatchService,
                               com.cqwlw.maintenance.mapper.SysUserRoleMapper userRoleMapper) {
         this.elevatorService = elevatorService;
@@ -31,8 +34,30 @@ public class ElevatorController {
         this.userRoleMapper = userRoleMapper;
     }
 
-    /** CLIENT 角色的组织锚点（sys_user_role.org_id = use_unit.id），与 DirectoryController 同口径 */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    public void setClientAccountMapper(com.cqwlw.maintenance.mapper.ClientAccountMapper clientAccountMapper) {
+        this.clientAccountMapper = clientAccountMapper;
+    }
+
+    /**
+     * CLIENT 主体的组织锚点（= use_unit.id）。
+     * 客户账号统一到 client_account 后，锚点在 client_account.use_unit_id；
+     * 旧实现的 sys_user_role 口径只覆盖"员工持 CLIENT 角色"的历史形态，
+     * 对客户令牌（subject=client_account.id）恒查不到 → 空列表 / 1403（小程序实测踩到）。
+     */
     private String unitAnchor(HttpServletRequest request) {
+        Object principalType = request.getAttribute(com.cqwlw.maintenance.auth.AuthInterceptor.ATTR_PRINCIPAL_TYPE);
+        if (com.cqwlw.maintenance.auth.RoleCatalog.PrincipalType.CUSTOMER.name()
+                .equals(String.valueOf(principalType)) && clientAccountMapper != null) {
+            Object accountId = request.getAttribute(com.cqwlw.maintenance.auth.AuthInterceptor.ATTR_EMP_ID);
+            if (accountId != null) {
+                com.cqwlw.maintenance.entity.ClientAccount account =
+                        clientAccountMapper.selectById(String.valueOf(accountId));
+                if (account != null && account.useUnitId != null) {
+                    return account.useUnitId;
+                }
+            }
+        }
         com.cqwlw.maintenance.entity.SysUserRole row = userRoleMapper.selectOne(
                 new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<com.cqwlw.maintenance.entity.SysUserRole>()
                         .eq(com.cqwlw.maintenance.entity.SysUserRole::getUserId, empId(request))

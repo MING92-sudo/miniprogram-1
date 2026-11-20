@@ -287,6 +287,24 @@ public class ClientAccountService {
         mapper.updateById(c);
     }
 
+    /**
+     * 微信验证自助重置（忘记密码，免旧口令）：新口令 ≥6 位，清会话（旧 token 立即 401）。
+     * 仅在 openid 已由服务端 code 换取并命中账号后调用，不做口令校验。
+     */
+    @Transactional
+    public void resetPasswordAfterWechatVerify(String id, String newPassword) {
+        ClientAccount c = findOr404(id);
+        if (newPassword == null || newPassword.length() < 6) {
+            throw new BizException(422, "新密码至少 6 位");
+        }
+        c.passwordHash = encoder.encode(newPassword);
+        c.updatedAt = TimeUtil.now();
+        invalidateSession(c);
+        mapper.updateById(c);
+        auditSystem(c.useUnitId, "CLIENT_ACCOUNT_RESET_PWD_WECHAT", c.id,
+                "微信验证自助重置口令 " + (c.name == null ? c.phone : c.name));
+    }
+
     /** 客户自助改密：验原口令 + 新口令 ≥6 位，清会话（旧 token 401）。由 BCrypt 校验，错误 422。 */
     public void changePassword(String id, String oldPwd, String newPwd) {
         ClientAccount c = findOr404(id);
@@ -326,6 +344,19 @@ public class ClientAccountService {
     private void invalidateSession(ClientAccount c) {
         c.sessionId = null;
         c.scopeVersion = (c.scopeVersion == null ? 1 : c.scopeVersion) + 1;
+    }
+
+    /**
+     * 注销会话（POST /auth/logout 的客户分支）：清 sid + 递增 scope_version，使旧令牌立即 401。
+     * 幂等：账号不存在直接返回，不抛错（注销请求不因账号已被删而失败）。
+     */
+    public void revokeSession(String id) {
+        ClientAccount c = id == null || id.isBlank() ? null : mapper.selectById(id);
+        if (c == null) {
+            return;
+        }
+        invalidateSession(c);
+        mapper.updateById(c);
     }
 
     private ClientAccount findOr404(String id) {

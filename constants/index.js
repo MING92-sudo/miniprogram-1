@@ -323,7 +323,6 @@ const LOGIN_TEXT = {
   BRAND_SUB: '电梯无纸化维保系统',
   TITLE_1: '让每一台电梯',
   TITLE_2: '都有据可查',
-  SUBTITLE: '安装移交、半月保点检、急修报修与使用单位签字，全部在手机上闭环。',
   CARD_TITLE: '登录工作台',
   CARD_TAG: '统一入口',
   ACCOUNT: '账号',
@@ -345,14 +344,6 @@ const LOGIN_TEXT = {
     { n: '15天', label: '半月保周期', tone: '' },
     { n: '100%', label: '签字留痕', tone: 'ok' }
   ],
-  ROLES_TITLE: 'ACCESS BY ROLE',
-  ROLES_SUB: '一个入口 · 三种工作台',
-  ROLE_CARDS: [
-    { icon: 'screwdriver-wrench', label: '维保部' },
-    { icon: 'helmet-safety', label: '安装部' },
-    { icon: 'building', label: '使用单位' }
-  ],
-  ROLE_NOTE: '登录后由账号权限自动进入对应工作台，无需选择角色。',
   FLOORS: ['12F', '09F', '06F', '03F', '01F']
 }
 const RECORD_TEXT = {

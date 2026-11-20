@@ -118,10 +118,13 @@ const db = {
     { id: 'uu_2', unitName: '重庆蓝湾物业服务有限公司', unitPrincipal: '周涛', unitPrincipalPhone: '13930003002', elevatorAdminister: '吴静', elevatorAdministerPhone: '13800003005', emergencyPhone: '023-67991234' }
   ],
 
-  // P3 客户账号（独立于员工体系；一单位 1..N 账号，同一单位活跃手机号唯一）。password 仅 mock 明文，真实环境 BCrypt。
+  // P3 客户账号（独立于员工体系，不进 sys_employee；一单位 1..N 账号，同一单位活跃手机号唯一）。
+  // 统一登录：/auth/login 员工目录未命中时按手机号在本表校验，前端不区分通道。
+  // password 仅 mock 明文（真实环境 BCrypt），演示密码与员工一致 123456。
   clientAccounts: [
-    { id: 'ca_1', useUnitId: 'uu_1', name: '王芳', phone: '13800000003', password: '000003', role: 'CLIENT_ADMIN', roleText: '使用单位管理员', principalType: 'CUSTOMER', status: 'ACTIVE', enabled: 1, graceUntil: '', wechatBound: false, createdBy: '', createdAt: '2026-11-19 10:00:00', lastLoginAt: '', disabledReason: '' },
-    { id: 'ca_2', useUnitId: 'uu_2', name: '吴静', phone: '13800003005', password: '030005', role: 'CLIENT_ADMIN', roleText: '使用单位管理员', principalType: 'CUSTOMER', status: 'ACTIVE', enabled: 1, graceUntil: '', wechatBound: false, createdBy: '', createdAt: '2026-11-19 10:05:00', lastLoginAt: '', disabledReason: '' }
+    { id: 'ca_1', useUnitId: 'uu_1', name: '王芳', phone: '13800000003', password: '123456', role: 'CLIENT_ADMIN', roleText: '使用单位管理员', principalType: 'CUSTOMER', status: 'ACTIVE', enabled: 1, graceUntil: '', wechatBound: false, createdBy: '', createdAt: '2026-11-19 10:00:00', lastLoginAt: '', disabledReason: '' },
+    { id: 'ca_2', useUnitId: 'uu_2', name: '吴静', phone: '13800003005', password: '123456', role: 'CLIENT_ADMIN', roleText: '使用单位管理员', principalType: 'CUSTOMER', status: 'ACTIVE', enabled: 1, graceUntil: '', wechatBound: false, createdBy: '', createdAt: '2026-11-19 10:05:00', lastLoginAt: '', disabledReason: '' },
+    { id: 'ca_3', useUnitId: 'uu_1', name: '张伟', phone: '13800000012', password: '123456', role: 'CLIENT_ADMIN', roleText: '使用单位管理员', principalType: 'CUSTOMER', status: 'ACTIVE', enabled: 1, graceUntil: '', wechatBound: false, createdBy: '', createdAt: '2026-11-19 10:10:00', lastLoginAt: '', disabledReason: '' }
   ],
 
   // 演示账号（正式版由 /auth/wx-login + 绑定流程产生）；platformId 为平台人员ID（2.5 同步产物）
@@ -135,13 +138,9 @@ const db = {
       certificate: 'CQ3601030002', workStartDate: '2023-06-01', workEndDate: addDays(250), workStat: 'normal', syncStatus: 'ACTIVE' },
     WORKER2: { id: 'emp_3', name: '李强', phone: '13800000004', account: '13800000004', password: '123456', role: 'WORKER', roleText: '维保人员', groupName: '维保一班', platformId: '6901284774286860288',
       certificate: 'CQ3601030003', workStartDate: '2024-08-01', workEndDate: addDays(500), workStat: 'normal', syncStatus: 'ACTIVE' },
-    UNIT_ADMIN: { id: 'unit_1', name: '王芳', phone: '13800000003', account: '13800000003', password: '123456', role: 'UNIT_ADMIN', roleText: '使用单位安全管理员', useUnitId: 'uu_1', platformId: '',
-      certificate: '', workStartDate: '', workEndDate: '', workStat: '', syncStatus: 'NOT_SYNCED' },
     // ── M2 蓝图基准演示人物（spec §5.2-6，多角色；旧账号保留兼容） ──
     MAINT_TECH: { id: 'emp_lzg', name: '李振国', phone: '13800000011', account: '13800000011', password: '123456', role: 'MAINT_TECH', roles: ['MAINT_TECH'], roleText: '维保人员', groupName: '维保一组', jobNo: 'T3101', platformId: '6901282369105174537',
       certificate: 'CQ3601030011', workStartDate: '2023-03-01', workEndDate: addDays(400), workStat: 'normal', syncStatus: 'ACTIVE' },
-    CLIENT_ZW: { id: 'emp_zw', name: '张伟', phone: '13800000012', account: '13800000012', password: '123456', role: 'CLIENT_ADMIN', roles: ['CLIENT_ADMIN', 'CLIENT_SIGNER'], roleText: '使用单位管理员兼签字人', unitName: '启元物业', useUnitId: 'uu_1', jobTitle: '值班经理', platformId: '',
-      certificate: '', workStartDate: '', workEndDate: '', workStat: '', syncStatus: 'NOT_SYNCED' },
     INST_PM: { id: 'emp_wq', name: '王强', phone: '13800000013', account: '13800000013', password: '123456', role: 'INST_PM', roles: ['INST_PM'], roleText: '安装部项目负责人', groupName: '安装一部', platformId: '',
       certificate: '', workStartDate: '2022-05-01', workEndDate: addDays(500), workStat: 'normal', syncStatus: 'ACTIVE' },
     INST_CLERK: { id: 'emp_lq', name: '刘倩', phone: '13800000014', account: '13800000014', password: '123456', role: 'INST_CLERK', roles: ['INST_CLERK'], roleText: '安装部资料员', groupName: '安装一部', platformId: '',

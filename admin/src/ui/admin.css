@@ -749,3 +749,29 @@ pre.json{margin:0;font-family:var(--font-mono);font-size:12px;line-height:1.6;co
 .board-techs{flex-direction:row;flex-wrap:wrap}
 .bt-item{display:flex;align-items:center;gap:10px;flex:1;min-width:220px;padding:10px 12px;border:1px solid var(--line);border-radius:var(--r-tag);background:rgba(255,255,255,.02)}
 @media (max-width:1200px){.board-main{grid-template-columns:1fr}.board-kpi{grid-template-columns:repeat(2,1fr)}}
+/* ===== 记录单管理端预览（docs/09 §6.12：检查项明细 / 现场照片墙 / 三方签字原图） ===== */
+.sec-t .sec-tag{font-family:var(--font-mono);font-size:11px;letter-spacing:.02em;color:var(--dim);
+  border:1px solid var(--line);border-radius:10px;padding:1px 8px;white-space:nowrap}
+.rec-items{list-style:none;margin:0;padding:0;border:1px solid var(--line);border-radius:var(--r-card);overflow:hidden}
+.rec-item{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,auto) auto;gap:12px;align-items:center;
+  padding:7px 12px;font-size:var(--fs-sm);border-top:1px solid var(--line)}
+.rec-item:first-child{border-top:0}
+.rec-item:nth-child(odd){background:rgba(255,255,255,.02)}
+.rec-item .ri-name{color:#DCE6E9;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rec-item .ri-val{font-family:var(--font-mono);font-size:11px;color:var(--dim);max-width:210px;
+  text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rec-item.bad{background:rgba(255,75,43,.07)}
+.rec-item.bad .ri-name{color:var(--signal-soft)}
+.rec-photos{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px}
+.rec-photo{position:relative;padding:0;aspect-ratio:4/3;border:1px solid var(--line-2);border-radius:var(--r-tag);
+  overflow:hidden;background:#0F1A1F;cursor:zoom-in;appearance:none}
+.rec-photo img{width:100%;height:100%;object-fit:cover;display:block}
+.rec-photo:hover{border-color:var(--amber)}
+.rec-photo:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
+.sig-img{display:block;width:100%;max-height:64px;object-fit:contain;margin-top:4px;cursor:zoom-in;
+  background:#fff;border-radius:2px}
+.sig-img:hover{outline:1px solid var(--amber)}
+.rec-lightbox{position:fixed;inset:0;z-index:100;background:rgba(6,12,15,.92);display:flex;
+  align-items:center;justify-content:center;padding:44px;cursor:zoom-out}
+.rec-lightbox img{max-width:100%;max-height:100%;object-fit:contain;border-radius:var(--r-card);box-shadow:0 30px 80px -30px #000}
+.rec-lb-x{position:absolute;top:18px;right:18px;background:rgba(255,255,255,.12)}

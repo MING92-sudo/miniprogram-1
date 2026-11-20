@@ -1,8 +1,10 @@
 package com.cqwlw.maintenance.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.cqwlw.maintenance.auth.RoleCatalog;
 import com.cqwlw.maintenance.common.Ids;
 import com.cqwlw.maintenance.config.AppProperties;
+import com.cqwlw.maintenance.entity.ClientAccount;
 import com.cqwlw.maintenance.entity.Company;
 import com.cqwlw.maintenance.entity.Drill;
 import com.cqwlw.maintenance.entity.Employee;
@@ -17,6 +19,7 @@ import com.cqwlw.maintenance.entity.SysOrg;
 import com.cqwlw.maintenance.entity.SysUserRole;
 import com.cqwlw.maintenance.entity.UseUnit;
 import com.cqwlw.maintenance.entity.WorkOrder;
+import com.cqwlw.maintenance.mapper.ClientAccountMapper;
 import com.cqwlw.maintenance.mapper.CompanyMapper;
 import com.cqwlw.maintenance.mapper.DrillMapper;
 import com.cqwlw.maintenance.mapper.EmployeeMapper;
@@ -86,6 +89,7 @@ public class DemoDataSeeder implements ApplicationRunner {
     private final WorkOrderService workOrderService;
     private final SysOrgMapper orgMapper;
     private final SysUserRoleMapper userRoleMapper;
+    private final ClientAccountMapper clientAccountMapper;
 
     @SuppressWarnings("checkstyle:ParameterNumber")
     public DemoDataSeeder(AppProperties props, CompanyMapper companyMapper, EmployeeMapper employeeMapper,
@@ -94,7 +98,8 @@ public class DemoDataSeeder implements ApplicationRunner {
                           MessageMapper messageMapper, RescueMapper rescueMapper, FaultMapper faultMapper,
                           DrillMapper drillMapper, InspectRecordMapper inspectMapper,
                           KnowledgeMapper knowledgeMapper, ChecklistService checklistService,
-                          WorkOrderService workOrderService, SysOrgMapper orgMapper, SysUserRoleMapper userRoleMapper) {
+                          WorkOrderService workOrderService, SysOrgMapper orgMapper, SysUserRoleMapper userRoleMapper,
+                          ClientAccountMapper clientAccountMapper) {
         this.props = props;
         this.companyMapper = companyMapper;
         this.employeeMapper = employeeMapper;
@@ -112,6 +117,7 @@ public class DemoDataSeeder implements ApplicationRunner {
         this.workOrderService = workOrderService;
         this.orgMapper = orgMapper;
         this.userRoleMapper = userRoleMapper;
+        this.clientAccountMapper = clientAccountMapper;
     }
 
     @Override
@@ -124,7 +130,8 @@ public class DemoDataSeeder implements ApplicationRunner {
             return;
         }
         log.warn("SEED_DEMO_DATA=true：正在向【空库】写入演示数据，"
-                + "其中包含 14 个口令为 123456 的演示账号（含 SYS_ADMIN 13800000010、三部门补齐账号）。"
+                + "其中包含 15 个口令为 123456 的演示账号（11 个内部账号 + 4 个使用单位客户账号；"
+                + "含 SYS_ADMIN 13800000010、三部门补齐账号）。"
                 + "生产环境必须置 false（AGENTS §2.1）。已存在员工数据时本 Seeder 不执行。");
         log.info("开始写入演示种子数据（SEED_DEMO_DATA=true）");
         seed();
@@ -143,6 +150,7 @@ public class DemoDataSeeder implements ApplicationRunner {
         c.workMenegerName = "赵敏";
         c.workMenegerPhone = "13723220001";
         companyMapper.insert(c);
+        seedOrgTree(c.name);
 
         // ── 演示账号 ──
         employee("emp_1", "张伟", "13800000001", "WORKER", "维保人员", DEMO_GROUP,
@@ -151,8 +159,6 @@ public class DemoDataSeeder implements ApplicationRunner {
                 PID_CHENGANG, "CQ3601030002", "2023-06-01", 250, enc);
         employee("emp_3", "李强", "13800000004", "WORKER", "维保人员", DEMO_GROUP,
                 PID_LIQIANG, "CQ3601030003", "2024-08-01", 500, enc);
-        employee("unit_1", "王芳", "13800000003", "UNIT_ADMIN", "使用单位安全管理员", "",
-                "", "", "", 0, enc);
 
         // ── 管理端演示账号（docs/09 §五：种子新增 ADMIN；账号/初始密码见 README）──
         employee("emp_admin", "郑浩", "13800000009", "ADMIN", "维保部管理员", "",
@@ -163,8 +169,6 @@ public class DemoDataSeeder implements ApplicationRunner {
         // ── 渲染口径对齐（2026-11-15 裁决）：三部门演示账号补齐，与 mock/data.js 同号 ──
         employee("emp_lzg", "李振国", "13800000011", "MAINT_TECH", "维保人员", "维保一组",
                 PID_ZHANGWEI, "CQ3601030011", "2023-03-01", 400, enc);
-        employee("emp_zw", "张伟", "13800000012", "CLIENT_ADMIN", "使用单位管理员兼签字人", "",
-                "", "", "", 0, enc);
         employee("emp_wq", "王强", "13800000013", "INST_PM", "安装部项目负责人", "安装一部",
                 "", "", "2022-05-01", 500, enc);
         employee("emp_lq", "刘倩", "13800000014", "INST_CLERK", "安装部资料员", "安装一部",
@@ -173,17 +177,17 @@ public class DemoDataSeeder implements ApplicationRunner {
                 "990015", "CQ3601030015", "2020-01-01", 600, enc);
         employee("emp_azy", "安装员", "13800000017", "INSTALLER", "安装员", "安装一部",
                 "", "", "2023-01-01", 500, enc);
-        employee("emp_qzr", "签字人", "13800000018", "CLIENT_SIGNER", "使用单位签字人", "",
-                "", "", "", 0, enc);
-        // 使用单位账号单位锚点（org_id=use_unit.id）：先建单位档案（uu_1/uu_2 上方已建）再在其下开通
-        unitRole("unit_1", "CLIENT_ADMIN", "uu_1");
-        unitRole("emp_zw", "CLIENT_ADMIN", "uu_1");
-        unitRole("emp_zw", "CLIENT_SIGNER", "uu_1");
-        unitRole("emp_qzr", "CLIENT_SIGNER", "uu_1");
 
         // ── 使用单位 ──
         useUnit("uu_1", "重庆世纪物业管理有限公司", "91500106MAABU3796N", "刘建国", "13910001001", "王芳", "13800000003", "02367612345");
         useUnit("uu_2", "重庆蓝湾物业服务有限公司", "91500106MAABU3797P", "周涛", "13930003002", "吴静", "13800003005", "02367991234");
+
+        // ── 客户账号（P3：使用单位联系人独立于员工体系，统一登录 /auth/login 按手机号自动分流）──
+        // 不再写进 sys_employee：同一个人两套登录身份会导致「停用客户账号仍能用员工通道登录」。
+        clientAccount("ca_1", "uu_1", "王芳", "13800000003", ClientAccount.ROLE_ADMIN, enc);
+        clientAccount("ca_2", "uu_1", "张伟", "13800000012", ClientAccount.ROLE_SIGNER, enc);
+        clientAccount("ca_3", "uu_1", "签字人", "13800000018", ClientAccount.ROLE_SIGNER, enc);
+        clientAccount("ca_4", "uu_2", "吴静", "13800003005", ClientAccount.ROLE_ADMIN, enc);
 
         // ── 电梯（平台 2.7 回填字段 + 本地字段 + 维保绑定） ──
         elevator("el_1", "EM-2024-001", "世纪大厦 1# 客梯", "世纪大厦", "渝北区龙山一路 88 号世纪大厦",
@@ -334,39 +338,115 @@ public class DemoDataSeeder implements ApplicationRunner {
         zhang.workStat = "normal";
         zhang.syncStatus = "ACTIVE";
         employeeMapper.insert(zhang);
-
-        // 演示组织节点：安装部（V36 已在空库建部门骨架，故先查后插避免主键冲突）+ 张工角色锚点。
-        if (orgMapper.selectById("org_dept_install") == null) {
-            SysOrg installDept = new SysOrg();
-            installDept.id = "org_dept_install";
-            installDept.type = "DEPT";
-            installDept.name = "安装部";
-            installDept.code = "DEPT_INSTALL";
-            installDept.status = "ACTIVE";
-            installDept.sortOrder = 1;
-            installDept.createdAt = TimeUtil.now();
-            orgMapper.insert(installDept);
-        }
-
-        SysUserRole zhangRole = new SysUserRole();
-        zhangRole.id = Ids.next("ur");
-        zhangRole.userId = "emp_zhang";
-        zhangRole.userType = "EMPLOYEE";
-        zhangRole.roleCode = "INST_MGR";
-        zhangRole.orgId = "org_dept_install";
-        zhangRole.createdAt = TimeUtil.now();
-        userRoleMapper.insert(zhangRole);
+        insertEmployeeRole(zhang.id, "INST_MGR", "");
     }
 
-    private void unitRole(String userId, String roleCode, String orgId) {
+    /**
+     * 组织树骨架（单公司模型）：公司 → 部门 → 班组。
+     *
+     * <p>空库上 V36 只建了部门骨架（parent_id 为空），没有任何 COMPANY 节点 —— 部门会与公司平级、
+     * 甚至自己当根。种子必须先把公司节点补出来，再把部门/班组挂到正确父级，
+     * 否则「新建库」与「修过的库」组织口径不一致（V51/V52 只能修已有公司的情况）。
+     */
+    private void seedOrgTree(String companyName) {
+        String companyId = companyOrgId();
+        if (companyId == null) {
+            companyId = "org_company";
+            SysOrg company = new SysOrg();
+            company.id = companyId;
+            company.type = "COMPANY";
+            company.name = companyName;
+            company.code = "COMPANY_BW";
+            company.status = "ACTIVE";
+            company.sortOrder = 0;
+            company.createdAt = TimeUtil.now();
+            orgMapper.insert(company);
+        }
+        ensureOrgNode("org_dept_install", "DEPT", "安装部", "DEPT_INSTALL", companyId, 1);
+        ensureOrgNode("org_dept_maint", "DEPT", "维保部", "DEPT_MAINT", companyId, 2);
+        ensureOrgNode("org_team_maint_1", "TEAM", "维保一班", "TEAM_MAINT_1", "org_dept_maint", 1);
+        ensureOrgNode("org_team_maint_2", "TEAM", "维保一组", "TEAM_MAINT_2", "org_dept_maint", 2);
+        ensureOrgNode("org_team_install_1", "TEAM", "安装一部", "TEAM_INSTALL_1", "org_dept_install", 1);
+    }
+
+    /** 幂等确保节点存在；已存在但父级为空的历史骨架行补回父级（部门必须挂公司） */
+    private void ensureOrgNode(String id, String type, String name, String code, String parentId, int sort) {
+        SysOrg exist = orgMapper.selectById(id);
+        if (exist != null) {
+            if (exist.parentId == null || exist.parentId.isBlank()) {
+                exist.parentId = parentId;
+                orgMapper.updateById(exist);
+            }
+            return;
+        }
+        SysOrg org = new SysOrg();
+        org.id = id;
+        org.type = type;
+        org.name = name;
+        org.code = code;
+        org.parentId = parentId;
+        org.status = "ACTIVE";
+        org.sortOrder = sort;
+        org.createdAt = TimeUtil.now();
+        orgMapper.insert(org);
+    }
+
+    /** 公司节点 id（单公司模型取 sort_order 最小的 COMPANY；空库为 null，由 seedOrgTree 建） */
+    private String companyOrgId() {
+        SysOrg company = orgMapper.selectOne(new LambdaQueryWrapper<SysOrg>()
+                .eq(SysOrg::getType, "COMPANY")
+                .orderByAsc(SysOrg::getSortOrder)
+                .last("LIMIT 1"));
+        return company == null ? null : company.id;
+    }
+
+    /** 种子人员角色行：账号管理页角色列、权限矩阵、组织锚点都读这张表 */
+    private void insertEmployeeRole(String userId, String role, String groupName) {
         SysUserRole ur = new SysUserRole();
         ur.id = Ids.next("ur");
         ur.userId = userId;
         ur.userType = "EMPLOYEE";
-        ur.roleCode = roleCode;
-        ur.orgId = orgId;
+        ur.roleCode = RoleCatalog.canonical(role);
+        ur.orgId = orgAnchorOf(role, groupName);
         ur.createdAt = TimeUtil.now();
         userRoleMapper.insert(ur);
+    }
+
+    /** 角色锚点：安装部角色 → 安装部；维保部角色 → 对应班组（无班组则挂维保部）；平台层不锚组织 */
+    private String orgAnchorOf(String role, String groupName) {
+        String dept = RoleCatalog.departmentOf(role);
+        if ("INSTALL".equals(dept)) {
+            return "org_dept_install";
+        }
+        if ("MAINT".equals(dept)) {
+            String teamId = switch (groupName == null ? "" : groupName) {
+                case "维保一班" -> "org_team_maint_1";
+                case "维保一组" -> "org_team_maint_2";
+                default -> null;
+            };
+            return teamId != null && orgMapper.selectById(teamId) != null ? teamId : "org_dept_maint";
+        }
+        return null;
+    }
+
+    /**
+     * 演示客户账号（P3）：使用单位联系人不进 sys_employee，独立存 client_account。
+     * 初始口令同样 123456；登录页只有一个入口，输入手机号即自动识别为客户主体（无需切换模式）。
+     */
+    private void clientAccount(String id, String useUnitId, String name, String phone, String role,
+                               BCryptPasswordEncoder enc) {
+        ClientAccount c = new ClientAccount();
+        c.id = id;
+        c.useUnitId = useUnitId;
+        c.name = name;
+        c.phone = phone;
+        c.passwordHash = enc.encode("123456");
+        c.roleCode = role;
+        c.status = ClientAccount.STATUS_ACTIVE;
+        c.enabled = 1;
+        c.scopeVersion = 1;
+        c.createdAt = TimeUtil.now();
+        clientAccountMapper.insert(c);
     }
 
     private Employee employee(String id, String name, String phone, String role, String roleText,
@@ -380,15 +460,18 @@ public class DemoDataSeeder implements ApplicationRunner {
         e.passwordHash = enc.encode("123456");
         e.role = role;
         e.roleText = roleText;
+        // V31 口径：部门由角色派生（列表「所属组织」与部门数据域谓词都看它，不能留空）
+        e.department = RoleCatalog.departmentOf(role);
         e.groupName = groupName;
         e.openid = null;
         e.platformId = platformId;
         e.certificate = certificate;
         e.workStartDate = workStartDate;
         e.workEndDate = TimeUtil.date(TimeUtil.now().plusDays(workEndInDays));
-        e.workStat = role.equals("UNIT_ADMIN") ? "" : "normal";
-        e.syncStatus = role.equals("UNIT_ADMIN") ? "NOT_SYNCED" : "ACTIVE";
+        e.workStat = "normal";
+        e.syncStatus = "ACTIVE";
         employeeMapper.insert(e);
+        insertEmployeeRole(e.id, role, groupName);
         return e;
     }
 

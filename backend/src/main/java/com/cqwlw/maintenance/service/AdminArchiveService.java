@@ -17,6 +17,8 @@ import com.cqwlw.maintenance.mapper.ElevatorMapper;
 import com.cqwlw.maintenance.mapper.SysUserRoleMapper;
 import com.cqwlw.maintenance.mapper.UseUnitMapper;
 import com.cqwlw.maintenance.entity.WorkOrder;
+import com.cqwlw.maintenance.entity.ClientAccount;
+import com.cqwlw.maintenance.entity.MaintainRecord;
 import com.cqwlw.maintenance.mapper.WorkOrderMapper;
 import com.cqwlw.maintenance.util.TimeUtil;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -50,10 +52,24 @@ public class AdminArchiveService {
     private final BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
     /** 区域名称解析（电梯档案「所在区域」展示）；setter 注入保持既有构造器签名不变（单测不传） */
     private com.cqwlw.maintenance.mapper.RegionMapper regionMapper;
+    /** 客户账号：删使用单位时级联清理（setter 注入，单测构造器不传时跳过） */
+    private com.cqwlw.maintenance.mapper.ClientAccountMapper clientAccountMapper;
+    /** 维保记录：删单位前解绑客户签字外键，避免悬空引用 */
+    private com.cqwlw.maintenance.mapper.MaintainRecordMapper maintainRecordMapper;
 
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     public void setRegionMapper(com.cqwlw.maintenance.mapper.RegionMapper regionMapper) {
         this.regionMapper = regionMapper;
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    public void setClientAccountMapper(com.cqwlw.maintenance.mapper.ClientAccountMapper mapper) {
+        this.clientAccountMapper = mapper;
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    public void setMaintainRecordMapper(com.cqwlw.maintenance.mapper.MaintainRecordMapper mapper) {
+        this.maintainRecordMapper = mapper;
     }
 
     public AdminArchiveService(CompanyMapper companyMapper, UseUnitMapper useUnitMapper,
@@ -248,9 +264,24 @@ public class AdminArchiveService {
         e.syncStatus = str(body, "syncStatus").isBlank() ? "NOT_SYNCED" : str(body, "syncStatus");
         e.enabled = true;
         employeeMapper.insert(e);
+        // 账号管理页 /users 的角色列只读 sys_user_role；建档（含平台登记自动建号）必须同步写一行，
+        // 否则新账号在账号管理页显示为空角色。口径与 UserController.insertRole 一致。
+        insertPrimaryRole(e.id, role);
         Map<String, Object> out = employeeRow(e);
         out.put("initialPassword", initialPassword);
         return out;
+    }
+
+    /** 建档时写入主角色行（EMPLOYEE）；createEmployee 仅允许非客户角色，故 orgId 留空。 */
+    private void insertPrimaryRole(String userId, String role) {
+        userRoleMapper.delete(new LambdaQueryWrapper<SysUserRole>().eq(SysUserRole::getUserId, userId));
+        SysUserRole ur = new SysUserRole();
+        ur.id = Ids.next("ur");
+        ur.userId = userId;
+        ur.userType = "EMPLOYEE";
+        ur.roleCode = role;
+        ur.createdAt = TimeUtil.now();
+        userRoleMapper.insert(ur);
     }
 
     /** 用户需求④：初始/重置密码为 12 位无易混字符随机串，一次性展示，人员自助改密 */
@@ -307,8 +338,21 @@ public class AdminArchiveService {
         if (elevators != null && elevators > 0) {
             throw new BizException(422, "该单位名下有 " + elevators + " 台电梯，请先移除关联后再删除");
         }
+        // 客户账号是使用单位的附庸：单位删除后账号必须一并失效，否则「单位已删、账号仍可登录」，
+        // 登录后归属单位悬空（跳转到不存在的租户）。签字历史保留姓名快照，仅解绑外键避免悬空引用。
+        int removedAccounts = 0;
+        if (maintainRecordMapper != null) {
+            maintainRecordMapper.update(null, new LambdaUpdateWrapper<MaintainRecord>()
+                    .eq(MaintainRecord::getUseUnitId, id)
+                    .set(MaintainRecord::getClientAccountId, null)
+                    .set(MaintainRecord::getRefusedByClientAccountId, null));
+        }
+        if (clientAccountMapper != null) {
+            removedAccounts = clientAccountMapper.delete(new LambdaQueryWrapper<ClientAccount>()
+                    .eq(ClientAccount::getUseUnitId, id));
+        }
         useUnitMapper.deleteById(id);
-        return Map.of("ok", true);
+        return Map.of("ok", true, "removedClientAccounts", removedAccounts);
     }
 
     public Map<String, Object> deleteElevator(String id) {
@@ -364,15 +408,24 @@ public class AdminArchiveService {
             e.name = str(body, "name");
         }
         if (body.get("phone") != null) {
-            e.phone = str(body, "phone");
+            String newPhone = str(body, "phone");
+            // 登录按 account 查（AuthController）；默认账号=手机号，改号时同步，避免改完手机号登录不了。
+            // 仅在 account 仍等于旧手机号（默认账号）时同步，自定义账号不覆盖。
+            if (e.account == null || e.account.isBlank() || e.account.equals(e.phone)) {
+                e.account = newPhone;
+            }
+            e.phone = newPhone;
         }
+        boolean roleChanged = false;
         if (body.get("role") != null) {
             if (!AdminRoles.assignable(str(body, "role"))) {
                 throw new BizException(422, "角色不合法：" + str(body, "role") + "（使用单位账号在「使用单位档案」开通）");
             }
+            String oldRole = e.role;
             e.role = str(body, "role");
             e.department = RoleCatalog.departmentOf(e.role); // 改角色同步部门，避免旧部门谓词残留
             e.roleText = str(body, "roleText").isBlank() ? defaultRoleText(e.role) : str(body, "roleText");
+            roleChanged = !java.util.Objects.equals(oldRole, e.role);
         } else if (body.get("roleText") != null) {
             e.roleText = str(body, "roleText");
         }
@@ -402,6 +455,15 @@ public class AdminArchiveService {
         }
         requireNoConflict(phoneMutexService.checkEmployee(e.id, e.role, e.phone));
         employeeMapper.updateById(e);
+        // 改角色时同步 sys_user_role 主角色行，保持账号管理页角色列与权限判定一致。
+        // 仅当该账号只有主角色一行时对齐（多角色账号由「分配角色」端点专门管理，不在此覆盖）。
+        if (roleChanged) {
+            List<SysUserRole> existing = userRoleMapper.selectList(
+                    new LambdaQueryWrapper<SysUserRole>().eq(SysUserRole::getUserId, e.id));
+            if (existing == null || existing.size() <= 1) {
+                insertPrimaryRole(e.id, e.role);
+            }
+        }
         return employeeRow(e);
     }
 

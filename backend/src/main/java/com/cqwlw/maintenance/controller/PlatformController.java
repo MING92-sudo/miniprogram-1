@@ -6,6 +6,7 @@ import com.cqwlw.maintenance.entity.MaintainRecord;
 import com.cqwlw.maintenance.service.PlatformClient;
 import com.cqwlw.maintenance.service.PlatformReportService;
 import com.cqwlw.maintenance.service.PlatformSyncService;
+import com.cqwlw.maintenance.service.PlatformWorkerIdService;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -29,19 +30,28 @@ public class PlatformController {
     private final PlatformReportService reportService;
     private final PlatformClient platformClient;
     private final com.cqwlw.maintenance.service.AdminArchiveService archiveService;
+    private final PlatformWorkerIdService workerIdService;
 
     public PlatformController(PlatformSyncService platformSyncService,
                               PlatformReportService reportService, PlatformClient platformClient,
-                              com.cqwlw.maintenance.service.AdminArchiveService archiveService) {
+                              com.cqwlw.maintenance.service.AdminArchiveService archiveService,
+                              PlatformWorkerIdService workerIdService) {
         this.platformSyncService = platformSyncService;
         this.reportService = reportService;
         this.platformClient = platformClient;
         this.archiveService = archiveService;
+        this.workerIdService = workerIdService;
     }
 
     @PostMapping("/platform/sync")
     public ApiResponse<Map<String, Object>> sync() {
         return ApiResponse.ok(platformSyncService.syncAll());
+    }
+
+    /** 存量维保人员 platform_id 回填（docs/04 B.5，手动兜底）：调 2.5 全量查询，按证书号回填所有本地有证书人员。 */
+    @PostMapping("/platform/workers/backfill")
+    public ApiResponse<Map<String, Object>> backfillWorkers() {
+        return ApiResponse.ok(workerIdService.backfillAllFromPlatform());
     }
 
     /** 2.5 单位维保人员查询（原始列表，管理端"平台人员"视图用；只读） */
@@ -148,14 +158,33 @@ public class PlatformController {
         } catch (Exception ignored) {
             // 建档失败不影响登记结果（可用同步兜底）
         }
+        // 2.4 建立(changState=0)成功后自动调 2.5 查询整个单位所有绑定维保人员（全量），
+        // 按证书号回填所有本地有证书人员的 platform_id（立即查 + 失败退避重试）；中止态不回填。
+        // 2.4 本身不返回人员ID（docs/04 B.5 事实更正），必须靠 2.5 查询获得。
+        Map<String, Object> platformBackfill = Map.of("status", "SKIPPED");
+        if (!"1".equals(changState)) {
+            try {
+                platformBackfill = workerIdService.backfillWithRetry(workManCertificate);
+            } catch (Exception e) {
+                platformBackfill = Map.of("status", "ERROR");
+                org.slf4j.LoggerFactory.getLogger(PlatformController.class)
+                        .warn("2.4 建档后触发平台ID全量回填失败: certificate={}, {}", workManCertificate, e.getMessage());
+            }
+        }
         Map<String, Object> out = new java.util.LinkedHashMap<>();
         out.put("ok", true);
         out.put("employeeId", employeeId);
         out.put("account", account);
+        out.put("platformBackfill", platformBackfill);
         if (!initialPassword.isEmpty()) {
             out.put("initialPassword", initialPassword);
         }
-        return ApiResponse.ok(resp.get("data") == null ? out : resp.get("data"));
+        // 平台原始 data 合并进 out（本地生成的账号/回填统计优先），避免前端丢失建档结果
+        Object platformData = resp.get("data");
+        if (platformData instanceof Map<?, ?> data) {
+            data.forEach((k, v) -> out.putIfAbsent(String.valueOf(k), v));
+        }
+        return ApiResponse.ok(out);
     }
 
     private static void requireFile(MultipartFile file, String name) {

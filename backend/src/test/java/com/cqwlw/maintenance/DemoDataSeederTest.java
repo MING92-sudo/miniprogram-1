@@ -1,12 +1,14 @@
 package com.cqwlw.maintenance;
 
 import com.cqwlw.maintenance.config.AppProperties;
+import com.cqwlw.maintenance.entity.ClientAccount;
 import com.cqwlw.maintenance.entity.Elevator;
 import com.cqwlw.maintenance.entity.Employee;
 import com.cqwlw.maintenance.entity.Fault;
 import com.cqwlw.maintenance.entity.MaintainRecord;
 import com.cqwlw.maintenance.entity.UseUnit;
 import com.cqwlw.maintenance.entity.WorkOrder;
+import com.cqwlw.maintenance.mapper.ClientAccountMapper;
 import com.cqwlw.maintenance.mapper.CompanyMapper;
 import com.cqwlw.maintenance.mapper.DrillMapper;
 import com.cqwlw.maintenance.mapper.ElevatorMapper;
@@ -61,6 +63,7 @@ class DemoDataSeederTest {
     private FaultMapper faultMapper;
     private WorkOrderMapper orderMapper;
     private MaintainRecordMapper recordMapper;
+    private ClientAccountMapper clientAccountMapper;
     private DemoDataSeeder seeder;
 
     @BeforeEach
@@ -71,6 +74,7 @@ class DemoDataSeederTest {
         faultMapper = mock(FaultMapper.class);
         orderMapper = mock(WorkOrderMapper.class);
         recordMapper = mock(MaintainRecordMapper.class);
+        clientAccountMapper = mock(ClientAccountMapper.class);
         // 工单种子内联快照：按 elevatorId 找到电梯 → useUnitId → 单位名
         Elevator seededElevator = new Elevator();
         seededElevator.useUnitId = "uu_1";
@@ -90,7 +94,8 @@ class DemoDataSeederTest {
                 mock(DrillMapper.class), mock(InspectRecordMapper.class), mock(KnowledgeMapper.class),
                 checklistService, mock(WorkOrderService.class),
                 mock(com.cqwlw.maintenance.mapper.SysOrgMapper.class),
-                mock(com.cqwlw.maintenance.mapper.SysUserRoleMapper.class));
+                mock(com.cqwlw.maintenance.mapper.SysUserRoleMapper.class),
+                clientAccountMapper);
     }
 
     @Test
@@ -214,6 +219,33 @@ class DemoDataSeederTest {
         records.getAllValues().forEach(r -> {
             assertEquals("uu_1", r.useUnitId, "种子记录 " + r.id + " 缺 useUnitId 快照");
             assertEquals("启元物业", r.useUnitName, "种子记录 " + r.id + " 缺 useUnitName 快照");
+        });
+    }
+
+    /** 客户主体唯一口径（P3）：使用单位联系人只进 client_account，不得再播种到 sys_employee */
+    @Test
+    void clientPrincipalsSeedIntoClientAccountOnly() throws Exception {
+        seeder.run(null);
+
+        ArgumentCaptor<Employee> employees = ArgumentCaptor.forClass(Employee.class);
+        verify(employeeMapper, atLeastOnce()).insert(employees.capture());
+        List<Employee> customers = employees.getAllValues().stream()
+                .filter(e -> e.role != null
+                        && (e.role.startsWith("CLIENT") || "UNIT_ADMIN".equals(e.role)))
+                .collect(Collectors.toList());
+        assertTrue(customers.isEmpty(),
+                "客户主体不得播种到员工表（会与 client_account 形成两套登录身份）：" + customers);
+
+        ArgumentCaptor<ClientAccount> accounts = ArgumentCaptor.forClass(ClientAccount.class);
+        verify(clientAccountMapper, atLeastOnce()).insert(accounts.capture());
+        assertFalse(accounts.getAllValues().isEmpty(), "应播种使用单位客户账号");
+        accounts.getAllValues().forEach(a -> {
+            assertTrue(a.useUnitId != null && !a.useUnitId.isBlank(), "客户账号 " + a.id + " 缺 useUnitId");
+            assertTrue(a.phone != null && a.phone.matches("1\\d{10}"), "客户账号 " + a.id + " 手机号非法");
+            assertTrue(ClientAccount.ROLE_ADMIN.equals(a.roleCode)
+                            || ClientAccount.ROLE_SIGNER.equals(a.roleCode),
+                    "客户账号 " + a.id + " 角色非法：" + a.roleCode);
+            assertEquals(ClientAccount.STATUS_ACTIVE, a.status, "客户账号 " + a.id + " 初始应为 ACTIVE");
         });
     }
 

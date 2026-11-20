@@ -2,8 +2,8 @@
 const { post } = require('../utils/request')
 const { saveAuth } = require('../utils/auth')
 
-// 微信一键登录已启用（登录页仅本机已绑定账号显示，R5）；bindWeChat 入口在「我的」页；
-// bindEmployee/bindUseUnit 契约保留、暂无入口（角色切换已收敛为多角色并集，docs/14）。
+// 微信一键登录已启用（登录页仅本机已绑定账号显示，R5）；bindWeChat 入口在「我的」页。
+// bindEmployee/bindUseUnit 已于 2026-11-20 随后端端点一并删除（角色切换收敛为多角色并集，docs/14）。
 // 微信授权登录：code + 手机号授权码 → JWT + 角色
 // 第三参 role 仅 Mock 模式用于选择演示账号，真实后端忽略
 function wxLogin(code, phoneCode, role) {
@@ -26,16 +26,6 @@ function accountLogin(phone, password) {
 // 登录后绑定微信登录（wx.login code → openid 与账号关联）
 function bindWeChat(code) {
   return post('/auth/bind-wechat', { code: code }, { needAuth: true })
-}
-
-// 绑定维保人员档案（手机号匹配）
-function bindEmployee(data) {
-  return post('/auth/bind-employee', data, { needAuth: true })
-}
-
-// 绑定使用单位（邀请码）
-function bindUseUnit(data) {
-  return post('/auth/bind-use-unit', data, { needAuth: true })
 }
 
 // 退出登录
@@ -65,8 +55,6 @@ module.exports = {
   accountLogin,
   bindWeChat,
   wxLogin,
-  bindEmployee,
-  bindUseUnit,
   logout,
   applyLoginResult
 }

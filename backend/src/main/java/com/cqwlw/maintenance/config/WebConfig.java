@@ -34,8 +34,9 @@ public class WebConfig implements WebMvcConfigurer {
                         "/health", "/api/count",
                 "/auth/login", "/auth/wx-login", "/auth/logout",
                 "/auth/reset-password-by-wechat",
-                // P3 客户登录入口免令牌：口令/微信登录先验凭据；select-unit 用短时 sel 令牌（AuthInterceptor 校验）
-                "/auth/client/login", "/auth/client/wx-login",
+                // V2.68 统一登录：客户账号并入 /auth/login 与 /auth/wx-login（自动分流）；
+                // select-unit 不在此列——必须经 AuthInterceptor 校验短时 sel 令牌（sel=1 仅可用于该端点）
+
                         // bind-* 是登录后写操作，统一走 AuthInterceptor（校验 JWT + 单端会话 sid），
                         // AuthController 内仍保留 currentUser 防御，避免未来路由配置回退时越权
                         "/unit/records/*/sign-view", "/unit/records/*/confirm-by-token",

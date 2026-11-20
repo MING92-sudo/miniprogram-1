@@ -16,6 +16,7 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -52,6 +53,69 @@ class LedgerServiceTest {
         SysOrg org = service.createOrg(Map.of("type", "TEAM", "name", "班组", "parentId", "d1"), "admin");
         assertEquals("TEAM", org.type);
         verify(orgMapper).insert(any(SysOrg.class));
+    }
+
+    // ── 层级口径（V51 同类错误的防回归）：公司 → 部门 → 班组，且单公司 ──
+
+    @Test
+    void deptMustHangUnderCompany() {
+        BizException noParent = assertThrows(BizException.class,
+                () -> service.createOrg(Map.of("type", "DEPT", "name", "维保部"), "admin"));
+        assertEquals(422, noParent.getCode());
+
+        SysOrg dept = new SysOrg();
+        dept.id = "d1";
+        dept.type = "DEPT";
+        when(orgMapper.selectById("d1")).thenReturn(dept);
+        BizException nested = assertThrows(BizException.class,
+                () -> service.createOrg(Map.of("type", "DEPT", "name", "维保部", "parentId", "d1"), "admin"));
+        assertEquals(422, nested.getCode());
+        assertTrue(nested.getMessage().contains("公司"));
+    }
+
+    @Test
+    void teamMustHangUnderDept() {
+        SysOrg company = new SysOrg();
+        company.id = "c1";
+        company.type = "COMPANY";
+        when(orgMapper.selectById("c1")).thenReturn(company);
+        BizException e = assertThrows(BizException.class,
+                () -> service.createOrg(Map.of("type", "TEAM", "name", "维保一班", "parentId", "c1"), "admin"));
+        assertEquals(422, e.getCode());
+    }
+
+    @Test
+    void companyMustBeSingleRoot() {
+        when(orgMapper.selectCount(any())).thenReturn(1L);
+        BizException dup = assertThrows(BizException.class,
+                () -> service.createOrg(Map.of("type", "COMPANY", "name", "第二家公司"), "admin"));
+        assertEquals(422, dup.getCode());
+
+        when(orgMapper.selectCount(any())).thenReturn(0L);
+        SysOrg ok = service.createOrg(Map.of("type", "COMPANY", "name", "重庆博威电梯有限公司"), "admin");
+        assertEquals("COMPANY", ok.type);
+    }
+
+    @Test
+    void companyCannotHaveParent() {
+        SysOrg company = new SysOrg();
+        company.id = "c1";
+        company.type = "COMPANY";
+        when(orgMapper.selectById("c1")).thenReturn(company);
+        BizException e = assertThrows(BizException.class,
+                () -> service.createOrg(Map.of("type", "COMPANY", "name", "某公司", "parentId", "c1"), "admin"));
+        assertEquals(422, e.getCode());
+    }
+
+    @Test
+    void projectOrgMustBeDept() {
+        SysOrg company = new SysOrg();
+        company.id = "c1";
+        company.type = "COMPANY";
+        when(orgMapper.selectById("c1")).thenReturn(company);
+        BizException e = assertThrows(BizException.class, () -> service.createProject(
+                Map.of("projectNo", "P1", "name", "项目", "maintOrgId", "c1"), "admin"));
+        assertEquals(422, e.getCode());
     }
 
     @Test

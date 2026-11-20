@@ -50,7 +50,8 @@ public class DeptScopeService {
         if (employee == null) {
             return false;
         }
-        return RoleCatalog.ADMIN.equals(employee.role) || RoleCatalog.SYS_ADMIN.equals(employee.role);
+        // 规范码 PLATFORM_ADMIN 与历史码 ADMIN/SYS_ADMIN 等价：只比历史码会让账号管理新建的管理员失去跨部门权限
+        return RoleCatalog.isPlatformRole(employee.role);
     }
 
     /** docs/14 §4 部门域：存量/新建档未填 department 时按 role 回退（V31 回填之外的账号仍可判定） */

@@ -19,6 +19,13 @@ definePage(ROUTES['/pages/profile/password'], {
     this.setData({ submitting: true })
     auth.changePassword(oldPassword, newPassword)
       .then(() => {
+        // 客户改密由后端 ClientAccountService 清会话（安全设计：口令变更即令牌作废），
+        // 员工改密不动会话。提示必须区分，否则客户返回上一页会被 401 静默踢回登录页。
+        if (auth.isCustomerPrincipal()) {
+          wx.showToast({ title: '修改成功，请用新密码重新登录', icon: 'none' })
+          setTimeout(() => wx.reLaunch({ url: '/pages/login/index' }), 1200)
+          return
+        }
         wx.showToast({ title: '修改成功，请牢记新密码', icon: 'none' })
         setTimeout(() => nav.back(), 1200)
       })

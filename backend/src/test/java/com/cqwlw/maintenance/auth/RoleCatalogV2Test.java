@@ -31,6 +31,29 @@ class RoleCatalogV2Test {
         assertNull(RoleCatalog.canonical(null));
     }
 
+    /** 规范码输入同样能解析部门/名称：账号管理与人员建档传的就是 13 个规范码 */
+    @Test
+    void canonicalCodesResolveDepartmentAndName() {
+        assertEquals("MAINT", RoleCatalog.departmentOf("MAINT_TECH"));
+        assertEquals("INSTALL", RoleCatalog.departmentOf("INSTALLER"));
+        assertEquals("PLATFORM", RoleCatalog.departmentOf("PLATFORM_ADMIN"));
+        assertNull(RoleCatalog.departmentOf("CLIENT_ADMIN"));
+        assertEquals("维保人员", RoleCatalog.nameOf("MAINT_TECH"));
+        assertEquals("安装员", RoleCatalog.nameOf("INSTALLER"));
+        // 历史码文案保持原样（不因归一被改写成规范名）
+        assertEquals("维保班组长", RoleCatalog.nameOf("LEADER"));
+    }
+
+    /** 平台层判定：历史码 ADMIN/SYS_ADMIN 与规范码 PLATFORM_ADMIN 等价 */
+    @Test
+    void platformRoleAcceptsLegacyAndCanonicalCodes() {
+        assertTrue(RoleCatalog.isPlatformRole("ADMIN"));
+        assertTrue(RoleCatalog.isPlatformRole("PLATFORM_ADMIN"));
+        assertTrue(RoleCatalog.isPlatformRole("SYS_ADMIN"));
+        assertFalse(RoleCatalog.isPlatformRole("MAINT_TECH"));
+        assertFalse(RoleCatalog.isPlatformRole(null));
+    }
+
     @Test
     void canonicalCodesAreThirteen() {
         assertEquals(Set.of("PLATFORM_ADMIN", "SYS_ADMIN", "INST_MGR", "INST_PM", "INST_CLERK", "INSTALLER",
@@ -71,5 +94,29 @@ class RoleCatalogV2Test {
         assertTrue(RoleCatalog.codes().contains("ADMIN"));
         assertTrue(RoleCatalog.codes().contains("UNIT_ADMIN"));
         assertEquals("维保班组长", RoleCatalog.nameOf("LEADER"));
+    }
+
+    /**
+     * E2E 回归：人员建档传规范码（MAINT_TECH/INSTALLER…）曾被判「角色不合法」，
+     * 因为 known/assignable 只查历史码表。系统其余部分（登录响应、种子、角色分配）已切规范码，
+     * 判定必须同口径；客户主体仍不得在人员目录建档。
+     */
+    @Test
+    void canonicalCodesKnownAndAssignable() {
+        assertTrue(RoleCatalog.known("MAINT_TECH"));
+        assertTrue(RoleCatalog.known("INSTALLER"));
+        assertTrue(RoleCatalog.known("PLATFORM_ADMIN"));
+        assertTrue(RoleCatalog.known("WORKER"), "历史码继续可用");
+
+        assertTrue(RoleCatalog.assignable("MAINT_TECH"));
+        assertTrue(RoleCatalog.assignable("INSTALLER"));
+        assertTrue(RoleCatalog.assignable("WORKER"), "历史码与之等价");
+
+        // 客户主体不在人员目录建档（走使用单位档案 → 客户账号）
+        assertFalse(RoleCatalog.assignable("CLIENT_ADMIN"));
+        assertFalse(RoleCatalog.assignable("CLIENT_SIGNER"));
+        assertFalse(RoleCatalog.assignable("UNIT_ADMIN"));
+        assertFalse(RoleCatalog.assignable("HACKER"));
+        assertFalse(RoleCatalog.assignable(null));
     }
 }

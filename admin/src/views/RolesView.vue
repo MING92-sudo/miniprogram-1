@@ -148,9 +148,10 @@ function webView(code) {
   return ''
 }
 function deptOf(r) {
+  // 使用单位是外部客户主体（非内部部门），旧码 UNIT_ADMIN 同归此类，不能落到「平台」
+  if (r.startsWith('CLIENT') || r === 'UNIT_ADMIN' || r.startsWith('UNIT')) return '使用单位'
   if (r.startsWith('INST') || r === 'INSTALLER') return '安装部'
   if (r.startsWith('MAINT')) return '维保部'
-  if (r.startsWith('CLIENT')) return '使用单位'
   return '平台'
 }
 function countState(r, s) { return rows.value.filter(x => x.states[r] === s).length }
