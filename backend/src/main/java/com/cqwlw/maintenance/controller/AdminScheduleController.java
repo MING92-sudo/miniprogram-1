@@ -1,8 +1,11 @@
 package com.cqwlw.maintenance.controller;
 
 import com.cqwlw.maintenance.auth.AuthInterceptor;
+import com.cqwlw.maintenance.auth.MultiRoleGate;
+import com.cqwlw.maintenance.auth.PermissionMatrix;
 import com.cqwlw.maintenance.common.ApiResponse;
 import com.cqwlw.maintenance.service.AdminScheduleService;
+import com.cqwlw.maintenance.service.WorkOrderService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -24,11 +27,14 @@ public class AdminScheduleController {
 
     private final AdminScheduleService scheduleService;
     private final com.cqwlw.maintenance.service.DispatchService dispatchService;
+    private final WorkOrderService workOrderService;
 
     public AdminScheduleController(AdminScheduleService scheduleService,
-                                 com.cqwlw.maintenance.service.DispatchService dispatchService) {
+                                 com.cqwlw.maintenance.service.DispatchService dispatchService,
+                                 WorkOrderService workOrderService) {
         this.scheduleService = scheduleService;
         this.dispatchService = dispatchService;
+        this.workOrderService = workOrderService;
     }
 
     /**
@@ -113,6 +119,19 @@ public class AdminScheduleController {
     public ApiResponse<Map<String, Object>> transfer(@PathVariable String id,
                                                      @RequestBody Map<String, Object> body) {
         return ApiResponse.ok(scheduleService.transfer(id, str(body, "toEmployeeId"), str(body, "reason")));
+    }
+
+    /**
+     * 退回池（2026-11-20 区域抢单池设计 §4.4 / D10/M12，order:dispatch 权限）：
+     * 被错领/认领人无法继续的工单清回区域池——审计先行（操作人/原认领人/原配合人/签到留痕快照），
+     * 同事务清空认领与签到留痕回 PENDING；DONE 422；未认领 PENDING 幂等 ok。
+     */
+    @PostMapping("/admin/orders/{id}/release-to-pool")
+    public ApiResponse<Map<String, Object>> releaseToPool(@PathVariable String id,
+                                                          HttpServletRequest request) {
+        MultiRoleGate.requireWrite(request, PermissionMatrix.ORDER_DISPATCH);
+        return ApiResponse.ok(workOrderService.releaseToPool(id,
+                String.valueOf(request.getAttribute(AuthInterceptor.ATTR_EMP_ID))));
     }
 
     private static String nz(String s) {

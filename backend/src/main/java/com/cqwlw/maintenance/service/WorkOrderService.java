@@ -1,6 +1,7 @@
 package com.cqwlw.maintenance.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.cqwlw.maintenance.common.BizException;
 import com.cqwlw.maintenance.common.Ids;
 import com.cqwlw.maintenance.entity.Company;
@@ -11,6 +12,7 @@ import com.cqwlw.maintenance.entity.HandoverOrder;
 import com.cqwlw.maintenance.entity.InspectRecord;
 import com.cqwlw.maintenance.entity.MaintainRecord;
 import com.cqwlw.maintenance.entity.Message;
+import com.cqwlw.maintenance.entity.SysAuditLog;
 import com.cqwlw.maintenance.entity.UseUnit;
 import com.cqwlw.maintenance.entity.WorkOrder;
 import com.cqwlw.maintenance.mapper.CompanyMapper;
@@ -115,6 +117,18 @@ public class WorkOrderService {
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     public void setPhoneMutexService(PhoneMutexService phoneMutexService) {
         this.phoneMutexService = phoneMutexService;
+    }
+
+    /**
+     * M12 退回池审计（setter 注入保护既有测试构造器；生产 Spring 必注入）。
+     * 与其它审计点「失败吞异常」口径不同：退回池审计是清库前唯一留证，属合规关键证据——
+     * 未注入时退回池 fail-closed（500），绝不静默清库丢审计。
+     */
+    private AuditLogService auditLogService;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    public void setAuditLogService(AuditLogService auditLogService) {
+        this.auditLogService = auditLogService;
     }
 
     /**
@@ -605,6 +619,89 @@ public class WorkOrderService {
             return false;
         }
         return isBlank(o.regionId) || o.regionId.equals(e.regionId);
+    }
+
+    // ── 管理端「退回池」（2026-11-20 区域抢单池设计 §4.4 / D10/M12） ──
+
+    /**
+     * 把被错领或认领人无法继续的工单清回区域池。
+     * ①DONE → 422（维保记录已生成并可能已上报监管平台，清回池会造成平台数据与本地不一致）；
+     * ②未认领 PENDING → 幂等 ok，不改状态、不写审计、不动库；
+     * ③已认领/已有签到留痕 → M12 审计先行：先把「操作人 + 原认领人/原配合人 + 签到留痕快照」
+     * 写入 sys_audit_log（写失败即抛异常回滚事务，绝不先清库后丢审计——本场景审计是清库的
+     * 唯一留证，不采用其它审计点「失败吞异常」口径），再在同一事务内清空 worker 系/assistant 系/
+     * 签到留痕/签名/动态码并回 PENDING；regionId 快照不变（M10，电梯事后改区域不影响在池工单）。
+     * 签名必须随认领人一并清除：不清则新认领人签退时会复用旧签名 fileId 冻结进 2.6 报文（虚假签名）。
+     */
+    public Map<String, Object> releaseToPool(String orderId, String actorId) {
+        WorkOrder o = findOr404(orderId);
+        if ("DONE".equals(o.status)) {
+            throw new BizException(422, "已完成工单不可退回池（维保记录已生成并上报监管平台）");
+        }
+        boolean claimed = !isBlank(o.workerName) || !isBlank(o.workerPlatformId)
+                || !isBlank(o.assistantPlatformId) || hasCheckin(o.checkinExtraJson)
+                || hasCheckin(o.assistantCheckinExtraJson) || !"PENDING".equals(o.status);
+        if (!claimed) {
+            return JsonUtil.map("ok", true, "released", false, "status", o.status, "orderId", o.id);
+        }
+        if (auditLogService == null) {
+            // fail-closed：审计不可用时禁止清库（M12 合规关键证据）
+            throw new BizException(500, "审计服务不可用，禁止退回池操作");
+        }
+        SysAuditLog audit = new SysAuditLog();
+        audit.actorId = actorId;
+        audit.actorRole = "EMPLOYEE";
+        audit.action = "order:release-to-pool";
+        audit.target = o.id;
+        audit.beforeSnap = JsonUtil.write(releaseSnapshot(o));
+        audit.reason = "管理端退回池：工单清空认领后重新进入区域池待认领";
+        audit.result = "SUCCESS";
+        transactionTemplate.executeWithoutResult(tx -> {
+            // 审计先行 + 清库同一事务：append 抛异常 → 整体回滚，清库不落
+            auditLogService.append(audit);
+            orderMapper.update(null, releasePoolWrapper(orderId));
+        });
+        return JsonUtil.map("ok", true, "released", true, "status", "PENDING", "orderId", o.id);
+    }
+
+    /** 退回前快照（审计 beforeSnap）：原认领人/原配合人/签到留痕 JSON 原文/状态/regionId 快照 */
+    private static Map<String, Object> releaseSnapshot(WorkOrder o) {
+        Map<String, Object> snap = new LinkedHashMap<>();
+        snap.put("orderId", o.id);
+        snap.put("orderNo", nz(o.orderNo));
+        snap.put("status", nz(o.status));
+        snap.put("workerName", nz(o.workerName));
+        snap.put("workerPlatformId", nz(o.workerPlatformId));
+        snap.put("assistantName", nz(o.assistantName));
+        snap.put("assistantPlatformId", nz(o.assistantPlatformId));
+        snap.put("checkinTime", TimeUtil.format(o.checkinTime));
+        snap.put("checkinExtraJson", nz(o.checkinExtraJson));
+        snap.put("assistantCheckinExtraJson", nz(o.assistantCheckinExtraJson));
+        snap.put("regionId", nz(o.regionId));
+        return snap;
+    }
+
+    /**
+     * 清库条件更新（updateById 默认跳过 null 字段，清库必须显式 SET NULL，
+     * 同 AdminArchiveService 电梯 clearRegion 口径）；regionId/planTime/checklist 不动。
+     */
+    private static LambdaUpdateWrapper<WorkOrder> releasePoolWrapper(String orderId) {
+        return new LambdaUpdateWrapper<WorkOrder>()
+                .eq(WorkOrder::getId, orderId)
+                .set(WorkOrder::getWorkerName, null)
+                .set(WorkOrder::getWorkerPlatformId, null)
+                .set(WorkOrder::getAssistantName, null)
+                .set(WorkOrder::getAssistantPlatformId, null)
+                .set(WorkOrder::getCheckinExtraJson, null)
+                .set(WorkOrder::getAssistantCheckinExtraJson, null)
+                .set(WorkOrder::getCheckinTime, null)
+                .set(WorkOrder::getWorkerSignatureFileId, null)
+                .set(WorkOrder::getWorkerSignatureAt, null)
+                .set(WorkOrder::getAssistantSignatureFileId, null)
+                .set(WorkOrder::getAssistantSignatureAt, null)
+                .set(WorkOrder::getDynamicCode, null)
+                .set(WorkOrder::getDynamicCodeExpiresAt, null)
+                .set(WorkOrder::getStatus, "PENDING");
     }
 
     // ── 双人动态码（docs/03 §3.2 项6：60 秒有效、前端每 5 秒刷新倒计时；绑定工单、一次性使用） ──
