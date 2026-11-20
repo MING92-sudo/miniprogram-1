@@ -26,6 +26,7 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -250,6 +251,18 @@ public class AdminArchiveService {
         e.department = RoleCatalog.departmentOf(role); // V31：部门由角色派生，供部门数据域谓词使用
         e.roleText = str(body, "roleText").isBlank() ? defaultRoleText(role) : str(body, "roleText");
         e.groupName = str(body, "groupName");
+        // 所属区域（region_id，选填；区域工单池前置）：空串=清除；非空须存在（口径同电梯 applyElevator）
+        if (body.get("regionId") != null) {
+            String regionId = str(body, "regionId");
+            if (regionId.isBlank()) {
+                e.regionId = null;
+            } else {
+                if (regionMapper == null || regionMapper.selectById(regionId) == null) {
+                    throw new BizException(422, "区域不存在：" + regionId);
+                }
+                e.regionId = regionId;
+            }
+        }
         String password = str(body, "password");
         if (!password.isBlank() && password.length() < 8) {
             throw new BizException(422, "请设置至少 8 位初始密码");
@@ -450,11 +463,29 @@ public class AdminArchiveService {
         if (body.get("groupName") != null) {
             e.groupName = str(body, "groupName");
         }
+        // 所属区域（region_id，选填；区域工单池前置）：null=不动 / 空串=清除 / 非空须存在（口径同电梯）
+        if (body.get("regionId") != null) {
+            String regionId = str(body, "regionId");
+            if (regionId.isBlank()) {
+                e.regionId = null;
+            } else {
+                if (regionMapper == null || regionMapper.selectById(regionId) == null) {
+                    throw new BizException(422, "区域不存在：" + regionId);
+                }
+                e.regionId = regionId;
+            }
+        }
         if (!str(body, "password").isBlank()) {
             e.passwordHash = encoder.encode(str(body, "password"));
         }
         requireNoConflict(phoneMutexService.checkEmployee(e.id, e.role, e.phone));
         employeeMapper.updateById(e);
+        // 所属区域置空必须显式 SET NULL——updateById 默认跳过 null 字段（同电梯 clearRegion 口径）
+        if (body.get("regionId") != null && str(body, "regionId").isBlank()) {
+            employeeMapper.update(null, new LambdaUpdateWrapper<Employee>()
+                    .eq(Employee::getId, e.id)
+                    .set(Employee::getRegionId, null));
+        }
         // 改角色时同步 sys_user_role 主角色行，保持账号管理页角色列与权限判定一致。
         // 仅当该账号只有主角色一行时对齐（多角色账号由「分配角色」端点专门管理，不在此覆盖）。
         if (roleChanged) {
@@ -489,6 +520,17 @@ public class AdminArchiveService {
             el.elevatorName = isBlank(el.insideNumber) ? el.elevatorCode : el.insideNumber;
         }
         requireNoConflict(phoneMutexService.checkElevator(el.workerPhone));
+        // 建档即排期（用户口径 2026-11-20：首次建档就把一年维保计划排出来，进维保日历）：
+        // 基线缺省 = 建档时间（维保责任起始，AGENTS §3.6「无已完成维保回退建档 lastMaintenanceAt」）；
+        // 下次到期缺省 = 基线 + intervalDays（缺省 15）= 首保计划日。此后到期前一日定时派单接管、
+        // 签退滚动 nextMaintenanceDate，日历从锚点向前投影全年——直建电梯不再需要手动首保派单。
+        if (el.lastMaintenanceAt == null) {
+            el.lastMaintenanceAt = TimeUtil.now();
+        }
+        if (el.nextMaintenanceDate == null) {
+            el.nextMaintenanceDate = el.lastMaintenanceAt.toLocalDate()
+                    .plusDays(el.intervalDays != null ? el.intervalDays : 15);
+        }
         elevatorMapper.insert(el);
         return elevatorAdminRow(el);
     }
@@ -516,7 +558,10 @@ public class AdminArchiveService {
         boolean clearLat = body.get("lat") != null && str(body, "lat").isBlank();
         // 所在区域置空同理（updateById 跳过 null 字段，必须显式 SET NULL）
         boolean clearRegion = body.get("regionId") != null && str(body, "regionId").isBlank();
-        if (clearLng || clearLat || clearRegion) {
+        // 停保恢复（status=ACTIVE/空 → 在保）同理：applyElevator 置 null 后 updateById 跳过，
+        // 不显式 SET NULL 会导致「启用」永远写不回（docs/09 §6.6：NULL=在保）
+        boolean clearStatus = body.get("status") != null && !"INACTIVE".equals(str(body, "status"));
+        if (clearLng || clearLat || clearRegion || clearStatus) {
             LambdaUpdateWrapper<Elevator> uw = new LambdaUpdateWrapper<Elevator>().eq(Elevator::getId, id);
             if (clearLng) {
                 uw.set(Elevator::getLng, null);
@@ -526,6 +571,9 @@ public class AdminArchiveService {
             }
             if (clearRegion) {
                 uw.set(Elevator::getRegionId, null);
+            }
+            if (clearStatus) {
+                uw.set(Elevator::getStatus, null);
             }
             elevatorMapper.update(null, uw);
         }
@@ -625,6 +673,24 @@ public class AdminArchiveService {
         if (body.get("nextMaintenanceDate") != null) {
             el.nextMaintenanceDate = TimeUtil.parseDate(str(body, "nextMaintenanceDate"));
         }
+        // 上次维保日期 = 排期基线（建档即排全年，2026-11-20 用户口径）：存量建档传真实日期（yyyy-MM-dd
+        // 或 yyyy-MM-dd HH:mm:ss）；非法值 422——基线错了整张年表都错，不能静默吞掉
+        if (body.get("lastMaintenanceAt") != null) {
+            String raw = str(body, "lastMaintenanceAt");
+            if (raw.isBlank()) {
+                el.lastMaintenanceAt = null;
+            } else {
+                LocalDateTime parsed = TimeUtil.parse(raw);
+                if (parsed == null) {
+                    LocalDate d = TimeUtil.parseDate(raw);
+                    parsed = d == null ? null : d.atStartOfDay();
+                }
+                if (parsed == null) {
+                    throw new BizException(422, "上次维保日期格式无效（yyyy-MM-dd 或 yyyy-MM-dd HH:mm:ss）");
+                }
+                el.lastMaintenanceAt = parsed;
+            }
+        }
         if (body.get("factoryNumber") != null) {
             el.factoryNumber = str(body, "factoryNumber");
         }
@@ -712,7 +778,7 @@ public class AdminArchiveService {
         }
         if (body.get("status") != null) {
             String s = str(body, "status");
-            // 停用=INACTIVE；空/ACTIVE=恢复在保（docs/09 §6.6：停用后不派单、小程序不可见）
+            // 停保=INACTIVE；空/ACTIVE=恢复在保（docs/09 §6.6：停保后不派单、小程序不可见）
             el.status = "INACTIVE".equals(s) ? "INACTIVE" : null;
         }
     }
@@ -754,6 +820,8 @@ public class AdminArchiveService {
         m.put("department", nz(e.department));
         m.put("departmentText", RoleCatalog.departmentName(e.department));
         m.put("groupName", nz(e.groupName));
+        m.put("regionId", nz(e.regionId));
+        m.put("regionName", regionNameOf(e.regionId));
         m.put("platformId", nz(e.platformId));
         m.put("certificate", nz(e.certificate));
         m.put("workStartDate", nz(e.workStartDate));

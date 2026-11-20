@@ -149,6 +149,32 @@ class AdminArchiveServiceTest {
         verify(elevatorMapper).update(isNull(), any(LambdaUpdateWrapper.class));
     }
 
+    /** 停保/启用直操作（2026-11-21 管理端电梯台账）：INACTIVE 落库；恢复在保必须显式 SET NULL（updateById 跳过 null 的回归锁） */
+    @Test
+    void updateElevatorSuspendAndResumeStatus() {
+        com.baomidou.mybatisplus.core.metadata.TableInfoHelper.initTableInfo(
+                new org.apache.ibatis.builder.MapperBuilderAssistant(
+                        new com.baomidou.mybatisplus.core.MybatisConfiguration(), ""), Elevator.class);
+        Employee worker = new Employee();
+        worker.id = "emp_1";
+        worker.role = "WORKER";
+        when(employeeMapper.selectList(any())).thenReturn(List.of(worker));
+
+        Elevator el = new Elevator();
+        el.id = "el_9";
+        el.elevatorCode = "EM-1";
+        el.elevatorName = "测试梯";
+        when(elevatorMapper.selectById("el_9")).thenReturn(el);
+
+        service.updateElevator("el_9", Map.of("status", "INACTIVE"));
+        org.junit.jupiter.api.Assertions.assertEquals("INACTIVE", el.status);
+        verify(elevatorMapper, never()).update(isNull(), any(LambdaUpdateWrapper.class));
+
+        service.updateElevator("el_9", Map.of("status", "ACTIVE"));
+        org.junit.jupiter.api.Assertions.assertNull(el.status);
+        verify(elevatorMapper).update(isNull(), any(LambdaUpdateWrapper.class));
+    }
+
     @Test
     void deleteEmployeeBlockedWhilePlatformBindingActive() {
         Employee e = new Employee();
@@ -207,6 +233,49 @@ class AdminArchiveServiceTest {
         assertEquals("REG-9", row.get("registrationCode"));
         assertTrue(((List<?>) row.get("missingRequired")).isEmpty());
         verify(elevatorMapper).insert(any(Elevator.class));
+    }
+
+    /** 建档即排期（2026-11-20 用户口径）：未传基线时默认=建档时间，下次到期=基线+15 天（首保计划日），
+     *  直建电梯建档当日起进入日历全年投影与定时派单滚动，不再需要手动首保派单 */
+    @Test
+    void createElevatorDefaultsScheduleBaseline() {
+        Map<String, Object> body = new java.util.HashMap<>();
+        body.put("elevatorCode", "EM-9");
+        body.put("deviceCode", "DT-9");
+        body.put("registrationCode", "REG-9");
+        body.put("insideNumber", "KT-9");
+        body.put("factoryNumber", "FN-9");
+        Map<String, Object> row = service.createElevator(body);
+        ArgumentCaptor<Elevator> captor = ArgumentCaptor.forClass(Elevator.class);
+        verify(elevatorMapper).insert(captor.capture());
+        Elevator saved = captor.getValue();
+        org.junit.jupiter.api.Assertions.assertNotNull(saved.lastMaintenanceAt);
+        assertEquals(saved.lastMaintenanceAt.toLocalDate().plusDays(15), saved.nextMaintenanceDate);
+        assertFalse(String.valueOf(row.get("lastMaintenanceAt")).isEmpty());
+        assertFalse(String.valueOf(row.get("nextMaintenanceDate")).isEmpty());
+    }
+
+    /** 存量建档传真实上次维保日期（yyyy-MM-dd）→ 下次到期=该日+15；非法格式 422（基线错则年表全错，不静默吞） */
+    @Test
+    void createElevatorAcceptsExplicitBaselineAndRejectsGarbage() {
+        Map<String, Object> body = new java.util.HashMap<>();
+        body.put("elevatorCode", "EM-9");
+        body.put("deviceCode", "DT-9");
+        body.put("registrationCode", "REG-9");
+        body.put("insideNumber", "KT-9");
+        body.put("factoryNumber", "FN-9");
+        body.put("lastMaintenanceAt", "2026-01-10");
+        service.createElevator(body);
+        ArgumentCaptor<Elevator> captor = ArgumentCaptor.forClass(Elevator.class);
+        verify(elevatorMapper).insert(captor.capture());
+        Elevator saved = captor.getValue();
+        assertEquals(java.time.LocalDateTime.of(2026, 1, 10, 0, 0), saved.lastMaintenanceAt);
+        assertEquals(java.time.LocalDate.of(2026, 1, 25), saved.nextMaintenanceDate);
+
+        Map<String, Object> bad = new java.util.HashMap<>(body);
+        bad.put("lastMaintenanceAt", "去年一月");
+        BizException e = assertThrows(BizException.class, () -> service.createElevator(bad));
+        assertEquals(422, e.getCode());
     }
 
     /** 必传项不得清空：更新时传空串直接 422，避免设备档案与维保记录脱钩 */
@@ -339,5 +408,83 @@ class AdminArchiveServiceTest {
         Map<String, Object> out = service.syncCompanyEntityId();
         assertEquals(false, out.get("found"));
         assertEquals("监管平台凭证未配置", out.get("reason"));
+    }
+
+    // ── 所属区域（区域工单池前置 Task 1：员工 regionId 读写链路）──
+
+    /** 行投影带所属区域：regionId + 经 RegionMapper 解析的 regionName（未配置区域时为空串） */
+    @Test
+    void employeeRowIncludesRegion() {
+        com.cqwlw.maintenance.mapper.RegionMapper regionMapper =
+                mock(com.cqwlw.maintenance.mapper.RegionMapper.class);
+        service.setRegionMapper(regionMapper);
+        com.cqwlw.maintenance.entity.Region r = new com.cqwlw.maintenance.entity.Region();
+        r.id = "reg_1";
+        r.name = "渝北区";
+        when(regionMapper.selectById("reg_1")).thenReturn(r);
+        Employee e = new Employee();
+        e.id = "emp_r1";
+        e.name = "张三";
+        e.role = "WORKER";
+        e.regionId = "reg_1";
+        when(employeeMapper.selectById("emp_r1")).thenReturn(e);
+
+        Map<String, Object> row = service.setEmployeeEnabled("emp_r1", true);
+        assertEquals("reg_1", row.get("regionId"));
+        assertEquals("渝北区", row.get("regionName"));
+    }
+
+    /** 开通员工带 regionId：区域存在即落库 */
+    @Test
+    void createEmployeeAcceptsRegionId() {
+        com.cqwlw.maintenance.mapper.RegionMapper regionMapper =
+                mock(com.cqwlw.maintenance.mapper.RegionMapper.class);
+        service.setRegionMapper(regionMapper);
+        com.cqwlw.maintenance.entity.Region r = new com.cqwlw.maintenance.entity.Region();
+        r.id = "reg_1";
+        r.name = "渝北区";
+        when(regionMapper.selectById("reg_1")).thenReturn(r);
+
+        service.createEmployee(Map.of(
+                "name", "丙", "phone", "13900005555", "role", "WORKER", "regionId", "reg_1"));
+        ArgumentCaptor<Employee> captor = ArgumentCaptor.forClass(Employee.class);
+        verify(employeeMapper).insert(captor.capture());
+        assertEquals("reg_1", captor.getValue().regionId);
+    }
+
+    /** 开通员工带不存在区域：422「区域不存在」且不落库（校验失败不留半成品状态） */
+    @Test
+    void createEmployeeRejectsUnknownRegion() {
+        com.cqwlw.maintenance.mapper.RegionMapper regionMapper =
+                mock(com.cqwlw.maintenance.mapper.RegionMapper.class);
+        service.setRegionMapper(regionMapper);
+        when(regionMapper.selectById("reg_x")).thenReturn(null);
+
+        BizException e = assertThrows(BizException.class, () -> service.createEmployee(Map.of(
+                "name", "丁", "phone", "13900006666", "role", "WORKER", "regionId", "reg_x")));
+        assertEquals(422, e.getCode());
+        assertTrue(e.getMessage().contains("区域不存在"), e.getMessage());
+        verify(employeeMapper, never()).insert(any(Employee.class));
+    }
+
+    /** 编辑员工传空串 regionId = 清除所属区域（null=不动，空串=清除，口径同电梯） */
+    @Test
+    void updateEmployeeBlankRegionClears() {
+        // LambdaUpdateWrapper 显式 SET NULL 需 TableInfo 缓存（同 updateElevatorClearsGeoWhenBlankToRecollect）
+        com.baomidou.mybatisplus.core.metadata.TableInfoHelper.initTableInfo(
+                new org.apache.ibatis.builder.MapperBuilderAssistant(
+                        new com.baomidou.mybatisplus.core.MybatisConfiguration(), ""), Employee.class);
+        Employee e = new Employee();
+        e.id = "emp_r2";
+        e.name = "王五";
+        e.role = "WORKER";
+        e.phone = "13900007777";
+        e.regionId = "reg_1";
+        when(employeeMapper.selectById("emp_r2")).thenReturn(e);
+
+        service.updateEmployee("emp_r2", Map.of("regionId", ""));
+        org.junit.jupiter.api.Assertions.assertNull(e.regionId);
+        // 锁定显式 SET NULL 清除路径：updateById 跳过 null 字段，缺这条 update(null, wrapper) 库中旧值清不掉
+        verify(employeeMapper).update(isNull(), any(LambdaUpdateWrapper.class));
     }
 }
