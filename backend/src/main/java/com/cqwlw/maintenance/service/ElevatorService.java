@@ -4,9 +4,12 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.cqwlw.maintenance.common.BizException;
 import com.cqwlw.maintenance.entity.Elevator;
+import com.cqwlw.maintenance.entity.Employee;
 import com.cqwlw.maintenance.entity.UseUnit;
+import com.cqwlw.maintenance.entity.WorkOrder;
 import com.cqwlw.maintenance.mapper.ElevatorMapper;
 import com.cqwlw.maintenance.mapper.UseUnitMapper;
+import com.cqwlw.maintenance.mapper.WorkOrderMapper;
 import com.cqwlw.maintenance.util.TimeUtil;
 import org.springframework.stereotype.Service;
 
@@ -25,12 +28,14 @@ public class ElevatorService {
     private final ElevatorMapper elevatorMapper;
     private final UseUnitMapper useUnitMapper;
     private final EmployeeScopeService scopeService;
+    private final WorkOrderMapper workOrderMapper;
 
     public ElevatorService(ElevatorMapper elevatorMapper, UseUnitMapper useUnitMapper,
-                           EmployeeScopeService scopeService) {
+                           EmployeeScopeService scopeService, WorkOrderMapper workOrderMapper) {
         this.elevatorMapper = elevatorMapper;
         this.useUnitMapper = useUnitMapper;
         this.scopeService = scopeService;
+        this.workOrderMapper = workOrderMapper;
     }
 
     public Elevator get(String id) {
@@ -43,18 +48,41 @@ public class ElevatorService {
     }
 
     public List<Map<String, Object>> listView(String empId) {
-        // 读范围（Task 8）：本区域电梯 + 本班组（组长）+ 本人；区域未分区时退化为原来的本人口径。
-        // 写路径（project-name/local）仍走 visibleWorkerPlatformIds 严格谓词，不得共用。
-        Set<String> ids = scopeService.visibleReadPlatformIds(scopeService.require(empId));
+        // 读范围（区域抢单池 D2/M9 配套，2026-11-21 裁决）：管理角色（ids==null）不限；
+        // 非管理角色按区域匹配键——电梯不限区域（regionId 空）或与登录人同区域可见。
+        // 电梯绑定字段（worker/assistant platformId）池化后不再写入（Task 11），不作归属键。
+        Employee e = scopeService.require(empId);
+        Set<String> ids = scopeService.visibleReadPlatformIds(e);
         return elevatorMapper.selectList(new LambdaQueryWrapper<Elevator>().orderByAsc(Elevator::getId))
                 .stream()
                 // 停用（INACTIVE）电梯小程序不可见（docs/09 §6.6 / V8 迁移注释）；status 多为 NULL，故在内存过滤
                 .filter(el -> !"INACTIVE".equals(el.status))
-                // 单人作业时 assistantPlatformId 为空；Set.of(...) 的 contains(null) 会抛 NPE，须判空
-                .filter(el -> ids == null
-                        || (el.workerPlatformId != null && ids.contains(el.workerPlatformId))
-                        || (el.assistantPlatformId != null && ids.contains(el.assistantPlatformId)))
+                .filter(el -> ids == null || regionVisible(el, e))
                 .map(this::mapRow).toList();
+    }
+
+    /** 区域匹配键（读谓词）：电梯不限区域（regionId 空）放行，或与登录人同区域 */
+    private static boolean regionVisible(Elevator el, Employee e) {
+        if (el.regionId == null || el.regionId.isBlank()) {
+            return true;
+        }
+        return el.regionId.equals(e.regionId);
+    }
+
+    /**
+     * 写谓词（AGENTS §3.1 写绝不扩区域）：认领制下「本人负责」= 本人作为主维保/配合人持有
+     * 该梯在途工单（status≠DONE，已签退 DONE 工单不再构成维护授权）。platformId 缺失 fail-closed。
+     */
+    private boolean assignedToOpenOrder(String elevatorId, String platformId) {
+        if (platformId == null || platformId.isBlank()) {
+            return false;
+        }
+        Long c = workOrderMapper.selectCount(new LambdaQueryWrapper<WorkOrder>()
+                .eq(WorkOrder::getElevatorId, elevatorId)
+                .ne(WorkOrder::getStatus, "DONE")
+                .and(w -> w.eq(WorkOrder::getWorkerPlatformId, platformId)
+                        .or().eq(WorkOrder::getAssistantPlatformId, platformId)));
+        return c != null && c > 0;
     }
 
     /** 使用单位账号电梯收敛本单位（2026-11-15 用户裁决）；无锚点 fail-closed 返回空。 */
@@ -110,12 +138,12 @@ public class ElevatorService {
         if (el == null) {
             throw new BizException(1404, "电梯不存在");
         }
-        // 越权防护：仅可查看本人（或本组）负责的电梯档案，防跨班组读取管理员/应急电话等敏感字段
-        Set<String> ids = scopeService.visibleWorkerPlatformIds(scopeService.require(empId));
-        if (ids != null
-                && (el.workerPlatformId == null || !ids.contains(el.workerPlatformId))
-                && (el.assistantPlatformId == null || !ids.contains(el.assistantPlatformId))) {
-            throw new BizException(1403, "仅可查看本人负责的电梯");
+        // 越权防护：非管理角色按区域匹配键（同区域或不限区域可读），防跨区域读取管理员/应急电话等敏感字段；
+        // 管理角色（ids==null）旁路。绑定字段池化后不再写入（Task 11），不作归属键。
+        Employee e = scopeService.require(empId);
+        Set<String> ids = scopeService.visibleWorkerPlatformIds(e);
+        if (ids != null && !regionVisible(el, e)) {
+            throw new BizException(1403, "仅可查看本区域的电梯");
         }
         return profileView(el);
     }
@@ -180,16 +208,16 @@ public class ElevatorService {
         return out;
     }
 
-    /** 维保人员现场更正项目名称（小区名称，管理端可能写错；docs/01 §3.4.1）。仅本人负责的电梯，越权 1403。 */
+    /** 维保人员现场更正项目名称（小区名称，管理端可能写错；docs/01 §3.4.1）。
+     *  写不扩区域（AGENTS §3.1）：认领制下仅持该梯在途工单的主维保/配合人可改，或管理角色；越权 1403。 */
     public void updateProjectName(String id, String empId, String projectName) {
         Elevator el = get(id);
         if (el == null) {
             throw new BizException(1404, "电梯不存在");
         }
-        Set<String> ids = scopeService.visibleWorkerPlatformIds(scopeService.require(empId));
-        if (ids != null
-                && (el.workerPlatformId == null || !ids.contains(el.workerPlatformId))
-                && (el.assistantPlatformId == null || !ids.contains(el.assistantPlatformId))) {
+        Employee e = scopeService.require(empId);
+        Set<String> ids = scopeService.visibleWorkerPlatformIds(e);
+        if (ids != null && !assignedToOpenOrder(id, e.platformId)) {
             throw new BizException(1403, "仅可维护本人负责的电梯");
         }
         String v = projectName == null ? "" : projectName.trim();
@@ -202,7 +230,8 @@ public class ElevatorService {
         elevatorMapper.updateById(patch);
     }
 
-    /** 维保人员现场维护设备本地信息（docs/01 §3.4.1）。仅本人负责的电梯，越权 1403。
+    /** 维保人员现场维护设备本地信息（docs/01 §3.4.1）。
+     *  写不扩区域（AGENTS §3.1）：认领制下仅持该梯在途工单的主维保/配合人可改，或管理角色；越权 1403。
      *  可改：项目名称/安装地址/品牌/制造单位/产品编号/驱动方式/额定载重/额定速度/层站门/下次检验、维保日期。
      *  不开放：经纬度（签到围栏，严禁伪造坐标）、使用单位负责人（属使用单位档案，非设备信息）。
      *  项目名称变更时同步 elevatorName（电梯名称 = 项目名称，合并，用户需求 2026-11-11）。 */
@@ -211,10 +240,9 @@ public class ElevatorService {
         if (el == null) {
             throw new BizException(1404, "电梯不存在");
         }
-        Set<String> ids = scopeService.visibleWorkerPlatformIds(scopeService.require(empId));
-        if (ids != null
-                && (el.workerPlatformId == null || !ids.contains(el.workerPlatformId))
-                && (el.assistantPlatformId == null || !ids.contains(el.assistantPlatformId))) {
+        Employee e = scopeService.require(empId);
+        Set<String> ids = scopeService.visibleWorkerPlatformIds(e);
+        if (ids != null && !assignedToOpenOrder(id, e.platformId)) {
             throw new BizException(1403, "仅可维护本人负责的电梯");
         }
 

@@ -36,7 +36,8 @@ class ElevatorClientProfileTest {
     private final EmployeeMapper employeeMapper = mock(EmployeeMapper.class);
     private final SysUserRoleMapper userRoleMapper = mock(SysUserRoleMapper.class);
     private final ElevatorService elevatorService = new ElevatorService(
-            elevatorMapper, mock(UseUnitMapper.class), new EmployeeScopeService(employeeMapper));
+            elevatorMapper, mock(UseUnitMapper.class), new EmployeeScopeService(employeeMapper),
+            mock(com.cqwlw.maintenance.mapper.WorkOrderMapper.class));
 
     private ElevatorController controller() {
         return new ElevatorController(elevatorService, mock(DispatchService.class), userRoleMapper);
@@ -107,15 +108,26 @@ class ElevatorClientProfileTest {
         assertEquals(1403, ex.getCode());
     }
 
-    /** 内部员工 profile 行为逐条不变：主维保 200，无关电梯 1403（V7 严格谓词保留） */
+    /**
+     * 内部员工 profile（区域抢单池 D2/M9 配套，2026-11-21 裁决）：绑定字段不再是归属键——
+     * 非管理角色按区域匹配键（同区域可读；跨区域 1403）。原「绑定 platformId 命中 200 / 未命中 1403」
+     * 用例翻转为本用例（池化新梯绑定字段恒 NULL，旧口径恒 1403 为已裁决缺陷）。
+     */
     @Test
-    void internalEmployeeWorkerPredicateUnchanged() {
-        when(employeeMapper.selectById("e2")).thenReturn(employee("e2", "WORKER", "pid_zhang"));
-        when(elevatorMapper.selectById("el_1")).thenReturn(elevator("el_1", "uu_1", "pid_zhang"));
+    void internalEmployeeRegionPredicate() {
+        Employee tech = employee("e2", "WORKER", "pid_zhang");
+        tech.regionId = "rg_1";
+        when(employeeMapper.selectById("e2")).thenReturn(tech);
+
+        Elevator sameRegion = elevator("el_1", "uu_1", null); // 池化新梯：无绑定
+        sameRegion.regionId = "rg_1";
+        when(elevatorMapper.selectById("el_1")).thenReturn(sameRegion);
         assertEquals("el_1", controller()
                 .profile("el_1", request(Set.of("MAINT_TECH"), "e2")).getData().get("elevatorId"));
 
-        when(elevatorMapper.selectById("el_2")).thenReturn(elevator("el_2", "uu_1", "pid_other"));
+        Elevator otherRegion = elevator("el_2", "uu_1", null);
+        otherRegion.regionId = "rg_other";
+        when(elevatorMapper.selectById("el_2")).thenReturn(otherRegion);
         BizException ex = assertThrows(BizException.class,
                 () -> controller().profile("el_2", request(Set.of("MAINT_TECH"), "e2")));
         assertEquals(1403, ex.getCode());

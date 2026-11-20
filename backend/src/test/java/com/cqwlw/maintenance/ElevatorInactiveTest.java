@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.cqwlw.maintenance.common.BizException;
 import com.cqwlw.maintenance.entity.Elevator;
 import com.cqwlw.maintenance.entity.Employee;
+import com.cqwlw.maintenance.entity.WorkOrder;
 import com.cqwlw.maintenance.mapper.ElevatorMapper;
 import com.cqwlw.maintenance.mapper.EmployeeMapper;
 import com.cqwlw.maintenance.mapper.MessageMapper;
@@ -100,11 +101,11 @@ class ElevatorInactiveTest {
     void miniProgramElevatorListHidesInactive() {
         ElevatorMapper elevatorMapper = mock(ElevatorMapper.class);
         EmployeeScopeService scopeService = mock(EmployeeScopeService.class);
-        ElevatorService service = new ElevatorService(elevatorMapper, mock(UseUnitMapper.class), scopeService);
+        WorkOrderMapper workOrderMapper = mock(WorkOrderMapper.class);
+        ElevatorService service = new ElevatorService(elevatorMapper, mock(UseUnitMapper.class), scopeService, workOrderMapper);
         when(elevatorMapper.selectList(any()))
                 .thenReturn(List.of(elevator("el_on", null), elevator("el_off", "INACTIVE")));
-        // 管理角色不限班组（ids=null），隔离班组权限以单独验证「停用电梯隐藏」
-        // Task 8：列表读范围走 visibleReadPlatformIds（区域感知），写路径仍用 visibleWorkerPlatformIds
+        // 管理角色不限区域（ids=null），隔离区域权限以单独验证「停用电梯隐藏」
         when(scopeService.visibleReadPlatformIds(any())).thenReturn(null);
 
         List<Map<String, Object>> list = service.listView("emp_1");
@@ -112,40 +113,29 @@ class ElevatorInactiveTest {
         assertEquals("el_on", list.get(0).get("id"));
     }
 
-    @Test
-    void miniProgramElevatorListScopedToOwnWorker() {
-        ElevatorMapper elevatorMapper = mock(ElevatorMapper.class);
-        EmployeeScopeService scopeService = mock(EmployeeScopeService.class);
-        ElevatorService service = new ElevatorService(elevatorMapper, mock(UseUnitMapper.class), scopeService);
+    // 原 miniProgramElevatorListScopedToOwnWorker（绑定 platformId 读谓词口径）已随区域化删除——
+    // 池化新梯绑定字段恒 NULL，读范围改按区域匹配键，新口径用例见 ElevatorRegionScopeTest。
 
-        // 本人作为主维保 / 配合人员 / 无关电梯三种情形（docs/01 §3.4.1「该人员负责的电梯」口径）
-        Elevator asWorker = elevator("el_worker", null);   // workerPlatformId = pid_zhang
-        Elevator asAssistant = elevator("el_assist", null);
-        asAssistant.workerPlatformId = "pid_other";
-        asAssistant.assistantPlatformId = "pid_zhang";
-        Elevator other = elevator("el_other", null);
-        other.workerPlatformId = "pid_other";
-        other.assistantPlatformId = null;
-
-        when(elevatorMapper.selectList(any())).thenReturn(List.of(asWorker, asAssistant, other));
-        when(scopeService.require("emp_1")).thenReturn(new Employee());
-        when(scopeService.visibleReadPlatformIds(any())).thenReturn(Set.of("pid_zhang"));
-
-        List<Map<String, Object>> list = service.listView("emp_1");
-        assertEquals(2, list.size(), "作业人员仅可见本人作为主维保或配合人员的电梯");
-        assertEquals("el_worker", list.get(0).get("id"));
-        assertEquals("el_assist", list.get(1).get("id"));
+    private static Employee workerWithPlatformId() {
+        Employee e = new Employee();
+        e.id = "emp_1";
+        e.platformId = "pid_zhang";
+        return e;
     }
 
     @Test
     void updateProjectNameSavesForOwnWorker() {
+        initElevatorTableInfo();
         ElevatorMapper elevatorMapper = mock(ElevatorMapper.class);
         EmployeeScopeService scopeService = mock(EmployeeScopeService.class);
-        ElevatorService service = new ElevatorService(elevatorMapper, mock(UseUnitMapper.class), scopeService);
+        WorkOrderMapper workOrderMapper = mock(WorkOrderMapper.class);
+        ElevatorService service = new ElevatorService(elevatorMapper, mock(UseUnitMapper.class), scopeService, workOrderMapper);
 
         when(elevatorMapper.selectById("el_mine")).thenReturn(elevator("el_mine", null));
-        when(scopeService.require("emp_1")).thenReturn(new Employee());
+        when(scopeService.require("emp_1")).thenReturn(workerWithPlatformId());
         when(scopeService.visibleWorkerPlatformIds(any())).thenReturn(Set.of("pid_zhang"));
+        // 认领制写谓词：本人持该梯在途工单（status≠DONE 主/配合命中）
+        when(workOrderMapper.selectCount(any())).thenReturn(1L);
 
         service.updateProjectName("el_mine", "emp_1", " 世纪大厦 ");
 
@@ -157,16 +147,16 @@ class ElevatorInactiveTest {
 
     @Test
     void updateProjectNameRejectsOtherWorkersElevator() {
+        initElevatorTableInfo();
         ElevatorMapper elevatorMapper = mock(ElevatorMapper.class);
         EmployeeScopeService scopeService = mock(EmployeeScopeService.class);
-        ElevatorService service = new ElevatorService(elevatorMapper, mock(UseUnitMapper.class), scopeService);
+        WorkOrderMapper workOrderMapper = mock(WorkOrderMapper.class);
+        ElevatorService service = new ElevatorService(elevatorMapper, mock(UseUnitMapper.class), scopeService, workOrderMapper);
 
-        Elevator other = elevator("el_other", null);
-        other.workerPlatformId = "pid_other";
-        other.assistantPlatformId = null;
-        when(elevatorMapper.selectById("el_other")).thenReturn(other);
-        when(scopeService.require("emp_1")).thenReturn(new Employee());
+        when(elevatorMapper.selectById("el_other")).thenReturn(elevator("el_other", null));
+        when(scopeService.require("emp_1")).thenReturn(workerWithPlatformId());
         when(scopeService.visibleWorkerPlatformIds(any())).thenReturn(Set.of("pid_zhang"));
+        when(workOrderMapper.selectCount(any())).thenReturn(0L); // 本人无该梯在途工单
 
         BizException e = assertThrows(BizException.class,
                 () -> service.updateProjectName("el_other", "emp_1", "新名称"));
@@ -177,7 +167,7 @@ class ElevatorInactiveTest {
     @Test
     void scanInactiveElevatorQrcodeRejected() {
         ElevatorMapper elevatorMapper = mock(ElevatorMapper.class);
-        ElevatorService service = new ElevatorService(elevatorMapper, mock(UseUnitMapper.class), mock(EmployeeScopeService.class));
+        ElevatorService service = new ElevatorService(elevatorMapper, mock(UseUnitMapper.class), mock(EmployeeScopeService.class), mock(WorkOrderMapper.class));
         Elevator el = elevator("el_off", "INACTIVE");
         when(elevatorMapper.selectOne(any())).thenReturn(el);
 
@@ -188,10 +178,11 @@ class ElevatorInactiveTest {
     // ── 现场维护设备本地信息（docs/01 §3.4.1；用户需求 2026-11-11：全部本地字段可改 + 电梯名称=项目名称合并）──
 
     private static void initElevatorTableInfo() {
-        // LambdaUpdateWrapper 需要 TableInfo 缓存（纯 Mockito 单测无 MyBatis 环境，手动初始化一次）
-        com.baomidou.mybatisplus.core.metadata.TableInfoHelper.initTableInfo(
-                new org.apache.ibatis.builder.MapperBuilderAssistant(
-                        new com.baomidou.mybatisplus.core.MybatisConfiguration(), ""), Elevator.class);
+        // LambdaUpdateWrapper/LambdaQueryWrapper 需要 TableInfo 缓存（纯 Mockito 单测无 MyBatis 环境，手动初始化一次）
+        org.apache.ibatis.builder.MapperBuilderAssistant assistant = new org.apache.ibatis.builder.MapperBuilderAssistant(
+                new com.baomidou.mybatisplus.core.MybatisConfiguration(), "");
+        com.baomidou.mybatisplus.core.metadata.TableInfoHelper.initTableInfo(assistant, Elevator.class);
+        com.baomidou.mybatisplus.core.metadata.TableInfoHelper.initTableInfo(assistant, WorkOrder.class);
     }
 
     @Test
@@ -199,11 +190,13 @@ class ElevatorInactiveTest {
         initElevatorTableInfo();
         ElevatorMapper elevatorMapper = mock(ElevatorMapper.class);
         EmployeeScopeService scopeService = mock(EmployeeScopeService.class);
-        ElevatorService service = new ElevatorService(elevatorMapper, mock(UseUnitMapper.class), scopeService);
+        WorkOrderMapper workOrderMapper = mock(WorkOrderMapper.class);
+        ElevatorService service = new ElevatorService(elevatorMapper, mock(UseUnitMapper.class), scopeService, workOrderMapper);
 
         when(elevatorMapper.selectById("el_mine")).thenReturn(elevator("el_mine", null));
-        when(scopeService.require("emp_1")).thenReturn(new Employee());
+        when(scopeService.require("emp_1")).thenReturn(workerWithPlatformId());
         when(scopeService.visibleWorkerPlatformIds(any())).thenReturn(Set.of("pid_zhang"));
+        when(workOrderMapper.selectCount(any())).thenReturn(1L); // 本人持该梯在途工单
 
         service.updateLocal("el_mine", "emp_1", Map.of(
                 "projectName", " 世纪大厦 ", "address", "渝北区龙山一路", "brand", "奥的斯", "ratedLoad", "1000"));
@@ -219,16 +212,16 @@ class ElevatorInactiveTest {
 
     @Test
     void updateLocalRejectsOtherWorkersElevator() {
+        initElevatorTableInfo();
         ElevatorMapper elevatorMapper = mock(ElevatorMapper.class);
         EmployeeScopeService scopeService = mock(EmployeeScopeService.class);
-        ElevatorService service = new ElevatorService(elevatorMapper, mock(UseUnitMapper.class), scopeService);
+        WorkOrderMapper workOrderMapper = mock(WorkOrderMapper.class);
+        ElevatorService service = new ElevatorService(elevatorMapper, mock(UseUnitMapper.class), scopeService, workOrderMapper);
 
-        Elevator other = elevator("el_other", null);
-        other.workerPlatformId = "pid_other";
-        other.assistantPlatformId = null;
-        when(elevatorMapper.selectById("el_other")).thenReturn(other);
-        when(scopeService.require("emp_1")).thenReturn(new Employee());
+        when(elevatorMapper.selectById("el_other")).thenReturn(elevator("el_other", null));
+        when(scopeService.require("emp_1")).thenReturn(workerWithPlatformId());
         when(scopeService.visibleWorkerPlatformIds(any())).thenReturn(Set.of("pid_zhang"));
+        when(workOrderMapper.selectCount(any())).thenReturn(0L); // 本人无该梯在途工单
 
         BizException e = assertThrows(BizException.class,
                 () -> service.updateLocal("el_other", "emp_1", Map.of("brand", "X")));
@@ -238,13 +231,16 @@ class ElevatorInactiveTest {
 
     @Test
     void updateLocalRejectsBlankProjectName() {
+        initElevatorTableInfo();
         ElevatorMapper elevatorMapper = mock(ElevatorMapper.class);
         EmployeeScopeService scopeService = mock(EmployeeScopeService.class);
-        ElevatorService service = new ElevatorService(elevatorMapper, mock(UseUnitMapper.class), scopeService);
+        WorkOrderMapper workOrderMapper = mock(WorkOrderMapper.class);
+        ElevatorService service = new ElevatorService(elevatorMapper, mock(UseUnitMapper.class), scopeService, workOrderMapper);
 
         when(elevatorMapper.selectById("el_mine")).thenReturn(elevator("el_mine", null));
-        when(scopeService.require("emp_1")).thenReturn(new Employee());
+        when(scopeService.require("emp_1")).thenReturn(workerWithPlatformId());
         when(scopeService.visibleWorkerPlatformIds(any())).thenReturn(Set.of("pid_zhang"));
+        when(workOrderMapper.selectCount(any())).thenReturn(1L);
 
         BizException e = assertThrows(BizException.class,
                 () -> service.updateLocal("el_mine", "emp_1", Map.of("projectName", "   ")));
@@ -254,13 +250,16 @@ class ElevatorInactiveTest {
 
     @Test
     void updateLocalRejectsEmptyBody() {
+        initElevatorTableInfo();
         ElevatorMapper elevatorMapper = mock(ElevatorMapper.class);
         EmployeeScopeService scopeService = mock(EmployeeScopeService.class);
-        ElevatorService service = new ElevatorService(elevatorMapper, mock(UseUnitMapper.class), scopeService);
+        WorkOrderMapper workOrderMapper = mock(WorkOrderMapper.class);
+        ElevatorService service = new ElevatorService(elevatorMapper, mock(UseUnitMapper.class), scopeService, workOrderMapper);
 
         when(elevatorMapper.selectById("el_mine")).thenReturn(elevator("el_mine", null));
-        when(scopeService.require("emp_1")).thenReturn(new Employee());
+        when(scopeService.require("emp_1")).thenReturn(workerWithPlatformId());
         when(scopeService.visibleWorkerPlatformIds(any())).thenReturn(Set.of("pid_zhang"));
+        when(workOrderMapper.selectCount(any())).thenReturn(1L);
 
         BizException e = assertThrows(BizException.class,
                 () -> service.updateLocal("el_mine", "emp_1", Map.of()));
