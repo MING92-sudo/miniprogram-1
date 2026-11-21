@@ -3,10 +3,12 @@ package com.cqwlw.maintenance.service;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.cqwlw.maintenance.common.BizException;
+import com.cqwlw.maintenance.entity.Company;
 import com.cqwlw.maintenance.entity.Elevator;
 import com.cqwlw.maintenance.entity.Employee;
 import com.cqwlw.maintenance.entity.UseUnit;
 import com.cqwlw.maintenance.entity.WorkOrder;
+import com.cqwlw.maintenance.mapper.CompanyMapper;
 import com.cqwlw.maintenance.mapper.ElevatorMapper;
 import com.cqwlw.maintenance.mapper.UseUnitMapper;
 import com.cqwlw.maintenance.mapper.WorkOrderMapper;
@@ -29,13 +31,16 @@ public class ElevatorService {
     private final UseUnitMapper useUnitMapper;
     private final EmployeeScopeService scopeService;
     private final WorkOrderMapper workOrderMapper;
+    private final CompanyMapper companyMapper;
 
     public ElevatorService(ElevatorMapper elevatorMapper, UseUnitMapper useUnitMapper,
-                           EmployeeScopeService scopeService, WorkOrderMapper workOrderMapper) {
+                           EmployeeScopeService scopeService, WorkOrderMapper workOrderMapper,
+                           CompanyMapper companyMapper) {
         this.elevatorMapper = elevatorMapper;
         this.useUnitMapper = useUnitMapper;
         this.scopeService = scopeService;
         this.workOrderMapper = workOrderMapper;
+        this.companyMapper = companyMapper;
     }
 
     public Elevator get(String id) {
@@ -53,12 +58,13 @@ public class ElevatorService {
         // 电梯绑定字段（worker/assistant platformId）池化后不再写入（Task 11），不作归属键。
         Employee e = scopeService.require(empId);
         Set<String> ids = scopeService.visibleReadPlatformIds(e);
+        String maintUnitName = maintUnitName();
         return elevatorMapper.selectList(new LambdaQueryWrapper<Elevator>().orderByAsc(Elevator::getId))
                 .stream()
                 // 停用（INACTIVE）电梯小程序不可见（docs/09 §6.6 / V8 迁移注释）；status 多为 NULL，故在内存过滤
                 .filter(el -> !"INACTIVE".equals(el.status))
                 .filter(el -> ids == null || regionVisible(el, e))
-                .map(this::mapRow).toList();
+                .map(el -> mapRow(el, maintUnitName)).toList();
     }
 
     /** 区域匹配键（读谓词）：电梯不限区域（regionId 空）放行，或与登录人同区域 */
@@ -90,14 +96,15 @@ public class ElevatorService {
         if (unitId == null || unitId.isBlank()) {
             return List.of();
         }
+        String maintUnitName = maintUnitName();
         return elevatorMapper.selectList(new LambdaQueryWrapper<Elevator>()
                 .eq(Elevator::getUseUnitId, unitId).orderByAsc(Elevator::getId))
                 .stream()
                 .filter(el -> !"INACTIVE".equals(el.status))
-                .map(this::mapRow).toList();
+                .map(el -> mapRow(el, maintUnitName)).toList();
     }
 
-    private Map<String, Object> mapRow(Elevator el) {
+    private Map<String, Object> mapRow(Elevator el, String maintUnitName) {
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("id", el.id);
         m.put("elevatorName", el.elevatorName);
@@ -107,7 +114,21 @@ public class ElevatorService {
         m.put("model", el.model);
         // 项目名称 = 小区/楼盘名称（elevator.project_name），与使用单位名称解耦（docs/01 §3.4.1）
         m.put("projectName", nz(el.projectName));
+        // 小程序列表行契约（mock listElevators 同口径，2026-11-21 真机反馈补齐）：
+        // 下次维保日期（建档即排期/签退滚动维护）+ 维保单位名（company 表首条，本系统单维保单位）
+        m.put("nextMaintenanceDate", TimeUtil.formatDate(el.nextMaintenanceDate));
+        m.put("maintUnitName", maintUnitName);
         return m;
+    }
+
+    /** 维保单位名：系统单维保单位（company 表首条，DirectoryService 同口径）；未配置时置空串 */
+    private String maintUnitName() {
+        List<Company> cs = companyMapper.selectList(null);
+        if (cs == null || cs.isEmpty()) {
+            return "";
+        }
+        Company c = cs.get(0);
+        return c == null || c.name == null ? "" : c.name;
     }
 
     /** 扫码回填电梯信息（急修单用，docs/04 A.6） */

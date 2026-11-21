@@ -102,7 +102,8 @@ class ElevatorInactiveTest {
         ElevatorMapper elevatorMapper = mock(ElevatorMapper.class);
         EmployeeScopeService scopeService = mock(EmployeeScopeService.class);
         WorkOrderMapper workOrderMapper = mock(WorkOrderMapper.class);
-        ElevatorService service = new ElevatorService(elevatorMapper, mock(UseUnitMapper.class), scopeService, workOrderMapper);
+        ElevatorService service = new ElevatorService(elevatorMapper, mock(UseUnitMapper.class), scopeService, workOrderMapper,
+                mock(com.cqwlw.maintenance.mapper.CompanyMapper.class));
         when(elevatorMapper.selectList(any()))
                 .thenReturn(List.of(elevator("el_on", null), elevator("el_off", "INACTIVE")));
         // 管理角色不限区域（ids=null），隔离区域权限以单独验证「停用电梯隐藏」
@@ -129,7 +130,8 @@ class ElevatorInactiveTest {
         ElevatorMapper elevatorMapper = mock(ElevatorMapper.class);
         EmployeeScopeService scopeService = mock(EmployeeScopeService.class);
         WorkOrderMapper workOrderMapper = mock(WorkOrderMapper.class);
-        ElevatorService service = new ElevatorService(elevatorMapper, mock(UseUnitMapper.class), scopeService, workOrderMapper);
+        ElevatorService service = new ElevatorService(elevatorMapper, mock(UseUnitMapper.class), scopeService, workOrderMapper,
+                mock(com.cqwlw.maintenance.mapper.CompanyMapper.class));
 
         when(elevatorMapper.selectById("el_mine")).thenReturn(elevator("el_mine", null));
         when(scopeService.require("emp_1")).thenReturn(workerWithPlatformId());
@@ -151,7 +153,8 @@ class ElevatorInactiveTest {
         ElevatorMapper elevatorMapper = mock(ElevatorMapper.class);
         EmployeeScopeService scopeService = mock(EmployeeScopeService.class);
         WorkOrderMapper workOrderMapper = mock(WorkOrderMapper.class);
-        ElevatorService service = new ElevatorService(elevatorMapper, mock(UseUnitMapper.class), scopeService, workOrderMapper);
+        ElevatorService service = new ElevatorService(elevatorMapper, mock(UseUnitMapper.class), scopeService, workOrderMapper,
+                mock(com.cqwlw.maintenance.mapper.CompanyMapper.class));
 
         when(elevatorMapper.selectById("el_other")).thenReturn(elevator("el_other", null));
         when(scopeService.require("emp_1")).thenReturn(workerWithPlatformId());
@@ -167,7 +170,8 @@ class ElevatorInactiveTest {
     @Test
     void scanInactiveElevatorQrcodeRejected() {
         ElevatorMapper elevatorMapper = mock(ElevatorMapper.class);
-        ElevatorService service = new ElevatorService(elevatorMapper, mock(UseUnitMapper.class), mock(EmployeeScopeService.class), mock(WorkOrderMapper.class));
+        ElevatorService service = new ElevatorService(elevatorMapper, mock(UseUnitMapper.class), mock(EmployeeScopeService.class), mock(WorkOrderMapper.class),
+                mock(com.cqwlw.maintenance.mapper.CompanyMapper.class));
         Elevator el = elevator("el_off", "INACTIVE");
         when(elevatorMapper.selectOne(any())).thenReturn(el);
 
@@ -191,7 +195,8 @@ class ElevatorInactiveTest {
         ElevatorMapper elevatorMapper = mock(ElevatorMapper.class);
         EmployeeScopeService scopeService = mock(EmployeeScopeService.class);
         WorkOrderMapper workOrderMapper = mock(WorkOrderMapper.class);
-        ElevatorService service = new ElevatorService(elevatorMapper, mock(UseUnitMapper.class), scopeService, workOrderMapper);
+        ElevatorService service = new ElevatorService(elevatorMapper, mock(UseUnitMapper.class), scopeService, workOrderMapper,
+                mock(com.cqwlw.maintenance.mapper.CompanyMapper.class));
 
         when(elevatorMapper.selectById("el_mine")).thenReturn(elevator("el_mine", null));
         when(scopeService.require("emp_1")).thenReturn(workerWithPlatformId());
@@ -216,7 +221,8 @@ class ElevatorInactiveTest {
         ElevatorMapper elevatorMapper = mock(ElevatorMapper.class);
         EmployeeScopeService scopeService = mock(EmployeeScopeService.class);
         WorkOrderMapper workOrderMapper = mock(WorkOrderMapper.class);
-        ElevatorService service = new ElevatorService(elevatorMapper, mock(UseUnitMapper.class), scopeService, workOrderMapper);
+        ElevatorService service = new ElevatorService(elevatorMapper, mock(UseUnitMapper.class), scopeService, workOrderMapper,
+                mock(com.cqwlw.maintenance.mapper.CompanyMapper.class));
 
         when(elevatorMapper.selectById("el_other")).thenReturn(elevator("el_other", null));
         when(scopeService.require("emp_1")).thenReturn(workerWithPlatformId());
@@ -235,7 +241,8 @@ class ElevatorInactiveTest {
         ElevatorMapper elevatorMapper = mock(ElevatorMapper.class);
         EmployeeScopeService scopeService = mock(EmployeeScopeService.class);
         WorkOrderMapper workOrderMapper = mock(WorkOrderMapper.class);
-        ElevatorService service = new ElevatorService(elevatorMapper, mock(UseUnitMapper.class), scopeService, workOrderMapper);
+        ElevatorService service = new ElevatorService(elevatorMapper, mock(UseUnitMapper.class), scopeService, workOrderMapper,
+                mock(com.cqwlw.maintenance.mapper.CompanyMapper.class));
 
         when(elevatorMapper.selectById("el_mine")).thenReturn(elevator("el_mine", null));
         when(scopeService.require("emp_1")).thenReturn(workerWithPlatformId());
@@ -254,7 +261,8 @@ class ElevatorInactiveTest {
         ElevatorMapper elevatorMapper = mock(ElevatorMapper.class);
         EmployeeScopeService scopeService = mock(EmployeeScopeService.class);
         WorkOrderMapper workOrderMapper = mock(WorkOrderMapper.class);
-        ElevatorService service = new ElevatorService(elevatorMapper, mock(UseUnitMapper.class), scopeService, workOrderMapper);
+        ElevatorService service = new ElevatorService(elevatorMapper, mock(UseUnitMapper.class), scopeService, workOrderMapper,
+                mock(com.cqwlw.maintenance.mapper.CompanyMapper.class));
 
         when(elevatorMapper.selectById("el_mine")).thenReturn(elevator("el_mine", null));
         when(scopeService.require("emp_1")).thenReturn(workerWithPlatformId());

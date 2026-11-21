@@ -497,12 +497,7 @@ const ELEVATOR_TEXT = {
   SEARCH_PH: '搜索名称 / 编号 / 项目',
   COUNT_PRE: '在管电梯',
   COUNT_UNIT: '台',
-  NORMAL: '正常',
   NEXT_LABEL: '下次维保',
-  QR_TITLE: 'QR / 设备码',
-  QR_SUB: '扫码进入档案 / 开工',
-  QR_NOTE: '维保人员到场扫码开工，自动关联本次维保记录。',
-  LIST_NOTE: '点电梯行进入「电梯档案」；使用单位仅见本单位电梯（ORG_FLAT 单级，不含下级）。',
   LOCAL: '本地维护（点按可现场更正）',
   PLATFORM: '平台登记（监管平台同步）'
 }

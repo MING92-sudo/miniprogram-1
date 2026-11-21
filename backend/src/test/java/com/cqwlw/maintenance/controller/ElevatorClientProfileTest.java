@@ -37,7 +37,8 @@ class ElevatorClientProfileTest {
     private final SysUserRoleMapper userRoleMapper = mock(SysUserRoleMapper.class);
     private final ElevatorService elevatorService = new ElevatorService(
             elevatorMapper, mock(UseUnitMapper.class), new EmployeeScopeService(employeeMapper),
-            mock(com.cqwlw.maintenance.mapper.WorkOrderMapper.class));
+            mock(com.cqwlw.maintenance.mapper.WorkOrderMapper.class),
+            mock(com.cqwlw.maintenance.mapper.CompanyMapper.class));
 
     private ElevatorController controller() {
         return new ElevatorController(elevatorService, mock(DispatchService.class), userRoleMapper);

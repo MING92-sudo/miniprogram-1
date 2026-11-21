@@ -59,7 +59,8 @@ class ElevatorRegionScopeTest {
         elevatorMapper = mock(ElevatorMapper.class);
         workOrderMapper = mock(WorkOrderMapper.class);
         scopeService = mock(EmployeeScopeService.class);
-        service = new ElevatorService(elevatorMapper, mock(UseUnitMapper.class), scopeService, workOrderMapper);
+        service = new ElevatorService(elevatorMapper, mock(UseUnitMapper.class), scopeService, workOrderMapper,
+                mock(com.cqwlw.maintenance.mapper.CompanyMapper.class));
         when(scopeService.require("emp_1")).thenReturn(emp);
     }
 
