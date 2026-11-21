@@ -453,15 +453,21 @@ public class WorkOrderService {
         if (lat == null || lng == null) {
             throw new BizException(422, "签到必须携带定位坐标；定位失败请重试（严禁伪造坐标）");
         }
+        if (!Double.isFinite(lat) || !Double.isFinite(lng)
+                || lat < -90d || lat > 90d || lng < -180d || lng > 180d) {
+            throw new BizException(422, "签到定位坐标非法，请重新获取真实位置");
+        }
         Elevator el = elevatorMapper.selectById(o.elevatorId);
         // 用户 2026-11-19：作业前门禁——2.6 五角色手机号互斥预校验，置于任何写操作之前
         //（冲突不落库、不消费动态码、不改状态；docs/01 §3.2.4 + docs/04 第⑤级前移）。
         requirePhoneMutexForOrder(o, el);
-        // 动态码校验与消费在任何写操作之前：校验失败不产生副作用（不落库、不改状态）
+        // 角色由服务端登录身份复核，不能信任请求体 role；未认领池单仍在围栏通过后原子认领。
         if (assistant) {
             // M5：身份比对必须先于动态码消费——顺序反了错误人选会吞掉正确人选的码
             requireAssignedAssistant(o, empId);
             consumeDynamicCode(o, str(body.get("dynamicCode")));
+        } else if (!isBlank(o.workerPlatformId)) {
+            requirePrincipal(o, empId == null ? null : scopeService.require(empId));
         }
         // 定位校验（docs/02 §5.4）：电梯坐标缺失 → UNKNOWN，只留痕不拦截（docs/04 A.0.1 码表 1005）
         String geoStatus = "UNKNOWN";
@@ -492,13 +498,13 @@ public class WorkOrderService {
             claimOrderAsPrincipal(o, empId);
         }
         String collectedAt = str(body.get("collectedAt"));
-        // 客户端 collectedAt 非法/空时回退服务器时间，避免 checkinTime 落 null（记录时间缺失 + 时长异常）
-        LocalDateTime parsed = collectedAt != null && !collectedAt.isEmpty() ? TimeUtil.parse(collectedAt) : null;
-        LocalDateTime checkinTime = parsed != null ? parsed : TimeUtil.now();
+        // 作业时长只信服务器时钟；客户端采集时间仅留痕，不参与 checkinTime 或签退时长计算。
+        LocalDateTime checkinTime = TimeUtil.now();
         Map<String, Object> extra = new LinkedHashMap<>();
         extra.put("latitude", body.get("latitude"));
         extra.put("longitude", body.get("longitude"));
         extra.put("locationAccuracy", body.get("locationAccuracy") == null ? 0 : body.get("locationAccuracy"));
+        extra.put("clientCollectedAt", strOrEmpty(collectedAt));
         extra.put("role", assistant ? "ASSISTANT" : "PRINCIPAL");
         if (claimedNow) {
             // D8 池化认领打标：签退恒双人门禁据此覆盖不限区域池单（regionId 空的新单），
@@ -576,7 +582,7 @@ public class WorkOrderService {
      */
     private void requireAssignedAssistant(WorkOrder o, String empId) {
         if (isBlank(o.assistantPlatformId)) {
-            boolean pooledOrder = !isBlank(o.regionId) || claimedViaPool(o.checkinExtraJson);
+            boolean pooledOrder = Boolean.TRUE.equals(o.duoRequired) || !isBlank(o.regionId) || claimedViaPool(o.checkinExtraJson);
             if (pooledOrder) {
                 throw new BizException(1003, "主维保尚未指定配合人，请由主维保指定后再签到");
             }
@@ -640,8 +646,8 @@ public class WorkOrderService {
 
     /** 仅主维保本人：登录人 platformId == 工单 workerPlatformId（认领后 worker* 指向认领人） */
     private void requirePrincipal(WorkOrder o, Employee login) {
-        if (isBlank(login.platformId) || !login.platformId.equals(o.workerPlatformId)) {
-            throw new BizException(1403, "仅主维保本人可指定配合人");
+        if (login == null || isBlank(login.platformId) || !login.platformId.equals(o.workerPlatformId)) {
+            throw new BizException(1403, "仅主维保本人可执行此操作");
         }
     }
 
@@ -766,6 +772,7 @@ public class WorkOrderService {
     public Map<String, Object> issueDynamicCode(String orderId, String empId) {
         WorkOrder o = findOr404(orderId);
         requireOrderScope(o, empId);
+        requirePrincipal(o, scopeService.require(empId));
         if (!"PENDING".equals(o.status) && !"PROCESSING".equals(o.status)) {
             throw new BizException(1003, "当前状态不允许生成动态码");
         }
@@ -784,6 +791,7 @@ public class WorkOrderService {
     public Map<String, Object> verifyDynamicCode(String orderId, Map<String, Object> body, String empId) {
         WorkOrder o = findOr404(orderId);
         requireOrderScope(o, empId);
+        requireAssignedAssistant(o, empId);
         requireDynamicCode(o, str(body.get("code")));
         return JsonUtil.map("ok", true);
     }
@@ -1071,7 +1079,7 @@ public class WorkOrderService {
         // 存量在途工单（regionId 空且留痕无认领标记，M8，含派单时代 assistantName="无" 的
         // 单人豁免路径）不触发本门禁，维持旧口径跑完。
         // 门禁①②置于检查项/时长校验与任何写操作之前；门禁③（双签）在下方签名校验处恒触发。
-        boolean pooledOrder = (o.regionId != null && !o.regionId.isBlank())
+        boolean pooledOrder = Boolean.TRUE.equals(o.duoRequired) || (o.regionId != null && !o.regionId.isBlank())
                 || claimedViaPool(o.checkinExtraJson);
         if (pooledOrder) {
             if (o.assistantPlatformId == null || o.assistantPlatformId.isBlank()) {

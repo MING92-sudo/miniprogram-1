@@ -228,4 +228,28 @@ class DynamicCodeTest {
         assertTrue(order.assistantCheckinExtraJson.contains("f_ASSISTANT"));
         assertNotEquals(order.checkinExtraJson, order.assistantCheckinExtraJson);
     }
+
+    @Test
+    void assistantCannotIssueDynamicCode() {
+        BizException e = assertThrows(BizException.class,
+                () -> service.issueDynamicCode(ORDER, EMP_A));
+        assertEquals(1403, e.getCode(), "动态码只能由本单主维保生成");
+    }
+
+    @Test
+    void principalCannotVerifyAssistantDynamicCode() {
+        String code = String.valueOf(service.issueDynamicCode(ORDER, EMP_P).get("code"));
+        BizException e = assertThrows(BizException.class,
+                () -> service.verifyDynamicCode(ORDER, Map.of("code", code), EMP_P));
+        assertEquals(1003, e.getCode(), "动态码只能由本单指定配合人核验");
+    }
+
+    @Test
+    void assistantCannotMasqueradeAsPrincipalAtCheckin() {
+        BizException e = assertThrows(BizException.class,
+                () -> service.checkin(ORDER, checkin("PRINCIPAL", null), EMP_A));
+        assertEquals(1403, e.getCode(), "配合人不得通过请求体角色冒充主维保签到");
+        verify(orderMapper, never()).updateById(any(WorkOrder.class));
+        assertNull(order.checkinExtraJson);
+    }
 }

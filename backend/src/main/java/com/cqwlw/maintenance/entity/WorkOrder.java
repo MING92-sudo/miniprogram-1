@@ -60,4 +60,6 @@ public class WorkOrder {
     public String useUnitName;
     /** 区域池快照（派单时取电梯 regionId，2026-11-20 区域抢单池设计，V57 迁移） */
     public String regionId;
+    /** 新工单恒双人；NULL 仅表示 V63 前的历史存量工单（V63 迁移） */
+    public Boolean duoRequired;
 }

@@ -52,7 +52,7 @@ class WorkOrderWriteScopeTest {
     private static final String PID_LI = "pid_li";         // 李强：本用例登录人（组员）
     /** 他人工单，已签到但清单未填完：无归属校验时会走业务分支（1003/422）而不是 1403 */
     private static final String FOREIGN_ORDER = "wo_foreign";
-    /** 他人工单，待签到：组长（同班组）可代作业的正向对照 */
+    /** 组员工单，待签到：组长可看清单但不可代主维保签到 */
     private static final String GROUP_ORDER = "wo_group";
     /** 本人工单：正向对照，不能被新校验拦掉 */
     private static final String OWN_ORDER = "wo_own";
@@ -162,12 +162,12 @@ class WorkOrderWriteScopeTest {
         assertNotNull(service.getChecklist(OWN_ORDER, EMP_LI).get("items"));
     }
 
-    /** 组长（同班组）仍可作业组员工单——校验不得把 V7 的组长视角一起锁死 */
+    /** 组长保留 V7 班组清单视角，但签到必须主维保本人，管理视角不能变成代签到权限。 */
     @Test
-    void groupLeaderCanOperateGroupMemberOrder() {
-        Map<String, Object> result = service.checkin(GROUP_ORDER,
-                Map.of("role", "PRINCIPAL", "latitude", "29.6000", "longitude", "106.5000"), EMP_CHEN);
-        assertNotNull(result.get("checkinId"));
+    void groupLeaderCanReadChecklistButCannotCheckinForMember() {
+        assertForbidden(() -> service.checkin(GROUP_ORDER,
+                Map.of("role", "PRINCIPAL", "latitude", "29.6000", "longitude", "106.5000"), EMP_CHEN));
+        verify(orderMapper, never()).updateById(any(WorkOrder.class));
         assertEquals(1, ((List<?>) service.getChecklist(GROUP_ORDER, EMP_CHEN).get("items")).size());
     }
 

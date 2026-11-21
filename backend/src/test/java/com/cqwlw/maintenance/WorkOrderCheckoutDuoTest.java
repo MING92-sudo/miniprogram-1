@@ -226,6 +226,22 @@ class WorkOrderCheckoutDuoTest {
         verify(recordMapper, never()).insert(any(MaintainRecord.class));
     }
 
+    @Test
+    void explicitNewOrderRequiresDuoEvenWithoutRegion() {
+        WorkOrder o = legacyOrder();
+        o.duoRequired = Boolean.TRUE;
+        o.assistantName = null;
+        o.assistantPlatformId = null;
+        when(orderMapper.selectById(LEGACY_ORDER)).thenReturn(o);
+
+        BizException e = assertThrows(BizException.class,
+                () -> service.checkout(LEGACY_ORDER, Map.of("signatureUrl", "https://x/sign.png"), EMP_LI));
+        assertEquals(422, e.getCode());
+        assertTrue(e.getMessage().contains("请选择配合人员"), e.getMessage());
+        verify(orderMapper, never()).updateById(any(WorkOrder.class));
+        verify(recordMapper, never()).insert(any(MaintainRecord.class));
+    }
+
     /** 池化新单（V57 起派单落 regionId 快照）：主维保已认领，PROCESSING */
     private static WorkOrder pooledOrder() {
         WorkOrder o = base(POOLED_ORDER);

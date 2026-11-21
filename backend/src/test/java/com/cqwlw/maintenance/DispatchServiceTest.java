@@ -239,6 +239,7 @@ class DispatchServiceTest {
         assertNull(o.assistantPlatformId);
         assertEquals("rg_9", o.regionId, "手动派单也应落电梯 regionId 快照");
         assertEquals(Boolean.FALSE, o.autoDispatched);
+        assertEquals(Boolean.TRUE, o.duoRequired, "所有派单入口创建的新单都必须双人");
         verify(orderMapper, times(1)).insert(any(WorkOrder.class));
     }
 

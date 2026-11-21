@@ -202,6 +202,7 @@ public class DispatchService {
         o.planTime = planTime;
         o.status = "PENDING"; // 池化语义 = 待接单
         o.regionId = el.regionId;
+        o.duoRequired = Boolean.TRUE;
         o.autoDispatched = auto;
         o.checklistJson = com.cqwlw.maintenance.util.JsonUtil.write(
                 checklistService.buildChecklist(code, el.category, el.specialType));

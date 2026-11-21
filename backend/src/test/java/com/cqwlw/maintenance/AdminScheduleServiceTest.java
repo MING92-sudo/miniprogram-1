@@ -186,6 +186,7 @@ class AdminScheduleServiceTest {
         verify(orderMapper).insert(captor.capture());
         assertEquals("PENDING", captor.getValue().status);
         assertEquals(Boolean.FALSE, captor.getValue().autoDispatched);
+        assertEquals(Boolean.TRUE, captor.getValue().duoRequired, "人工排班新单必须显式双人");
         assertEquals("张伟", captor.getValue().workerName);
         assertEquals("uu_el_1", captor.getValue().useUnitId, "排班工单应冻结电梯的 useUnitId");
         assertEquals("启元物业", captor.getValue().useUnitName, "排班工单应冻结解析后的单位名");
@@ -196,6 +197,20 @@ class AdminScheduleServiceTest {
         assertEquals("ASSIGNED", planCaptor.getValue().status);
         assertEquals(captor.getValue().id, planCaptor.getValue().orderId);
         assertEquals("张伟", out.get("workerName"));
+    }
+
+    @Test
+    void assignRejectsMissingAssistantWithoutAnyWrite() {
+        stubPlanAndElevator();
+        when(employeeMapper.selectById("emp_w")).thenReturn(
+                employee("emp_w", "张伟", "13800000001", "WORKER", "990001", "2027-11-05"));
+
+        BizException e = assertThrows(BizException.class,
+                () -> service.assign("pl_1", "emp_w", "", ""));
+        assertEquals(422, e.getCode());
+        assertTrue(e.getMessage().contains("配合人员"));
+        verify(orderMapper, never()).insert(any(WorkOrder.class));
+        verify(planMapper, never()).updateById(any(MaintainPlan.class));
     }
 
     @Test

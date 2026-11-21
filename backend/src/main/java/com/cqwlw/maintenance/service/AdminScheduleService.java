@@ -209,10 +209,13 @@ public class AdminScheduleService {
         }
         Elevator el = requireElevator(p.elevatorId);
         checkElevatorFree(el);
+        if (assistant == null) {
+            throw new BizException(422, "所有新工单必须双人作业，请选择配合人员");
+        }
 
         p.status = "ASSIGNED";
         p.principalId = principal.id;
-        p.assistantId = assistant == null ? null : assistant.id;
+        p.assistantId = assistant.id;
         p.planDate = date;
         p.updatedAt = TimeUtil.now();
 
@@ -223,10 +226,11 @@ public class AdminScheduleService {
         o.workTypeCode = p.workTypeCode;
         o.planTime = LocalDateTime.of(date, java.time.LocalTime.of(9, 0));
         o.status = "PENDING";
+        o.duoRequired = Boolean.TRUE;
         o.workerName = principal.name;
-        o.assistantName = assistant == null ? "" : assistant.name;
+        o.assistantName = assistant.name;
         o.workerPlatformId = principal.platformId == null ? "" : principal.platformId;
-        o.assistantPlatformId = assistant == null || assistant.platformId == null ? "" : assistant.platformId;
+        o.assistantPlatformId = assistant.platformId == null ? "" : assistant.platformId;
         o.autoDispatched = false;
         o.checklistJson = JsonUtil.write(checklistService.buildChecklist(
                 p.workTypeCode, el.category, el.specialType));

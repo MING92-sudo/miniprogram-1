@@ -173,4 +173,36 @@ class CheckinGeoFenceTest {
         assertTrue(order.checkinExtraJson.contains("geoStatus"), "签到留痕应含定位校验结果");
         assertTrue(order.checkinExtraJson.contains("distance"), "签到留痕应含实测距离");
     }
+
+    @Test
+    void nonFiniteAndOutOfRangeCoordinatesRejectedBeforeAnyWrite() {
+        String[][] invalid = {
+                {"NaN", "106.5"}, {"Infinity", "106.5"}, {"-Infinity", "106.5"},
+                {"29.6", "NaN"}, {"29.6", "Infinity"}, {"29.6", "-Infinity"},
+                {"91", "106.5"}, {"-91", "106.5"}, {"29.6", "181"}, {"29.6", "-181"}
+        };
+        for (String[] coordinate : invalid) {
+            Map<String, Object> b = body(EL_LAT, EL_LNG);
+            b.put("latitude", coordinate[0]);
+            b.put("longitude", coordinate[1]);
+            BizException e = assertThrows(BizException.class, () -> service.checkin(ORDER, b, EMP),
+                    () -> "非法坐标必须拒绝：" + coordinate[0] + "," + coordinate[1]);
+            assertEquals(422, e.getCode());
+        }
+        verify(orderMapper, never()).updateById(any(WorkOrder.class));
+        verify(elevatorMapper, never()).updateById(any(Elevator.class));
+        assertEquals("PENDING", order.status);
+    }
+
+    @Test
+    void clientCollectedAtCannotForgeCheckinTime() {
+        Map<String, Object> b = body(EL_LAT, EL_LNG);
+        b.put("collectedAt", "2000-01-01 00:00:00");
+        var before = com.cqwlw.maintenance.util.TimeUtil.now().minusSeconds(1);
+        service.checkin(ORDER, b, EMP);
+        var after = com.cqwlw.maintenance.util.TimeUtil.now().plusSeconds(1);
+        assertNotNull(order.checkinTime);
+        assertTrue(!order.checkinTime.isBefore(before) && !order.checkinTime.isAfter(after),
+                "作业起始时间必须取服务器时间，客户端时间只能作为额外留痕");
+    }
 }
