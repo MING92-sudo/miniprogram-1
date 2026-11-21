@@ -500,7 +500,8 @@ public class DirectoryService {
             v.put("projectName", el == null || el.projectName == null ? "" : el.projectName);
             v.put("category", el == null || el.category == null ? "" : el.category);
             v.put("specialType", el == null || el.specialType == null ? "" : el.specialType);
-            v.put("productNo", el == null || el.productNo == null ? "" : el.productNo);
+            // 出厂编号（V59 彻底统一，无 productNo 旧键）
+            v.put("factoryNumber", el == null || el.factoryNumber == null ? "" : el.factoryNumber);
             v.put("deviceCode", el == null || el.deviceCode == null ? "" : el.deviceCode);
             v.put("manufacturer", el == null || el.manufacturer == null ? "" : el.manufacturer);
             v.put("driveMode", el == null || el.driveMode == null ? "" : el.driveMode);
@@ -740,8 +741,11 @@ public class DirectoryService {
     }
 
     // ── 消息 ──
+    // V56：员工消息中心只读 use_unit_id IS NULL 的行——use_unit_id 非空为客户门户受众
+    // （签字临期/超期提醒，ClientMessageService/SignReminderService），两侧互不串扰
     public Map<String, Object> listMessages(Map<String, String> query) {
         List<Map<String, Object>> views = messageMapper.selectList(new LambdaQueryWrapper<Message>()
+                        .isNull(Message::getUseUnitId)
                         .orderByDesc(Message::getCreatedAt)).stream()
                 .map(this::messageView).toList();
         return workOrderService.paginate(views, query);
@@ -759,13 +763,16 @@ public class DirectoryService {
 
     public Map<String, Object> unreadCount() {
         Long c = messageMapper.selectCount(new LambdaQueryWrapper<Message>()
+                .isNull(Message::getUseUnitId)
                 .eq(Message::getReadFlag, false));
         return map("count", c == null ? 0 : c);
     }
 
     public Map<String, Object> readMessage(String id) {
         Message msg = messageMapper.selectById(id);
-        if (msg == null) {
+        // 员工中心只可读员工消息：客户消息（use_unit_id 非空）与不存在同 1404（无存在性 oracle），
+        // 与 list/unreadCount/readAll 的 use_unit_id IS NULL 谓词同口径（2026-11-21 审查补齐）
+        if (msg == null || msg.useUnitId != null) {
             throw new BizException(1404, "消息不存在");
         }
         msg.readFlag = true;
@@ -775,6 +782,7 @@ public class DirectoryService {
 
     public Map<String, Object> readAll() {
         for (Message msg : messageMapper.selectList(new LambdaQueryWrapper<Message>()
+                .isNull(Message::getUseUnitId)
                 .eq(Message::getReadFlag, false))) {
             msg.readFlag = true;
             messageMapper.updateById(msg);

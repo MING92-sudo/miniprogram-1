@@ -152,8 +152,6 @@ const db = {
     // ── 渲染口径对齐（2026-11-15 裁决）：平台双账号/安装主管/安装员/使用单位签字人，与后端 seeder 同号 ──
     ADMIN: { id: 'emp_admin', name: '郑浩', phone: '13800000009', account: '13800000009', password: '123456', role: 'ADMIN', roles: ['PLATFORM_ADMIN'], roleText: '平台管理员', groupName: '平台', platformId: '',
       certificate: '', workStartDate: '', workEndDate: '', workStat: '', syncStatus: 'NOT_SYNCED' },
-    SYS_ADMIN: { id: 'emp_sys', name: '系统管理员', phone: '13800000010', account: '13800000010', password: '123456', role: 'SYS_ADMIN', roles: ['SYS_ADMIN'], roleText: '系统管理员', groupName: '平台', platformId: '',
-      certificate: '', workStartDate: '', workEndDate: '', workStat: '', syncStatus: 'NOT_SYNCED' },
     INST_MGR: { id: 'emp_zhang', name: '张工', phone: '13800000099', account: '13800000099', password: '123456', role: 'INST_MGR', roles: ['INST_MGR'], roleText: '安装部主管', groupName: '安装部', platformId: 'P_ZHANG',
       certificate: '', workStartDate: '2020-01-01', workEndDate: addDays(600), workStat: 'normal', syncStatus: 'ACTIVE' },
     INSTALLER: { id: 'emp_azy', name: '安装员', phone: '13800000017', account: '13800000017', password: '123456', role: 'INSTALLER', roles: ['INSTALLER'], roleText: '安装员', groupName: '安装一部', platformId: '',
@@ -172,7 +170,7 @@ const db = {
       platformSyncedAt: '2026-09-29 14:20:00',
       // ── 本地维护字段（平台不提供：地址/经纬度/型号品牌/制造单位/下次检验）──
       lng: 106.633520, lat: 29.719210,
-      brand: '奥的斯', manufacturer: '奥的斯电梯（中国）有限公司', productNo: 'OTIS-2013-8817',
+      brand: '奥的斯', manufacturer: '奥的斯电梯（中国）有限公司',
       driveMode: '曳引驱动', ratedLoad: 1000, ratedLoadUnit: 'kg', ratedSpeed: 1.75, ratedSpeedUnit: 'm/s', stationsDoors: '11/11',
       // 维保绑定配置：到期自动派单的人员与频次（正式版为维保合同 + 排班表）
       maintenance: { workTypeCode: 'HM', intervalDays: 15, workerName: '张伟', workerPhone: '13800000001', workerPlatformId: '6901282369105174537', assistantName: '李强', assistantPlatformId: '6901284774286860288', lastMaintenanceAt: addDays(-3) } },
@@ -182,7 +180,7 @@ const db = {
       elevatorAdminister: '王芳', elevatorAdministerPhone: '13800000003', emergencyPhone: '023-67612345',
       platformSyncedAt: '2026-09-29 14:20:00',
       lng: 106.633520, lat: 29.719210,
-      brand: '奥的斯', manufacturer: '奥的斯电梯（中国）有限公司', productNo: 'OTIS-2013-8818',
+      brand: '奥的斯', manufacturer: '奥的斯电梯（中国）有限公司',
       driveMode: '曳引驱动', ratedLoad: 1000, ratedLoadUnit: 'kg', ratedSpeed: 1.75, ratedSpeedUnit: 'm/s', stationsDoors: '11/11',
       maintenance: { workTypeCode: 'HM', intervalDays: 15, workerName: '张伟', workerPlatformId: '6901282369105174537', assistantName: '李强', assistantPlatformId: '6901284774286860288', lastMaintenanceAt: addDays(-3) } },
     { id: 'el_3', elevatorCode: 'EM-2024-003', elevatorName: '蓝湾国际 A 座货梯', projectName: '蓝湾国际', location: '江北区滨江路 6 号蓝湾国际', regCode: 'TSCQ5001120003', deviceCode: 'DT-CQ-2024-003', insideNumber: 'HT-01', model: '三菱 GPS-III', useUnitId: 'uu_2', category: '曳引与强制驱动电梯', nextCheckDate: addDays(200), regionId: 'rg_jiangbei',
@@ -190,7 +188,7 @@ const db = {
       elevatorAdminister: '吴静', elevatorAdministerPhone: '13800003005', emergencyPhone: '023-67991234',
       platformSyncedAt: '2026-09-29 14:25:00',
       lng: 106.574210, lat: 29.588660,
-      brand: '三菱', manufacturer: '上海三菱电梯有限公司', productNo: 'MLS-2018-0331',
+      brand: '三菱', manufacturer: '上海三菱电梯有限公司',
       driveMode: '曳引驱动', ratedLoad: 2000, ratedLoadUnit: 'kg', ratedSpeed: 1.0, ratedSpeedUnit: 'm/s', stationsDoors: '6/6',
       maintenance: { workTypeCode: 'FM', intervalDays: 30, workerName: '张伟', workerPhone: '13800000001', workerPlatformId: '6901282369105174537', assistantName: '', assistantPlatformId: '', lastMaintenanceAt: addDays(-10) } },
     { id: 'el_4', elevatorCode: 'EM-2024-004', elevatorName: '蓝湾国际 B 座客梯', projectName: '蓝湾国际', location: '江北区滨江路 6 号蓝湾国际', regCode: 'TSCQ5001120004', deviceCode: 'DT-CQ-2024-004', insideNumber: 'KT-01', model: '日立 YK', useUnitId: 'uu_2', category: '曳引与强制驱动电梯', nextCheckDate: addDays(240), regionId: 'rg_jiangbei',
@@ -198,7 +196,7 @@ const db = {
       elevatorAdminister: '吴静', elevatorAdministerPhone: '13800003005', emergencyPhone: '023-67991234',
       platformSyncedAt: '2026-09-29 14:25:00',
       lng: 106.574210, lat: 29.588660,
-      brand: '日立', manufacturer: '日立电梯（中国）有限公司', productNo: 'HIT-2021-1102',
+      brand: '日立', manufacturer: '日立电梯（中国）有限公司',
       driveMode: '曳引驱动', ratedLoad: 1000, ratedLoadUnit: 'kg', ratedSpeed: 1.5, ratedSpeedUnit: 'm/s', stationsDoors: '8/8',
       // 演示到期自动派单：上次维保 16 天前，已超半月周期 → 进入工单台即自动生成并派给李强
       maintenance: { workTypeCode: 'HM', intervalDays: 15, workerName: '李强', workerPhone: '13800000004', workerPlatformId: '6901284774286860288', assistantName: '', assistantPlatformId: '', lastMaintenanceAt: addDays(-16) } }
@@ -259,7 +257,9 @@ const db = {
   messages: [
     { id: 'msg_1', title: '今日维保任务提醒', content: '您今日有 2 条维保任务，请按时到场扫码签到', createdAt: today('07:30:00'), read: false },
     { id: 'msg_2', title: '排班确认通知', content: '下周排班表已发布，请确认后回复', createdAt: today('06:10:00'), read: false },
-    { id: 'msg_3', title: '平台对接公告', content: '监管平台业务接口已开放至 2.7，详见联调记录', createdAt: today('08:00:00'), read: true }
+    { id: 'msg_3', title: '平台对接公告', content: '监管平台业务接口已开放至 2.7，详见联调记录', createdAt: today('08:00:00'), read: true },
+    // V2.80 客户门户消息（useUnitId 受众；员工消息中心过滤此类行，两侧互不串扰）
+    { id: 'msg_cu_1', title: '签字临期提醒', content: '世纪大厦 1# 客梯 半月维保记录即将到达签字截止时间，请及时到「待办签字」完成确认。', createdAt: today('09:10:00'), useUnitId: 'uu_1', readFlag: false }
   ],
 
   rescues: [
@@ -313,7 +313,9 @@ const db = {
       nextMaintenanceDate: addDays(15),
       confirmStatus: 'PENDING', satisfaction: null, signatureFileId: '', signatureUrl: '',
       // 生命周期（V42）+ 版本链（P1 T4/T7 门禁演示）：本单位 uu_1、唯一可签状态、链末端最新版本
-      lifecycleStatus: 'PENDING_CLIENT_SIGNATURE', version: 1, prevVersionId: ''
+      lifecycleStatus: 'PENDING_CLIENT_SIGNATURE', version: 1, prevVersionId: '',
+      // V2.80 签字 SLA 演示：发起于 48 小时前 → 距 72h 截止剩约 24 小时（待办「临期」+ 签字页倒计时）
+      signRequestedAt: formatTime(new Date(Date.now() - 48 * 3600000))
     },
     {
       id: 'ur_2', elevatorName: '蓝湾国际 A 座货梯', elevatorCode: 'EM-2024-003', shareToken: 'sg-mock-2', recordVersion: 'v1', hashPrefix: '9F3C7A21', frozenAt: today('18:10:00'), assistantSignatureUrl: '',
@@ -568,7 +570,7 @@ function getElevatorProfile(id) {
       lat: el.lat != null ? String(el.lat) : '',
       brand: el.brand || '',
       manufacturer: el.manufacturer || '',
-      productNo: el.productNo || '',
+      factoryNumber: el.factoryNumber || '',
       driveMode: el.driveMode || '',
       ratedLoad: el.ratedLoad != null ? el.ratedLoad + (el.ratedLoadUnit || 'kg') : '',
       ratedSpeed: el.ratedSpeed != null ? el.ratedSpeed + (el.ratedSpeedUnit || 'm/s') : '',

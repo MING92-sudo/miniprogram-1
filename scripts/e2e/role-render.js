@@ -12,10 +12,9 @@ const EXPECT = {
   // P1 T6：客户快捷动作收敛为 elevators+todo，报修/急修进度下线（tabs 不变）
   '13800000003': { home: '/pages/client/home/index', tabs: ['client-home', 'client-todo', 'client-elevators', 'profile'], qa: ['elevators', 'todo'], noqa: ['report', 'emergency'] },
   '13800000018': { home: '/pages/client/home/index', tabs: ['client-home', 'client-todo', 'client-elevators', 'profile'], qa: ['elevators', 'todo'], noqa: ['report', 'emergency'] },
-  '13800000009': { home: '/pkg-admin/pages/users/index', tabs: ['admin-org', 'stats', 'admin-audit', 'admin-settings', 'profile'] },
-  '13800000010': { home: '/pkg-admin/pages/users/index', tabs: ['admin-org', 'stats', 'admin-audit', 'admin-settings', 'profile'] }
+  '13800000009': { home: '/pkg-admin/pages/users/index', tabs: ['admin-org', 'stats', 'admin-audit', 'admin-settings', 'profile'] }
 }
-const SHOTS = ['13800000010', '13800000009', '13800000017', '13800000003', '13800000015']
+const SHOTS = ['13800000009', '13800000017', '13800000003', '13800000015']
 ;(async () => {
   let mp
   for (const port of [23854, 23853, 9421]) {

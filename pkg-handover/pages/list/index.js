@@ -21,7 +21,7 @@ const SIZE = 20
 const MAINT_VISIBLE_FILTERS = ['', 'INSPECTING', 'RECTIFYING', 'PENDING_CONFIRM', 'ARCHIVED']
 function filtersFor(roles) {
   const maintOnly = (roles || []).some((r) => r.indexOf('MAINT') === 0)
-    && !(roles || []).some((r) => r.indexOf('INST') === 0 || r === 'INSTALLER' || r === 'PLATFORM_ADMIN' || r === 'SYS_ADMIN' || r === 'ADMIN')
+    && !(roles || []).some((r) => r.indexOf('INST') === 0 || r === 'INSTALLER' || r === 'PLATFORM_ADMIN' || r === 'ADMIN')
   return maintOnly ? FILTERS.filter((f) => MAINT_VISIBLE_FILTERS.indexOf(f.key) > -1) : FILTERS
 }
 
@@ -38,6 +38,8 @@ const FILTERS = [
 function decorate(o) {
   return Object.assign({}, o, {
     statusText: HANDOVER_STATUS_TEXT[o.status] || o.status,
+    // 缺省兜底：未关联设备的草稿（无项目名/梯名）也保持卡片可读（2026-11-21 真机反馈）
+    projectName: o.projectName || '未命名项目',
     subtitle: [o.elevatorName, o.elevatorCode].filter(function (x) { return !!x }).join(' · ')
   })
 }

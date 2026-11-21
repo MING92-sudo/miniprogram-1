@@ -189,7 +189,8 @@ public class ElevatorService {
         local.put("lat", el.lat != null ? String.valueOf(el.lat) : "");
         local.put("brand", nz(el.brand));
         local.put("manufacturer", nz(el.manufacturer));
-        local.put("productNo", nz(el.productNo));
+        // 出厂编号（V59 彻底统一，无回退）
+        local.put("factoryNumber", nz(el.factoryNumber));
         local.put("driveMode", nz(el.driveMode));
         local.put("ratedLoad", el.ratedLoad != null ? el.ratedLoad + (el.ratedLoadUnit == null ? "kg" : el.ratedLoadUnit) : "");
         local.put("ratedSpeed", el.ratedSpeed != null ? el.ratedSpeed + (el.ratedSpeedUnit == null ? "m/s" : el.ratedSpeedUnit) : "");
@@ -269,8 +270,9 @@ public class ElevatorService {
             uw.set(Elevator::getManufacturer, str(body, "manufacturer"));
             any = true;
         }
-        if (body != null && body.containsKey("productNo")) {
-            uw.set(Elevator::getProductNo, str(body, "productNo"));
+        // 出厂编号（V59 彻底统一，productNo 已全仓移除）
+        if (body != null && body.containsKey("factoryNumber")) {
+            uw.set(Elevator::getFactoryNumber, str(body, "factoryNumber"));
             any = true;
         }
         if (body != null && body.containsKey("driveMode")) {

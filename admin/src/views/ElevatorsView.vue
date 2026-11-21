@@ -5,7 +5,7 @@
     </ViewHead>
     <div class="mt16">
       <DataTable :columns="cols" :rows="rows" :loading="loading" clickable selectable
-        :search-keys="['elevatorCode', 'deviceCode', 'registrationCode', 'insideNumber', 'projectName']" search-placeholder="搜索电梯编码 / 设备代码 / 注册代码 / 项目名称"
+        :search-keys="['elevatorCode', 'deviceCode', 'registrationCode', 'insideNumber', 'projectName', 'regionName', 'useUnitName']" search-placeholder="搜索小区名称 / 内部编号 / 注册代码 / 电梯编码 / 使用单位"
         :filters="[{ key: 'status', label: '状态', options: statusOptions }, { key: 'projectName', label: '项目', options: projOptions }]"
         :bulk-actions="[{ code: 'elevator:export', label: '批量导出', variant: 'ghost', icon: 'download' }]"
         empty-hint="当前数据范围内没有电梯。" @row-click="openArchive" @bulk="exportElev">
@@ -18,16 +18,16 @@
           <span v-if="missingOf(row).length" class="tag tag-amber f11" style="margin-left:6px"
             :title="'缺必传项：' + missingOf(row).join('、')">待补全</span>
         </template>
-        <template #cell-deviceCode="{ value }"><span class="mono f12">{{ value || '—' }}</span></template>
+        <template #cell-insideNumber="{ value }"><span class="mono f12">{{ value || '—' }}</span></template>
+        <template #cell-regionName="{ value }"><span class="f12">{{ value || '重庆市（全市）' }}</span></template>
         <template #cell-registrationCode="{ value }"><span class="mono f12">{{ value || '—' }}</span></template>
-        <template #cell-last="{ row }"><span class="mono f12">{{ row.lastMaintenanceDate || '—' }}</span></template>
-        <template #cell-next="{ row }"><span class="mono f12">{{ row.nextMaintenanceDate || '—' }}</span></template>
-        <template #cell-status="{ value }"><StatusTag :status="value" /></template>
-        <template #cell-addr="{ row }"><span class="f12">{{ row.location || row.address || '—' }}</span></template>
         <template #row-actions="{ row }">
+          <PermButton code="elevator:view" label="电梯档案" variant="ghost" size="xs" icon="file-text" @click="openDetail(row)" />
           <PermButton code="elevator:qr" label="设备码" variant="ghost" size="xs" icon="qr" @click="openQr(row)" />
           <PermButton code="elevator:edit" label="编辑" variant="ghost" size="xs" icon="edit" @click="openEditRow(row)" />
-          <PermButton code="elevator:transfer" label="移装/停用/报废" variant="danger" size="xs" icon="alert" c-tip="经理 + 平台双人确认" @click="openChange(row)" />
+          <PermButton v-if="row.status === 'INACTIVE'" code="elevator:edit" label="启用" variant="ghost" size="xs" icon="check" @click="toggleSuspend(row)" />
+          <PermButton v-else code="elevator:edit" label="停保" variant="ghost" size="xs" icon="ban" c-tip="停保后不派单、小程序不可见" @click="toggleSuspend(row)" />
+          <PermButton code="elevator:edit" label="删除电梯" variant="danger" size="xs" icon="ban" @click="askDelete(row)" />
         </template>
       </DataTable>
     </div>
@@ -70,6 +70,9 @@
           <div class="kv"><span class="k">下次到期</span><span class="v mono">{{ current.nextMaintenanceDate || '—' }}</span></div>
           <div class="kv"><span class="k">状态</span><span class="v">{{ statusLabel(current.status) }}</span></div>
           <div class="kv"><span class="k">详细地址</span><span class="v">{{ current.location || '—' }}</span></div>
+          <!-- 绑定字段 M6：库中保留历史值仅作展示，派单/归属链路一律不再读取（区域抢单池取代） -->
+          <div class="kv"><span class="k">主维保（历史绑定）</span><span class="v">{{ current.workerName || '—' }}</span></div>
+          <div class="kv"><span class="k">配合人员（历史绑定）</span><span class="v">{{ current.assistantName || '—' }}</span></div>
         </div>
       </div>
       <div class="sec">
@@ -87,7 +90,7 @@
             <div class="kv"><span class="k">品种</span><span class="v">{{ profile.category || '—' }}</span></div>
             <div class="kv"><span class="k">品牌</span><span class="v">{{ profile.local?.brand || '—' }}</span></div>
             <div class="kv"><span class="k">制造单位</span><span class="v">{{ profile.local?.manufacturer || '—' }}</span></div>
-            <div class="kv"><span class="k">产品编号</span><span class="v mono">{{ profile.local?.productNo || '—' }}</span></div>
+            <div class="kv"><span class="k">出厂编号</span><span class="v mono">{{ profile.local?.factoryNumber || '—' }}</span></div>
             <div class="kv"><span class="k">驱动方式</span><span class="v">{{ profile.local?.driveMode || '—' }}</span></div>
             <div class="kv"><span class="k">额定载重</span><span class="v">{{ profile.local?.ratedLoad || '—' }}</span></div>
             <div class="kv"><span class="k">额定速度</span><span class="v">{{ profile.local?.ratedSpeed || '—' }}</span></div>
@@ -132,7 +135,8 @@
       <template #footer>
         <PermButton code="elevator:qr" label="生成设备码" variant="ghost" icon="qr" @click="openQr(current)" />
         <PermButton code="elevator:edit" label="编辑" variant="ghost" icon="edit" @click="openEdit" />
-        <PermButton code="elevator:transfer" label="移装/停用/报废" variant="danger" icon="alert" @click="openChange(current)" />
+        <PermButton v-if="current.status === 'INACTIVE'" code="elevator:edit" label="启用" variant="ghost" icon="check" @click="toggleSuspend(current)" />
+        <PermButton v-else code="elevator:edit" label="停保" variant="ghost" icon="ban" @click="toggleSuspend(current)" />
         <PermButton code="elevator:edit" label="删除电梯" variant="danger" icon="ban" @click="showDelete = true" />
       </template>
     </Drawer>
@@ -157,7 +161,7 @@
         <div class="form-grid">
           <FormField v-for="f in DEVICE_FIELDS" :key="f.key" :label="f.label" :required="f.required" :error="errors[f.key]">
             <select v-if="f.type === 'region'" v-model="formModel.regionId" class="ctl">
-              <option value="">未设置（不限区域）</option>
+              <option value="">重庆市（全市 · 不限区域）</option>
               <option v-for="r in regions" :key="r.id" :value="r.id">{{ r.name }}</option>
             </select>
             <input v-else-if="f.type === 'date'" v-model="formModel.nextCheckDate" class="ctl mono" type="date" />
@@ -175,9 +179,16 @@
           <FormField label="安装地址"><input v-model="formModel.location" class="ctl" /></FormField>
           <FormField label="品牌"><input v-model="formModel.brand" class="ctl" /></FormField>
           <FormField label="制造单位"><input v-model="formModel.manufacturer" class="ctl" /></FormField>
-          <FormField label="产品编号（≠ 注册代码）"><input v-model="formModel.productNo" class="ctl mono" /></FormField>
           <FormField label="驱动方式"><input v-model="formModel.driveMode" class="ctl" /></FormField>
         </div>
+        <div v-if="formMode === 'create'" class="sec-t mt16">排期基线（建档即排全年计划）</div>
+        <div v-if="formMode === 'create'" class="form-grid">
+          <FormField label="上次维保日期（存量选填）">
+            <input v-model="formModel.lastMaintenanceAt" class="ctl mono" type="date" />
+          </FormField>
+        </div>
+        <RuleNote v-if="formMode === 'create'" class="mt8" icon="calendar">留空则以建档日期为基线：首保 = 基线 + 15 天，此后按半月 / 季 / 半年 / 年累加排满一年并进入维保日历，到期前一日自动派单；存量电梯请填实际上次维保日期。建档后基线由签退自动滚动，不可手改。</RuleNote>
+        <RuleNote class="mt8" icon="alert">派单已改为区域抢单池（2026-11-20 D2）：不再需要绑定维保人员；电梯归属 = 「所在区域」，留空 = 不限区域（全员可见）。</RuleNote>
       </Form>
       <RuleNote class="mt12">前 5 项（电梯编码 / 设备代码 / 注册代码 / 单位内编号 / 出厂编号）为上传维保记录的必传项，缺任一项签退即被拦截；项目名称（小区名称）、所在区域、年检日期可留空后补。</RuleNote>
     </Modal>
@@ -186,23 +197,6 @@
     <Modal :open="showDelete" title="删除电梯" :sub="current.elevatorCode" icon="ban" danger require-confirm note="elevator:edit"
       confirm-text="我已知悉，确认删除" confirm-label="确认删除" @close="showDelete = false" @confirm="submitDelete">
       <RuleNote icon="alert">确认删除电梯 {{ current.elevatorCode }}？存在在途工单或系统管理员关联时将被拒绝。</RuleNote>
-    </Modal>
-
-    <!-- 发起变更（双人确认第一段） -->
-    <Modal :open="showChange" title="移装 / 停用 / 报废" :sub="(chgTarget.elevatorCode || '') + ' · 双人确认（发起人 ≠ 确认人）'" icon="alert" danger require-confirm note="elevator:transfer"
-      confirm-text="双人确认：发起人与确认人为不同账号，已知悉变更不可逆" confirm-label="发起变更" @close="showChange = false" @confirm="submitChange">
-      <Form ref="chgForm" :rules="chgRules" v-model="chgModel" v-slot="{ errors }">
-        <div class="form-grid">
-          <FormField label="变更类型" required :error="errors.changeType">
-            <select v-model="chgModel.changeType" class="ctl"><option value="TRANSFER">移装</option><option value="DISABLE">停用</option><option value="SCRAP">报废</option></select>
-          </FormField>
-          <FormField label="发起人（当前账号）"><input :value="auth.userName" class="ctl" disabled /></FormField>
-          <FormField label="电梯编号" required :error="errors.elevatorId"><input v-model="chgModel.elevatorId" class="ctl mono" /></FormField>
-        </div>
-        <div class="form-grid one mt12">
-          <FormField label="变更原因" required :error="errors.reason"><textarea v-model="chgModel.reason" class="ctl" placeholder="必填，说明移装/停用/报废原因" /></FormField>
-        </div>
-      </Form>
     </Modal>
 
     <!-- 确认变更（第二段，须不同于发起人） -->
@@ -216,9 +210,11 @@
   </div>
 </template>
 <script setup>
-// 电梯台账（原型 Views.elevators + openElevDetail/doElevTransfer/doElevQr/doElevEdit 对齐）：
-// 档案增删改查（elevator:edit）+ 一梯一档归档目录（只读 SHA-256）+ 移装/停用/报废双人确认（elevator:transfer）+ 真实设备码 PNG
+// 电梯台账（原型 Views.elevators + openElevDetail/doElevQr/doElevEdit 对齐）：
+// 档案增删改查（elevator:edit）+ 一梯一档归档目录（只读 SHA-256）+ 停保/启用（status=INACTIVE 直操作）+ 真实设备码 PNG
+// 2026-11-21 用户裁决：行内「移装/停用/报废」变更单入口下线，替换为「停保 / 删除电梯」直操作（存量变更单仍可确认）
 import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import http from '../api/client'
 import DataTable from '../ui/DataTable.vue'
 import Drawer from '../ui/Drawer.vue'
@@ -235,27 +231,27 @@ import { useToast } from '../ui/stores/ui'
 import { exportCsv } from '../ui/export-csv'
 import { DEVICE_FIELDS, deviceRules, deviceFormOf, missingRequiredOf } from '../ui/device-fields'
 import { usePerspectiveStore } from '../ui/stores/perspective'
-import { useAuthStore } from '../stores/auth'
 import { elevatorActionLabel, statusLabel, scopeLabel } from '../ui/labels'
-import { listChanges, initiateChange, confirmChange } from '../api/ledger'
+import { listChanges, confirmChange } from '../api/ledger'
 import { createElevator, updateElevator, deleteElevator, elevatorProfile, elevatorArchive, elevatorQrPng } from '../api/archive'
 const toast = useToast()
+const router = useRouter()
 const perspective = usePerspectiveStore()
-const auth = useAuthStore()
+// 操作列「电梯档案」→ 下级页（5 Tab：基本信息/电梯参数/维保计划/维保工单/维修工单）
+function openDetail(row) { if (row && row.id) router.push('/elevator/' + row.id) }
 const rows = ref([])
 const changes = ref([])
 const loading = ref(false)
 const categories = ['曳引与强制驱动电梯', '液压驱动电梯', '杂物电梯', '自动扶梯与自动人行道']
-// 列口径：电梯编码（内部编码）与设备代码（平台设备代码）是两个字段，标签不得互换
+// 列口径（2026-11-21 用户定版 7 列）：小区名称 / 内部编号 / 所在区域 / 注册代码 / 电梯编码 / 使用单位 / 操作；
+// 设备代码、上次/下次维保、状态、详细地址从表格拿掉，仅在档案抽屉与电梯档案页可见
 const cols = [
-  { key: 'elevatorCode', label: '电梯编码', sortable: true },
-  { key: 'projectName', label: '项目名称（小区）' },
-  { key: 'deviceCode', label: '设备代码' },
+  { key: 'projectName', label: '小区名称', sortable: true },
+  { key: 'insideNumber', label: '内部编号' },
+  { key: 'regionName', label: '所在区域' },
   { key: 'registrationCode', label: '注册代码' },
-  { key: 'last', label: '上次维保', sortable: true },
-  { key: 'next', label: '下次到期', sortable: true },
-  { key: 'status', label: '状态', sortable: true },
-  { key: 'addr', label: '详细地址' }
+  { key: 'elevatorCode', label: '电梯编码', sortable: true },
+  { key: 'useUnitName', label: '使用单位' }
 ]
 const statusOptions = computed(() => [...new Set(rows.value.map(r => r.status).filter(Boolean))].map(s => ({ value: s, label: statusLabel(s) })))
 const projOptions = computed(() => [...new Set(rows.value.map(r => r.projectName).filter(Boolean))])
@@ -344,7 +340,8 @@ const formRules = deviceRules()
 function blankForm() {
   return {
     ...deviceFormOf(null, null),
-    location: '', brand: '', manufacturer: '', productNo: '', driveMode: ''
+    location: '', brand: '', manufacturer: '', driveMode: '',
+    lastMaintenanceAt: ''
   }
 }
 function openCreate() { formMode.value = 'create'; current.value = {}; formModel.value = blankForm(); showForm.value = true }
@@ -362,15 +359,16 @@ function openEdit() {
     // 其他信息（选填）：非设备档案 8 字段，沿用既有的本地维护字段
     location: l.address || current.value.location || '',
     brand: l.brand || '', manufacturer: l.manufacturer || '',
-    productNo: l.productNo || '', driveMode: l.driveMode || ''
+    driveMode: l.driveMode || ''
   }
   showForm.value = true
 }
 async function submitForm() {
   if (!formRef.value.validate()) return
   try {
-    if (formMode.value === 'create') { await createElevator(formModel.value); toast.success('电梯已创建') }
-    else { await updateElevator(current.value.id, formModel.value); toast.success('已提交 · 关键字段进入审核') }
+    const body = { ...formModel.value }
+    if (formMode.value === 'create') { await createElevator(body); toast.success('电梯已创建') }
+    else { await updateElevator(current.value.id, body); toast.success('已提交 · 关键字段进入审核') }
     showForm.value = false
     await load()
     if (formMode.value === 'edit' && archiveOpen.value) openArchive(current.value)
@@ -379,34 +377,28 @@ async function submitForm() {
 
 // 删除
 const showDelete = ref(false)
+function askDelete(row) { current.value = row; showDelete.value = true }
 async function submitDelete() {
   try { await deleteElevator(current.value.id); toast.success('电梯已删除'); showDelete.value = false; archiveOpen.value = false; await load() }
   catch (e) { toast.error(e.message || '删除失败') }
 }
 
-// 变更（双人确认）
-const showChange = ref(false)
+// 停保 / 启用（PUT /elevators/{id} status：INACTIVE=停保后不派单、小程序不可见，docs/09 §6.6；可逆）
+async function toggleSuspend(row) {
+  if (!row || !row.id) return
+  const suspend = row.status !== 'INACTIVE'
+  try {
+    await updateElevator(row.id, { status: suspend ? 'INACTIVE' : 'ACTIVE' })
+    toast.success((row.elevatorCode || '电梯') + (suspend ? ' 已停保' : ' 已恢复启用'))
+    await load()
+    if (archiveOpen.value && current.value.id === row.id) openArchive(row)
+  } catch (e) { toast.error(e.message || '操作失败') }
+}
+
+// 变更确认（双人确认第二段；发起入口已由「停保/删除电梯」直操作替代，仅保留存量变更单确认）
 const showConfirm = ref(false)
-const chgTarget = ref({})
 const confirmerId = ref('')
 const confirmId = ref('')
-const chgForm = ref(null)
-const chgModel = ref({ elevatorId: '', changeType: 'DISABLE', reason: '' })
-const chgRules = {
-  elevatorId: [(v) => (v ? '' : '电梯必填')],
-  changeType: [(v) => (v ? '' : '类型必填')],
-  reason: [(v) => (v ? '' : '原因必填')]
-}
-function openChange(row) {
-  chgTarget.value = row || {}
-  chgModel.value = { elevatorId: (row && row.id) || '', changeType: 'DISABLE', reason: '' }
-  showChange.value = true
-}
-async function submitChange() {
-  if (!chgForm.value.validate()) return
-  try { await initiateChange(chgModel.value); toast.success('变更已发起，待双人确认'); showChange.value = false; load() }
-  catch (e) { toast.error(e.message || '发起失败') }
-}
 function openConfirm(id) { confirmId.value = id; confirmerId.value = ''; showConfirm.value = true }
 async function submitConfirm() {
   if (!confirmerId.value) { toast.warn('确认人编号必填'); return }

@@ -2,7 +2,7 @@
 
 > 面向电梯维保单位的一体化作业系统：微信小程序现场作业 + Spring Boot 后端 + Vue3 管理端，覆盖派单、签到、清单、签退、归档与监管平台上报。
 >
-> **最后更新**：2026-11-10　**当前状态**：主链路可演示、可联调；上线门禁与剩余事项见 [docs/12-未完成事项清单.md](docs/12-未完成事项清单.md)。
+> **最后更新**：2026-11-21　**当前状态**：主链路可演示、可联调；上线门禁与剩余事项见 [docs/00-项目摘要.md](docs/00-项目摘要.md) §6。
 
 ## 1. 业务闭环
 
@@ -15,18 +15,18 @@
   → 使用单位签字确认 / 管理端归档与检索
 ```
 
-合规依据：TSG T5002《电梯维护保养规则》与重庆市监管平台《电梯维保记录上报接口规范 V1.5》；平台实测结论以 [docs/07](docs/07-平台联调实测记录.md) 为准。
+合规依据：TSG T5002《电梯维护保养规则》与重庆市监管平台《电梯维保记录上报接口规范 V1.5》；平台实测结论以 [docs/00-项目摘要.md](docs/00-项目摘要.md) §4 为准。
 
 ## 2. 项目组成
 
 | 部分 | 位置 | 技术与现状 |
 |---|---|---|
-| 微信小程序 | 仓库根目录（微信开发者工具打开） | 原生小程序，22 页、9 个 services、47 条 mock 路由；支持 mock 独立演示或直连后端 |
-| 自建后端 | `backend/` | Java 17 + Spring Boot 3.3.4 + MyBatis-Plus + MySQL 8 + Flyway V1—V22；101 条业务路由 + 3 个探针；196 个单测 |
-| Web 管理端 | `admin/` | Vue3 + Vite + Element Plus；17 个视图（14 条业务路由 + 登录/403/404）；9 个 Vitest 用例 |
+| 微信小程序 | 仓库根目录（微信开发者工具打开） | 原生小程序，49 页（主包 19 + 4 子包 30）、14 个 services、129 条 mock 路由；支持 mock 独立演示或直连后端 |
+| 自建后端 | `backend/` | Java 17 + Spring Boot 3.3.4 + MyBatis-Plus + MySQL 8 + Flyway V1—V61（59 个迁移文件，V30/V32 缺号）；约 815 个单测 |
+| Web 管理端 | `admin/` | Vue3 + Vite + 自建组件库（`admin/src/ui/`，Element Plus 已移除）；33 个视图 |
 | 联调与回归脚本 | `scripts/` | 平台 2.1—2.8 联调 PowerShell、派单/模板回归 Node 脚本 |
-| 项目文档 | `docs/` | 需求、架构、UI、接口、测试、平台确认、联调、计划、管理端、部署、待办（01—12） |
-| 平台规范原文 | `doc_text.txt` | 平台接口规范 V1.5 原文提取，供 `docs/04` B 部分逐字核对（只读） |
+| 项目文档 | `docs/` | 仅 [docs/00-项目摘要.md](docs/00-项目摘要.md) 一份（系统事实/业务不变量/平台实测/上线门禁） |
+| 平台规范原文 | `doc_text.txt` | 平台接口规范 V1.5 原文提取（只读，本地文件不入库，全新克隆需另行获取；与实测冲突时以摘要 §4 为准） |
 
 `miniapp/` 为微信开发者工具“多端应用”生成物，已 gitignore，不属于本项目交付物。
 
@@ -42,25 +42,25 @@
 - **使用单位**：维保记录签字确认页，支持使用单位安全管理员确认。
 - **管理端**：看板、工单、上报异常、急修单、上报日志、计划调度、模板管理、电梯台账、单位/人员/电梯档案、平台人员登记。
 - **离线能力**：工单快照本地缓存 + 持久化补传队列，网络恢复自动补传照片/签名与检查项。
-- **消息**：站内消息中心；真实微信订阅消息推送尚未接入（见 docs/12 C-01）。
+- **消息**：站内消息中心；真实微信订阅消息推送尚未接入（见 docs/00 §6 C-01）。
 
 ## 4. 仓库结构
 
 ```text
-├─ app.js / app.json / app.wxss   小程序入口（22 页，tabBar 4 个）
+├─ app.js / app.json / app.wxss   小程序入口（49 页：主包 19 + 4 子包；无原生 tabBar，custom-tabbar 菜单驱动）
 ├─ pages/                         小程序页面（每页 .js/.json/.wxml/.wxss 四件套）
-├─ services/                      小程序业务接口层（9 个模块）
+├─ services/                      小程序业务接口层（14 个模块）
 ├─ utils/request.js               统一请求封装（Bearer、幂等键、401、callContainer/wx.request 分流）
 ├─ utils/offline.js               离线快照与补传队列
 ├─ utils/auth.js / guard.js       登录态与页面守卫
 ├─ config/index.js                小程序环境配置（ENV、useMock、cloud、上传超时）
 ├─ constants/index.js             枚举、错误码、业务常量
-├─ mock/                          mock 契约层（server.js 路由 = docs/04 A 部分）
-├─ backend/                       Spring Boot 后端（Flyway、平台转发、文件、PDF、定时派单）
-├─ admin/                         Vue3 管理端（看板/工单/档案/调度/模板/台账）
+├─ mock/                          mock 契约层（server.js 129 条路由）
+├─ backend/                       Spring Boot 后端（Flyway V1—V61、平台转发、文件、PDF、定时派单）
+├─ admin/                         Vue3 管理端（自建组件库，33 个视图）
 ├─ scripts/                       联调与回归脚本（fixtures/ 为合成测试件）
-├─ docs/                          01—12 编号文档
-├─ doc_text.txt                   平台规范 V1.5 原文提取（只读）
+├─ docs/                          仅 00-项目摘要.md 一份
+├─ doc_text.txt                   平台规范 V1.5 原文提取（只读，本地文件不入库）
 ├─ Dockerfile                     云托管单容器构建（管理端 dist + 后端 jar）
 └─ README.md / AGENTS.md          项目说明与开发规则
 ```
@@ -68,10 +68,10 @@
 开发约定（完整规则见 [AGENTS.md](AGENTS.md)）：
 
 - 分层固定为 页面 → `services/*` → `utils/request`；页面不直接发请求；
-- 新增/修改接口须三处同步：`services/`、`mock/server.js`、`docs/04` A 部分；
+- 新增/修改接口须两处同步：`services/`、`mock/server.js`；
 - 提交前按改动范围跑根 `npm run lint`、`admin/` 三件套、`backend/` `mvn test`；
 - 凭证、真实合同/证书、trace/HAR、`.env` 一律不入库；
-- 待办统一维护在 [docs/12](docs/12-未完成事项清单.md)。
+- 上线门禁与未决事项见 [docs/00-项目摘要.md](docs/00-项目摘要.md) §6。
 
 ## 5. 快速开始
 
@@ -91,7 +91,7 @@ mysql -h127.0.0.1 -P3306 -uroot -p < backend/scripts/local-db-init.sql
 ```
 
 字符集固定 `utf8mb4` / `utf8mb4_general_ci`（**不用 8.0 专属的 `utf8mb4_0900_ai_ci`**，否则将来导入云上 5.7 库会报错）。
-表结构不手工建，交给 Flyway 在首次启动时按 V1—V50 建全。
+表结构不手工建，交给 Flyway 在首次启动时自动建全。
 
 ### 5.2 启动后端
 
@@ -154,8 +154,7 @@ npm run build:backend   # = vite build + 清空并用 dist 覆盖后端 static�
 
 | 账号 | 角色 | 用途 |
 |---|---|---|
-| `13800000009` | ADMIN 维保部管理员 | 管理端全功能 |
-| `13800000010` | SYS_ADMIN 系统管理员 | 管理端全功能（系统管理模块已按裁剪范围移除） |
+| `13800000009` | ADMIN 维保部管理员（唯一全权管理员；2026-11-21 SYS_ADMIN 并入 PLATFORM_ADMIN，旧 13800000010 已下线） | 管理端全功能 |
 | `13800000002` | LEADER 班组长 | 管理端只读 |
 | `13800000001` | WORKER 维保人员 | 小程序作业（主维保） |
 | `13800000004` | WORKER 维保人员 | 小程序作业（配合人员） |
@@ -219,17 +218,9 @@ npm run build:backend   # = vite build + 清空并用 dist 覆盖后端 static�
 
 ## 7. 三端说明
 
-### 7.1 小程序（22 页）
+### 7.1 小程序（49 页：主包 19 + 子包 30）
 
-| 模块 | 页面 |
-|---|---|
-| 工作台/工单 | `home/index`、`order/list`、`order/detail`、`order/checkin`、`order/dynamic-code`、`order/checklist`、`order/item-form`、`order/checkout`、`order/record-preview` |
-| 公共能力 | `common/watermark-camera`、`common/signature` |
-| 急修 | `fault/report`、`fault/detail`、`fault/list` |
-| 设备信息 | `elevator/list`、`elevator/detail` |
-| 我的 | `mine/index`、`mine/offline`、`mine/password` |
-| 使用单位 | `unit/sign` |
-| 其他 | `login/index`、`message/index` |
+页面清单以 `app.json` 为准（4 个子包：pkg-handover 12 / pkg-maintenance 7 / pkg-admin 7 / pkg-client 4；无原生 tabBar，custom-tabbar 菜单驱动）。
 
 工程约定：
 
@@ -241,7 +232,7 @@ npm run build:backend   # = vite build + 清空并用 dist 覆盖后端 static�
 
 ### 7.2 后端（`backend/`）
 
-- 统一响应 `{code, message, data}`，业务码表见 `docs/04` A 部分。
+- 统一响应 `{code, message, data}`，业务码表见 `constants/index.js` 与 `mock/server.js`。
 - JWT 鉴权；平台凭证只存在后端进程，不向前端下发。
 - Flyway 自动迁移；MySQL 库不存在时由 JDBC `createDatabaseIfNotExist` 自动创建。
 - 平台 token 进程内缓存，TTL = `expires_in − 60s`；401 清缓存重登重试 1 次。
@@ -251,7 +242,7 @@ npm run build:backend   # = vite build + 清空并用 dist 覆盖后端 static�
 
 ```bash
 cd backend
-mvn test                 # 196 个单测；surefire 已配置 -Djdk.attach.allowAttachSelf=true
+mvn test                 # 约 815 个单测；surefire 已配置 -Djdk.attach.allowAttachSelf=true
 # 本地启动见 §5.2（从仓库根目录加载根 .env）
 ```
 
@@ -269,7 +260,7 @@ mvn test                 # 196 个单测；surefire 已配置 -Djdk.attach.allow
 角色与权限（后端强校验）：
 
 - `LEADER`：只读；
-- `ADMIN` / `SYS_ADMIN`：读写全功能；
+- `ADMIN` / `PLATFORM_ADMIN`：读写全功能（SYS_ADMIN 已并入 PLATFORM_ADMIN，旧令牌经别名兼容）；
 - `WORKER` / 使用单位客户账号（`CLIENT_ADMIN` / `CLIENT_SIGNER`）：管理端登录 403。
 
 ```bash
@@ -293,7 +284,7 @@ Windows 下若 esbuild 报 `Access is denied`，先把 `TMP`/`TEMP` 指向工作
 - **token**：JWT，`expires_in ≈ 3599`，缓存 TTL = `expires_in − 60s`；401 清缓存重登重试 1 次。
 - **幂等**：`originalRecordId` 是否真正幂等尚未经平台书面确认；确认前**不得开启自动重试**。
 
-完整实测记录见 [docs/07-平台联调实测记录.md](docs/07-平台联调实测记录.md) 与 [docs/07-full-test-20260930.md](docs/07-full-test-20260930.md)。
+完整实测结论与平台残留测试数据清单见 [docs/00-项目摘要.md](docs/00-项目摘要.md) §4。
 
 ## 9. 部署（微信云托管）
 
@@ -309,7 +300,7 @@ Windows 下若 esbuild 报 `Access is denied`，先把 `TMP`/`TEMP` 指向工作
 - 对象存储：默认使用云托管托管桶；自建 COS 桶才需要 `COS_SECRET_ID/KEY`。
 - 生产环境必须设置 `SEED_DEMO_DATA=false`、强 `JWT_SECRET`，并注入 `WX_APPID/WX_APPSECRET` 与平台凭证。
 
-完整步骤与人工项见 [docs/11-云托管部署手册.md](docs/11-云托管部署手册.md)。
+部署要点见 [docs/00-项目摘要.md](docs/00-项目摘要.md) §5。
 
 ## 10. 安全与合规
 
@@ -318,8 +309,8 @@ Windows 下若 esbuild 报 `Access is denied`，先把 `TMP`/`TEMP` 指向工作
 - 文件读取必须带 URL 时效签名；数据库只存不带签名的稳定地址。
 - 日志脱敏：不打印完整 token、手机号、openid、平台密钥。
 - 管理端不提供平台凭证配置界面，也不提供批量自动重试入口。
-- 合规底线：任何可能导致监管平台出现错误/虚假数据的缺陷一律按 Blocker 处理（详见 `docs/05` §9）。
-- 上线前仍需完成 [docs/12](docs/12-未完成事项清单.md) 的 P0 门禁：幂等书面确认、真实凭证复跑、30 分钟时长口径、三端人工验收、订阅消息、4 年留存归档。
+- 合规底线：任何可能导致监管平台出现错误/虚假数据的缺陷一律按 Blocker 处理。
+- 上线前仍需完成 P0 门禁：幂等书面确认、真实凭证复跑、30 分钟时长口径、三端人工验收、订阅消息、4 年留存归档（见 [docs/00-项目摘要.md](docs/00-项目摘要.md) §6）。
 
 ## 11. 测试与 CI
 
@@ -332,25 +323,16 @@ Windows 下若 esbuild 报 `Access is denied`，先把 `TMP`/`TEMP` 指向工作
 | 模板回归 | `node scripts/verify-templates.js` |
 | 平台联调 | `scripts/*.ps1`（写操作会产生平台真实数据，执行前确认） |
 
-根 `npm run lint` 只覆盖小程序代码；`admin/`、`backend/` 在各自目录校验。GitHub Actions 当前只运行后端 `mvn test`；根 lint、管理端测试/构建与 verify 脚本仍需在本地执行。
+根 `npm run lint` 只覆盖小程序代码；`admin/`、`backend/` 在各自目录校验。GitHub Actions 四道门禁全跑：后端 `mvn test`、派单/模板回归脚本、根 lint、管理端 lint/test/build。
 
 ## 12. 文档索引
 
-| 文档 | 内容 | 版本 |
-|---|---|---|
-| [docs/01-需求文档.md](docs/01-需求文档.md) | 需求基准、TSG 条款对照、范围裁剪 | V3.6 |
-| [docs/02-技术架构文档.md](docs/02-技术架构文档.md) | 目标架构与当前实现对照 | V1.10 |
-| [docs/03-UI设计文档.md](docs/03-UI设计文档.md) | 设计规范、页面清单、真机验收清单 | V2.8 |
-| [docs/04-接口文档.md](docs/04-接口文档.md) | A. 内部 API；B. 平台 V1.5 实测修订 | V2.36 |
-| [docs/05-测试与验收方案.md](docs/05-测试与验收方案.md) | 测试策略、人工回归清单、上线检查表 | V1.9 |
-| [docs/06-平台接口确认清单.md](docs/06-平台接口确认清单.md) / [docs/06b-平台对接沟通话术.md](docs/06b-平台对接沟通话术.md) | 平台待确认项与沟通话术 | — |
-| [docs/07-平台联调实测记录.md](docs/07-平台联调实测记录.md) | 平台联调实测记录（2026-09-30 全链路） | V1.5 |
-| [docs/08-项目审查与开发计划.md](docs/08-项目审查与开发计划.md) | 阶段、历史与审查结论 | V3.7 |
-| [docs/09-管理端设计.md](docs/09-管理端设计.md) | 管理端设计、页面与权限 | V3.14 |
-| [docs/10-管理端验收清单.md](docs/10-管理端验收清单.md) | 管理端人工验收清单 | V1.7 |
-| [docs/11-云托管部署手册.md](docs/11-云托管部署手册.md) | 云托管部署步骤与人工项 | — |
-| [docs/12-未完成事项清单.md](docs/12-未完成事项清单.md) | **待办唯一清单**（含 P0 上线门禁） | V1.0 |
-| [AGENTS.md](AGENTS.md) | 项目规则（分层/安全红线/编码/提交/文档同步） | V3.0 |
+| 文档 | 内容 |
+|---|---|
+| [docs/00-项目摘要.md](docs/00-项目摘要.md) | 系统事实、业务不变量、平台实测证据、部署、上线门禁（docs/ 唯一文档） |
+| [AGENTS.md](AGENTS.md) | 项目规则（分层/安全红线/编码/提交检查） |
+
+> 2026-11-21 起文档体系收敛为上述两份；旧 docs/01—16 及测试报告已删除，历史内容可从 git 历史检索。
 
 ## 13. 许可证
 

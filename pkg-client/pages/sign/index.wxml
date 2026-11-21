@@ -1,11 +1,29 @@
 <view class="bw">
-  <nav-bar title="签署确认" bind:back="onBack"></nav-bar>
+  <nav-bar title="{{batch ? '批量签署' : '签署确认'}}" bind:back="onBack"></nav-bar>
   <view class="page-pad col gap10">
     <view wx:if="{{loadError}}" class="card col gap8">
       <text class="tag tag-signal"><text class="i i-ban fs18"></text> 无法签署</text>
       <view class="fs22 muted">{{loadError}}</view>
       <view class="fs20 dim">该签署任务可能已完成或已失效，请从待办重新进入。</view>
     </view>
+
+    <!-- V2.80 批量签署模式：记录清单 + 同一签名一次确认 -->
+    <block wx:elif="{{batch}}">
+      <view class="card">
+        <view class="panel-title">本次签署（{{batchList.length}} 条）</view>
+        <view class="kv" wx:for="{{batchList}}" wx:key="id">
+          <span>{{item.elevatorName}} · {{item.workType || '维保'}}</span>
+          <b>{{item.workDate || '—'}}</b>
+        </view>
+        <view class="fs20 dim mt4">同一签名将写入上述全部记录；签署后不可修改。</view>
+      </view>
+      <view wx:if="{{batchFailed.length}}" class="card col gap4">
+        <view class="panel-title sig">未签署成功（{{batchFailed.length}} 条）</view>
+        <view class="fs20 muted" wx:for="{{batchFailed}}" wx:key="id">{{item.id}}：{{item.message}}</view>
+        <view class="fs20 dim">可在待办中单独处理失败的记录。</view>
+      </view>
+    </block>
+
     <block wx:elif="{{view}}">
       <view class="paper">
         <view class="row between">
@@ -21,6 +39,8 @@
           <view>维保日期<b>{{view.workDate || '—'}}</b></view>
           <view>维保人<b>{{view.workerName || '—'}}</b></view>
         </view>
+        <!-- V2.80 签字 SLA 倒计时（serverNow 对齐时钟） -->
+        <view wx:if="{{slaText && !confirmed && !refused}}" class="cs-sla {{slaOver ? 'over' : ''}}">{{slaText}}</view>
         <view wx:if="{{summary.abnormalDesc}}" class="cs-note">异常整改：{{summary.abnormalDesc}}</view>
       </view>
 
@@ -53,29 +73,53 @@
         <view wx:if="{{view.hashPrefix}}" class="kv"><span>SHA-256 前 8 位</span><b class="mono">{{view.hashPrefix}}</b></view>
         <view class="fs20 dim">版本号与哈希须与维保记录单一致；不一致请先「拒绝并说明」再签署。</view>
       </view>
-
-      <block wx:if="{{!confirmed && !refused}}">
-        <view class="cs-pad">
-          <view class="row between cs-pad-head"><text>使用单位签字确认</text><text class="cs-clear" bindtap="onClear">{{hasDrawn ? '清除' : '未签名'}}</text></view>
-          <canvas id="sign-canvas" type="2d" class="cs-canvas" bindtouchstart="onTouchStart" bindtouchmove="onTouchMove"></canvas>
-          <view class="cs-pad-line">签署后写入时间戳与 GPS · 一次性 token 转发/重放无效</view>
-        </view>
-
-        <view class="cs-consent" bindtap="toggleConsent" aria-role="checkbox" aria-checked="{{consent}}">
-          <view class="cb {{consent ? 'on' : ''}}"><text wx:if="{{consent}}" class="i i-check cb-ico"></text></view>
-          <text class="fs20 muted">我已核对维保项目、异常整改说明及现场照片，确认内容属实。</text>
-        </view>
-
-        <view wx:if="{{!consent}}" class="gate-note">先勾选「我已核对…」再提交：未勾选时确认签署不可点击，勾选后恢复。</view>
-      </block>
-      <view wx:else class="card row gap8">
-        <text class="i {{confirmed ? 'i-circle-check ok' : 'i-ban sig'}} fs32"></text>
-        <text class="fs22">{{confirmed ? '本记录已签署归档，不可修改。' : '本记录已拒签退回维保人员。'}}</text>
-      </view>
     </block>
+
+    <!-- 签名区 + 勾选门控（单笔/批量共用） -->
+    <block wx:if="{{(batch && batchList.length) || (view && !confirmed && !refused)}}">
+      <view class="cs-pad">
+        <view class="row between cs-pad-head"><text>使用单位签字确认</text><text class="cs-clear" bindtap="onClear">{{hasDrawn ? '清除' : '未签名'}}</text></view>
+        <canvas id="sign-canvas" type="2d" class="cs-canvas" bindtouchstart="onTouchStart" bindtouchmove="onTouchMove"></canvas>
+        <view class="cs-pad-line">签署后写入时间戳与 GPS · 一次性 token 转发/重放无效</view>
+      </view>
+
+      <view class="cs-consent" bindtap="toggleConsent" aria-role="checkbox" aria-checked="{{consent}}">
+        <view class="cb {{consent ? 'on' : ''}}"><text wx:if="{{consent}}" class="i i-check cb-ico"></text></view>
+        <text class="fs20 muted">我已核对维保项目、异常整改说明及现场照片，确认内容属实。</text>
+      </view>
+
+      <view wx:if="{{!consent}}" class="gate-note">先勾选「我已核对…」再提交：未勾选时确认签署不可点击，勾选后恢复。</view>
+    </block>
+    <view wx:if="{{view && (confirmed || refused)}}" class="card row gap8">
+      <text class="i {{confirmed ? 'i-circle-check ok' : 'i-ban sig'}} fs32"></text>
+      <text class="fs22">{{confirmed ? '本记录已签署归档，不可修改。' : '本记录已拒签退回维保人员。'}}</text>
+    </view>
   </view>
-  <view class="page-footer" wx:if="{{view && !confirmed && !refused}}">
-    <button class="btn btn-ghost cs-f-ghost" bindtap="onRefuse">拒绝并说明</button>
-    <button class="btn btn-primary cs-f-main {{consent ? '' : 'cs-gated'}}" aria-disabled="{{!consent}}" catchtap="onSubmit"><text class="i i-signature"></text> 确认签署</button>
+
+  <!-- V2.80 拒签分类码面板（R1—R5；R5 必填说明） -->
+  <view wx:if="{{refuseOpen}}" class="refuse-mask" bindtap="closeRefuse">
+    <view class="refuse-panel" catchtap="">
+      <view class="panel-title">拒绝签署 · 选择原因分类</view>
+      <view class="refuse-opt {{refuseCode === item.code ? 'on' : ''}}" wx:for="{{refuseOptions}}" wx:key="code"
+        data-code="{{item.code}}" bindtap="onRefuseCodeChange" aria-role="radio" aria-checked="{{refuseCode === item.code}}">
+        <view class="refuse-radio">{{refuseCode === item.code ? '●' : '○'}}</view>
+        <view class="grow">
+          <view class="fs22">{{item.label}}</view>
+          <view class="fs20 dim">{{item.code}}</view>
+        </view>
+      </view>
+      <textarea wx:if="{{refuseCode}}" class="refuse-input" maxlength="200" value="{{refuseReason}}"
+        bindinput="onRefuseReasonInput"
+        placeholder="{{refuseCode === 'R5' ? '请填写拒签说明（必填，≤200 字）' : '补充说明（选填，≤200 字）'}}"></textarea>
+      <view class="row gap12 mt8">
+        <button class="btn btn-ghost grow" bindtap="closeRefuse">取消</button>
+        <button class="btn btn-primary grow" disabled="{{refuseSubmitting}}" bindtap="submitRefuse">{{refuseSubmitting ? '提交中…' : '确认拒签'}}</button>
+      </view>
+    </view>
+  </view>
+
+  <view class="page-footer" wx:if="{{(batch && batchList.length) || (view && !confirmed && !refused)}}">
+    <button wx:if="{{!batch}}" class="btn btn-ghost cs-f-ghost" bindtap="openRefuse">拒绝并说明</button>
+    <button class="btn btn-primary cs-f-main {{consent ? '' : 'cs-gated'}}" aria-disabled="{{!consent}}" catchtap="onSubmit"><text class="i i-signature"></text> {{batch ? '确认批量签署' : '确认签署'}}</button>
   </view>
 </view>

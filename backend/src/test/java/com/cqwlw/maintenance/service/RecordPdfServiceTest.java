@@ -27,6 +27,7 @@ import static org.mockito.Mockito.mock;
 class RecordPdfServiceTest {
 
     private RecordPdfService service;
+    private FileStorageService fileStorage;
 
     /** 1x1 透明 PNG（测试用最小图片） */
     private static final byte[] TINY_PNG = new byte[]{-119, 80, 78, 71, 13, 10, 26, 10};
@@ -39,8 +40,9 @@ class RecordPdfServiceTest {
                 mock(com.cqwlw.maintenance.mapper.CompanyMapper.class);
         org.mockito.Mockito.when(companyMapper.selectList(org.mockito.ArgumentMatchers.any()))
                 .thenReturn(java.util.List.of(company));
+        fileStorage = mock(FileStorageService.class);
         service = new RecordPdfService(new RestTemplate(), mock(AppFileMapper.class),
-                mock(FileStorageService.class), companyMapper) {
+                fileStorage, companyMapper) {
             @Override
             protected byte[] loadImage(String url) {
                 return url == null || url.isBlank() ? null : TINY_PNG.clone();
@@ -129,7 +131,7 @@ class RecordPdfServiceTest {
         v.put("location", "渝北区龙山一路 88 号世纪大厦");
         v.put("projectName", "世纪大厦");
         v.put("category", "曳引与强制驱动电梯");
-        v.put("productNo", "OT-2021-0088");
+        v.put("factoryNumber", "OT-2021-0088");
         v.put("deviceCode", "DT-CQ-2024-001");
         v.put("regCode", "TSCQ5001120001");
         v.put("model", "OTIS 300VF");
@@ -143,8 +145,7 @@ class RecordPdfServiceTest {
     }
 
     @Test
-    void pdfStartsWithHeaderAndContainsContent() {
-        byte[] pdf = service.render(record(), null, null);
+    void pdfStartsWithHeaderAndContainsContent() {        byte[] pdf = service.render(record(), null, null);
         assertTrue(pdf.length > 2000);
         assertEquals("%PDF", new String(pdf, 0, 4, StandardCharsets.US_ASCII));
     }
@@ -247,6 +248,51 @@ class RecordPdfServiceTest {
         byte[] pdf = service.renderFault(v);
         assertTrue(pdf.length > 1000);
         assertEquals("%PDF", new String(pdf, 0, 4, StandardCharsets.US_ASCII));
+    }
+
+    /**
+     * 签字回退（2026-11-21）：记录未落签字 URL 时按来源工单的签字 fileId 解析
+     * （与签退 resolveSignatureUrl 同口径，仅内存回填）；记录已有签字 URL 时不回退。
+     */
+    @Test
+    void backfillsSignaturesFromSourceWorkOrder() throws Exception {
+        org.mockito.Mockito.when(fileStorage.urlOf("t_file_sig_w")).thenReturn("/files/t_file_sig_w");
+        org.mockito.Mockito.when(fileStorage.urlOf("t_file_sig_a")).thenReturn("/files/t_file_sig_a");
+        com.cqwlw.maintenance.mapper.WorkOrderMapper woMapper =
+                mock(com.cqwlw.maintenance.mapper.WorkOrderMapper.class);
+        com.cqwlw.maintenance.entity.WorkOrder o = new com.cqwlw.maintenance.entity.WorkOrder();
+        o.id = "t_wo_done";
+        o.workerSignatureFileId = "t_file_sig_w";
+        o.assistantSignatureFileId = "t_file_sig_a";
+        org.mockito.Mockito.when(woMapper.selectById("t_wo_done")).thenReturn(o);
+        java.lang.reflect.Field fld = RecordPdfService.class.getDeclaredField("workOrderMapper");
+        fld.setAccessible(true);
+        fld.set(service, woMapper);
+
+        MaintainRecord r = record();
+        r.workOrderId = "t_wo_done";
+        r.workerSignatureUrl = "";
+        r.assistantSignatureUrl = null;
+        byte[] pdf = service.render(r, null, uu("演示单位"));
+        assertTrue(pdf.length > 1000);
+        assertEquals("/files/t_file_sig_w", r.workerSignatureUrl);
+        assertEquals("/files/t_file_sig_a", r.assistantSignatureUrl);
+
+        // 已有签字 URL 的记录不被工单覆盖
+        MaintainRecord r2 = record();
+        r2.workOrderId = "t_wo_done";
+        r2.workerSignatureUrl = "/files/existing_w";
+        r2.assistantSignatureUrl = "/files/existing_a";
+        service.render(r2, null, uu("演示单位"));
+        assertEquals("/files/existing_w", r2.workerSignatureUrl);
+        assertEquals("/files/existing_a", r2.assistantSignatureUrl);
+
+        // 无来源工单（workOrderId 空）静默跳过
+        MaintainRecord r3 = record();
+        r3.workerSignatureUrl = "";
+        r3.assistantSignatureUrl = "";
+        service.render(r3, null, uu("演示单位"));
+        assertEquals("", r3.workerSignatureUrl);
     }
 
     /** 版面核对样本：写入 target/ 供渲染肉眼检查（不是断言） */

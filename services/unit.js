@@ -21,9 +21,34 @@ function confirmByToken(id, token, data) {
   return post('/unit/records/' + id + '/confirm-by-token?token=' + token, data, { needAuth: false })
 }
 
-// M1：使用单位拒签（凭分享 token，原因必填；docs/04 V2.53）
-function refuseRecordByToken(id, token, reason) {
-  return post(`/unit/records/${id}/refuse-by-token?token=${encodeURIComponent(token)}`, { reason }, { needAuth: false })
+// M1：使用单位拒签（凭分享 token；docs/04 V2.53）。V2.80：refuseCode 分类码（R1—R5，
+// R5 其他必须附说明；旧调用不传码时后端按兼容期「原因必填」回退）
+function refuseRecordByToken(id, token, reason, refuseCode) {
+  return post(`/unit/records/${id}/refuse-by-token?token=${encodeURIComponent(token)}`,
+    { reason, refuseCode: refuseCode || '' }, { needAuth: false })
+}
+
+// V2.80 批量签字（客户令牌）：同一签名一次确认多条待签记录（≤20），
+// 逐条独立门禁、失败不拖累其余 → {ok,signed,failed[{id,message}]}
+function batchConfirmRecords(recordIds, data) {
+  return post('/unit/records/batch-confirm', Object.assign({}, data, { recordIds }))
+}
+
+// ───────────── 客户门户消息（V2.80 签字临期/超期提醒；数据域=本单位锚点） ─────────────
+function getUnitMessages() {
+  return get('/unit/messages')
+}
+
+function getUnitUnreadCount() {
+  return get('/unit/messages/unread-count')
+}
+
+function readUnitMessage(id) {
+  return post('/unit/messages/' + id + '/read', {})
+}
+
+function readAllUnitMessages() {
+  return post('/unit/messages/read-all', {})
 }
 
 // ───────────── 使用单位数据投影（docs/04 A.11；统一令牌 + CLIENT 锚点，后端 UnitPortalController） ─────────────
@@ -72,6 +97,11 @@ module.exports = {
   getSignView,
   confirmByToken,
   refuseRecordByToken,
+  batchConfirmRecords,
+  getUnitMessages,
+  getUnitUnreadCount,
+  readUnitMessage,
+  readAllUnitMessages,
   clearUnitSession,
   getUnitElevators,
   getUnitRecords,

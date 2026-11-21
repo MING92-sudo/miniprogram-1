@@ -28,17 +28,22 @@ page{background:var(--ink);color:var(--text)}
   justify-content: space-between;
   align-items: center;
   margin-bottom: 8rpx;
+  gap: 12rpx;
 }
 
 .row-no {
   font-size: 28rpx;
   font-weight: 600;
+  flex: 1;
+  min-width: 0;
+  word-break: break-all;
 }
 
 .row-title {
   font-size: 30rpx;
   font-weight: 500;
   margin-bottom: 6rpx;
+  word-break: break-all;
 }
 
 .tag {

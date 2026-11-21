@@ -48,6 +48,7 @@ class DirectoryServiceTest {
     private InspectRecordMapper inspectMapper;
     private ElevatorMapper elevators;
     private UseUnitMapper useUnits;
+    private MessageMapper messageMapper;
     private DirectoryService service;
 
     @BeforeEach
@@ -57,13 +58,39 @@ class DirectoryServiceTest {
         inspectMapper = mock(InspectRecordMapper.class);
         elevators = mock(ElevatorMapper.class);
         useUnits = mock(UseUnitMapper.class);
+        messageMapper = mock(MessageMapper.class);
         TenantSnapshotService tenantSnapshot = new TenantSnapshotService(
                 useUnits, mock(BizElevatorChangeMapper.class), mock(MigrationIssueService.class));
         service = new DirectoryService(rescueMapper, faultMapper, mock(DrillMapper.class), inspectMapper,
-                mock(MessageMapper.class), mock(KnowledgeMapper.class), elevators,
+                messageMapper, mock(KnowledgeMapper.class), elevators,
                 mock(ChecklistService.class), mock(WorkOrderService.class), mock(EmployeeScopeService.class),
                 mock(EmployeeMapper.class), useUnits, mock(WorkOrderMapper.class), mock(CompanyMapper.class),
                 mock(FileStorageService.class), tenantSnapshot);
+    }
+
+    /**
+     * 2026-11-21 审查修复：员工中心 readMessage 与 list/unreadCount/readAll 同口径——
+     * 客户消息（use_unit_id 非空）与不存在同 1404（无存在性 oracle），不可被员工标读。
+     */
+    @Test
+    void readMessageRejectsClientScopedMessage() {
+        com.cqwlw.maintenance.entity.Message clientMsg = new com.cqwlw.maintenance.entity.Message();
+        clientMsg.id = "msg_c";
+        clientMsg.useUnitId = "uu_1";
+        when(messageMapper.selectById("msg_c")).thenReturn(clientMsg);
+
+        BizException ex = assertThrows(BizException.class, () -> service.readMessage("msg_c"));
+
+        assertEquals(1404, ex.getCode());
+        verify(messageMapper, org.mockito.Mockito.never())
+                .updateById(any(com.cqwlw.maintenance.entity.Message.class));
+
+        // 员工消息（use_unit_id 为空）照常标读
+        com.cqwlw.maintenance.entity.Message staffMsg = new com.cqwlw.maintenance.entity.Message();
+        staffMsg.id = "msg_s";
+        when(messageMapper.selectById("msg_s")).thenReturn(staffMsg);
+        service.readMessage("msg_s");
+        verify(messageMapper).updateById(staffMsg);
     }
 
     @Test

@@ -55,6 +55,14 @@ public class UnitPortalService {
         this.directoryService = directoryService;
     }
 
+    /** V56 签字 SLA（setter 注入，兼容既有单测构造器）：待签行下发截止时间/超期标记 */
+    private ClientSignSlaService clientSignSlaService;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    public void setClientSignSlaService(ClientSignSlaService clientSignSlaService) {
+        this.clientSignSlaService = clientSignSlaService;
+    }
+
     /** 本单位电梯（停用的不展示） */
     public List<Map<String, Object>> elevators(String useUnitId) {
         List<Map<String, Object>> out = new ArrayList<>();
@@ -259,8 +267,9 @@ public class UnitPortalService {
                 .toList();
     }
 
-    /** 列表行投影（客户安全字段）：T4-I5 增 lifecycleStatus/version 供前端区分 待签/只读 与版本链 */
-    private static Map<String, Object> recordRow(MaintainRecord r) {
+    /** 列表行投影（客户安全字段）：T4-I5 增 lifecycleStatus/version 供前端区分 待签/只读 与版本链；
+     *  V56 增签字 SLA 组（signRequestedAt/signDeadline/overdue，SLA 服务缺省时不下发） */
+    private Map<String, Object> recordRow(MaintainRecord r) {
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("id", r.id);
         m.put("elevatorCode", r.elevatorCode);
@@ -274,6 +283,13 @@ public class UnitPortalService {
         m.put("confirmStatus", r.confirmStatus == null ? "PENDING" : r.confirmStatus);
         m.put("lifecycleStatus", r.lifecycleStatus);
         m.put("version", r.version);
+        if (clientSignSlaService != null) {
+            java.time.LocalDateTime base = clientSignSlaService.baseOf(r);
+            java.time.LocalDateTime deadline = clientSignSlaService.deadlineOf(r);
+            m.put("signRequestedAt", TimeUtil.format(base));
+            m.put("signDeadline", deadline == null ? "" : TimeUtil.format(deadline));
+            m.put("overdue", deadline != null && TimeUtil.now().isAfter(deadline));
+        }
         return m;
     }
 

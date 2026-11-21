@@ -269,4 +269,83 @@ class UnitRecordServiceTest {
         r.confirmStatus = "PENDING";
         return r;
     }
+
+    // ── V2.80 修复：免登录 token 链签名图上传（signatureUploadByToken）门禁锁定 ──
+
+    private static MaintainRecord signable() {
+        MaintainRecord r = record();
+        r.shareToken = "sg-1";
+        r.lifecycleStatus = "PENDING_CLIENT_SIGNATURE";
+        return r;
+    }
+
+    private static org.springframework.web.multipart.MultipartFile png() {
+        org.springframework.web.multipart.MultipartFile f =
+                mock(org.springframework.web.multipart.MultipartFile.class);
+        when(f.isEmpty()).thenReturn(false);
+        return f;
+    }
+
+    /** 合法 token + 可签记录 → 落文件并返回 fileId/url（与 /files/upload 响应契约一致） */
+    @Test
+    void signatureUploadByTokenStoresFile() throws Exception {
+        MaintainRecord r = signable();
+        when(recordMapper.selectById("ur_1")).thenReturn(r);
+        com.cqwlw.maintenance.entity.AppFile stored = new com.cqwlw.maintenance.entity.AppFile();
+        stored.id = "file_sig";
+        stored.url = "https://api.example.com/files/file_sig";
+        when(fileStorage.store(any(), any())).thenReturn(stored);
+
+        Map<String, Object> out = service.signatureUploadByToken("ur_1", "sg-1", png(), "https://api.example.com");
+
+        assertEquals("file_sig", out.get("fileId"));
+        assertEquals("https://api.example.com/files/file_sig", out.get("url"));
+    }
+
+    /** 错 token → 401 同文案且无文件写入；记录不存在 → 同 401（无存在性 oracle） */
+    @Test
+    void signatureUploadByTokenRejectsBeforeWrite() throws Exception {
+        MaintainRecord r = signable();
+        when(recordMapper.selectById("ur_1")).thenReturn(r);
+
+        BizException wrongToken = assertThrows(BizException.class,
+                () -> service.signatureUploadByToken("ur_1", "bad", png(), "https://api.example.com"));
+        assertEquals(401, wrongToken.getCode());
+
+        BizException missing = assertThrows(BizException.class,
+                () -> service.signatureUploadByToken("ur_none", "sg-1", png(), "https://api.example.com"));
+        assertEquals(401, missing.getCode());
+        assertEquals(wrongToken.getMessage(), missing.getMessage());
+        verify(fileStorage, never()).store(any(), any());
+    }
+
+    /** 已签/非待签记录 → 422，不再接受签名图（校验先于写盘） */
+    @Test
+    void signatureUploadByTokenRequiresSignable() throws Exception {
+        MaintainRecord r = signable();
+        r.confirmStatus = "CONFIRMED";
+        when(recordMapper.selectById("ur_1")).thenReturn(r);
+
+        BizException ex = assertThrows(BizException.class,
+                () -> service.signatureUploadByToken("ur_1", "sg-1", png(), "https://api.example.com"));
+
+        assertEquals(422, ex.getCode());
+        verify(fileStorage, never()).store(any(), any());
+    }
+
+    /** 空文件 → 422 且不落盘 */
+    @Test
+    void signatureUploadByTokenRejectsEmptyFile() throws Exception {
+        MaintainRecord r = signable();
+        when(recordMapper.selectById("ur_1")).thenReturn(r);
+        org.springframework.web.multipart.MultipartFile empty =
+                mock(org.springframework.web.multipart.MultipartFile.class);
+        when(empty.isEmpty()).thenReturn(true);
+
+        BizException ex = assertThrows(BizException.class,
+                () -> service.signatureUploadByToken("ur_1", "sg-1", empty, "https://api.example.com"));
+
+        assertEquals(422, ex.getCode());
+        verify(fileStorage, never()).store(any(), any());
+    }
 }

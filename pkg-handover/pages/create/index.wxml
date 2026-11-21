@@ -49,7 +49,7 @@
       <view class="field"><view class="field-label">型号</view><input class="field-input" value="{{form.model}}" data-field="model" bindinput="onInput" placeholder="如：OTIS 300VF" /></view>
       <view class="field"><view class="field-label">品牌</view><input class="field-input" value="{{form.brand}}" data-field="brand" bindinput="onInput" placeholder="品牌" /></view>
       <view class="field"><view class="field-label">制造单位</view><input class="field-input" value="{{form.manufacturer}}" data-field="manufacturer" bindinput="onInput" placeholder="制造单位全称" /></view>
-      <view class="field"><view class="field-label">产品编号</view><input class="field-input" value="{{form.productNo}}" data-field="productNo" bindinput="onInput" placeholder="出厂编号" /></view>
+      <view class="field"><view class="field-label">出厂编号</view><input class="field-input" value="{{form.factoryNumber}}" data-field="factoryNumber" bindinput="onInput" placeholder="出厂编号（产品编号同义）" /></view>
       <view class="field"><view class="field-label">驱动方式</view><input class="field-input" value="{{form.driveMode}}" data-field="driveMode" bindinput="onInput" placeholder="如：曳引驱动" /></view>
       <view class="field"><view class="field-label">额定载重</view><input class="field-input" type="number" value="{{form.ratedLoad}}" data-field="ratedLoad" bindinput="onInput" placeholder="1000" /><text class="field-unit">{{form.ratedLoadUnit}}</text></view>
       <view class="field"><view class="field-label">额定速度</view><input class="field-input" type="digit" value="{{form.ratedSpeed}}" data-field="ratedSpeed" bindinput="onInput" placeholder="1.75" /><text class="field-unit">{{form.ratedSpeedUnit}}</text></view>

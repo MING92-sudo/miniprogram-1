@@ -31,10 +31,15 @@ describe('perspective store', () => {
   })
 })
 
-describe('menu-config（原型 GROUP_ORDER + 二期监管与运营组）', () => {
-  it('has 9 groups incl. 监管与运营', () => {
-    expect(MENU_GROUPS.length).toBe(9)
-    expect(MENU_GROUPS.map(g => g.title)).toContain('监管与运营')
+describe('menu-config（2026-11-21 精简 IA：7 组，合并页 Tab 承载）', () => {
+  it('has 7 groups', () => {
+    expect(MENU_GROUPS.map(g => g.title)).toEqual(['概览', '电梯管理', '项目管理', '维保管理', '公司管理', '数据对接', '系统'])
+  })
+  it('合并/下线的页面不在菜单（路由保留直达或重定向）', () => {
+    const paths = MENU_GROUPS.flatMap(g => g.items.map(i => i.path))
+    for (const p of ['/msg-templates', '/reviews', '/board', '/contracts', '/grants', '/regions', '/templates']) {
+      expect(paths).not.toContain(p)
+    }
   })
   it('filters by permission and implemented flag', () => {
     const menus = visibleMenus('INST_MGR', ['/dashboard'])
@@ -46,14 +51,6 @@ describe('menu-config（原型 GROUP_ORDER + 二期监管与运营组）', () =>
     const menus = visibleMenus('MAINT_TECH', ['/dashboard'])
     const paths = menus.flatMap(g => g.items.map(i => i.path))
     expect(paths).not.toContain('/settings')
-  })
-  it('phase-2 views mapped to real permission codes', () => {
-    const ops = MENU_GROUPS.find(g => g.title === '监管与运营')
-    const byPath = Object.fromEntries(ops.items.map(i => [i.path, i.perm]))
-    expect(byPath['/sync']).toBe('report:view')
-    expect(byPath['/msg-templates']).toBe('config:manage')
-    expect(byPath['/reviews']).toBe('stats:view')
-    expect(byPath['/board']).toBe('order:view_pool')
   })
 })
 // 防「路由已加、菜单不显示」：新页面漏登记 IMPLEMENTED_PATHS 时菜单会静默消失（使用单位档案曾如此）。

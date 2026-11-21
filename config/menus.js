@@ -6,7 +6,7 @@
 const ROLE_PRIORITY = [
   'MAINT_MGR', 'MAINT_SUP', 'MAINT_TECH',
   'INST_MGR', 'INST_PM', 'INST_CLERK',
-  'CLIENT_ADMIN', 'CLIENT_SIGNER', 'PLATFORM_ADMIN', 'SYS_ADMIN'
+  'CLIENT_ADMIN', 'CLIENT_SIGNER', 'PLATFORM_ADMIN'
 ]
 
 const ROLE_HOME = {
@@ -18,8 +18,7 @@ const ROLE_HOME = {
   MAINT_MGR: '/pages/maint/home/index',
   CLIENT_ADMIN: '/pages/client/home/index',
   CLIENT_SIGNER: '/pages/client/home/index',
-  PLATFORM_ADMIN: '/pkg-admin/pages/users/index',
-  SYS_ADMIN: '/pkg-admin/pages/users/index'
+  PLATFORM_ADMIN: '/pkg-admin/pages/users/index'
 }
 
 // 扩展角色归属最近工作台只读投影（规格 §3.6，后端 TABS_ALIAS 镜像）
@@ -45,7 +44,7 @@ const ROLE_TEXT = {
   PLATFORM_ADMIN: '平台管理员',
   // 旧角色码别名（RoleCatalog v2 兼容）
   WORKER: '维保人员', ASSISTANT: '配合维保人员', LEADER: '班组长',
-  UNIT_ADMIN: '使用单位管理员', ADMIN: '维保部管理员', SYS_ADMIN: '系统管理员',
+  UNIT_ADMIN: '使用单位管理员', ADMIN: '平台管理员',
   INSTALL_MANAGER: '安装项目经理', INSTALL_CLERK: '安装文员', INSTALL_WORKER: '安装员',
   MAINT_MANAGER: '维保经理'
 }
@@ -109,13 +108,6 @@ const ROLE_TABS = {
     { key: 'admin-settings', text: '配置', icon: 'settings', path: '/pkg-admin/pages/settings/index' },
     { key: 'profile', text: '我的', icon: 'user', path: '/pages/profile/index' }
   ],
-  SYS_ADMIN: [
-    { key: 'admin-org', text: '组织', icon: 'users', path: '/pkg-admin/pages/users/index' },
-    { key: 'stats', text: '统计', icon: 'chart', path: '/pkg-admin/pages/stats/index' },
-    { key: 'admin-audit', text: '审计', icon: 'shield', path: '/pkg-admin/pages/audit/index' },
-    { key: 'admin-settings', text: '配置', icon: 'settings', path: '/pkg-admin/pages/settings/index' },
-    { key: 'profile', text: '我的', icon: 'user', path: '/pages/profile/index' }
-  ]
 }
 
 function resolveHome(roles) {

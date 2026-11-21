@@ -191,7 +191,8 @@ public class MiniappMenuService {
         }
         if (ws.startsWith("INST")) {
             List<Map<String, Object>> list = new ArrayList<>();
-            if (roles.contains("INST_PM")) {
+            // 2026-11-21 裁决：handover:create 增 INST_CLERK，快捷动作同步放开
+            if (roles.contains("INST_PM") || roles.contains("INST_CLERK")) {
                 list.add(qa("create", "发起移交", "file-signature", "/pkg-handover/pages/create/index"));
             }
             if (roles.contains("INST_CLERK") || roles.contains("INST_PM")) {

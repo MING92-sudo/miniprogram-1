@@ -27,7 +27,7 @@ export function statusLabel(v) {
 }
 
 const ROLE = {
-  PLATFORM_ADMIN: '平台管理员', SYS_ADMIN: '系统管理员',
+  PLATFORM_ADMIN: '平台管理员',
   INST_MGR: '安装部经理', INST_PM: '安装项目经理', INST_CLERK: '安装文员', INSTALLER: '安装技师',
   MAINT_MGR: '维保部经理', MAINT_SUP: '维保主管', MAINT_TECH: '维保技术员', MAINT_BIZ: '维保商务', MAINT_QUALITY: '维保质量负责人',
   CLIENT_ADMIN: '使用单位管理员', CLIENT_SIGNER: '使用单位签字人',

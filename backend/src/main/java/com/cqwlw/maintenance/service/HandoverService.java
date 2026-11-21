@@ -129,7 +129,7 @@ public class HandoverService {
         o.model = trimToNull(str(body, "model"));
         o.brand = trimToNull(str(body, "brand"));
         o.manufacturer = trimToNull(str(body, "manufacturer"));
-        o.productNo = trimToNull(str(body, "productNo"));
+        o.factoryNumber = trimToNull(str(body, "factoryNumber"));
         o.driveMode = trimToNull(str(body, "driveMode"));
         o.ratedLoad = intOrNull(body == null ? null : body.get("ratedLoad"));
         o.ratedLoadUnit = trimToNull(str(body, "ratedLoadUnit"));
@@ -395,7 +395,8 @@ public class HandoverService {
         el.model = order.model;
         el.brand = order.brand;
         el.manufacturer = order.manufacturer;
-        el.productNo = order.productNo;
+        // 出厂编号（原单据 productNo，V59 统一更名 factoryNumber）
+        el.factoryNumber = order.factoryNumber;
         el.driveMode = order.driveMode;
         el.ratedLoad = order.ratedLoad;
         el.ratedLoadUnit = order.ratedLoadUnit;

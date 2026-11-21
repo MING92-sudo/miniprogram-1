@@ -285,6 +285,36 @@ class RecordLifecycleTest {
         assertEquals("SUCCESS", r.reportStatus); // D2：2.6 不重报
     }
 
+    /**
+     * 2026-11-21 审查修复（不变量§3.7）：归档落库只写归档四字段——render 会把签名图重签为
+     * 时效 URL（?s=）回填实体取图，旧整实体 updateById 会把该时效 URL 写死入库（过期即死链），
+     * 现改守卫式最小更新，签名 URL 列绝不出现在 SET 子句。
+     */
+    @Test
+    void archivePersistsOnlyArchiveFields() {
+        MaintainRecord r = record("PENDING_CLIENT_SIGNATURE");
+        when(pdf.render(any(), any(), any())).thenAnswer(inv -> {
+            MaintainRecord rec = inv.getArgument(0);
+            rec.workerSignatureUrl = "https://x/files/f_sig?s=expiring"; // render 内存回填时效 URL
+            return new byte[]{1};
+        });
+        AppFile f = new AppFile();
+        f.id = "file_arch";
+        when(files.storeBytes(any(), any(), any(), any())).thenReturn(f);
+
+        svc.onClientSigned(r);
+
+        org.mockito.ArgumentCaptor<com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper<MaintainRecord>>
+                captor = org.mockito.ArgumentCaptor.forClass(
+                        (Class) com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper.class);
+        verify(records, org.mockito.Mockito.atLeastOnce()).update(any(), captor.capture());
+        String sqlSet = captor.getValue().getSqlSet();
+        assertTrue(sqlSet.contains("archive_file_id"));
+        assertTrue(sqlSet.contains("lifecycle_status"));
+        org.junit.jupiter.api.Assertions.assertFalse(sqlSet.contains("signature_url"));
+        verify(records, never()).updateById(any(MaintainRecord.class));
+    }
+
     @Test
     void archiveViewRejectsNotArchived() {
         record("PENDING_CLIENT_SIGN");

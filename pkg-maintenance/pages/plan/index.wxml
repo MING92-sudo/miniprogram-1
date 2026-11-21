@@ -18,11 +18,14 @@
           </view>
           <view wx:for="{{day.entries}}" wx:for-item="e" wx:key="elevatorCode" class="kv mt4">
             <span>{{e.elevatorName}}</span>
-            <b>{{e.workType}}</b>
+            <view class="row gap6">
+              <text class="st st-{{e.status}}">{{e.statusText}}</text>
+              <b>{{e.workType}}</b>
+            </view>
           </view>
         </view>
       </view>
     </block>
-    <empty-state wx:else mode="empty" title="窗口内暂无排期" desc="到期前一日系统自动派单后会出现在这里。"></empty-state>
+    <empty-state wx:else mode="empty" title="窗口内暂无排期" desc="建档当日起按基线排满一年；可切换「全年」查看整年计划。"></empty-state>
   </view>
 </view>

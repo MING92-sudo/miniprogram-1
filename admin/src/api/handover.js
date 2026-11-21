@@ -8,6 +8,11 @@ export function listHandovers(params) {
   return http.get('/handovers', { params })
 }
 
+/** 移交单起草（handover:create=INST_PM/PLATFORM_ADMIN）：进入 DOC_SUBMITTING，项目名必填 */
+export function createHandover(body) {
+  return http.post('/handovers', body)
+}
+
 export function handoverDetail(id) {
   return http.get(`/handovers/${id}`)
 }

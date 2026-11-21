@@ -672,6 +672,10 @@ public class AdminArchiveService {
         } else if (body.get("regCode") != null) {
             el.regCode = str(body, "regCode");
         }
+        // 登记证编码（V58）：使用登记证上的独立编号（梯11渝BSP8194(20) 式），不上报监管平台
+        if (body.get("certNo") != null) {
+            el.certNo = str(body, "certNo");
+        }
         if (body.get("deviceCode") != null) {
             el.deviceCode = str(body, "deviceCode");
         }
@@ -742,9 +746,6 @@ public class AdminArchiveService {
         }
         if (body.get("manufacturer") != null) {
             el.manufacturer = str(body, "manufacturer");
-        }
-        if (body.get("productNo") != null) {
-            el.productNo = str(body, "productNo");
         }
         if (body.get("driveMode") != null) {
             el.driveMode = str(body, "driveMode");
@@ -881,6 +882,8 @@ public class AdminArchiveService {
         m.put("regCode", nz(el.regCode));
         // 注册代码：管理端「设备信息档案」对外字段名（用户口径）；regCode 保留给旧调用方
         m.put("registrationCode", nz(el.regCode));
+        // 登记证编码（V58）：独立于注册代码的使用登记证编号
+        m.put("certNo", nz(el.certNo));
         m.put("deviceCode", nz(el.deviceCode));
         // 区域与建档来源（Task 14 Step 2）：区域决定维保人员可见范围，来源区分 存量/移交/外接
         m.put("regionId", nz(el.regionId));
@@ -893,7 +896,6 @@ public class AdminArchiveService {
         m.put("factoryNumber", nz(el.factoryNumber));
         m.put("brand", nz(el.brand));
         m.put("manufacturer", nz(el.manufacturer));
-        m.put("productNo", nz(el.productNo));
         m.put("driveMode", nz(el.driveMode));
         m.put("ratedLoad", el.ratedLoad == null ? "" : String.valueOf(el.ratedLoad));
         m.put("ratedLoadUnit", nz(el.ratedLoadUnit));

@@ -1,8 +1,14 @@
 <template>
   <div>
-    <ViewHead title="项目台账" sub="安装项目由 ERP / 平台同步，业务端只读；维保项目可编辑">
+    <ViewHead title="项目管理" sub="项目台账与合同管理（Tab 合并，2026-11-21 精简 IA）">
       <template #meta><PageMeta perm="project:view" :extra="[{ k: '项目数', v: rows.length, icon: 'folder', cls: 'count' }]" /></template>
     </ViewHead>
+    <div class="tab-bar mt16">
+      <button v-if="canProjects" type="button" :class="['tab-i', { on: tab === 'projects' }]" @click="go('projects')">项目台账</button>
+      <button v-if="canContracts" type="button" :class="['tab-i', { on: tab === 'contracts' }]" @click="go('contracts')">合同管理</button>
+    </div>
+    <ContractsView v-if="tab === 'contracts'" embedded />
+    <template v-else>
     <div class="mt16">
       <DataTable :columns="cols" :rows="rows" :loading="loading" clickable
         :search-keys="['projectNo', 'name', 'useUnitName']" search-placeholder="搜索项目编号 / 名称 / 使用单位"
@@ -22,7 +28,7 @@
         <template #cell-last="{ value }"><span class="mono f12">{{ value || '—' }}</span></template>
         <template #row-actions>
           <PermButton code="elevator:view" label="电梯" variant="ghost" size="xs" icon="elevator" @click="$router.push('/elevators')" />
-          <PermButton code="contract:view" label="合同" variant="ghost" size="xs" icon="file-sign" @click="$router.push('/contracts')" />
+          <PermButton code="contract:view" label="合同" variant="ghost" size="xs" icon="file-sign" @click="go('contracts')" />
         </template>
       </DataTable>
     </div>
@@ -100,11 +106,14 @@
         </div>
       </Form>
     </Modal>
-  </div>
+  </template>
+</div>
 </template>
 <script setup>
 // 项目台账（原型 Views.projects + openProjectDetail 对齐）：列表 + 详情抽屉（台量分项/关联合同/移交/记录）+ 新增编辑（project:edit）
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import ContractsView from './ContractsView.vue'
 import http from '../api/client'
 import DataTable from '../ui/DataTable.vue'
 import Drawer from '../ui/Drawer.vue'
@@ -120,10 +129,28 @@ import { useToast } from '../ui/stores/ui'
 import { exportCsv } from '../ui/export-csv'
 import { usePerspectiveStore } from '../ui/stores/perspective'
 import { statusLabel, scopeLabel } from '../ui/labels'
+import { state } from '../ui/permission-v2'
 import { listProjects, createProject, updateProject, listUseUnits, listOrg, listContractsLedger } from '../api/ledger'
 import { listHandovers } from '../api/handover'
 const toast = useToast()
+const route = useRoute()
+const router = useRouter()
 const perspective = usePerspectiveStore()
+// 合并页分页门禁（Tab 合并 2026-11-21 审查修复）：项目=project:view，合同=contract:view；
+// 与路由 meta.permByTab 同口径——维保商务（contract:view=Y、project:view=DENY）
+// 落地 /projects 时收敛到合同分页，不再 403/空表
+function allow(code) { try { const s = state(perspective.activeRole, code); return s === 'Y' || s === 'C' } catch { return false } }
+const canProjects = computed(() => allow('project:view'))
+const canContracts = computed(() => allow('contract:view'))
+const tab = ref(route.query.tab === 'contracts' ? 'contracts' : 'projects')
+if (tab.value === 'projects' && !canProjects.value && canContracts.value) tab.value = 'contracts'
+function go(t) { tab.value = t; router.replace({ query: t === 'contracts' ? { tab: 'contracts' } : {} }) }
+// 同路由分页跳转（行内「合同」自指重定向、浏览器前进后退）时同步分页
+watch(() => route.query.tab, (t) => {
+  const v = t === 'contracts' ? 'contracts' : 'projects'
+  if (v !== tab.value) tab.value = v
+})
+
 const rows = ref([])
 const loading = ref(false)
 const unitMap = ref({})
@@ -167,7 +194,7 @@ async function load() {
     rows.value = list.map(decorate)
   } catch (e) { toast.error(e.message || '加载失败') } finally { loading.value = false }
 }
-onMounted(load)
+onMounted(() => { if (canProjects.value) load() }) // 合同分页用户不拉项目台账（403 噪声）
 
 // 详情抽屉 + 辅助数据（懒加载一次）
 const detailOpen = ref(false)

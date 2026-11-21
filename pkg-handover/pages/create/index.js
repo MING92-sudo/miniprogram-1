@@ -6,14 +6,12 @@ const { initHandover } = require('../../../services/handover')
 const {
   ELEVATOR_CATEGORIES,
   WORK_TYPE_CODES,
-  HANDOVER_WRITE_ROLES,
   HANDOVER_TEXT,
   HANDOVER_CREATE_TEXT,
   HANDOVER_FLOW,
   TOAST_TEXT
 } = require('../../../constants/index')
 const { ensureLogin } = require('../../../utils/guard')
-const { hasAnyRole } = require('../../../utils/auth')
 
 const WORK_TYPE_CODES_LIST = Object.keys(WORK_TYPE_CODES)
 const WORK_TYPE_LABELS = WORK_TYPE_CODES_LIST.map(function (c) {
@@ -33,7 +31,7 @@ function emptyForm() {
     model: '',
     brand: '',
     manufacturer: '',
-    productNo: '',
+    factoryNumber: '',
     driveMode: '',
     ratedLoad: '',
     ratedLoadUnit: 'kg',
@@ -61,7 +59,9 @@ definePage(ROUTES['/pkg-handover/pages/create/index'], {
   onLoad() {
     if (!ensureLogin()) return
     const app = getApp()
-        this.setData({ canWrite: hasAnyRole(HANDOVER_WRITE_ROLES) })
+    // 按权限矩阵门控（handover:create=INST_PM/INST_CLERK/系统管理员），与后端 MultiRoleGate 同口径
+    const perms = (app.globalData && app.globalData.perms) || []
+    this.setData({ canWrite: perms.indexOf('handover:create') > -1 })
   },
 
   onInput(e) {

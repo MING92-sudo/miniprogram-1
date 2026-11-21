@@ -39,16 +39,19 @@ class HandoverFilingGateTest {
     void handoverInitGatedToInstPm() {
         HandoverService svc = mock(HandoverService.class);
         HandoverController c = new HandoverController(svc);
+        // 2026-11-21 统一后平台管理员=唯一全权角色（含 handover:create），负例不再含 PLATFORM_ADMIN
         for (String role : new String[]{"MAINT_TECH", "MAINT_SUP", "MAINT_MGR", "MAINT_QUALITY", "MAINT_BIZ",
-                "INST_CLERK", "INST_MGR", "INSTALLER", "PLATFORM_ADMIN"}) {
+                "INST_MGR", "INSTALLER"}) {
             BizException ex = assertThrows(BizException.class,
                     () -> c.init(Map.of("projectName", "演示项目"), req(role)), role);
             assertEquals(403, ex.getCode(), role);
         }
         verify(svc, never()).init(any());
         when(svc.init(any())).thenReturn(new HandoverOrder());
+        // 2026-11-21 裁决：handover:create 扩 INST_CLERK（资料员可起草）
         assertNotNull(c.init(Map.of("projectName", "演示项目"), req("INST_PM")));
-        verify(svc, times(1)).init(any());
+        assertNotNull(c.init(Map.of("projectName", "演示项目"), req("INST_CLERK")));
+        verify(svc, times(2)).init(any());
     }
 
     @Test

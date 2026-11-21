@@ -25,6 +25,14 @@ public class UnitPortalController {
     private final UnitPortalService portalService;
     private final com.cqwlw.maintenance.mapper.SysUserRoleMapper userRoleMapper;
 
+    /** V56 客户门户消息（setter 注入，保持既有构造器签名） */
+    private com.cqwlw.maintenance.service.ClientMessageService clientMessageService;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    public void setClientMessageService(com.cqwlw.maintenance.service.ClientMessageService clientMessageService) {
+        this.clientMessageService = clientMessageService;
+    }
+
     public UnitPortalController(UnitPortalService portalService,
                                 com.cqwlw.maintenance.mapper.SysUserRoleMapper userRoleMapper) {
         this.portalService = portalService;
@@ -53,6 +61,33 @@ public class UnitPortalController {
     @GetMapping("/unit/faults")
     public ApiResponse<List<Map<String, Object>>> faults(HttpServletRequest request) {
         return ApiResponse.ok(portalService.faults(unitId(request)));
+    }
+
+    // ── 客户门户消息（V56 签字临期/超期提醒，docs/04 V2.80；数据域=本单位锚点）──
+
+    /** 本单位消息列表（签字提醒等，倒序 ≤50） */
+    @GetMapping("/unit/messages")
+    public ApiResponse<List<Map<String, Object>>> messages(HttpServletRequest request) {
+        return ApiResponse.ok(clientMessageService.list(unitId(request)));
+    }
+
+    /** 本单位未读消息数 */
+    @GetMapping("/unit/messages/unread-count")
+    public ApiResponse<Map<String, Object>> messageUnreadCount(HttpServletRequest request) {
+        return ApiResponse.ok(clientMessageService.unreadCount(unitId(request)));
+    }
+
+    /** 标记单条已读（归属校验，越权 1403） */
+    @PostMapping("/unit/messages/{id}/read")
+    public ApiResponse<Map<String, Object>> messageRead(
+            @org.springframework.web.bind.annotation.PathVariable String id, HttpServletRequest request) {
+        return ApiResponse.ok(clientMessageService.markRead(unitId(request), id));
+    }
+
+    /** 全部标读（幂等，天然可重放） */
+    @PostMapping("/unit/messages/read-all")
+    public ApiResponse<Map<String, Object>> messageReadAll(HttpServletRequest request) {
+        return ApiResponse.ok(clientMessageService.markAllRead(unitId(request)));
     }
 
     /** 使用单位报修（从本单位电梯选，派给该梯责任人） */

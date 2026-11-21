@@ -3,7 +3,17 @@
     <ViewHead title="系统配置" sub="仅平台管理员 · 保存即时生效并写审计">
       <template #meta><PageMeta perm="config:manage" /></template>
     </ViewHead>
-    <div class="mt16">
+        <div class="tab-bar mt16">
+      <button v-if="canConfig" type="button" :class="['tab-i', { on: tab === 'config' }]" @click="go('config')">系统配置</button>
+      <button v-if="canRegions" type="button" :class="['tab-i', { on: tab === 'regions' }]" @click="go('regions')">区域管理</button>
+      <button v-if="canTemplates" type="button" :class="['tab-i', { on: tab === 'templates' }]" @click="go('templates')">检查项模板</button>
+      <button v-if="canConfig" type="button" :class="['tab-i', { on: tab === 'company' }]" @click="go('company')">单位信息</button>
+    </div>
+    <RegionView v-if="tab === 'regions'" embedded />
+    <TemplateManageView v-else-if="tab === 'templates'" embedded />
+    <CompanyView v-else-if="tab === 'company'" embedded />
+    <template v-else>
+<div class="mt16">
       <!-- SLA 时限 -->
       <div class="card">
         <div class="card-head">
@@ -116,14 +126,19 @@
         </FormField>
       </div>
     </Modal>
-  </div>
+  </template>
+</div>
 </template>
 <script setup>
 // 系统配置（原型 Views.settings 对齐）：SLA / 保养周期 / 抽查 / 脱敏开关 / 签字模板，分组保存即时生效 + 写审计
 // 真实 API：GET /settings（key→value map）、PUT /settings/{key} {value}（后端校验范围并写审计）
 // 扩展键（sla_urgent_minutes/sla_report_minutes/maint_cycle_quarter_days/mask_*/sign_templates）后端按非数值配置放行；
 // 脱敏开关写入后端配置，实际脱敏由服务端按配置执行。敏感导出审批已按原型移至统计报表页。
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import RegionView from './RegionView.vue'
+import TemplateManageView from './TemplateManageView.vue'
+import CompanyView from './CompanyView.vue'
 import http from '../api/client'
 import ViewHead from '../ui/ViewHead.vue'
 import PageMeta from '../ui/PageMeta.vue'
@@ -132,7 +147,32 @@ import PermButton from '../ui/PermButton.vue'
 import Modal from '../ui/Modal.vue'
 import FormField from '../ui/FormField.vue'
 import { useToast } from '../ui/stores/ui'
+import { state } from '../ui/permission-v2'
+import { usePerspectiveStore } from '../ui/stores/perspective'
 const toast = useToast()
+const route = useRoute()
+const router = useRouter()
+const perspective = usePerspectiveStore()
+// 合并页分页门禁（Tab 合并 2026-11-21 审查修复）：配置/单位=config:manage，区域=region:view，
+// 模板=template:view；与路由 meta.permByTab 同口径——维保经理/质检（template:view）落地
+// /settings 时收敛到模板分页，不再整页 403
+function allow(code) { try { const s = state(perspective.activeRole, code); return s === 'Y' || s === 'C' } catch { return false } }
+const canConfig = computed(() => allow('config:manage'))
+const canRegions = computed(() => allow('region:view'))
+const canTemplates = computed(() => allow('template:view'))
+const TAB_PERMS = { config: canConfig, regions: canRegions, templates: canTemplates, company: canConfig }
+const tab = ref(['regions', 'templates', 'company'].includes(String(route.query.tab)) ? String(route.query.tab) : 'config')
+if (!TAB_PERMS[tab.value].value) {
+  const first = ['config', 'regions', 'templates', 'company'].find((t) => TAB_PERMS[t].value)
+  if (first) tab.value = first
+}
+function go(t) { tab.value = t; router.replace({ query: t === 'config' ? {} : { tab: t } }) }
+// 同路由分页跳转（/regions、/templates 重定向回自身、浏览器前进后退）时同步分页
+watch(() => route.query.tab, (t) => {
+  const v = ['regions', 'templates', 'company'].includes(String(t)) ? String(t) : 'config'
+  if (v !== tab.value) tab.value = v
+})
+
 const DEFAULTS = {
   sla_minutes: '30', sla_urgent_minutes: '120', sla_report_minutes: '240',
   maint_cycle_days: '15', maint_cycle_quarter_days: '90', spotcheck_ratio: '20',
@@ -158,7 +198,7 @@ async function load() {
     }
   } catch (e) { toast.error(e.message || '加载配置失败') }
 }
-onMounted(load)
+onMounted(() => { if (canConfig.value) load() }) // 模板/区域分页用户不拉系统配置（403 噪声）
 async function put(key, value) { await http.put(`/settings/${key}`, { value: String(value) }) }
 function numErr(key, lo, hi, msg) {
   const v = parseInt(model[key], 10)

@@ -1,75 +1,51 @@
-# maintenance-backend（P3 平台写链路后端：token 中控 + 41 条业务契约 + 2.6 上报）
+# maintenance-backend
 
-Spring Boot 3.3.4（Java 17 / Maven / MyBatis-Plus / MySQL 8 / Flyway）。
-P2/P3 落地范围（docs/08）：小程序全部 41 条业务路由真实后端化、平台 token 中控、2.2/2.7 只读转发、
-每日 09:00 自动派单、COS 代理上传、LBS 逆地址解析代理（key 不落前端）；
-P3（V1.8）：签退后自动转发 2.6（失败不自动重试）+ `reg_upload_log` 脱敏落库 + 手动重报、
-2.3/2.4 登记端点、2.5 人员同步、2.8 存量推送（开关默认关）。
-**不含**：Vue3 管理端 / STS 直传 / Redis（后置）。
-
-## 当前状态（2026-10-01 与代码核对）
-
-| 组件 | 状态 |
-|---|---|
-| 认证（/auth/*，JWT + BCrypt + 云托管免鉴权 openid） | ✅ |
-| 平台 token 中控（GET 登录 / TTL=expires_in−60s / 401 重登重试 1 次） | ✅ |
-| 2.2/2.7 只读转发（POST 表单，code 兼容数字/字符串） | ✅（`POST /platform/sync` 触发落库） |
-| 2.6 上报（签退自动转发 / FAILED 手动重报 / `reg_upload_log` 脱敏日志） | ✅ |
-| 2.3/2.4 登记转发（multipart）/ 2.5 人员 platform_id 同步 / 2.8 开关化推送 | ✅ |
-| 维保记录 PDF 导出（`GET /admin/records/{id}/export-pdf`，含照片/签字） | ✅ |
-| 41 条业务路由（路径与 mock 契约一致，`{ code, message, data }` 信封） | ✅ |
-| 每日 09:00 派单 + 业务触达即时补派（口径同 `scripts/verify-dispatch.js`） | ✅ |
-| 文件上传（COS 代理，未配 COS 时回退本地磁盘） | ✅ |
-| LBS `/location/reverse` 代理（高德/腾讯，key 走环境变量） | ✅ |
-| 幂等（X-Idempotency-Key 全部写接口去重，重放返回首次响应） | ✅ |
-| 管理端路由（docs/09 一期，V2.0：dashboard/records/stats/elevators 富视图/upload-logs/sync-status + 四类档案 CRUD + 角色门禁 + 1002 互斥预校验 + client=admin 登录白名单） | ✅ |
-| Redis / STS | 🔴 后置 |
+Spring Boot 3.3.4（Java 17 / Maven / MyBatis-Plus / MySQL 8 / Flyway V1—V61，59 个迁移文件含 V30/V32 缺号）。
+系统事实、业务不变量（§3）、平台对接实测结论（§4）与上线门禁（§6）以根目录 `docs/00-项目摘要.md` 为唯一事实源；
+本文只保留运行/配置指引。注释中残留的旧文档编号引用（docs/01—16）所指文档已删除，可从 git 历史查阅。
 
 ## 本地运行
 
-```powershell
-cd backend
-$env:JAVA_HOME='...jdk-17'        # 若未全局安装
-mvn spring-boot:run               # 默认 8080；首次启动 Flyway 建表 + 写入演示种子数据
+```bash
+# 从仓库根启动（workingDirectory 相对 backend 解析，必须传绝对路径，否则读不到根 .env）
+mvn -f backend/pom.xml spring-boot:run "-Dspring-boot.run.workingDirectory=$(pwd -W)"
 ```
 
-**.env 加载（V1.5 起）**：Spring Boot 启动时自动导入根目录 `.env`（与平台联调脚本共用）。
-在 `.env` 追加云端数据库连接即可，无需 `$env:` 注入：
+默认端口 8080；首次启动 Flyway 建表，`SEED_DEMO_DATA=true` 时写入演示种子数据（生产必须 false）。
+验证：`GET http://localhost:8080/health`。
 
-```ini
-DB_HOST=你的云端MySQL地址
-DB_PORT=3306
-DB_NAME=maintenance
-DB_USER=xxx
-DB_PASSWORD=xxx
-```
+**.env**：根目录 `.env`（gitignore）配置 `DB_*` 与 `JWT_SECRET`（≥32 字节，无默认值，缺失即启动失败）；
+模板见根 `.env.example`。
 
-验证：`GET http://localhost:8080/health`；登录演示账号 `13800000001 / 123456`。
-
-## 环境变量（全部经环境变量注入，严禁写真实值入库，AGENTS §2）
+## 环境变量（全部经环境变量注入，严禁真实值入库/入文档，AGENTS §3.1）
 
 | 变量 | 说明 |
 |---|---|
-| `REG_*`（auth-login-url/api-base-url/username/key/appcode/secret） | 平台凭证，P2 转发必需 |
-| （自动重试） | **未实现**——`originalRecordId` 幂等性未获平台书面确认前禁止引入自动重试，重报仅逐条人工触发（AGENTS §2.3） |
-| `REG_LEGACY_UPLOAD_ENABLED` | 2.8 存量推送开关，默认 false（平台关闭存量接口后置 false） |
+| `REG_*`（平台四凭证 + 两个 URL） | 监管平台对接必需；`REG_LEGACY_UPLOAD_ENABLED`（2.8 存量推送）默认 false |
 | `DB_HOST/DB_PORT/DB_NAME/DB_USER/DB_PASSWORD` | MySQL 连接 |
-| `JWT_SECRET` | 自建 JWT 签名密钥（生产必须强随机） |
-| `COS_REGION/COS_BUCKET` | 对象存储桶名/地域（application.yml 已带云托管托管桶默认值，不配则本地磁盘回退） |
-| `COS_AUTH_URL` | 云托管内网临时凭证接口（托管桶自动使用，默认 `/_/cos/getauth`，无需密钥） |
-| `COS_SECRET_ID/COS_SECRET_KEY` | 仅自建 COS 桶（本地联调）需要；云托管托管桶无静态密钥 |
-| `LBS_AMAP_KEY / LBS_TENCENT_KEY` | 逆地址解析（前端不接触 key） |
+| `JWT_SECRET` / `JWT_EXPIRE_HOURS` | 自建 JWT 签名密钥（生产必须强随机）/ 会话时长 |
+| `COS_BUCKET/COS_REGION/COS_AUTH_URL` | 对象存储（托管桶走内网临时凭证）；`COS_SECRET_ID/KEY` 仅自建桶 |
 | `SEED_DEMO_DATA` | 演示种子数据开关，生产置 false |
+| `APP_WORK_DURATION_MINUTES` | 作业时长下限（默认 30，上线口径待确认，docs/00 §6 A-07） |
+| `APP_CHECKIN_THRESHOLD_METERS` | 签到围栏全局默认（默认 200，电梯级优先） |
+| `APP_LEGACY_MODULES_ENABLED` | 已裁模块总开关，默认 false（一律 403） |
+| `SERVER_PORT` | 容器端口 80 |
+
+**自动重试未实现且禁止实现**：`originalRecordId` 幂等性未获平台书面确认前，失败仅标记状态、
+逐条人工重报（AGENTS §3.3，docs/00 §6 A-01）。
 
 ## 测试
 
 ```bash
-mvn test   # token 中控 / 401 重试 / 表单编码 / 派单 6 台同日一次性 09:00 / 检查项模板 / 2.6 上报与重报 / 2.8 开关 / PDF 导出
+mvn test   # 800+ 单测：token 中控 / 401 重试 / 派单 / 模板 / 签到围栏 / 动态码 / 生命周期 / PDF 等
 ```
+
+派单与模板链路回归另跑（仓库根）：`node scripts/verify-dispatch.js`、`node scripts/verify-templates.js`。
+CI（`.github/workflows/backend-build.yml`）四道门禁：后端 `mvn test`、回归脚本、根 lint、admin lint/test/build。
 
 ## 微信云托管部署
 
-1. 流水线构建目录 `backend/`，监听端口 80（`SERVER_PORT=80`）；
-2. 开启「小程序免鉴权调用」，请求头自动携带 `X-WX-OPENID`；
+1. 根 `Dockerfile` 多阶段构建（Node 构建 admin → Maven 打包 → JRE 17 Alpine），监听端口 80（`SERVER_PORT=80`）；
+2. 健康检查 `GET /health`；小程序经 `wx.cloud.callContainer` 访问；
 3. 上表环境变量在「服务设置 → 环境变量」配置；
-4. MySQL 使用云托管数据库（版本 8.0，utf8mb4）。
+4. MySQL 使用云托管数据库（版本 8.0，utf8mb4/utf8mb4_general_ci）。

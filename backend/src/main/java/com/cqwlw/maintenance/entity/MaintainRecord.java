@@ -75,5 +75,11 @@ public class MaintainRecord {
     public String clientRefuserName;
     public String clientRefuseReason;
     public LocalDateTime clientRefusedAt;
+    /** 发起使用单位签字时刻（签字 SLA 起算，V56；NULL=旧记录回退 createdAt） */
+    public LocalDateTime signRequestedAt;
+    /** 最近一次签字临期/超期提醒推送时刻（提醒去重，V56） */
+    public LocalDateTime signRemindedAt;
+    /** 拒签原因分类码（V56：R1 内容不符/R2 漏项/R3 照片不符/R4 信息有误/R5 其他） */
+    public String refuseCode;
     public LocalDateTime createdAt;
 }

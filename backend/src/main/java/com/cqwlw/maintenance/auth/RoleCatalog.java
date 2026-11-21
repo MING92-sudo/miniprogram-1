@@ -49,8 +49,7 @@ public final class RoleCatalog {
     static {
         Map<String, Role> roles = new LinkedHashMap<>();
         for (Role role : List.of(
-                // 平台层
-                new Role(SYS_ADMIN, PLATFORM, "系统管理员", true, null),
+                // 平台层（2026-11-21 统一：唯一全权管理员=平台管理员；SYS_ADMIN 降为 ALIAS）
                 new Role(ADMIN, PLATFORM, "平台管理员", true, null),
                 // 安装部
                 new Role(INSTALL_MANAGER, INSTALL, "安装项目经理", true, ADMIN),
@@ -78,7 +77,6 @@ public final class RoleCatalog {
     static {
         // 规范角色：adminConsole 按 spec §3.1（CLIENT_ADMIN M1 仍 false，M5 才开 Web）
         CANONICAL.put("PLATFORM_ADMIN", new Role("PLATFORM_ADMIN", "PLATFORM", "平台管理员", true, null));
-        CANONICAL.put("SYS_ADMIN", new Role("SYS_ADMIN", "PLATFORM", "系统管理员", true, null));
         CANONICAL.put("INST_MGR", new Role("INST_MGR", "INSTALL", "安装部主管", true, null));
         CANONICAL.put("INST_PM", new Role("INST_PM", "INSTALL", "安装部项目负责人", true, "INST_MGR"));
         CANONICAL.put("INST_CLERK", new Role("INST_CLERK", "INSTALL", "安装部资料员", true, "INST_MGR"));
@@ -93,7 +91,8 @@ public final class RoleCatalog {
         CANONICAL.put("CLIENT_SIGNER", new Role("CLIENT_SIGNER", null, "使用单位签字人", false, null));
 
         ALIAS.put("ADMIN", "PLATFORM_ADMIN");
-        ALIAS.put("SYS_ADMIN", "SYS_ADMIN");
+        // 2026-11-21 统一：系统管理员并入平台管理员（唯一全权角色），历史 SYS_ADMIN 一律按平台管理员判定
+        ALIAS.put("SYS_ADMIN", "PLATFORM_ADMIN");
         ALIAS.put("INSTALL_MANAGER", "INST_PM");
         ALIAS.put("INSTALL_CLERK", "INST_CLERK");
         ALIAS.put("INSTALL_WORKER", "INSTALLER");
@@ -146,10 +145,9 @@ public final class RoleCatalog {
         return r == null ? null : r.name();
     }
 
-    /** 平台层（跨部门全权）：ADMIN/SYS_ADMIN，历史码与规范码（PLATFORM_ADMIN）等价 */
+    /** 平台层（跨部门全权）：唯一全权角色 PLATFORM_ADMIN（历史 ADMIN/SYS_ADMIN 经 ALIAS 归一） */
     public static boolean isPlatformRole(String role) {
-        String c = canonical(role);
-        return "PLATFORM_ADMIN".equals(c) || SYS_ADMIN.equals(c);
+        return "PLATFORM_ADMIN".equals(canonical(role));
     }
 
     /** 管理端是否可登录（docs/14 §3「可登录端」列 + §10 #1/#2 越权用例） */

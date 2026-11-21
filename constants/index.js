@@ -7,7 +7,7 @@ const ROLE = {
   LEADER: 'LEADER', // 班组长
   UNIT_ADMIN: 'UNIT_ADMIN', // 使用单位安全管理员
   ADMIN: 'ADMIN', // 维保部管理员
-  SYS_ADMIN: 'SYS_ADMIN', // 系统管理员
+  SYS_ADMIN: 'PLATFORM_ADMIN', // 2026-11-21：系统管理员并入平台管理员（保留键作别名兼容）
   // docs/14 §3 角色码表：三平级部门岗位（本次仅新增码值，既有码值语义不变）
   INSTALL_MANAGER: 'INSTALL_MANAGER', // 安装项目经理
   INSTALL_CLERK: 'INSTALL_CLERK', // 安装文员
@@ -198,7 +198,6 @@ const HANDOVER_WRITE_ROLES = [
   ROLE.INSTALL_WORKER,
   ROLE.MAINT_MANAGER,
   ROLE.ADMIN,
-  ROLE.SYS_ADMIN,
   'INST_PM', 'INST_CLERK', 'INST_MGR', 'INSTALLER', 'MAINT_MGR', 'PLATFORM_ADMIN'
 ]
 
@@ -279,7 +278,6 @@ const FILING_WRITE_ROLES = [
   ROLE.MAINT_MANAGER,
   ROLE.LEADER,
   ROLE.ADMIN,
-  ROLE.SYS_ADMIN,
   'MAINT_MGR', 'MAINT_SUP', 'MAINT_BIZ', 'PLATFORM_ADMIN'
 ]
 
@@ -315,20 +313,39 @@ const FILING_TEXT = {
 // UNIT_PORTAL_TEXT/UNIT_FAULT_TYPES/UNIT_FAULT_STATUS_TEXT/UNIT_CONFIRM_STATUS_TEXT 已删
 // （2026-11-16 审查清理：V41 门户登录链废除后零引用；状态文案见 docs/04 A.7/A.11）
 
-// 维保日历（Task 11 GET /maintenance-calendar）：窗口月数可切 1/3/6
+// 维保日历（Task 11 GET /maintenance-calendar）：窗口月数可切 1/3/6/12（12=全年，建档即排全年口径 2026-11-20）
 const CALENDAR_WINDOWS = [
   { months: 1, label: '1 个月' },
   { months: 3, label: '3 个月' },
-  { months: 6, label: '6 个月' }
+  { months: 6, label: '6 个月' },
+  { months: 12, label: '全年' }
 ]
 
 const CALENDAR_TEXT = {
   TITLE: '维保日历',
-  TIP: '按维保类别前向投影的应做日期（半月/季度/半年/年度），只读参考，不代表已派单',
+  TIP: '按维保类别前向投影的应做日期（半月/季度/半年/年度）；状态为当日工单执行情况',
   EMPTY: '所选窗口内暂无排期',
   FAILED: '排期加载失败，请稍后重试',
   SCOPE_TIP: '可见范围：本人名下电梯；班组/区域扩大随管理端权限收敛'
 }
+
+// 日历条目执行状态（与后端 MaintenanceCalendarService STATUS_LABEL 同步）
+const CALENDAR_STATUS = {
+  PLANNED: '计划',
+  DISPATCHED: '已派单',
+  DONE: '已完成',
+  OVERDUE: '超期'
+}
+
+// 使用单位拒签原因分类码（V2.80；与后端 RecordLifecycleService.REFUSE_CODES 镜像同步，
+// 改动必须双侧同改）——needDetail=true 时说明文字必填
+const REFUSE_REASON_OPTIONS = [
+  { code: 'R1', label: '记录内容与现场不符', needDetail: false },
+  { code: 'R2', label: '维保项目漏项或未按单执行', needDetail: false },
+  { code: 'R3', label: '现场照片不清晰或与实际不符', needDetail: false },
+  { code: 'R4', label: '时间或人员信息有误', needDetail: false },
+  { code: 'R5', label: '其他（需填写说明）', needDetail: true }
+]
 
 
 // 品牌标识（程序名/公司名/徽标口径不变，D4/D5；页面与 nav-bar 统一引用，禁止散落硬编码）
@@ -497,8 +514,7 @@ const ROLE_DESC = {
   INSTALLER: '安装部 · 现场整改 / 自检',
   CLIENT_ADMIN: 'ORG_FLAT · 本单位台账 / 报修 / 评价',
   CLIENT_SIGNER: '记录单 / 急修单电子签署',
-  PLATFORM_ADMIN: '全平台 · 组织 / 审计 / 配置',
-  SYS_ADMIN: '全平台 · 系统管理'
+  PLATFORM_ADMIN: '全平台 · 组织 / 审计 / 配置'
 }
 
 module.exports = {
@@ -543,6 +559,8 @@ module.exports = {
   FILING_READ_ROLES,
   FILING_TEXT,
   CALENDAR_WINDOWS,
-  CALENDAR_TEXT
+  CALENDAR_TEXT,
+  CALENDAR_STATUS,
+  REFUSE_REASON_OPTIONS
 }
 

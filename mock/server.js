@@ -123,15 +123,29 @@ function toClientRecord(r) {
     recordVersion: r.recordVersion || '', hashPrefix: r.hashPrefix || '', frozenAt: r.frozenAt || ''
   }
 }
+// V2.80 签字 SLA（后端 ClientSignSlaService 同口径）：起算=signRequestedAt（回退 checkoutTime/createdAt），
+// 默认 72h；待签行/签字页倒计时/超期标记共用
+const CLIENT_SIGN_SLA_HOURS = 72
+function signSlaFields(r) {
+  const base = r.signRequestedAt || r.checkoutTime || r.createdAt || ''
+  if (!base) return { signRequestedAt: '', signDeadline: '', overdue: false }
+  const deadline = formatTime(new Date(parseTime(base) + CLIENT_SIGN_SLA_HOURS * 3600000))
+  return { signRequestedAt: base, signDeadline: deadline, overdue: parseTime(deadline) < Date.now() }
+}
+// V2.80 拒签原因分类码（后端 RecordLifecycleService.REFUSE_CODES 镜像同步，改动必须双侧同改）
+const REFUSE_CODES = {
+  R1: '记录内容与现场不符', R2: '维保项目漏项或未按单执行',
+  R3: '现场照片不清晰或与实际不符', R4: '时间或人员信息有误', R5: '其他'
+}
 // 列表行投影（后端 UnitPortalService.recordRow 等价）：含 lifecycleStatus/version，不含 shareToken 等凭证
 function clientRecordRow(r) {
-  return {
+  return Object.assign({
     id: r.id, elevatorCode: r.elevatorCode || '', elevatorName: r.elevatorName || '',
     workType: r.workType || '', workerName: r.workerName || '', assistantName: r.assistantName || '',
     checkinTime: r.checkinTime || '', checkoutTime: r.checkoutTime || '', duration: r.duration || '',
     confirmStatus: r.confirmStatus || 'PENDING', lifecycleStatus: r.lifecycleStatus || '',
     version: r.version != null ? r.version : 1
-  }
+  }, signSlaFields(r))
 }
 // P1 兼容期例外（控制器裁决 T7-C2，docs/14 §4.6 规则 8「可保留既有 shareToken 供旧链接」）：
 // 客户待办「去签字」以行内 shareToken 拼签字链接（pkg-client/pages/todo goSign），而 sign 页只有 token
@@ -189,14 +203,14 @@ function requireWrite(code) {
   }
 }
 // C-24：V7 班组读谓词镜像（后端 EmployeeScopeService.visibleReadPlatformIds，按主角色 role 旧码判定）：
-// ADMIN/SYS_ADMIN（平台）与 MAINT_MANAGER/MAINT_QUALITY（维保管理）→ null 不限；
+// ADMIN（平台）与 MAINT_MANAGER/MAINT_QUALITY（维保管理）→ null 不限；
 // 安装部三岗与 MAINT_BIZ（非现场岗）→ 空集（任何记录 1403）；其余 → 本人 + LEADER 本班组。
 // 与后端同缺口径：规范码主角色（如 MAINT_MGR/PLATFORM_ADMIN）不落旧码集合 → 走本人兜底（fail-closed）；
 // mock 员工无 regionId 概念，区域分支省略（mock 数据未分区，与后端"未分区按原口径"一致）。
 function visibleReadPlatformIds() {
   const emp = d.db.employees[currentRole] || {}
   const role = emp.role || ''
-  if (['ADMIN', 'SYS_ADMIN', 'MAINT_MANAGER', 'MAINT_QUALITY'].indexOf(role) > -1) return null
+  if (['ADMIN', 'MAINT_MANAGER', 'MAINT_QUALITY'].indexOf(role) > -1) return null
   if (['INSTALL_MANAGER', 'INSTALL_CLERK', 'INSTALL_WORKER', 'MAINT_BIZ'].indexOf(role) > -1) return new Set()
   const ids = new Set()
   if (role === 'LEADER' && emp.groupName) {
@@ -573,7 +587,7 @@ const routes = [
         { key: 'handover', text: '移交验收', icon: 'file-signature', path: '/pkg-handover/pages/list/index' }
       ]
       if (has('MAINT_SUP') || has('MAINT_MGR')) quickActions.push({ key: 'plan', text: '维保计划', icon: 'calendar-check-r', path: '/pkg-maintenance/pages/plan/index' })
-      if (has('MAINT_SUP') || has('MAINT_MGR') || has('MAINT_BIZ') || has('PLATFORM_ADMIN') || has('SYS_ADMIN')) quickActions.push({ key: 'filing', text: '外接建档', icon: 'folder', path: '/pkg-handover/pages/filing-init/index' })
+      if (has('MAINT_SUP') || has('MAINT_MGR') || has('MAINT_BIZ') || has('PLATFORM_ADMIN')) quickActions.push({ key: 'filing', text: '外接建档', icon: 'folder', path: '/pkg-handover/pages/filing-init/index' })
     } else if (ws && ws.indexOf('CLIENT') === 0) {
       // P1 T6：与后端同口径——客户工作台下线一键报修/急修进度，仅我的电梯+待办签字（docs/14 §5.5）
       quickActions = [
@@ -581,7 +595,8 @@ const routes = [
         { key: 'todo', text: '待办签字', icon: 'file-signature', path: '/pkg-client/pages/todo/index' }
       ]
     } else if (ws && ws.indexOf('INST') === 0) {
-      if (has('INST_PM')) quickActions.push({ key: 'create', text: '发起移交', icon: 'file-signature', path: '/pkg-handover/pages/create/index' })
+      // 2026-11-21 裁决：handover:create 增 INST_CLERK，快捷动作同步放开
+      if (has('INST_CLERK') || has('INST_PM')) quickActions.push({ key: 'create', text: '发起移交', icon: 'file-signature', path: '/pkg-handover/pages/create/index' })
       if (has('INST_CLERK') || has('INST_PM')) quickActions.push({ key: 'upload', text: '资料上传', icon: 'folder', path: '/pkg-handover/pages/upload/index' })
     }
     const badges = { pendingOrders: 0, pendingSigns: 0 }
@@ -613,6 +628,9 @@ const routes = [
     if (!rec) throw { code: 1404, message: '维保记录不存在' }
     if (rec.lifecycleStatus !== 'PENDING_CLIENT_SIGN') throw { code: 422, message: '记录不在待使用单位签字状态' }
     rec.lifecycleStatus = 'PENDING_CLIENT_SIGNATURE'
+    // V2.80：签字 SLA 起算打点（重新发起时重置提醒去重标记）
+    rec.signRequestedAt = formatTime()
+    rec.signRemindedAt = null
     return { ok: true, shareToken: rec.shareToken || '' }
   }],
   ['GET', '/work-orders/:id/archive', () => ({ url: 'https://mock/files/arch?s=mock', hash: '0'.repeat(64), archivedAt: '2026-11-15 00:00:00' })],
@@ -627,10 +645,18 @@ const routes = [
     if (r.lifecycleStatus !== 'PENDING_CLIENT_SIGNATURE') throw { code: 422, message: '记录不在待使用单位签署状态' }
     if (r.confirmStatus !== 'PENDING') throw { code: 422, message: '记录已签署，不能拒签' }
     if (!isLatestVersion(r)) throw { code: 422, message: '记录已被新版本替代，请处理最新记录' }
+    // V2.80 分类码：传码校验 R1—R5（R5 必填说明）；未传码按兼容期回退「原因必填」
+    const code = String((body && body.refuseCode) || '').trim().toUpperCase()
     const reason = String((body && body.reason) || '').trim()
-    if (!reason) throw { code: 422, message: '拒绝原因必填' }
+    if (!code) {
+      if (!reason) throw { code: 422, message: '拒绝原因必填' }
+    } else {
+      if (!REFUSE_CODES[code]) throw { code: 422, message: '拒签原因分类码无效（R1—R5）' }
+      if (code === 'R5' && !reason) throw { code: 422, message: '选择「其他」时必须填写拒签说明' }
+    }
     r.lifecycleStatus = 'REFUSED_RETURNED'
-    r.refuseReason = reason // 内部字段：客户白名单一律不回显（docs/14 §4.7 DC5）
+    r.refuseReason = code ? (reason ? REFUSE_CODES[code] + '：' + reason : REFUSE_CODES[code]) : reason // 内部字段：客户白名单一律不回显（docs/14 §4.7 DC5）
+    r.refuseCode = code || null
     return { ok: true }
   }],
   ['POST', '/faults/:id/grab', () => ({ ok: true, status: 'ASSIGNED' })],
@@ -757,7 +783,7 @@ const routes = [
   ['PUT', '/elevators/:id/local', ({ params, body }) => {
     const el = d.getElevator(params.id)
     if (!el) throw { code: 1404, message: '电梯不存在' }
-    const fields = ['brand', 'manufacturer', 'productNo', 'driveMode',
+    const fields = ['brand', 'manufacturer', 'factoryNumber', 'driveMode',
       'ratedLoad', 'ratedLoadUnit', 'ratedSpeed', 'ratedSpeedUnit', 'stationsDoors', 'nextCheckDate', 'nextMaintenanceDate']
     let any = false
     fields.forEach(function (f) {
@@ -1102,12 +1128,13 @@ const routes = [
   ['POST', '/inspects', ({ body }) => { requireLegacyModule(); return d.createInspect(body) }],
 
   // ── 消息 ──
+  // V2.80：员工消息中心只读 useUnitId 为空的行（useUnitId 非空=客户门户受众，两侧互不串扰）
   ['GET', '/messages', ({ query }) => {
-    const list = d.db.messages.slice().sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1))
+    const list = d.db.messages.filter((m) => !m.useUnitId).sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1))
     return paginate(list, query)
   }],
   ['GET', '/messages/unread-count', () => (
-    { count: d.db.messages.filter((m) => !m.read).length }
+    { count: d.db.messages.filter((m) => !m.useUnitId && !m.read).length }
   )],
   ['POST', '/messages/:id/read', ({ params }) => {
     const m = findOr404(d.db.messages, params.id, '消息')
@@ -1115,7 +1142,7 @@ const routes = [
     return { ok: true }
   }],
   ['POST', '/messages/read-all', () => {
-    d.db.messages.forEach((m) => { m.read = true })
+    d.db.messages.forEach((m) => { if (!m.useUnitId) m.read = true })
     return { ok: true }
   }],
 
@@ -1134,6 +1161,34 @@ const routes = [
       .map(toClientRecord)
     return paginate(list, query)
   }],
+  // V2.80 批量签字（后端 UnitRecordService.batchConfirmAs 同口径）：同一签名一次确认 ≤20 条，
+  // 逐条独立门禁（本单位 + 可签状态 + 先签为准），单条失败不拖累其余。
+  // 路由顺序：必须排在 /unit/records/:id 之前（同段数模板先匹配先中）
+  ['POST', '/unit/records/batch-confirm', ({ body }) => {
+    const unitId = requireClientUnit()
+    const ids = Array.from(new Set((((body && body.recordIds) || []).map((x) => String(x || '').trim())).filter(Boolean)))
+    if (!ids.length) throw { code: 422, message: '请选择要签署的记录' }
+    if (ids.length > 20) throw { code: 422, message: '单次最多批量签署 20 条记录' }
+    if (!String((body && body.signatureUrl) || '') && !String((body && body.signatureFileId) || '')) {
+      throw { code: 422, message: '请先完成签名' }
+    }
+    const codes = ownElevatorCodes(unitId)
+    let signed = 0
+    const failed = []
+    ids.forEach((id) => {
+      const r = (d.db.unitRecords || []).find((x) => x.id === id)
+      try {
+        if (!r) throw { code: 1404, message: '维保记录不存在' }
+        if (!codes.has(r.elevatorCode)) throw { code: 1403, message: '仅本单位记录可确认' }
+        requireSignable(r)
+        signRecord(r, body)
+        signed++
+      } catch (e) {
+        failed.push({ id, message: (e && e.message) || '签署失败' })
+      }
+    })
+    return { ok: !failed.length, signed, failed }
+  }],
   ['GET', '/unit/records/:id', ({ params }) => {
     // 门禁顺序与后端 getAs 一致：requireClient 最先——不存在的 id 也不得以 1404 泄漏存在性。
     // C-24：员工记录详情移至内部端点 GET /records/:id，本端点还原客户专用契约（后端员工令牌 1403）。
@@ -1145,7 +1200,7 @@ const routes = [
     return toClientRecord(r)
   }],
   // ── 员工内部读记录详情（C-24，后端 RecordController GET /records/{id} 同口径） ──
-  // record:view 门禁（Y=MAINT_SUP/MAINT_MGR/PLATFORM_ADMIN/SYS_ADMIN，C=MAINT_TECH）→ V7 班组读谓词 →
+  // record:view 门禁（Y=MAINT_SUP/MAINT_MGR/PLATFORM_ADMIN，C=MAINT_TECH）→ V7 班组读谓词 →
   // 内部全量投影（含 lifecycleStatus/version/shareToken/context/reportPayload/items 明细，
   // pkg-maintenance/record-detail 依赖）；只回浅拷贝，不外泄 db 共享单例引用。
   ['GET', '/records/:id', ({ params }) => {
@@ -1202,7 +1257,13 @@ const routes = [
       recordVersion: r.recordVersion || '',
       hashPrefix: r.hashPrefix || '',
       frozenAt: r.frozenAt || '',
-      signatureUrl: r.signatureUrl || ''
+      signatureUrl: r.signatureUrl || '',
+      // V2.80 签字 SLA 倒计时（sign 页；serverNow 供前端对齐时钟）
+      signRequestedAt: signSlaFields(r).signRequestedAt,
+      slaHours: CLIENT_SIGN_SLA_HOURS,
+      signDeadline: signSlaFields(r).signDeadline,
+      overdue: signSlaFields(r).overdue,
+      serverNow: formatTime()
     }
   }],
   // 后端 confirmByToken（T4-C1）：token → 签字门禁链 → 条件更新；已签/旧版本一律 422，不再回 already 幂等体
@@ -1213,6 +1274,15 @@ const routes = [
     }
     requireSignable(r)
     return signRecord(r, body)
+  }],
+  // 后端 signatureUploadByToken（V2.80 修复）：免登录 token 链签名图上传，同门禁（校验先于"写盘"）
+  ['POST', '/unit/records/:id/signature-upload', ({ params, query }) => {
+    const r = findOr401Token(d.db.unitRecords, params.id)
+    if (!query.token || query.token !== r.shareToken) {
+      throw { code: 401, message: '确认链接无效或已失效' }
+    }
+    requireSignable(r)
+    return { fileId: 'mock_file_' + Date.now(), url: '' }
   }],
 
   // ── 知识库（已裁模块，默认 403）──
@@ -1234,7 +1304,7 @@ const routes = [
     // 维保部读收敛（与后端 HandoverService.list 同口径，2026-11-20 真机反馈③）：
     // 纯维保部角色默认隐藏安装内部阶段，显式 status 查询尊重入参
     const maintOnly = currentRoles.some((r) => r.indexOf('MAINT') === 0) &&
-      !currentRoles.some((r) => r.indexOf('INST') === 0 || r === 'INSTALLER' || r === 'PLATFORM_ADMIN' || r === 'SYS_ADMIN' || r === 'ADMIN')
+      !currentRoles.some((r) => r.indexOf('INST') === 0 || r === 'INSTALLER' || r === 'PLATFORM_ADMIN' || r === 'ADMIN')
     const VISIBLE = ['INSPECTING', 'RECTIFYING', 'PENDING_CONFIRM', 'ARCHIVED']
     const explicit = !!(query && query.status)
     return paginate(mockHandovers.filter((h) => explicit ? h.status === query.status : !(maintOnly && VISIBLE.indexOf(h.status) < 0)), query)
@@ -1455,6 +1525,30 @@ const routes = [
     const unitId = requirePortalUnit()
     return clientVisibleRecords(unitId).filter(isSignableRow).map(clientPendingSignRow)
   }],
+  // ── 客户门户消息（V2.80 签字临期/超期提醒，后端 ClientMessageService 同口径；数据域=本单位锚点）──
+  ['GET', '/unit/messages', () => {
+    const unitId = requirePortalUnit()
+    return (d.db.messages || []).filter((m) => m.useUnitId === unitId)
+      .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1)).slice(0, 50)
+      .map((m) => ({ id: m.id, title: m.title || '', content: m.content || '', createdAt: m.createdAt || '', readFlag: !!m.readFlag }))
+  }],
+  ['GET', '/unit/messages/unread-count', () => {
+    const unitId = requirePortalUnit()
+    return { count: (d.db.messages || []).filter((m) => m.useUnitId === unitId && !m.readFlag).length }
+  }],
+  ['POST', '/unit/messages/:id/read', ({ params }) => {
+    const unitId = requirePortalUnit()
+    const m = findOr404(d.db.messages, params.id, '消息')
+    if (m.useUnitId !== unitId) throw { code: 1403, message: '仅可操作本单位消息' }
+    m.readFlag = true
+    return { ok: true }
+  }],
+  ['POST', '/unit/messages/read-all', () => {
+    const unitId = requirePortalUnit()
+    let updated = 0
+    ;(d.db.messages || []).forEach((m) => { if (m.useUnitId === unitId && !m.readFlag) { m.readFlag = true; updated++ } })
+    return { ok: true, updated }
+  }],
   // 客户急修列表（C-25② 契约对齐）：后端投影白名单 id/faultNo/elevatorCode/elevatorName/faultType/desc/
   // status/createdAt/finishedAt/result——elevatorName 按 elevatorCode 批量联电梯（一次 .in，无 N+1），
   // 缺名回退 elevatorCode；mock 回整行（字段超集），种子行 elevatorName 口径一致。
@@ -1473,7 +1567,56 @@ const routes = [
     if (!ownElevatorCodes(unitId).has(code)) throw { code: 1403, message: '仅可为本单位电梯报修' }
     return d.createFault(body)
   }],
-  ['GET', '/maintenance-calendar', ({ query }) => ({ from: query.from || '', to: query.to || '', entries: [] })]
+  // 维保日历（后端 MaintenanceCalendarService 同口径，2026-11-20 建档即排全年）：
+  // 锚点=最早 HM 工单计划日 → 下次到期日 → 建档基线 lastMaintenanceAt+intervalDays；
+  // 锚点起按累加式 15/90/180/365 投影窗口内应做日期，条目带执行状态。mock 不做人员范围过滤（演示全量）。
+  ['GET', '/maintenance-calendar', ({ query }) => {
+    const STATUS_TEXT = { PLANNED: '计划', DISPATCHED: '已派单', DONE: '已完成', OVERDUE: '超期' }
+    const TYPE_TEXT = { HM: '半月维保', TM: '季度维保', SM: '半年维保', OY: '年度维保' }
+    const DAY = 86400000
+    const start = query.from ? new Date(String(query.from).replace(/-/g, '/')) : new Date()
+    const end = query.to ? new Date(String(query.to).replace(/-/g, '/')) : new Date(start.getTime() + 365 * DAY)
+    const dayStr = (t) => formatTime(new Date(t)).slice(0, 10)
+    const today = dayStr(Date.now())
+    const typeAt = (days) => {
+      if (days < 0) return null
+      if (days === 0 || days % 365 === 0) return days === 0 ? 'HM' : 'OY'
+      if (days % 180 === 0) return 'SM'
+      if (days % 90 === 0) return 'TM'
+      if (days % 15 === 0) return 'HM'
+      return null
+    }
+    const entries = []
+    ;(d.db.elevators || []).forEach((el) => {
+      if (el.status === 'INACTIVE') return
+      const cfg = el.maintenance || {}
+      const hm = (d.db.orders || []).filter((o) => o.elevatorId === el.id && o.workTypeCode === 'HM' && o.planTime)
+        .sort((a, b) => (a.planTime < b.planTime ? -1 : 1))[0]
+      let anchor = null
+      if (hm) anchor = String(hm.planTime).slice(0, 10)
+      else if (el.nextMaintenanceDate) anchor = String(el.nextMaintenanceDate).slice(0, 10)
+      else if (cfg.lastMaintenanceAt) anchor = dayStr(parseTime(cfg.lastMaintenanceAt) + (cfg.intervalDays || 15) * DAY)
+      if (!anchor) return
+      const anchorMs = new Date(anchor.replace(/-/g, '/')).getTime()
+      for (let t = start.getTime(); t <= end.getTime(); t += DAY) {
+        const code = typeAt(Math.round((t - anchorMs) / DAY))
+        if (!code) continue
+        const date = dayStr(t)
+        const sameDay = (o) => o.elevatorId === el.id && o.planTime && String(o.planTime).slice(0, 10) === date
+        const order = (d.db.orders || []).find((o) => sameDay(o) && o.status === 'DONE') || (d.db.orders || []).find(sameDay)
+        const status = order && order.status === 'DONE' ? 'DONE' : order ? 'DISPATCHED' : date < today ? 'OVERDUE' : 'PLANNED'
+        entries.push({
+          date, elevatorId: el.id, elevatorCode: el.elevatorCode, elevatorName: el.elevatorName,
+          projectName: el.projectName || '', location: el.location || '', anchorDate: anchor,
+          workTypeCode: code, workType: TYPE_TEXT[code],
+          status, statusText: STATUS_TEXT[status],
+          orderId: order ? order.id : '', orderNo: order ? (order.orderNo || '') : ''
+        })
+      }
+    })
+    entries.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : (a.elevatorName < b.elevatorName ? -1 : 1)))
+    return { from: dayStr(start.getTime()), to: dayStr(end.getTime()), entries }
+  }]
 ]
 
 // ── 路径匹配 ──

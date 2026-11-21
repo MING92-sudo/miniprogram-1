@@ -14,6 +14,11 @@ export function exportPdf(id) {
   return http.get(`/admin/records/${id}/export-pdf`, { responseType: 'blob', timeout: 120000 })
 }
 
+/** 急修单 PDF（GET /admin/faults/{id}/export-pdf）；blob 直传 */
+export function exportFaultPdf(id) {
+  return http.get(`/admin/faults/${id}/export-pdf`, { responseType: 'blob', timeout: 120000 })
+}
+
 /** 记录详情（复用使用单位记录契约，含照片/签字/隐患码/冻结报文） */
 export function getRecord(id) {
   return http.get(`/unit/records/${id}`)

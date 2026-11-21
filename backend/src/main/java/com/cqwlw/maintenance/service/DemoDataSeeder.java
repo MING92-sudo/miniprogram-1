@@ -130,8 +130,8 @@ public class DemoDataSeeder implements ApplicationRunner {
             return;
         }
         log.warn("SEED_DEMO_DATA=true：正在向【空库】写入演示数据，"
-                + "其中包含 15 个口令为 123456 的演示账号（11 个内部账号 + 4 个使用单位客户账号；"
-                + "含 SYS_ADMIN 13800000010、三部门补齐账号）。"
+                + "其中包含 14 个口令为 123456 的演示账号（10 个内部账号 + 4 个使用单位客户账号；"
+                + "唯一全权管理员=平台管理员 13800000009，SYS_ADMIN 已并入 PLATFORM_ADMIN）。"
                 + "生产环境必须置 false（AGENTS §2.1）。已存在员工数据时本 Seeder 不执行。");
         log.info("开始写入演示种子数据（SEED_DEMO_DATA=true）");
         seed();
@@ -160,10 +160,8 @@ public class DemoDataSeeder implements ApplicationRunner {
         employee("emp_3", "李强", "13800000004", "WORKER", "维保人员", DEMO_GROUP,
                 PID_LIQIANG, "CQ3601030003", "2024-08-01", 500, enc);
 
-        // ── 管理端演示账号（docs/09 §五：种子新增 ADMIN；账号/初始密码见 README）──
-        employee("emp_admin", "郑浩", "13800000009", "ADMIN", "维保部管理员", "",
-                "", "", "", 0, enc);
-        employee("emp_sys", "系统管理员", "13800000010", "SYS_ADMIN", "系统管理员", "",
+        // ── 管理端演示账号：唯一全权管理员=平台管理员（2026-11-21 统一，SYS_ADMIN 账号已删）──
+        employee("emp_admin", "郑浩", "13800000009", "ADMIN", "平台管理员", "",
                 "", "", "", 0, enc);
 
         // ── 渲染口径对齐（2026-11-15 裁决）：三部门演示账号补齐，与 mock/data.js 同号 ──
@@ -193,22 +191,22 @@ public class DemoDataSeeder implements ApplicationRunner {
         elevator("el_1", "EM-2024-001", "世纪大厦 1# 客梯", "世纪大厦", "渝北区龙山一路 88 号世纪大厦",
                 "TSCQ5001120001", "DT-CQ-2024-001", "KT-01", "OTIS 300VF", "uu_1", 45,
                 "SGL20131212-1", "5633318206815862786", "王芳", "13800000003", "02367612345",
-                "106.633520", "29.719210", "奥的斯", "奥的斯电梯（中国）有限公司", "OTIS-2013-8817",
+                "106.633520", "29.719210", "奥的斯", "奥的斯电梯（中国）有限公司",
                 1000, "1.75", "11/11", "HM", 15, "张伟", "13800000001", PID_ZHANGWEI, "李强", PID_LIQIANG, 3);
         elevator("el_2", "EM-2024-002", "世纪大厦 2# 客梯", "世纪大厦", "渝北区龙山一路 88 号世纪大厦",
                 "TSCQ5001120002", "DT-CQ-2024-002", "KT-02", "OTIS 300VF", "uu_1", 18,
                 "SGL20131212-2", "5633318206815862786", "王芳", "13800000003", "02367612345",
-                "106.633520", "29.719210", "奥的斯", "奥的斯电梯（中国）有限公司", "OTIS-2013-8818",
+                "106.633520", "29.719210", "奥的斯", "奥的斯电梯（中国）有限公司",
                 1000, "1.75", "11/11", "HM", 15, "张伟", "13800000001", PID_ZHANGWEI, "李强", PID_LIQIANG, 3);
         elevator("el_3", "EM-2024-003", "蓝湾国际 A 座货梯", "蓝湾国际", "江北区滨江路 6 号蓝湾国际",
                 "TSCQ5001120003", "DT-CQ-2024-003", "HT-01", "三菱 GPS-III", "uu_2", 200,
                 "MITS-2018-0331", "5633318206815862790", "吴静", "13800003005", "02367991234",
-                "106.574210", "29.588660", "三菱", "上海三菱电梯有限公司", "MLS-2018-0331",
+                "106.574210", "29.588660", "三菱", "上海三菱电梯有限公司",
                 2000, "1.00", "6/6", "FM", 30, "张伟", "13800000001", PID_ZHANGWEI, "", "", 10);
         elevator("el_4", "EM-2024-004", "蓝湾国际 B 座客梯", "蓝湾国际", "江北区滨江路 6 号蓝湾国际",
                 "TSCQ5001120004", "DT-CQ-2024-004", "KT-01", "日立 YK", "uu_2", 240,
                 "HIT-2021-1102", "5633318206815862790", "吴静", "13800003005", "02367991234",
-                "106.574210", "29.588660", "日立", "日立电梯（中国）有限公司", "HIT-2021-1102",
+                "106.574210", "29.588660", "日立", "日立电梯（中国）有限公司",
                 1000, "1.50", "8/8", "HM", 15, "李强", "13800000004", PID_LIQIANG, "", "", 16);
 
         // ── 工单（checklist 为空 → 服务层按模板懒加载生成） ──
@@ -494,7 +492,7 @@ public class DemoDataSeeder implements ApplicationRunner {
                           String regCode, String deviceCode, String insideNumber, String model,
                           String useUnitId, int nextCheckInDays, String factoryNumber, String useUnitEntityId,
                           String administer, String administerPhone, String emergencyPhone,
-                          String lng, String lat, String brand, String manufacturer, String productNo,
+                          String lng, String lat, String brand, String manufacturer,
                           int ratedLoad, String ratedSpeed, String stationsDoors,
                           String workTypeCode, int intervalDays,
                           String workerName, String workerPhone, String workerPlatformId,
@@ -522,7 +520,6 @@ public class DemoDataSeeder implements ApplicationRunner {
         el.lat = new BigDecimal(lat);
         el.brand = brand;
         el.manufacturer = manufacturer;
-        el.productNo = productNo;
         el.driveMode = "曳引驱动";
         el.ratedLoad = ratedLoad;
         el.ratedLoadUnit = "kg";

@@ -47,6 +47,7 @@ DELETE FROM sys_grant WHERE id LIKE 't\_%';
 DELETE FROM biz_project WHERE id LIKE 't\_%';
 DELETE FROM message WHERE id LIKE 't\_%';
 DELETE FROM sys_invite WHERE id LIKE 't\_%';
+DELETE FROM app_file WHERE id LIKE 't\_%';
 
 -- 共享模板（克隆真实数据结构）
 SET @emp_hash := (SELECT password_hash FROM sys_employee WHERE id = 'emp_lzg');
@@ -110,6 +111,17 @@ SET @cl_tm := REPLACE(REPLACE(@cl_empty, '"freqLabel":"半月维保项目（表A
 SET @cl_oy := REPLACE(REPLACE(@cl_empty, '"freqLabel":"半月维保项目（表A-1）"', '"freqLabel":"年度维保项目（表A-4）"'), '"freq":"HALF"', '"freq":"YEAR"');
 SET @lzg := '6901282369105174537';
 SET @lq := '6901284774286860288';
+-- 记录编号与规则一致（Ids.nextRecordId：'1948' + 毫秒时间戳 + 2位序号）——
+-- 记录/工单/导出 PDF/平台 2.6 上报 originalRecordId 同值，种子不再用 t_orig_* 假编号
+SET @oid_ms := ROUND(UNIX_TIMESTAMP(NOW(3)) * 1000);
+SET @oid_ps := CONCAT('1948', @oid_ms, '01');
+SET @oid_ps2 := CONCAT('1948', @oid_ms, '02');
+SET @oid_ps3 := CONCAT('1948', @oid_ms, '03');
+SET @oid_rf := CONCAT('1948', @oid_ms, '04');
+SET @oid_sg := CONCAT('1948', @oid_ms, '05');
+SET @oid_done := CONCAT('1948', @oid_ms, '06');
+SET @oid_v1 := CONCAT('1948', @oid_ms, '07');
+SET @oid_failed := CONCAT('1948', @oid_ms, '08');
 
 INSERT INTO work_order (id, order_no, elevator_id, work_type, work_type_code, plan_time, status, worker_name, assistant_name, worker_platform_id, assistant_platform_id, auto_dispatched, checklist_json, use_unit_id, use_unit_name) VALUES
 ('t_wo_overdue', 'WO-T-OVD', 'el_1', '半月维保', 'HM', CONCAT(DATE_SUB(@today, INTERVAL 1 DAY), ' 09:00:00'), 'PENDING', '李振国', '李强', @lzg, @lq, 1, @cl_empty, 'uu_1', '重庆世纪物业管理有限公司'),
@@ -135,25 +147,33 @@ UPDATE work_order SET checkin_time = DATE_SUB(NOW(), INTERVAL 160 MINUTE),
   WHERE id = 't_wo_ready';
 UPDATE work_order SET checkin_time = CONCAT(DATE_SUB(@today, INTERVAL 1 DAY), ' 08:52:00'),
   checkout_time = CONCAT(DATE_SUB(@today, INTERVAL 1 DAY), ' 11:20:00'), duration = '02:28:00',
-  original_record_id = 't_orig_failed', report_status = 'FAILED' WHERE id = 't_wo_failed';
+  original_record_id = @oid_failed, report_status = 'FAILED' WHERE id = 't_wo_failed';
 UPDATE work_order SET checkin_time = CONCAT(DATE_SUB(@today, INTERVAL 3 DAY), ' 08:50:00'),
   checkout_time = CONCAT(DATE_SUB(@today, INTERVAL 3 DAY), ' 11:10:00'), duration = '02:20:00',
-  original_record_id = 't_orig_done', report_status = 'REPORTED' WHERE id = 't_wo_done';
+  worker_signature_file_id = 't_file_sig_w', worker_signature_at = CONCAT(DATE_SUB(@today, INTERVAL 3 DAY), ' 11:05:00'),
+  assistant_signature_file_id = 't_file_sig_a', assistant_signature_at = CONCAT(DATE_SUB(@today, INTERVAL 3 DAY), ' 11:06:00'),
+  original_record_id = @oid_done, report_status = 'REPORTED' WHERE id = 't_wo_done';
+
+-- 签字样图文件（手写风格 PNG 已提交 data/files/，objectKey 与 FileStorageService.localPath 同口径）
+INSERT INTO app_file (id, object_key, url, content_type, size_bytes, created_at) VALUES
+('t_file_sig_w', '2026-11-20/t_file_sig_w.png', '/files/t_file_sig_w', 'image/png', 10617, NOW()),
+('t_file_sig_a', '2026-11-20/t_file_sig_a.png', '/files/t_file_sig_a', 'image/png', 8602, NOW()),
+('t_file_sig_c', '2026-11-20/t_file_sig_c.png', '/files/t_file_sig_c', 'image/png', 15069, NOW());
 
 -- ─────────────────────────────────────────────────────────────
 -- 6. 维保记录（生命周期全覆盖：待发起签字/待签署×2/拒签退回/已签署/已归档/
 --    v1 被替代 + v2 修订链 / 上报失败）
 -- ─────────────────────────────────────────────────────────────
-INSERT INTO maintain_record (id, elevator_name, elevator_code, work_type, work_type_code, worker_name, assistant_name, worker_platform_id, assistant_platform_id, checkin_time, checkout_time, duration, items_json, photos_json, problem_codes_json, original_record_id, report_status, retry_count, next_maintenance_date, confirm_status, share_token, preview_context, version, lifecycle_status, use_unit_id, use_unit_name, elevator_id, created_at) VALUES
-('t_rec_pend_sign', '世纪大厦 1# 客梯', 'EM-2024-001', '半月维保', 'HM', '李振国', '李强', @lzg, @lq, CONCAT(@today, ' 08:52:00'), CONCAT(@today, ' 11:20:00'), '02:28:00', @items, @photos, '["S0"]', 't_orig_ps', 'REPORTED', 0, DATE_ADD(@today, INTERVAL 15 DAY), 'PENDING', 't-tok-sign1', @ctx, 1, 'PENDING_CLIENT_SIGN', 'uu_1', '重庆世纪物业管理有限公司', 'el_1', NOW()),
-('t_rec_pend_sig2', '蓝湾国际 A 座货梯', 'EM-2024-003', '半月维保', 'HM', '李振国', '李强', @lzg, @lq, CONCAT(@today, ' 08:40:00'), CONCAT(@today, ' 10:55:00'), '02:15:00', @items, @photos, '["S0"]', 't_orig_ps2', 'REPORTED', 0, DATE_ADD(@today, INTERVAL 15 DAY), 'PENDING', 't-tok-sign2', @ctx, 1, 'PENDING_CLIENT_SIGNATURE', 'uu_2', '重庆蓝湾物业服务有限公司', 'el_3', NOW()),
-('t_rec_pend_sig3', '江北城 C 座客梯', 'EM-2024-101', '半月维保', 'HM', '李振国', '李强', @lzg, @lq, CONCAT(@today, ' 09:05:00'), CONCAT(@today, ' 11:35:00'), '02:30:00', @items, @photos, '["S0"]', 't_orig_ps3', 'REPORTED', 0, DATE_ADD(@today, INTERVAL 15 DAY), 'PENDING', 't-tok-sign3', @ctx, 1, 'PENDING_CLIENT_SIGNATURE', 't_uu3', '重庆江北城物业有限公司', 't_el1', NOW()),
-('t_rec_refused', '世纪大厦 1# 客梯', 'EM-2024-001', '半月维保', 'HM', '李振国', '李强', @lzg, @lq, CONCAT(DATE_SUB(@today, INTERVAL 2 DAY), ' 08:52:00'), CONCAT(DATE_SUB(@today, INTERVAL 2 DAY), ' 11:20:00'), '02:28:00', @items, @photos, '["S5"]', 't_orig_rf', 'REPORTED', 0, DATE_ADD(@today, INTERVAL 13 DAY), 'REFUSED', 't-tok-rf', @ctx, 1, 'REFUSED_RETURNED', 'uu_1', '重庆世纪物业管理有限公司', 'el_1', NOW()),
-('t_rec_signed', '蓝湾国际 A 座货梯', 'EM-2024-003', '半月维保', 'HM', '李振国', '李强', @lzg, @lq, CONCAT(DATE_SUB(@today, INTERVAL 1 DAY), ' 08:40:00'), CONCAT(DATE_SUB(@today, INTERVAL 1 DAY), ' 10:55:00'), '02:15:00', @items, @photos, '["S0"]', 't_orig_sg', 'REPORTED', 0, DATE_ADD(@today, INTERVAL 14 DAY), 'CONFIRMED', 't-tok-sg', @ctx, 1, 'SIGNED', 'uu_2', '重庆蓝湾物业服务有限公司', 'el_3', NOW()),
-('t_rec_archived', '世纪大厦 1# 客梯', 'EM-2024-001', '半月维保', 'HM', '李振国', '李强', @lzg, @lq, CONCAT(DATE_SUB(@today, INTERVAL 3 DAY), ' 08:50:00'), CONCAT(DATE_SUB(@today, INTERVAL 3 DAY), ' 11:10:00'), '02:20:00', @items, @photos, '["S0"]', 't_orig_done', 'REPORTED', 0, DATE_ADD(@today, INTERVAL 12 DAY), 'CONFIRMED', 't-tok-ar', @ctx, 1, 'ARCHIVED', 'uu_1', '重庆世纪物业管理有限公司', 'el_1', NOW()),
-('t_rec_v1', '世纪大厦 1# 客梯', 'EM-2024-001', '半月维保', 'HM', '李振国', '李强', @lzg, @lq, CONCAT(DATE_SUB(@today, INTERVAL 4 DAY), ' 08:50:00'), CONCAT(DATE_SUB(@today, INTERVAL 4 DAY), ' 11:10:00'), '02:20:00', @items, @photos, '["S0"]', 't_orig_v1', 'REPORTED', 0, DATE_ADD(@today, INTERVAL 11 DAY), 'CONFIRMED', 't-tok-v1', @ctx, 1, 'ARCHIVED', 'uu_1', '重庆世纪物业管理有限公司', 'el_1', NOW()),
-('t_rec_v2', '世纪大厦 1# 客梯', 'EM-2024-001', '半月维保', 'HM', '李振国', '李强', @lzg, @lq, CONCAT(DATE_SUB(@today, INTERVAL 4 DAY), ' 08:50:00'), CONCAT(DATE_SUB(@today, INTERVAL 4 DAY), ' 11:10:00'), '02:20:00', @items, @photos, '["S0"]', 't_orig_v1', 'REPORTED', 0, DATE_ADD(@today, INTERVAL 11 DAY), 'PENDING', 't-tok-v2', @ctx, 2, 'PENDING_CLIENT_SIGNATURE', 'uu_1', '重庆世纪物业管理有限公司', 'el_1', NOW()),
-('t_rec_failed', '蓝湾国际 A 座货梯', 'EM-2024-003', '半月维保', 'HM', '李振国', '李强', @lzg, @lq, CONCAT(DATE_SUB(@today, INTERVAL 1 DAY), ' 08:52:00'), CONCAT(DATE_SUB(@today, INTERVAL 1 DAY), ' 11:20:00'), '02:28:00', @items, @photos, '["S0"]', 't_orig_failed', 'FAILED', 2, DATE_ADD(@today, INTERVAL 14 DAY), 'PENDING', 't-tok-fail', @ctx, 1, 'PENDING_CLIENT_SIGN', 'uu_2', '重庆蓝湾物业服务有限公司', 'el_3', NOW());
+INSERT INTO maintain_record (id, elevator_name, elevator_code, work_type, work_type_code, worker_name, assistant_name, worker_platform_id, assistant_platform_id, checkin_time, checkout_time, duration, items_json, photos_json, problem_codes_json, original_record_id, report_status, retry_count, next_maintenance_date, confirm_status, share_token, preview_context, version, lifecycle_status, use_unit_id, use_unit_name, elevator_id, work_order_id, created_at) VALUES
+('t_rec_pend_sign', '世纪大厦 1# 客梯', 'EM-2024-001', '半月维保', 'HM', '李振国', '李强', @lzg, @lq, CONCAT(@today, ' 08:52:00'), CONCAT(@today, ' 11:20:00'), '02:28:00', @items, @photos, '["S0"]', @oid_ps, 'REPORTED', 0, DATE_ADD(@today, INTERVAL 15 DAY), 'PENDING', 't-tok-sign1', @ctx, 1, 'PENDING_CLIENT_SIGN', 'uu_1', '重庆世纪物业管理有限公司', 'el_1', NULL, NOW()),
+('t_rec_pend_sig2', '蓝湾国际 A 座货梯', 'EM-2024-003', '半月维保', 'HM', '李振国', '李强', @lzg, @lq, CONCAT(@today, ' 08:40:00'), CONCAT(@today, ' 10:55:00'), '02:15:00', @items, @photos, '["S0"]', @oid_ps2, 'REPORTED', 0, DATE_ADD(@today, INTERVAL 15 DAY), 'PENDING', 't-tok-sign2', @ctx, 1, 'PENDING_CLIENT_SIGNATURE', 'uu_2', '重庆蓝湾物业服务有限公司', 'el_3', NULL, NOW()),
+('t_rec_pend_sig3', '江北城 C 座客梯', 'EM-2024-101', '半月维保', 'HM', '李振国', '李强', @lzg, @lq, CONCAT(@today, ' 09:05:00'), CONCAT(@today, ' 11:35:00'), '02:30:00', @items, @photos, '["S0"]', @oid_ps3, 'REPORTED', 0, DATE_ADD(@today, INTERVAL 15 DAY), 'PENDING', 't-tok-sign3', @ctx, 1, 'PENDING_CLIENT_SIGNATURE', 't_uu3', '重庆江北城物业有限公司', 't_el1', NULL, NOW()),
+('t_rec_refused', '世纪大厦 1# 客梯', 'EM-2024-001', '半月维保', 'HM', '李振国', '李强', @lzg, @lq, CONCAT(DATE_SUB(@today, INTERVAL 2 DAY), ' 08:52:00'), CONCAT(DATE_SUB(@today, INTERVAL 2 DAY), ' 11:20:00'), '02:28:00', @items, @photos, '["S5"]', @oid_rf, 'REPORTED', 0, DATE_ADD(@today, INTERVAL 13 DAY), 'REFUSED', 't-tok-rf', @ctx, 1, 'REFUSED_RETURNED', 'uu_1', '重庆世纪物业管理有限公司', 'el_1', NULL, NOW()),
+('t_rec_signed', '蓝湾国际 A 座货梯', 'EM-2024-003', '半月维保', 'HM', '李振国', '李强', @lzg, @lq, CONCAT(DATE_SUB(@today, INTERVAL 1 DAY), ' 08:40:00'), CONCAT(DATE_SUB(@today, INTERVAL 1 DAY), ' 10:55:00'), '02:15:00', @items, @photos, '["S0"]', @oid_sg, 'REPORTED', 0, DATE_ADD(@today, INTERVAL 14 DAY), 'CONFIRMED', 't-tok-sg', @ctx, 1, 'SIGNED', 'uu_2', '重庆蓝湾物业服务有限公司', 'el_3', NULL, NOW()),
+('t_rec_archived', '世纪大厦 1# 客梯', 'EM-2024-001', '半月维保', 'HM', '李振国', '李强', @lzg, @lq, CONCAT(DATE_SUB(@today, INTERVAL 3 DAY), ' 08:50:00'), CONCAT(DATE_SUB(@today, INTERVAL 3 DAY), ' 11:10:00'), '02:20:00', @items, @photos, '["S0"]', @oid_done, 'REPORTED', 0, DATE_ADD(@today, INTERVAL 12 DAY), 'CONFIRMED', 't-tok-ar', @ctx, 1, 'ARCHIVED', 'uu_1', '重庆世纪物业管理有限公司', 'el_1', 't_wo_done', NOW()),
+('t_rec_v1', '世纪大厦 1# 客梯', 'EM-2024-001', '半月维保', 'HM', '李振国', '李强', @lzg, @lq, CONCAT(DATE_SUB(@today, INTERVAL 4 DAY), ' 08:50:00'), CONCAT(DATE_SUB(@today, INTERVAL 4 DAY), ' 11:10:00'), '02:20:00', @items, @photos, '["S0"]', @oid_v1, 'REPORTED', 0, DATE_ADD(@today, INTERVAL 11 DAY), 'CONFIRMED', 't-tok-v1', @ctx, 1, 'ARCHIVED', 'uu_1', '重庆世纪物业管理有限公司', 'el_1', NULL, NOW()),
+('t_rec_v2', '世纪大厦 1# 客梯', 'EM-2024-001', '半月维保', 'HM', '李振国', '李强', @lzg, @lq, CONCAT(DATE_SUB(@today, INTERVAL 4 DAY), ' 08:50:00'), CONCAT(DATE_SUB(@today, INTERVAL 4 DAY), ' 11:10:00'), '02:20:00', @items, @photos, '["S0"]', @oid_v1, 'REPORTED', 0, DATE_ADD(@today, INTERVAL 11 DAY), 'PENDING', 't-tok-v2', @ctx, 2, 'PENDING_CLIENT_SIGNATURE', 'uu_1', '重庆世纪物业管理有限公司', 'el_1', NULL, NOW()),
+('t_rec_failed', '蓝湾国际 A 座货梯', 'EM-2024-003', '半月维保', 'HM', '李振国', '李强', @lzg, @lq, CONCAT(DATE_SUB(@today, INTERVAL 1 DAY), ' 08:52:00'), CONCAT(DATE_SUB(@today, INTERVAL 1 DAY), ' 11:20:00'), '02:28:00', @items, @photos, '["S0"]', @oid_failed, 'FAILED', 2, DATE_ADD(@today, INTERVAL 14 DAY), 'PENDING', 't-tok-fail', @ctx, 1, 'PENDING_CLIENT_SIGN', 'uu_2', '重庆蓝湾物业服务有限公司', 'el_3', 't_wo_failed', NOW());
 
 UPDATE maintain_record SET client_refuser_name = '王芳', refused_by_client_account_id = 'ca_1',
   client_refuse_reason = '现场照片模糊，请补拍后重新发起签署', client_refused_at = DATE_SUB(NOW(), INTERVAL 1 DAY)
@@ -164,6 +184,14 @@ UPDATE maintain_record SET archive_hash = @hash64, archived_at = DATE_SUB(NOW(),
 UPDATE maintain_record SET archive_hash = @hash64, archived_at = DATE_SUB(NOW(), INTERVAL 3 DAY), archive_file_id = 't_file_pdf_v1' WHERE id = 't_rec_v1';
 UPDATE maintain_record SET prev_version_id = 't_rec_v1', amend_reason = '制动器间隙读数修正（8mm→7mm）',
   amended_by = 'emp_zjl', amended_at = DATE_SUB(NOW(), INTERVAL 2 HOUR) WHERE id = 't_rec_v2';
+-- 维保双方手写签字（导出 PDF 签字确认区渲染用）：所有记录均已经签退链，主/配合签字齐全
+UPDATE maintain_record SET worker_signature_url = '/files/t_file_sig_w',
+  assistant_signature_url = '/files/t_file_sig_a' WHERE id LIKE 't\_rec\_%';
+-- 客户签字：已签署/已归档记录（t_rec_signed 原有 signature_file_id，修正失效外链为同源文件地址）
+UPDATE maintain_record SET signature_url = '/files/t_file_sig_c' WHERE id = 't_rec_signed';
+UPDATE maintain_record SET client_account_id = 'ca_1', client_signer_name = '王芳',
+  client_signed_at = DATE_SUB(NOW(), INTERVAL 2 DAY),
+  signature_file_id = 't_file_sig_c', signature_url = '/files/t_file_sig_c' WHERE id IN ('t_rec_archived', 't_rec_v1');
 
 -- ─────────────────────────────────────────────────────────────
 -- 7. 急修工单（七态 + 困人 + 已评价/可评价）

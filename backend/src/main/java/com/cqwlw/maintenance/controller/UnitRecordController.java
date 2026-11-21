@@ -123,7 +123,36 @@ public class UnitRecordController {
             return ApiResponse.ok(guard.replayedResult());
         }
         String reason = body == null || body.get("reason") == null ? "" : String.valueOf(body.get("reason"));
-        Map<String, Object> result = recordLifecycleService.refuseByToken(id, token, reason);
+        // V56：拒签原因分类码（R1—R5；旧客户端未传码时按兼容期「原因必填」回退）
+        String code = body == null || body.get("refuseCode") == null ? "" : String.valueOf(body.get("refuseCode"));
+        Map<String, Object> result = recordLifecycleService.refuseByToken(id, token, code, reason);
+        guard.commit(result);
+        return ApiResponse.ok(result);
+    }
+
+    /** V56 批量签字（docs/04 V2.80）：同一签名一次确认多条待签记录（≤20），逐条独立门禁、失败不拖累其余 */
+    @PostMapping("/unit/records/batch-confirm")
+    public ApiResponse<Object> batchConfirm(@RequestBody(required = false) Map<String, Object> body,
+                                            @org.springframework.web.bind.annotation.RequestHeader(
+                                                    value = "X-Idempotency-Key", required = false) String idemKey,
+                                            jakarta.servlet.http.HttpServletRequest request) {
+        IdempotencyService.Guard guard = idempotencyService.begin(idemKey, "/unit/records/batch-confirm");
+        if (guard.replayed()) {
+            return ApiResponse.ok(guard.replayedResult());
+        }
+        java.util.List<String> ids = new java.util.ArrayList<>();
+        Object raw = body == null ? null : body.get("recordIds");
+        if (raw instanceof java.util.List<?> list) {
+            for (Object v : list) {
+                if (v != null) {
+                    ids.add(String.valueOf(v));
+                }
+            }
+        }
+        String[] signer = signerOf(request);
+        Map<String, Object> result = unitRecordService.batchConfirmAs(ids, body == null ? Map.of() : body,
+                portalRoles(request), resolveUnit(request),
+                signer == null ? null : signer[0], signer == null ? null : signer[1]);
         guard.commit(result);
         return ApiResponse.ok(result);
     }
@@ -147,5 +176,16 @@ public class UnitRecordController {
         Map<String, Object> result = unitRecordService.confirmByToken(id, token, body == null ? Map.of() : body);
         guard.commit(result);
         return ApiResponse.ok(result);
+    }
+
+    /** V2.80 修复：免登录 token 链签名图上传（/files/upload 必须登录，匿名签字页此前无上传通道） */
+    @PostMapping("/unit/records/{id}/signature-upload")
+    public ApiResponse<Map<String, Object>> signatureUpload(@PathVariable String id,
+                                                            @RequestParam(required = false) String token,
+                                                            @RequestParam("file") org.springframework.web.multipart.MultipartFile file,
+                                                            jakarta.servlet.http.HttpServletRequest request) throws Exception {
+        String schemeHost = request.getScheme() + "://" + request.getServerName()
+                + (request.getServerPort() == 80 || request.getServerPort() == 443 ? "" : ":" + request.getServerPort());
+        return ApiResponse.ok(unitRecordService.signatureUploadByToken(id, token, file, schemeHost));
     }
 }

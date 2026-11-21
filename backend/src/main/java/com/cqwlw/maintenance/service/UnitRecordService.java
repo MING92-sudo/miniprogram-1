@@ -103,6 +103,52 @@ public class UnitRecordService {
     }
 
     /**
+     * 批量签字（V56，docs/04 V2.80）：同一签名图一次确认多条待签记录。
+     * 逐条独立门禁（本单位 + requireSignable + 条件更新先签为准），单条失败不影响其余——
+     * 返回 failed[] 逐条原因，前端据实提示；上限 20 条防误操作放大，签名校验先于循环。
+     */
+    public Map<String, Object> batchConfirmAs(List<String> recordIds, Map<String, Object> body,
+                                              java.util.Set<String> roles, String unitId,
+                                              String signerAccountId, String signerName) {
+        requireClient(roles, unitId);
+        if (recordIds == null || recordIds.isEmpty()) {
+            throw new BizException(422, "请选择要签署的记录");
+        }
+        List<String> ids = recordIds.stream()
+                .filter(java.util.Objects::nonNull).map(String::trim)
+                .filter(s -> !s.isEmpty()).distinct().collect(Collectors.toList());
+        if (ids.isEmpty()) {
+            throw new BizException(422, "请选择要签署的记录");
+        }
+        if (ids.size() > 20) {
+            throw new BizException(422, "单次最多批量签署 20 条记录");
+        }
+        String signatureUrl = WorkOrderService.strOrEmpty(body.get("signatureUrl"));
+        String signatureFileId = WorkOrderService.strOrEmpty(body.get("signatureFileId"));
+        if (signatureUrl.isEmpty() && signatureFileId.isEmpty()) {
+            throw new BizException(422, "请先完成签名");
+        }
+        int signed = 0;
+        List<Map<String, Object>> failed = new java.util.ArrayList<>();
+        for (String id : ids) {
+            try {
+                MaintainRecord r = findOr404(id);
+                requireOwnUnit(r, unitId, "仅本单位记录可确认");
+                requireSignable(r);
+                signRecord(r, body, signerAccountId, signerName);
+                signed++;
+            } catch (BizException e) {
+                failed.add(JsonUtil.map("id", id, "message", e.getMessage()));
+            }
+        }
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("ok", failed.isEmpty());
+        out.put("signed", signed);
+        out.put("failed", failed);
+        return out;
+    }
+
+    /**
      * 签字落库（confirmAs / confirmByToken 共用，docs/14 §4.6 规则 2/3，门禁须已前置通过）：
      * 条件更新 WHERE confirm_status='PENDING' AND lifecycle_status='PENDING_CLIENT_SIGNATURE'，
      * 受影响行 0 → 422 已签（并发先签为准，不覆盖首签）；satisfaction 不接收（§4.7 评价关闭，
@@ -184,6 +230,14 @@ public class UnitRecordService {
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     public void setAuditLogService(AuditLogService auditLogService) {
         this.auditLogService = auditLogService;
+    }
+
+    /** V56 签字 SLA（setter 注入，兼容既有单测构造器）：sign-view 倒计时/批量签字共用口径 */
+    private ClientSignSlaService clientSignSlaService;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    public void setClientSignSlaService(ClientSignSlaService clientSignSlaService) {
+        this.clientSignSlaService = clientSignSlaService;
     }
 
     /**
@@ -344,6 +398,18 @@ public class UnitRecordService {
         m.put("hashPrefix", hashPrefix(r.archiveHash));
         // T4-I3：satisfaction 不再返回（docs/14 §4.7 评价关闭，签字链路不带满意度）
         m.put("signatureUrl", fileStorageService.resolveStoredUrl(r.signatureUrl));
+        // V56 签字 SLA 倒计时（sign 页）：deadline=发起签字（旧记录回退创建时刻）+slaHours；
+        // serverNow 供前端对齐时钟（不信任客户端时间）；SLA 服务缺省（单测）不下发该组字段
+        if (clientSignSlaService != null) {
+            java.time.LocalDateTime base = clientSignSlaService.baseOf(r);
+            java.time.LocalDateTime deadline = clientSignSlaService.deadlineOf(r);
+            java.time.LocalDateTime now = TimeUtil.now();
+            m.put("signRequestedAt", TimeUtil.format(base));
+            m.put("slaHours", clientSignSlaService.slaHours());
+            m.put("signDeadline", deadline == null ? "" : TimeUtil.format(deadline));
+            m.put("overdue", deadline != null && now.isAfter(deadline));
+            m.put("serverNow", TimeUtil.format(now));
+        }
         return m;
     }
 
@@ -368,6 +434,27 @@ public class UnitRecordService {
         }
         requireSignable(r);
         return signRecord(r, body);
+    }
+
+    /**
+     * 匿名分享链签字页签名图上传（V2.80 修复）：token 即凭证，与 confirmByToken 同门禁
+     * （findOr401 无 oracle + shareToken 比对 + requireSignable），校验全部先于文件写盘——
+     * /files/upload 必须登录，免登录 token 链此前无可用上传通道（生产 401 签不了字）。
+     * 已签/退回记录不再接受签名图；上传与 confirm 之间的竞态由 confirm 的条件更新兜底（孤儿文件无害）。
+     */
+    public Map<String, Object> signatureUploadByToken(String id, String token,
+                                                      org.springframework.web.multipart.MultipartFile file,
+                                                      String schemeHost) throws java.io.IOException {
+        MaintainRecord r = findOr401(id);
+        if (token == null || token.isEmpty() || !token.equals(r.shareToken)) {
+            throw new BizException(401, "确认链接无效或已失效");
+        }
+        requireSignable(r);
+        if (file == null || file.isEmpty()) {
+            throw new BizException(422, "缺少上传文件");
+        }
+        com.cqwlw.maintenance.entity.AppFile f = fileStorageService.store(file, schemeHost);
+        return JsonUtil.map("fileId", f.id, "url", f.url == null ? "" : f.url);
     }
 
     /** 内部/管理端全量投影（含上报与预览上下文）：客户路径禁用，一律走 toClientMap（P1 T4，docs/14 §4.7） */
@@ -407,6 +494,9 @@ public class UnitRecordService {
         // 的「版本生成时刻」数据源（此前仅 mock 种子有 frozenAt，真实环境恒空串）；未归档收敛空串
         m.put("archivedAt", TimeUtil.format(r.archivedAt));
         m.put("satisfaction", r.satisfaction);
+        // V56：拒签分类码与原因（内部投影；客户白名单 toClientMap 不含）
+        m.put("refuseCode", WorkOrderService.nz(r.refuseCode));
+        m.put("refuseReason", WorkOrderService.nz(r.refuseReason));
         m.put("signatureFileId", r.signatureFileId);
         m.put("signatureUrl", fileStorageService.resolveStoredUrl(r.signatureUrl));
         m.put("shareToken", r.shareToken);
@@ -448,6 +538,9 @@ public class UnitRecordService {
         m.put("originalRecordId", WorkOrderService.nz(r.originalRecordId));
         m.put("confirmStatus", WorkOrderService.nz(r.confirmStatus));
         m.put("lifecycleStatus", WorkOrderService.nz(r.lifecycleStatus));
+        // V56：拒签分类码与原因（复核/统计用；客户白名单不含）
+        m.put("refuseCode", WorkOrderService.nz(r.refuseCode));
+        m.put("refuseReason", WorkOrderService.nz(r.refuseReason));
         m.put("reportStatus", WorkOrderService.nz(r.reportStatus));
         // 版本链（M4）：修订后为 v2，v1 与签名永久保留，抽屉需让复核人看到当前版本
         m.put("version", r.version);

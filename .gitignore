@@ -89,3 +89,6 @@ scripts/e2e/reports/
 
 # 后端本地排障产物（临时 SQL 快照/启动日志，不入库）
 backend/.tmp/
+
+# 平台规范 V1.5 原文提取（只读本地文件，不入库——docs/00 引言注记）
+doc_text.txt

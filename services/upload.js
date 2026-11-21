@@ -42,6 +42,38 @@ function uploadImage(filePath, formData, token) {
   })
 }
 
+// 免登录分享链签字页签名图上传：token 即凭证（后端 shareToken + 可签状态校验先于写盘），
+// 不带 Authorization——/files/upload 必须登录，匿名 token 链无会话可用（生产 401）。
+function uploadSignatureByToken(recordId, token, filePath) {
+  if (config.useMock) {
+    return Promise.resolve({ fileId: 'mock_file_' + Date.now(), url: filePath })
+  }
+  return new Promise((resolve, reject) => {
+    wx.uploadFile({
+      url: config.apiBaseUrl + '/unit/records/' + recordId + '/signature-upload?token=' + encodeURIComponent(token || ''),
+      filePath,
+      name: 'file',
+      timeout: config.uploadTimeout,
+      success(res) {
+        try {
+          const body = JSON.parse(res.data)
+          if (body.code === 0) {
+            resolve(body.data)
+          } else {
+            reject({ code: body.code, message: body.message || '上传失败' })
+          }
+        } catch (e) {
+          reject({ code: -1, message: '上传响应解析失败' })
+        }
+      },
+      fail(err) {
+        reject({ code: -1, message: (err && err.errMsg) || '上传失败' })
+      }
+    })
+  })
+}
+
 module.exports = {
-  uploadImage
+  uploadImage,
+  uploadSignatureByToken
 }

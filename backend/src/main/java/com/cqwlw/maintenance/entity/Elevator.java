@@ -29,6 +29,8 @@ public class Elevator {
     public LocalDateTime handoverAt;
     public String location;
     public String regCode;
+    /** 登记证编码（V58）：使用登记证上的编号，形如 梯11渝BSP8194(20)；独立于 regCode（注册代码），不上报监管平台 */
+    public String certNo;
     public String deviceCode;
     public String insideNumber;
     public String model;
@@ -50,7 +52,6 @@ public class Elevator {
     public BigDecimal lat;
     public String brand;
     public String manufacturer;
-    public String productNo;
     public String driveMode;
     public Integer ratedLoad;
     public String ratedLoadUnit;

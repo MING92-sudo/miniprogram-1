@@ -89,9 +89,9 @@ class MiniappMenuQuickActionsTest {
 
     @Test
     void instQaMatchesRouteRoles() {
-        // routes.js：create 仅 INST_PM；upload 仅 INST_CLERK/INST_PM
+        // 2026-11-21 裁决：handover:create 扩 INST_CLERK——create/upload 均 INST_CLERK/INST_PM
         List<String> clerk = qaPaths(Set.of("INST_CLERK"));
-        assertTrue(clerk.stream().noneMatch(p -> p.contains("/create/index")), "CLERK 无 handover:create");
+        assertTrue(clerk.stream().anyMatch(p -> p.contains("/create/index")), "CLERK 有 handover:create");
         assertTrue(clerk.stream().anyMatch(p -> p.contains("/upload/index")));
         List<String> mgr = qaPaths(Set.of("INST_MGR"));
         assertTrue(mgr.stream().noneMatch(p -> p.contains("/create/index") || p.contains("/upload/index")),

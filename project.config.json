@@ -51,10 +51,6 @@
         "type": "folder"
       },
       {
-        "value": ".aoci",
-        "type": "folder"
-      },
-      {
         "value": ".github",
         "type": "folder"
       },

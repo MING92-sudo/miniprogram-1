@@ -15,7 +15,8 @@ class RoleCatalogV2Test {
     @Test
     void legacyCodesAliasToCanonical() {
         assertEquals("PLATFORM_ADMIN", RoleCatalog.canonical("ADMIN"));
-        assertEquals("SYS_ADMIN", RoleCatalog.canonical("SYS_ADMIN"));
+        // 2026-11-21 统一：SYS_ADMIN 并入 PLATFORM_ADMIN（唯一全权角色）
+        assertEquals("PLATFORM_ADMIN", RoleCatalog.canonical("SYS_ADMIN"));
         assertEquals("INST_PM", RoleCatalog.canonical("INSTALL_MANAGER"));
         assertEquals("INST_CLERK", RoleCatalog.canonical("INSTALL_CLERK"));
         assertEquals("INSTALLER", RoleCatalog.canonical("INSTALL_WORKER"));
@@ -55,8 +56,9 @@ class RoleCatalogV2Test {
     }
 
     @Test
-    void canonicalCodesAreThirteen() {
-        assertEquals(Set.of("PLATFORM_ADMIN", "SYS_ADMIN", "INST_MGR", "INST_PM", "INST_CLERK", "INSTALLER",
+    void canonicalCodesAreTwelve() {
+        // 2026-11-21：SYS_ADMIN 退出规范码（13→12），唯一全权角色=PLATFORM_ADMIN
+        assertEquals(Set.of("PLATFORM_ADMIN", "INST_MGR", "INST_PM", "INST_CLERK", "INSTALLER",
                 "MAINT_MGR", "MAINT_SUP", "MAINT_TECH", "MAINT_BIZ", "MAINT_QUALITY",
                 "CLIENT_ADMIN", "CLIENT_SIGNER"), RoleCatalog.canonicalCodes());
     }
@@ -89,8 +91,8 @@ class RoleCatalogV2Test {
 
     @Test
     void legacyCodesUnchangedForCompat() {
-        // RbacMatrixTest.roleCatalogMatchesDesignDoc 锁定：codes() 仍 12 旧码
-        assertEquals(12, RoleCatalog.codes().size());
+        // RbacMatrixTest.roleCatalogMatchesDesignDoc 锁定：codes() 旧码 11（SYS_ADMIN 已并）
+        assertEquals(11, RoleCatalog.codes().size());
         assertTrue(RoleCatalog.codes().contains("ADMIN"));
         assertTrue(RoleCatalog.codes().contains("UNIT_ADMIN"));
         assertEquals("维保班组长", RoleCatalog.nameOf("LEADER"));

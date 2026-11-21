@@ -84,11 +84,11 @@ class DeviceProfileValidatorTest {
                 DeviceProfileValidator.missingRequired(null));
     }
 
-    /** 注册代码读的是 DB 列 reg_code（对外 key=registrationCode），不能误取产品编号 product_no */
+    /** 注册代码读的是 DB 列 reg_code（对外 key=registrationCode），不能误取出厂编号 factory_number */
     @Test
     void registrationCodeMapsToRegCodeColumn() {
         Elevator el = complete();
-        el.productNo = "PRODUCT-9";
+        el.factoryNumber = "PRODUCT-9";
         el.regCode = "REG-9";
         assertEquals("REG-9", DeviceProfileValidator.valuesOf(el).get("registrationCode"));
         assertEquals("电梯编码", DeviceProfileValidator.labelOf("elevatorCode"));

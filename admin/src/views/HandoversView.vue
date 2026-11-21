@@ -8,6 +8,9 @@
       <DataTable :columns="cols" :rows="rows" :loading="loading" clickable
         :search-keys="['handoverNo', 'elevatorCode', 'projectName', 'initiatorName']" search-placeholder="搜索移交单号 / 设备码 / 项目 / 发起人"
         :filters="statusFilters" empty-hint="当前数据范围内没有移交单。" @row-click="openDetail">
+        <template #toolbar>
+          <PermButton code="handover:create" label="移交单起草" variant="primary" icon="plus" @click="openCreate" />
+        </template>
         <template #cell-handoverNo="{ row }">
           <b class="mono">{{ row.handoverNo }}</b>
           <span v-if="missingDocs(row)" class="tag tag-signal" style="margin-left:6px">缺{{ missingDocs(row) }}件</span>
@@ -91,6 +94,10 @@
               :title="conclusionLabel(check.conclusion)"
               :text="'应检 ' + (check.totalItems || 74) + ' · 合格 ' + (check.passCount || 0) + ' · 不合格 ' + (check.failCount || 0) + ' · 不适用 ' + (check.naCount || 0) + ' · 重要项不合格 ' + (check.importantFailCount || 0)" />
             <p v-if="!editable" class="fhelp mt8">当前状态或权限下为只读（仅查验中且具现场查验权限可逐项填报）。</p>
+            <p v-if="!items.length" class="fhelp mt8">
+              <svg class="ic ic-sm" aria-hidden="true"><use href="#i-alert" /></svg>
+              移交单进入「查验中」后自动生成 GB/T 10060—2023 表 1 的 74 项检查清单（当前状态：{{ hoStatusLabel(detail.status) }}）。
+            </p>
             <div v-for="grp in groups" :key="grp.group" class="sec mt12">
               <div class="sec-t">{{ grp.group }}</div>
               <div class="chk-list">
@@ -235,6 +242,40 @@
         <PermButton v-if="editable" code="handover:inspect" label="提交查验" variant="primary" icon="check" @click="submit" />
       </template>
     </Drawer>
+
+    <!-- 移交单起草（handover:create=INST_PM/PLATFORM_ADMIN） -->
+    <Modal :open="createOpen" title="移交单起草" sub="创建后进入「资料提交」，3 类必传资料在小程序侧补传" icon="plus"
+      note="handover:create" confirm-label="确认起草" @close="createOpen = false" @confirm="submitCreate">
+      <div class="form-grid one">
+        <FormField label="项目名称" required :error="createErr.projectName">
+          <input v-model="createModel.projectName" class="ctl" placeholder="如：江北城三期" />
+        </FormField>
+      </div>
+      <div class="form-grid mt12">
+        <FormField label="关联电梯（可选，自动带出设备快照）">
+          <select v-model="createModel.elevatorId" class="ctl">
+            <option value="">暂不关联（后续补充）</option>
+            <option v-for="e in elevators" :key="e.id" :value="e.id">
+              {{ e.elevatorCode }} · {{ e.elevatorName || '—' }}（{{ e.projectName || '—' }}）
+            </option>
+          </select>
+        </FormField>
+        <FormField label="安装竣工日期">
+          <input v-model="createModel.installCompleteDate" type="date" class="ctl mono" />
+        </FormField>
+        <FormField label="安装单位名称">
+          <input v-model="createModel.installUnitName" class="ctl" placeholder="如：重庆博威安装工程有限公司" />
+        </FormField>
+        <FormField label="特殊类别">
+          <select v-model="createModel.specialType" class="ctl">
+            <option value="">无</option>
+            <option value="消防">消防电梯</option>
+            <option value="防爆">防爆电梯</option>
+          </select>
+        </FormField>
+      </div>
+      <RuleNote class="mt12">发起人取当前账号（{{ auth.userName }}）。选关联电梯时将写入设备码/梯号/品种/地址/注册代码/设备代码/单位内编号快照，供归档建电梯使用。</RuleNote>
+    </Modal>
 
     <!-- 审核退回 -->
     <Modal :open="rejectModal" title="退回整改" :sub="detail.handoverNo" icon="refresh" note="handover:review_return"
@@ -437,7 +478,48 @@ async function loadList() {
 async function loadEmployees() {
   try { employees.value = (await http.get('/employees')) || [] } catch { employees.value = [] }
 }
-onMounted(() => { loadList(); loadEmployees() })
+onMounted(() => { loadList(); loadEmployees(); loadElevators() })
+
+// ── 移交单起草（handover:create=INST_PM/PLATFORM_ADMIN）──
+const createOpen = ref(false)
+const createModel = ref({ projectName: '', elevatorId: '', installCompleteDate: '', installUnitName: '', specialType: '' })
+const createErr = reactive({ projectName: '' })
+const elevators = ref([])
+async function loadElevators() {
+  try { const e = await http.get('/admin/elevators'); elevators.value = Array.isArray(e) ? e : e.list || [] } catch { elevators.value = [] }
+}
+function openCreate() {
+  createModel.value = { projectName: '', elevatorId: '', installCompleteDate: '', installUnitName: '', specialType: '' }
+  createErr.projectName = ''
+  createOpen.value = true
+}
+async function submitCreate() {
+  createErr.projectName = createModel.value.projectName.trim() ? '' : '项目名称必填'
+  if (createErr.projectName) return
+  try {
+    const el = elevators.value.find(x => x.id === createModel.value.elevatorId)
+    const body = {
+      projectName: createModel.value.projectName.trim(),
+      installCompleteDate: createModel.value.installCompleteDate || '',
+      installUnitName: createModel.value.installUnitName || '',
+      specialType: createModel.value.specialType || '',
+      initiatorId: (auth.user && auth.user.id) || '',
+      initiatorName: auth.userName || ''
+    }
+    if (el) {
+      Object.assign(body, {
+        elevatorId: el.id, elevatorCode: el.elevatorCode || '', elevatorName: el.elevatorName || '',
+        category: el.category || '', location: el.location || '', regCode: el.registrationCode || '',
+        deviceCode: el.deviceCode || '', insideNumber: el.insideNumber || ''
+      })
+    }
+    const created = await api.createHandover(body)
+    createOpen.value = false
+    toast.success('移交单已起草（资料提交）', created.handoverNo || created.id)
+    await loadList()
+    if (created && created.id) openDetail(created)
+  } catch (e) { toast.error(e.message || '起草失败') }
+}
 
 async function openDetail(row) {
   detail.value = row
@@ -463,7 +545,11 @@ async function loadChecklist() {
     const data = await api.getChecklist(detail.value.id)
     check.value = data.check || {}
     items.value = (data.items || []).map((it) => ({ ...it }))
-  } catch (e) { toast.error(e.message || '加载检查清单失败') }
+  } catch (e) {
+    // 422=未到查验中（清单在进入查验中时生成）：静默置空并显示引导文案，不报错误
+    if (e.code === 422) { check.value = {}; items.value = [] }
+    else toast.error(e.message || '加载检查清单失败')
+  }
 }
 async function loadRects() {
   try { rects.value = await api.getRectifications(detail.value.id) } catch { rects.value = [] }

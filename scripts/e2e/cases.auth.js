@@ -23,7 +23,6 @@ async function runAuthCases(ctx) {
   // ── A2 员工通道：各角色均可登录，且 principalType=EMPLOYEE ──
   const staffRoles = [
     ['admin', accounts.admin],
-    ['sysAdmin', accounts.sysAdmin],
     ['maintMgr', accounts.maintMgr],
     ['maintTech', accounts.maintTech],
     ['leader', accounts.leader],

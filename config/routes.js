@@ -5,7 +5,7 @@ const MAINT = ['MAINT_TECH', 'MAINT_SUP', 'MAINT_MGR']
 const MAINT_EXT = MAINT.concat(['MAINT_QUALITY', 'MAINT_BIZ'])
 const INST = ['INST_CLERK', 'INST_PM', 'INST_MGR']
 const CLIENT = ['CLIENT_ADMIN', 'CLIENT_SIGNER']
-const PLATFORM = ['PLATFORM_ADMIN', 'SYS_ADMIN']
+const PLATFORM = ['PLATFORM_ADMIN']
 const MAINT_FILING = ['MAINT_MGR', 'MAINT_SUP', 'MAINT_BIZ'].concat(PLATFORM)
 
 function R(path, name, opts) {
@@ -38,7 +38,8 @@ const LIST = [
   R('/pages/common/signature', '手写签名', { built: true }),
   // ── pkg-handover 12（蓝图 8 + 外接建档 4） ──
   R('/pkg-handover/pages/list/index', '移交单列表', { roles: INST.concat(['MAINT_TECH', 'MAINT_SUP', 'MAINT_MGR', 'INSTALLER']).concat(PLATFORM), perm: 'handover:view', tab: true, batch: 'M4' }),
-  R('/pkg-handover/pages/create/index', '发起移交', { roles: ['INST_PM'], perm: 'handover:create', batch: 'M4' }),
+  // 2026-11-21 裁决：handover:create 扩 INST_CLERK（docs/14 V2.8，资料员可起草）
+  R('/pkg-handover/pages/create/index', '发起移交', { roles: ['INST_PM', 'INST_CLERK'], perm: 'handover:create', batch: 'M4' }),
   // P1 终审 M6：客户去列（T8 漏做）——T2 收回后客户不持 handover:view，roles 含 CLIENT 为死配置
   R('/pkg-handover/pages/detail/index', '移交单详情', { roles: INST.concat(MAINT).concat(['INSTALLER']).concat(PLATFORM), perm: 'handover:view', batch: 'M4' }),
   R('/pkg-handover/pages/inspect/index', '现场验收', { roles: ['MAINT_TECH', 'INSTALLER'], perm: 'handover:inspect', batch: 'M4' }),

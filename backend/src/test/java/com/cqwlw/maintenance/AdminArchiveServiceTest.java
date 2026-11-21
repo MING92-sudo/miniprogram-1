@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -31,6 +32,7 @@ import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -237,6 +239,28 @@ class AdminArchiveServiceTest {
         assertEquals("REG-9", row.get("registrationCode"));
         assertTrue(((List<?>) row.get("missingRequired")).isEmpty());
         verify(elevatorMapper).insert(any(Elevator.class));
+    }
+
+    /** 登记证编码（V58）：独立字段透传进行列投影；选填不参与必传校验，不上报监管平台 2.6 */
+    @Test
+    void createElevatorPassesCertNoThrough() {
+        Map<String, Object> body = new java.util.HashMap<>();
+        body.put("elevatorCode", "EM-9");
+        body.put("deviceCode", "DT-9");
+        body.put("registrationCode", "REG-9");
+        body.put("insideNumber", "KT-9");
+        body.put("factoryNumber", "FN-9");
+        body.put("certNo", "梯11渝BSP8194(20)");
+        Map<String, Object> row = service.createElevator(body);
+        assertEquals("梯11渝BSP8194(20)", row.get("certNo"));
+        // 未传时投影为空串而非 null
+        body.remove("certNo");
+        Map<String, Object> row2 = service.createElevator(body);
+        assertEquals("", row2.get("certNo"));
+        ArgumentCaptor<Elevator> captor = ArgumentCaptor.forClass(Elevator.class);
+        verify(elevatorMapper, times(2)).insert(captor.capture());
+        assertEquals("梯11渝BSP8194(20)", captor.getAllValues().get(0).certNo);
+        assertNull(captor.getAllValues().get(1).certNo);
     }
 
     /** 建档即排期（2026-11-20 用户口径）：未传基线时默认=建档时间，下次到期=基线+15 天（首保计划日），

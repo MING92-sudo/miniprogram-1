@@ -4,7 +4,6 @@ export const ROLE_TEXT = {
   LEADER: '班组长',
   UNIT_ADMIN: '使用单位安全管理员',
   ADMIN: '维保部管理员',
-  SYS_ADMIN: '系统管理员'
 }
 
 // 严重事故隐患码（需求文档 §6.2 / 平台 V1.5 规范 3.2；S0—S7 连续编码）

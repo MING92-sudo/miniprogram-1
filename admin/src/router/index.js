@@ -11,11 +11,10 @@ const NotFoundView = () => import('../views/NotFoundView.vue')
 const OrgView = () => import('../views/OrgView.vue')
 const UsersView = () => import('../views/UsersView.vue')
 const RolesView = () => import('../views/RolesView.vue')
-const GrantsView = () => import('../views/GrantsView.vue')
 const ProjectsView = () => import('../views/ProjectsView.vue')
-const ContractsView = () => import('../views/ContractsView.vue')
 const UseUnitsView = () => import('../views/UseUnitsView.vue')
 const ElevatorsView = () => import('../views/ElevatorsView.vue')
+const ElevatorDetailView = () => import('../views/ElevatorDetailView.vue')
 // M4 作业域
 const HandoversView = () => import('../views/HandoversView.vue')
 const PlansView = () => import('../views/PlansView.vue')
@@ -31,8 +30,6 @@ const SettingsView = () => import('../views/SettingsView.vue')
 const FailedRecordsView = () => import('../views/FailedRecordsView.vue')
 const UploadLogsView = () => import('../views/UploadLogsView.vue')
 const FilingView = () => import('../views/FilingView.vue')
-const RegionView = () => import('../views/RegionView.vue')
-const TemplateManageView = () => import('../views/TemplateManageView.vue')
 const RegisterWorkersView = () => import('../views/RegisterWorkersView.vue')
 // 二期：监管与运营（数据来自 /admin/records、/reg/* 等真实接口）
 const SyncView = () => import('../views/SyncView.vue')
@@ -44,30 +41,31 @@ export const routes = [
   { path: '/login', component: LoginView, meta: { public: true, title: '登录' } },
   { path: '/', component: AppShell, redirect: '/dashboard', children: [
     { path: 'dashboard', component: DashboardView, meta: { title: '工作台', group: '概览' } },
-    { path: 'org', component: OrgView, meta: { title: '组织架构', group: '组织与权限', perm: 'user:view' } },
-    { path: 'users', component: UsersView, meta: { title: '账号管理', group: '组织与权限', perm: 'user:view' } },
-    { path: 'roles', component: RolesView, meta: { title: '角色权限矩阵', group: '组织与权限', perm: 'role:assign' } },
-    { path: 'grants', component: GrantsView, meta: { title: '授权管理', group: '组织与权限', perm: 'invite:manage' } },
-    { path: 'projects', component: ProjectsView, meta: { title: '项目台账', group: '台账中心', perm: 'project:view' } },
-    { path: 'contracts', component: ContractsView, meta: { title: '合同管理', group: '台账中心', perm: 'contract:view' } },
-    { path: 'use-units', component: UseUnitsView, meta: { title: '使用单位档案', group: '组织与权限', perm: 'client:edit' } },
-    { path: 'elevators', component: ElevatorsView, meta: { title: '电梯台账', group: '台账中心', perm: 'elevator:view' } },
-    { path: 'handovers', component: HandoversView, meta: { title: '移交管理', group: '安装移交', perm: 'handover:view' } },
-    { path: 'plans', component: PlansView, meta: { title: '维保计划', group: '维保作业', perm: 'plan:view' } },
-    { path: 'records', component: RecordsView, meta: { title: '记录单复核', group: '维保作业', perm: 'record:view' } },
-    { path: 'dispatch', component: DispatchView, meta: { title: '工单调度', group: '急修报修', perm: 'order:view_pool' } },
+    { path: 'org', component: OrgView, meta: { title: '组织架构', group: '公司管理', perm: 'user:view' } },
+    { path: 'users', component: UsersView, meta: { title: '账号管理', group: '公司管理', perm: 'user:view' } },
+    { path: 'roles', component: RolesView, meta: { title: '角色权限', group: '公司管理', perm: 'role:assign', permByTab: { grants: 'invite:manage' } } },
+    { path: 'grants', redirect: '/roles?tab=grants' },
+    { path: 'projects', component: ProjectsView, meta: { title: '项目管理', group: '项目管理', perm: 'project:view', permByTab: { contracts: 'contract:view' } } },
+    { path: 'contracts', redirect: '/projects?tab=contracts' },
+    { path: 'use-units', component: UseUnitsView, meta: { title: '使用单位档案', group: '公司管理', perm: 'client:edit' } },
+    { path: 'elevators', component: ElevatorsView, meta: { title: '电梯台账', group: '电梯管理', perm: 'elevator:view' } },
+    { path: 'elevator/:id', component: ElevatorDetailView, meta: { title: '电梯档案', group: '电梯管理', perm: 'elevator:view' } },
+    { path: 'handovers', component: HandoversView, meta: { title: '移交管理', group: '维保管理', perm: 'handover:view' } },
+    { path: 'plans', component: PlansView, meta: { title: '维保计划', group: '维保管理', perm: 'plan:view' } },
+    { path: 'records', component: RecordsView, meta: { title: '记录单复核', group: '维保管理', perm: 'record:view' } },
+    { path: 'dispatch', component: DispatchView, meta: { title: '工单调度', group: '维保管理', perm: 'order:view_pool' } },
     { path: 'order/:id', component: OrderDetailView, meta: { title: '工单详情', group: '急修报修', perm: 'order:view_own' } },
-    { path: 'stats', component: StatsView, meta: { title: '统计报表', group: '数据与系统', perm: 'stats:view' } },
-    { path: 'audit', component: AuditView, meta: { title: '审计日志', group: '数据与系统', perm: 'audit:view' } },
-    { path: 'migration-issues', component: MigrationIssuesView, meta: { title: '迁移核对', group: '数据与系统', perm: 'audit:view' } },
-    { path: 'settings', component: SettingsView, meta: { title: '系统配置', group: '数据与系统', perm: 'config:manage' } },
-    { path: 'reports/failed', component: FailedRecordsView, meta: { title: '上报异常清单', group: '监管与档案', perm: 'report:view' } },
-    { path: 'reports/logs', component: UploadLogsView, meta: { title: '上报日志', group: '监管与档案', perm: 'report:view' } },
-    { path: 'filings', component: FilingView, meta: { title: '外接建档', group: '监管与档案', perm: 'filing:view' } },
-    { path: 'regions', component: RegionView, meta: { title: '区域管理', group: '监管与档案', perm: 'region:view' } },
-    { path: 'templates', component: TemplateManageView, meta: { title: '检查项模板', group: '监管与档案', perm: 'template:view' } },
-    { path: 'register/workers', component: RegisterWorkersView, meta: { title: '平台登记人员', group: '监管与档案', perm: 'platform:worker_view' } },
-    { path: 'sync', component: SyncView, meta: { title: '监管平台同步', group: '监管与运营', perm: 'report:view' } },
+    { path: 'stats', component: StatsView, meta: { title: '统计报表', group: '系统', perm: 'stats:view' } },
+    { path: 'audit', component: AuditView, meta: { title: '审计日志', group: '系统', perm: 'audit:view' } },
+    { path: 'migration-issues', component: MigrationIssuesView, meta: { title: '迁移核对', group: '系统', perm: 'audit:view' } },
+    { path: 'settings', component: SettingsView, meta: { title: '系统配置', group: '系统', perm: 'config:manage', permByTab: { regions: 'region:view', templates: 'template:view' } } },
+    { path: 'reports/failed', component: FailedRecordsView, meta: { title: '上报异常清单', group: '数据对接', perm: 'report:view' } },
+    { path: 'reports/logs', component: UploadLogsView, meta: { title: '上报日志', group: '数据对接', perm: 'report:view' } },
+    { path: 'filings', component: FilingView, meta: { title: '外接建档', group: '数据对接', perm: 'filing:view' } },
+    { path: 'regions', redirect: '/settings?tab=regions' },
+    { path: 'templates', redirect: '/settings?tab=templates' },
+    { path: 'register/workers', component: RegisterWorkersView, meta: { title: '平台登记人员', group: '数据对接', perm: 'platform:worker_view' } },
+    { path: 'sync', component: SyncView, meta: { title: '监管平台同步', group: '数据对接', perm: 'report:view' } },
     { path: 'msg-templates', component: MsgTemplatesView, meta: { title: '消息模板', group: '监管与运营', perm: 'config:manage' } },
     { path: 'reviews', component: ReviewsView, meta: { title: '服务评价', group: '监管与运营', perm: 'stats:view' } }
   ] },

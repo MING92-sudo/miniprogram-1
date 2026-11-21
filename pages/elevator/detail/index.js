@@ -13,7 +13,7 @@ const LOCAL_FIELDS = {
   address: { label: '安装地址', placeholder: '请输入安装地址' },
   brand: { label: '品牌', placeholder: '请输入品牌' },
   manufacturer: { label: '制造单位', placeholder: '请输入制造单位' },
-  productNo: { label: '产品编号', placeholder: '请输入产品编号' },
+  factoryNumber: { label: '出厂编号', placeholder: '请输入出厂编号（产品编号同义）' },
   driveMode: { label: '驱动方式', placeholder: '请输入驱动方式' },
   ratedLoad: { label: '额定载重', placeholder: '请输入额定载重（kg）', numeric: true },
   ratedSpeed: { label: '额定速度', placeholder: '请输入额定速度（m/s）', numeric: true },

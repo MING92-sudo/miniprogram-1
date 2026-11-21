@@ -1449,7 +1449,6 @@ public class WorkOrderService {
         e.put("checkinThreshold", el.checkinThreshold == null ? props.getCheckinThresholdMeters() : el.checkinThreshold);
         e.put("brand", el.brand);
         e.put("manufacturer", el.manufacturer);
-        e.put("productNo", el.productNo);
         e.put("driveMode", el.driveMode);
         e.put("ratedLoad", el.ratedLoad);
         e.put("ratedLoadUnit", el.ratedLoadUnit);

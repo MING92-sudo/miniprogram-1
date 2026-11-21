@@ -5,8 +5,10 @@ import com.cqwlw.maintenance.entity.Company;
 import com.cqwlw.maintenance.entity.Elevator;
 import com.cqwlw.maintenance.entity.MaintainRecord;
 import com.cqwlw.maintenance.entity.UseUnit;
+import com.cqwlw.maintenance.entity.WorkOrder;
 import com.cqwlw.maintenance.mapper.AppFileMapper;
 import com.cqwlw.maintenance.mapper.CompanyMapper;
+import com.cqwlw.maintenance.mapper.WorkOrderMapper;
 import com.cqwlw.maintenance.util.JsonUtil;
 import com.cqwlw.maintenance.util.TimeUtil;
 import com.lowagie.text.Document;
@@ -16,6 +18,7 @@ import com.lowagie.text.Image;
 import com.lowagie.text.PageSize;
 import com.lowagie.text.Paragraph;
 import com.lowagie.text.Phrase;
+import com.lowagie.text.Rectangle;
 import com.lowagie.text.pdf.BaseFont;
 import com.lowagie.text.pdf.ColumnText;
 import com.lowagie.text.pdf.PdfContentByte;
@@ -26,6 +29,7 @@ import com.lowagie.text.pdf.PdfTemplate;
 import com.lowagie.text.pdf.PdfWriter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
@@ -63,6 +67,10 @@ public class RecordPdfService {
     private final FileStorageService fileStorage;
     private final CompanyMapper companyMapper;
 
+    /** 可选依赖：签字回退按来源工单解析（record.work_order_id 为空的旧数据自动跳过） */
+    @Autowired(required = false)
+    private WorkOrderMapper workOrderMapper;
+
     public RecordPdfService(RestTemplate restTemplate, AppFileMapper fileMapper,
                             FileStorageService fileStorage, CompanyMapper companyMapper) {
         this.restTemplate = restTemplate;
@@ -96,8 +104,10 @@ public class RecordPdfService {
             }
 
             doc.add(title("电梯维护保养记录", f));
-            doc.add(subtitle("记录编号：" + recordNo + "　·　"
-                    + rangeLabel(appendixOf(el == null ? null : el.category), workTypeCodeOf(r)), f));
+            // 记录编号居左、附件表号居右（docs/13 §3.1 版面：编号为档案检索主键置页首左，表号置页首右）
+            doc.add(subtitleRow("记录编号：" + recordNo,
+                    rangeLabel(appendixOf(el == null ? null : el.category), workTypeCodeOf(r)), f));
+            backfillOrderSignatures(r);
 
             doc.add(kvTable("一、使用单位与设备基本情况", deviceRows(el, uu, r.useUnitName), f));
             doc.add(kvTable("二、维保作业信息", workRows(r, executed.size(), items.size()), f));
@@ -134,7 +144,7 @@ public class RecordPdfService {
         v.put("项目名称（小区）", el == null ? "" : nz(el.projectName));
         v.put("电梯品种（型式）", el == null ? "" : nz(el.category));
         v.put("特殊类别（消防/防爆）", el == null ? "" : nz(el.specialType));
-        v.put("产品编号", el == null ? "" : nz(el.productNo));
+        v.put("出厂编号", el == null ? "" : nz(el.factoryNumber));
         v.put("设备代码", el == null ? "" : nz(el.deviceCode));
         v.put("注册代码/登记证号", el == null ? "" : nz(el.regCode));
         v.put("电梯型号", el == null ? "" : nz(el.model));
@@ -158,7 +168,7 @@ public class RecordPdfService {
         m.put("项目名称（小区）", str(v.get("projectName")));
         m.put("电梯品种（型式）", str(v.get("category")));
         m.put("特殊类别（消防/防爆）", str(v.get("specialType")));
-        m.put("产品编号", str(v.get("productNo")));
+        m.put("出厂编号", str(v.get("factoryNumber")));
         m.put("设备代码", str(v.get("deviceCode")));
         m.put("注册代码/登记证号", str(v.get("regCode")));
         m.put("电梯型号", str(v.get("model")));
@@ -396,6 +406,57 @@ public class RecordPdfService {
         p.setAlignment(Element.ALIGN_CENTER);
         p.setSpacingAfter(8);
         return p;
+    }
+
+    /** 副标题行（无边框两列）：左=记录编号，右=附件表号（docs/13 §3.1 版面口径） */
+    private static PdfPTable subtitleRow(String left, String right, Fonts f) {
+        PdfPTable t = new PdfPTable(2);
+        t.setWidthPercentage(100);
+        PdfPCell l = new PdfPCell(new Phrase(left, f.body));
+        l.setBorder(Rectangle.NO_BORDER);
+        l.setHorizontalAlignment(Element.ALIGN_LEFT);
+        l.setPaddingLeft(0);
+        l.setPaddingBottom(6);
+        PdfPCell r = new PdfPCell(new Phrase(right, f.body));
+        r.setBorder(Rectangle.NO_BORDER);
+        r.setHorizontalAlignment(Element.ALIGN_RIGHT);
+        r.setPaddingRight(0);
+        r.setPaddingBottom(6);
+        t.addCell(l);
+        t.addCell(r);
+        t.setSpacingAfter(6);
+        return t;
+    }
+
+    /**
+     * 签字回退：记录未落签字 URL 时（历史/直导入数据），按来源工单的各自手机签 fileId 解析
+     * （与签退 resolveSignatureUrl 同口径；仅内存回填用于导出渲染，不落库）。
+     */
+    private void backfillOrderSignatures(MaintainRecord r) {
+        if (workOrderMapper == null || r == null || nz(r.workOrderId).isBlank()) {
+            return;
+        }
+        boolean needWorker = nz(r.workerSignatureUrl).isBlank();
+        boolean needAssistant = nz(r.assistantSignatureUrl).isBlank();
+        if (!needWorker && !needAssistant) {
+            return;
+        }
+        WorkOrder o = workOrderMapper.selectById(r.workOrderId);
+        if (o == null) {
+            return;
+        }
+        if (needWorker) {
+            String u = fileStorage.urlOf(nz(o.workerSignatureFileId));
+            if (u != null && !u.isEmpty()) {
+                r.workerSignatureUrl = u;
+            }
+        }
+        if (needAssistant) {
+            String u = fileStorage.urlOf(nz(o.assistantSignatureFileId));
+            if (u != null && !u.isEmpty()) {
+                r.assistantSignatureUrl = u;
+            }
+        }
     }
 
     /**

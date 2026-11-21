@@ -7,7 +7,6 @@
 const accounts = {
   // 平台/管理
   admin: { phone: '13800000009', password: '123456', role: 'ADMIN' },
-  sysAdmin: { phone: '13800000010', password: '123456', role: 'SYS_ADMIN' },
   // 维保
   maintMgr: { phone: '13800000015', password: '123456', role: 'MAINT_MGR' },
   maintTech: { phone: '13800000011', password: '123456', role: 'MAINT_TECH' },
@@ -38,7 +37,6 @@ const seed = {
   },
   employees: {
     admin: 'emp_admin',
-    sysAdmin: 'emp_sys',
     maintMgr: 'emp_zjl',
     maintTech: 'emp_lzg',
     leader: 'emp_2',

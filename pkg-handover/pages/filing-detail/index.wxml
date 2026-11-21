@@ -41,7 +41,7 @@
       <view class="info-row"><text>内部编号</text><text>{{filing.insideNumber || '-'}}</text></view>
       <view class="info-row"><text>型号 / 品牌</text><text>{{filing.model || '-'}} / {{filing.brand || '-'}}</text></view>
       <view class="info-row"><text>制造单位</text><text>{{filing.manufacturer || '-'}}</text></view>
-      <view class="info-row"><text>产品编号</text><text>{{filing.productNo || '-'}}</text></view>
+      <view class="info-row"><text>出厂编号</text><text>{{filing.factoryNumber || '-'}}</text></view>
       <view class="info-row"><text>驱动方式</text><text>{{filing.driveMode || '-'}}</text></view>
       <view class="info-row"><text>额定载重</text><text>{{filing.ratedLoad ? filing.ratedLoad + (filing.ratedLoadUnit || '') : '-'}}</text></view>
       <view class="info-row"><text>额定速度</text><text>{{filing.ratedSpeed ? filing.ratedSpeed + (filing.ratedSpeedUnit || '') : '-'}}</text></view>

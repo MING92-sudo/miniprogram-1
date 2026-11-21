@@ -1,6 +1,6 @@
 <template>
   <div>
-    <ViewHead title="检查项模板" sub="维保检查项模板（区别于系统配置签字模板）· 品种 × 附件 A/B/C/D 路由">
+    <ViewHead v-if="!embedded" title="检查项模板" sub="维保检查项模板（区别于系统配置签字模板）· 品种 × 附件 A/B/C/D 路由">
       <template #meta><PageMeta perm="template:view" :extra="[{ k: '模板数', v: rows.length, icon: 'clipboard-list', cls: 'count' }]" /></template>
     </ViewHead>
     <div class="mt16">
@@ -16,6 +16,8 @@
   </div>
 </template>
 <script setup>
+// embedded：作为 Tab 子页嵌入时隐藏自身页头（合并视图用）
+defineProps({ embedded: Boolean })
 // 检查项模板：列表（template:view）
 import { ref, onMounted } from 'vue'
 import http from '../api/client'

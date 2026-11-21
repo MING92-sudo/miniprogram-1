@@ -187,12 +187,13 @@ class RbacMatrixTest {
     /** docs/14 §3 角色码表：部门、中文名、上级 */
     @Test
     void roleCatalogMatchesDesignDoc() {
-        assertEquals(Set.of(RoleCatalog.ADMIN, RoleCatalog.SYS_ADMIN,
+        // 2026-11-21 统一：SYS_ADMIN 并入 ADMIN（唯一全权=平台管理员），旧码 12→11
+        assertEquals(Set.of(RoleCatalog.ADMIN,
                         RoleCatalog.INSTALL_MANAGER, RoleCatalog.INSTALL_CLERK, RoleCatalog.INSTALL_WORKER,
                         RoleCatalog.MAINT_MANAGER, RoleCatalog.MAINT_BIZ, RoleCatalog.LEADER,
                         RoleCatalog.MAINT_QUALITY, RoleCatalog.WORKER, RoleCatalog.ASSISTANT,
                         RoleCatalog.UNIT_ADMIN),
-                RoleCatalog.codes(), "角色码表须与 docs/14 §3 十二行逐条一致");
+                RoleCatalog.codes(), "角色码表=平台管理员一行+部门角色，SYS_ADMIN 已并入");
         assertEquals("MAINT", RoleCatalog.departmentOf(RoleCatalog.LEADER));
         assertEquals("MAINT", RoleCatalog.departmentOf(RoleCatalog.WORKER));
         assertEquals("MAINT", RoleCatalog.departmentOf(RoleCatalog.ASSISTANT));

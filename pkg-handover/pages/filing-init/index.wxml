@@ -112,8 +112,8 @@
         <input class="field-input" value="{{form.manufacturer}}" data-field="manufacturer" bindinput="onInput" placeholder="制造单位全称" />
       </view>
       <view class="field">
-        <view class="field-label">产品编号</view>
-        <input class="field-input" value="{{form.productNo}}" data-field="productNo" bindinput="onInput" placeholder="出厂编号" />
+        <view class="field-label">出厂编号</view>
+        <input class="field-input" value="{{form.factoryNumber}}" data-field="factoryNumber" bindinput="onInput" placeholder="出厂编号（产品编号同义）" />
       </view>
       <view class="field">
         <view class="field-label">驱动方式</view>

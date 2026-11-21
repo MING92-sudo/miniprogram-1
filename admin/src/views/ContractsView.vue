@@ -1,6 +1,6 @@
 <template>
   <div>
-    <ViewHead title="合同管理" sub="金额分级脱敏对照页 · 到期前 90 天提醒">
+    <ViewHead v-if="!embedded" title="合同管理" sub="金额分级脱敏对照页 · 到期前 90 天提醒">
       <template #meta><PageMeta perm="contract:view" :extra="[{ k: '合同数', v: rows.length, icon: 'file-sign', cls: 'count' }]" /></template>
     </ViewHead>
     <div class="mt16">
@@ -68,6 +68,8 @@
   </div>
 </template>
 <script setup>
+// embedded：作为 Tab 子页嵌入时隐藏自身页头（合并视图用）
+defineProps({ embedded: Boolean })
 // 合同管理（原型 Views.contracts 对齐）：金额分级脱敏（服务端裁剪）+ 剩余天数 + 对照卡 + 续签 Modal
 import { ref, computed, onMounted } from 'vue'
 import DataTable from '../ui/DataTable.vue'

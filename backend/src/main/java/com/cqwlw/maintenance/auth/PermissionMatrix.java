@@ -74,104 +74,104 @@ public final class PermissionMatrix {
         Map<String, Set<String>> grants = new LinkedHashMap<>();
         // 管理端入口：§6 有列的角色（= docs/14 §3 可登录管理端）；WORKER/ASSISTANT/INSTALL_WORKER/UNIT_ADMIN 登录即 403
         grant(grants, CONSOLE_READ,
-                RoleCatalog.ADMIN, RoleCatalog.SYS_ADMIN,
+                RoleCatalog.ADMIN,
                 RoleCatalog.INSTALL_MANAGER, RoleCatalog.INSTALL_CLERK,
                 RoleCatalog.MAINT_MANAGER, RoleCatalog.MAINT_BIZ,
                 RoleCatalog.LEADER, RoleCatalog.MAINT_QUALITY);
         // §6：写档仍只有平台层（P1 不改现有 5 角色放行结果；部门内写权限由细粒度能力码表达）
-        grant(grants, CONSOLE_WRITE, RoleCatalog.ADMIN, RoleCatalog.SYS_ADMIN);
+        grant(grants, CONSOLE_WRITE, RoleCatalog.ADMIN);
 
         // §6 工单列表/详情 + §7 工单（本人/本组）+ §4 使用单位仅本梯
         grant(grants, ORDER_READ,
-                RoleCatalog.ADMIN, RoleCatalog.SYS_ADMIN, RoleCatalog.MAINT_MANAGER,
+                RoleCatalog.ADMIN, RoleCatalog.MAINT_MANAGER,
                 RoleCatalog.LEADER, RoleCatalog.MAINT_QUALITY,
                 RoleCatalog.WORKER, RoleCatalog.ASSISTANT, RoleCatalog.UNIT_ADMIN);
         // §7 签到/清单/签退：本人作业；§6 管理端写由平台层与维保经理承担
         grant(grants, ORDER_WRITE,
-                RoleCatalog.ADMIN, RoleCatalog.SYS_ADMIN, RoleCatalog.MAINT_MANAGER,
+                RoleCatalog.ADMIN, RoleCatalog.MAINT_MANAGER,
                 RoleCatalog.LEADER, RoleCatalog.WORKER, RoleCatalog.ASSISTANT);
 
         grant(grants, FAULT_READ,
-                RoleCatalog.ADMIN, RoleCatalog.SYS_ADMIN, RoleCatalog.MAINT_MANAGER,
+                RoleCatalog.ADMIN, RoleCatalog.MAINT_MANAGER,
                 RoleCatalog.LEADER, RoleCatalog.MAINT_QUALITY,
                 RoleCatalog.WORKER, RoleCatalog.ASSISTANT, RoleCatalog.UNIT_ADMIN);
         // §7 急修单登记：现场报修（安装员）、本组、本人、本梯报修（使用单位）
         grant(grants, FAULT_WRITE,
-                RoleCatalog.ADMIN, RoleCatalog.SYS_ADMIN, RoleCatalog.MAINT_MANAGER,
+                RoleCatalog.ADMIN, RoleCatalog.MAINT_MANAGER,
                 RoleCatalog.LEADER, RoleCatalog.WORKER, RoleCatalog.ASSISTANT,
                 RoleCatalog.INSTALL_WORKER, RoleCatalog.UNIT_ADMIN);
         // §4 记录读：维保部全部口径 + 使用单位本梯；§8 R4 商务不见现场作业数据
         grant(grants, RECORD_READ,
-                RoleCatalog.ADMIN, RoleCatalog.SYS_ADMIN, RoleCatalog.MAINT_MANAGER,
+                RoleCatalog.ADMIN, RoleCatalog.MAINT_MANAGER,
                 RoleCatalog.LEADER, RoleCatalog.MAINT_QUALITY,
                 RoleCatalog.WORKER, RoleCatalog.ASSISTANT, RoleCatalog.UNIT_ADMIN);
 
         // §6 上报异常清单（重报）+ §8 R3：质量负责人只读，不可重报
         grant(grants, REPORT_RETRY,
-                RoleCatalog.ADMIN, RoleCatalog.SYS_ADMIN, RoleCatalog.MAINT_MANAGER);
+                RoleCatalog.ADMIN, RoleCatalog.MAINT_MANAGER);
         // §6 计划调度：班组长 W（本组），范围由 DeptScopeService + 单据归属校验收敛（§5）
         grant(grants, PLAN_WRITE,
-                RoleCatalog.ADMIN, RoleCatalog.SYS_ADMIN, RoleCatalog.MAINT_MANAGER, RoleCatalog.LEADER);
+                RoleCatalog.ADMIN, RoleCatalog.MAINT_MANAGER, RoleCatalog.LEADER);
         // §6 模板管理：质量负责人仅启停（§5），启停动作的判定在 P4 抽检模块
         grant(grants, TEMPLATE_WRITE,
-                RoleCatalog.ADMIN, RoleCatalog.SYS_ADMIN, RoleCatalog.MAINT_MANAGER, RoleCatalog.MAINT_QUALITY);
+                RoleCatalog.ADMIN, RoleCatalog.MAINT_MANAGER, RoleCatalog.MAINT_QUALITY);
 
         // §6 电梯台账/档案 + §4 安装部本部门读、使用单位本梯读
         grant(grants, LEDGER_READ,
-                RoleCatalog.ADMIN, RoleCatalog.SYS_ADMIN, RoleCatalog.MAINT_MANAGER,
+                RoleCatalog.ADMIN, RoleCatalog.MAINT_MANAGER,
                 RoleCatalog.INSTALL_MANAGER, RoleCatalog.MAINT_BIZ,
                 RoleCatalog.LEADER, RoleCatalog.MAINT_QUALITY, RoleCatalog.UNIT_ADMIN);
         grant(grants, LEDGER_WRITE,
-                RoleCatalog.ADMIN, RoleCatalog.SYS_ADMIN, RoleCatalog.MAINT_MANAGER);
+                RoleCatalog.ADMIN, RoleCatalog.MAINT_MANAGER);
 
         // §6 人员档案（本部门）
         grant(grants, EMPLOYEE_READ,
-                RoleCatalog.ADMIN, RoleCatalog.SYS_ADMIN,
+                RoleCatalog.ADMIN,
                 RoleCatalog.INSTALL_MANAGER, RoleCatalog.INSTALL_CLERK,
                 RoleCatalog.MAINT_MANAGER, RoleCatalog.LEADER);
         grant(grants, EMPLOYEE_WRITE,
-                RoleCatalog.ADMIN, RoleCatalog.SYS_ADMIN,
+                RoleCatalog.ADMIN,
                 RoleCatalog.INSTALL_MANAGER, RoleCatalog.MAINT_MANAGER);
 
         // §6 维保合同 + §4 使用单位本单位合同读
         grant(grants, CONTRACT_READ,
-                RoleCatalog.ADMIN, RoleCatalog.SYS_ADMIN,
+                RoleCatalog.ADMIN,
                 RoleCatalog.INSTALL_MANAGER, RoleCatalog.MAINT_MANAGER,
                 RoleCatalog.MAINT_BIZ, RoleCatalog.UNIT_ADMIN);
         grant(grants, CONTRACT_WRITE,
-                RoleCatalog.ADMIN, RoleCatalog.SYS_ADMIN, RoleCatalog.MAINT_BIZ);
+                RoleCatalog.ADMIN, RoleCatalog.MAINT_BIZ);
         // §6 使用单位档案 + §4 使用单位本单位信息读
         grant(grants, USEUNIT_READ,
-                RoleCatalog.ADMIN, RoleCatalog.SYS_ADMIN,
+                RoleCatalog.ADMIN,
                 RoleCatalog.MAINT_MANAGER, RoleCatalog.MAINT_BIZ, RoleCatalog.UNIT_ADMIN);
         grant(grants, USEUNIT_WRITE,
-                RoleCatalog.ADMIN, RoleCatalog.SYS_ADMIN, RoleCatalog.MAINT_BIZ);
+                RoleCatalog.ADMIN, RoleCatalog.MAINT_BIZ);
 
         // §6 移交单：ADMIN 只读（§12 待确认项），安装经理发起/指派，维保经理确认，质量负责人看质量节点
         grant(grants, HANDOVER_READ,
-                RoleCatalog.ADMIN, RoleCatalog.SYS_ADMIN,
+                RoleCatalog.ADMIN,
                 RoleCatalog.INSTALL_MANAGER, RoleCatalog.INSTALL_CLERK,
                 RoleCatalog.MAINT_MANAGER, RoleCatalog.MAINT_QUALITY);
         // §5 INSTALL_WORKER 仅现场查验/整改照片，INSTALL_CLERK 仅资料上传（端点级动作在 P3 收敛到 submit-docs）；
         // ADMIN 为平台兜底（状态推进不等于签字：节点签字角色仍由 HandoverService.NODE_ROLES 卡）
         grant(grants, HANDOVER_WRITE,
-                RoleCatalog.ADMIN, RoleCatalog.SYS_ADMIN,
+                RoleCatalog.ADMIN,
                 RoleCatalog.INSTALL_MANAGER, RoleCatalog.INSTALL_CLERK,
                 RoleCatalog.INSTALL_WORKER, RoleCatalog.MAINT_MANAGER);
         // §6 外接建档与移交单同一档权限
         grant(grants, FILING_READ,
-                RoleCatalog.ADMIN, RoleCatalog.SYS_ADMIN,
+                RoleCatalog.ADMIN,
                 RoleCatalog.INSTALL_MANAGER, RoleCatalog.INSTALL_CLERK,
                 RoleCatalog.MAINT_MANAGER, RoleCatalog.MAINT_QUALITY);
         grant(grants, FILING_WRITE,
-                RoleCatalog.ADMIN, RoleCatalog.SYS_ADMIN,
+                RoleCatalog.ADMIN,
                 RoleCatalog.INSTALL_MANAGER, RoleCatalog.INSTALL_CLERK,
                 RoleCatalog.MAINT_MANAGER);
 
-        grant(grants, REGION_WRITE, RoleCatalog.ADMIN, RoleCatalog.SYS_ADMIN);
+        grant(grants, REGION_WRITE, RoleCatalog.ADMIN);
         // §6 账号启停/重置密码：平台层全量，维保经理限本部门（部门收敛在 P3 账号模块）
         grant(grants, ACCOUNT_MANAGE,
-                RoleCatalog.ADMIN, RoleCatalog.SYS_ADMIN, RoleCatalog.MAINT_MANAGER);
+                RoleCatalog.ADMIN, RoleCatalog.MAINT_MANAGER);
 
         for (Map.Entry<String, Set<String>> entry : grants.entrySet()) {
             requireKnownCapability(entry.getKey());
@@ -328,14 +328,15 @@ public final class PermissionMatrix {
     private static void c(String code, String... roles) { g(code, TriState.C, roles); }
 
     static {
-        String PA = "PLATFORM_ADMIN", SA = "SYS_ADMIN", IM = "INST_MGR", IP = "INST_PM", IC = "INST_CLERK",
+        String PA = "PLATFORM_ADMIN", IM = "INST_MGR", IP = "INST_PM", IC = "INST_CLERK",
                 IW = "INSTALLER", MM = "MAINT_MGR", MS = "MAINT_SUP", MT = "MAINT_TECH",
                 MB = "MAINT_BIZ", MQ = "MAINT_QUALITY", CA = "CLIENT_ADMIN", CS = "CLIENT_SIGNER";
         // §4.1 安装移交（16）
         // P1 T2（2026-11-16 裁决）：客户（CA/CS）收回全部内部码，最小集仅 §4.5 的 elevator_view/download/sign；
-        // 无参 y()/c() 仅登记码（持有者由 SYS_ADMIN 全 Y 循环兜底），86 码计数不变。
-        y(HANDOVER_VIEW, IM, MS, MM, PA, SA); c(HANDOVER_VIEW, IC, IP, IW, MT);
-        y(HANDOVER_CREATE, IP);
+        // 无参 y()/c() 仅登记码（持有者由平台管理员全 Y 循环兜底），86 码计数不变。
+        y(HANDOVER_VIEW, IM, MS, MM, PA); c(HANDOVER_VIEW, IC, IP, IW, MT);
+        // 2026-11-21 裁决：handover:create 增 INST_CLERK（资料员整理建档资料属本职）
+        y(HANDOVER_CREATE, IP, IC);
         y(HANDOVER_EDIT, IP); c(HANDOVER_EDIT, IC);
         y(HANDOVER_DOC_UPLOAD, IC, IP);
         y(HANDOVER_DOC_DELETE, IC, IP);
@@ -347,53 +348,53 @@ public final class PermissionMatrix {
         y(HANDOVER_RECTIFY, IP, IC, IW);
         y(HANDOVER_SIGN_INSTALL, IM, IW);
         y(HANDOVER_SIGN_MAINT, MS, MM);
-        y(HANDOVER_VOID, IM, MM, PA, SA);
-        y(HANDOVER_EXPORT, IM, MS, MM, PA, SA);
+        y(HANDOVER_VOID, IM, MM, PA);
+        y(HANDOVER_EXPORT, IM, MS, MM, PA);
         y(HANDOVER_NOTIFY_CLIENT, MS);
         // §4.2 项目合同电梯（9）
-        y(PROJECT_VIEW, MS, MM, PA, SA); c(PROJECT_VIEW, IC, IP, IM);
-        y(PROJECT_EDIT, MM, PA, SA);
-        y(CONTRACT_VIEW, MM, PA, SA, MB); c(CONTRACT_VIEW, MS);
-        y(CONTRACT_EDIT, MM, PA, SA, MB);
-        c(ELEVATOR_VIEW, PA, SA, IM, IP, IC, IW, MM, MS, MT, MB, MQ);
-        y(ELEVATOR_EDIT, MS, PA, SA);
+        y(PROJECT_VIEW, MS, MM, PA); c(PROJECT_VIEW, IC, IP, IM);
+        y(PROJECT_EDIT, MM, PA);
+        y(CONTRACT_VIEW, MM, PA, MB); c(CONTRACT_VIEW, MS);
+        y(CONTRACT_EDIT, MM, PA, MB);
+        c(ELEVATOR_VIEW, PA, IM, IP, IC, IW, MM, MS, MT, MB, MQ);
+        y(ELEVATOR_EDIT, MS, PA);
         y(ELEVATOR_QR, MT, MS);
-        y(ELEVATOR_TRANSFER, MM, PA, SA);
-        y(ELEVATOR_EXPORT, MM, PA, SA); c(ELEVATOR_EXPORT, MS);
+        y(ELEVATOR_TRANSFER, MM, PA);
+        y(ELEVATOR_EXPORT, MM, PA); c(ELEVATOR_EXPORT, MS);
         // §4.3 维保作业（15）
         y(PLAN_VIEW, MS, MM); c(PLAN_VIEW, MT);
         y(PLAN_GENERATE, MS, MM);
         y(TASK_ACCEPT, MT);
         y(TASK_ASSIGN_PARTNER, MS, MT);
         y(CHECKLIST_FILL, MT);
-        y(RECORD_VIEW, MS, MM, PA, SA); c(RECORD_VIEW, MT);
+        y(RECORD_VIEW, MS, MM, PA); c(RECORD_VIEW, MT);
         y(RECORD_SUBMIT, MT);
         y(RECORD_SIGN_TECH, MT);
         y(RECORD_REVIEW, MS, MM);
         y(RECORD_SIGN_REQUEST, MT, MS);
-        y(RECORD_SIGN); // P1 T2：客户签署收敛到 client:sign；record:sign 仅 SYS_ADMIN 持有
-        y(RECORD_REFUSE); // P1 T2：拒签能力 P3 增 client:refuse 前仅 SYS_ADMIN 持有（DC3）
+        y(RECORD_SIGN); // P1 T2：客户签署收敛到 client:sign；record:sign 仅平台管理员持有
+        y(RECORD_REFUSE); // P1 T2：拒签能力 P3 增 client:refuse 前仅平台管理员持有（DC3）
         y(RECORD_ARCHIVE, MS);
-        y(RECORD_AMEND, MM, PA, SA);
-        y(RECORD_EXPORT, MS, MM, PA, SA);
+        y(RECORD_AMEND, MM, PA);
+        y(RECORD_EXPORT, MS, MM, PA);
         // §4.4 急修报修（14）
-        // P1 T2：客户报修默认关闭（client:report 收回；重开由 P3 裁决），仅 SYS_ADMIN 持有
+        // P1 T2：客户报修默认关闭（client:report 收回；重开由 P3 裁决），仅平台管理员持有
         y(ORDER_CREATE);
         y(ORDER_CREATE_PROXY, MS);
         y(ORDER_VIEW_POOL, MS, MM); c(ORDER_VIEW_POOL, MT);
-        y(ORDER_VIEW_OWN); // P1 T2：仅 SYS_ADMIN 持有（客户工单读走锚点判定，不依赖本码）
+        y(ORDER_VIEW_OWN); // P1 T2：仅平台管理员持有（客户工单读走锚点判定，不依赖本码）
         y(ORDER_GRAB, MT);
         y(ORDER_DISPATCH, MS, MM);
         c(ORDER_ARRIVE, MT);
         c(ORDER_PROCESS, MT);
         y(ORDER_SUBMIT, MT);
-        y(ORDER_CONFIRM); // P1 T2：客户确认收敛到 client:sign；仅 SYS_ADMIN 持有
+        y(ORDER_CONFIRM); // P1 T2：客户确认收敛到 client:sign；仅平台管理员持有
         y(ORDER_CLOSE, MS);
         y(ORDER_CANCEL, MS);
         y(ORDER_ESCALATE, MM);
-        y(ORDER_EXPORT, MS, MM, PA, SA);
+        y(ORDER_EXPORT, MS, MM, PA);
         // §4.5 使用单位（7）：P1 T2 客户最小能力集 = elevator_view/download/sign（CA+CS 均 Y，doc §5.4 两角色能力相同）；
-        // report/evaluate/user_manage/invite 对客户默认关闭（仅 SYS_ADMIN 持有，重开由后续裁决），invite 保留 MS。
+        // report/evaluate/user_manage/invite 对客户默认关闭（仅平台管理员持有，重开由后续裁决），invite 保留 MS。
         y(CLIENT_INVITE, MS);
         y(CLIENT_USER_MANAGE);
         y(CLIENT_ELEVATOR_VIEW, CA, CS);
@@ -402,37 +403,37 @@ public final class PermissionMatrix {
         y(CLIENT_EVALUATE);
         y(CLIENT_DOWNLOAD, CA, CS);
         // §4.6 组织权限审计（10）
-        y(USER_VIEW, PA, SA); c(USER_VIEW, IM, MS, MM);
-        y(USER_CREATE, IM, MS, MM, PA, SA);
-        y(USER_DISABLE, IM, MS, MM, PA, SA);
-        y(ROLE_ASSIGN, PA, SA);
-        y(INVITE_MANAGE, IM, MS, MM, PA, SA);
-        y(STATS_VIEW, IM, MS, MM, PA, SA);
-        y(STATS_EXPORT, MM, PA, SA); c(STATS_EXPORT, IM, MS);
-        y(AUDIT_VIEW, PA, SA);
-        y(CONFIG_MANAGE, PA, SA);
-        y(DATA_EXPORT_SENSITIVE, PA, SA); // 审批工作流 M5；M1 只编码平台持有该能力
+        y(USER_VIEW, PA); c(USER_VIEW, IM, MS, MM);
+        y(USER_CREATE, IM, MS, MM, PA);
+        y(USER_DISABLE, IM, MS, MM, PA);
+        y(ROLE_ASSIGN, PA);
+        y(INVITE_MANAGE, IM, MS, MM, PA);
+        y(STATS_VIEW, IM, MS, MM, PA);
+        y(STATS_EXPORT, MM, PA); c(STATS_EXPORT, IM, MS);
+        y(AUDIT_VIEW, PA);
+        y(CONFIG_MANAGE, PA);
+        y(DATA_EXPORT_SENSITIVE, PA); // 审批工作流 M5；M1 只编码平台持有该能力
         // M0 §2.2 扩展（15）
-        y(REPORT_VIEW, PA, SA, MM); c(REPORT_VIEW, MS, MQ);
-        y(REPORT_RETRY_NEW, PA, SA, MM);
+        y(REPORT_VIEW, PA, MM); c(REPORT_VIEW, MS, MQ);
+        y(REPORT_RETRY_NEW, PA, MM);
         // 用户裁决 2026-11-15：外接建档写归维保部（安装部保留条件读）
         y(FILING_VIEW, PA, MM, MS, MB); c(FILING_VIEW, MQ, IM, IP, IC);
         y(FILING_WRITE_NEW, PA, MM, MS, MB);
-        y(REGION_VIEW, PA, SA);
-        y(REGION_WRITE_NEW, PA, SA);
-        y(TEMPLATE_VIEW, PA, SA, MM); c(TEMPLATE_VIEW, MQ);
-        y(TEMPLATE_WRITE_NEW, PA, SA, MM, MQ);
-        y(TEMPLATE_TOGGLE, PA, SA, MQ);
-        y(PLATFORM_WORKER_VIEW, PA, SA); c(PLATFORM_WORKER_VIEW, IP, IC, MM, MS);
-        y(PLATFORM_WORKER_REGISTER, PA, SA, MM);
-        y(PLATFORM_SYNC, PA, SA);
+        y(REGION_VIEW, PA);
+        y(REGION_WRITE_NEW, PA);
+        y(TEMPLATE_VIEW, PA, MM); c(TEMPLATE_VIEW, MQ);
+        y(TEMPLATE_WRITE_NEW, PA, MM, MQ);
+        y(TEMPLATE_TOGGLE, PA, MQ);
+        y(PLATFORM_WORKER_VIEW, PA); c(PLATFORM_WORKER_VIEW, IP, IC, MM, MS);
+        y(PLATFORM_WORKER_REGISTER, PA, MM);
+        y(PLATFORM_SYNC, PA);
         y(RECORD_SPOTCHECK, MQ);
         y(CLIENT_EDIT, PA, MB);
-        y(USER_RESET_PASSWORD, PA, SA, MM, IM);
+        y(USER_RESET_PASSWORD, PA, MM, IM);
 
-        // 用户裁决 2026-11-15：SYS_ADMIN 拥有所有权限（负责开通所有人员账户）
+        // 2026-11-21 统一：平台管理员=唯一全权角色（SYS_ADMIN 已并为其别名，负责开通所有人员账户）
         for (String code : CANONICAL_CAPS) {
-            STATES.computeIfAbsent(code, k -> new java.util.HashMap<>()).put(SA, TriState.Y);
+            STATES.computeIfAbsent(code, k -> new java.util.HashMap<>()).put(PA, TriState.Y);
         }
 
         // fail-closed 一致性校验：码集==常量集（86），每码至少一个持有者

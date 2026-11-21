@@ -4,21 +4,22 @@ import {
   deviceRules, deviceFormOf, missingRequiredOf
 } from './device-fields'
 
-// 用户 2026-11-19：设备信息档案 8 项字段，前 5 项是上传维保记录的必传项；
-// 「标签不允许错误」——电梯编码≠设备代码、注册代码≠产品编号，这里逐字锁定。
+// 用户 2026-11-19：设备信息档案字段，前 5 项是上传维保记录的必传项；
+// 「标签不允许错误」——电梯编码≠设备代码、注册代码≠出厂编号，这里逐字锁定。
+// 2026-11-21：+登记证编码 certNo（选填第 6 项，使用登记证编号，独立字段不上报平台）。
 describe('设备信息档案字段口径', () => {
-  it('8 项字段与标签（顺序固定）', () => {
+  it('9 项字段与标签（顺序固定）', () => {
     expect(DEVICE_FIELDS.map((f) => f.key)).toEqual([
       'elevatorCode', 'deviceCode', 'registrationCode', 'insideNumber', 'factoryNumber',
-      'projectName', 'regionId', 'nextCheckDate'
+      'certNo', 'projectName', 'regionId', 'nextCheckDate'
     ])
     expect(DEVICE_FIELDS.map((f) => f.label)).toEqual([
       '电梯编码', '设备代码', '注册代码', '单位内编号', '出厂编号',
-      '项目名称（小区名称）', '所在区域', '年检日期'
+      '登记证编码', '项目名称（小区名称）', '所在区域', '年检日期'
     ])
   })
 
-  it('前 5 项必传，后 3 项选填', () => {
+  it('前 5 项必传，后 4 项选填', () => {
     expect(REQUIRED_DEVICE_LABELS).toEqual(['电梯编码', '设备代码', '注册代码', '单位内编号', '出厂编号'])
     expect(REQUIRED_DEVICE_FIELDS).toHaveLength(5)
     expect(DEVICE_FIELDS.slice(5).every((f) => !f.required)).toBe(true)
@@ -37,6 +38,12 @@ describe('设备信息档案字段口径', () => {
     expect(rules.projectName).toBeUndefined()
     expect(rules.regionId).toBeUndefined()
     expect(rules.nextCheckDate).toBeUndefined()
+    expect(rules.certNo).toBeUndefined()
+  })
+
+  it('登记证编码为独立选填字段，取自 certNo，不回退注册代码', () => {
+    expect(deviceFormOf({ certNo: '梯11渝BSP8194(20)' }, null).certNo).toBe('梯11渝BSP8194(20)')
+    expect(deviceFormOf({ registrationCode: 'REG-1' }, null).certNo).toBe('')
   })
 
   it('注册代码取 registrationCode，兼容旧 regCode 与档案 profile', () => {

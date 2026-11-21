@@ -13,7 +13,7 @@ const GROUPS = [
   { key: 'MAINT', label: '维保工作台', icon: 'screwdriver-wrench', match: (r) => r.indexOf('MAINT') === 0 },
   { key: 'INST', label: '安装部工作台', icon: 'helmet-safety', match: (r) => r === 'INSTALLER' || r.indexOf('INST') === 0 },
   { key: 'CLIENT', label: '使用单位工作台', icon: 'building', match: (r) => r.indexOf('CLIENT') === 0 },
-  { key: 'PLATFORM', label: '平台管理', icon: 'server', match: (r) => r === 'PLATFORM_ADMIN' || r === 'SYS_ADMIN' }
+  { key: 'PLATFORM', label: '平台管理', icon: 'server', match: (r) => r === 'PLATFORM_ADMIN' || r === 'ADMIN' }
 ]
 
 function maskPhone(p) {

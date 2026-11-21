@@ -31,7 +31,7 @@ function emptyForm() {
     model: '',
     brand: '',
     manufacturer: '',
-    productNo: '',
+    factoryNumber: '',
     driveMode: '',
     ratedLoad: '',
     ratedLoadUnit: 'kg',

@@ -54,7 +54,8 @@ public class HandoverOrder {
     public String model;
     public String brand;
     public String manufacturer;
-    public String productNo;
+    /** 出厂编号（原 productNo，V59 列改名 factory_number；出厂编号=产品编号统一口径） */
+    public String factoryNumber;
     public String driveMode;
     public Integer ratedLoad;
     public String ratedLoadUnit;

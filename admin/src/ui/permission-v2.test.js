@@ -9,7 +9,7 @@ describe('permission-v2 mirror', () => {
     expect(canonicalCodes().has('user:reset_password')).toBe(true)
   })
   it('has 13 canonical roles', () => {
-    expect(canonicalRoles().size).toBe(13)
+    expect(canonicalRoles().size).toBe(12) // 2026-11-21：SYS_ADMIN 并入 PLATFORM_ADMIN（13→12）
   })
   it('aliases old codes to canonical', () => {
     expect(canonical('ADMIN')).toBe('PLATFORM_ADMIN')
@@ -82,7 +82,7 @@ describe('permission-v2 mirror', () => {
       expect(state('CLIENT_SIGNER', code)).toBe('DENY')
     })
     expect(canonicalCodes().size).toBe(86)
-    expect(canonicalRoles().size).toBe(13)
+    expect(canonicalRoles().size).toBe(12) // 2026-11-21：SYS_ADMIN 并入 PLATFORM_ADMIN（13→12）
     expect(state('SYS_ADMIN', 'client:user_manage')).toBe('Y')
   })
 })

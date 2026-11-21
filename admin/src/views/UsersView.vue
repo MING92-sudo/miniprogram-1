@@ -4,31 +4,29 @@
       <template #meta><PageMeta perm="user:view" :extra="[{ k: '账号数', v: rows.length, icon: 'users', cls: 'count' }]" /></template>
     </ViewHead>
     <div class="mt16">
-      <DataTable :columns="cols" :rows="rows" :loading="loading" selectable clickable
-        :search-keys="['name', 'phone', 'empNo', 'jobNo']" search-placeholder="搜索姓名 / 工号 / 手机号"
+      <DataTable :columns="cols" :rows="rows" :loading="loading" clickable
+        :search-keys="['name', 'phone']" search-placeholder="请输入员工姓名 / 电话"
         :filters="[{ key: 'status', label: '状态', options: statusOptions }]"
-        :bulk-actions="[{ code: 'user:disable', label: '批量停用', variant: 'danger', icon: 'ban' }]"
-        empty-hint="当前数据范围内没有账号，点击「开通账号」创建。" @row-click="openDetail" @bulk="onBulk">
+        empty-hint="当前数据范围内没有账号，点击「新增用户」创建。" @row-click="openDetail">
         <template #toolbar>
-          <PermButton code="user:create" label="开通账号" variant="primary" icon="plus" @click="openCreate" />
-          <PermButton code="invite:manage" label="生成邀请" variant="ghost" icon="key" @click="$router.push('/grants')" />
+          <PermButton code="user:create" label="新增用户" variant="primary" icon="plus" @click="openCreate" />
         </template>
-        <template #cell-name="{ row }"><b>{{ row.name }}</b><div class="cell-2">{{ row.empNo || row.jobNo || '—' }}</div></template>
+        <template #cell-name="{ row }"><b>{{ row.name }}</b></template>
         <template #cell-phone="{ row }"><span class="mono">{{ row.phone || '—' }}</span></template>
-        <template #cell-org="{ row }">{{ row.orgName || deptLabel(row.department) || row.groupName || '—' }}</template>
         <template #cell-roles="{ row }">
           <span v-for="r in roleArr(row)" :key="r" class="tag tag-ghost">{{ roleLabel(r) }}</span>
         </template>
         <template #cell-regionName="{ row }">{{ row.regionName || '—' }}</template>
-        <template #cell-scope="{ row }"><span class="scope-pill">{{ row.scope || defaultScope(roleArr(row)[0]) || '—' }}</span></template>
         <template #cell-status="{ row }"><StatusTag :status="statusOf(row)" /></template>
-        <template #cell-lastLogin="{ row }"><span class="mono f12">{{ row.lastLogin || '—' }}</span></template>
-        <template #cell-openOrders="{ row }"><span class="num">{{ row.openOrders ?? '—' }}</span></template>
         <template #row-actions="{ row }">
-          <PermButton code="user:create" label="编辑" variant="ghost" size="xs" c-tip="需 user:create（ADMIN+）" @click="openEdit(row)" />
-          <PermButton code="user:disable" label="停用" variant="ghost" size="xs" c-tip="需 user:disable" @click="openDisable(row)" />
-          <PermButton code="user:disable" label="离职转交" variant="ghost" size="xs" @click="openResign(row)" />
-          <PermButton code="role:assign" label="分配角色" variant="ghost" size="xs" c-tip="仅限非管理角色，需平台授予（roles §4.6）" @click="openRoles(row)" />
+          <PermButton code="user:view" label="用户详情" variant="ghost" size="xs" icon="user" @click="openDetail(row)" />
+          <PermButton code="user:create" label="修改用户" variant="ghost" size="xs" icon="edit" @click="openEdit(row)" />
+          <MoreMenu>
+            <PermButton code="role:assign" label="分配角色" variant="ghost" size="xs" icon="shield" @click="openRoles(row)" />
+            <PermButton code="user:reset_password" label="重置密码" variant="ghost" size="xs" icon="key" @click="openReset(row)" />
+            <PermButton code="user:disable" label="离职转交" variant="ghost" size="xs" icon="user-x" @click="openResign(row)" />
+            <PermButton code="user:disable" label="停用账号" variant="danger" size="xs" icon="ban" @click="openDisable(row)" />
+          </MoreMenu>
         </template>
       </DataTable>
     </div>
@@ -183,6 +181,18 @@
         </button>
       </template>
     </Drawer>
+
+    <!-- 重置密码（12 位随机一次性展示） -->
+    <Modal :open="!!resetTarget" title="重置密码" :sub="resetTarget ? resetTarget.name + ' · ' + (resetTarget.phone || '') : ''"
+      icon="key" danger require-confirm confirm-text="我已知悉，确认重置该账号密码" confirm-label="确认重置"
+      @close="resetTarget = null; resetPwd = ''" @confirm="submitReset">
+      <RuleNote icon="alert">重置后旧密码立即失效，新密码仅展示一次，请妥善转交本人。</RuleNote>
+      <div v-if="resetPwd" class="notice-bar mt12">
+        <svg class="ic" aria-hidden="true"><use href="#i-key" /></svg>
+        <span>新密码：<b class="mono">{{ resetPwd }}</b>（一次性展示）</span>
+      </div>
+    </Modal>
+
   </div>
 </template>
 <script setup>
@@ -203,8 +213,9 @@ import { usePerspectiveStore } from '../ui/stores/perspective'
 import { roleLabel, deptLabel, roleDept } from '../ui/labels'
 import { canonicalRoles, defaultScope } from '../ui/permission-v2'
 import { listUsers, disableUser, assignRoles } from '../api/ledger'
-import { employees, createEmployee, updateEmployee } from '../api/archive'
+import { employees, createEmployee, updateEmployee, resetEmployeePassword } from '../api/archive'
 import http from '../api/client'
+import MoreMenu from '../ui/MoreMenu.vue'
 const toast = useToast()
 const perspective = usePerspectiveStore()
 const rows = ref([])
@@ -226,6 +237,18 @@ const resignModel = ref({ heir: '' })
 const rolesDraft = ref([])
 // 所属区域（D5）：下拉选项来自 GET /regions；可空=不限区域（空串提交=清除，后端 null=不动/空串=清除）
 const regions = ref([])
+const resetTarget = ref(null)
+const resetPwd = ref('')
+// 「分配电梯」入口已下线（2026-11-20 区域抢单池 D2：绑定概念取消，电梯归属=所在区域）
+function openReset(row) { if (row) { resetPwd.value = ''; resetTarget.value = row } }
+async function submitReset() {
+  try {
+    const r = await resetEmployeePassword(resetTarget.value.id)
+    resetPwd.value = r.initialPassword || ''
+    if (resetPwd.value) toast.success('密码已重置（仅展示一次）', resetTarget.value.name)
+    else { toast.success('密码已重置'); resetTarget.value = null }
+  } catch (e) { toast.error(e.message || '重置失败') }
+}
 // 客户角色（CLIENT_*）不在人员目录分配：客户账号在「使用单位档案 → 客户账号」独立开通
 const CUSTOMER_ROLES = ['CLIENT_ADMIN', 'CLIENT_SIGNER']
 const roleOptions = [...canonicalRoles()].filter(r => !CUSTOMER_ROLES.includes(r))
@@ -249,15 +272,11 @@ const editRules = {
 }
 const heirOptions = computed(() => rows.value.filter(u => resignTarget.value && u.id !== resignTarget.value.id && statusOf(u) === 'NORMAL'))
 const cols = [
-  { key: 'name', label: '姓名', sortable: true },
-  { key: 'phone', label: '手机号' },
-  { key: 'org', label: '所属组织', sortable: true },
-  { key: 'roles', label: '角色' },
+  { key: 'name', label: '员工姓名', sortable: true },
+  { key: 'phone', label: '联系电话' },
+  { key: 'roles', label: '角色名称' },
   { key: 'regionName', label: '区域' },
-  { key: 'scope', label: '数据范围' },
-  { key: 'status', label: '状态', sortable: true },
-  { key: 'lastLogin', label: '最近登录', sortable: true },
-  { key: 'openOrders', label: '未闭环工单', cls: 'num', sortable: true }
+  { key: 'status', label: '状态', sortable: true }
 ]
 async function load() {
   loading.value = true
@@ -323,13 +342,6 @@ async function submitDisable() {
     toast.success('账号已停用 · token 已吊销', disableTarget.value.id)
     disableTarget.value = null; detail.value = null; load()
   } catch (e) { toast.error(e.message || '停用失败') }
-}
-async function onBulk({ ids }) {
-  try {
-    for (const id of ids) await disableUser(id)
-    toast.success('已批量停用 ' + ids.length + ' 个账号')
-    load()
-  } catch (e) { toast.error(e.message || '批量停用失败') }
 }
 function openResign(row) { if (row) { resignModel.value = { heir: '' }; resignTarget.value = row } }
 async function submitResign() {

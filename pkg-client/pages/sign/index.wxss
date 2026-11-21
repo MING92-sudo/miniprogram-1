@@ -26,3 +26,14 @@ page{background:var(--ink);color:var(--text)}
 .ci-badge{flex:none;font-size:18rpx;padding:4rpx 12rpx;border-radius:4rpx;border:1rpx solid var(--line);color:var(--muted)}
 .ci-badge.ok{color:var(--ok-soft);border-color:rgba(47,196,141,.4)}
 .ci-badge.ab{color:var(--signal-soft);border-color:rgba(255,75,43,.45)}
+
+/* V2.80 签字 SLA 倒计时横幅（纸面风格，超期转红） */
+.cs-sla{font-size:20rpx;color:#6B4E14;background:#EFE6CF;border-left:4rpx solid var(--amber);padding:10rpx 14rpx;margin-top:10rpx}
+.cs-sla.over{color:#8C2B16;border-left-color:#A83E24;background:#F0D9CF}
+/* V2.80 拒签分类码面板（底部弹层） */
+.refuse-mask{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:60;display:flex;align-items:flex-end}
+.refuse-panel{width:100%;background:var(--panel);border-radius:20rpx 20rpx 0 0;padding:28rpx 28rpx calc(28rpx + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:12rpx}
+.refuse-opt{display:flex;align-items:center;gap:14rpx;padding:16rpx;border:1rpx solid var(--line);border-radius:12rpx}
+.refuse-opt.on{border-color:var(--amber);background:rgba(255,176,32,.08)}
+.refuse-radio{color:var(--amber);font-size:24rpx;width:32rpx;text-align:center}
+.refuse-input{width:100%;min-height:140rpx;background:var(--panel-2);border:1rpx solid var(--line);border-radius:12rpx;padding:16rpx;font-size:22rpx;color:var(--text);box-sizing:border-box}

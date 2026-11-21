@@ -31,6 +31,14 @@ import java.util.Set;
 @Service
 public class RecordLifecycleService {
 
+    /** 使用单位拒签原因分类码（V56，docs/04 V2.80）：与小程序 constants REFUSE_REASON_OPTIONS 镜像同步 */
+    public static final Map<String, String> REFUSE_CODES = Map.of(
+            "R1", "记录内容与现场不符",
+            "R2", "维保项目漏项或未按单执行",
+            "R3", "现场照片不清晰或与实际不符",
+            "R4", "时间或人员信息有误",
+            "R5", "其他");
+
     private final MaintainRecordMapper recordMapper;
     private final WorkOrderMapper orderMapper;
     private final EmployeeMapper employeeMapper;
@@ -105,6 +113,9 @@ public class RecordLifecycleService {
             throw new BizException(422, "双人签字未完成，不能发起使用单位签字");
         }
         r.lifecycleStatus = "PENDING_CLIENT_SIGNATURE";
+        // V56：签字 SLA 起算打点（待签列表倒计时/到期提醒同口径）；重新发起时重置提醒去重标记
+        r.signRequestedAt = TimeUtil.now();
+        r.signRemindedAt = null;
         recordMapper.updateById(r);
         return Map.of("ok", true, "shareToken", r.shareToken == null ? "" : r.shareToken);
     }
@@ -140,6 +151,14 @@ public class RecordLifecycleService {
      * 不注入上报服务，结构保证拒签不触发平台 2.6。
      */
     public Map<String, Object> refuseByToken(String recordId, String token, String reason) {
+        return refuseByToken(recordId, token, null, reason);
+    }
+
+    /**
+     * 使用单位拒签（V56 分类码版）：refuseCode 必填且 ∈ REFUSE_CODES（R5 其他必须附文字说明）；
+     * refuseReason 落库为「分类标签：说明」组合文本（无说明仅标签），refuse_code 单列供统计。
+     */
+    public Map<String, Object> refuseByToken(String recordId, String token, String refuseCode, String reason) {
         MaintainRecord r = findOr401(recordId); // C-25⑧：不存在 → 401 同错 token 文案（匿名端点无存在性 oracle）
         if (token == null || token.isEmpty() || !token.equals(r.shareToken)) {
             throw new BizException(401, "确认链接无效或已失效");
@@ -155,20 +174,37 @@ public class RecordLifecycleService {
         if (next != null && next > 0) {
             throw new BizException(422, "记录已被新版本替代，请处理最新记录");
         }
-        if (reason == null || reason.trim().isEmpty()) {
-            throw new BizException(422, "拒绝原因必填");
+        // V56：分类码必填；旧调用方（未传码）按兼容期回退——R5+说明 等价于原「原因必填」
+        String code = refuseCode == null || refuseCode.isBlank() ? "" : refuseCode.trim().toUpperCase();
+        String detail = reason == null ? "" : reason.trim();
+        if (code.isEmpty()) {
+            if (detail.isEmpty()) {
+                throw new BizException(422, "拒绝原因必填");
+            }
+        } else {
+            if (!REFUSE_CODES.containsKey(code)) {
+                throw new BizException(422, "拒签原因分类码无效（R1—R5）");
+            }
+            if ("R5".equals(code) && detail.isEmpty()) {
+                throw new BizException(422, "选择「其他」时必须填写拒签说明");
+            }
         }
+        String label = code.isEmpty() ? "" : REFUSE_CODES.get(code);
+        String composed = label.isEmpty() ? detail
+                : detail.isEmpty() ? label : label + "：" + detail;
         int affected = recordMapper.update(null, new LambdaUpdateWrapper<MaintainRecord>()
                 .eq(MaintainRecord::getId, r.id)
                 .eq(MaintainRecord::getLifecycleStatus, "PENDING_CLIENT_SIGNATURE")
                 .eq(MaintainRecord::getConfirmStatus, "PENDING")
                 .set(MaintainRecord::getLifecycleStatus, "REFUSED_RETURNED")
-                .set(MaintainRecord::getRefuseReason, reason));
+                .set(MaintainRecord::getRefuseReason, composed)
+                .set(MaintainRecord::getRefuseCode, code.isEmpty() ? null : code));
         if (affected == 0) {
             throw new BizException(422, "记录状态已变更（可能已被签署），拒签未生效");
         }
         r.lifecycleStatus = "REFUSED_RETURNED";
-        r.refuseReason = reason;
+        r.refuseReason = composed;
+        r.refuseCode = code.isEmpty() ? null : code;
         return Map.of("ok", true);
     }
 
@@ -196,13 +232,23 @@ public class RecordLifecycleService {
         Elevator el = elevatorMapper.selectOne(new LambdaQueryWrapper<Elevator>()
                 .eq(Elevator::getElevatorCode, r.elevatorCode).last("LIMIT 1"));
         UseUnit uu = el == null || el.useUnitId == null ? null : useUnitMapper.selectById(el.useUnitId);
+        // render 会把签名图重签为时效 URL（?s=）回填到 r 上供 PDF 取图——仅内存用途；
+        // 落库只写归档四字段（不变量§3.7：数据库只存不带签名的稳定 URL），
+        // 旧整实体 updateById 会把时效签名 URL 写死，过期后重渲染取不到图且不再回填。
         byte[] pdf = pdfService.render(r, el, uu);
         AppFile f = fileStorage.storeBytes(pdf, "record-" + r.id + ".pdf", "application/pdf", null);
+        java.time.LocalDateTime now = TimeUtil.now();
+        String hash = sha256(pdf);
+        recordMapper.update(null, new LambdaUpdateWrapper<MaintainRecord>()
+                .eq(MaintainRecord::getId, r.id)
+                .set(MaintainRecord::getArchiveFileId, f.id)
+                .set(MaintainRecord::getArchiveHash, hash)
+                .set(MaintainRecord::getArchivedAt, now)
+                .set(MaintainRecord::getLifecycleStatus, "ARCHIVED"));
         r.archiveFileId = f.id;
-        r.archiveHash = sha256(pdf);
-        r.archivedAt = TimeUtil.now();
+        r.archiveHash = hash;
+        r.archivedAt = now;
         r.lifecycleStatus = "ARCHIVED";
-        recordMapper.updateById(r);
     }
 
     private MaintainRecord findOr404(String id) {

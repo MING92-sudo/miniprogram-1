@@ -8,7 +8,13 @@
         <PageMeta perm="role:assign" :extra="[{ k: '权限码', v: rows.length, icon: 'key', cls: 'count' }, { k: '模式', v: '只读（写入口二期）', icon: 'lock' }]" />
       </template>
     </ViewHead>
-    <div class="mt16">
+        <div class="tab-bar mt16">
+      <button v-if="canMatrix" type="button" :class="['tab-i', { on: tab === 'matrix' }]" @click="go('matrix')">角色权限矩阵</button>
+      <button v-if="canGrants" type="button" :class="['tab-i', { on: tab === 'grants' }]" @click="go('grants')">授权管理</button>
+    </div>
+    <GrantsView v-if="tab === 'grants'" embedded />
+    <template v-else>
+<div class="mt16">
       <div class="chips mb12">
         <span :class="['chip', { on: domain === 'all' }]" @click="domain = 'all'">全部 {{ rows.length }}</span>
         <span v-for="d in domains" :key="d.k" :class="['chip', { on: domain === d.k }]" @click="domain = d.k">{{ d.label }} {{ countOf(d.k) }}</span>
@@ -84,11 +90,14 @@
         <button class="btn btn-ghost" type="button" @click="roleDetail = null">关闭</button>
       </template>
     </Drawer>
-  </div>
+  </template>
+</div>
 </template>
 <script setup>
 // 角色权限矩阵（原型 Views.roles 对齐）：域筛选 chips + 固定首列矩阵 + 角色详情抽屉；数据源 permission-v2 真实矩阵
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import GrantsView from './GrantsView.vue'
 import ViewHead from '../ui/ViewHead.vue'
 import PageMeta from '../ui/PageMeta.vue'
 import RuleNote from '../ui/RuleNote.vue'
@@ -99,9 +108,27 @@ import { useToast } from '../ui/stores/ui'
 import { exportCsv } from '../ui/export-csv'
 import { roleLabel, permLabel, roleDept, deptLabel } from '../ui/labels'
 import { canonicalRoles, canonicalCodes, state, defaultScope } from '../ui/permission-v2'
+import { usePerspectiveStore } from '../ui/stores/perspective'
 import { MENU_GROUPS } from '../ui/menu-config'
 import { rolesMatrix } from '../api/ledger'
 const toast = useToast()
+const route = useRoute()
+const router = useRouter()
+const perspective = usePerspectiveStore()
+// 合并页分页门禁（Tab 合并 2026-11-21 审查修复）：矩阵=role:assign，授权=invite:manage；
+// 与路由 meta.permByTab 同口径，无宿主权限但有分页权限的角色落地时收敛到可用分页
+function allow(code) { try { const s = state(perspective.activeRole, code); return s === 'Y' || s === 'C' } catch { return false } }
+const canMatrix = computed(() => allow('role:assign'))
+const canGrants = computed(() => allow('invite:manage'))
+const tab = ref((route.query.tab === 'grants') ? String(route.query.tab) : 'matrix')
+if (tab.value === 'matrix' && !canMatrix.value && canGrants.value) tab.value = 'grants'
+function go(t) { tab.value = t; router.replace({ query: t === 'matrix' ? {} : { tab: t } }) }
+// 同路由分页跳转（矩阵「前往」/grants 重定向回自身、浏览器前进后退）时同步分页
+watch(() => route.query.tab, (t) => {
+  const v = t === 'grants' ? 'grants' : 'matrix'
+  if (v !== tab.value) tab.value = v
+})
+
 const rows = ref([])
 const roles = ref([...canonicalRoles()])
 const loading = ref(false)

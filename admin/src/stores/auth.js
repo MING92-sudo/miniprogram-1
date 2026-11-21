@@ -5,8 +5,8 @@ import { state } from '../ui/permission-v2'
 import router from '../router'
 
 /** 管理端角色口径（与后端 auth/AdminRoles.java 对齐，docs/09 §三） */
-export const ADMIN_READ_ROLES = ['LEADER', 'ADMIN', 'SYS_ADMIN']
-export const ADMIN_WRITE_ROLES = ['ADMIN', 'SYS_ADMIN']
+export const ADMIN_READ_ROLES = ['LEADER', 'ADMIN']
+export const ADMIN_WRITE_ROLES = ['ADMIN']
 
 function persist(token, user, role) {
   if (token) {
@@ -29,7 +29,7 @@ export const useAuthStore = defineStore('auth', {
   getters: {
     isLogin: (s) => Boolean(s.token),
     canWrite: (s) => ADMIN_WRITE_ROLES.includes(s.role),
-    isSysAdmin: (s) => s.role === 'SYS_ADMIN',
+    isSysAdmin: (s) => s.role === 'ADMIN' || s.role === 'PLATFORM_ADMIN',
     canRead: (s) => ADMIN_READ_ROLES.includes(s.role),
     // 细粒度能力判定（M5 permission-v2 三态，Y/C 放行）：菜单/路由/按钮统一用它
     can: (s) => (capability) => {

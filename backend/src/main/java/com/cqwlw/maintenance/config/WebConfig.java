@@ -44,6 +44,8 @@ public class WebConfig implements WebMvcConfigurer {
                         // AuthController 内仍保留 currentUser 防御，避免未来路由配置回退时越权
                         "/unit/records/*/sign-view", "/unit/records/*/confirm-by-token",
                         "/unit/records/*/refuse-by-token",
+                        // 免登录 token 链签名图上传：service 内 shareToken + requireSignable 校验先于写盘
+                        "/unit/records/*/signature-upload",
                         // 使用单位门户开放接口（Task 9）：登录与邀请码绑定本身无令牌；/unit/accounts 仍需登录+角色校验
                         "/unit/login", "/unit/bind-wechat", "/unit/login-by-wechat",
                         // 文件写侧（upload/sts）必须登录；GET /files/{id} 由 FileAccessTokenService 的

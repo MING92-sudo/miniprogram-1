@@ -1,6 +1,6 @@
 <template>
   <div>
-    <ViewHead title="授权管理" sub="邀请码 / 组织二维码 + 限时授权（追加权限点，到期自动回收）">
+    <ViewHead v-if="!embedded" title="授权管理" sub="邀请码 / 组织二维码 + 限时授权（追加权限点，到期自动回收）">
       <template #meta>
         <PageMeta perm="invite:manage" :extra="[{ k: '邀请码', v: invites.length, icon: 'key', cls: 'count' }, { k: '限时授权', v: grants.length, icon: 'shield', cls: 'count' }]" />
       </template>
@@ -108,6 +108,8 @@
   </div>
 </template>
 <script setup>
+// embedded：作为 Tab 子页嵌入时隐藏自身页头（合并视图用）
+defineProps({ embedded: Boolean })
 // 授权管理（原型 Views.grants 对齐）：邀请码 + 限时授权双表；生成/撤回/发起/回收走真实 API，end>start 校验
 import { ref, computed, onMounted } from 'vue'
 import ViewHead from '../ui/ViewHead.vue'
