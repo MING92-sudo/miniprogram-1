@@ -1,7 +1,6 @@
 package com.cqwlw.maintenance.auth;
 
 import com.cqwlw.maintenance.mapper.ElevatorMapper;
-import com.cqwlw.maintenance.mapper.FaultMapper;
 import com.cqwlw.maintenance.mapper.MaintainRecordMapper;
 import com.cqwlw.maintenance.mapper.SysUserRoleMapper;
 import org.junit.jupiter.api.Test;
@@ -26,11 +25,9 @@ import static org.mockito.Mockito.when;
 class MiniappMenuQuickActionsTest {
 
     private MiniappMenuService svc() {
-        FaultMapper faults = mock(FaultMapper.class);
         MaintainRecordMapper records = mock(MaintainRecordMapper.class);
-        when(faults.selectCount(any())).thenReturn(0L);
         when(records.selectCount(any())).thenReturn(0L);
-        return new MiniappMenuService(faults, records, mock(SysUserRoleMapper.class), mock(ElevatorMapper.class));
+        return new MiniappMenuService(records, mock(SysUserRoleMapper.class), mock(ElevatorMapper.class));
     }
 
     @SuppressWarnings("unchecked")

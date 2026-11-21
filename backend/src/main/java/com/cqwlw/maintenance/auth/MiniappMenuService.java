@@ -3,11 +3,9 @@ package com.cqwlw.maintenance.auth;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.cqwlw.maintenance.entity.Elevator;
 import com.cqwlw.maintenance.entity.Employee;
-import com.cqwlw.maintenance.entity.Fault;
 import com.cqwlw.maintenance.entity.MaintainRecord;
 import com.cqwlw.maintenance.entity.SysUserRole;
 import com.cqwlw.maintenance.mapper.ElevatorMapper;
-import com.cqwlw.maintenance.mapper.FaultMapper;
 import com.cqwlw.maintenance.mapper.MaintainRecordMapper;
 import com.cqwlw.maintenance.mapper.SysUserRoleMapper;
 import com.cqwlw.maintenance.util.RecordVersionUtil;
@@ -61,14 +59,20 @@ public class MiniappMenuService {
 
     private static final Map<String, List<Map<String, Object>>> ROLE_TABS = buildTabs();
 
-    private final FaultMapper faultMapper;
     private final MaintainRecordMapper recordMapper;
     private final SysUserRoleMapper userRoleMapper;
     private final ElevatorMapper elevatorMapper;
 
-    public MiniappMenuService(FaultMapper faultMapper, MaintainRecordMapper recordMapper,
+    /** 「工单」角标数据源（setter 注入；生产 Spring 必注入，3 参构造的单测回退 0） */
+    private com.cqwlw.maintenance.service.WorkOrderService workOrderService;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    public void setWorkOrderService(com.cqwlw.maintenance.service.WorkOrderService workOrderService) {
+        this.workOrderService = workOrderService;
+    }
+
+    public MiniappMenuService(MaintainRecordMapper recordMapper,
                               SysUserRoleMapper userRoleMapper, ElevatorMapper elevatorMapper) {
-        this.faultMapper = faultMapper;
         this.recordMapper = recordMapper;
         this.userRoleMapper = userRoleMapper;
         this.elevatorMapper = elevatorMapper;
@@ -208,8 +212,9 @@ public class MiniappMenuService {
         long pendingSigns = 0;
         if (me != null) {
             if (roles.stream().anyMatch(r -> r.startsWith("MAINT"))) {
-                pendingOrders = faultMapper.selectCount(new LambdaQueryWrapper<Fault>()
-                        .eq(Fault::getStatus, "OPEN"));
+                // 角标=数据域内未闭环工单（PENDING/PROCESSING，与工单页同 scopeOrders 谓词）；
+                // 旧实现错挂 fault OPEN 计数，「工单」角标恒等于开放急修数（2026-11-21 真机反馈）
+                pendingOrders = workOrderService == null ? 0 : workOrderService.countActionableOrders(me.id);
             }
             // P1（T5）：客户分支判定用 principalTypeOf（含 UNIT_ADMIN 旧码），不用 startsWith 字面量
             if (roles.stream().anyMatch(r -> RoleCatalog.principalTypeOf(r) == RoleCatalog.PrincipalType.CUSTOMER)) {

@@ -1,6 +1,7 @@
 // 安装工作台（M2，屏 01 范式适配）：问候 + 移交 KPI + 进行中移交 + 快捷动作 + 周统计。
 const { definePage } = require('../../../utils/guard')
 const { ROUTES } = require('../../../config/routes')
+const { greetPeriod } = require('../../../utils/util')
 const home = require('../../../services/home')
 const nav = require('../../../utils/nav')
 
@@ -15,7 +16,7 @@ definePage(ROUTES['/pages/install/home/index'], {
     this.setData({
       greeting: {
         date: d.getFullYear() + '.' + String(d.getMonth() + 1).padStart(2, '0') + '.' + String(d.getDate()).padStart(2, '0'),
-        weekday: WEEKDAYS[d.getDay()], name: u.name || '', org: u.groupName || '安装部'
+        weekday: WEEKDAYS[d.getDay()], period: greetPeriod(d), name: u.name || '', org: u.groupName || '安装部'
       },
       quickActions: (app.globalData && app.globalData.quickActions) || []
     })

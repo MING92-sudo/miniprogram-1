@@ -15,7 +15,6 @@ import com.cqwlw.maintenance.mapper.BizProjectMapper;
 import com.cqwlw.maintenance.mapper.CompanyMapper;
 import com.cqwlw.maintenance.mapper.ElevatorMapper;
 import com.cqwlw.maintenance.mapper.EmployeeMapper;
-import com.cqwlw.maintenance.mapper.FaultMapper;
 import com.cqwlw.maintenance.mapper.MaintainRecordMapper;
 import com.cqwlw.maintenance.mapper.RegionMapper;
 import com.cqwlw.maintenance.mapper.SysAuditLogMapper;
@@ -227,11 +226,10 @@ class ClientExclusionTest {
     @Test
     @SuppressWarnings("unchecked")
     void clientBadgeCountsOwnUnitSignableOnly() {
-        FaultMapper faults = mock(FaultMapper.class);
         MaintainRecordMapper records = mock(MaintainRecordMapper.class);
         SysUserRoleMapper userRoles = mock(SysUserRoleMapper.class);
         ElevatorMapper elevators = mock(ElevatorMapper.class);
-        MiniappMenuService menus = new MiniappMenuService(faults, records, userRoles, elevators);
+        MiniappMenuService menus = new MiniappMenuService(records, userRoles, elevators);
 
         Employee me = emp("emp_zw", "王芳", "CLIENT_ADMIN");
         when(userRoles.selectList(any())).thenReturn(List.of(
@@ -264,11 +262,10 @@ class ClientExclusionTest {
     @Test
     @SuppressWarnings("unchecked")
     void clientBadgeWithoutAnchorFailClosed() {
-        FaultMapper faults = mock(FaultMapper.class);
         MaintainRecordMapper records = mock(MaintainRecordMapper.class);
         SysUserRoleMapper userRoles = mock(SysUserRoleMapper.class);
         ElevatorMapper elevators = mock(ElevatorMapper.class);
-        MiniappMenuService menus = new MiniappMenuService(faults, records, userRoles, elevators);
+        MiniappMenuService menus = new MiniappMenuService(records, userRoles, elevators);
 
         Employee me = emp("emp_zw", "王芳", "CLIENT_ADMIN");
         when(userRoles.selectList(any())).thenReturn(List.of(ur("emp_zw", "CLIENT_ADMIN", null)));

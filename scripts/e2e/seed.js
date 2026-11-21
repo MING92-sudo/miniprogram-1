@@ -52,7 +52,7 @@ const seed = {
   elevators: { el1: 'el_1', el2: 'el_2', el3: 'el_3', el4: 'el_4' },
   projects: { pj1: 'pj_new4PWK9Que9A2uLMRDuXQ' },
   contracts: { ct1: 'ct_zXEnP33hQ6emr_xaJ6QKPA' },
-  handovers: { ho1: 'ho_l0Ea-tO6SkGqIPioRtyaYA' },
+  handovers: { ho1: 'ho_G6ebxRzfTRyIOu5VH4MCqw' },
   handoverRects: { hr1: 'hr_p8-l7GtDQpeXrtDeEvNspg' },
   records: { ur1: 'ur_1', ur2: 'ur_2' },
   workOrders: { wo1: 'wo_1', wo2: 'wo_2' },

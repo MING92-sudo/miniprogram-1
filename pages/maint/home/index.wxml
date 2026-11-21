@@ -7,7 +7,7 @@
       <view class="row between mh-greet">
         <view>
           <view class="mono fs20 dim ls12">{{greeting.weekday}} · {{greeting.date}}</view>
-          <view class="disp fs44 mt2">早安，{{greeting.name}}</view>
+          <view class="disp fs44 mt2">{{greeting.period}}，{{greeting.name}}</view>
           <view class="fs20 muted">{{greeting.org}}{{greeting.jobNo ? ' · 工号 ' + greeting.jobNo : ''}}</view>
         </view>
         <view class="shift">

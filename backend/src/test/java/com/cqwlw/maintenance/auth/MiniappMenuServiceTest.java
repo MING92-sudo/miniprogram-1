@@ -2,7 +2,6 @@ package com.cqwlw.maintenance.auth;
 
 import com.cqwlw.maintenance.entity.Employee;
 import com.cqwlw.maintenance.mapper.ElevatorMapper;
-import com.cqwlw.maintenance.mapper.FaultMapper;
 import com.cqwlw.maintenance.mapper.MaintainRecordMapper;
 import com.cqwlw.maintenance.mapper.SysUserRoleMapper;
 import org.junit.jupiter.api.Test;
@@ -29,11 +28,9 @@ import static org.mockito.Mockito.when;
 class MiniappMenuServiceTest {
 
     private MiniappMenuService svc() {
-        FaultMapper faults = mock(FaultMapper.class);
         MaintainRecordMapper records = mock(MaintainRecordMapper.class);
-        when(faults.selectCount(any())).thenReturn(3L);
         when(records.selectCount(any())).thenReturn(2L);
-        return new MiniappMenuService(faults, records, mock(SysUserRoleMapper.class), mock(ElevatorMapper.class));
+        return new MiniappMenuService(records, mock(SysUserRoleMapper.class), mock(ElevatorMapper.class));
     }
 
     @SuppressWarnings("unchecked")
@@ -164,15 +161,37 @@ class MiniappMenuServiceTest {
         assertTrue(badges.containsKey("pendingSigns"));
     }
 
+    /**
+     * 2026-11-21 真机反馈修复：「工单」角标=WorkOrderService.countActionableOrders
+     * （数据域内未闭环工单 PENDING/PROCESSING，与工单列表同 scopeOrders 谓词），
+     * 不再是 fault OPEN 计数（角标曾恒显示开放急修数 2，与工单页内容无关）。
+     */
+    @Test
+    @SuppressWarnings("unchecked")
+    void ordersBadgeCountsActionableWorkOrders() {
+        MiniappMenuService svc = svc();
+        com.cqwlw.maintenance.service.WorkOrderService orders =
+                mock(com.cqwlw.maintenance.service.WorkOrderService.class);
+        when(orders.countActionableOrders("e1")).thenReturn(7L);
+        svc.setWorkOrderService(orders);
+
+        Employee me = new Employee();
+        me.id = "e1";
+        me.department = "MAINT";
+        Map<String, Object> out = svc.menusOf(Set.of("MAINT_TECH"), null, me);
+        Map<String, Object> badges = (Map<String, Object>) out.get("badges");
+
+        assertEquals(7L, badges.get("pendingOrders"));
+    }
+
     /** P1 T5：CLIENT 角标只按本单位锚点（sys_user_role.org_id）+ T4 可签口径计数，不再全表 count（跨单位泄漏） */
     @Test
     @SuppressWarnings("unchecked")
     void clientPendingSignsBadgeScopedToOwnUnit() {
-        FaultMapper faults = mock(FaultMapper.class);
         MaintainRecordMapper records = mock(MaintainRecordMapper.class);
         SysUserRoleMapper userRoles = mock(SysUserRoleMapper.class);
         ElevatorMapper elevators = mock(ElevatorMapper.class);
-        MiniappMenuService svc = new MiniappMenuService(faults, records, userRoles, elevators);
+        MiniappMenuService svc = new MiniappMenuService(records, userRoles, elevators);
 
         Employee me = new Employee();
         me.id = "emp_zw";

@@ -1,6 +1,7 @@
 // 维保工作台（M2，屏 01）：问候 + 困人急修横幅 + KPI + 今日任务 + 快捷动作 + 周统计 + 同步注。
 const { definePage } = require('../../../utils/guard')
 const { ROUTES } = require('../../../config/routes')
+const { greetPeriod } = require('../../../utils/util')
 const home = require('../../../services/home')
 const nav = require('../../../utils/nav')
 
@@ -19,6 +20,7 @@ definePage(ROUTES['/pages/maint/home/index'], {
       greeting: {
         date: d.getFullYear() + '.' + String(d.getMonth() + 1).padStart(2, '0') + '.' + String(d.getDate()).padStart(2, '0'),
         weekday: WEEKDAYS[d.getDay()],
+        period: greetPeriod(d),
         name: u.name || '',
         org: (u.groupName || u.unitName || ''),
         jobNo: u.jobNo || '',

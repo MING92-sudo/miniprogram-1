@@ -366,6 +366,17 @@ public class WorkOrderService {
     }
 
     /**
+     * 小程序「工单」角标：数据域内未闭环工单数（PENDING/PROCESSING），与工单列表
+     * 同 {@link #scopeOrders} 谓词（池内可接 + 本人/配合在途）。MiniappMenuService 唯一调用方——
+     * 旧实现错挂 fault OPEN 计数，角标恒等于开放急修数，与工单页内容无关（2026-11-21 真机反馈）。
+     */
+    public long countActionableOrders(String empId) {
+        List<WorkOrder> open = orderMapper.selectList(new LambdaQueryWrapper<WorkOrder>()
+                .in(WorkOrder::getStatus, "PENDING", "PROCESSING"));
+        return scopeOrders(open, empId).size();
+    }
+
+    /**
      * 工单归属校验（V7 班组数据权限）：读（详情/清单）与写（签到/检查项/签退）共用同一谓词。
      * 写端点若缺此校验，任一已登录作业人员凭他人工单 id 即可代签到、代填检查项、代签退；
      * 签退会自动转发平台 2.6，等于向监管平台写入虚假维保数据（AGENTS §6 合规底线 → Blocker）。

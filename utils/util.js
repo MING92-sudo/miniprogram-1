@@ -60,10 +60,21 @@ function distanceMeters(lat1, lng1, lat2, lng2) {
   return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)))
 }
 
+// 问候语按小时分档（工作台问候不再恒显「早安」）
+function greetPeriod(d) {
+  const h = (d || new Date()).getHours()
+  if (h < 5) return '夜深了'
+  if (h < 11) return '早上好'
+  if (h < 14) return '中午好'
+  if (h < 18) return '下午好'
+  return '晚上好'
+}
+
 module.exports = {
   uuid,
   formatTime,
   parseTime,
   formatDuration,
-  distanceMeters
+  distanceMeters,
+  greetPeriod
 }

@@ -600,7 +600,11 @@ const routes = [
       if (has('INST_CLERK') || has('INST_PM')) quickActions.push({ key: 'upload', text: '资料上传', icon: 'folder', path: '/pkg-handover/pages/upload/index' })
     }
     const badges = { pendingOrders: 0, pendingSigns: 0 }
-    if (effective.some((r) => r.indexOf('MAINT') === 0)) badges.pendingOrders = d.db.faults.filter((f) => f.status === 'OPEN').length
+    // 「工单」角标=数据域内未闭环工单（PENDING/PROCESSING，与工单列表同 orderVisible 谓词）；
+    // 旧实现错挂 fault OPEN 计数（后端 MiniappMenuService.badges 2026-11-21 同修）
+    if (effective.some((r) => r.indexOf('MAINT') === 0)) {
+      badges.pendingOrders = d.listOrders({}).filter(orderVisible).filter((o) => o.status !== 'DONE').length
+    }
     // P1 T5/T7：客户待签角标按本单位 + 可签集合收敛（后端 MiniappMenuService.clientPendingSigns 同口径），
     // 无锚点 fail-closed 计 0；主体判定用 principalType（含旧码 UNIT_ADMIN），不用字面量前缀
     if (effective.some((r) => isCustomerPrincipal([r]))) badges.pendingSigns = clientPendingSignCount()
