@@ -1,31 +1,33 @@
-/* 设计 token 层 —— 逐字移植原型 UI/admin/assets/admin.css :root（梯维通 LIFT/OPS 管理端原型）
-   公司名保持「博威无纸化」；token 值与原型完全一致（admin-spec §8）。
+/* 设计 token 层：浅色工作区 + 深色侧栏。
+   2026-11-22 按参考图调整页面底色、卡片与文字对比度；侧栏和调度大屏在组件层覆盖深色变量。
    末尾保留旧组件库变量别名，兼容存量 scoped 样式。 */
 :root {
-  /* ---- 18 个既有 token（与小程序原型同源，不改值） ---- */
-  --ink: #0A0F12;
-  --ink-2: #0D1418;
-  --panel: #131C21;
-  --panel-2: #172228;
-  --line: #26343B;
-  --line-2: #2E3E46;
-  --text: #E8EEF0;
-  --muted: #A3B4BB;
-  --dim: #7E929B;
+  /* ---- 工作区底色 / 卡片 / 边框 ---- */
+  --ink: #F4F6F8;
+  --ink-2: #E8EDF2;
+  --panel: #FFFFFF;
+  --panel-2: #F5F7FA;
+  --line: #DCE4EB;
+  --line-2: #C6D2DD;
+
+  /* ---- 浅色背景上的文字与状态色 ---- */
+  --text: #263746;
+  --muted: #526575;
+  --dim: #5F7182;
   --amber: #FFB020;
-  --amber-soft: #FFC85C;
+  --amber-soft: #965800;
   --signal: #FF4B2B;
-  --signal-soft: #FF8F7A;
+  --signal-soft: #B73524;
   --ok: #2FC48D;
-  --ok-soft: #5FE0B2;
+  --ok-soft: #167557;
   --paper: #EDE5D3;
   --paper-ink: #22201A;
   --paper-line: #C6BA9F;
 
-  /* ---- 新增语义（不改既有值） ---- */
+  /* ---- 语义色 ---- */
   --on-amber: #1A1203;
   --on-signal: #1A0A06;
-  --scrim: rgba(5, 8, 10, .74);
+  --scrim: rgba(15, 23, 42, .45);
   --amber-a08: rgba(255, 176, 32, .08);
   --amber-a18: rgba(255, 176, 32, .18);
   --signal-a10: rgba(255, 75, 43, .10);

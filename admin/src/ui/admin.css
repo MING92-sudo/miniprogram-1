@@ -791,3 +791,115 @@ pre.json{margin:0;font-family:var(--font-mono);font-size:12px;line-height:1.6;co
 .tab-bar{display:inline-flex;gap:4px;padding:3px;border:1px solid var(--line-2);border-radius:var(--r-card)}
 .tab-i{padding:6px 16px;border:0;border-radius:7px;background:transparent;color:var(--ink-2);cursor:pointer;font-size:13px}
 .tab-i.on{background:var(--amber,#e8a020);color:#141414;font-weight:600}
+
+/* ===== 浅色工作区（2026-11-22，按参考图：浅灰底 / 白色卡片 / 深蓝侧栏） =====
+   原深色组件规则保留作组件基线；这里统一覆盖工作区颜色，侧栏与调度大屏显式恢复深色变量。 */
+::-webkit-scrollbar-track{background:#E8EDF2}
+::-webkit-scrollbar-thumb{background:#AABAC7;border-color:#E8EDF2}
+::-webkit-scrollbar-thumb:hover{background:#8FA3B3}
+.bg-grid,.body-glow{display:none}
+
+.side{
+  --line:#3B4D61;--line-2:#4A5D71;--text:#E8EEF0;--muted:#B2C0CC;--dim:#93A5B5;
+  --amber-soft:#FFC85C;--signal-soft:#FF8F7A;--ok-soft:#5FE0B2;
+  background:linear-gradient(180deg,#304157,#2B3B50);border-right-color:#26374A
+}
+.top{background:rgba(255,255,255,.96);border-bottom-color:var(--line)}
+.icon-btn{background:#FFFFFF;color:#4B5E6F}
+.top-title b,.top-user .tu-txt b,.crumbs b,.view-title h1{color:var(--text)}
+.role-switch>button,.role-switch>.rs-static{color:var(--text)}
+.role-menu{background:#FFFFFF;box-shadow:0 20px 45px -20px rgba(38,55,70,.35)}
+.role-opt .ro-main b{color:var(--text)}
+.scope-pill{background:#F7F9FB}
+.avatar{background:linear-gradient(150deg,#40566D,#2B3B50);border-color:#40566D;color:#F3F7FA}
+
+.meta-strip,.tbl-toolbar{background:#F8FAFC}
+.meta-strip .ms b,.card-head h3,.kpi-n,.kv .v,.hero-value{color:var(--text)}
+.card{background:#FFFFFF;border-color:var(--line);box-shadow:0 2px 8px rgba(38,55,70,.035)}
+.plate{background:linear-gradient(150deg,#FFFFFF,#F7F9FB);border-color:var(--line-2)}
+.kpi{background:#FFFFFF;border-color:var(--line)}
+.kpi.clickable:hover{background:#F7F9FB;border-color:var(--amber-a18)}
+
+.alert-strip{background:linear-gradient(90deg,rgba(255,176,32,.12),rgba(255,176,32,.025) 62%),#FFFCF5;color:#72500B}
+.alert-strip.as-sig{background:linear-gradient(90deg,rgba(255,75,43,.10),rgba(255,75,43,.02) 62%),#FFF8F6;color:#8F3022}
+.alert-strip.as-ok{background:linear-gradient(90deg,rgba(47,196,141,.10),rgba(47,196,141,.02) 62%),#F4FAF7;color:#23654D}
+.alert-strip.as-info{background:#F5F7FA}
+.alert-strip .as-num{color:#7A5000}
+.rule-note{color:#74520C;background:rgba(255,176,32,.09)}
+.notice-bar{background:rgba(255,176,32,.09)}
+
+.btn-primary:hover{background:#F2A400;color:var(--on-amber)}
+.btn-ghost{color:#3E4F5E;border-color:var(--line-2)}
+.perm-wrap[data-tip]:hover::after,.perm-wrap[data-tip]:focus-within::after{border-color:#2E3E46}
+.tag-dim{color:#5B6B7A;background:#F1F4F7}
+.badge-n.dim{background:#E7EDF2;color:#526575}
+.chip{color:#5D6D7B;border-color:var(--line-2)}
+.kv{border-bottom-color:rgba(198,210,221,.75)}
+
+.search-box{background:#FFFFFF;border-color:var(--line-2)}
+.search-box input::placeholder,.ctl::placeholder,.field input::placeholder,.field textarea::placeholder{color:#738496}
+table.tbl th{color:#4D6070}
+table.tbl td{color:var(--text);border-bottom-color:rgba(220,228,235,.85)}
+table.tbl tbody tr:hover{background:rgba(255,176,32,.055)}
+.pg{color:#4D6070}
+.bulkbar{color:#74520C;background:rgba(255,176,32,.10)}
+.chk,.radio{background:#FFFFFF;border-color:#9EAFBE}
+.switch{background:#CBD5DF;border-color:#B7C5D1}
+.switch::after{background:#FFFFFF}
+
+.ctl{background:#FFFFFF;border-color:var(--line-2);color:var(--text)}
+.field input:not([type="checkbox"]):not([type="radio"]),.field select,.field textarea{background:#FFFFFF;border-color:var(--line-2);color:var(--text)}
+.ctl:focus,.field input:focus,.field select:focus,.field textarea:focus{background:#FFFCF5}
+.ctl:disabled{background:#EDF1F4}
+.perm-item{color:var(--text);background:#F8FAFC}
+.perm-item.on{color:#74520C}
+
+.modal{background:#FFFFFF;border-color:var(--line-2);box-shadow:0 32px 80px -30px rgba(15,23,42,.35)}
+.modal-head h3,.drawer-head h2{color:var(--text)}
+.modal-foot,.drawer-foot{background:#F8FAFC}
+.drawer{background:#FFFFFF;border-left-color:var(--line-2);box-shadow:-24px 0 60px -30px rgba(15,23,42,.30)}
+.member-info .m-name{color:var(--text)}
+.tl-head b,.st.active .st-k,.st.done .st-k,.prog-row .pr-v{color:var(--text)}
+.st .dot{background:#F5F7FA}
+
+.state{background:#F8FAFC}
+.state h2{color:var(--text)}
+.state.err-state{background:radial-gradient(600px 200px at 50% 0,rgba(255,75,43,.07),transparent),#FFF8F6}
+.state.err-state h2{color:#9C3222}
+.skel{background:#E5EBF0}
+.toast{background:#FFFFFF;color:var(--text);box-shadow:0 20px 45px -22px rgba(15,23,42,.35)}
+.toast b{color:var(--text)}
+
+.sw,.ico-cell,.chk-row,.bl-item,.bt-item{background:#F8FAFC}
+.sw .sw-n,.spec-list b,.chk-row .cr-t{color:var(--text)}
+.spec-list,.ico-cell{color:var(--muted)}
+table.matrix th,table.matrix td{border-bottom-color:rgba(220,228,235,.9);border-right-color:rgba(220,228,235,.75)}
+table.matrix thead th{color:#4D6070}
+table.matrix thead th.fixed,table.matrix td.fixed{background:#FFFFFF}
+table.matrix tr.grp td{background:#EFF4F8}
+table.matrix td.fixed code,.tree-node .tn-name{color:var(--text)}
+table.matrix tbody tr:hover td,table.matrix tbody tr:hover td.fixed{background:#F2F7FC}
+
+.login-right{background:linear-gradient(200deg,#F7F9FB,#EDF2F7);border-left-color:var(--line)}
+.login-h1,.login-card h2{color:var(--text)}
+.chain .ch-v{color:var(--muted)}
+.login-card{background:#FFFFFF;border-color:var(--line-2);box-shadow:0 24px 60px -34px rgba(38,55,70,.28)}
+.demo-acct{background:#F8FAFC}
+pre.json{background:#F4F6F8;color:#34495A}
+.msg-preview{color:var(--text)}
+.tab-bar{background:#FFFFFF}
+.tab-i{color:var(--text)}
+.rec-item{border-top-color:var(--line)}
+.rec-item:nth-child(odd){background:#F8FAFC}
+.rec-item .ri-name{color:var(--text)}
+.rec-item.bad{background:rgba(255,75,43,.07)}
+
+/* 调度大屏仍是深色监控场景，不随工作区变浅。 */
+.board{
+  --ink:#0A0F12;--ink-2:#0D1418;--panel:#131C21;--panel-2:#172228;
+  --line:#26343B;--line-2:#2E3E46;--text:#E8EEF0;--muted:#A3B4BB;--dim:#7E929B;
+  --amber-soft:#FFC85C;--signal-soft:#FF8F7A;--ok-soft:#5FE0B2;
+  background-color:#0A0F12
+}
+.board .btn-ghost,.board .icon-btn{color:#DCE6E9;border-color:#34454D;background:transparent}
+.board .ctl{background:#0F171C;color:#E8EEF0;border-color:#2C3B42}
