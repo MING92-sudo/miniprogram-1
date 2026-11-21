@@ -652,7 +652,44 @@ public class AdminArchiveService {
         }
     }
 
+    /** 经纬度是签到围栏依据：创建/更新必须成对提交，且非法输入统一转 422，不得带异常落库。 */
+    private void validateElevatorGeo(Map<String, Object> body) {
+        boolean hasLng = body.containsKey("lng");
+        boolean hasLat = body.containsKey("lat");
+        if (!hasLng && !hasLat) {
+            return;
+        }
+        if (!hasLng || !hasLat) {
+            throw new BizException(422, "经纬度须同时填写或同时留空");
+        }
+        String lngText = str(body, "lng");
+        String latText = str(body, "lat");
+        if (lngText.isBlank() && latText.isBlank()) {
+            return;
+        }
+        if (lngText.isBlank() || latText.isBlank()) {
+            throw new BizException(422, "经纬度须同时填写或同时留空");
+        }
+        BigDecimal lng = parseGeo(lngText, "经度");
+        BigDecimal lat = parseGeo(latText, "纬度");
+        if (lng.compareTo(BigDecimal.valueOf(-180)) < 0 || lng.compareTo(BigDecimal.valueOf(180)) > 0) {
+            throw new BizException(422, "经度须在 -180 至 180 之间");
+        }
+        if (lat.compareTo(BigDecimal.valueOf(-90)) < 0 || lat.compareTo(BigDecimal.valueOf(90)) > 0) {
+            throw new BizException(422, "纬度须在 -90 至 90 之间");
+        }
+    }
+
+    private BigDecimal parseGeo(String raw, String label) {
+        try {
+            return new BigDecimal(raw);
+        } catch (NumberFormatException e) {
+            throw new BizException(422, label + "格式不正确");
+        }
+    }
+
     private void applyElevator(Elevator el, Map<String, Object> body) {
+        validateElevatorGeo(body);
         if (body.get("elevatorCode") != null) {
             el.elevatorCode = str(body, "elevatorCode");
         }

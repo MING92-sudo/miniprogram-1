@@ -25,6 +25,7 @@
           <PermButton code="elevator:view" label="电梯档案" variant="ghost" size="xs" icon="file-text" @click="openDetail(row)" />
           <PermButton code="elevator:qr" label="设备码" variant="ghost" size="xs" icon="qr" @click="openQr(row)" />
           <PermButton code="elevator:edit" label="编辑" variant="ghost" size="xs" icon="edit" @click="openEditRow(row)" />
+          <PermButton code="elevator:edit" label="定位" variant="ghost" size="xs" icon="map-pin" @click="openGeo(row)" />
           <PermButton v-if="row.status === 'INACTIVE'" code="elevator:edit" label="启用" variant="ghost" size="xs" icon="check" @click="toggleSuspend(row)" />
           <PermButton v-else code="elevator:edit" label="停保" variant="ghost" size="xs" icon="ban" c-tip="停保后不派单、小程序不可见" @click="toggleSuspend(row)" />
           <PermButton code="elevator:edit" label="删除电梯" variant="danger" size="xs" icon="ban" @click="askDelete(row)" />
@@ -70,6 +71,9 @@
           <div class="kv"><span class="k">下次到期</span><span class="v mono">{{ current.nextMaintenanceDate || '—' }}</span></div>
           <div class="kv"><span class="k">状态</span><span class="v">{{ statusLabel(current.status) }}</span></div>
           <div class="kv"><span class="k">详细地址</span><span class="v">{{ current.location || '—' }}</span></div>
+          <div class="kv"><span class="k">经度（GCJ-02）</span><span class="v mono">{{ current.lng || '—' }}</span></div>
+          <div class="kv"><span class="k">纬度（GCJ-02）</span><span class="v mono">{{ current.lat || '—' }}</span></div>
+          <div class="kv"><span class="k">定位状态</span><span class="v">{{ current.geoStatus === 'OK' ? '已定位' : '待补 / 待重新采集' }}</span></div>
           <!-- 绑定字段 M6：库中保留历史值仅作展示，派单/归属链路一律不再读取（区域抢单池取代） -->
           <div class="kv"><span class="k">主维保（历史绑定）</span><span class="v">{{ current.workerName || '—' }}</span></div>
           <div class="kv"><span class="k">配合人员（历史绑定）</span><span class="v">{{ current.assistantName || '—' }}</span></div>
@@ -135,11 +139,14 @@
       <template #footer>
         <PermButton code="elevator:qr" label="生成设备码" variant="ghost" icon="qr" @click="openQr(current)" />
         <PermButton code="elevator:edit" label="编辑" variant="ghost" icon="edit" @click="openEdit" />
+        <PermButton code="elevator:edit" label="修改定位" variant="ghost" icon="map-pin" @click="openGeo(current)" />
         <PermButton v-if="current.status === 'INACTIVE'" code="elevator:edit" label="启用" variant="ghost" icon="check" @click="toggleSuspend(current)" />
         <PermButton v-else code="elevator:edit" label="停保" variant="ghost" icon="ban" @click="toggleSuspend(current)" />
         <PermButton code="elevator:edit" label="删除电梯" variant="danger" icon="ban" @click="showDelete = true" />
       </template>
     </Drawer>
+
+    <ElevatorGeoModal :open="geoOpen" :row="current" @close="geoOpen = false" @saved="geoSaved" />
 
     <!-- 设备码 Modal（真实 QR PNG） -->
     <Modal :open="qrOpen" :title="'设备码 · ' + (qrTarget.elevatorCode || '')" :sub="(qrTarget.elevatorName || '') + ' · ' + (qrTarget.projectName || '')" icon="qr" note="elevator:qr"
@@ -227,6 +234,7 @@ import PageMeta from '../ui/PageMeta.vue'
 import StatusTag from '../ui/StatusTag.vue'
 import ScopePill from '../ui/ScopePill.vue'
 import RuleNote from '../ui/RuleNote.vue'
+import ElevatorGeoModal from '../ui/ElevatorGeoModal.vue'
 import { useToast } from '../ui/stores/ui'
 import { exportCsv } from '../ui/export-csv'
 import { DEVICE_FIELDS, deviceRules, deviceFormOf, missingRequiredOf } from '../ui/device-fields'
@@ -285,6 +293,18 @@ const archiveOpen = ref(false)
 const current = ref({})
 const profile = ref(null)
 const archive = ref([])
+const geoOpen = ref(false)
+function openGeo(row) {
+  if (!row || !row.id) return
+  current.value = row
+  geoOpen.value = true
+}
+async function geoSaved(updated) {
+  const merged = { ...current.value, ...updated }
+  current.value = merged
+  await load()
+  current.value = rows.value.find(r => r.id === merged.id) || merged
+}
 // 档案展示值：所在区域显示名称（不暴露内部 id）；缺必传项时抽屉顶部给出明确清单
 const devInfo = computed(() => {
   const f = deviceFormOf(current.value, profile.value)

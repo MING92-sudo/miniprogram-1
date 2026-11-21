@@ -3,6 +3,7 @@
     <ViewHead title="电梯档案" :sub="(row.projectName || '—') + ' · ' + (row.elevatorCode || '')">
       <template #meta><PageMeta perm="elevator:view" :extra="[{ k: '内部编号', v: row.insideNumber || '—', icon: 'elevator' }]" /></template>
       <template #actions>
+        <PermButton code="elevator:edit" label="修改定位" variant="primary" icon="map-pin" @click="geoOpen = true" />
         <PermButton code="elevator:view" label="返回台账" variant="ghost" icon="chevron-left" @click="$router.push('/elevators')" />
       </template>
     </ViewHead>
@@ -30,6 +31,10 @@
           <div class="kv"><span class="k">单位内编号</span><span class="v mono">{{ row.insideNumber || '—' }}</span></div>
           <div class="kv"><span class="k">下次检验日期</span><span class="v mono">{{ row.nextCheckDate || '—' }}</span></div>
           <div class="kv"><span class="k">应急救援电话</span><span class="v mono">{{ row.emergencyPhone || '—' }}</span></div>
+          <div class="kv"><span class="k">详细地址</span><span class="v">{{ row.location || '—' }}</span></div>
+          <div class="kv"><span class="k">经度（GCJ-02）</span><span class="v mono">{{ row.lng || '—' }}</span></div>
+          <div class="kv"><span class="k">纬度（GCJ-02）</span><span class="v mono">{{ row.lat || '—' }}</span></div>
+          <div class="kv"><span class="k">定位状态</span><span class="v">{{ row.geoStatus === 'OK' ? '已定位' : '待补 / 待重新采集' }}</span></div>
         </div>
       </div>
     </div>
@@ -119,6 +124,7 @@
         </template>
       </DataTable>
     </div>
+    <ElevatorGeoModal :open="geoOpen" :row="row" @close="geoOpen = false" @saved="geoSaved" />
   </div>
 </template>
 <script setup>
@@ -135,11 +141,16 @@ import ViewHead from '../ui/ViewHead.vue'
 import PageMeta from '../ui/PageMeta.vue'
 import PermButton from '../ui/PermButton.vue'
 import StatusTag from '../ui/StatusTag.vue'
+import ElevatorGeoModal from '../ui/ElevatorGeoModal.vue'
 import { useToast } from '../ui/stores/ui'
 const toast = useToast()
 const route = useRoute()
 const id = route.params.id
 const row = ref({})
+const geoOpen = ref(false)
+function geoSaved(updated) {
+  row.value = { ...row.value, ...updated }
+}
 // 载重/额定速度：台账行投影为数值 + 独立单位列，展示时合并（缺省单位 kg / m/s）
 const ratedLoadText = computed(() => row.value.ratedLoad ? row.value.ratedLoad + ' ' + (row.value.ratedLoadUnit || 'kg') : '—')
 const ratedSpeedText = computed(() => row.value.ratedSpeed ? row.value.ratedSpeed + ' ' + (row.value.ratedSpeedUnit || 'm/s') : '—')

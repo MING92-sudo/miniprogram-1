@@ -155,6 +155,69 @@ class AdminArchiveServiceTest {
         verify(elevatorMapper).update(isNull(), any(LambdaUpdateWrapper.class));
     }
 
+    @Test
+    void updateElevatorRejectsIncompleteGeoWithoutWriting() {
+        Elevator el = new Elevator();
+        el.id = "el_9";
+        el.elevatorCode = "EM-1";
+        el.elevatorName = "测试梯";
+        when(elevatorMapper.selectById("el_9")).thenReturn(el);
+
+        BizException e = assertThrows(BizException.class,
+                () -> service.updateElevator("el_9", Map.of("lng", "106.55")));
+        assertEquals(422, e.getCode());
+        assertTrue(e.getMessage().contains("同时填写或同时留空"), e.getMessage());
+        verify(elevatorMapper, never()).updateById(any(Elevator.class));
+        verify(elevatorMapper, never()).update(isNull(), any(LambdaUpdateWrapper.class));
+    }
+
+    @Test
+    void updateElevatorRejectsOutOfRangeGeoWithoutWriting() {
+        Elevator el = new Elevator();
+        el.id = "el_9";
+        el.elevatorCode = "EM-1";
+        el.elevatorName = "测试梯";
+        when(elevatorMapper.selectById("el_9")).thenReturn(el);
+
+        BizException badLng = assertThrows(BizException.class,
+                () -> service.updateElevator("el_9", Map.of("lng", "180.000001", "lat", "29.56")));
+        assertEquals(422, badLng.getCode());
+        assertTrue(badLng.getMessage().contains("经度"), badLng.getMessage());
+        BizException badLat = assertThrows(BizException.class,
+                () -> service.updateElevator("el_9", Map.of("lng", "106.55", "lat", "-90.000001")));
+        assertEquals(422, badLat.getCode());
+        assertTrue(badLat.getMessage().contains("纬度"), badLat.getMessage());
+        verify(elevatorMapper, never()).updateById(any(Elevator.class));
+        verify(elevatorMapper, never()).update(isNull(), any(LambdaUpdateWrapper.class));
+    }
+
+    @Test
+    void updateElevatorRejectsMalformedGeoAsBusinessErrorWithoutWriting() {
+        Elevator el = new Elevator();
+        el.id = "el_9";
+        el.elevatorCode = "EM-1";
+        el.elevatorName = "测试梯";
+        when(elevatorMapper.selectById("el_9")).thenReturn(el);
+
+        BizException e = assertThrows(BizException.class,
+                () -> service.updateElevator("el_9", Map.of("lng", "abc", "lat", "29.56")));
+        assertEquals(422, e.getCode());
+        assertTrue(e.getMessage().contains("经度格式不正确"), e.getMessage());
+        verify(elevatorMapper, never()).updateById(any(Elevator.class));
+        verify(elevatorMapper, never()).update(isNull(), any(LambdaUpdateWrapper.class));
+    }
+
+    @Test
+    void createElevatorRejectsInvalidGeoBeforeInsert() {
+        BizException e = assertThrows(BizException.class, () -> service.createElevator(Map.of(
+                "elevatorCode", "EM-9", "deviceCode", "DT-9", "registrationCode", "REG-9",
+                "insideNumber", "KT-9", "factoryNumber", "FN-9",
+                "lng", "106.55", "lat", "91")));
+        assertEquals(422, e.getCode());
+        assertTrue(e.getMessage().contains("纬度"), e.getMessage());
+        verify(elevatorMapper, never()).insert(any(Elevator.class));
+    }
+
     /** 停保/启用直操作（2026-11-21 管理端电梯台账）：INACTIVE 落库；恢复在保必须显式 SET NULL（updateById 跳过 null 的回归锁） */
     @Test
     void updateElevatorSuspendAndResumeStatus() {
