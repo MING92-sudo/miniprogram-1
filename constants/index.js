@@ -36,6 +36,9 @@ const FAULT_STATUS_TONE = {
   CLOSED: 'ok', REFUSED: 'signal', CANCELLED: 'dim'
 }
 
+// 维保记录平台上报状态文案（工单列表卡片标签）
+const REPORT_STATUS_TEXT = { REPORTED: '已上报平台', FAILED: '上报异常', PENDING: '待上报' }
+
 // 报修故障等级选项（V2.28；困人急修须填被困人数，trappedCount 随单入库 C-18/V62）
 const FAULT_TYPE_OPTIONS = ['一般故障', '困人（紧急）']
 const FAULT_TYPE_TRAPPED = '困人（紧急）'
@@ -578,6 +581,7 @@ module.exports = {
   FAULT_STATUS_TEXT,
   FAULT_STATUS_SHORT,
   FAULT_STATUS_TONE,
+  REPORT_STATUS_TEXT,
   FAULT_TYPE_OPTIONS,
   FAULT_TYPE_TRAPPED,
   RECORD_LIFECYCLE_TEXT,

@@ -294,7 +294,10 @@ public class WorkOrderService {
         }
         String status = query.get("status");
         if (status != null && !status.isEmpty()) {
-            list = list.stream().filter(o -> status.equals(o.status)).collect(Collectors.toList());
+            // OPEN = 未闭环（工作台「待维保」KPI 下钻口径，排除已完成）
+            list = "OPEN".equals(status)
+                    ? list.stream().filter(o -> !"DONE".equals(o.status)).collect(Collectors.toList())
+                    : list.stream().filter(o -> status.equals(o.status)).collect(Collectors.toList());
         }
         String keyword = query.get("keyword");
         if (keyword != null && !keyword.isEmpty()) {

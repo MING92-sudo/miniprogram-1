@@ -663,7 +663,10 @@ function listOrders(query) {
     })
   }
   if (query && query.status) {
-    list = list.filter((o) => o.status === query.status)
+    // OPEN = 未闭环（工作台「待维保」KPI 下钻口径，排除已完成）
+    list = query.status === 'OPEN'
+      ? list.filter((o) => o.status !== 'DONE')
+      : list.filter((o) => o.status === query.status)
   }
   if (query && query.keyword) {
     const k = String(query.keyword).toLowerCase()

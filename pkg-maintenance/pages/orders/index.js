@@ -4,7 +4,7 @@
 // 2026-11-20 区域抢单池（D2/M1）：列表分「待接单池」与「我的工单」两段——池谓词（同区域+持平台ID）由后端做，
 // 前端只按「PENDING 且未认领（workerName/workerPlatformId 空）」拆段；签到按钮即认领（无独立接单按钮）。
 const { getOrderList, resolveByElevatorCode } = require('../../../services/order')
-const { STATUS_TEXT, TOAST_TEXT, EMPTY_TEXT, POOL_TEXT } = require('../../../constants/index')
+const { STATUS_TEXT, REPORT_STATUS_TEXT, TOAST_TEXT, EMPTY_TEXT, POOL_TEXT } = require('../../../constants/index')
 const { formatTime, parseTime } = require('../../../utils/util')
 const { definePage } = require('../../../utils/guard')
 const { ROUTES } = require('../../../config/routes')
@@ -12,9 +12,10 @@ const nav = require('../../../utils/nav')
 
 const TABS = [
   { key: '', label: '全部' },
-  { key: 'PENDING', label: '待执行' },
-  { key: 'PROCESSING', label: '进行中' },
-  { key: 'DONE', label: '已完成' }
+  { key: 'OPEN', label: '未完成' },
+  { key: 'PENDING', label: STATUS_TEXT.PENDING },
+  { key: 'PROCESSING', label: STATUS_TEXT.PROCESSING },
+  { key: 'DONE', label: STATUS_TEXT.DONE }
 ]
 const DUE_LABEL = { today: '今日到期', soon: '即将到期（3 天内）', overdue: '保养超期' }
 
@@ -35,8 +36,8 @@ function enrich(o) {
     item.elapsedText = '已作业 ' + (mins >= 60 ? Math.floor(mins / 60) + ' 小时 ' + (mins % 60) + ' 分' : mins + ' 分钟')
   }
   if (o.status === 'DONE') {
-    item.reportTag = o.reportStatus === 'REPORTED' ? { text: '已上报平台', cls: 'ok' }
-      : (o.reportStatus === 'FAILED' ? { text: '上报异常', cls: 'sig' } : { text: '待上报', cls: '' })
+    item.reportTag = o.reportStatus === 'REPORTED' ? { text: REPORT_STATUS_TEXT.REPORTED, cls: 'ok' }
+      : (o.reportStatus === 'FAILED' ? { text: REPORT_STATUS_TEXT.FAILED, cls: 'sig' } : { text: REPORT_STATUS_TEXT.PENDING, cls: '' })
   }
   item.workerLine = (o.workerName || '') + (o.assistantName ? ' · 配合 ' + o.assistantName : '')
   item.metaLine = [o.projectName, o.insideNumber ? '编号 ' + o.insideNumber : '', o.model].filter(Boolean).join(' · ')
