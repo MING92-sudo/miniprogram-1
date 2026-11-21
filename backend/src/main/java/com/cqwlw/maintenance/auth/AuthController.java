@@ -370,8 +370,8 @@ public class AuthController {
         return out;
     }
 
-    /** 范围一句话投影（部门 + 岗位）；数据范围权威仍是 ScopeResolver 读写谓词 */
-    private static String scopeText(Employee user) {
+    /** 部门码：空时按角色回退推导（与 scopeText 同口径，人员档案/范围投影共用） */
+    private static String departmentOf(Employee user) {
         String dept = user.department;
         if (dept == null || dept.isEmpty()) {
             String r = user.role == null ? "" : user.role;
@@ -379,7 +379,12 @@ public class AuthController {
                     ? "MAINT" : r.startsWith("INST") || r.startsWith("INSTALL") ? "INSTALL"
                     : r.startsWith("CLIENT") || r.equals("UNIT_ADMIN") ? "UNIT" : "PLATFORM";
         }
-        String deptName = switch (dept) {
+        return dept;
+    }
+
+    /** 范围一句话投影（部门 + 岗位）；数据范围权威仍是 ScopeResolver 读写谓词 */
+    private static String scopeText(Employee user) {
+        String deptName = switch (departmentOf(user)) {
             case "INSTALL" -> "安装部";
             case "MAINT" -> "维保部";
             case "UNIT" -> "使用单位";
@@ -410,6 +415,9 @@ public class AuthController {
         m.put("account", user.account);
         m.put("role", user.role);
         m.put("roleText", user.roleText);
+        m.put("groupName", user.groupName);
+        m.put("department", departmentOf(user));
+        m.put("jobTitle", user.jobTitle);
         m.put("platformId", user.platformId);
         m.put("certificate", user.certificate);
         m.put("workStartDate", user.workStartDate);

@@ -1,0 +1,3 @@
+/* 人员档案：头部身份卡 + 档案字段表 */
+page{background:var(--ink);color:var(--text)}
+.pe-avatar{width:96rpx;height:96rpx;border-radius:50%;background:#E4EAEE;border:1rpx solid #C6D0D7;display:flex;align-items:center;justify-content:center;font-size:44rpx;color:#55666F;flex:none}

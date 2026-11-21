@@ -1,0 +1,21 @@
+<view class="bw">
+  <nav-bar title="{{text.EMP_TITLE}}"></nav-bar>
+  <view class="page-pad col gap10">
+    <view class="card">
+      <view class="row gap10">
+        <view class="pe-avatar"><text>{{avatarChar}}</text></view>
+        <view class="grow">
+          <view class="disp fs38">{{userInfo.name || '-'}}</view>
+          <view class="fs20 muted mt2">{{userInfo.roleText || userInfo.role || ''}}</view>
+        </view>
+      </view>
+    </view>
+    <view class="card">
+      <view class="panel-title">{{text.EMP_BASE}}</view>
+      <view class="kv-row mt8" wx:for="{{rows}}" wx:key="label">
+        <text class="dim">{{item.label}}</text>
+        <text>{{item.value}}</text>
+      </view>
+    </view>
+  </view>
+</view>

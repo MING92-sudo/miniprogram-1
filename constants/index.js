@@ -520,9 +520,31 @@ const PROFILE_TEXT = {
   WECHAT_BOUND: '（已绑定）',
   ABOUT: '关于博威无纸化',
   LOGOUT: '退出登录',
-  MASKED_PHONE: '（脱敏 · 屏 16）',
-  ADMIN: '管理入口（按权限渲染）'
+  ADMIN: '管理入口（按权限渲染）',
+  // 人员档案（身份卡点击进入，/auth/me 取数）
+  EMP_TITLE: '人员档案',
+  EMP_BASE: 'PROFILE / 人员档案',
+  EMP_PHONE: '手机号',
+  EMP_ACCOUNT: '账号',
+  EMP_JOB: '岗位',
+  EMP_DEPT: '部门',
+  EMP_GROUP: '班组',
+  EMP_JOB_NO: '工号',
+  EMP_PLATFORM_ID: '平台人员 ID',
+  EMP_CERT: '作业证书',
+  EMP_CONTRACT: '合同期',
+  EMP_WORK_STAT: '作业状态',
+  EMP_SYNC: '平台同步',
+  EMP_SCOPE: '数据范围',
+  // 页脚署名（2026-11-21 用户裁决：版权 + 备案号 + Font Awesome 署名（CC BY 4.0 协议义务，措辞不限））
+  COPYRIGHT: '版权归重庆博威电梯有限公司所有',
+  ICP: '渝ICP备2026029659号-1X',
+  ICON_ATTR: 'Font Awesome Free（CC BY 4.0）'
 }
+// 人员档案展示映射（部门码/作业状态/平台同步状态）
+const DEPT_TEXT = { INSTALL: '安装部', MAINT: '维保部', UNIT: '使用单位', PLATFORM: '平台' }
+const WORK_STAT_TEXT = { normal: '正常' }
+const SYNC_STATUS_TEXT = { ACTIVE: '已同步', NOT_SYNCED: '未同步', PENDING: '待同步' }
 const ROLE_DESC = {
   MAINT_TECH: '本班组 · 点检 / 签到 / 签退 / 双签',
   MAINT_SUP: '本班组 · 派单 / 计划 / 复核 / 归档',
@@ -548,6 +570,9 @@ module.exports = {
   ELEVATOR_TEXT,
   PROFILE_TEXT,
   ROLE_DESC,
+  DEPT_TEXT,
+  WORK_STAT_TEXT,
+  SYNC_STATUS_TEXT,
   ROLE,
   STATUS_TEXT,
   FAULT_STATUS_TEXT,

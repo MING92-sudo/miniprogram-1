@@ -807,6 +807,17 @@ const routes = [
     return { ok: true, account: user.account }
   }],
   ['POST', '/auth/logout', () => ({ ok: true })],
+  // 本人信息（与后端 AuthController.me 同形状：员工=userInfo 全量档案字段，客户=简表 + principalType）
+  ['GET', '/auth/me', () => {
+    if (currentClient) {
+      const a = currentClient
+      return { userInfo: { id: a.id, name: a.name, phone: a.phone, useUnitId: a.useUnitId, status: a.status }, role: a.role, principalType: 'CUSTOMER' }
+    }
+    const user = d.db.employees[currentRole] || d.db.employees.WORKER
+    const userInfo = Object.assign({}, user)
+    delete userInfo.password
+    return { userInfo, role: currentRole }
+  }],
 
   // ── 工单 ──
   ['GET', '/home/summary', () => d.getHomeSummary()],

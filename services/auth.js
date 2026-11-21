@@ -1,5 +1,5 @@
 // 鉴权与登录（docs/04 接口文档 B）
-const { post } = require('../utils/request')
+const { post, get } = require('../utils/request')
 const { saveAuth } = require('../utils/auth')
 
 // 微信一键登录已启用（登录页仅本机已绑定账号显示，R5）；bindWeChat 入口在「我的」页。
@@ -33,6 +33,11 @@ function logout() {
   return post('/auth/logout', {})
 }
 
+// 本人信息（人员档案页取数；员工返回 userInfo 全量档案字段，客户返回简表 + principalType）
+function me() {
+  return get('/auth/me')
+}
+
 // 登录成功统一落库（M1：透传 roles/perms/activeWorkspace/home；P1 T8：透传 principalType）
 function applyLoginResult(data) {
   saveAuth({
@@ -56,5 +61,6 @@ module.exports = {
   bindWeChat,
   wxLogin,
   logout,
+  me,
   applyLoginResult
 }

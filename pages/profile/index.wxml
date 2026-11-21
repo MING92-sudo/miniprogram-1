@@ -1,18 +1,19 @@
 <view class="bw">
   <nav-bar title="{{text.TITLE}}" back="{{false}}"></nav-bar>
   <view class="page-pad tabbar-pad col gap10">
-    <view class="card pf-id">
+    <view class="card pf-id" bindtap="goEmployee">
       <view class="row gap10">
         <view class="pf-avatar"><text>{{avatarChar}}</text></view>
         <view class="grow">
           <view class="disp fs38">{{userInfo.name || '未登录'}}</view>
           <view class="fs20 muted mt2">{{userInfo.unitName || userInfo.groupName || ''}}{{userInfo.jobTitle ? ' · ' + userInfo.jobTitle : ''}}{{userInfo.jobNo ? ' · ' + userInfo.jobNo : ''}}</view>
-          <view wx:if="{{maskedPhone}}" class="fs20 dim mt2">手机号 {{maskedPhone}}{{text.MASKED_PHONE}}</view>
+          <view wx:if="{{maskedPhone}}" class="fs20 dim mt2">手机号 {{maskedPhone}}</view>
         </view>
+        <text class="i i-chevron-right dim"></text>
       </view>
     </view>
 
-    <view class="card">
+    <view wx:if="{{roleList.length > 1}}" class="card">
       <view class="row between pf-sec">
         <text class="panel-title mono">{{text.ROLES}}</text>
         <text class="fs18 dim">{{text.ROLES_SUB}}</text>
@@ -26,7 +27,7 @@
       </view>
     </view>
 
-    <view class="card">
+    <view wx:if="{{workbenchList.length > 1}}" class="card">
       <view class="row between pf-sec">
         <text class="panel-title mono">{{text.WORKBENCH}}</text>
         <text class="fs18 dim">{{text.WORKBENCH_SUB}}</text>
@@ -63,9 +64,9 @@
     <button class="btn btn-ghost" bindtap="onLogout">{{text.LOGOUT}}</button>
 
     <view class="pf-attr">
-      <view>图标：Font Awesome Free（CC BY 4.0）</view>
-      <view>显示字：ZCOOL QingKe HuangYou（OFL 1.1）</view>
-      <view class="mt4">{{appName}} · {{versionText}}</view>
+      <view>{{text.COPYRIGHT}}</view>
+      <view class="mt4">{{text.ICP}}</view>
+      <view class="mt4">{{text.ICON_ATTR}}</view>
     </view>
   </view>
   <custom-tabbar></custom-tabbar>

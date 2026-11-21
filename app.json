@@ -14,6 +14,7 @@
     "pages/elevator/detail/index",
     "pages/profile/index",
     "pages/profile/password",
+    "pages/profile/employee",
     "pages/403/index",
     "pages/message/index",
     "pages/offline/index",

@@ -6,7 +6,7 @@ const { ROUTES } = require('../../config/routes')
 const menus = require('../../config/menus')
 const { getRoles, getPerms, isCustomerPrincipal } = require('../../utils/auth')
 const nav = require('../../utils/nav')
-const { TOAST_TEXT, PROFILE_TEXT, ROLE_DESC, BRAND } = require('../../constants/index')
+const { TOAST_TEXT, PROFILE_TEXT, ROLE_DESC } = require('../../constants/index')
 
 const WECHAT_BOUND_KEY = 'em_wechat_bound'
 const GROUPS = [
@@ -28,7 +28,7 @@ function wxLoginCode() {
 definePage(ROUTES['/pages/profile/index'], {
   data: {
     userInfo: null, avatarChar: '', maskedPhone: '', roleList: [], scope: '', workbenchList: [],
-    wechatBound: false, binding: false, versionText: '', adminEntries: [], text: PROFILE_TEXT, appName: BRAND.APP_NAME
+    wechatBound: false, binding: false, versionText: '', adminEntries: [], text: PROFILE_TEXT
   },
   onShow() {
     const app = getApp()
@@ -80,6 +80,7 @@ definePage(ROUTES['/pages/profile/index'], {
     getApp().switchWorkspace(e.currentTarget.dataset.ws)
   },
   goMessage() { nav.open('/pages/message/index') },
+  goEmployee() { nav.open('/pages/profile/employee') },
   goOffline() { nav.open('/pages/offline/index') },
   goPassword() { nav.open('/pages/profile/password') },
   goMaskDoc() { wx.showModal({ title: PROFILE_TEXT.MASK, content: PROFILE_TEXT.MASK_CONTENT, showCancel: false, confirmText: '知道了' }) },

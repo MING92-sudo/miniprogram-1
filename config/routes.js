@@ -31,6 +31,7 @@ const LIST = [
   R('/pages/elevator/detail/index', '电梯档案', { perm: ['elevator:view', 'client:elevator_view'], built: true }),
   R('/pages/profile/index', '我的', { tab: true, built: true }),
   R('/pages/profile/password', '修改密码', { built: true }),
+  R('/pages/profile/employee', '人员档案', { built: true }),
   R('/pages/403/index', '无访问权限', { auth: false, built: true }),
   R('/pages/message/index', '消息中心', { built: true }),
   R('/pages/offline/index', '离线队列', { built: true }),
