@@ -16,7 +16,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
- * 管理端门禁（docs/09 二期）：发起延期与转派为"班组长及以上"（LEADER 可写），
+ * 管理端门禁（docs/09 二期）：发起延期为"班组长及以上"（LEADER 可写），
  * 其余写操作仍需 ADMIN/SYS_ADMIN。
  */
 class AdminRoleInterceptorTest {
@@ -48,11 +48,9 @@ class AdminRoleInterceptorTest {
     }
 
     @Test
-    void leaderCanInitiateDelayAndTransfer() {
+    void leaderCanInitiateDelay() {
         assertDoesNotThrow(() -> interceptor.preHandle(
                 request("POST", "/admin/plans/pl_1/delay", "LEADER"), response, handler));
-        assertDoesNotThrow(() -> interceptor.preHandle(
-                request("POST", "/admin/orders/wo_1/transfer", "LEADER"), response, handler));
     }
 
     @Test

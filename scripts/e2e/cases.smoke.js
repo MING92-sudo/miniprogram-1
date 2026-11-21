@@ -116,7 +116,6 @@ async function runSmokeCases(ctx) {
   record('PUT /admin/plans/{id}/assign', await put(`/admin/plans/${planId}/assign`, { principalId: seed.employees.maintTech }, admin), 'any')
   record('POST /admin/plans/{id}/delay', await post(`/admin/plans/${planId}/delay`, { delayDays: 1, reason: 'e2e' }, admin), 'any')
   record('PUT /admin/plans/delays/{id}/decide', await put('/admin/plans/delays/dl_none/decide', { approved: true }, admin), 'any')
-  record('POST /admin/orders/{id}/transfer', await post(`/admin/orders/${seed.workOrders.wo1}/transfer`, { toWorker: '李振国', reason: 'e2e' }, admin), 'any')
   record('GET /admin/templates', await get('/admin/templates', admin), 'ok')
   record('POST /admin/templates', await post('/admin/templates', { name: 'E2E模板', itemGroup: '半月保' }, admin), 'any')
   record('PUT /admin/templates/{id}', await put(`/admin/templates/${seed.templates.tpl1}`, { name: '机房、滑轮间环境' }, admin), 'any')
@@ -331,6 +330,11 @@ async function runSmokeCases(ctx) {
   record('GET /unit/elevators（客户）', await get('/unit/elevators', client), 'ok')
   record('GET /unit/records/list（客户）', await get('/unit/records/list', client), 'ok')
   record('GET /unit/pending-signs（客户）', await get('/unit/pending-signs', client), 'ok')
+  // V2.80 客户门户消息（签字临期/超期提醒）
+  record('GET /unit/messages（客户）', await get('/unit/messages', client), 'ok')
+  record('GET /unit/messages/unread-count（客户）', await get('/unit/messages/unread-count', client), 'ok')
+  record('POST /unit/messages/{id}/read（不存在归一业务拒绝）', await post('/unit/messages/msg_none/read', {}, client), 'any')
+  record('POST /unit/messages/read-all（幂等）', await post('/unit/messages/read-all', {}, client), 'ok')
   record('GET /unit/faults（客户）', await get('/unit/faults', client), 'ok')
   record('POST /unit/faults（客户报修）', await post('/unit/faults', { elevatorId: seed.elevators.el1, desc: 'E2E客户报修' }, client), 'any')
   record('POST /unit/accounts（建账号）', await post('/unit/accounts', { name: 'E2E', phone: '13900006666' }, client), 'any')
@@ -347,6 +351,9 @@ async function runSmokeCases(ctx) {
   record('POST /unit/records/{id}/confirm', await post(`/unit/records/${seed.records.ur1}/confirm`, {}, client), 'any')
   record('POST /unit/records/{id}/confirm-by-token', await post(`/unit/records/${seed.records.ur1}/confirm-by-token`, {}, client), 'any')
   record('POST /unit/records/{id}/refuse-by-token', await post(`/unit/records/${seed.records.ur1}/refuse-by-token`, { reason: 'e2e' }, client), 'any')
+  // V2.80 批量签字（逐条独立门禁；空 ids 422、不存在记录入 failed[]）
+  record('POST /unit/records/batch-confirm（空 ids 422）', await post('/unit/records/batch-confirm', { recordIds: [], signatureFileId: 'f_e2e' }, client), 'any')
+  record('POST /unit/records/batch-confirm（逐条 failed 不拖累）', await post('/unit/records/batch-confirm', { recordIds: ['ur_none'], signatureFileId: 'f_e2e' }, client), 'any')
 
   await probe(ctx, 'C20')
   // ══════════ 20. User ══════════

@@ -247,48 +247,6 @@ public class AdminScheduleService {
         return out;
     }
 
-    // ── 转派（POST /admin/orders/{id}/transfer，班组长及以上，docs/04 A.2）──
-
-    public Map<String, Object> transfer(String orderId, String toEmployeeId, String reason) {
-        WorkOrder o = orderMapper.selectById(orderId);
-        if (o == null) {
-            throw new BizException(1404, "工单不存在");
-        }
-        if (!"PENDING".equals(o.status)) {
-            throw new BizException(422, "仅待执行工单可转派（当前 " + o.status + "）");
-        }
-        Employee target = assignable(toEmployeeId, "转派对象");
-        requirePlatformId(target);
-        LocalDate planDay = o.planTime != null ? o.planTime.toLocalDate() : TimeUtil.now().toLocalDate();
-        checkCert(target, planDay);
-
-        // 互斥：转派后主维保 ≠ 配合人员（配合人优先从关联计划取）且 ≠ 维保经理
-        Employee assistant = null;
-        MaintainPlan linked = planMapper.selectList(new LambdaQueryWrapper<MaintainPlan>()
-                .eq(MaintainPlan::getOrderId, o.id).last("LIMIT 1")).stream().findFirst().orElse(null);
-        if (linked != null && notBlank(linked.assistantId)) {
-            assistant = employeeMapper.selectById(linked.assistantId);
-        }
-        checkDispatchMutex(target, assistant);
-        checkElevatorFree(elevatorMapper.selectById(o.elevatorId), o.id);
-
-        o.workerName = target.name;
-        o.workerPlatformId = target.platformId == null ? "" : target.platformId;
-        orderMapper.updateById(o);
-        if (linked != null) {
-            linked.principalId = target.id;
-            linked.updatedAt = TimeUtil.now();
-            planMapper.updateById(linked);
-        }
-        Map<String, Object> out = new LinkedHashMap<>();
-        out.put("ok", true);
-        out.put("orderId", o.id);
-        out.put("orderNo", o.orderNo);
-        out.put("workerName", target.name);
-        out.put("reason", reason == null ? "" : reason);
-        return out;
-    }
-
     // ── 延期申请与审批（POST /admin/plans/{id}/delay；PUT /admin/plans/delays/{id}/decide）──
 
     public Map<String, Object> applyDelay(String planId, String reason, Integer delayDays,

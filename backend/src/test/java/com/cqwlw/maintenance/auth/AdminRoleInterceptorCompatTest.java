@@ -39,7 +39,7 @@ class AdminRoleInterceptorCompatTest {
     private static final Set<String> LEGACY_READ = Set.of("LEADER", "ADMIN", "SYS_ADMIN");
     private static final Set<String> LEGACY_WRITE = Set.of("ADMIN", "SYS_ADMIN");
     private static final Pattern LEGACY_LEADER_WRITABLE =
-            Pattern.compile("^/admin/(plans/[^/]+/delay|orders/[^/]+/transfer)$");
+            Pattern.compile("^/admin/plans/[^/]+/delay$");
     private static final Pattern LEGACY_WORKER_WRITABLE_ELEVATOR =
             Pattern.compile("^/elevators/[^/]+/(project-name|local)$");
 
@@ -51,7 +51,6 @@ class AdminRoleInterceptorCompatTest {
             new String[]{"GET", "/admin/dashboard"},
             new String[]{"PUT", "/admin/plans/{id}/assign"},
             new String[]{"POST", "/admin/plans/{id}/delay"},
-            new String[]{"POST", "/admin/orders/{id}/transfer"},
             new String[]{"GET", "/reg/upload-logs"},
             new String[]{"GET", "/reg/sync-status"},
             new String[]{"GET", "/platform/workers"},

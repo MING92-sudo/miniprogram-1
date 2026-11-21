@@ -19,7 +19,7 @@ import java.util.Map;
 
 /**
  * 管理端·计划调度与延期审批（docs/04 A.5 落地，docs/09 二期）。
- * 角色：读 LEADER+；指派/生成/审批 = ADMIN/SYS_ADMIN；发起延期/转派 = 班组长及以上（LEADER+，
+ * 角色：读 LEADER+；指派/生成/审批 = ADMIN/SYS_ADMIN；发起延期 = 班组长及以上（LEADER+，
  * 拦截器 LEADER 可写例外）。校验失败码：1004（platform_id 未同步）/1007（互斥/证件/重复派单）。
  */
 @RestController
@@ -113,12 +113,6 @@ public class AdminScheduleController {
         boolean approved = Boolean.parseBoolean(String.valueOf(body.get("approved")));
         return ApiResponse.ok(scheduleService.decideDelay(id, approved,
                 str(body, "comment"), String.valueOf(request.getAttribute(AuthInterceptor.ATTR_EMP_ID))));
-    }
-
-    @PostMapping("/admin/orders/{id}/transfer")
-    public ApiResponse<Map<String, Object>> transfer(@PathVariable String id,
-                                                     @RequestBody Map<String, Object> body) {
-        return ApiResponse.ok(scheduleService.transfer(id, str(body, "toEmployeeId"), str(body, "reason")));
     }
 
     /**

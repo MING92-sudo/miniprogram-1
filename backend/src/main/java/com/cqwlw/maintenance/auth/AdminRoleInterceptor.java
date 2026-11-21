@@ -19,14 +19,14 @@ import org.springframework.web.servlet.HandlerInterceptor;
  * 例外：GET /elevators* 为小程序共用读接口，任何已登录角色放行；
  *       PUT /elevators/{id}/project-name、PUT /elevators/{id}/local 为维保人员现场更正电梯本地信息，
  *       任何已登录角色放行（越权由 ElevatorService 归属校验兜底，1403）；POST /elevators/{id}/dispatch 手动派单仍需管理员；
- *       二期例外（docs/04 A.2/A.5）：发起延期（POST /admin/plans/{id}/delay）与
- *       转派（POST /admin/orders/{id}/transfer）为"班组长及以上"，LEADER 可写（本组范围由 DeptScopeService 收敛）。
+ *       二期例外（docs/04 A.5）：发起延期（POST /admin/plans/{id}/delay）为"班组长及以上"，
+ *       LEADER 可写（本组范围由 DeptScopeService 收敛）。
  */
 @Component
 public class AdminRoleInterceptor implements HandlerInterceptor {
 
     private static final java.util.regex.Pattern LEADER_WRITABLE =
-            java.util.regex.Pattern.compile("^/admin/(plans/[^/]+/delay|orders/[^/]+/transfer)$");
+            java.util.regex.Pattern.compile("^/admin/plans/[^/]+/delay$");
 
     /** 维保人员现场可写的电梯端点（归属校验在 ElevatorService，仅本人负责的电梯，越权 1403） */
     private static final java.util.regex.Pattern WORKER_WRITABLE_ELEVATOR =
