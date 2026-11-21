@@ -68,6 +68,7 @@ public class ExternalFilingService {
     private final ExternalTakeoverCheckItemMapper checkItemMapper;
     private final HandoverConfirmationMapper confirmationMapper;
     private final ElevatorMapper elevatorMapper;
+    private final com.cqwlw.maintenance.mapper.EmployeeMapper employeeMapper;
     private final WorkOrderMapper workOrderMapper;
     private final DispatchService dispatchService;
     private final ContractService contractService;
@@ -78,6 +79,7 @@ public class ExternalFilingService {
                                  ExternalTakeoverCheckItemMapper checkItemMapper,
                                  HandoverConfirmationMapper confirmationMapper,
                                  ElevatorMapper elevatorMapper,
+                                 com.cqwlw.maintenance.mapper.EmployeeMapper employeeMapper,
                                  WorkOrderMapper workOrderMapper,
                                  DispatchService dispatchService,
                                  ContractService contractService) {
@@ -87,6 +89,7 @@ public class ExternalFilingService {
         this.checkItemMapper = checkItemMapper;
         this.confirmationMapper = confirmationMapper;
         this.elevatorMapper = elevatorMapper;
+        this.employeeMapper = employeeMapper;
         this.workOrderMapper = workOrderMapper;
         this.dispatchService = dispatchService;
         this.contractService = contractService;
@@ -238,9 +241,13 @@ public class ExternalFilingService {
      * 确认与归档一步到位，整体一个事务（与移交 confirm 同口径）。
      */
     @Transactional(rollbackFor = Exception.class)
-    public HandoverConfirmation confirm(String id, Map<String, Object> body) {
+    public HandoverConfirmation confirm(String id, Map<String, Object> body, String actorEmpId) {
         ExternalFilingOrder o = requireFiling(id);
         requireStatus(o, PENDING_CONFIRM, "交接确认");
+        com.cqwlw.maintenance.entity.Employee actor = employeeMapper.selectById(actorEmpId);
+        if (actor == null) {
+            throw new BizException(1403, "确认人登录身份无效");
+        }
         String counterpartName = trimToNull(str(body, "counterpartSignName"));
         if (counterpartName == null) {
             throw new BizException(422, "请填写对方签字人姓名");
@@ -258,8 +265,8 @@ public class ExternalFilingService {
         conf.ourSignFileId = trimToNull(str(body, "ourSignFileId"));
         conf.counterpartSignName = counterpartName;
         conf.counterpartSignFileId = counterpartSign;
-        conf.confirmedById = trimToNull(str(body, "confirmedById"));
-        conf.confirmedByName = trimToNull(str(body, "confirmedByName"));
+        conf.confirmedById = actor.id;
+        conf.confirmedByName = actor.name;
         conf.at = now;
         confirmationMapper.insert(conf);
 

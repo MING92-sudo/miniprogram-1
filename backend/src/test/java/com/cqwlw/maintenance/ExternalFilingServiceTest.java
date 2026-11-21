@@ -50,11 +50,12 @@ class ExternalFilingServiceTest {
         final ExternalTakeoverCheckItemMapper itemMapper = mock(ExternalTakeoverCheckItemMapper.class);
         final HandoverConfirmationMapper confirmMapper = mock(HandoverConfirmationMapper.class);
         final ElevatorMapper elevatorMapper = mock(ElevatorMapper.class);
+        final com.cqwlw.maintenance.mapper.EmployeeMapper employeeMapper = mock(com.cqwlw.maintenance.mapper.EmployeeMapper.class);
         final WorkOrderMapper workOrderMapper = mock(WorkOrderMapper.class);
         final DispatchService dispatchService = mock(DispatchService.class);
         final ContractService contractService = mock(ContractService.class);
         final ExternalFilingService service = new ExternalFilingService(orderMapper, docMapper, checkMapper,
-                itemMapper, confirmMapper, elevatorMapper, workOrderMapper, dispatchService, contractService);
+                itemMapper, confirmMapper, elevatorMapper, employeeMapper, workOrderMapper, dispatchService, contractService);
     }
 
     private static MaintenanceContract contract(String useUnitId, LocalDate start, LocalDate end, String status) {
@@ -213,14 +214,20 @@ class ExternalFilingServiceTest {
         when(m.dispatchService.precreateFirstOrder(any(Elevator.class), eq(LocalDate.now().plusDays(3))))
                 .thenReturn(first);
 
+        com.cqwlw.maintenance.entity.Employee actor = new com.cqwlw.maintenance.entity.Employee();
+        actor.id = "emp_real";
+        actor.name = "真实登录人";
+        when(m.employeeMapper.selectById("emp_real")).thenReturn(actor);
         HandoverConfirmation conf = m.service.confirm(o.id, Map.of(
                 "counterpartSignName", "刘管理员",
                 "counterpartSignFileId", "file_sign",
                 "keyToolCheck", "钥匙 2 把、盘车手轮齐全",
                 "leftoverIssue", "制动闸瓦待更换（前维保单位负责）",
-                "confirmedById", "emp_m1", "confirmedByName", "维保经理"));
+                "confirmedById", "emp_m1", "confirmedByName", "伪造请求体身份"), "emp_real");
 
         assertNotNull(conf.id);
+        assertEquals("emp_real", conf.confirmedById);
+        assertEquals("真实登录人", conf.confirmedByName);
         assertEquals("ARCHIVED", o.status);
         ArgumentCaptor<Elevator> elCaptor = ArgumentCaptor.forClass(Elevator.class);
         verify(m.elevatorMapper).insert(elCaptor.capture());

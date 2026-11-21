@@ -4,6 +4,7 @@ const { getHandoverChecklist, submitHandoverChecklist } = require('../../../serv
 const { uploadImage } = require('../../../services/upload')
 const { definePage } = require('../../../utils/guard')
 const { ROUTES } = require('../../../config/routes')
+const { HANDOVER_GROUP_LABEL } = require('../../../constants/index')
 const nav = require('../../../utils/nav')
 
 const NA_CODES = [
@@ -37,7 +38,7 @@ definePage(ROUTES['/pkg-handover/pages/inspect/index'], {
       const groups = []
       items.forEach((it) => {
         const g = it.itemGroup || 'G01'
-        if (!groupMap[g]) { groupMap[g] = { group: g, items: [] }; groups.push(groupMap[g]) }
+        if (!groupMap[g]) { groupMap[g] = { group: g, groupLabel: HANDOVER_GROUP_LABEL[g] || '', items: [] }; groups.push(groupMap[g]) }
         groupMap[g].items.push(it)
       })
       this.setData({ check: res && res.check, items, groups, loading: false, doneCount: items.filter((i) => i.result).length })

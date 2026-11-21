@@ -65,43 +65,55 @@ public class HandoverController {
     /** 提交 3 必传资料（缺一 422） */
     @PostMapping("/handovers/{id}/submit-docs")
     public ApiResponse<HandoverOrder> submitDocs(@PathVariable String id,
-                                                 @RequestBody(required = false) Map<String, Object> body) {
+                                                 @RequestBody(required = false) Map<String, Object> body,
+                                                 HttpServletRequest req) {
+        MultiRoleGate.requireWrite(req, PermissionMatrix.HANDOVER_DOC_UPLOAD);
         return ApiResponse.ok(handoverService.submitDocs(id, body));
     }
 
     /** 维保部经理分配接收工程师 */
     @PostMapping("/handovers/{id}/assign-receiver")
     public ApiResponse<HandoverOrder> assignReceiver(@PathVariable String id,
-                                                     @RequestBody(required = false) Map<String, Object> body) {
+                                                     @RequestBody(required = false) Map<String, Object> body,
+                                                     HttpServletRequest req) {
+        MultiRoleGate.requireWrite(req, PermissionMatrix.HANDOVER_RECEIVE);
         return ApiResponse.ok(handoverService.assignReceiver(id, body));
     }
 
     /** 现场查验（安全装置/制动器不合格 → 整改中） */
     @PostMapping("/handovers/{id}/inspect")
     public ApiResponse<HandoverOrder> submitInspect(@PathVariable String id,
-                                                    @RequestBody(required = false) Map<String, Object> body) {
+                                                    @RequestBody(required = false) Map<String, Object> body,
+                                                    HttpServletRequest req) {
+        MultiRoleGate.requireWrite(req, PermissionMatrix.HANDOVER_INSPECT);
         return ApiResponse.ok(handoverService.submitInspect(id, body));
     }
 
     /** 安装部上传整改前后照片 */
     @PostMapping("/handovers/{id}/rectify")
     public ApiResponse<HandoverOrder> submitRectify(@PathVariable String id,
-                                                    @RequestBody(required = false) Map<String, Object> body) {
+                                                    @RequestBody(required = false) Map<String, Object> body,
+                                                    HttpServletRequest req) {
+        MultiRoleGate.requireWrite(req, PermissionMatrix.HANDOVER_RECTIFY);
         return ApiResponse.ok(handoverService.submitRectify(id, body));
     }
 
     /** 复验（通过回待确认） */
     @PostMapping("/handovers/{id}/recheck-rectify")
     public ApiResponse<HandoverOrder> recheckRectify(@PathVariable String id,
-                                                     @RequestBody(required = false) Map<String, Object> body) {
+                                                     @RequestBody(required = false) Map<String, Object> body,
+                                                     HttpServletRequest req) {
+        MultiRoleGate.requireWrite(req, PermissionMatrix.HANDOVER_REVIEW);
         return ApiResponse.ok(handoverService.recheckRectify(id, body));
     }
 
     /** 经理确认 → 已归档（归档副作用见 Task 5） */
     @PostMapping("/handovers/{id}/confirm")
     public ApiResponse<HandoverOrder> confirm(@PathVariable String id,
-                                              @RequestBody(required = false) Map<String, Object> body) {
-        return ApiResponse.ok(handoverService.confirm(id, body));
+                                              @RequestBody(required = false) Map<String, Object> body,
+                                              HttpServletRequest req) {
+        MultiRoleGate.requireWrite(req, PermissionMatrix.HANDOVER_SIGN_MAINT);
+        return ApiResponse.ok(handoverService.confirm(id, body, empId(req)));
     }
 
     /** 节点账号签字（通过=签字；非该节点授权角色 1403，Task 6） */

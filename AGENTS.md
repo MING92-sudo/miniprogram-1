@@ -54,11 +54,11 @@
 | 小程序根目录 | `npm run lint` |
 | `admin/` | `npm run lint && npm test && npm run build`（Windows esbuild `Access is denied` → `TMP/TEMP` 指向 `admin/.tmp-build`） |
 | `backend/` | `mvn test` |
-| 签到/派单/模板链路 | 另跑 `node scripts/verify-dispatch.js`、`node scripts/verify-templates.js` |
+| 签到/派单/模板链路 | 另跑 `node scripts/verify-dispatch.js`、`node scripts/verify-templates.js`；改移交查验模板（mock `HANDOVER_TEMPLATE` 或后端 `HandoverChecklistTemplate`）另跑 `node scripts/verify-handover-template.js` |
 
 - 小程序链路人工走查：登录 → 签到（主/配合分别）→ 清单 → 签退 → 记录预览；改离线队列补飞行模式断网补传。
 - 平台写接口（2.3/2.4/2.6/2.8）会产生**真实监管数据**，跑 `scripts/*.ps1` 前必须确认。
-- CI（`.github/workflows/backend-build.yml`）四道门禁全跑：后端 `mvn test`、`verify-dispatch/templates`、根 lint、admin lint/test/build。
+- CI（`.github/workflows/backend-build.yml`）四道门禁全跑：后端 `mvn test`、`verify-dispatch/templates/handover-template`、根 lint、admin lint/test/build。
 
 ## 7. Git
 

@@ -9,6 +9,7 @@ import com.cqwlw.maintenance.service.HandoverService;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockHttpServletRequest;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -92,5 +93,57 @@ class HandoverFilingGateTest {
             assertNotNull(c.list(null, null, null, req(role)), role);
             assertNotNull(c.get("ef_1", req(role)), role);
         }
+    }
+
+    @Test
+    void everyLegacyHandoverWriteRequiresItsOwnCapability() {
+        HandoverService svc = mock(HandoverService.class);
+        HandoverController c = new HandoverController(svc);
+        List<Runnable> calls = List.of(
+                () -> c.submitDocs("h1", Map.of(), req("CLIENT_ADMIN")),
+                () -> c.assignReceiver("h1", Map.of(), req("CLIENT_ADMIN")),
+                () -> c.submitInspect("h1", Map.of(), req("CLIENT_ADMIN")),
+                () -> c.submitRectify("h1", Map.of(), req("CLIENT_ADMIN")),
+                () -> c.recheckRectify("h1", Map.of(), req("CLIENT_ADMIN")),
+                () -> c.confirm("h1", Map.of(), req("CLIENT_ADMIN")));
+        for (Runnable call : calls) {
+            BizException ex = assertThrows(BizException.class, call::run);
+            assertEquals(403, ex.getCode());
+        }
+        org.mockito.Mockito.verifyNoInteractions(svc);
+    }
+
+    @Test
+    void everyLegacyFilingWriteRequiresFilingWrite() {
+        ExternalFilingService svc = mock(ExternalFilingService.class);
+        ExternalFilingController c = new ExternalFilingController(svc);
+        List<Runnable> calls = List.of(
+                () -> c.submitDocs("f1", Map.of(), req("CLIENT_ADMIN")),
+                () -> c.takeoverCheck("f1", Map.of(), req("CLIENT_ADMIN")),
+                () -> c.confirm("f1", Map.of(), req("CLIENT_ADMIN")));
+        for (Runnable call : calls) {
+            BizException ex = assertThrows(BizException.class, call::run);
+            assertEquals(403, ex.getCode());
+        }
+        org.mockito.Mockito.verifyNoInteractions(svc);
+    }
+
+    @Test
+    void confirmationActorComesFromAuthenticatedRequest() {
+        HandoverService handover = mock(HandoverService.class);
+        HandoverController handoverController = new HandoverController(handover);
+        MockHttpServletRequest handoverRequest = req("MAINT_MGR");
+        handoverRequest.setAttribute(AuthInterceptor.ATTR_EMP_ID, "emp_manager");
+        when(handover.confirm(any(), any(), any())).thenReturn(new HandoverOrder());
+        handoverController.confirm("h1", Map.of("confirmedById", "forged"), handoverRequest);
+        verify(handover).confirm("h1", Map.of("confirmedById", "forged"), "emp_manager");
+
+        ExternalFilingService filing = mock(ExternalFilingService.class);
+        ExternalFilingController filingController = new ExternalFilingController(filing);
+        MockHttpServletRequest filingRequest = req("MAINT_MGR");
+        filingRequest.setAttribute(AuthInterceptor.ATTR_EMP_ID, "emp_manager");
+        when(filing.confirm(any(), any(), any())).thenReturn(new com.cqwlw.maintenance.entity.HandoverConfirmation());
+        filingController.confirm("f1", Map.of("confirmedById", "forged"), filingRequest);
+        verify(filing).confirm("f1", Map.of("confirmedById", "forged"), "emp_manager");
     }
 }

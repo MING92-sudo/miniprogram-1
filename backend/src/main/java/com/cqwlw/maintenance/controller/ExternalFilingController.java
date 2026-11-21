@@ -64,21 +64,34 @@ public class ExternalFilingController {
     /** 提交建档资料（可标缺件待补办，提交后进入 TAKEOVER_CHECKING） */
     @PostMapping("/filings/{id}/submit-docs")
     public ApiResponse<ExternalFilingOrder> submitDocs(@PathVariable String id,
-                                                       @RequestBody(required = false) Map<String, Object> body) {
+                                                       @RequestBody(required = false) Map<String, Object> body,
+                                                       HttpServletRequest req) {
+        com.cqwlw.maintenance.auth.MultiRoleGate.requireWrite(req,
+                com.cqwlw.maintenance.auth.PermissionMatrix.FILING_WRITE_NEW);
         return ApiResponse.ok(filingService.submitDocs(id, body));
     }
 
     /** 提交接管查验（不合格不阻塞，责任归属必填，提交后进入 PENDING_CONFIRM） */
     @PostMapping("/filings/{id}/takeover-check")
     public ApiResponse<ExternalFilingOrder> takeoverCheck(@PathVariable String id,
-                                                          @RequestBody(required = false) Map<String, Object> body) {
+                                                          @RequestBody(required = false) Map<String, Object> body,
+                                                          HttpServletRequest req) {
+        com.cqwlw.maintenance.auth.MultiRoleGate.requireWrite(req,
+                com.cqwlw.maintenance.auth.PermissionMatrix.FILING_WRITE_NEW);
         return ApiResponse.ok(filingService.submitTakeoverCheck(id, body));
     }
 
     /** 交接确认（双方签字）→ 归档建电梯 + 首保工单 */
     @PostMapping("/filings/{id}/confirm")
     public ApiResponse<HandoverConfirmation> confirm(@PathVariable String id,
-                                                     @RequestBody(required = false) Map<String, Object> body) {
-        return ApiResponse.ok(filingService.confirm(id, body));
+                                                     @RequestBody(required = false) Map<String, Object> body,
+                                                     HttpServletRequest req) {
+        com.cqwlw.maintenance.auth.MultiRoleGate.requireWrite(req,
+                com.cqwlw.maintenance.auth.PermissionMatrix.FILING_WRITE_NEW);
+        return ApiResponse.ok(filingService.confirm(id, body, empId(req)));
+    }
+
+    private String empId(HttpServletRequest request) {
+        return String.valueOf(request.getAttribute(com.cqwlw.maintenance.auth.AuthInterceptor.ATTR_EMP_ID));
     }
 }

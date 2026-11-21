@@ -360,11 +360,15 @@ public class HandoverService {
     /** 维保部经理确认：PENDING_CONFIRM → ARCHIVED，记录确认人/时间。
      *  确认=归档一步到位：状态流转后随即调用 archive() 执行建电梯/责任人/首保工单副作用，整体一个事务。 */
     @Transactional(rollbackFor = Exception.class)
-    public HandoverOrder confirm(String id, Map<String, Object> body) {
+    public HandoverOrder confirm(String id, Map<String, Object> body, String actorEmpId) {
         HandoverOrder o = requireOrder(id);
         requireStatus(o, PENDING_CONFIRM, "确认");
-        o.confirmedById = trimToNull(str(body, "confirmedById"));
-        o.confirmedByName = trimToNull(str(body, "confirmedByName"));
+        Employee actor = employeeMapper.selectById(actorEmpId);
+        if (actor == null) {
+            throw new BizException(1403, "确认人登录身份无效");
+        }
+        o.confirmedById = actor.id;
+        o.confirmedByName = actor.name;
         o.confirmedAt = LocalDateTime.now();
         o.status = ARCHIVED;
         orderMapper.updateById(o);
