@@ -1,5 +1,5 @@
 .od-sign{width:100%;height:120rpx;margin:12rpx 0}
-.od-textarea{background:#0D1519;border:1rpx solid #3A4A51;border-radius:6rpx;padding:14rpx;font-size:22rpx;color:var(--text);min-height:90rpx;width:100%;box-sizing:border-box}
+.od-textarea{background:#F7F9FA;border:1rpx solid #C9D3DA;border-radius:6rpx;padding:14rpx;font-size:22rpx;color:var(--text);min-height:90rpx;width:100%;box-sizing:border-box}
 .od-ph{color:var(--dim)}
 .od-f-ghost{flex:.9}
 .od-f-main{flex:1.1}

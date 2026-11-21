@@ -18,7 +18,7 @@ page{background:var(--ink);color:var(--text)}
 .rd-sign image{width:100%;height:80rpx}
 .rd-client{border:1rpx dashed var(--paper-line);margin-top:12rpx;padding:10rpx;font-size:18rpx;color:#5B5341}
 .rd-client image{width:100%;height:80rpx}
-.rd-item{padding:12rpx 0;border-bottom:1rpx dashed rgba(38,52,59,.6)}
+.rd-item{padding:12rpx 0;border-bottom:1rpx dashed rgba(23,36,45,.12)}
 .rd-item:last-child{border-bottom:none}
 .rd-hash{word-break:break-all}
 .rd-photo-ng{border-color:var(--signal)}

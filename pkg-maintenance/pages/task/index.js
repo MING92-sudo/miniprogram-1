@@ -83,7 +83,7 @@ function nextUnfinished(sections, afterId) {
 
 definePage(ROUTES['/pkg-maintenance/pages/task/index'], {
   data: {
-    orderId: '', order: null, collapsed: {}, expandedId: '', nextItemName: '',
+    orderId: '', order: null, collapsed: {}, expandedId: '',
     workTypeCode: '', workType: '', elevatorName: '', projectName: '',
     sections: [], photos: [], doneCount: 0, requiredTotal: 0, normalCount: 0, abnormalCount: 0, naCount: 0, pendingCount: 0, progress: 0,
     loading: true, error: '',
@@ -153,12 +153,10 @@ definePage(ROUTES['/pkg-maintenance/pages/task/index'], {
       const doneCount = items.filter((i) => !i.notInThisRun && i.result).length
       const collapsed = Object.assign({}, this.data.collapsed)
       const sections = splitSections(items, collapsed)
-      const nextItem = nextUnfinished(sections, this.data.expandedId)
       this.setData({
         workTypeCode: checklist.workTypeCode || '', workType: checklist.workType || '',
         elevatorName: checklist.elevatorName || '', projectName: checklist.projectName || '',
         collapsed, sections, photos, doneCount, requiredTotal,
-        nextItemName: nextItem ? nextItem.name : '',
         normalCount: items.filter((i) => i.result === 'NORMAL').length,
         abnormalCount: items.filter((i) => i.result === 'ABNORMAL').length,
         naCount: items.filter((i) => i.result === 'NA').length,

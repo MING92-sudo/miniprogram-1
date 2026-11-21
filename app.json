@@ -24,9 +24,9 @@
   "window": {
     "navigationBarTitleText": "博威无纸化",
     "navigationStyle": "custom",
-    "navigationBarBackgroundColor": "#0A0F12",
-    "navigationBarTextStyle": "white",
-    "backgroundColor": "#0A0F12",
+    "navigationBarBackgroundColor": "#FFFFFF",
+    "navigationBarTextStyle": "black",
+    "backgroundColor": "#EEF1F4",
     "backgroundTextStyle": "light"
   },
   "permission": {

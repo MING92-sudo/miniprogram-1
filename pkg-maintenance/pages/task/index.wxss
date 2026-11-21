@@ -1,35 +1,40 @@
 page{background:var(--ink);color:var(--text)}
-.tk-item{display:flex;align-items:center;gap:16rpx;border:1rpx solid #243138;border-radius:6rpx;background:rgba(255,255,255,.02);padding:16rpx 18rpx}
-.tk-glyph{width:40rpx;height:40rpx;border-radius:50%;border:1rpx solid #3A4A51;display:flex;align-items:center;justify-content:center;font-size:22rpx;flex:none;color:#71838B}
-.tk-glyph.is-ok{background:rgba(47,196,141,.15);border-color:rgba(47,196,141,.5);color:var(--ok)}
-.tk-glyph.is-ng{background:rgba(255,75,43,.15);border-color:rgba(255,75,43,.5);color:var(--signal-soft)}
+.tk-item{display:flex;align-items:center;gap:16rpx;border:1rpx solid var(--line);border-radius:6rpx;background:rgba(23,36,45,.02);padding:16rpx 18rpx}
+.tk-glyph{width:40rpx;height:40rpx;border-radius:50%;border:1rpx solid #C9D3DA;display:flex;align-items:center;justify-content:center;font-size:22rpx;flex:none;color:#9AA8B1}
+.tk-glyph.is-ok{background:rgba(30,158,110,.12);border-color:rgba(30,158,110,.45);color:var(--ok)}
+.tk-glyph.is-ng{background:rgba(229,72,44,.1);border-color:rgba(229,72,44,.45);color:var(--signal-soft)}
 .tk-glyph.is-na{color:var(--muted)}
 .tk-glyph.is-skip{color:var(--dim)}
 .tk-right{align-items:flex-end;gap:6rpx;flex:none}
 .tk-res{font-size:18rpx;padding:4rpx 10rpx;border-radius:4rpx}
-.tk-res.res-ok{color:var(--ok-soft);background:rgba(47,196,141,.1)}
-.tk-res.res-ng{color:var(--signal-soft);background:rgba(255,75,43,.1)}
-.tk-res.res-na{color:var(--muted);background:rgba(255,255,255,.04)}
+.tk-res.res-ok{color:var(--ok-soft);background:rgba(30,158,110,.1)}
+.tk-res.res-ng{color:var(--signal-soft);background:rgba(229,72,44,.08)}
+.tk-res.res-na{color:var(--muted);background:rgba(23,36,45,.04)}
 .tk-res.res-pending{color:var(--dim)}
-.tk-result{flex:1;text-align:center;border:1rpx solid #34454D;border-radius:8rpx;padding:20rpx;font-size:24rpx;color:#DCE6E9}
-.tk-result.on-ok{background:rgba(47,196,141,.15);border-color:var(--ok);color:var(--ok-soft);font-weight:700}
-.tk-result.on-ng{background:rgba(255,75,43,.15);border-color:var(--signal);color:var(--signal-soft);font-weight:700}
-.tk-result.on-na{background:rgba(255,255,255,.06);border-color:var(--muted);color:var(--text);font-weight:700}
-.tk-input{background:#0D1519;border:1rpx solid #3A4A51;border-radius:6rpx;padding:18rpx 20rpx;font-size:24rpx;color:var(--text)}
+.tk-result{flex:1;text-align:center;border:1rpx solid #C6D0D7;border-radius:8rpx;padding:20rpx;font-size:24rpx;color:#2B3B44}
+.tk-result.on-ok{background:rgba(30,158,110,.12);border-color:var(--ok);color:var(--ok-soft);font-weight:700}
+.tk-result.on-ng{background:rgba(229,72,44,.1);border-color:var(--signal);color:var(--signal-soft);font-weight:700}
+.tk-result.on-na{background:rgba(23,36,45,.05);border-color:var(--muted);color:var(--text);font-weight:700}
+.tk-input{background:#F7F9FA;border:1rpx solid #C9D3DA;border-radius:6rpx;padding:18rpx 20rpx;font-size:24rpx;color:var(--text)}
 .tk-ph{color:var(--dim)}
-.tk-textarea{background:#0D1519;border:1rpx solid #3A4A51;border-radius:6rpx;padding:18rpx;font-size:24rpx;color:var(--text);min-height:120rpx;width:100%}
+.tk-textarea{background:#F7F9FA;border:1rpx solid #C9D3DA;border-radius:6rpx;padding:18rpx;font-size:24rpx;color:var(--text);min-height:120rpx;width:100%}
 .tk-photo-wrap{position:relative}
-.tk-photo-del{position:absolute;top:-12rpx;right:-12rpx;width:36rpx;height:36rpx;border-radius:50%;background:var(--signal);color:var(--ink);display:flex;align-items:center;justify-content:center;font-size:20rpx}
-.tk-photo-add{display:flex;align-items:center;justify-content:center;border:1rpx dashed #40535C;background:rgba(255,255,255,.02);color:var(--amber);font-size:32rpx}
+.tk-photo-del{position:absolute;top:-12rpx;right:-12rpx;width:36rpx;height:36rpx;border-radius:50%;background:var(--signal);color:#FFFFFF;display:flex;align-items:center;justify-content:center;font-size:20rpx}
+.tk-photo-add{display:flex;align-items:center;justify-content:center;border:1rpx dashed #B7C3CB;background:rgba(23,36,45,.02);color:var(--amber);font-size:32rpx}
 /* 原型屏 04：分组头 / 逐项卡 / 行内留证 / 底栏 */
 .tk-page{padding-bottom:140rpx}
-.group-head{display:flex;align-items:center;justify-content:space-between;gap:12rpx;background:rgba(255,255,255,.03);border:1rpx solid #243138;border-radius:8rpx;padding:18rpx 20rpx;font-size:22rpx;font-weight:600;color:var(--text);width:100%}
+.group-head{display:flex;align-items:center;justify-content:space-between;gap:12rpx;background:#FFFFFF;border:1rpx solid var(--line);border-radius:8rpx;padding:18rpx 20rpx;font-size:22rpx;font-weight:600;color:var(--text);width:100%}
 .group-head::after{border:none}
-.ck{border:1rpx solid #243138;border-radius:8rpx;background:rgba(255,255,255,.02);padding:16rpx 18rpx;display:flex;flex-direction:column;gap:12rpx}
-.ck.ck-open{border-color:rgba(255,176,32,.45);background:rgba(255,176,32,.04)}
+.ck{border:1rpx solid var(--line);border-radius:8rpx;background:rgba(23,36,45,.02);padding:16rpx 18rpx;display:flex;flex-direction:column;gap:12rpx}
+.ck.ck-open{border-color:rgba(232,160,0,.45);background:rgba(232,160,0,.05)}
 .ck-row{display:flex;align-items:center;gap:16rpx}
-.ck-skip{border-top:1rpx dashed #243138;padding-top:10rpx}
-.ck-edit{border-top:1rpx solid #243138;padding-top:14rpx}
+.ck-skip{border-top:1rpx dashed var(--line);padding-top:10rpx}
+.ck-edit{border-top:1rpx solid var(--line);padding-top:14rpx}
 .sync-row{display:flex;align-items:center;gap:10rpx;font-size:20rpx;color:var(--dim);padding:6rpx 4rpx}
-.tk-footer{position:fixed;left:0;right:0;bottom:0;padding:16rpx 24rpx calc(16rpx + env(safe-area-inset-bottom));background:rgba(10,15,18,.96);border-top:1rpx solid #243138;backdrop-filter:blur(8rpx)}.tk-gh-title{flex:1;min-width:0;overflow:hidden}
+.tk-footer{position:fixed;left:0;right:0;bottom:0;padding:16rpx 24rpx calc(16rpx + env(safe-area-inset-bottom));background:rgba(255,255,255,.96);border-top:1rpx solid var(--line);backdrop-filter:blur(8rpx)}
+.tk-gh-title{flex:1;min-width:0;overflow:hidden}
 .tk-gh-count{flex:none;white-space:nowrap}
+/* 2026-11-21 真机反馈：现场照片固定尺寸缩略图 + 换行排列，拍完立即在当前项可见；
+   覆盖 tokens 全局的 flex:1 拉伸（空态加号铺满整行、照片被拉变形） */
+.bw .photo-row{flex-wrap:wrap}
+.bw .photo-row .thumb{width:140rpx;height:104rpx;flex:none}

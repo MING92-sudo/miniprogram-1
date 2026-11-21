@@ -1,6 +1,6 @@
 page{background:var(--ink);color:var(--text)}
 .rs-pad{padding-bottom:calc(160rpx + env(safe-area-inset-bottom,0px))}
-.rs-row{display:flex;align-items:center;gap:16rpx;padding:14rpx 0;border-bottom:1rpx dashed rgba(38,52,59,.6)}
+.rs-row{display:flex;align-items:center;gap:16rpx;padding:14rpx 0;border-bottom:1rpx dashed rgba(23,36,45,.12)}
 .rs-row:last-of-type{border-bottom:none}
 .rs-sig{width:120rpx;height:60rpx;flex:none}
 .rs-foot-ghost{flex:.9}

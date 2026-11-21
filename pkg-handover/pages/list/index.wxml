@@ -23,7 +23,7 @@
   <view
     wx:for="{{list}}"
     wx:key="id"
-    class="em-card row"
+    class="em-card"
     data-id="{{item.id}}"
     bindtap="onTapRow"
   >

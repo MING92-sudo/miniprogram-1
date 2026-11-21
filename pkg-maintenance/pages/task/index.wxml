@@ -117,7 +117,7 @@
 
               <view class="row gap8">
                 <button class="btn btn-primary btn-sm grow" disabled="{{submitting}}" bindtap="onSubmitItem">{{submitting ? '保存中...' : '保存检查项'}}</button>
-                <button class="btn btn-ghost btn-sm" data-id="{{it.id}}" bindtap="goItemForm">收起</button>
+                <button class="btn btn-ghost btn-sm grow" data-id="{{it.id}}" bindtap="goItemForm">收起</button>
               </view>
             </view>
           </view>
@@ -128,9 +128,9 @@
     </block>
   </view>
 
-  <!-- 底栏（原型屏 04）：存草稿 + 下一项 -->
+  <!-- 底栏（原型屏 04）：存草稿 + 下一项（按钮等宽均分；文案不拼接条目名，避免长标题撑破底栏） -->
   <view class="tk-footer row gap8">
-    <button class="btn btn-ghost" bindtap="onSaveDraft">存草稿</button>
-    <button class="btn btn-primary grow" bindtap="onNextItem">下一项{{nextItemName ? ' · ' + nextItemName : ''}}</button>
+    <button class="btn btn-ghost grow" bindtap="onSaveDraft">存草稿</button>
+    <button class="btn btn-primary grow" bindtap="onNextItem">下一项</button>
   </view>
 </view>

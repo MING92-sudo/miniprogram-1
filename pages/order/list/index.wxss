@@ -1,3 +1,3 @@
 page{background:var(--ink);color:var(--text)}
 .ol-card{display:flex;flex-direction:column}
-.ol-urgent{border-color:rgba(255,75,43,.4);background:linear-gradient(160deg,rgba(255,75,43,.08),#0F181D 65%)}
+.ol-urgent{border-color:rgba(229,72,44,.4);background:linear-gradient(160deg,rgba(229,72,44,.07),#FFFFFF 65%)}

@@ -1,4 +1,4 @@
 page{background:var(--ink);color:var(--text)}
-.rv-textarea{background:#0D1519;border:1rpx solid #3A4A51;border-radius:6rpx;padding:18rpx;font-size:24rpx;color:var(--text);min-height:120rpx;width:100%}
-.rv-input{background:#0D1519;border:1rpx solid #3A4A51;border-radius:6rpx;padding:18rpx 20rpx;font-size:24rpx;color:var(--text)}
+.rv-textarea{background:#F7F9FA;border:1rpx solid #C9D3DA;border-radius:6rpx;padding:18rpx;font-size:24rpx;color:var(--text);min-height:120rpx;width:100%}
+.rv-input{background:#F7F9FA;border:1rpx solid #C9D3DA;border-radius:6rpx;padding:18rpx 20rpx;font-size:24rpx;color:var(--text)}
 .rv-ph{color:var(--dim)}
