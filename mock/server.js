@@ -398,7 +398,7 @@ function clientLoginPayload(matched) {
       roles: [a.role],
       useUnitId: a.useUnitId,
       needSelectUnit: false,
-      perms: ['client:elevator_view', 'client:sign', 'client:download'],
+      perms: ['client:elevator_view', 'client:sign', 'client:download', 'client:report'],
       home: '/pages/client/home/index',
       activeWorkspace: 'CLIENT',
       scope: (unitName ? unitName : '本单位') + '·本单位',
@@ -589,11 +589,14 @@ const routes = [
       if (has('MAINT_SUP') || has('MAINT_MGR')) quickActions.push({ key: 'plan', text: '维保计划', icon: 'calendar-check-r', path: '/pkg-maintenance/pages/plan/index' })
       if (has('MAINT_SUP') || has('MAINT_MGR') || has('MAINT_BIZ') || has('PLATFORM_ADMIN')) quickActions.push({ key: 'filing', text: '外接建档', icon: 'folder', path: '/pkg-handover/pages/filing-init/index' })
     } else if (ws && ws.indexOf('CLIENT') === 0) {
-      // P1 T6：与后端同口径——客户工作台下线一键报修/急修进度，仅我的电梯+待办签字（docs/14 §5.5）
-      quickActions = [
-        { key: 'elevators', text: '我的电梯', icon: 'elevator', path: '/pages/elevator/list/index' },
-        { key: 'todo', text: '待办签字', icon: 'file-signature', path: '/pkg-client/pages/todo/index' }
-      ]
+      // 2026-11-21 裁决：与后端同口径——客户一键报修重开（client:report CA/CS 双 Y），
+      // 急修进度/评价仍下线；报修项按会话 perms 门控（与 services/menu.js clientQuickActions 同口径）
+      quickActions = []
+      if (permsOf(effective).indexOf('client:report') > -1) {
+        quickActions.push({ key: 'report', text: '一键报修', icon: 'wrench', path: '/pages/order/report/index' })
+      }
+      quickActions.push({ key: 'elevators', text: '我的电梯', icon: 'elevator', path: '/pages/elevator/list/index' })
+      quickActions.push({ key: 'todo', text: '待办签字', icon: 'file-signature', path: '/pkg-client/pages/todo/index' })
     } else if (ws && ws.indexOf('INST') === 0) {
       // 2026-11-21 裁决：handover:create 增 INST_CLERK，快捷动作同步放开
       if (has('INST_CLERK') || has('INST_PM')) quickActions.push({ key: 'create', text: '发起移交', icon: 'file-signature', path: '/pkg-handover/pages/create/index' })
@@ -1101,6 +1104,12 @@ const routes = [
     if (query && query.status) {
       list = list.filter((f) => f.status === query.status)
     }
+    // 困人急修过滤（C-18/V62，工作台「急修待接」KPI 下钻口径，与后端 listFaults 一致）
+    if (query && query.trapped === '1') {
+      list = list.filter((f) => (f.trappedCount || 0) > 0)
+    } else if (query && query.trapped === '0') {
+      list = list.filter((f) => (f.trappedCount || 0) <= 0)
+    }
     return paginate(list, query)
   }],
   ['GET', '/faults/:id', ({ params }) => findOr404(d.db.faults, params.id, '故障记录')],
@@ -1556,7 +1565,7 @@ const routes = [
   // 客户急修列表（C-25② 契约对齐）：后端投影白名单 id/faultNo/elevatorCode/elevatorName/faultType/desc/
   // status/createdAt/finishedAt/result——elevatorName 按 elevatorCode 批量联电梯（一次 .in，无 N+1），
   // 缺名回退 elevatorCode；mock 回整行（字段超集），种子行 elevatorName 口径一致。
-  // trapped 依赖 C-18 增列（不改表缓议），两侧暂不作为锁定契约。
+  // trappedCount 已随 V62 在员工侧落地（建单/列表/KPI）；客户门户投影白名单暂不含（不下发）。
   ['GET', '/unit/faults', () => {
     const unitId = requirePortalUnit()
     const codes = ownElevatorCodes(unitId)

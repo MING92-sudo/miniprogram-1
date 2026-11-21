@@ -65,8 +65,9 @@ class PermissionMatrixV2Test {
     }
 
     /**
-     * P1 T2（2026-11-16 裁决，spec §5.4）：客户最小能力集 = client:elevator_view/download/sign（CA+CS 均 Y）；
-     * client:report/evaluate/user_manage/invite 默认关闭；内部码全收回（相关码仅 SYS_ADMIN 经全 Y 循环持有）。
+     * P1 T2（2026-11-16 裁决，spec §5.4）：客户能力集 = client:elevator_view/download/sign（CA+CS 均 Y）；
+     * 2026-11-21 裁决：client:report 重开（CA/CS 双 Y，客户一键报修走 /unit/faults）；
+     * evaluate/user_manage/invite 仍默认关闭；内部码全收回（相关码仅平台管理员经全 Y 循环持有）。
      */
     @Test
     void clientMinimalCapabilitySetP1() {
@@ -77,13 +78,14 @@ class PermissionMatrixV2Test {
         assertEquals(PermissionMatrix.TriState.Y, PermissionMatrix.state("CLIENT_ADMIN", "client:download"));
         assertEquals(PermissionMatrix.TriState.Y, PermissionMatrix.state("CLIENT_SIGNER", "client:elevator_view"));
         assertEquals(PermissionMatrix.TriState.Y, PermissionMatrix.state("CLIENT_SIGNER", "client:download"));
+        // 2026-11-21：一键报修重开
+        assertEquals(PermissionMatrix.TriState.Y, PermissionMatrix.state("CLIENT_ADMIN", "client:report"));
+        assertEquals(PermissionMatrix.TriState.Y, PermissionMatrix.state("CLIENT_SIGNER", "client:report"));
         // 默认关闭
         assertEquals(PermissionMatrix.TriState.DENY, PermissionMatrix.state("CLIENT_ADMIN", "client:user_manage")); // 原 Y
-        assertEquals(PermissionMatrix.TriState.DENY, PermissionMatrix.state("CLIENT_ADMIN", "client:report"));
         assertEquals(PermissionMatrix.TriState.DENY, PermissionMatrix.state("CLIENT_ADMIN", "client:evaluate"));
         assertEquals(PermissionMatrix.TriState.DENY, PermissionMatrix.state("CLIENT_ADMIN", "client:invite"));
         assertEquals(PermissionMatrix.TriState.DENY, PermissionMatrix.state("CLIENT_SIGNER", "client:user_manage"));
-        assertEquals(PermissionMatrix.TriState.DENY, PermissionMatrix.state("CLIENT_SIGNER", "client:report"));
         assertEquals(PermissionMatrix.TriState.DENY, PermissionMatrix.state("CLIENT_SIGNER", "client:evaluate"));
         assertEquals(PermissionMatrix.TriState.DENY, PermissionMatrix.state("CLIENT_SIGNER", "client:invite"));
         // 内部码全收回（抽样）

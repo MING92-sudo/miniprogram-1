@@ -16,6 +16,8 @@ public class Fault {
     public String faultNo;
     public String elevatorCode;
     public String faultType;
+    /** 困人人数（C-18/V62：报修表单填写，NULL/0=非困人急修；工作台急修 KPI 取数口径） */
+    public Integer trappedCount;
     /** 登记人（empId；组长按班组可见，V7） */
     public String createdBy;
     public String descr;

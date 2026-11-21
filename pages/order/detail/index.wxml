@@ -30,7 +30,7 @@
       <view class="card col gap6">
         <view class="sec-head"><text class="panel-title mono">{{text.FAULT}}</text><text wx:if="{{fault.status === 'CLOSED'}}" class="tag tag-ok">已恢复运行</text></view>
         <view class="kv-row"><text class="dim">{{text.FAULT_PHEN}}</text><text>{{fault.desc || '—'}}</text></view>
-        <view wx:if="{{fault.trapped}}" class="kv-row"><text class="dim">{{text.FAULT_TRAPPED}}</text><text>{{fault.trapped}} {{text.TRAPPED_UNIT}}{{fault.rescuedAt ? ' · 安全救出' : ''}}</text></view>
+        <view wx:if="{{fault.trappedCount}}" class="kv-row"><text class="dim">{{text.FAULT_TRAPPED}}</text><text>{{fault.trappedCount}} {{text.TRAPPED_UNIT}}{{fault.rescuedAt ? ' · 安全救出' : ''}}</text></view>
         <view class="kv-row"><text class="dim">{{text.FAULT_SOURCE}}</text><text>{{fault.source || '—'}}</text></view>
       </view>
 

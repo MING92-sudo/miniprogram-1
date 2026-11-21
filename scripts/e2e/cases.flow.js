@@ -339,33 +339,93 @@ async function runFlowCases(ctx) {
     console.log(colors.yellow(`  ! F3 中断：${e.message}`))
   }
 
-  // ══════════════ F4. 故障报修闭环 ══════════════
-  suite('F4. 客户报修 → 派单 → 接单 → 完成')
+  // ══════════════ F4. 报修全链路（2026-11-21 重写，C-18/V62 困人字段 + 抢单池可见域修复）══════════════
+  // 客户报修（困人）→ 维保端 trapped=1 可见 → 抢单 → 到场 → 提交（PENDING_CONFIRM）；
+  // 客户确认按 T8-I2 裁决前后端双重关闭（断言 403 + 状态不变）；管理端代报修（建单 + proxy 标来源）。
+  // 全部步骤严格断言，测后 SQL 清理测试单。
+  suite('F4. 报修全链路：客户报修 → 维保端接单 → 闭环 + 代报修')
+  const f4ids = []
+  const OWNER_CODE = 'EM-2024-001'
+  let prevOwner = ''
   try {
     const clientTok = (await login(accounts.clientAdmin.phone, accounts.clientAdmin.password)).token
-    const rf = await step('① 客户提交报修', () =>
+    const signerTok = (await login(accounts.clientSigner.phone, accounts.clientSigner.password)).token
+
+    // 前置：临时摘掉该梯责任人，否则客户报修被自动派单、走不到「抢单」路径；测后恢复
+    prevOwner = dbExec(`SELECT IFNULL(worker_platform_id,'') FROM elevator WHERE elevator_code='${OWNER_CODE}'`)
+    dbExec(`UPDATE elevator SET worker_platform_id=NULL WHERE elevator_code='${OWNER_CODE}'`)
+
+    const rf = await step('① 客户提交困人报修（被困 2 人）', () =>
       post('/unit/faults', {
-        elevatorCode: 'EM-2024-001',
-        desc: 'E2E端到端：轿厢异响',
-        faultType: '一般故障',
-        contactName: '王芳',
-        contactPhone: accounts.clientAdmin.phone
+        elevatorCode: OWNER_CODE, desc: 'E2E全链路：轿厢困人两人',
+        faultType: '困人（紧急）', trappedCount: 2,
+        contactName: '王芳', contactPhone: accounts.clientAdmin.phone
       }, clientTok)
     )
     const faultId = rf.data && (rf.data.id || rf.data.faultId)
     assert(faultId, '报修返回故障 id')
+    f4ids.push(faultId)
+    assertEq(rf.data.trappedCount, 2, 'trappedCount 随单下发')
+    assertEq(rf.data.status, 'OPEN', '新报修进抢单池')
 
-    const fl = await step('② 管理端可见该报修', () => get('/faults', admin))
-    const arr = fl.data.items || fl.data.list || fl.data || []
-    assert(Array.isArray(arr) && arr.some((f) => f.id === faultId), '故障出现在列表')
+    const otherCode = dbExec(`SELECT elevator_code FROM elevator WHERE use_unit_id<>'${seed.useUnits.uu1}' AND elevator_code IS NOT NULL LIMIT 1`)
+    if (otherCode) {
+      record('② 越权为他单位电梯报修被拒（1403）', await post('/unit/faults', {
+        elevatorCode: otherCode, desc: '越权报修测试描述', faultType: '一般故障'
+      }, clientTok), 'biz')
+    }
 
-    record('③ 管理端派单', await post(`/admin/faults/${faultId}/dispatch`, { workerId: seed.employees.maintTech }, admin), 'any')
-    record('④ 维保人员接单', await post(`/faults/${faultId}/grab`, { latitude: 29.7192, longitude: 106.6335 }, tech), 'any')
-    record('⑤ 到场', await post(`/faults/${faultId}/arrive`, { latitude: 29.7192, longitude: 106.6335 }, tech), 'any')
-    record('⑥ 提交结果', await post(`/faults/${faultId}/submit`, { pass: true, reason: '已处理' }, tech), 'any')
-    record('⑦ 客户评价', await post(`/faults/${faultId}/evaluate`, { score: 5, comment: '及时' }, clientTok), 'any')
+    const tl = await step('③ 维保端困人下钻列表可见该单（trapped=1）', () => get('/faults?status=OPEN&trapped=1', tech))
+    assert(((tl.data && tl.data.list) || []).some((f) => f.id === faultId), '客户报修对受限技师的抢单池可见')
+
+    const t0 = await step('④ 非困人列表不含该单（trapped=0）', () => get('/faults?status=OPEN&trapped=0', tech))
+    assert(!(((t0.data && t0.data.list) || []).some((f) => f.id === faultId)), '困人单不在 trapped=0 列表')
+
+    const gb = await step('⑤ 维保人员抢单接单（不经管理端派单）', () => post(`/faults/${faultId}/grab`, {}, tech))
+    assertEq(gb.data && gb.data.status, 'ASSIGNED', '抢单后状态')
+
+    const mine = await step('⑥ 接单后本人列表仍可见（ASSIGNED）', () => get('/faults?status=ASSIGNED', tech))
+    assert(((mine.data && mine.data.list) || []).some((f) => f.id === faultId), '已接单对本人可见')
+
+    await step('⑦ 到场打卡（GPS）', () =>
+      post(`/faults/${faultId}/arrive`, { lat: 29.7192, lng: 106.6335 }, tech))
+
+    const sb = await step('⑧ 提交处置（故障原因 + 处理措施）', () =>
+      post(`/faults/${faultId}/submit`, { faultReason: '门锁触点氧化', handleDesc: '清洁触点并更换，恢复运行' }, tech))
+    assertEq(sb.data && sb.data.status, 'PENDING_CONFIRM', '提交后待确认')
+
+    // T8-I2 既有产品裁决：客户急修确认前后端双重关闭（order:confirm 收回、/faults/*/confirm 不在客户白名单），
+    // 客户主体隐藏「待确认急修单」——闭环动作不在小程序客户侧，链路止于 PENDING_CONFIRM
+    record('⑨ 客户令牌确认被拒（T8-I2 双重关闭，预期 403）', await post(`/faults/${faultId}/confirm`, { pass: true }, signerTok), 'biz')
+    const st = dbExec(`SELECT status FROM fault WHERE id='${faultId}'`)
+    record(`⑩ 急修单保持 PENDING_CONFIRM（${st}）`, { http: 200, code: st === 'PENDING_CONFIRM' ? 0 : 500, message: st, ms: 0 }, 'ok')
+
+    // 代报修通道：员工通道建单 + proxy 标来源（order:create_proxy）
+    const pf = await step('⑪ 维保管理代报修建单（电话报修）', () =>
+      post('/faults', { elevatorCode: 'EM-2024-002', desc: '代报修：业主电话报层门异响', faultType: '一般故障' }, admin))
+    const proxyId = pf.data && pf.data.id
+    assert(proxyId, '代报修返回故障 id')
+    f4ids.push(proxyId)
+
+    const px = await step('⑫ 标记代报修来源（PHONE + 录音编号）', () =>
+      post(`/faults/${proxyId}/proxy`, { proxySource: 'PHONE', recordingNo: 'REC-1234' }, admin))
+    assertEq(px.data && px.data.proxySource, 'PHONE', 'proxySource 落单')
+
+    record('⑬ 录音编号格式错误被拒（422）', await post(`/faults/${proxyId}/proxy`, { proxySource: 'PHONE', recordingNo: 'BAD' }, admin), 'biz')
+
+    const pool2 = await step('⑭ 代报修单进抢单池（维保端可见）', () => get('/faults?status=OPEN', tech))
+    assert(((pool2.data && pool2.data.list) || []).some((f) => f.id === proxyId), '代报修单对维保端可见')
   } catch (e) {
     console.log(colors.yellow(`  ! F4 中断：${e.message}`))
+  } finally {
+    // 收尾：恢复电梯责任人 + 删除测试急修单（急修留痕无删除端点，测试数据走 SQL 清理）
+    try {
+      dbExec(`UPDATE elevator SET worker_platform_id=${prevOwner ? `'${prevOwner}'` : 'NULL'} WHERE elevator_code='${OWNER_CODE}'`)
+      if (f4ids.length) dbExec(`DELETE FROM fault WHERE id IN (${f4ids.map((i) => `'${i}'`).join(',')})`)
+      console.log(colors.gray(`    F4 清理：恢复 ${OWNER_CODE} 责任人，删除 ${f4ids.length} 张测试急修单`))
+    } catch (e2) {
+      console.log(colors.yellow(`  ! F4 清理失败：${e2.message}`))
+    }
   }
 
   // ══════════════ F5. 客户账号生命周期 ══════════════

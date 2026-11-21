@@ -50,11 +50,12 @@ public class MiniappMenuService {
             "INSTALLER", "INST_CLERK");
 
     // P1 T6：client:evaluate 移除（评价入口下线，T2 矩阵对客户 DENY）；client:sign 保留
+    // 2026-11-21 裁决：client:report 重开（CA/CS 双 Y），按钮码恢复下发
     private static final List<String> BUTTON_CODES = List.of(
             "order:grab", "order:arrive", "order:submit", "order:confirm", "order:cancel",
             "record:sign_tech", "record:sign_request", "record:review", "record:export",
             "handover:create", "handover:inspect", "handover:rectify", "handover:review",
-            "client:sign", "project:edit", "elevator:export",
+            "client:sign", "client:report", "project:edit", "elevator:export",
             "checklist:fill", "task:accept");
 
     private static final Map<String, List<Map<String, Object>>> ROLE_TABS = buildTabs();
@@ -76,6 +77,20 @@ public class MiniappMenuService {
         this.recordMapper = recordMapper;
         this.userRoleMapper = userRoleMapper;
         this.elevatorMapper = elevatorMapper;
+    }
+
+    /** 客户主体（ut=2）菜单：tabs/quickActions/actions 与员工端同一 ROLE_TABS/快捷动作/矩阵口径。
+     *  2026-11-21 修复：此前 controller 返回空 tabs/quickActions 空调 stub，客户请求一旦落到本端点
+     *  （旧会话无 principalType、时序竞争等），前端 applyToGlobal 无条件覆盖会清空底栏与快捷动作。 */
+    public Map<String, Object> clientMenusOf(Set<String> roles, String accountId) {
+        Map<String, Object> out = menusOf(roles, null, null);
+        @SuppressWarnings("unchecked")
+        Map<String, Object> user = (Map<String, Object>) out.get("user");
+        if (accountId != null) {
+            user.put("id", accountId);
+        }
+        out.put("principalType", RoleCatalog.PrincipalType.CUSTOMER.name());
+        return out;
     }
 
     public Map<String, Object> menusOf(Set<String> roles, String workspace, Employee me) {
@@ -187,9 +202,10 @@ public class MiniappMenuService {
             return list;
         }
         if (ws.startsWith("CLIENT")) {
-            // P1 T6（docs/14 §5.5/§10.3）：客户工作台收敛——下线一键报修/急修进度入口
-            // （client:report/evaluate 矩阵默认 DENY，重开由后续裁决），仅下发我的电梯+待办签字
+            // 2026-11-21 裁决：客户一键报修重开（client:report CA/CS 双 Y，报修页客户走 /unit/faults）；
+            // 急修进度/评价入口仍下线（client:evaluate 矩阵 DENY）
             return List.of(
+                    qa("report", "一键报修", "wrench", "/pages/order/report/index"),
                     qa("elevators", "我的电梯", "elevator", "/pages/elevator/list/index"),
                     qa("todo", "待办签字", "file-signature", "/pkg-client/pages/todo/index"));
         }

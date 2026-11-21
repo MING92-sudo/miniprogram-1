@@ -8,10 +8,16 @@ import com.cqwlw.maintenance.service.WxAuthService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.junit.jupiter.api.Test;
 
+import java.util.LinkedHashMap;
+import java.util.Map;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
@@ -44,6 +50,11 @@ class CustomerPrincipalEndpointsTest {
     void meMenusReturnsCustomerMenuInsteadOf401() {
         MiniappMenuService menuService = mock(MiniappMenuService.class);
         EmployeeMapper employeeMapper = mock(EmployeeMapper.class);
+        // 客户菜单改由 menuService.clientMenusOf 真实下发（不再返回空 stub）
+        Map<String, Object> menu = new LinkedHashMap<>();
+        menu.put("principalType", "CUSTOMER");
+        menu.put("home", "/pages/client/home/index");
+        when(menuService.clientMenusOf(any(), any())).thenReturn(menu);
         MiniappMenuController controller =
                 new MiniappMenuController(menuService, employeeMapper, mock(JwtService.class));
 
@@ -53,7 +64,8 @@ class CustomerPrincipalEndpointsTest {
         assertEquals("CUSTOMER", resp.getData().get("principalType"));
         assertEquals("/pages/client/home/index", resp.getData().get("home"));
         // 客户不在员工目录里，不允许拿客户 id 去查员工表
-        verifyNoInteractions(employeeMapper, menuService);
+        verifyNoInteractions(employeeMapper);
+        verify(menuService).clientMenusOf(any(), eq("ca_1"));
     }
 
     @Test

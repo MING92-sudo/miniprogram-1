@@ -204,11 +204,13 @@ public class DirectoryController {
     public ApiResponse<Map<String, Object>> listFaults(@RequestParam(required = false) String page,
                                                        @RequestParam(required = false) String size,
                                                        @RequestParam(required = false) String status,
+                                                       @RequestParam(required = false) String trapped,
                                                        HttpServletRequest request) {
         Map<String, String> query = Map.of(
                 "page", page == null ? "" : page,
                 "size", size == null ? "" : size,
-                "status", status == null ? "" : status);
+                "status", status == null ? "" : status,
+                "trapped", trapped == null ? "" : trapped);
         return ApiResponse.ok(directoryService.listFaults(query, empId(request)));
     }
 
@@ -228,7 +230,7 @@ public class DirectoryController {
     public ApiResponse<Map<String, Object>> closeFault(@PathVariable String id,
                                                        @RequestBody(required = false) Map<String, Object> body,
                                                        HttpServletRequest request) {
-        return ApiResponse.ok(directoryService.closeFault(id, body));
+        return ApiResponse.ok(directoryService.closeFault(id, body, empId(request)));
     }
 
     /** 急修单 PDF（一梯一档预览/下载，docs/04 A.3） */

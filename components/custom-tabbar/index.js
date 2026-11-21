@@ -7,7 +7,19 @@ Component({
   options: { addGlobalClass: true },
   data: { tabs: [], active: '', badges: {}, icons: ICONS },
   lifetimes: {
-    attached() { this.sync() }
+    attached() {
+      this.sync()
+      // 菜单晚到时补渲染：applyToGlobal 通知后重新 sync，避免底栏停在空态
+      const app = getApp()
+      if (app && typeof app.onMenusUpdated === 'function') {
+        this._msync = () => this.sync()
+        app.onMenusUpdated(this._msync)
+      }
+    },
+    detached() {
+      const app = getApp()
+      if (app && typeof app.offMenusUpdated === 'function') app.offMenusUpdated(this._msync)
+    }
   },
   pageLifetimes: {
     show() { this.sync() }

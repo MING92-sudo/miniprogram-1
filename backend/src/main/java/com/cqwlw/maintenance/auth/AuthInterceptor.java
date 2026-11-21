@@ -156,6 +156,7 @@ public class AuthInterceptor implements HandlerInterceptor {
     /**
      * 客户主体业务路由白名单（P1 兼容 /unit/**，不新增 /client/** 端点）：
      * 门户前缀、自身账号端点（菜单/本人信息/改密/绑微信/登出）、健康检查、
+     * POST /files/upload（2026-11-21 重开 client:report 配套：报修现场照片）、
      * GET /files/*（与 L49 前置放行口径对齐：常规请求在鉴权前已放行，此处为白名单面兜底；
      * 时效签名在 FileController 校验）与
      * GET /elevators*（含 profile，本单位谓词在 ElevatorController 已有，跨单位 1403）。
@@ -182,6 +183,11 @@ public class AuthInterceptor implements HandlerInterceptor {
                 || uri.equals("/auth/client/me")
                 || uri.equals("/auth/client/change-password")
                 || uri.equals("/auth/logout") || uri.equals("/health")) {
+            return true;
+        }
+        // 客户报修现场照片上传（2026-11-21 重开 client:report 配套）：仅 POST /files/upload 精确放行，
+        // FileController.upload 不依赖员工目录；其余 /files 写侧仍不对客户开放
+        if ("POST".equalsIgnoreCase(method) && uri.equals("/files/upload")) {
             return true;
         }
         // 读口径与 AdminRoleInterceptor 的「GET /elevators* 小程序共用读接口」一致；写操作（派单等）不放行。

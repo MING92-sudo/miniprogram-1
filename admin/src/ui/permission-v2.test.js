@@ -62,15 +62,17 @@ describe('permission-v2 mirror', () => {
     expect(state('INST_PM', 'filing:view')).toBe('C')
     expect(state('INSTALLER', 'handover:view')).toBe('C')
   })
-  it('P1 客户最小能力集：elevator_view/download/sign=Y，report/evaluate/user_manage/invite=DENY，内部码收回', () => {
+  it('P1 客户能力集：elevator_view/download/sign=Y；2026-11-21 报修重开 report=Y；evaluate/user_manage/invite=DENY，内部码收回', () => {
     // 客户最小集（镜像后端 clientMinimalCapabilitySetP1）
     expect(state('CLIENT_ADMIN', 'client:sign')).toBe('Y')
     expect(state('CLIENT_SIGNER', 'client:sign')).toBe('Y')
     expect(state('CLIENT_ADMIN', 'client:elevator_view')).toBe('Y')
     expect(state('CLIENT_ADMIN', 'client:download')).toBe('Y')
+    // 2026-11-21：一键报修重开（CA/CS 双 Y，客户走 POST /unit/faults）
+    expect(state('CLIENT_ADMIN', 'client:report')).toBe('Y')
+    expect(state('CLIENT_SIGNER', 'client:report')).toBe('Y')
     // 默认关闭
     expect(state('CLIENT_ADMIN', 'client:user_manage')).toBe('DENY')
-    expect(state('CLIENT_ADMIN', 'client:report')).toBe('DENY')
     expect(state('CLIENT_ADMIN', 'client:evaluate')).toBe('DENY')
     expect(state('CLIENT_ADMIN', 'client:invite')).toBe('DENY')
     // 内部码全收回（抽样）

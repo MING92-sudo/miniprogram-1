@@ -1,27 +1,72 @@
-// 一键报修（M3，合并 fault/report + unit/report）：扫码回填电梯 + 故障描述（≥5 字）+ 故障等级 + 现场照片。
-// CLIENT 一键报修（order:create）与员工代报修共用；电梯归属/越权由后端校验。
+// 一键报修（M3，合并 fault/report + unit/report）：扫码回填电梯 + 故障描述（≥5 字）+ 故障等级 + 困人人数 + 现场照片。
+// 客户一键报修（client:report，2026-11-21 重开）与维保主管代报修共用：客户主体走 POST /unit/faults
+// （客户令牌白名单仅放 /unit/**，且电梯属本单位校验在服务端，越权 1403），员工走 POST /faults。
 const { reportFault } = require('../../../services/fault')
+const { reportUnitFault, getUnitElevators } = require('../../../services/unit')
 const { getElevatorByCode } = require('../../../services/elevator')
 const { uploadImage } = require('../../../services/upload')
+const { FAULT_TYPE_OPTIONS, FAULT_TYPE_TRAPPED } = require('../../../constants/index')
+const { isCustomerPrincipal } = require('../../../utils/auth')
 const { definePage } = require('../../../utils/guard')
 const { ROUTES } = require('../../../config/routes')
 const nav = require('../../../utils/nav')
 
-const FAULT_TYPES = ['一般故障', '困人（紧急）']
+const FAULT_TYPES = FAULT_TYPE_OPTIONS
 
 definePage(ROUTES['/pages/order/report/index'], {
-  data: { elevatorCode: '', elevator: null, faultType: FAULT_TYPES[0], faultTypes: FAULT_TYPES, desc: '', photos: [], submitting: false },
-  onLoad(query) { if (query && query.elevatorId) this.setData({ elevatorCode: query.elevatorId }) },
+  data: {
+    elevatorCode: '', elevator: null, faultType: FAULT_TYPES[0], faultTypes: FAULT_TYPES,
+    trappedType: FAULT_TYPE_TRAPPED,
+    isCustomer: false, unitElevators: [], elevatorOptions: [], elevatorIndex: -1,
+    elevatorsLoading: false, elevatorsError: '',
+    desc: '', trappedCount: '', photos: [], submitting: false
+  },
+  onLoad(query) {
+    const isCustomer = isCustomerPrincipal()
+    const requestedCode = query && query.elevatorId ? String(query.elevatorId) : ''
+    this.setData({ isCustomer, elevatorCode: requestedCode })
+    if (isCustomer) this.loadUnitElevators(requestedCode)
+  },
+  loadUnitElevators(requestedCode) {
+    this.setData({ elevatorsLoading: true, elevatorsError: '' })
+    getUnitElevators()
+      .then((list) => {
+        const elevators = Array.isArray(list) ? list : []
+        const options = elevators.map((el) => {
+          const name = el.elevatorName || el.insideNumber || el.elevatorCode
+          return name + ' · ' + el.elevatorCode + (el.projectName ? ' · ' + el.projectName : '')
+        })
+        const index = elevators.findIndex((el) => el.elevatorCode === requestedCode || el.id === requestedCode)
+        const selected = index >= 0 ? elevators[index] : null
+        this.setData({
+          unitElevators: elevators, elevatorOptions: options, elevatorIndex: index,
+          elevator: selected, elevatorCode: selected ? selected.elevatorCode : '', elevatorsLoading: false
+        })
+      })
+      .catch((e) => this.setData({
+        elevatorsLoading: false, elevatorsError: (e && e.message) || '本单位电梯加载失败'
+      }))
+  },
+  onElevatorChange(e) {
+    const index = Number(e.detail.value)
+    const elevator = this.data.unitElevators[index]
+    if (!elevator) return
+    this.setData({ elevator, elevatorCode: elevator.elevatorCode, elevatorIndex: index })
+  },
   onBack() { nav.back() },
-  onCodeInput(e) { this.setData({ elevatorCode: e.detail.value }) },
+  onCodeInput(e) { this.setData({ elevatorCode: e.detail.value, elevator: null }) },
   onScan() { wx.scanCode({ onlyFromCamera: true, success: (res) => this.backfill(res.result) }) },
   backfill(code) {
     getElevatorByCode(String(code).trim())
-      .then((elevator) => this.setData({ elevator, elevatorCode: elevator.elevatorCode }))
+      .then((elevator) => {
+        const index = this.data.unitElevators.findIndex((el) => el.elevatorCode === elevator.elevatorCode)
+        this.setData({ elevator, elevatorCode: elevator.elevatorCode, elevatorIndex: index })
+      })
       .catch((e) => wx.showToast({ title: (e && e.message) || '电梯信息获取失败', icon: 'none' }))
   },
   onDescInput(e) { this.setData({ desc: e.detail.value }) },
   onTypeChange(e) { this.setData({ faultType: FAULT_TYPES[Number(e.detail.value)] }) },
+  onTrappedInput(e) { this.setData({ trappedCount: e.detail.value }) },
   onAddPhoto() {
     wx.chooseMedia({
       count: 3 - this.data.photos.length, mediaType: ['image'],
@@ -40,11 +85,24 @@ definePage(ROUTES['/pages/order/report/index'], {
   onRemovePhoto(e) { const i = Number(e.currentTarget.dataset.index); this.setData({ photos: this.data.photos.filter((_, n) => n !== i) }) },
   onPreviewPhoto(e) { wx.previewImage({ urls: this.data.photos, current: e.currentTarget.dataset.url }) },
   onSubmit() {
-    if (!this.data.elevatorCode) return wx.showToast({ title: '请输入电梯编号', icon: 'none' })
+    if (!this.data.elevatorCode) return wx.showToast({ title: this.data.isCustomer ? '请选择本单位电梯' : '请输入电梯编号', icon: 'none' })
     if (!this.data.desc || this.data.desc.trim().length < 5) return wx.showToast({ title: '故障描述至少 5 个字', icon: 'none' })
+    // 困人急修必填被困人数（C-18/V62：trappedCount 是工作台急修 KPI 取数口径）
+    const trapped = Number(this.data.trappedCount) || 0
+    if (this.data.faultType === FAULT_TYPE_TRAPPED && trapped < 1) {
+      return wx.showToast({ title: '困人急修请填写被困人数', icon: 'none' })
+    }
     this.setData({ submitting: true })
-    reportFault({ elevatorCode: this.data.elevatorCode, faultType: this.data.faultType, desc: this.data.desc.trim(), photos: this.data.photos })
-      .then((fault) => { wx.showToast({ title: '报修已提交', icon: 'success' }); setTimeout(() => nav.open('/pages/order/detail/index?id=' + fault.id), 800) })
+    const payload = { elevatorCode: this.data.elevatorCode, faultType: this.data.faultType, desc: this.data.desc.trim(), trappedCount: trapped, photos: this.data.photos }
+    // 客户主体走客户门户链路（/unit/faults，服务端按本单位锚点收敛）；员工维持代报修链路（/faults）
+    const submit = isCustomerPrincipal() ? reportUnitFault(payload) : reportFault(payload)
+    submit
+      .then((fault) => {
+        wx.showToast({ title: '报修已提交', icon: 'success' })
+        // 客户无权打开员工急修详情页（GET /faults/* 不在客户白名单），提交成功回上一页
+        if (isCustomerPrincipal()) { setTimeout(() => nav.back(), 800); return }
+        setTimeout(() => nav.open('/pages/order/detail/index?id=' + fault.id), 800)
+      })
       .catch((e) => wx.showToast({ title: (e && e.message) || '上报失败', icon: 'none' }))
       .finally(() => this.setData({ submitting: false }))
   }

@@ -178,6 +178,13 @@ public class DirectoryService {
         f.elevatorCode = strOrEmpty(body.get("elevatorCode"));
         // 故障等级：一般故障 / 困人（紧急）（小程序登记页选择，V2.28）
         f.faultType = strOrEmpty(body.get("faultType")).isEmpty() ? "一般故障" : strOrEmpty(body.get("faultType"));
+        // 困人人数（C-18/V62）：0-99；缺省 0=非困人急修
+        Object tc = body.get("trappedCount");
+        int trapped = tc == null ? 0 : ((Number) tc).intValue();
+        if (trapped < 0 || trapped > 99) {
+            throw new BizException(422, "困人人数须在 0-99 之间");
+        }
+        f.trappedCount = trapped;
         f.descr = strOrEmpty(body.get("desc"));
         f.siteDesc = strOrEmpty(body.get("siteDesc"));
         f.photos = JsonUtil.write(body.get("photos") == null ? List.of() : body.get("photos"));
@@ -422,6 +429,7 @@ public class DirectoryService {
         m.put("createdBy", f.createdBy == null ? "" : f.createdBy);
         m.put("elevatorCode", f.elevatorCode);
         m.put("faultType", f.faultType);
+        m.put("trappedCount", f.trappedCount == null ? 0 : f.trappedCount);
         m.put("desc", f.descr);
         m.put("siteDesc", f.siteDesc == null ? "" : f.siteDesc);
         m.put("arrivedAt", TimeUtil.format(f.arrivedAt));
@@ -444,11 +452,21 @@ public class DirectoryService {
         Set<String> creatorIds = scopeService.visibleCreatorIds(scopeService.require(empId));
         if (creatorIds != null) {
             // 历史数据 createdBy 为 NULL：对全员可见（V7 前-only 数据）
-            list = list.stream().filter(f -> f.createdBy == null || creatorIds.contains(f.createdBy)).toList();
+            // OPEN 单 = 区域抢单池语义（grab 谓词只查区域），不属任何人的既有工作量——
+            // 若按创建人收敛，客户报修（createdBy=unit:*）在维保端列表永不可见、无人能接单（2026-11-21 通道修复）；
+            // 已指派给本人的单同样必须可见，否则接单后从本人列表消失、无法到场/提交。
+            list = list.stream().filter(f -> f.createdBy == null || creatorIds.contains(f.createdBy)
+                    || "OPEN".equals(f.status) || empId.equals(f.dispatchWorkerId)).toList();
         }
         String status = query.get("status");
         if (status != null && !status.isEmpty()) {
             list = list.stream().filter(f -> status.equals(f.status)).toList();
+        }
+        // 困人急修过滤（C-18/V62，工作台「急修待接」KPI 下钻口径）：trapped=1 → 仅困人单；trapped=0 → 仅非困人单
+        if ("1".equals(query.get("trapped"))) {
+            list = list.stream().filter(f -> f.trappedCount != null && f.trappedCount > 0).toList();
+        } else if ("0".equals(query.get("trapped"))) {
+            list = list.stream().filter(f -> f.trappedCount == null || f.trappedCount <= 0).toList();
         }
         List<Map<String, Object>> views = list.stream().map(this::faultView).toList();
         enrichFaultViews(views);
@@ -533,15 +551,27 @@ public class DirectoryService {
         return uu == null || uu.unitName == null ? "" : uu.unitName;
     }
 
-    public Map<String, Object> getFault(String id, String empId) {
-        Fault f = faultMapper.selectById(id);
-        if (f == null) {
-            throw new BizException(1404, "故障记录不存在");
-        }
+    private Set<String> requireFaultReadAccess(Fault f, String empId) {
         Set<String> creatorIds = scopeService.visibleCreatorIds(scopeService.require(empId));
-        if (f.createdBy != null && creatorIds != null && !creatorIds.contains(f.createdBy)) {
-            throw new BizException(1403, "仅可查看本人或本班组急修单");
+        boolean visible = creatorIds == null || f.createdBy == null || creatorIds.contains(f.createdBy)
+                || "OPEN".equals(f.status) || java.util.Objects.equals(empId, f.dispatchWorkerId);
+        if (!visible) {
+            throw new BizException(1403, "仅可查看本人、本班组或待认领的急修单");
         }
+        return creatorIds;
+    }
+
+    private void requireFaultOperator(Fault f, String empId) {
+        Set<String> creatorIds = requireFaultReadAccess(f, empId);
+        // creatorIds=null 与列表一致，表示管理角色不限数据域；普通作业人员只能操作派给本人的单。
+        if (creatorIds != null && !java.util.Objects.equals(empId, f.dispatchWorkerId)) {
+            throw new BizException(1403, "仅被派单作业人员或管理角色可操作急修单");
+        }
+    }
+
+    public Map<String, Object> getFault(String id, String empId) {
+        Fault f = faultOr404(id);
+        requireFaultReadAccess(f, empId);
         Map<String, Object> view = faultView(f);
         enrichFaultViews(List.of(view));
         return view;
@@ -549,13 +579,10 @@ public class DirectoryService {
 
     /** 维修过程字段（小程序急修单详情页）：现场情况/待办事项/处理结果/维修结束时间 */
     public Map<String, Object> updateFault(String id, Map<String, Object> body, String empId) {
-        Fault f = faultMapper.selectById(id);
-        if (f == null) {
-            throw new BizException(1404, "急修单不存在");
-        }
-        Set<String> creatorIds = scopeService.visibleCreatorIds(scopeService.require(empId));
-        if (f.createdBy != null && creatorIds != null && !creatorIds.contains(f.createdBy)) {
-            throw new BizException(1403, "仅可操作本人或本班组急修单");
+        Fault f = faultOr404(id);
+        requireFaultOperator(f, empId);
+        if (!List.of("OPEN", "ASSIGNED", "PROCESSING").contains(f.status)) {
+            throw new BizException(1003, "当前状态不允许修改维修过程或处理结果");
         }
         if (body.get("siteDesc") != null) {
             f.siteDesc = strOrEmpty(body.get("siteDesc"));
@@ -574,13 +601,15 @@ public class DirectoryService {
         enrichFaultViews(List.of(view));
         return view;
     }
-    public Map<String, Object> closeFault(String id, Map<String, Object> body) {
-        Fault f = faultMapper.selectById(id);
-        if (f == null) {
-            throw new BizException(1404, "故障记录不存在");
-        }
+
+    public Map<String, Object> closeFault(String id, Map<String, Object> body, String empId) {
+        Fault f = faultOr404(id);
+        requireFaultOperator(f, empId);
         if ("CLOSED".equals(f.status)) {
             return faultView(f);
+        }
+        if (!"PENDING_CONFIRM".equals(f.status)) {
+            throw new BizException(1003, "仅待使用单位确认的急修单可执行旧版关闭");
         }
         String result = strOrEmpty(body == null ? null : body.get("result"));
         String signature = strOrEmpty(body == null ? null : body.get("signature"));

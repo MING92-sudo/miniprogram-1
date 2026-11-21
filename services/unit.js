@@ -81,7 +81,7 @@ function getUnitFaults() {
   return get('/unit/faults')
 }
 
-// 使用单位报修（契约保留、暂无页面入口；报修页走 fault.reportFault 员工链路）
+// 使用单位报修（2026-11-21 重开：客户主体在一键报修页走本链路，POST /unit/faults 本单位锚点收敛）
 function reportUnitFault(data) {
   return post('/unit/faults', data)
 }

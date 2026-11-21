@@ -250,7 +250,7 @@ public class DemoDataSeeder implements ApplicationRunner {
         r.createdAt = TimeUtil.parse(today + " 16:40:00");
         rescueMapper.insert(r);
 
-        fault("ft_1", "EM-2024-002", "门系统", "1 层厅门关门异响", "OPEN", "", today + " 10:15:00");
+        fault("ft_1", "EM-2024-002", "困人（紧急）", "轿厢 3 层停梯困人 2 人，已接警", "OPEN", "", today + " 10:15:00");
         fault("ft_2", "EM-2024-001", "平层异常", "平层偏差明显，已调整", "CLOSED",
                 "调整平层感应器后恢复正常", today + " 08:20:00");
 
@@ -590,6 +590,8 @@ public class DemoDataSeeder implements ApplicationRunner {
         f.descr = descr;
         f.status = status;
         f.handleDesc = handleDesc;
+        // C-18/V62 演示数据：困人类型默认 2 人（真机走查「急修待接」KPI/横幅/下钻用）
+        f.trappedCount = faultType != null && faultType.contains("困人") ? 2 : 0;
         f.createdAt = TimeUtil.parse(createdAt);
         // 租户快照（权限 P2 T4）：种子急修按电梯编码内联使用单位（不注入服务，沿用 order() 口径）
         Elevator el = elevatorMapper.selectOne(new LambdaQueryWrapper<Elevator>()

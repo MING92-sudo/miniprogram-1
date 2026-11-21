@@ -369,13 +369,14 @@ async function check(name, fn) {
       assert.strictEqual(m2.badges.pendingSigns, 0, '不可签状态仍计数: ' + JSON.stringify(m2.badges))
     })
   })
-  await check('G2 T6 客户 quickActions 保留（todo/elevators，无 report/emergency）', async () => {
+  await check('G2 客户 quickActions（2026-11-21 报修重开：report/elevators/todo，无 emergency）', async () => {
     const m = await req('GET', '/me/menus')
     const keys = (m.quickActions || []).map((q) => q.key)
-    assert(keys.indexOf('todo') > -1 && keys.indexOf('elevators') > -1, JSON.stringify(keys))
-    assert(keys.indexOf('report') < 0 && keys.indexOf('emergency') < 0, JSON.stringify(keys))
+    assert(keys.indexOf('report') > -1 && keys.indexOf('todo') > -1 && keys.indexOf('elevators') > -1, JSON.stringify(keys))
+    assert(keys.indexOf('emergency') < 0, JSON.stringify(keys))
     assert(m.actions['client:sign'] === true, 'client:sign 应为 Y')
-    assert(!m.actions['client:report'] && !m.actions['client:evaluate'], 'T2 收回的按钮码不应下发')
+    assert(m.actions['client:report'] === true, 'client:report 重开后应下发且为 Y')
+    assert(!m.actions['client:evaluate'], 'T2 收回的 client:evaluate 不应下发')
   })
 
   // ── H. 生命周期链路（签退 → 发起使用单位签字 → 客户可见可签）──

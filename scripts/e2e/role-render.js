@@ -9,9 +9,9 @@ const EXPECT = {
   '13800000014': { home: '/pages/install/home/index', tabs: ['install-home', 'handover-list', 'handover-docs', 'profile'] },
   '13800000099': { home: '/pages/install/home/index', tabs: ['install-home', 'handover-list', 'handover-review', 'stats', 'profile'] },
   '13800000017': { home: '/pages/install/home/index', tabs: ['install-home', 'handover-list', 'handover-docs', 'profile'] },
-  // P1 T6：客户快捷动作收敛为 elevators+todo，报修/急修进度下线（tabs 不变）
-  '13800000003': { home: '/pages/client/home/index', tabs: ['client-home', 'client-todo', 'client-elevators', 'profile'], qa: ['elevators', 'todo'], noqa: ['report', 'emergency'] },
-  '13800000018': { home: '/pages/client/home/index', tabs: ['client-home', 'client-todo', 'client-elevators', 'profile'], qa: ['elevators', 'todo'], noqa: ['report', 'emergency'] },
+  // 2026-11-21 裁决：客户一键报修重开——快捷动作 report/elevators/todo（报修按 perms client:report 门控），急修进度仍下线
+  '13800000003': { home: '/pages/client/home/index', tabs: ['client-home', 'client-todo', 'client-elevators', 'profile'], qa: ['report', 'elevators', 'todo'], noqa: ['emergency'] },
+  '13800000018': { home: '/pages/client/home/index', tabs: ['client-home', 'client-todo', 'client-elevators', 'profile'], qa: ['report', 'elevators', 'todo'], noqa: ['emergency'] },
   '13800000009': { home: '/pkg-admin/pages/users/index', tabs: ['admin-org', 'stats', 'admin-audit', 'admin-settings', 'profile'] }
 }
 const SHOTS = ['13800000009', '13800000017', '13800000003', '13800000015']

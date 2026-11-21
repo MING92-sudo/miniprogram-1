@@ -45,22 +45,26 @@ class MiniappMenuQuickActionsTest {
         assertTrue(paths.contains("/pkg-client/pages/todo/index"), "CLIENT 待办签字入口保留");
     }
 
-    /** P1 T6：客户工作台收敛——quickActions 删 report/emergency（保留 elevators/todo）；actions 不下发 client:evaluate/client:report */
+    /** 2026-11-21 裁决：客户一键报修重开（client:report CA/CS 双 Y）——quickActions 恢复 report 首位；
+     *  急修进度/评价仍下线（emergency 不下发、client:evaluate 不入 BUTTON_CODES） */
     @Test
     @SuppressWarnings("unchecked")
-    void clientQuickActionsExcludeReportAndEvaluate() {
+    void clientQuickActionsIncludeReportExcludeEvaluate() {
         for (String role : List.of("CLIENT_ADMIN", "CLIENT_SIGNER")) {
             Map<String, Object> out = svc().menusOf(Set.of(role), null, null);
             List<Map<String, Object>> qa = (List<Map<String, Object>>) out.get("quickActions");
-            assertTrue(qa.stream().noneMatch(a -> "report".equals(a.get("key")) || "emergency".equals(a.get("key"))),
-                    role + " 快捷动作下线一键报修/急修进度（T2 矩阵 client:report DENY，docs/14 §10.3）");
+            assertTrue(qa.stream().anyMatch(a -> "report".equals(a.get("key"))), role + " 一键报修入口重开");
+            assertEquals("/pages/order/report/index",
+                    String.valueOf(qa.stream().filter(a -> "report".equals(a.get("key"))).findFirst().orElseThrow().get("path")),
+                    role + " 报修入口指向共用报修页（页内按主体分流 /unit/faults）");
+            assertTrue(qa.stream().noneMatch(a -> "emergency".equals(a.get("key"))), role + " 急修进度入口仍下线");
             assertTrue(qa.stream().anyMatch(a -> "todo".equals(a.get("key"))), role + " 待办签字保留");
             assertTrue(qa.stream().anyMatch(a -> "elevators".equals(a.get("key"))), role + " 我的电梯保留");
             assertTrue(qa.stream().noneMatch(a -> String.valueOf(a.get("path")).startsWith("/pkg-maintenance/")),
                     role + " 不得指向维保子包");
             Map<String, Object> actions = (Map<String, Object>) out.get("actions");
             assertFalse(actions.containsKey("client:evaluate"), role + " BUTTON_CODES 删 client:evaluate（评价入口下线）");
-            assertFalse(actions.containsKey("client:report"), role + " actions 不下发 client:report");
+            assertEquals(Boolean.TRUE, actions.get("client:report"), role + " client:report 重开后下发且为 Y");
             assertEquals(Boolean.TRUE, actions.get("client:sign"), role + " client:sign 保留且为 Y（T2 最小集）");
         }
     }

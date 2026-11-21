@@ -24,8 +24,8 @@ const LIST = [
   R('/pages/client/select-unit/index', '选择使用单位', { auth: false, built: true }),
   R('/pages/order/list/index', '报修接单', { roles: MAINT, perm: 'order:view_pool', tab: true, batch: 'M3' }),
   R('/pages/order/detail/index', '急修单详情', { roles: MAINT.concat(CLIENT), perm: ['order:view_pool', 'order:view_own'], batch: 'M3' }),
-  // P1 T8-B4：客户报修入口下线（client:report 收回，重开由 P3 裁决）；维保主管代报修保留
-  R('/pages/order/report/index', '一键报修', { roles: ['MAINT_SUP'], perm: ['order:create', 'order:create_proxy'], batch: 'M3' }),
+  // 2026-11-21 裁决：客户报修重开（client:report CA/CS 双 Y，页内按主体分流 /unit/faults）；维保主管代报修保留
+  R('/pages/order/report/index', '一键报修', { roles: ['MAINT_SUP'].concat(CLIENT), perm: ['order:create', 'order:create_proxy', 'client:report'], batch: 'M3' }),
   // P1 T8-B4：电梯页为客户 tab（client-elevators），perm any-of 补客户码（T2 后客户仅持 client:*，内部码不再命中）
   R('/pages/elevator/list/index', '电梯列表', { perm: ['elevator:view', 'client:elevator_view'], tab: true, built: true }),
   R('/pages/elevator/detail/index', '电梯档案', { perm: ['elevator:view', 'client:elevator_view'], built: true }),

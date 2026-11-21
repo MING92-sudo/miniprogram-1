@@ -10,8 +10,6 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 
@@ -40,7 +38,7 @@ public class MiniappMenuController {
                                                     @RequestParam(required = false) String workspace) {
         // 客户主体（ut=2，subject=client_account.id）不在员工目录里，不能走 employeeMapper 查人，
         // 更不能抛 401：前端 request 层把 401 当「登录已失效」→ clearAuth + 回登录页，
-        // 于是客户登录成功后立刻被踢回登录页（小程序实测必现）。客户工作台是固定 tab，这里返回 200 空菜单。
+        // 于是客户登录成功后立刻被踢回登录页（小程序实测必现）。客户菜单走 clientMenus 真实下发。
         Object principalType = request.getAttribute(AuthInterceptor.ATTR_PRINCIPAL_TYPE);
         if (RoleCatalog.PrincipalType.CUSTOMER.name().equals(String.valueOf(principalType))) {
             return ApiResponse.ok(clientMenus(request));
@@ -54,26 +52,16 @@ public class MiniappMenuController {
     }
 
     /**
-     * 客户主体菜单：结构与管理端/员工端同形状（user/home/activeWorkspace/tabs/quickActions/actions/badges），
-     * 但 tabs 为空——客户工作台的 tab 由前端 config/menus 固定下发，后端不参与编排。
+     * 客户主体菜单（2026-11-21 修复）：不再返回空 stub——tabs/quickActions 由 MiniappMenuService
+     * 按客户角色集真实下发（与员工端同一 ROLE_TABS/快捷动作口径）。空 stub 曾被前端 applyToGlobal
+     * 无条件覆盖，冷启动/时序竞争下表现为底栏与快捷动作整块消失（真机反馈）。
      */
     private Map<String, Object> clientMenus(HttpServletRequest request) {
-        Map<String, Object> out = new LinkedHashMap<>();
-        Map<String, Object> user = new LinkedHashMap<>();
+        Object rolesAttr = request.getAttribute(AuthInterceptor.ATTR_ROLES);
+        @SuppressWarnings("unchecked")
+        Set<String> roles = rolesAttr instanceof Set ? (Set<String>) rolesAttr : Set.of();
         Object accountId = request.getAttribute(AuthInterceptor.ATTR_EMP_ID);
-        if (accountId != null) {
-            user.put("id", String.valueOf(accountId));
-        }
-        user.put("roles", new ArrayList<>());
-        out.put("user", user);
-        out.put("principalType", RoleCatalog.PrincipalType.CUSTOMER.name());
-        out.put("home", "/pages/client/home/index");
-        out.put("activeWorkspace", "CLIENT");
-        out.put("tabs", new ArrayList<>());
-        out.put("quickActions", new ArrayList<>());
-        out.put("actions", new LinkedHashMap<>());
-        out.put("badges", Map.of("pendingOrders", 0, "pendingSigns", 0));
-        return out;
+        return menuService.clientMenusOf(roles, accountId == null ? null : String.valueOf(accountId));
     }
 
     private Employee currentUser(HttpServletRequest request) {

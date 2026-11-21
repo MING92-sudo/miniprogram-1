@@ -6,16 +6,10 @@ const { definePage } = require('../../../utils/guard')
 const { ROUTES } = require('../../../config/routes')
 const { getRoles } = require('../../../utils/auth')
 const nav = require('../../../utils/nav')
-const { TOAST_TEXT, ORDER_TEXT } = require('../../../constants/index')
+const { TOAST_TEXT, ORDER_TEXT, FAULT_STATUS_TEXT, FAULT_STATUS_TONE } = require('../../../constants/index')
 
-const STATUS_TEXT = {
-  OPEN: '待接单', ASSIGNED: '已接单', PROCESSING: '处置中', PENDING_CONFIRM: '待使用单位确认',
-  CLOSED: '已闭环', REFUSED: '待整改', CANCELLED: '已取消'
-}
-const STATUS_TONE = {
-  OPEN: 'signal', ASSIGNED: 'amber', PROCESSING: 'amber', PENDING_CONFIRM: 'amber',
-  CLOSED: 'ok', REFUSED: 'signal', CANCELLED: 'dim'
-}
+const STATUS_TEXT = FAULT_STATUS_TEXT
+const STATUS_TONE = FAULT_STATUS_TONE
 
 definePage(ROUTES['/pages/order/detail/index'], {
   data: {
@@ -39,7 +33,7 @@ definePage(ROUTES['/pages/order/detail/index'], {
       push(ORDER_TEXT.TL_DONE, fault.finishedAt || fault.confirmedAt, fault.status === 'CLOSED' ? 'amber' : 'dim')
       const heroTitle = (fault.rescue && fault.status === 'CLOSED') ? ORDER_TEXT.RESCUE_DONE : (fault.desc || '')
       const responseText = fault.responseMinutes != null ? fault.responseMinutes + "'00\"" : ''
-      const heroSub = [fault.elevatorName, fault.floor ? fault.floor + 'F' : '', fault.trapped ? '被困 ' + fault.trapped + ' ' + ORDER_TEXT.TRAPPED_UNIT : '', fault.confirmedAt ? ORDER_TEXT.CONFIRMED_SHORT : ''].filter(Boolean).join(' · ')
+      const heroSub = [fault.elevatorName, fault.floor ? fault.floor + 'F' : '', fault.trappedCount ? '被困 ' + fault.trappedCount + ' ' + ORDER_TEXT.TRAPPED_UNIT : '', fault.confirmedAt ? ORDER_TEXT.CONFIRMED_SHORT : ''].filter(Boolean).join(' · ')
       this.setData({
         fault, loading: false, timeline: tl, heroTitle, responseText, heroSub,
         statusText: STATUS_TEXT[fault.status] || fault.status, statusTone: STATUS_TONE[fault.status] || 'dim',

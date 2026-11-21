@@ -78,7 +78,8 @@ y('record:archive', MS)
 y('record:amend', MM, PA)
 y('record:export', MS, MM, PA)
 // §4.4 急修报修（14）
-// P1 T2：客户报修默认关闭（client:report 收回；重开由 P3 裁决），仅平台管理员持有
+// 2026-11-21 裁决：客户报修重开——客户建单走 POST /unit/faults（client:report，§4.5 CA/CS 双 Y）；
+// order:create 仍是员工码（POST /faults 代报修/现场登记），客户不持有
 y('order:create')
 y('order:create_proxy', MS)
 y('order:view_pool', MS, MM); c('order:view_pool', MT)
@@ -93,12 +94,12 @@ y('order:close', MS)
 y('order:cancel', MS)
 y('order:escalate', MM)
 y('order:export', MS, MM, PA)
-// §4.5 使用单位（7）：P1 T2 客户最小能力集 = elevator_view/download/sign（CA+CS 均 Y，doc §5.4 两角色能力相同）；
-// report/evaluate/user_manage/invite 对客户默认关闭（仅平台管理员持有，重开由后续裁决），invite 保留 MS。
+// §4.5 使用单位（7）：客户能力集 = elevator_view/download/sign + report（2026-11-21 裁决：一键报修重开，CA/CS 双 Y）；
+// evaluate/user_manage 对客户仍默认关闭（仅平台管理员持有，重开由后续裁决），invite 保留 MS。
 y('client:invite', MS)
 y('client:user_manage')
 y('client:elevator_view', CA, CS)
-y('client:report')
+y('client:report', CA, CS)
 y('client:sign', CA, CS)
 y('client:evaluate')
 y('client:download', CA, CS)

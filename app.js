@@ -99,6 +99,27 @@ App({
     return getMenus(workspace || this.globalData.workspace)
   },
 
+  // 菜单变更通知（2026-11-21）：菜单晚到时底栏/工作台只在 attached/show 时 sync，
+  // 数据到了界面不补渲染 → 底栏与快捷动作整块消失。applyToGlobal 写完 globalData 后统一发通知。
+  _menuListeners: [],
+  onMenusUpdated(cb) {
+    if (typeof cb === 'function') this._menuListeners.push(cb)
+  },
+  offMenusUpdated(cb) {
+    this._menuListeners = this._menuListeners.filter((f) => f !== cb)
+  },
+  _notifyMenusUpdated() {
+    this._menuListeners.forEach((cb) => {
+      try { cb() } catch (e) { /* 单个监听器异常不影响其余 */ }
+    })
+    // 兜底：当前页若消费 quickActions（各工作台 qa-grid），直接补一次
+    const pages = getCurrentPages()
+    const cur = pages.length ? pages[pages.length - 1] : null
+    if (cur && Array.isArray(cur.data && cur.data.quickActions)) {
+      cur.setData({ quickActions: this.globalData.quickActions || [] })
+    }
+  },
+
   // 切换工作台：重拉菜单 → reLaunch 该工作台首页（权限保持并集，数据范围逐角色判断）
   switchWorkspace(ws) {
     return this.loadMenus(ws).then(() => {

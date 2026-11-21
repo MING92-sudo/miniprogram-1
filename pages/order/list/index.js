@@ -6,37 +6,33 @@ const { definePage } = require('../../../utils/guard')
 const { ROUTES } = require('../../../config/routes')
 const nav = require('../../../utils/nav')
 const { getPerms } = require('../../../utils/auth')
-const { TOAST_TEXT } = require('../../../constants/index')
+const { TOAST_TEXT, FAULT_STATUS_TEXT, FAULT_STATUS_SHORT, FAULT_STATUS_TONE } = require('../../../constants/index')
 
-const STATUS_TEXT = {
-  OPEN: '待接单', ASSIGNED: '已接单', PROCESSING: '处置中', PENDING_CONFIRM: '待确认',
-  CLOSED: '已闭环', REFUSED: '待整改', CANCELLED: '已取消'
-}
-const STATUS_TONE = {
-  OPEN: 'signal', ASSIGNED: 'amber', PROCESSING: 'amber', PENDING_CONFIRM: 'amber',
-  CLOSED: 'ok', REFUSED: 'signal', CANCELLED: 'dim'
-}
+const STATUS_TEXT = FAULT_STATUS_TEXT
+const STATUS_TONE = FAULT_STATUS_TONE
 const TABS = [
-  { key: '', label: '全部' }, { key: 'OPEN', label: '待接单' }, { key: 'PROCESSING', label: '处置中' },
-  { key: 'PENDING_CONFIRM', label: '待确认' }, { key: 'CLOSED', label: '已闭环' }
+  { key: '', label: '全部' }, { key: 'OPEN', label: FAULT_STATUS_SHORT.OPEN },
+  { key: 'PROCESSING', label: FAULT_STATUS_SHORT.PROCESSING },
+  { key: 'PENDING_CONFIRM', label: FAULT_STATUS_SHORT.PENDING_CONFIRM }, { key: 'CLOSED', label: FAULT_STATUS_SHORT.CLOSED }
 ]
 
 definePage(ROUTES['/pages/order/list/index'], {
-  data: { tabs: TABS, activeTab: '', list: [], page: 1, size: 20, total: 0, status: '', loading: true, error: '', emptyMode: 'empty', canReport: false },
+  data: { tabs: TABS, activeTab: '', list: [], page: 1, size: 20, total: 0, status: '', trapped: '', loading: true, error: '', emptyMode: 'empty', canReport: false },
   onLoad(query) {
     const perms = getPerms() || []
     this.setData({ canReport: perms.indexOf('order:create') > -1 || perms.indexOf('order:create_proxy') > -1 })
-    if (query && query.state === 'urgent') this.setData({ status: 'OPEN', activeTab: 'OPEN' })
-    else if (query && query.state === 'pending') this.setData({ status: 'OPEN', activeTab: 'OPEN' })
+    // C-18/V62：「急修待接」KPI 下钻只看困人单（trapped=1）；「报修待接」为其余待接单
+    if (query && query.state === 'urgent') this.setData({ status: 'OPEN', activeTab: 'OPEN', trapped: '1' })
+    else if (query && query.state === 'pending') this.setData({ status: 'OPEN', activeTab: 'OPEN', trapped: '0' })
   },
   onShow() { this.fetchList(true) },
   onPullDownRefresh() { this.fetchList(true).then(() => wx.stopPullDownRefresh()) },
   onReachBottom() { if (this.data.list.length < this.data.total) this.fetchList(false) },
-  onTabChange(e) { const key = e.currentTarget.dataset.key; this.setData({ status: key, activeTab: key }); this.fetchList(true) },
+  onTabChange(e) { const key = e.currentTarget.dataset.key; this.setData({ status: key, activeTab: key, trapped: '' }); this.fetchList(true) },
   fetchList(reset) {
     const page = reset ? 1 : this.data.page + 1
     this.setData({ loading: reset, error: '' })
-    return getFaultList({ page, size: this.data.size, status: this.data.status }).then((data) => {
+    return getFaultList({ page, size: this.data.size, status: this.data.status, trapped: this.data.trapped }).then((data) => {
       const list = ((data && data.list) || []).map((f) => Object.assign({}, f, {
         statusText: STATUS_TEXT[f.status] || f.status, statusTone: STATUS_TONE[f.status] || 'dim'
       })).sort((a, b) => (b.trappedCount || 0) - (a.trappedCount || 0))

@@ -24,6 +24,22 @@ const STATUS_TEXT = {
   DONE: '已完成'
 }
 
+// 急修单七态文案（docs/04 V2.53 M1）：list/detail 页共用，禁止页面内重复定义
+const FAULT_STATUS_TEXT = {
+  OPEN: '待接单', ASSIGNED: '已接单', PROCESSING: '处置中', PENDING_CONFIRM: '待使用单位确认',
+  CLOSED: '已闭环', REFUSED: '待整改', CANCELLED: '已取消'
+}
+// 急修列表筛选 Tab 短文案（空间受限，文案与七态一一对应）
+const FAULT_STATUS_SHORT = { OPEN: '待接单', PROCESSING: '处置中', PENDING_CONFIRM: '待确认', CLOSED: '已闭环' }
+const FAULT_STATUS_TONE = {
+  OPEN: 'signal', ASSIGNED: 'amber', PROCESSING: 'amber', PENDING_CONFIRM: 'amber',
+  CLOSED: 'ok', REFUSED: 'signal', CANCELLED: 'dim'
+}
+
+// 报修故障等级选项（V2.28；困人急修须填被困人数，trappedCount 随单入库 C-18/V62）
+const FAULT_TYPE_OPTIONS = ['一般故障', '困人（紧急）']
+const FAULT_TYPE_TRAPPED = '困人（紧急）'
+
 // 检查项结果枚举（docs/04 A.2：NORMAL/ABNORMAL/NA）
 const CHECK_RESULT_TEXT = {
   NORMAL: '正常',
@@ -529,6 +545,11 @@ module.exports = {
   ROLE_DESC,
   ROLE,
   STATUS_TEXT,
+  FAULT_STATUS_TEXT,
+  FAULT_STATUS_SHORT,
+  FAULT_STATUS_TONE,
+  FAULT_TYPE_OPTIONS,
+  FAULT_TYPE_TRAPPED,
   CHECK_RESULT_TEXT,
   PROBLEM_CODES,
   WORK_TYPE_CODES,

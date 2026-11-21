@@ -28,9 +28,9 @@ import java.util.Map;
 @Service
 public class ClientLoginService {
 
-    /** 客户最小能力集（docs/14 §4.7）：我的电梯只读 / 记录签字 / 报告下载 */
+    /** 客户能力集（docs/14 §4.7）：我的电梯只读 / 记录签字 / 报告下载 / 一键报修（2026-11-21 重开 client:report） */
     public static final List<String> CLIENT_PERMS =
-            List.of("client:elevator_view", "client:sign", "client:download");
+            List.of("client:elevator_view", "client:sign", "client:download", "client:report");
     /** 客户默认工作台（与前端 config/menus.HOME_BY_ROLE 同口径） */
     public static final String CLIENT_HOME = "/pages/client/home/index";
 

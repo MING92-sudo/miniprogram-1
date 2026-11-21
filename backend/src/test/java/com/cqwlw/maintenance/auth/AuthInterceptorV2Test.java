@@ -221,16 +221,19 @@ class AuthInterceptorV2Test {
     }
 
     /** P1 终审 M8：/elevators 白名单斜杠边界——前缀形 URI（如 /elevators-secret）不得放行；
-     *  POST /files/upload（非 GET 写路径）客户拒；POST /unit/faults（/unit/** 前缀）放行 */
+     *  POST /unit/faults（/unit/** 前缀）放行；
+     *  2026-11-21：POST /files/upload 对客户放行（重开 client:report 配套，报修现场照片） */
     @Test
     void clientWhitelistUsesSlashBoundary() {
         AuthInterceptor interceptor = interceptorFor("emp_c", "UNIT_ADMIN", "CLIENT_ADMIN");
         BizException ex = assertThrows(BizException.class, () -> interceptor.preHandle(
                 request("/elevators-secret", "GET"), response, handler));
         assertEquals(403, ex.getCode(), "startsWith 无斜杠边界会误放行前缀形 URI");
-        BizException up = assertThrows(BizException.class, () -> interceptor.preHandle(
-                request("/files/upload", "POST"), response, handler));
-        assertEquals(403, up.getCode(), "客户写路径不放行（仅 GET /files/*）");
+        assertTrue(interceptor.preHandle(request("/files/upload", "POST"), response, handler),
+                "客户报修照片上传放行（仅此一条 /files 写路径）");
+        BizException sts = assertThrows(BizException.class, () -> interceptor.preHandle(
+                request("/files/sts", "POST"), response, handler));
+        assertEquals(403, sts.getCode(), "其余 /files 写侧仍不对客户开放");
         assertTrue(interceptor.preHandle(request("/unit/faults", "POST"), response, handler));
         assertTrue(interceptor.preHandle(request("/elevators", "GET"), response, handler));
         assertTrue(interceptor.preHandle(request("/elevators/e1/profile", "GET"), response, handler));

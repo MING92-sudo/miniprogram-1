@@ -378,7 +378,8 @@ public final class PermissionMatrix {
         y(RECORD_AMEND, MM, PA);
         y(RECORD_EXPORT, MS, MM, PA);
         // §4.4 急修报修（14）
-        // P1 T2：客户报修默认关闭（client:report 收回；重开由 P3 裁决），仅平台管理员持有
+        // 2026-11-21 裁决：客户报修重开——客户建单走 POST /unit/faults（client:report，§4.5 CA/CS 双 Y）；
+        // order:create 仍是员工码（POST /faults 代报修/现场登记），客户不持有
         y(ORDER_CREATE);
         y(ORDER_CREATE_PROXY, MS);
         y(ORDER_VIEW_POOL, MS, MM); c(ORDER_VIEW_POOL, MT);
@@ -393,12 +394,13 @@ public final class PermissionMatrix {
         y(ORDER_CANCEL, MS);
         y(ORDER_ESCALATE, MM);
         y(ORDER_EXPORT, MS, MM, PA);
-        // §4.5 使用单位（7）：P1 T2 客户最小能力集 = elevator_view/download/sign（CA+CS 均 Y，doc §5.4 两角色能力相同）；
-        // report/evaluate/user_manage/invite 对客户默认关闭（仅平台管理员持有，重开由后续裁决），invite 保留 MS。
+        // §4.5 使用单位（7）：客户能力集 = elevator_view/download/sign + report（2026-11-21 裁决：
+        // 客户一键报修重开，CA/CS 双 Y，报修走 POST /unit/faults 本单位锚点收敛）；
+        // evaluate/user_manage 对客户仍默认关闭（仅平台管理员持有，重开由后续裁决），invite 保留 MS。
         y(CLIENT_INVITE, MS);
         y(CLIENT_USER_MANAGE);
         y(CLIENT_ELEVATOR_VIEW, CA, CS);
-        y(CLIENT_REPORT);
+        y(CLIENT_REPORT, CA, CS);
         y(CLIENT_SIGN, CA, CS);
         y(CLIENT_EVALUATE);
         y(CLIENT_DOWNLOAD, CA, CS);
