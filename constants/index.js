@@ -91,7 +91,7 @@ const TOAST_TEXT = {
   PARTNER_NOT_CHECKED_IN: '配合人员未签到'
 }
 
-// 区域抢单池（2026-11-20 区域抢单池设计 §4.5 / D2/M1）：待接单池与配合人选择文案
+// 区域抢单池（2026-11-20 区域抢单池设计 §4.6 / D2/M1）：待接单池与配合人选择文案
 const POOL_TEXT = {
   SECTION_TITLE: '待接单池',
   SECTION_SUB: '同区域工单 · 到场签到即认领',

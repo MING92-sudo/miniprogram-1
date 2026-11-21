@@ -558,10 +558,17 @@ public class WorkOrderService {
     /**
      * 配合人身份比对（M5）：工单已指定配合人（assistantPlatformId 非空）时，签到者必须为该配合人本人，
      * 否则 1003「你未被指定为配合人」——防「码给错人」冒签；必须先于动态码消费，错误人选不得吞码。
-     * M8 兼容分支：存量工单 assistantPlatformId 为空（配合人仅有建档绑定姓名）时跳过比对，维持原动态码口径。
+     * I2 fail-closed（2026-11-21 最终审查）：池化新单（regionId 非空，或留痕带 claimedViaPool 打标，
+     * 与 checkout pooledOrder 判定同一口径）尚未指定配合人时，任何人不得以 ASSISTANT 签到——
+     * 否则吞码 + 匿名留痕把工单锁死（签退 D8 422、assignPartner 1003、claimOrder 因非 PENDING 落败）。
+     * M8 兼容分支：存量工单（regionId 空且无认领标记）assistantPlatformId 为空时跳过比对，维持原动态码口径。
      */
     private void requireAssignedAssistant(WorkOrder o, String empId) {
         if (isBlank(o.assistantPlatformId)) {
+            boolean pooledOrder = !isBlank(o.regionId) || claimedViaPool(o.checkinExtraJson);
+            if (pooledOrder) {
+                throw new BizException(1003, "主维保尚未指定配合人，请由主维保指定后再签到");
+            }
             return;
         }
         Employee login = scopeService.require(empId);

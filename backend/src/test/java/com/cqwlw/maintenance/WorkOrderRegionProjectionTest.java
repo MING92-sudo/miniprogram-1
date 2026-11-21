@@ -30,7 +30,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
- * 工单视图区域快照透出（2026-11-20 区域抢单池设计 §4.4，Task 10 结转①）：
+ * 工单视图区域快照透出（2026-11-20 区域抢单池设计 §4.5，Task 10 结转①）：
  * 管理端工单池「待接单 · 区域名」与小程序池卡片依赖 toMap 投影 regionId（M4 快照原值）
  * + regionName（经 RegionMapper 解析，口径同 AdminArchiveService.regionNameOf：
  * 空/查不到/未注入 mapper 回空串，不抛错）。

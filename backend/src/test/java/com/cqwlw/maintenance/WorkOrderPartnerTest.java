@@ -257,6 +257,8 @@ class WorkOrderPartnerTest {
     /** M8 兼容分支：存量工单 assistantPlatformId 为空（配合人仅有建档绑定姓名）→ 维持原动态码口径，不做身份比对 */
     @Test
     void legacyOrderWithoutAssistantPlatformIdKeepsCodeOnlyFlow() {
+        // 存量工单口径：regionId 空（V57 不回填）且留痕无 claimedViaPool 标记（M8）
+        order.regionId = null;
         order.assistantName = "王五";
         order.assistantPlatformId = null;
         String code = String.valueOf(service.issueDynamicCode(ORDER, "emp_zhang").get("code"));
@@ -266,5 +268,42 @@ class WorkOrderPartnerTest {
         assertEquals(Boolean.TRUE, r.get("passed"));
         assertEquals("ASSISTANT", r.get("role"));
         assertNotNull(order.assistantCheckinExtraJson);
+    }
+
+    /**
+     * I2 fail-closed（最终审查合并前必修）：池化新单（regionId 非空）未指定配合人时，
+     * 任何人以 ASSISTANT 签到一律 1003「主维保尚未指定配合人」——先于动态码消费
+     *（不得吞码、不得落库），否则匿名签到会锁死工单（签退 D8 422 / 改选 1003 / 认领落败）。
+     */
+    @Test
+    void pooledOrderWithoutAssignedAssistantRejectsAssistantCheckin() {
+        order.assistantName = "";
+        order.assistantPlatformId = null;
+        String code = String.valueOf(service.issueDynamicCode(ORDER, "emp_zhang").get("code"));
+
+        BizException e = assertThrows(BizException.class,
+                () -> service.checkin(ORDER, assistantBody(code, 29.61, 106.51), "emp_admin"));
+        assertEquals(1003, e.getCode());
+        assertTrue(e.getMessage().contains("尚未指定配合人"), "提示语：" + e.getMessage());
+        verify(orderMapper, never()).consumeDynamicCodeIfUnused(any(), any(), any());
+        assertNull(order.assistantCheckinExtraJson, "守卫拦截不得写签到留痕");
+        assertNull(order.dynamicCode, "守卫拦截不得吞动态码");
+    }
+
+    /** I2 第二信号：不限区域池单（regionId 空）以主维保签到打标 claimedViaPool 判定，同样 fail-closed */
+    @Test
+    void claimedViaPoolOrderWithoutAssignedAssistantRejectsAssistantCheckin() {
+        order.regionId = null;
+        order.checkinExtraJson = "{\"role\":\"PRINCIPAL\",\"claimedViaPool\":true}";
+        order.assistantName = "";
+        order.assistantPlatformId = null;
+        String code = String.valueOf(service.issueDynamicCode(ORDER, "emp_zhang").get("code"));
+
+        BizException e = assertThrows(BizException.class,
+                () -> service.checkin(ORDER, assistantBody(code, 29.61, 106.51), "emp_admin"));
+        assertEquals(1003, e.getCode());
+        assertTrue(e.getMessage().contains("尚未指定配合人"), "提示语：" + e.getMessage());
+        verify(orderMapper, never()).consumeDynamicCodeIfUnused(any(), any(), any());
+        assertNull(order.assistantCheckinExtraJson);
     }
 }

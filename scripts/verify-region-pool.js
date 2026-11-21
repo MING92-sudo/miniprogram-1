@@ -99,6 +99,16 @@ async function check(name, fn) {
     assert.strictEqual(o.status, 'PENDING')
   })
 
+  await check('B5 池单未指定配合人：ASSISTANT 签到 1003「尚未指定配合人」，不吞码不留痕（I2 fail-closed）', async () => {
+    await login(ACC_CHEN)
+    const e = await expectCode(1003, 'POST', '/work-orders/' + POOL_ORDER + '/checkin',
+      Object.assign({ role: 'ASSISTANT', dynamicCode: '999999' }, GEO))
+    assert((e.message || '').indexOf('尚未指定配合人') > -1, '文案不符: ' + e.message)
+    const o = d.db.orders.find((x) => x.id === POOL_ORDER)
+    assert(!o.assistantCheckinExtra, '守卫拦截不得写配合人签到留痕')
+    assert(!o.dynamicCode, '守卫拦截不得吞动态码')
+  })
+
   // ── C. 配合人候选与指派（D3/D4/M10）──
   await check('C1 候选=同区域+持平台ID+排除本人（含 陈刚；不含 张伟/李强/李振国）', async () => {
     await login(ACC_ZHANG)

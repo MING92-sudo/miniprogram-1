@@ -809,6 +809,19 @@ const routes = [
     if (!isFinite(lat) || !isFinite(lng)) {
       throw { code: 422, message: '签到必须携带定位坐标；定位失败请重试（严禁伪造坐标）' }
     }
+    // 配合人门禁（后端 WorkOrderService.requireAssignedAssistant 同口径，先于动态码消费）：
+    // ①M5 身份比对——已指定配合人时仅本人可签，错误人选 1003 不吞码；
+    // ②I2 fail-closed——池化新单（regionId 非空或 checkinExtra.claimedViaPool）未指定配合人一律 1003；
+    // 存量工单（regionId 空且无打标）维持 M8 原动态码口径，不做身份比对
+    if (assistant) {
+      if (o.assistantPlatformId) {
+        if (!me.platformId || me.platformId !== o.assistantPlatformId) {
+          throw { code: 1003, message: '你未被指定为配合人（本工单配合人已由主维保指定）' }
+        }
+      } else if (o.regionId || (o.checkinExtra && o.checkinExtra.claimedViaPool)) {
+        throw { code: 1003, message: '主维保尚未指定配合人，请由主维保指定后再签到' }
+      }
+    }
     // 配合人员须携带主维保生成、未过期且未使用的动态码（一次性消费）
     if (assistant) d.consumeDynamicCode(o, body.dynamicCode)
     // 认领写库在任何校验通过之后、签到留痕之前（与后端顺序一致：校验失败零副作用）；
