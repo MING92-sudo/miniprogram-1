@@ -32,7 +32,7 @@ public class WorkDomainController {
     @PostMapping("/records/{id}/amend")
     public ApiResponse<MaintainRecord> amend(@PathVariable String id, @RequestBody Map<String, Object> body, HttpServletRequest req) {
         MultiRoleGate.requireWrite(req, PermissionMatrix.RECORD_AMEND);
-        return ApiResponse.ok(service.amend(id, String.valueOf(body.get("reason")), actor(req)));
+        return ApiResponse.ok(service.amend(id, body, actor(req)));
     }
 
     @PostMapping("/faults/{id}/proxy")

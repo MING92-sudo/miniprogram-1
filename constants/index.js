@@ -40,6 +40,16 @@ const FAULT_STATUS_TONE = {
 const FAULT_TYPE_OPTIONS = ['一般故障', '困人（紧急）']
 const FAULT_TYPE_TRAPPED = '困人（紧急）'
 
+// 维保记录生命周期状态文案（M1 记录生命周期，record-detail 状态条）
+const RECORD_LIFECYCLE_TEXT = {
+  PENDING_REVIEW: '待复核', PENDING_CLIENT_SIGN: '待使用单位签字', PENDING_CLIENT_SIGNATURE: '待使用单位签署',
+  SIGNED: '已签署', ARCHIVED: '已归档', REFUSED_RETURNED: '拒签退回'
+}
+const RECORD_LIFECYCLE_TONE = {
+  PENDING_REVIEW: 'amber', PENDING_CLIENT_SIGN: 'amber', PENDING_CLIENT_SIGNATURE: 'amber',
+  SIGNED: 'ok', ARCHIVED: 'ok', REFUSED_RETURNED: 'signal'
+}
+
 // 检查项结果枚举（docs/04 A.2：NORMAL/ABNORMAL/NA）
 const CHECK_RESULT_TEXT = {
   NORMAL: '正常',
@@ -550,6 +560,8 @@ module.exports = {
   FAULT_STATUS_TONE,
   FAULT_TYPE_OPTIONS,
   FAULT_TYPE_TRAPPED,
+  RECORD_LIFECYCLE_TEXT,
+  RECORD_LIFECYCLE_TONE,
   CHECK_RESULT_TEXT,
   PROBLEM_CODES,
   WORK_TYPE_CODES,

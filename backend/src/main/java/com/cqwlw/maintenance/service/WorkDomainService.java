@@ -7,16 +7,16 @@ import com.cqwlw.maintenance.entity.MaintainRecord;
 import com.cqwlw.maintenance.entity.SysAuditLog;
 import com.cqwlw.maintenance.mapper.FaultMapper;
 import com.cqwlw.maintenance.mapper.MaintainRecordMapper;
+import com.cqwlw.maintenance.util.JsonUtil;
 import com.cqwlw.maintenance.util.TimeUtil;
 import org.springframework.stereotype.Service;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
+import java.util.List;
 import java.util.Map;
 
 /**
- * M4 作业域：记录归档后修订（v2 + 新哈希，v1 与签名永久保留）+ 代报修。
- * 修订不触发任何上报（P-5 interim，AGENTS §2.4 无自动重试）；仅已归档可发起。
+ * M4 作业域：记录归档后修订（新版本 + 明确变更集，旧版本与签名永久保留）+ 代报修。
+ * 修订不触发任何上报（P-5 interim，AGENTS §2.4 无自动重试）；仅已确认且已归档可发起。
  */
 @Service
 public class WorkDomainService {
@@ -24,24 +24,38 @@ public class WorkDomainService {
     private final MaintainRecordMapper recordMapper;
     private final FaultMapper faultMapper;
     private final AuditLogService audit;
+    private final RecordLifecycleService recordLifecycle;
 
-    public WorkDomainService(MaintainRecordMapper recordMapper, FaultMapper faultMapper, AuditLogService audit) {
+    public WorkDomainService(MaintainRecordMapper recordMapper, FaultMapper faultMapper,
+                             AuditLogService audit, RecordLifecycleService recordLifecycle) {
         this.recordMapper = recordMapper;
         this.faultMapper = faultMapper;
         this.audit = audit;
+        this.recordLifecycle = recordLifecycle;
     }
 
-    public MaintainRecord amend(String recordId, String reason, String actor) {
+    public MaintainRecord amend(String recordId, Map<String, Object> body, String actor) {
         MaintainRecord v1 = recordMapper.selectById(recordId);
         if (v1 == null) {
             throw new BizException(404, "记录不存在");
         }
-        if (!"CONFIRMED".equals(v1.confirmStatus)) {
-            throw new BizException(422, "仅已归档记录可发起修订");
+        if (!"CONFIRMED".equals(v1.confirmStatus) || !"ARCHIVED".equals(v1.lifecycleStatus)) {
+            throw new BizException(422, "仅已确认且已归档记录可发起修订");
         }
+        String reason = str(body, "reason");
         if (reason == null || reason.isBlank()) {
             throw new BizException(422, "修订原因必填");
         }
+        boolean changeItems = body != null && body.containsKey("items");
+        boolean changeTodo = body != null && body.containsKey("todoDesc");
+        boolean changeSafety = body != null && body.containsKey("safety");
+        if (!changeItems && !changeTodo && !changeSafety) {
+            throw new BizException(422, "请至少提交一项实际修订内容");
+        }
+        if (changeItems && !(body.get("items") instanceof List<?>)) {
+            throw new BizException(422, "修订检查项必须为列表");
+        }
+
         MaintainRecord v2 = new MaintainRecord();
         v2.id = Ids.next("rec");
         v2.elevatorName = v1.elevatorName;
@@ -58,22 +72,31 @@ public class WorkDomainService {
         v2.checkinTime = v1.checkinTime;
         v2.checkoutTime = v1.checkoutTime;
         v2.duration = v1.duration;
-        v2.itemsJson = v1.itemsJson;
+        v2.itemsJson = changeItems ? JsonUtil.write(body.get("items")) : v1.itemsJson;
         v2.photosJson = v1.photosJson;
+        v2.safetyJson = changeSafety
+                ? (body.get("safety") == null ? null : JsonUtil.write(body.get("safety"))) : v1.safetyJson;
+        v2.todoDesc = changeTodo ? str(body, "todoDesc") : v1.todoDesc;
         v2.workerSignatureUrl = v1.workerSignatureUrl;
         v2.assistantSignatureUrl = v1.assistantSignatureUrl;
         v2.problemCodesJson = v1.problemCodesJson;
+        v2.originalRecordId = v1.originalRecordId;
+        v2.workOrderId = v1.workOrderId;
+        v2.nextMaintenanceDate = v1.nextMaintenanceDate;
+        v2.previewContextJson = v1.previewContextJson;
         v2.version = (v1.version == null ? 1 : v1.version) + 1;
         v2.prevVersionId = v1.id;
         v2.amendReason = reason;
         v2.amendedBy = actor;
         v2.amendedAt = TimeUtil.now();
         v2.soloExempt = v1.soloExempt;
+        // 客户签署、归档文件、拒签和上一周期上报载荷均不复制；只能重新走复核/签署。
         v2.reportStatus = "DRAFT";
+        v2.retryCount = 0;
         v2.confirmStatus = "PENDING";
+        v2.lifecycleStatus = recordLifecycle.initialStatus();
         v2.shareToken = "sg" + Long.toString(System.currentTimeMillis(), 36) + v2.id;
         v2.createdAt = TimeUtil.now();
-        v2.previewContextJson = sha256(v2.itemsJson == null ? "" : v2.itemsJson);
         recordMapper.insert(v2);
         audit(actor, "record:amend", v2.id, "SUCCESS", reason);
         return v2;
@@ -98,18 +121,6 @@ public class WorkDomainService {
         faultMapper.updateById(f);
         audit(actor, "order:create_proxy", faultId, "SUCCESS", source);
         return f;
-    }
-
-    private static String sha256(String s) {
-        try {
-            MessageDigest md = MessageDigest.getInstance("SHA-256");
-            byte[] d = md.digest(s.getBytes(StandardCharsets.UTF_8));
-            StringBuilder sb = new StringBuilder();
-            for (byte b : d) sb.append(String.format("%02x", b));
-            return sb.toString();
-        } catch (Exception e) {
-            throw new IllegalStateException(e);
-        }
     }
 
     private void audit(String actor, String action, String target, String result, String reason) {

@@ -1,6 +1,6 @@
 <template>
   <div>
-    <ViewHead title="记录单复核" sub="双签核验 · 退回 · 送使用单位签署 · 归档后修订（v2 + 新哈希，不重报）">
+    <ViewHead title="记录单复核" sub="双签核验 · 退回 · 送使用单位签署 · 归档后修订（v2 + 版本留痕，不重报）">
       <template #meta><PageMeta perm="record:view" :extra="[{ k: '记录单', v: rows.length, icon: 'clipboard', cls: 'count' }]" /></template>
     </ViewHead>
 
@@ -36,11 +36,11 @@
           <button class="btn btn-ghost btn-xs" type="button" @click.stop="openDetail(row)">
             <svg class="ic" aria-hidden="true"><use href="#i-eye" /></svg><span>详情</span>
           </button>
-          <PermButton v-if="row.confirmStatus === 'CONFIRMED'" code="record:amend" label="发起修订" variant="ghost" size="xs" icon="edit" @click="openAmend(row)" />
+          <PermButton v-if="row.confirmStatus === 'CONFIRMED' && row.lifecycleStatus === 'ARCHIVED'" code="record:amend" label="发起修订" variant="ghost" size="xs" icon="edit" @click="openAmend(row)" />
         </template>
       </DataTable>
     </div>
-    <RuleNote class="mt12">双签三条件：① 主检≠配合人（不同账号）② 主检先签、配合人后签 ③ 双签完成才可送使用单位——②③ 由服务端在送签时强校验（含存量单人豁免标记）。归档后修订生成 v2 与新哈希，v1 与签名永久保留，<b>不触发任何上报</b>（P-5）。</RuleNote>
+    <RuleNote class="mt12">双签三条件：① 主检≠配合人（不同账号）② 主检先签、配合人后签 ③ 双签完成才可送使用单位——②③ 由服务端在送签时强校验（含存量单人豁免标记）。归档后修订生成 v2 与版本留痕，v1 与签名永久保留，<b>不触发任何上报</b>（P-5）。</RuleNote>
 
     <!-- 详情抽屉 -->
     <Drawer :open="detailOpen" :title="detail.originalRecordId || detail.id || '记录单'" :sub="(detail.elevatorCode || '') + ' · ' + (detail.elevatorName || '')"
@@ -189,7 +189,7 @@
         </template>
         <template v-if="detail.confirmStatus === 'CONFIRMED'">
           <PermButton code="record:archive" label="归档投影" variant="ghost" icon="archive" @click="loadArchiveView(true)" />
-          <PermButton code="record:amend" label="发起修订" variant="ghost" icon="edit" @click="openAmend(detail)" />
+          <PermButton v-if="detail.lifecycleStatus === 'ARCHIVED'" code="record:amend" label="发起修订" variant="ghost" icon="edit" @click="openAmend(detail)" />
         </template>
         <PermButton code="record:export" label="导出 PDF" variant="ghost" icon="download" @click="exportPdf(detail)" />
       </template>
@@ -214,10 +214,41 @@
     <!-- 发起修订 -->
     <Modal :open="amendModal" title="发起归档后修订" :sub="(amendTarget && (amendTarget.originalRecordId || amendTarget.id)) || ''" icon="edit"
       note="record:amend · 不触发上报（P-5）" confirm-label="发起修订" @close="amendModal = false" @confirm="submitAmend">
-      <FormField label="修订理由" required :error="amendErr">
-        <textarea v-model="amendReason" class="ctl" placeholder="必填，说明修订内容" />
-      </FormField>
-      <RuleNote class="mt12">确认后生成 v2 与新哈希；v1 与签名永久保留，不触发任何监管上报。</RuleNote>
+      <div v-if="amendLoading" class="dim">正在加载原记录明细…</div>
+      <template v-else>
+        <FormField label="修订理由" required :error="amendErr">
+          <textarea v-model="amendReason" class="ctl" data-testid="amend-reason" placeholder="必填，说明修订内容" />
+        </FormField>
+        <div v-for="(it, i) in amendItems" :key="i" class="sec mt12">
+          <div class="sec-t">{{ it.name || ('检查项 ' + (i + 1)) }}</div>
+          <FormField label="检查结果">
+            <select v-model="it.result" class="ctl" :data-testid="i === 0 ? 'amend-item-result' : undefined">
+              <option value="NORMAL">正常</option>
+              <option value="ABNORMAL">异常</option>
+            </select>
+          </FormField>
+          <FormField label="实测值">
+            <div class="fl">
+              <input v-model="it.value" class="ctl" :data-testid="i === 0 ? 'amend-item-value' : undefined" placeholder="读数" />
+              <input v-model="it.valueUnit" class="ctl" placeholder="单位" />
+            </div>
+          </FormField>
+          <FormField label="异常说明">
+            <textarea v-model="it.abnormalDesc" class="ctl" :data-testid="i === 0 ? 'amend-item-abnormal' : undefined" placeholder="异常项必填，如实描述" />
+          </FormField>
+        </div>
+        <FormField label="待办事项">
+          <textarea v-model="amendTodo" class="ctl" data-testid="amend-todo" placeholder="无待办可留空" />
+        </FormField>
+        <div class="sec mt12">
+          <div class="sec-t">安全防护</div>
+          <label class="perm-item"><input v-model="amendSafety.warning" type="checkbox" /> 已设置安全警示</label>
+          <label class="perm-item"><input v-model="amendSafety.barrier" type="checkbox" data-testid="amend-safety-barrier" /> 已设置现场围蔽</label>
+          <label class="perm-item"><input v-model="amendSafety.powerOff" type="checkbox" /> 已执行断电验电</label>
+          <label class="perm-item"><input v-model="amendSafety.twoPerson" type="checkbox" /> 已落实双人作业</label>
+        </div>
+      </template>
+      <RuleNote class="mt12">确认后生成新版本并重新进入复核／签署；旧版本与签名永久保留，不触发任何监管上报。</RuleNote>
     </Modal>
   </div>
 </template>
@@ -356,24 +387,49 @@ async function signRequest() {
   } catch (e) { toast.error(e.message || '双签未完成，禁止送使用单位') }
 }
 
-// 修订 v2（不重报，P-5）
+// 修订新版本（不重报，P-5）：必须基于原记录明细提交实际变更集。
 const amendModal = ref(false)
 const amendTarget = ref(null)
 const amendReason = ref('')
 const amendErr = ref('')
-function openAmend(row) {
+const amendLoading = ref(false)
+const amendItems = ref([])
+const amendTodo = ref('')
+const amendSafety = ref({})
+async function openAmend(row) {
   amendTarget.value = row
   amendReason.value = ''
   amendErr.value = ''
+  amendItems.value = []
+  amendTodo.value = row.todoDesc || ''
+  amendSafety.value = { warning: false, barrier: false, powerOff: false, twoPerson: false }
   amendModal.value = true
+  amendLoading.value = true
+  try {
+    const d = await http.get(`/admin/records/${row.id}`)
+    if (!amendTarget.value || amendTarget.value.id !== row.id) return
+    amendItems.value = (d.items || []).map((it) => ({ ...it }))
+    amendTodo.value = d.todoDesc || ''
+    amendSafety.value = { warning: false, barrier: false, powerOff: false, twoPerson: false, ...(d.safety || {}) }
+  } catch (e) {
+    amendErr.value = e.message || '原记录明细加载失败，请关闭后重试'
+  } finally {
+    amendLoading.value = false
+  }
 }
 async function submitAmend() {
+  if (amendLoading.value) { amendErr.value = '原记录明细尚未加载完成'; return }
   if (!amendReason.value.trim()) { amendErr.value = '修订理由必填'; return }
   amendErr.value = ''
   try {
-    await http.post(`/records/${amendTarget.value.id}/amend`, { reason: amendReason.value })
+    await http.post(`/records/${amendTarget.value.id}/amend`, {
+      reason: amendReason.value,
+      items: amendItems.value,
+      todoDesc: amendTodo.value,
+      safety: amendSafety.value
+    })
     amendModal.value = false
-    toast.success('已生成 v2 · 新哈希留痕（不重报）',amendTarget.value.originalRecordId)
+    toast.success('已生成修订版 · 待复核／签署（不重报）', amendTarget.value.originalRecordId)
     await load()
   } catch (e) { toast.error(e.message || '修订失败') }
 }

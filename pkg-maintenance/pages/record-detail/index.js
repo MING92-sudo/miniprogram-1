@@ -3,20 +3,14 @@
 // C-24：数据源为员工内部端点 GET /records/{id}（record:view + V7 班组谓词）；
 // /unit/records/{id} 为客户门户契约（后端 getAs 员工令牌 1403），本页不再调用。
 const { getOrderDetail, signRequest, getRecordArchive, getRecordDetail } = require('../../../services/order')
-const { CHECK_RESULT_TEXT, TOAST_TEXT, RECORD_TEXT } = require('../../../constants/index')
+const { CHECK_RESULT_TEXT, TOAST_TEXT, RECORD_TEXT, RECORD_LIFECYCLE_TEXT, RECORD_LIFECYCLE_TONE } = require('../../../constants/index')
 const { buildRecordSummary } = require('../../../utils/record-view')
 const { definePage } = require('../../../utils/guard')
 const { ROUTES } = require('../../../config/routes')
 const nav = require('../../../utils/nav')
 
-const LIFECYCLE_TEXT = {
-  PENDING_REVIEW: '待复核', PENDING_CLIENT_SIGN: '待使用单位签字', PENDING_CLIENT_SIGNATURE: '待使用单位签署',
-  SIGNED: '已签署', ARCHIVED: '已归档', REFUSED_RETURNED: '拒签退回'
-}
-const LIFECYCLE_TONE = {
-  PENDING_REVIEW: 'amber', PENDING_CLIENT_SIGN: 'amber', PENDING_CLIENT_SIGNATURE: 'amber',
-  SIGNED: 'ok', ARCHIVED: 'ok', REFUSED_RETURNED: 'signal'
-}
+const LIFECYCLE_TEXT = RECORD_LIFECYCLE_TEXT
+const LIFECYCLE_TONE = RECORD_LIFECYCLE_TONE
 
 definePage(ROUTES['/pkg-maintenance/pages/record-detail/index'], {
   data: {
