@@ -7,6 +7,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -28,6 +29,22 @@ class OriginalRecordIdMigrationSqlTest {
                 "V68 必须分别预检工单与记录版本重复");
         assertFalse(sql.matches("(?is).*\\b(DELETE|UPDATE)\\b.*"),
                 "V68 不得自动清理或改写业务数据");
+    }
+
+    @Test
+    void migrationRerunGuardRejectsConflictingIndexDefinitions() throws Exception {
+        String sql = new String(new ClassPathResource("db/migration/V68__original_record_id_unique.sql")
+                .getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+
+        assertEquals(2, countMatches(sql, "(?i)MAX\\s*\\(\\s*NON_UNIQUE\\s*\\)\\s*=\\s*0"),
+                "同名索引必须验证唯一性");
+        assertEquals(2, countMatches(sql,
+                        "(?i)GROUP_CONCAT\\s*\\(\\s*COLUMN_NAME\\s+ORDER\\s+BY\\s+SEQ_IN_INDEX\\s*\\)"),
+                "同名索引必须验证有序列定义");
+        assertEquals(2, countMatches(sql, "(?is)ELSE\\s+'ALTER\\s+TABLE\\s+"),
+                "同名索引定义冲突必须通过 MySQL 可预备的 DDL 明确失败");
+        assertEquals(0, countMatches(sql, "(?i)SIGNAL\\s+SQLSTATE"),
+                "SIGNAL 不支持 PREPARE，不得用于冲突分支");
     }
 
     private int countMatches(String value, String regex) {

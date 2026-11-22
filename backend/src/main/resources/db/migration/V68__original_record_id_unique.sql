@@ -6,9 +6,15 @@ WHERE original_record_id IS NOT NULL
 GROUP BY original_record_id
 HAVING COUNT(*) > 1;
 
-SET @ddl := (SELECT IF(COUNT(*) = 0,
-    'ALTER TABLE work_order ADD UNIQUE KEY uk_work_order_original_record_id (original_record_id)',
-    'SELECT 1')
+SET @ddl := (SELECT CASE
+    WHEN COUNT(*) = 0 THEN
+        'ALTER TABLE work_order ADD UNIQUE KEY uk_work_order_original_record_id (original_record_id)'
+    WHEN MAX(NON_UNIQUE) = 0 AND MAX(SUB_PART) IS NULL
+        AND GROUP_CONCAT(COLUMN_NAME ORDER BY SEQ_IN_INDEX) = 'original_record_id' THEN
+        'SELECT 1'
+    ELSE
+        'ALTER TABLE work_order ADD UNIQUE KEY uk_work_order_original_record_id (original_record_id)'
+END
 FROM information_schema.STATISTICS
 WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'work_order'
   AND INDEX_NAME = 'uk_work_order_original_record_id');
@@ -20,9 +26,15 @@ WHERE original_record_id IS NOT NULL
 GROUP BY original_record_id, version
 HAVING COUNT(*) > 1;
 
-SET @ddl := (SELECT IF(COUNT(*) = 0,
-    'ALTER TABLE maintain_record ADD UNIQUE KEY uk_maintain_record_original_version (original_record_id, version)',
-    'SELECT 1')
+SET @ddl := (SELECT CASE
+    WHEN COUNT(*) = 0 THEN
+        'ALTER TABLE maintain_record ADD UNIQUE KEY uk_maintain_record_original_version (original_record_id, version)'
+    WHEN MAX(NON_UNIQUE) = 0 AND MAX(SUB_PART) IS NULL
+        AND GROUP_CONCAT(COLUMN_NAME ORDER BY SEQ_IN_INDEX) = 'original_record_id,version' THEN
+        'SELECT 1'
+    ELSE
+        'ALTER TABLE maintain_record ADD UNIQUE KEY uk_maintain_record_original_version (original_record_id, version)'
+END
 FROM information_schema.STATISTICS
 WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'maintain_record'
   AND INDEX_NAME = 'uk_maintain_record_original_version');
