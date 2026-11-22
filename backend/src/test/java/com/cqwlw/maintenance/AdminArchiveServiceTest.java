@@ -161,6 +161,7 @@ class AdminArchiveServiceTest {
                 "organizationCode", "91500000TEST0001X",
                 "unitPrincipal", "李雷",
                 "unitPrincipalPhone", "13900001111",
+                "elevatorAdminister", "韩梅梅",
                 "elevatorAdministerPhone", "13900002222",
                 "emergencyPhone", "13800000001" // 应急电话不参与互斥
         ));
@@ -168,6 +169,43 @@ class AdminArchiveServiceTest {
         verify(useUnitMapper).insert(captor.capture());
         assertNotEquals("", captor.getValue().id);
         assertEquals("新物业", row.get("unitName"));
+    }
+
+    @Test
+    void createUseUnitRejectsMissingReportContacts() {
+        BizException e = assertThrows(BizException.class,
+                () -> service.createUseUnit(Map.of("unitName", "新物业")));
+        assertEquals(422, e.getCode());
+        verify(useUnitMapper, never()).insert(any(UseUnit.class));
+    }
+
+    @Test
+    void createUseUnitRejectsInvalidMobile() {
+        BizException e = assertThrows(BizException.class, () -> service.createUseUnit(Map.of(
+                "unitName", "新物业", "unitPrincipal", "李雷", "unitPrincipalPhone", "12345",
+                "elevatorAdminister", "韩梅梅", "elevatorAdministerPhone", "13900002222",
+                "emergencyPhone", "023-12345678")));
+        assertEquals(422, e.getCode());
+        verify(useUnitMapper, never()).insert(any(UseUnit.class));
+    }
+
+    @Test
+    void updateUseUnitRejectsClearingReportContact() {
+        UseUnit u = new UseUnit();
+        u.id = "uu_1";
+        u.unitName = "新物业";
+        u.unitPrincipal = "李雷";
+        u.unitPrincipalPhone = "13900001111";
+        u.elevatorAdminister = "韩梅梅";
+        u.elevatorAdministerPhone = "13900002222";
+        u.emergencyPhone = "023-12345678";
+        when(useUnitMapper.selectById("uu_1")).thenReturn(u);
+
+        BizException e = assertThrows(BizException.class,
+                () -> service.updateUseUnit("uu_1", Map.of("unitPrincipal", "")));
+
+        assertEquals(422, e.getCode());
+        verify(useUnitMapper, never()).updateById(any(UseUnit.class));
     }
 
     @Test
@@ -181,6 +219,78 @@ class AdminArchiveServiceTest {
                 "name", "乙", "phone", "13900004444", "role", "WORKER")));
         assertEquals(422, dup.getCode());
         assertTrue(dup.getMessage().contains("账号已存在"));
+    }
+
+    @Test
+    void createEmployeeRejectsDuplicatePlatformId() {
+        when(employeeMapper.selectCount(any())).thenReturn(0L, 1L);
+        BizException e = assertThrows(BizException.class, () -> service.createEmployee(Map.of(
+                "name", "甲", "phone", "13900003333", "role", "WORKER", "platformId", "pid_dup")));
+        assertEquals(422, e.getCode());
+        assertTrue(e.getMessage().contains("平台人员ID"));
+        verify(employeeMapper, never()).insert(any(Employee.class));
+    }
+
+    @Test
+    void createEmployeeDefaultsBlankPlatformIdToNullAndAccountToPhone() {
+        service.createEmployee(Map.of("name", "甲", "phone", "13900003333", "role", "WORKER"));
+        ArgumentCaptor<Employee> captor = ArgumentCaptor.forClass(Employee.class);
+        verify(employeeMapper).insert(captor.capture());
+        assertNull(captor.getValue().platformId);
+        assertEquals("13900003333", captor.getValue().account);
+    }
+
+    @Test
+    void createEmployeePreservesCustomAccount() {
+        service.createEmployee(Map.of("name", "甲", "phone", "13900003333", "role", "WORKER",
+                "account", "custom-account"));
+        ArgumentCaptor<Employee> captor = ArgumentCaptor.forClass(Employee.class);
+        verify(employeeMapper).insert(captor.capture());
+        assertEquals("custom-account", captor.getValue().account);
+    }
+
+    @Test
+    void createEmployeeRejectsInvalidMobile() {
+        BizException e = assertThrows(BizException.class, () -> service.createEmployee(Map.of(
+                "name", "甲", "phone", "12345", "role", "WORKER")));
+        assertEquals(422, e.getCode());
+        verify(employeeMapper, never()).insert(any(Employee.class));
+    }
+
+    @Test
+    void updateEmployeeRejectsDuplicatePlatformId() {
+        Employee e = new Employee();
+        e.id = "emp_dup";
+        e.name = "甲";
+        e.phone = "13900003333";
+        e.role = "WORKER";
+        when(employeeMapper.selectById("emp_dup")).thenReturn(e);
+        when(employeeMapper.selectCount(any())).thenReturn(1L);
+
+        BizException ex = assertThrows(BizException.class,
+                () -> service.updateEmployee("emp_dup", Map.of("platformId", "pid_dup"), "emp_admin"));
+
+        assertEquals(422, ex.getCode());
+        verify(employeeMapper, never()).updateById(any(Employee.class));
+    }
+
+    @Test
+    void updateEmployeeBlankPlatformIdClearsExplicitly() {
+        com.baomidou.mybatisplus.core.metadata.TableInfoHelper.initTableInfo(
+                new org.apache.ibatis.builder.MapperBuilderAssistant(
+                        new com.baomidou.mybatisplus.core.MybatisConfiguration(), ""), Employee.class);
+        Employee e = new Employee();
+        e.id = "emp_clear";
+        e.name = "甲";
+        e.phone = "13900003333";
+        e.role = "WORKER";
+        e.platformId = "pid_old";
+        when(employeeMapper.selectById("emp_clear")).thenReturn(e);
+
+        service.updateEmployee("emp_clear", Map.of("platformId", ""), "emp_admin");
+
+        assertNull(e.platformId);
+        verify(employeeMapper).update(isNull(), any(LambdaUpdateWrapper.class));
     }
 
     @Test
@@ -477,6 +587,29 @@ class AdminArchiveServiceTest {
         BizException e = assertThrows(BizException.class, () -> service.updateCompany(
                 Map.of("workMenegerPhone", "13800000001")));
         assertEquals(1002, e.getCode());
+    }
+
+    @Test
+    void updateCompanyRejectsIncompleteManager() {
+        BizException e = assertThrows(BizException.class, () -> service.updateCompany(Map.of(
+                "workMenegerName", "", "workMenegerPhone", "12345")));
+        assertEquals(422, e.getCode());
+        verify(companyMapper, never()).updateById(any(Company.class));
+    }
+
+    @Test
+    void updateCompanyCreatesCompleteArchiveWhenMissing() {
+        when(companyMapper.selectList(any())).thenReturn(List.of());
+        Map<String, Object> row = service.updateCompany(Map.of(
+                "name", "维保单位", "organizationCode", "91500000TEST0001X",
+                "workMenegerName", "赵敏", "workMenegerPhone", "13900005555"));
+
+        ArgumentCaptor<Company> captor = ArgumentCaptor.forClass(Company.class);
+        verify(companyMapper).insert(captor.capture());
+        verify(companyMapper, never()).updateById(any(Company.class));
+        assertEquals("赵敏", captor.getValue().workMenegerName);
+        assertEquals("赵敏", row.get("workMenegerName"));
+        assertNotEquals("", captor.getValue().id);
     }
 
     // ── 范围收敛新增（docs/04 A.9.0 / docs/09 V3.3）──

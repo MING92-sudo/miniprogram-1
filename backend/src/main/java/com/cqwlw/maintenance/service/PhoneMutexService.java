@@ -2,6 +2,7 @@ package com.cqwlw.maintenance.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.cqwlw.maintenance.auth.AdminRoles;
+import com.cqwlw.maintenance.common.BizException;
 import com.cqwlw.maintenance.entity.Company;
 import com.cqwlw.maintenance.entity.Elevator;
 import com.cqwlw.maintenance.entity.Employee;
@@ -192,8 +193,12 @@ public class PhoneMutexService {
         if (nz(platformId) == null) {
             return;
         }
-        Employee e = employeeMapper.selectList(new LambdaQueryWrapper<Employee>()
-                .eq(Employee::getPlatformId, platformId)).stream().findFirst().orElse(null);
+        List<Employee> matches = employeeMapper.selectList(new LambdaQueryWrapper<Employee>()
+                .eq(Employee::getPlatformId, platformId));
+        if (matches.size() != 1) {
+            throw new BizException(422, "平台人员ID必须唯一关联一名员工: " + role);
+        }
+        Employee e = matches.get(0);
         if (e != null && nz(e.phone) != null) {
             parties.add(new Party(role, e.name, e.phone));
         }

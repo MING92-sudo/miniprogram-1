@@ -6,6 +6,7 @@ import com.cqwlw.maintenance.entity.Elevator;
 import com.cqwlw.maintenance.entity.Employee;
 import com.cqwlw.maintenance.entity.HandoverOrder;
 import com.cqwlw.maintenance.entity.Message;
+import com.cqwlw.maintenance.entity.UseUnit;
 import com.cqwlw.maintenance.entity.WorkOrder;
 import com.cqwlw.maintenance.mapper.CompanyMapper;
 import com.cqwlw.maintenance.mapper.ElevatorMapper;
@@ -69,12 +70,20 @@ class HandoverIssueClosureTest {
         EmployeeMapper employeeMapper = mock(EmployeeMapper.class);
         ElevatorMapper elevatorMapper = mock(ElevatorMapper.class);
         CompanyMapper companyMapper = mock(CompanyMapper.class);
+        UseUnitMapper useUnitMapper = mock(UseUnitMapper.class);
+        UseUnit uu = new UseUnit();
+        uu.unitPrincipal = "单位负责人";
+        uu.unitPrincipalPhone = "13800000002";
+        uu.elevatorAdminister = "安全管理员";
+        uu.elevatorAdministerPhone = "13800000003";
+        uu.emergencyPhone = "023-12345678";
+        when(useUnitMapper.selectById(any())).thenReturn(uu);
         AppProperties props = new AppProperties();
         props.setJwtSecret("unit-test-secret-key-0123456789-abcdefghijk");
         props.setWorkDurationMinutes(30);
         FileStorageService fileStorage = mock(FileStorageService.class);
         when(fileStorage.urlOf(any())).thenReturn("");
-        service = new WorkOrderService(orderMapper, elevatorMapper, mock(UseUnitMapper.class),
+        service = new WorkOrderService(orderMapper, elevatorMapper, useUnitMapper,
                 employeeMapper, companyMapper, mock(MaintainRecordMapper.class),
                 mock(FaultMapper.class), mock(InspectRecordMapper.class),
                 handoverMapper, messageMapper, mock(ChecklistService.class),
@@ -100,6 +109,7 @@ class HandoverIssueClosureTest {
         el.regCode = "TSCQ5001120001";
         el.insideNumber = "KT-01";
         el.factoryNumber = "SGL20131212-1";
+        el.useUnitId = "uu_1";
         when(elevatorMapper.selectById("el_1")).thenReturn(el);
         Company company = new Company();
         company.workMenegerName = "王经理";
@@ -115,7 +125,7 @@ class HandoverIssueClosureTest {
         ho.initiatorName = "赵安装";
         when(handoverMapper.selectById(HANDOVER)).thenReturn(ho);
 
-        service.checkout(ORDER, Map.of("signatureUrl", "https://x/sign.png"), EMP_LI);
+        service.checkout(ORDER, Map.of("signatureUrl", "https://x/sign.png", "assistantSignatureUrl", "https://x/assistant-sign.png"), EMP_LI);
 
         ArgumentCaptor<HandoverOrder> hoCap = ArgumentCaptor.forClass(HandoverOrder.class);
         verify(handoverMapper).updateById(hoCap.capture());
@@ -133,7 +143,7 @@ class HandoverIssueClosureTest {
     void noWriteBackWithoutIssue() {
         when(orderMapper.selectById(ORDER)).thenReturn(order(false));
 
-        service.checkout(ORDER, Map.of("signatureUrl", "https://x/sign.png"), EMP_LI);
+        service.checkout(ORDER, Map.of("signatureUrl", "https://x/sign.png", "assistantSignatureUrl", "https://x/assistant-sign.png"), EMP_LI);
 
         verify(handoverMapper, never()).updateById(any(HandoverOrder.class));
         verify(messageMapper, never()).insert(any(Message.class));
@@ -145,7 +155,7 @@ class HandoverIssueClosureTest {
         when(handoverMapper.selectById(HANDOVER)).thenReturn(null);
 
         Map<String, Object> result = assertDoesNotThrow(
-                () -> service.checkout(ORDER, Map.of("signatureUrl", "https://x/sign.png"), EMP_LI));
+                () -> service.checkout(ORDER, Map.of("signatureUrl", "https://x/sign.png", "assistantSignatureUrl", "https://x/assistant-sign.png"), EMP_LI));
 
         assertEquals(ORDER, result.get("workOrderId"));
         verify(messageMapper, never()).insert(any(Message.class));
@@ -161,8 +171,8 @@ class HandoverIssueClosureTest {
         o.status = "PROCESSING";
         o.workerName = "李强";
         o.workerPlatformId = PID_LI;
-        o.assistantName = "";
-        o.assistantPlatformId = "";
+        o.assistantName = "王五";
+        o.assistantPlatformId = "pid_wang";
         o.checkinTime = TimeUtil.now().minusMinutes(40);
         o.checklistJson = CHECKLIST;
         o.sourceHandoverId = HANDOVER;

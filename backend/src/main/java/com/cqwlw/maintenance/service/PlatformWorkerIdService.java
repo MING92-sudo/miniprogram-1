@@ -69,9 +69,14 @@ public class PlatformWorkerIdService {
      */
     public Map<String, Object> backfillWithRetry(String certificate) {
         BackfillOutcome outcome = backfillAll();
-        String selfStatus = DISABLED.equals(outcome.status)
-                ? DISABLED
-                : (outcome.syncedCertificates.contains(certificate) ? SYNCED : NOT_FOUND);
+        String selfStatus;
+        if (outcome.conflictCertificates.contains(certificate)) {
+            selfStatus = AMBIGUOUS;
+        } else if (DISABLED.equals(outcome.status)) {
+            selfStatus = DISABLED;
+        } else {
+            selfStatus = outcome.syncedCertificates.contains(certificate) ? SYNCED : NOT_FOUND;
+        }
         if (terminal(selfStatus) || !inFlight.add(certificate)) {
             return outcome.asResult(selfStatus);
         }
@@ -85,7 +90,7 @@ public class PlatformWorkerIdService {
     }
 
     private static boolean terminal(String r) {
-        return SYNCED.equals(r) || NO_CERT.equals(r) || DISABLED.equals(r);
+        return SYNCED.equals(r) || AMBIGUOUS.equals(r) || NO_CERT.equals(r) || DISABLED.equals(r);
     }
 
     private void scheduleRetry(String certificate, int attempt) {
@@ -122,7 +127,7 @@ public class PlatformWorkerIdService {
             stats.put("disabled", 1);
             stats.put("conflictCertificates", List.of());
             stats.put("backfilledAt", TimeUtil.format(TimeUtil.now()));
-            return new BackfillOutcome(stats, syncedCertificates, DISABLED);
+            return new BackfillOutcome(stats, syncedCertificates, Set.of(), DISABLED);
         }
         String workEndDate = TimeUtil.date(TimeUtil.now().plusYears(1));
         List<Map<String, Object>> workers = platformClient.queryWorkList("0", workEndDate);
@@ -138,9 +143,22 @@ public class PlatformWorkerIdService {
         }
         List<Employee> locals = employeeMapper.selectList(new LambdaQueryWrapper<Employee>()
                 .isNotNull(Employee::getCertificate).ne(Employee::getCertificate, ""));
+        Map<String, Integer> localCertificateCounts = new java.util.HashMap<>();
+        for (Employee e : locals) {
+            localCertificateCounts.merge(e.certificate, 1, Integer::sum);
+        }
+        Set<String> localConflicts = new java.util.HashSet<>();
         int synced = 0, notFound = 0, ambiguous = 0;
         List<String> conflicts = new java.util.ArrayList<>();
         for (Employee e : locals) {
+            if (localCertificateCounts.get(e.certificate) > 1) {
+                if (localConflicts.add(e.certificate)) {
+                    ambiguous++;
+                    conflicts.add(e.certificate);
+                }
+                log.warn("人员平台ID全量回填跳过：证书号 {} 在本地命中多名员工，不共用平台ID，需人工确认", e.certificate);
+                continue;
+            }
             List<Object> ids = byCert.get(e.certificate);
             if (ids == null || ids.isEmpty()) {
                 notFound++;
@@ -170,18 +188,21 @@ public class PlatformWorkerIdService {
         stats.put("backfilledAt", TimeUtil.format(TimeUtil.now()));
         log.info("人员平台ID全量回填完成: 平台返回{}人, 本地{}人, 回填{}, 未命中{}, 冲突{}",
                 workers.size(), locals.size(), synced, notFound, ambiguous);
-        return new BackfillOutcome(stats, syncedCertificates, SYNCED);
+        return new BackfillOutcome(stats, syncedCertificates, new java.util.HashSet<>(conflicts), SYNCED);
     }
 
     /** 全量回填结果：对外统计 + 本次已回填的证书号集合（供重试判定）+ 整体状态。 */
     private static class BackfillOutcome {
         final Map<String, Object> stats;
         final Set<String> syncedCertificates;
+        final Set<String> conflictCertificates;
         final String status;
 
-        BackfillOutcome(Map<String, Object> stats, Set<String> syncedCertificates, String status) {
+        BackfillOutcome(Map<String, Object> stats, Set<String> syncedCertificates,
+                        Set<String> conflictCertificates, String status) {
             this.stats = stats;
             this.syncedCertificates = syncedCertificates;
+            this.conflictCertificates = conflictCertificates;
             this.status = status;
         }
 
@@ -223,6 +244,10 @@ public class PlatformWorkerIdService {
         }
         List<Employee> locals = employeeMapper.selectList(new LambdaQueryWrapper<Employee>()
                 .eq(Employee::getCertificate, certificate));
+        if (locals.size() > 1) {
+            log.warn("人员平台ID回填跳过：证书号 {} 在本地命中多名员工，不共用平台ID，需人工确认", certificate);
+            return AMBIGUOUS;
+        }
         int n = 0;
         for (Employee e : locals) {
             e.platformId = String.valueOf(id);

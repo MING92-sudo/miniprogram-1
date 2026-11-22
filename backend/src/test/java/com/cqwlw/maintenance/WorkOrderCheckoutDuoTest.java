@@ -6,6 +6,7 @@ import com.cqwlw.maintenance.entity.Company;
 import com.cqwlw.maintenance.entity.Elevator;
 import com.cqwlw.maintenance.entity.Employee;
 import com.cqwlw.maintenance.entity.MaintainRecord;
+import com.cqwlw.maintenance.entity.UseUnit;
 import com.cqwlw.maintenance.entity.WorkOrder;
 import com.cqwlw.maintenance.mapper.CompanyMapper;
 import com.cqwlw.maintenance.mapper.ElevatorMapper;
@@ -46,7 +47,7 @@ import static org.mockito.Mockito.when;
  * 池化新单（V57 起派单落 regionId 快照）签退必须 ①已选配合人（assistantPlatformId 非空）、
  * ②配合人已签到（assistantCheckinExtraJson 非空）、③双签齐全（既有 hasAssistant 分支升级为恒触发）；
  * 三道门禁均先于检查项/时长校验与任何写操作。
- * 存量在途工单（regionId 空，含派单时代 assistantName="无" 的单人豁免路径，M8）维持旧口径放行。
+ * 存量在途工单仍保留原签到/签名校验路径，但 2.6 最终门禁要求补配合人，禁止生成单人不完整报文。
  */
 class WorkOrderCheckoutDuoTest {
 
@@ -71,11 +72,19 @@ class WorkOrderCheckoutDuoTest {
         EmployeeMapper employeeMapper = mock(EmployeeMapper.class);
         ElevatorMapper elevatorMapper = mock(ElevatorMapper.class);
         CompanyMapper companyMapper = mock(CompanyMapper.class);
+        UseUnitMapper useUnitMapper = mock(UseUnitMapper.class);
+        UseUnit uu = new UseUnit();
+        uu.unitPrincipal = "单位负责人";
+        uu.unitPrincipalPhone = "13800000002";
+        uu.elevatorAdminister = "安全管理员";
+        uu.elevatorAdministerPhone = "13800000003";
+        uu.emergencyPhone = "023-12345678";
+        when(useUnitMapper.selectById(any())).thenReturn(uu);
         AppProperties props = new AppProperties();
         props.setWorkDurationMinutes(30);
         FileStorageService fileStorage = mock(FileStorageService.class);
         when(fileStorage.urlOf(any())).thenReturn("");
-        service = new WorkOrderService(orderMapper, elevatorMapper, mock(UseUnitMapper.class),
+        service = new WorkOrderService(orderMapper, elevatorMapper, useUnitMapper,
                 employeeMapper, companyMapper, recordMapper,
                 mock(FaultMapper.class), mock(InspectRecordMapper.class),
                 mock(HandoverOrderMapper.class), mock(MessageMapper.class), mock(ChecklistService.class),
@@ -92,7 +101,10 @@ class WorkOrderCheckoutDuoTest {
         when(employeeMapper.selectById(EMP_LI)).thenReturn(li);
         // buildReportPayload（B1）按 platformId 强关联取 recorderPhone
         when(employeeMapper.selectList(any())).thenReturn(List.of(li));
-        when(companyMapper.selectList(any())).thenReturn(List.of(new Company()));
+        Company company = new Company();
+        company.workMenegerName = "维保经理";
+        company.workMenegerPhone = "13800000004";
+        when(companyMapper.selectList(any())).thenReturn(List.of(company));
         when(elevatorMapper.selectById("el_1")).thenReturn(completeElevator());
     }
 
@@ -196,19 +208,20 @@ class WorkOrderCheckoutDuoTest {
         verify(recordMapper, never()).insert(any(MaintainRecord.class));
     }
 
-    /** M8 回归：存量在途单人豁免工单（regionId 空 + assistantName="无"）不受新门禁拦截，按旧口径放行 */
+    /** 2.6 workMan2Id 实测必填：存量单人也必须在签退前补配合人，不得生成不完整快照。 */
     @Test
-    void legacySoloOrderStillAllowed() {
+    void legacySoloOrderRejectedBecausePlatformRequiresWorker2() {
         WorkOrder o = legacyOrder();
         o.assistantName = "无";
         o.assistantPlatformId = "";
         when(orderMapper.selectById(LEGACY_ORDER)).thenReturn(o);
 
-        Map<String, Object> result = assertDoesNotThrow(
+        BizException e = assertThrows(BizException.class,
                 () -> service.checkout(LEGACY_ORDER, Map.of("signatureUrl", "https://x/sign.png"), EMP_LI));
-        assertEquals(LEGACY_ORDER, result.get("workOrderId"));
-        assertEquals("DONE", o.status);
-        verify(recordMapper).insert(any(MaintainRecord.class));
+
+        assertEquals(422, e.getCode());
+        assertTrue(e.getMessage().contains("workMan2Id"), e.getMessage());
+        verify(recordMapper, never()).insert(any(MaintainRecord.class));
     }
 
     /** M8 回归：存量带配合人工单（regionId 空）维持旧口径——缺配合人签名仍 422 */
@@ -280,6 +293,7 @@ class WorkOrderCheckoutDuoTest {
         el.regCode = "TSCQ5001120001";
         el.insideNumber = "KT-01";
         el.factoryNumber = "SGL20131212-1";
+        el.useUnitId = "uu_1";
         return el;
     }
 }

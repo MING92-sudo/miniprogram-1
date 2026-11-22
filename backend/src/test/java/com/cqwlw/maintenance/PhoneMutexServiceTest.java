@@ -1,5 +1,6 @@
 package com.cqwlw.maintenance;
 
+import com.cqwlw.maintenance.common.BizException;
 import com.cqwlw.maintenance.entity.Company;
 import com.cqwlw.maintenance.entity.Elevator;
 import com.cqwlw.maintenance.entity.Employee;
@@ -15,6 +16,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -166,6 +168,19 @@ class PhoneMutexServiceTest {
     }
 
     @Test
+    void duplicateWorkerPlatformIdInterruptsMutexCheck() {
+        stubWorkersByPlatform(java.util.List.of(
+                workerByPlatform("pid_dup", "张三", "13800000001"),
+                workerByPlatform("pid_dup", "李四", "13800000009")));
+
+        BizException e = assertThrows(BizException.class,
+                () -> service.checkWorkOrder("pid_dup", null, null));
+
+        assertEquals(422, e.getCode());
+        assertTrue(e.getMessage().contains("唯一"), e.getMessage());
+    }
+
+    @Test
     void checkWorkOrderDistinctPhonesPasses() {
         // 五角色手机号各不相同 → 通过
         UseUnit uu = new UseUnit();
@@ -247,10 +262,12 @@ class PhoneMutexServiceTest {
     }
 
     @Test
-    void checkWorkOrderUnknownPlatformIdDoesNotFalseAlarm() {
-        // platformId 未回填（员工查不到）→ 跳过，不误报
+    void checkWorkOrderUnknownPlatformIdInterrupts() {
+        // platformId 未回填或查不到本人 → 明确中断，不得带着未知人员继续作业/上报
         when(companyMapper.selectList(any())).thenReturn(List.of());
         stubWorkersByPlatform(List.of(), List.of());
-        assertTrue(service.checkWorkOrder("pid_unknown", "pid_2", null).isEmpty());
+        BizException e = assertThrows(BizException.class,
+                () -> service.checkWorkOrder("pid_unknown", "pid_2", null));
+        assertEquals(422, e.getCode());
     }
 }

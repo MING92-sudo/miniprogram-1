@@ -1456,12 +1456,9 @@ public class WorkOrderService {
                 .orElseThrow(() -> new BizException(422, "维保单位档案未配置，无法生成上报数据"));
         // B1：按平台人员 ID 强关联取本人手机号——禁止按姓名/任意 WORKER 兜底，
         // 否则会把 B 的手机号随 A 的姓名冻结进 2.6 报文（虚假数据上平台，AGENTS §6）
-        String recorderPhone = employeeMapper.selectList(new LambdaQueryWrapper<Employee>()
-                .eq(Employee::getPlatformId, r.workerPlatformId)).stream().findFirst()
-                .map(e -> nz(e.phone)).orElse("");
-        if (recorderPhone.isEmpty()) {
-            throw new BizException(422, "员工平台人员ID未关联或缺少手机号，无法上报");
-        }
+        Employee recorderEmployee = requireWorkerForReport(r.workerPlatformId, "workMan1Id");
+        requireWorkerForReport(r.assistantPlatformId, "workMan2Id");
+        String recorderPhone = nz(recorderEmployee.phone);
         Map<String, Object> p = new LinkedHashMap<>();
         p.put("elevatorCode", nz(r.elevatorCode));
         p.put("deviceCode", el == null ? "" : nz(el.deviceCode));
@@ -1486,7 +1483,21 @@ public class WorkOrderService {
         p.put("originalRecordId", r.originalRecordId);
         p.put("problemCode", JsonUtil.readStringList(r.problemCodesJson));
         p.put("nextMaintenanceDate", TimeUtil.formatDate(r.nextMaintenanceDate));
+        ReportPayloadValidator.requireComplete(p);
         return p;
+    }
+
+    /** 2.6 人员身份必须唯一且本人手机号完整，0 条/多条均不得取首条或任意兜底。 */
+    private Employee requireWorkerForReport(String platformId, String field) {
+        if (isBlank(platformId)) {
+            throw new BizException(422, "2.6 必填字段为空: " + field);
+        }
+        List<Employee> matches = employeeMapper.selectList(new LambdaQueryWrapper<Employee>()
+                .eq(Employee::getPlatformId, platformId));
+        if (matches.size() != 1 || isBlank(matches.get(0).phone)) {
+            throw new BizException(422, "平台人员ID必须唯一关联一名手机号完整的员工: " + field);
+        }
+        return matches.get(0);
     }
 
     // ── 视图组装 ──

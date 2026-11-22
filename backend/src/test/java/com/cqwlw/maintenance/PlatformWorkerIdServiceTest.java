@@ -84,6 +84,22 @@ class PlatformWorkerIdServiceTest {
     }
 
     @Test
+    void duplicateLocalCertificateDoesNotSharePlatformId() {
+        Employee first = employee("CERT-LOCAL-DUP");
+        Employee second = employee("CERT-LOCAL-DUP");
+        second.id = "emp_second";
+        when(platformClient.queryWorkList(anyString(), any())).thenReturn(List.of(
+                worker("CERT-LOCAL-DUP", "P-SHARED")));
+        when(employeeMapper.selectList(any())).thenReturn(List.of(first, second));
+
+        assertEquals(PlatformWorkerIdService.AMBIGUOUS,
+                service.backfillByCertificate("CERT-LOCAL-DUP"));
+        assertNull(first.platformId);
+        assertNull(second.platformId);
+        verify(employeeMapper, never()).updateById(any(Employee.class));
+    }
+
+    @Test
     void notFoundDoesNotWrite() {
         Employee e = employee("CERT-2");
         when(platformClient.queryWorkList(anyString(), any())).thenReturn(List.of(worker("OTHER", 9L)));
@@ -168,6 +184,27 @@ class PlatformWorkerIdServiceTest {
     }
 
     @Test
+    void backfillAllSkipsDuplicatedLocalCertificate() {
+        Employee first = employee("CERT-LOCAL-DUP");
+        Employee second = employee("CERT-LOCAL-DUP");
+        second.id = "emp_second";
+        Employee valid = employee("CERT-VALID");
+        when(employeeMapper.selectList(any())).thenReturn(List.of(first, second, valid));
+        when(platformClient.queryWorkList(anyString(), any())).thenReturn(List.of(
+                worker("CERT-LOCAL-DUP", "P-SHARED"), worker("CERT-VALID", "P-VALID")));
+
+        Map<String, Object> r = service.backfillAllFromPlatform();
+
+        assertNull(first.platformId);
+        assertNull(second.platformId);
+        assertEquals("P-VALID", valid.platformId);
+        assertEquals(1, r.get("synced"));
+        assertEquals(1, r.get("ambiguous"));
+        org.junit.jupiter.api.Assertions.assertTrue(
+                ((List<?>) r.get("conflictCertificates")).contains("CERT-LOCAL-DUP"));
+    }
+
+    @Test
     void backfillAllUpdatesExistingPlatformId() {
         // 全量回填以平台为准：本地已有 platform_id 也更新为 2.5 最新值
         Employee e = employee("CERT-UP");
@@ -189,6 +226,27 @@ class PlatformWorkerIdServiceTest {
         verify(platformClient, never()).queryWorkList(anyString(), any());
         assertEquals(1, r.get("disabled"));
         assertEquals(0, r.get("synced"));
+    }
+
+    @Test
+    void backfillWithRetryReturnsAmbiguousForDuplicateLocalCertificate() throws Exception {
+        Employee first = employee("CERT-LOCAL-DUP");
+        Employee second = employee("CERT-LOCAL-DUP");
+        second.id = "emp_second";
+        when(employeeMapper.selectList(any())).thenReturn(List.of(first, second));
+        when(platformClient.queryWorkList(anyString(), any())).thenReturn(List.of(
+                worker("CERT-LOCAL-DUP", "P-SHARED")));
+
+        Map<String, Object> r = service.backfillWithRetry("CERT-LOCAL-DUP");
+
+        assertEquals(PlatformWorkerIdService.AMBIGUOUS, r.get("status"));
+        assertNull(first.platformId);
+        assertNull(second.platformId);
+        verify(employeeMapper, never()).updateById(any(Employee.class));
+        java.lang.reflect.Field field = PlatformWorkerIdService.class.getDeclaredField("inFlight");
+        field.setAccessible(true);
+        org.junit.jupiter.api.Assertions.assertTrue(((java.util.Set<?>) field.get(service)).isEmpty(),
+                "AMBIGUOUS 是人工处理终态，不得进入自动重试队列");
     }
 
     @Test

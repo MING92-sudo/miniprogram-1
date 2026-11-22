@@ -36,6 +36,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 /**
  * 管理端档案维护（docs/09 一期：维保单位/使用单位/人员/电梯四类档案）。
@@ -44,6 +45,8 @@ import java.util.Set;
  */
 @Service
 public class AdminArchiveService {
+
+    private static final Pattern MOBILE = Pattern.compile("^1[3-9]\\d{9}$");
 
     private final CompanyMapper companyMapper;
     private final UseUnitMapper useUnitMapper;
@@ -107,8 +110,12 @@ public class AdminArchiveService {
     }
 
     public Map<String, Object> updateCompany(Map<String, Object> body) {
-        Company c = companyMapper.selectList(null).stream().findFirst()
-                .orElseThrow(() -> new BizException(1404, "维保单位档案不存在"));
+        Company c = companyMapper.selectList(null).stream().findFirst().orElse(null);
+        boolean create = c == null;
+        if (create) {
+            c = new Company();
+            c.id = Ids.next("co");
+        }
         if (body.get("name") != null) {
             c.name = str(body, "name");
         }
@@ -122,7 +129,12 @@ public class AdminArchiveService {
             c.workMenegerPhone = str(body, "workMenegerPhone");
         }
         requireNoConflict(phoneMutexService.checkCompany(c.workMenegerPhone));
-        companyMapper.updateById(c);
+        requireCompanyForReport(c);
+        if (create) {
+            companyMapper.insert(c);
+        } else {
+            companyMapper.updateById(c);
+        }
         return companyRow(c);
     }
 
@@ -148,6 +160,7 @@ public class AdminArchiveService {
         u.id = Ids.next("uu");
         applyUseUnit(u, body);
         requireNoConflict(phoneMutexService.checkUseUnit(u.id, u.unitPrincipalPhone, u.elevatorAdministerPhone));
+        requireUseUnitForReport(u);
         useUnitMapper.insert(u);
         return useUnitRow(u);
     }
@@ -159,6 +172,7 @@ public class AdminArchiveService {
         }
         applyUseUnit(u, body);
         requireNoConflict(phoneMutexService.checkUseUnit(u.id, u.unitPrincipalPhone, u.elevatorAdministerPhone));
+        requireUseUnitForReport(u);
         useUnitMapper.updateById(u);
         return useUnitRow(u);
     }
@@ -242,6 +256,7 @@ public class AdminArchiveService {
         if (name.isBlank() || phone.isBlank()) {
             throw new BizException(422, "姓名与手机号必填");
         }
+        requireMobile(phone, "手机号");
         if (!AdminRoles.assignable(role)) {
             throw new BizException(422, "角色不合法：" + role + "（使用单位账号在「使用单位档案」开通，不建在人员目录）");
         }
@@ -279,13 +294,14 @@ public class AdminArchiveService {
         }
         String initialPassword = password.isBlank() ? randomPassword() : password;
         e.passwordHash = encoder.encode(initialPassword);
-        e.platformId = str(body, "platformId");
+        e.platformId = blankToNull(str(body, "platformId"));
         e.certificate = str(body, "certificate");
         e.workStartDate = str(body, "workStartDate");
         e.workEndDate = str(body, "workEndDate");
         e.workStat = str(body, "workStat").isBlank() ? "normal" : str(body, "workStat");
         e.syncStatus = str(body, "syncStatus").isBlank() ? "NOT_SYNCED" : str(body, "syncStatus");
         e.enabled = true;
+        requirePlatformIdAvailable(e.platformId, null);
         employeeMapper.insert(e);
         // 账号管理页 /users 的角色列只读 sys_user_role；建档（含平台登记自动建号）必须同步写一行，
         // 否则新账号在账号管理页显示为空角色。口径与 UserController.insertRole 一致。
@@ -433,6 +449,7 @@ public class AdminArchiveService {
         }
         if (body.get("phone") != null) {
             String newPhone = str(body, "phone");
+            requireMobile(newPhone, "手机号");
             // 登录按 account 查（AuthController）；默认账号=手机号，改号时同步，避免改完手机号登录不了。
             // 仅在 account 仍等于旧手机号（默认账号）时同步，自定义账号不覆盖。
             if (e.account == null || e.account.isBlank() || e.account.equals(e.phone)) {
@@ -469,7 +486,7 @@ public class AdminArchiveService {
             e.syncStatus = str(body, "syncStatus");
         }
         if (body.get("platformId") != null) {
-            e.platformId = str(body, "platformId");
+            e.platformId = blankToNull(str(body, "platformId"));
         }
         if (body.get("groupName") != null) {
             String newGroup = str(body, "groupName");
@@ -502,7 +519,14 @@ public class AdminArchiveService {
             e.passwordHash = encoder.encode(str(body, "password"));
         }
         requireNoConflict(phoneMutexService.checkEmployee(e.id, e.role, e.phone));
+        requirePlatformIdAvailable(e.platformId, e.id);
         employeeMapper.updateById(e);
+        // 空平台 ID 统一存 NULL：updateById 跳过 null，必须显式清除；唯一索引只约束非空 ID。
+        if (body.get("platformId") != null && str(body, "platformId").isBlank()) {
+            employeeMapper.update(null, new LambdaUpdateWrapper<Employee>()
+                    .eq(Employee::getId, e.id)
+                    .set(Employee::getPlatformId, null));
+        }
         // 所属区域置空必须显式 SET NULL——updateById 默认跳过 null 字段（同电梯 clearRegion 口径）
         if (body.get("regionId") != null && str(body, "regionId").isBlank()) {
             employeeMapper.update(null, new LambdaUpdateWrapper<Employee>()
@@ -650,6 +674,52 @@ public class AdminArchiveService {
     }
 
     // ── 私有 ──
+
+    private static void requireCompanyForReport(Company c) {
+        if (isBlank(c.workMenegerName) || isBlank(c.workMenegerPhone)) {
+            throw new BizException(422, "维保经理姓名与手机为 2.6 必传项，不能为空");
+        }
+        requireMobile(c.workMenegerPhone, "维保经理手机");
+    }
+
+    private static void requireUseUnitForReport(UseUnit u) {
+        List<String> missing = new ArrayList<>();
+        if (isBlank(u.unitPrincipal)) missing.add("使用单位负责人");
+        if (isBlank(u.unitPrincipalPhone)) missing.add("负责人手机");
+        if (isBlank(u.elevatorAdminister)) missing.add("安全管理员");
+        if (isBlank(u.elevatorAdministerPhone)) missing.add("安全管理员手机");
+        if (isBlank(u.emergencyPhone)) missing.add("紧急联系电话");
+        if (!missing.isEmpty()) {
+            throw new BizException(422, "使用单位档案缺少 2.6 必传项：" + String.join("、", missing));
+        }
+        requireMobile(u.unitPrincipalPhone, "使用单位负责人手机");
+        requireMobile(u.elevatorAdministerPhone, "安全管理员手机");
+    }
+
+    private static void requireMobile(String phone, String label) {
+        if (phone == null || !MOBILE.matcher(phone.trim()).matches()) {
+            throw new BizException(422, label + "须为 11 位有效手机号");
+        }
+    }
+
+    private void requirePlatformIdAvailable(String platformId, String excludeEmployeeId) {
+        if (isBlank(platformId)) {
+            return;
+        }
+        LambdaQueryWrapper<Employee> query = new LambdaQueryWrapper<Employee>()
+                .eq(Employee::getPlatformId, platformId.trim());
+        if (!isBlank(excludeEmployeeId)) {
+            query.ne(Employee::getId, excludeEmployeeId);
+        }
+        Long duplicates = employeeMapper.selectCount(query);
+        if (duplicates != null && duplicates > 0) {
+            throw new BizException(422, "平台人员ID已关联其他员工，不能重复分配");
+        }
+    }
+
+    private static String blankToNull(String value) {
+        return isBlank(value) ? null : value.trim();
+    }
 
     private void applyUseUnit(UseUnit u, Map<String, Object> body) {
         if (body.get("unitName") != null) {

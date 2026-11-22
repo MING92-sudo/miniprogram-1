@@ -6,6 +6,7 @@ import com.cqwlw.maintenance.entity.Company;
 import com.cqwlw.maintenance.entity.Elevator;
 import com.cqwlw.maintenance.entity.Employee;
 import com.cqwlw.maintenance.entity.MaintainRecord;
+import com.cqwlw.maintenance.entity.UseUnit;
 import com.cqwlw.maintenance.entity.WorkOrder;
 import com.cqwlw.maintenance.mapper.CompanyMapper;
 import com.cqwlw.maintenance.mapper.ElevatorMapper;
@@ -62,10 +63,18 @@ class CheckoutConcurrencyGuardTest {
         EmployeeMapper employeeMapper = mock(EmployeeMapper.class);
         ElevatorMapper elevatorMapper = mock(ElevatorMapper.class);
         CompanyMapper companyMapper = mock(CompanyMapper.class);
+        UseUnitMapper useUnitMapper = mock(UseUnitMapper.class);
+        UseUnit uu = new UseUnit();
+        uu.unitPrincipal = "单位负责人";
+        uu.unitPrincipalPhone = "13800000002";
+        uu.elevatorAdminister = "安全管理员";
+        uu.elevatorAdministerPhone = "13800000003";
+        uu.emergencyPhone = "023-12345678";
+        when(useUnitMapper.selectById(any())).thenReturn(uu);
         AppProperties props = new AppProperties();
         FileStorageService fileStorage = mock(FileStorageService.class);
         when(fileStorage.urlOf(any())).thenReturn("");
-        service = new WorkOrderService(orderMapper, elevatorMapper, mock(UseUnitMapper.class),
+        service = new WorkOrderService(orderMapper, elevatorMapper, useUnitMapper,
                 employeeMapper, companyMapper, recordMapper, mock(FaultMapper.class), mock(InspectRecordMapper.class),
                 mock(HandoverOrderMapper.class), mock(MessageMapper.class), mock(ChecklistService.class), reportService,
                 new EmployeeScopeService(employeeMapper), new CheckinThresholdService(mock(SysParamMapper.class), props),
@@ -79,7 +88,10 @@ class CheckoutConcurrencyGuardTest {
         employee.phone = "13800000001";
         when(employeeMapper.selectById(EMP_ID)).thenReturn(employee);
         when(employeeMapper.selectList(any())).thenReturn(List.of(employee));
-        when(companyMapper.selectList(any())).thenReturn(List.of(new Company()));
+        Company company = new Company();
+        company.workMenegerName = "维保经理";
+        company.workMenegerPhone = "13800000004";
+        when(companyMapper.selectList(any())).thenReturn(List.of(company));
         when(elevatorMapper.selectById("el_1")).thenReturn(completeElevator());
         when(reportService.attemptUpload(any())).thenReturn("REPORTED");
     }
@@ -92,9 +104,9 @@ class CheckoutConcurrencyGuardTest {
         when(orderMapper.completeCheckout(anyString(), any(), anyString(), anyString(), anyString(), any()))
                 .thenReturn(1, 0);
 
-        service.checkout(ORDER_ID, Map.of("signatureUrl", "https://x/sign.png"), EMP_ID);
+        service.checkout(ORDER_ID, checkoutBody(), EMP_ID);
         BizException loser = assertThrows(BizException.class,
-                () -> service.checkout(ORDER_ID, Map.of("signatureUrl", "https://x/sign.png"), EMP_ID));
+                () -> service.checkout(ORDER_ID, checkoutBody(), EMP_ID));
 
         assertEquals(1003, loser.getCode());
         verify(recordMapper, times(1)).insert(any(MaintainRecord.class));
@@ -114,7 +126,7 @@ class CheckoutConcurrencyGuardTest {
         previous.version = 1;
         when(recordMapper.selectOne(any())).thenReturn(previous);
 
-        Map<String, Object> result = service.checkout(ORDER_ID, Map.of("signatureUrl", "https://x/sign.png"), EMP_ID);
+        Map<String, Object> result = service.checkout(ORDER_ID, checkoutBody(), EMP_ID);
 
         assertEquals("OR1", result.get("originalRecordId"));
         ArgumentCaptor<MaintainRecord> captor = ArgumentCaptor.forClass(MaintainRecord.class);
@@ -141,7 +153,7 @@ class CheckoutConcurrencyGuardTest {
             return "REPORTED";
         });
 
-        service.checkout(ORDER_ID, Map.of("signatureUrl", "https://x/sign.png"), EMP_ID);
+        service.checkout(ORDER_ID, checkoutBody(), EMP_ID);
 
         assertEquals("PROCESSING", order.status);
         ArgumentCaptor<MaintainRecord> captor = ArgumentCaptor.forClass(MaintainRecord.class);
@@ -159,13 +171,18 @@ class CheckoutConcurrencyGuardTest {
         o.status = "PROCESSING";
         o.workerName = "张三";
         o.workerPlatformId = "pid_1";
-        o.assistantName = "无";
-        o.assistantPlatformId = "";
+        o.assistantName = "王五";
+        o.assistantPlatformId = "pid_2";
         o.checkinTime = TimeUtil.now().minusMinutes(40);
         o.originalRecordId = originalRecordId;
         o.checklistJson = "[{\"id\":\"ci_A-1-1\",\"itemCode\":\"A-1-1\",\"name\":\"曳引机\","
                 + "\"isKey\":false,\"photoRequired\":false,\"result\":\"NORMAL\"}]";
         return o;
+    }
+
+    private static Map<String, Object> checkoutBody() {
+        return Map.of("signatureUrl", "https://x/sign.png",
+                "assistantSignatureUrl", "https://x/assistant-sign.png");
     }
 
     private static Elevator completeElevator() {
@@ -176,6 +193,7 @@ class CheckoutConcurrencyGuardTest {
         el.regCode = "TSCQ5001120001";
         el.insideNumber = "KT-01";
         el.factoryNumber = "SGL20131212-1";
+        el.useUnitId = "uu_1";
         return el;
     }
 }

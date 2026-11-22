@@ -62,8 +62,25 @@ class PlatformReportServiceTest {
         r.retryCount = 0;
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("elevatorCode", "212520");
-        payload.put("recorderPhone", "13800000001");
+        payload.put("unitPrincipal", "单位负责人");
+        payload.put("unitPrincipalPhone", "13800000001");
+        payload.put("elevatorAdminister", "安全管理员");
+        payload.put("elevatorAdministerPhone", "13800000002");
+        payload.put("emergencyPhone", "023-12345678");
+        payload.put("insideNumber", "KT-01");
+        payload.put("workMenegerName", "维保经理");
+        payload.put("workMenegerPhone", "13800000003");
+        payload.put("workMan1Id", "platform-worker-1");
+        payload.put("workMan2Id", "platform-worker-2");
+        payload.put("startTime", "2026-11-22 08:00:00");
+        payload.put("endTime", "2026-11-22 09:00:00");
+        payload.put("workType", "HM");
+        payload.put("recorder", "主维保");
+        payload.put("recorderPhone", "13800000004");
+        payload.put("originalRecordId", "1948179075784507801");
         payload.put("problemCode", List.of("S0"));
+        payload.put("deviceCode", "31305001122014017242");
+        payload.put("nextMaintenanceDate", "2026-12-07");
         r.reportPayloadJson = com.cqwlw.maintenance.util.JsonUtil.write(payload);
         return r;
     }
@@ -130,6 +147,19 @@ class PlatformReportServiceTest {
         ArgumentCaptor<RegUploadLog> captor = ArgumentCaptor.forClass(RegUploadLog.class);
         verify(logMapper).insert(captor.capture());
         assertEquals("REUPLOAD", captor.getValue().action);
+    }
+
+    @Test
+    void reuploadRejectsIncompleteFrozenSnapshot() {
+        MaintainRecord r = record("FAILED");
+        r.reportPayloadJson = com.cqwlw.maintenance.util.JsonUtil.write(Map.of("elevatorCode", "212520"));
+        when(recordMapper.selectById("ur_1")).thenReturn(r);
+        when(recordMapper.beginReupload("ur_1")).thenReturn(1);
+
+        BizException e = assertThrows(BizException.class, () -> service.reupload("ur_1"));
+
+        assertEquals(422, e.getCode());
+        verify(platformClient, never()).uploadMaintenanceRecord(any());
     }
 
     @Test

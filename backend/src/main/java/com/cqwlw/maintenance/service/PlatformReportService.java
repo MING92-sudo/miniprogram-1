@@ -166,6 +166,7 @@ public class PlatformReportService {
         if (payload == null || payload.isEmpty()) {
             throw new BizException(422, "签退报文快照缺失，无法上报");
         }
+        ReportPayloadValidator.requireComplete(payload);
         Map<String, Object> body = platformClient.uploadMaintenanceRecord(payload);
         r.reportStatus = "REPORTED";
         r.retryCount = (r.retryCount == null ? 0 : r.retryCount) + 1;
