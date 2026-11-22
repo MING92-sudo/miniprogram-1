@@ -235,11 +235,10 @@ const resignForm = ref(null)
 const createModel = ref({ name: '', phone: '', roles: [], regionId: '' })
 const resignModel = ref({ heir: '' })
 const rolesDraft = ref([])
-// 所属区域（D5）：下拉选项来自 GET /regions；可空=不限区域（空串提交=清除，后端 null=不动/空串=清除）
 const regions = ref([])
 const resetTarget = ref(null)
 const resetPwd = ref('')
-// 「分配电梯」入口已下线（2026-11-20 区域抢单池 D2：绑定概念取消，电梯归属=所在区域）
+// 「分配电梯」入口已下线
 function openReset(row) { if (row) { resetPwd.value = ''; resetTarget.value = row } }
 async function submitReset() {
   try {
@@ -281,13 +280,9 @@ const cols = [
 async function load() {
   loading.value = true
   try {
-    // 列表主数据取 GET /users（角色集来自 sys_user_role 多角色行）；
-    // regionId/regionName 仅在 GET /employees 行投影（Task 1），按 id 合并进列表行；
     // 区域富化失败不得拖垮主列表——employees() 独立降级为空（口径同下方 loadRegions）
     const [list, emps] = await Promise.all([listUsers(), employees().catch(() => [])])
     const regionById = new Map((Array.isArray(emps) ? emps : []).map(e => [e.id, e]))
-    // 所属组织统一口径：优先后端 orgName，其次部门码中文化（PLATFORM/INSTALL/MAINT/UNIT），最后班组名；
-    // 统一写入 org 字段供列排序使用（后端 department 是码值，直接排序/展示会出现 "MAINT" 这种英文）
     rows.value = (Array.isArray(list) ? list : []).map(r => {
       const emp = regionById.get(r.id) || {}
       return {
@@ -305,9 +300,7 @@ async function loadRegions() {
 }
 function openDetail(row) { detail.value = row }
 function openCreate() { createModel.value = { name: '', phone: '', roles: [], regionId: '' }; initialPwd.value = ''; roleErr.value = ''; showCreate.value = true }
-// 角色集校验（开通表单）：必选 ≥1 + R7 同部门预检（与后端 UserController.validateSameDepartment 同口径，
-// 部门推导取 labels.roleDept 单一事实源）。预检不通过不发起任何请求——否则会出现
-// 「POST /employees 建档成功、assignRoles 422 跨部门」半成品（账号已建但只有主角色、初始口令随 catch 丢失、重试撞账号查重）
+// 预检不通过不发起任何请求——否则会出现「POST /employees 建档成功、assignRoles 422 跨部门」半成品（账号已建但只有主角色、初始口令随 catch 丢失、重试撞账号查重）
 function roleErrOf(roles) {
   if (!roles.length) return '请至少选择一个角色'
   const depts = new Set(roles.map(roleDept).filter(Boolean))
@@ -318,7 +311,6 @@ async function submitCreate() {
   roleErr.value = roleErrOf(createModel.value.roles)
   if (!createForm.value.validate() || roleErr.value) { toast.warn('请修正表单错误后再提交'); return }
   try {
-    // 开通统一走 POST /employees（D5：regionId 随建档写入；后端空串=不限区域、非空校验存在 422）
     const body = {
       name: createModel.value.name,
       phone: createModel.value.phone,

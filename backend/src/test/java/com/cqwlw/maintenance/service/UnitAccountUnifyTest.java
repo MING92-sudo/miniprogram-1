@@ -21,11 +21,6 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/**
- * 使用单位门户账号迁移（V34 → P3）：目标表为 client_account，绝不再写 sys_employee。
- * 覆盖：开通客户账号、手机号被员工占用跳过、幂等（已有账号只补标记）、
- * 口令沿用/兜底、openid 不抢夺、空列表 no-op。
- */
 class UnitAccountUnifyTest {
 
     private UseUnitMapper units;

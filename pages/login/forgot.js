@@ -1,5 +1,4 @@
 // 忘记密码（登录页入口）：微信验证重置——code 服务端换 openid 匹配绑定账号后设新密码；
-// 未绑定微信引导管理员重置（管理端 POST /employees/{id}/reset-password）。重置成功回登录页预填账号。
 const auth = require('../../services/auth')
 
 const RESET_ACCOUNT_KEY = 'em_reset_account'

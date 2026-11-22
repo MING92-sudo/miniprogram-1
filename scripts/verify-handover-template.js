@@ -1,7 +1,3 @@
-// 校验移交查验 74 项模板 mock ↔ 后端一致性（GB/T 10060—2023 表1）。
-// 后端事实源：backend HandoverChecklistTemplate.items()（new Item(no, group, clause, name, requirement, important)）
-// mock 事实源：mock/server.js 的 HANDOVER_TEMPLATE（[no, group, clause, name, requirement]）+ HANDOVER_IMPORTANT（☆项集合）
-// 任一端增删/改条目而另一端未同步时本脚本退出码 1（已挂 CI 门禁 backend-build.yml）
 const fs = require('fs')
 const path = require('path')
 

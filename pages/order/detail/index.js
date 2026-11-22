@@ -1,5 +1,4 @@
-// 急修单详情（M3，屏 06）：七态流转（M0 §3）OPEN→ASSIGNED→PROCESSING→PENDING_CONFIRM→CLOSED/REFUSED/CANCELLED。
-// 接 M1 端点 grab/arrive/submit/confirm/cancel/evaluate；到场显式 GPS 打卡；维保工单绝不套此七态（§1.3）。
+// 维保工单绝不套此七态（§1.3）。
 const { getFaultDetail, updateFault, grabFault, arriveFault, submitFault, confirmFault, cancelFault } = require('../../../services/fault')
 const { getUnitFaultDetail, confirmUnitFault, cancelUnitFault } = require('../../../services/unit')
 const { formatTime } = require('../../../utils/util')

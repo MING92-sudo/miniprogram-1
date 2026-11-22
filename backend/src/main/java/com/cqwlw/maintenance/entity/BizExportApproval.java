@@ -6,7 +6,6 @@ import lombok.Data;
 
 import java.time.LocalDateTime;
 
-/** 敏感导出审批（biz_export_approval，M5）。 */
 @Data
 @TableName("biz_export_approval")
 public class BizExportApproval {

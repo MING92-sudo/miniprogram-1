@@ -4,7 +4,6 @@ import { onUnauthorized } from '../api/client'
 import { state } from '../ui/permission-v2'
 import router from '../router'
 
-/** 管理端角色口径（与后端 auth/AdminRoles.java 对齐，docs/09 §三） */
 export const ADMIN_READ_ROLES = ['LEADER', 'ADMIN']
 export const ADMIN_WRITE_ROLES = ['ADMIN']
 
@@ -31,7 +30,6 @@ export const useAuthStore = defineStore('auth', {
     canWrite: (s) => ADMIN_WRITE_ROLES.includes(s.role),
     isSysAdmin: (s) => s.role === 'ADMIN' || s.role === 'PLATFORM_ADMIN',
     canRead: (s) => ADMIN_READ_ROLES.includes(s.role),
-    // 细粒度能力判定（M5 permission-v2 三态，Y/C 放行）：菜单/路由/按钮统一用它
     can: (s) => (capability) => {
       try {
         const st = state(s.role, capability)
@@ -69,7 +67,6 @@ export const useAuthStore = defineStore('auth', {
   }
 })
 
-// 401（登录过期/被顶下线）统一清会话跳登录（docs/09 §二：JWT 401 统一跳登录）
 onUnauthorized(() => {
   const auth = useAuthStore()
   auth.clearSession()

@@ -21,10 +21,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-/**
- * 维保日历投影（Task 11）：从首保日（首次 HM）起算，第 15 天半月、90 天季度、180 天半年、365 天年度；
- * 只读投影不落库，窗口外不返回。
- */
+/** 只读投影不落库，窗口外不返回。 */
 class MaintenanceCalendarServiceTest {
 
     private static final LocalDate ANCHOR = LocalDate.of(2026, 1, 16);
@@ -79,8 +76,6 @@ class MaintenanceCalendarServiceTest {
         assertEquals("HM", typeOn(rows, LocalDate.of(2026, 1, 31)));   // 首保 +15
         assertEquals("TM", typeOn(rows, LocalDate.of(2026, 4, 16)));   // +90 季度（累加式取最高）
         assertEquals("SM", typeOn(rows, LocalDate.of(2026, 7, 15)));   // +180 半年
-        // 2026-11-21 修复：年度=首个 ≥365 天的格点（+375，2027-01-26），与派单 elapsedDays≥365 同口径，
-        // 不再孤立在 15 天节奏格外（旧 typeAt 在 +365=2027-01-16 出格点外条目）
         assertEquals("OY", typeOn(rows, LocalDate.of(2027, 1, 26)));
         // 非 15 倍数不排期
         assertTrue(rows.stream().noneMatch(r -> "2026-02-03".equals(r.get("date"))));
@@ -96,8 +91,6 @@ class MaintenanceCalendarServiceTest {
         assertEquals("HM", rows.get(0).get("workTypeCode"));
     }
 
-    /** 建档即排期（2026-11-20）：无 HM 工单/无移交归档/无下次到期时，
-     *  锚点回退「建档基线 lastMaintenanceAt + intervalDays」，直建电梯建档当日起即可投影全年 */
     @Test
     void anchorFallsBackToArchiveBaseline() {
         EmployeeMapper employeeMapper = mock(EmployeeMapper.class);
@@ -128,8 +121,6 @@ class MaintenanceCalendarServiceTest {
         assertEquals("OY", typeOn(rows, LocalDate.of(2027, 1, 26))); // +375 首个 ≥365 格点
     }
 
-    /** 条目执行状态：当日 DONE 工单=已完成；未完成工单=已派单；计划日已过未派单=超期；未来=计划。
-     *  日期取相对今天动态值，避免随时间推移失效 */
     @Test
     void annotatesExecutionStatus() {
         EmployeeMapper employeeMapper = mock(EmployeeMapper.class);
@@ -176,8 +167,7 @@ class MaintenanceCalendarServiceTest {
                 .map(r -> String.valueOf(r.get("orderId"))).findFirst().orElse(""));
     }
 
-    /** 区域抢单池读谓词（2026-11-21 M9）：非管理角色按区域匹配键——
-     *  电梯不限区域或与登录人同区域可见、异区域不可见；电梯绑定字段不作归属键 */
+    /** 电梯绑定字段不作归属键 */
     @Test
     void regionPredicateReplacesWorkerBinding() {
         EmployeeMapper employeeMapper = mock(EmployeeMapper.class);
@@ -217,9 +207,6 @@ class MaintenanceCalendarServiceTest {
         assertEquals(java.util.Set.of("EM-R1", "EM-R0"), codes);
     }
 
-    /** 提前维保锚点滚动（2026-11-21 用户确认修复）：计划 12-05 的首保提前到 12-01 签退后，
-     *  锚点=最近 DONE 签退日 12-01，后续投影整体前移（12-01/12-16/12-31…），
-     *  签退日条目按实际作业日标注 DONE */
     @Test
     void anchorRollsWithEarlyCheckout() {
         EmployeeMapper employeeMapper = mock(EmployeeMapper.class);
@@ -257,13 +244,6 @@ class MaintenanceCalendarServiceTest {
         assertTrue(rows.stream().noneMatch(r -> "2026-12-20".equals(r.get("date"))));
     }
 
-    /**
-     * 2026-11-21 审查修复（per-type 基线，DispatchService lastOf(type, first) 同口径）：
-     * 一年只做半月保的电梯（首保 2025-06-01，最近 HM 签退 2026-05-17=锚点）——
-     * 锚点滚动不得把 TM/SM/OY 视为「刚发生」：OY 应落首个距首保 ≥365 天的格点 2026-06-01
-     * （旧实现 lastOY/SM/TM 恒从锚点起算 → OY 要等到 2027-05，与派单 2026-06-01 出年度单脱节）。
-     * 派单同口径推演：OY(06-01) 后下一单 06-16 时 SM 距首保 380≥180 → SM；07-01 时 TM 395≥90 → TM。
-     */
     @Test
     void typeBaselinesFollowPerTypeHistory() {
         EmployeeMapper employeeMapper = mock(EmployeeMapper.class);

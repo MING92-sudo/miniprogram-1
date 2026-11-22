@@ -45,14 +45,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
-/**
- * 管理端「退回池」（2026-11-20 区域抢单池设计 §4.4 / D10/M12）：
- * ①DONE 工单 422（维保记录已生成并上报监管平台，不得清回池）；
- * ②未认领 PENDING 工单幂等 ok，不改状态、不写审计、不动库；
- * ③已认领工单先写审计（操作人/原认领人/原配合人/签到留痕快照 JSON，M12 审计先行），
- *   再在同一事务内清空认领/签到留痕回 PENDING——审计失败即中止回滚，不得先清库后丢审计；
- * ④清库后 worker 系、assistant 系字段与签到留痕全空、status=PENDING 重新入池，regionId 快照不变（M10）。
- */
+/** 管理端「退回池」：①DONE 工单 422（维保记录已生成并上报监管平台，不得清回池）； */
 class ReleaseToPoolTest {
 
     private static final String ORDER = "wo_release";
@@ -137,7 +130,6 @@ class ReleaseToPoolTest {
 
         InOrder inOrder = inOrder(auditLogService, orderMapper);
         ArgumentCaptor<SysAuditLog> auditCap = ArgumentCaptor.forClass(SysAuditLog.class);
-        // M12 审计先行：audit.append 必须先于 orderMapper.update（清库），同一事务内
         inOrder.verify(auditLogService).append(auditCap.capture());
         inOrder.verify(orderMapper).update(isNull(), any());
         SysAuditLog audit = auditCap.getValue();
@@ -180,8 +172,7 @@ class ReleaseToPoolTest {
                 + wrapper.getParamNameValuePairs());
         assertFalse(sqlSet.contains("region_id"), "regionId 快照不变（M10）：" + sqlSet);
         assertFalse(sqlSet.contains("plan_time"), "计划时间不得被清：" + sqlSet);
-        // 读-改竞态守卫（Fix round 1）：清库 UPDATE 必须带 status<>DONE 条件，
-        // 否则并发签退在「读 PENDING」与「清库」之间提交时会被覆写回 PENDING（第二条 2.6 上报）
+        // 读-改竞态守卫（Fix round 1）：清库 UPDATE 必须带 status<>DONE 条件，否则并发签退在「读 PENDING」与「清库」之间提交时会被覆写回 PENDING（第二条 2.6 上报）
         String where = wrapper.getSqlSegment();
         assertTrue(where.contains("status"), "清库须带 DONE 状态守卫：" + where);
         assertTrue(wrapper.getParamNameValuePairs().containsValue("DONE"),
@@ -190,7 +181,6 @@ class ReleaseToPoolTest {
 
     @Test
     void concurrentDoneAbortRelease() {
-        // 并发用例：管理员读到的还是 PROCESSING，工人签退事务在读与清库之间提交（status 已 DONE）。
         // 条件更新命中 0 行 → 抛 422 并整体回滚（审计一并回滚），不得覆写 DONE 抹掉签到/签名留痕。
         TxTestSupport.CapturingTx tx = TxTestSupport.capturingTx();
         AppProperties props = new AppProperties();

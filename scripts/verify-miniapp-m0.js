@@ -1,5 +1,3 @@
-// scripts/verify-miniapp-m0.js
-// 当前代码结构守卫：路由、状态集合、权限镜像与静态资源；不依赖已删除的历史设计文档。
 const fs = require('fs')
 const path = require('path')
 const ROOT = path.join(__dirname, '..')

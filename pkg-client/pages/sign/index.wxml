@@ -7,7 +7,6 @@
       <view class="fs20 dim">该签署任务可能已完成或已失效，请从待办重新进入。</view>
     </view>
 
-    <!-- V2.80 批量签署模式：记录清单 + 同一签名一次确认 -->
     <block wx:elif="{{batch}}">
       <view class="card">
         <view class="panel-title">本次签署（{{batchList.length}} 条）</view>
@@ -39,7 +38,6 @@
           <view>维保日期<b>{{view.workDate || '—'}}</b></view>
           <view>维保人<b>{{view.workerName || '—'}}</b></view>
         </view>
-        <!-- V2.80 签字 SLA 倒计时（serverNow 对齐时钟） -->
         <view wx:if="{{slaText && !confirmed && !refused}}" class="cs-sla {{slaOver ? 'over' : ''}}">{{slaText}}</view>
         <view wx:if="{{summary.abnormalDesc}}" class="cs-note">异常整改：{{summary.abnormalDesc}}</view>
       </view>
@@ -96,7 +94,6 @@
     </view>
   </view>
 
-  <!-- V2.80 拒签分类码面板（R1—R5；R5 必填说明） -->
   <view wx:if="{{refuseOpen}}" class="refuse-mask" bindtap="closeRefuse">
     <view class="refuse-panel" catchtap="">
       <view class="panel-title">拒绝签署 · 选择原因分类</view>

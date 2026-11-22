@@ -17,19 +17,13 @@ public class Elevator {
     public String id;
     public String elevatorCode;
     public String elevatorName;
-    /** 项目名称（小区名称，与使用单位名称区分；维保人员现场可维护，docs/01 §3.4.1） */
     public String projectName;
-    /** 所属区域（region.id，可空；移交/使用单位门户可见性范围谓词，V24 迁移） */
     public String regionId;
-    /** 建档来源：0=台账直建（默认）/1=安装移交（V25 迁移；V65 移除外接建档） */
     public Integer archiveSource;
-    /** 监督检验合格日（移交路径首保基线锚点，V25 迁移） */
     public LocalDate supervisionPassDate;
-    /** 归档时间 = 安装移交的维保责任起始时间（V25 迁移） */
     public LocalDateTime handoverAt;
     public String location;
     public String regCode;
-    /** 登记证编码（V58）：使用登记证上的编号，形如 梯11渝BSP8194(20)；独立于 regCode（注册代码），不上报监管平台 */
     public String certNo;
     public String deviceCode;
     public String insideNumber;
@@ -60,13 +54,10 @@ public class Elevator {
     public String stationsDoors;
     public String workTypeCode;
     public Integer intervalDays;
-    /** NULL/ACTIVE=在保；INACTIVE=停用（逻辑删除，docs/09 §6.6，V8 迁移） */
     public String status;
     /** 特殊类别：消防/防爆/NULL（匹配自定义检查项模板 category_scope，缺失即 1006 提示，TSG 第二条） */
     public String specialType;
-    /** 电梯级签到阈值（米）；空=回退全局 app.checkin-threshold-meters（docs/02 §5.4，V9 迁移） */
     public Integer checkinThreshold;
-    /** 坐标来源：UNKNOWN/PROVIDED/SELF_COLLECTED（docs/02 §5.4，V9 迁移） */
     public String geoStatus;
     public String workerName;
     public String workerPhone;

@@ -16,29 +16,24 @@ function resolveByElevatorCode(elevatorCode) {
   return get('/work-orders/resolve-by-elevator', { elevatorCode })
 }
 
-// 签到（定位 + 水印自拍照片）；区域抢单池口径（M1/D4）：PRINCIPAL 首次签到未认领工单即原子认领，
-// 落败 1003「该工单已被 XX 认领」、无平台ID 422「请先在管理端完成平台人员登记」
 function checkin(orderId, data) {
   return post(`/work-orders/${orderId}/checkin`, data)
 }
 
-// 配合人候选（D3/D4/M10：仅主维保本人；同区域快照+持平台ID+在职，排除本人）→ {list:[{id,name,platformId,phone}]}
 function partnerCandidates(orderId) {
   return get(`/work-orders/${orderId}/partner-candidates`)
 }
 
-// 指派/改选配合人（D3/D8：仅主维保本人，配合人未签到前可改选）
 function assignPartner(orderId, employeeId) {
   return post(`/work-orders/${orderId}/assign-partner`, { employeeId })
 }
 
-// 主维保生成双人动态码（每 5 秒刷新、60 秒有效、绑定工单、一次性；docs/03 §3.2 项6）
+// 主维保生成双人动态码（每 5 秒刷新、60 秒有效、绑定工单、一次性；
 function issueDynamicCode(orderId) {
   return post(`/work-orders/${orderId}/dynamic-code`, {})
 }
 
-// 双人作业动态码校验（配合人员到场确认；不消费码，消费发生在配合人员签到时）
-// 契约保留：独立动态码页已删（2026-11-16），校验/消费内联在 checkin 链路，端点保留
+// 双人作业动态码校验（配合人员到场确认；
 function verifyDynamicCode(orderId, data) {
   return post(`/work-orders/${orderId}/dynamic-code/verify`, data)
 }
@@ -53,12 +48,10 @@ function submitChecklistItem(orderId, itemId, data) {
   return post(`/work-orders/${orderId}/checklist/${itemId}`, data)
 }
 
-// 周期性条目"本次仍要执行"（TSG 附件A 周期性/季节性条目，docs/03 §6.1）
 function runItemThisTime(orderId, itemId) {
   return post(`/work-orders/${orderId}/checklist/${itemId}/run-this-time`, {})
 }
 
-// 主维保/配合人员各自手机签字（docs/01 §3.7.5：严格各签各的，可重复签覆盖）
 function signOrder(orderId, data) {
   return post(`/work-orders/${orderId}/signature`, data)
 }
@@ -70,15 +63,12 @@ function checkout(orderId, data, options) {
     { idempotencyKey: idem || 'co_' + orderId })
 }
 
-// 手动重报平台 2.6（仅 uploadStatus=FAILED 的记录，docs/04 A.7 P3 修订）
-// 契约保留、小程序暂无入口：逐条人工重报入口在管理端（AGENTS §2.4 禁止自动重试）
+// 手动重报平台 2.6契约保留、小程序暂无入口：逐条人工重报入口在管理端（AGENTS §2.4 禁止自动重试）
 function retryRecordUpload(recordId) {
   // 注意：此处不用稳定幂等键——重报必须真实重发，重放旧响应会吞掉重试
   return post(`/platform/records/${recordId}/reupload`, {})
 }
 
-// M1 记录生命周期（docs/04 V2.53）：配合退回/主管复核/发起使用单位签字/归档投影
-// signatureRefuse/reviewRecord 契约保留、小程序暂无入口：复核在管理端（record:review）
 function signatureRefuse(orderId) {
   return post(`/work-orders/${orderId}/signature-refuse`, {})
 }
@@ -88,14 +78,10 @@ function reviewRecord(recordId, pass, reason) {
   return post(`/work-orders/${recordId}/review`, { pass, reason })
 }
 
-// 发起使用单位签字（P1 T8-A4：后端按记录 id 定位，调用方须传 recordId；路径保留 /work-orders 前缀契约）
 function signRequest(recordId) {
   return post(`/work-orders/${recordId}/sign-request`, {})
 }
 
-// 员工内部读记录详情（C-24，后端 RecordController GET /records/{id}）：record:view 门禁 + V7 班组谓词，
-// 内部全量投影（生命周期/版本链/shareToken/context/items 明细）；
-// 客户门户读契约见 services/unit.getRecord（/unit/records/{id}，契约保留）
 function getRecordDetail(recordId) {
   return get(`/records/${recordId}`)
 }

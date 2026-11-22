@@ -29,7 +29,6 @@ public final class TxTestSupport {
         });
     }
 
-    /** 记录 commit/rollback 的模板：用于断言"回调抛异常 → 必须走 rollback"（B3 原子边界） */
     public static final class CapturingTx {
         public final TransactionTemplate template = new TransactionTemplate(new PlatformTransactionManager() {
             @Override

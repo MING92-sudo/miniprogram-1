@@ -20,10 +20,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 
-/**
- * 维保记录 / 急修单 PDF 导出（docs/13 表单版面）：
- * 中文渲染（STSong-Light）、标准表格版式、跨页重复表头、照片/签字占位降级不抛错。
- */
 class RecordPdfServiceTest {
 
     private RecordPdfService service;
@@ -50,7 +46,6 @@ class RecordPdfServiceTest {
         };
     }
 
-    /** 构造带单位名的 UseUnit（P2b 快照优先级断言用） */
     private UseUnit uu(String unitName) {
         UseUnit u = new UseUnit();
         u.unitName = unitName;
@@ -150,14 +145,12 @@ class RecordPdfServiceTest {
         assertEquals("%PDF", new String(pdf, 0, 4, StandardCharsets.US_ASCII));
     }
 
-    /** P2b/R13：快照名优先于档案现名（改名后物业不得覆盖快照） */
     @Test
     void deviceRowUsesSnapshotUnitName() {
         assertEquals("启元物业（快照）",
                 RecordPdfService.unitNameForSnapshot("启元物业（快照）", uu("改名后物业")));
     }
 
-    /** P2b/R13：NULL/blank 快照 → 内部标注「归属待核对」 */
     @Test
     void nullSnapshotShowsPendingLabel() {
         assertEquals("归属待核对", RecordPdfService.unitNameForSnapshot(null, uu("改名后物业")));
@@ -165,7 +158,6 @@ class RecordPdfServiceTest {
         assertEquals("归属待核对", RecordPdfService.unitNameForSnapshot("   ", uu("改名后物业")));
     }
 
-    /** P2b/R13：接线冒烟——r.useUnitName=快照名时 render 仍能产出 PDF */
     @Test
     void renderWithSnapshotStillProducesPdf() {
         MaintainRecord r = record();
@@ -184,11 +176,7 @@ class RecordPdfServiceTest {
         assertEquals("%PDF", new String(pdf, 0, 4, StandardCharsets.US_ASCII));
     }
 
-    /**
-     * E2E 回归：safety_json 存成字符串 "null"（旧签退代码 JsonUtil.write(null) 的产物）时，
-     * Jackson 对字面量 null 正常返回 null 对象，safetyLine 直接 flags.get() → NPE → PDF 生成失败，
-     * 连带客户签字确认 500。必须兜底为空 Map 并正常出 PDF。
-     */
+    /** 必须兜底为空 Map 并正常出 PDF。 */
     @Test
     void literalNullSafetyJsonStillRenders() {
         MaintainRecord r = record();
@@ -201,7 +189,7 @@ class RecordPdfServiceTest {
         assertEquals("%PDF", new String(pdf2, 0, 4, StandardCharsets.US_ASCII));
     }
 
-    /** 年度维保 76 项必须跨页：验证分页与每页表头重复不抛错（docs/13 §7-1） */
+    /** 年度维保 76 项必须跨页：验证分页与每页表头重复不抛错 */
     @Test
     void annualRecordSpansMultiplePages() throws Exception {
         byte[] pdf = service.render(annualRecord(), null, null);
@@ -210,7 +198,6 @@ class RecordPdfServiceTest {
         }
     }
 
-    /** 附件 A—D 与累加式表号：自动扶梯走附件 D，季度含表 X-1～X-2（docs/13 §3.6） */
     @Test
     void appendixAndTableRangeLabels() {
         assertEquals("A", RecordPdfService.appendixOf("曳引与强制驱动电梯"));
@@ -235,7 +222,7 @@ class RecordPdfServiceTest {
         assertEquals("OY", RecordPdfService.workTypeCodeOf(r));
     }
 
-    /** 急修记录单：未闭环（无到场/无签字/无照片）也必须完整出单（docs/13 §7-5） */
+    /** 急修记录单：未闭环（无到场/无签字/无照片）也必须完整出单 */
     @Test
     void faultPdfRendersWithPlaceholders() {
         Map<String, Object> v = faultView();
@@ -250,10 +237,7 @@ class RecordPdfServiceTest {
         assertEquals("%PDF", new String(pdf, 0, 4, StandardCharsets.US_ASCII));
     }
 
-    /**
-     * 签字回退（2026-11-21）：记录未落签字 URL 时按来源工单的签字 fileId 解析
-     * （与签退 resolveSignatureUrl 同口径，仅内存回填）；记录已有签字 URL 时不回退。
-     */
+    /** 签字回退：记录未落签字 URL 时按来源工单的签字 fileId 解析（与签退 resolveSignatureUrl 同口径，仅内存回填）； */
     @Test
     void backfillsSignaturesFromSourceWorkOrder() throws Exception {
         org.mockito.Mockito.when(fileStorage.urlOf("t_file_sig_w")).thenReturn("/files/t_file_sig_w");

@@ -11,10 +11,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * 检查项模板（docs/08 附件 A—D，257 行）：累加式频次链、周期项默认"本次无需执行"、
- * 关键项照片留证、异常项隐患码。
- */
 class ChecklistServiceTest {
 
     private ChecklistService service;
@@ -74,7 +70,6 @@ class ChecklistServiceTest {
 
     @Test
     void categoryRoutesToCorrectAppendix() {
-        // 品种取值统一为 TSG T5002 第八条四类口径（docs/01 §3.4.1）：四种品种各走对附件
         assertEquals("A", service.appendix("曳引与强制驱动电梯"));
         assertEquals("B", service.appendix("液压驱动电梯"));
         assertEquals("C", service.appendix("杂物电梯"));

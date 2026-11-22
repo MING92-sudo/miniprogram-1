@@ -1,5 +1,3 @@
-// scripts/verify-miniapp-routes.js
-// M2 路由/菜单/导航结构守卫：只依赖当前代码，不读取已删除的历史设计文档。
 const fs = require('fs')
 const path = require('path')
 const ROOT = path.join(__dirname, '..')
@@ -81,7 +79,6 @@ const tabPaths = []
 Object.keys(menus.ROLE_TABS).forEach((r) => menus.ROLE_TABS[r].forEach((t) => tabPaths.push(t.path.split('?')[0])))
 check('tabs-paths', [...new Set(tabPaths)].filter((p) => !routes.ROUTES[p]), new Set(tabPaths).size)
 
-// 7 nav-transition：M6 后全部 tab 目标必须已建（TRANSITION_MAP 过渡映射已删，2026-11-16 审查清理）
 const navMissing = [...new Set(tabPaths)].filter((p) => routes.ROUTES[p] && !routes.ROUTES[p].built)
 check('nav-transition', navMissing, [...new Set(tabPaths)].length)
 

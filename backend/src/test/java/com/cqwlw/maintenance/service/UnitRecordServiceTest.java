@@ -24,11 +24,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/**
- * 维保记录读路径照片归一（2026-11-10 缺陷）：
- * 旧记录可能已上传 photoFileIds，但 items/photos_json 仍冻结为 wxfile://、http://tmp/ 本地路径；
- * 记录详情/管理端预览必须按 fileId 重签，否则照片只在拍照设备可见。
- */
+/** 记录详情/管理端预览必须按 fileId 重签，否则照片只在拍照设备可见。 */
 class UnitRecordServiceTest {
 
     private FileStorageService fileStorage;
@@ -86,11 +82,7 @@ class UnitRecordServiceTest {
         assertTrue(((List<?>) ((Map<?, ?>) items.get(0)).get("photos")).isEmpty());
     }
 
-    /**
-     * P1 T8-A3：signView 投影 recordVersion/hashPrefix（sign 页「签署前核对」契约字段，
-     * 与 mock sign-view 对齐）；hashPrefix = 归档 SHA-256 前 8 位，未归档为空串；
-     * 白名单不变：不回显 shareToken、不返回 satisfaction（docs/14 §4.7）。
-     */
+    /** 白名单不变：不回显 shareToken、不返回 satisfaction。 */
     @Test
     void signViewProjectsRecordVersionAndHashPrefix() {
         MaintainRecord r = record();
@@ -119,11 +111,7 @@ class UnitRecordServiceTest {
         assertEquals("", out.get("hashPrefix"));
     }
 
-    /**
-     * C-24：toMap 内部投影补生命周期/版本链字段（GET /records/{id} 员工链路，record-detail 页消费）；
-     * hashPrefix = 归档 SHA-256 前 8 位（与 signView 同口径）；shareToken 仍在内部投影（copySignLink 依赖）。
-     * 客户路径不受影响：toClientMap 白名单由 ClientRecordGateTest 锁定。
-     */
+    /** shareToken 仍在内部投影（copySignLink 依赖）。 */
     @Test
     void toMapProjectsLifecycleAndVersionChain() {
         MaintainRecord r = record();
@@ -142,7 +130,6 @@ class UnitRecordServiceTest {
         assertEquals("sg-1", out.get("shareToken"));
     }
 
-    /** C-24：未归档（archiveHash 空）→ toMap.hashPrefix 空串，不报错（与 signView 同口径） */
     @Test
     void toMapHashPrefixEmptyBeforeArchive() {
         Map<String, Object> out = service.toMap(record());
@@ -151,16 +138,9 @@ class UnitRecordServiceTest {
         assertTrue(out.containsKey("lifecycleStatus"));
         assertTrue(out.containsKey("version"));
         assertTrue(out.containsKey("prevVersionId"));
-        // final-fix Minor#2：未归档 archivedAt 为 null → 投影收敛空串（不抛错、不回 null）
         assertEquals("", out.get("archivedAt"));
     }
 
-    /**
-     * final-fix Minor#2（2026-11-17）：toMap 补 archivedAt 投影——record-detail「版本核对」行的
-     * 「版本生成时刻」此前只读 mock 专用字段 frozenAt，真实后端 toMap 不投影任何时刻字段致恒空串；
-     * 归档时同时落 archiveHash（hashPrefix 来源）与 archivedAt，故版本核对行时间口径取 archivedAt
-     * （yyyy-MM-dd HH:mm:ss，GMT+8，AGENTS §4.1），前端保留 frozenAt 兜底兼容 mock 种子。
-     */
     @Test
     void toMapProjectsArchivedAt() {
         MaintainRecord r = record();
@@ -171,10 +151,6 @@ class UnitRecordServiceTest {
         assertEquals("2026-11-17 10:30:00", out.get("archivedAt"));
     }
 
-    /**
-     * P2b T9（越权 fail-closed）：归属判定改看 r.useUnitId 快照，不再回查电梯当前归属。
-     * r.useUnitId=uuB 但电梯档案仍属 uuA（旧谓词会放行），持 uuA 令牌读 → 1403 且零副作用。
-     */
     @Test
     void getAsCrossUnitBySnapshot1403() {
         MaintainRecord r = record();
@@ -195,10 +171,6 @@ class UnitRecordServiceTest {
         verify(recordMapper, never()).updateById(any(MaintainRecord.class));
     }
 
-    /**
-     * P2b T9：待签列表直接按 r.useUnitId 快照过滤，不再发起任何电梯归属查询；
-     * NULL 快照 fail-closed（非空 unitId 永不匹配）。
-     */
     @Test
     void pendingAsUsesSnapshotColumnWithoutElevatorQuery() {
         MaintainRecord own = record();
@@ -222,12 +194,7 @@ class UnitRecordServiceTest {
         verify(elevatorMapper, never()).selectOne(any());
     }
 
-    /**
-     * 2026-11-20 使用单位签署核对扩项：signView 返回检查项明细（过滤 notInThisRun，白名单投影
-     * 含 abnormalDesc/freqLabel/照片）、现场照片墙、useUnitName/workDate/confirmStatus，供 sign 页
-     * 「核对项目/异常整改/照片」；禁令字段（shareToken/reportPayload/context/satisfaction/
-     * refuseReason）仍不返回（docs/14 §4.7）。
-     */
+    /** 禁令字段（shareToken/reportPayload/context/satisfaction/refuseReason）仍不返回。 */
     @Test
     void signViewProjectsItemsForClientCheck() {
         MaintainRecord r = record();
@@ -270,7 +237,6 @@ class UnitRecordServiceTest {
         return r;
     }
 
-    // ── V2.80 修复：免登录 token 链签名图上传（signatureUploadByToken）门禁锁定 ──
 
     private static MaintainRecord signable() {
         MaintainRecord r = record();

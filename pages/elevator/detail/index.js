@@ -1,6 +1,4 @@
-// 电梯档案（M2，屏 08）：平台同步字段 + 本地维护字段（现场更正）+ 设备码 + 导出台账（双档权限）。
-// 客户主体只读（2026-11-20 真机反馈）：不渲染更正入口，onEditLocal 前置拦截（后端客户白名单
-// 本就只放行 GET /elevators*，PUT 项目名更正 403，此处为渲染面收敛 docs/14 §7.1）。
+// 客户主体只读：不渲染更正入口，onEditLocal 前置拦截。
 const { getElevatorProfile, updateElevatorLocal } = require('../../../services/elevator')
 const { isCustomerPrincipal } = require('../../../utils/auth')
 const { definePage } = require('../../../utils/guard')
@@ -29,8 +27,7 @@ definePage(ROUTES['/pages/elevator/detail/index'], {
     this.fetchProfile()
   },
   fetchProfile() {
-    // 缺 id（扫码/分享直达）时不得发起请求：/elevators//profile 会被网关判成不存在的接口，
-    // 用户看到的是「接口不存在」而不是「参数缺失」（小程序实测）。
+    // 缺 id（扫码/分享直达）时不得发起请求：/elevators//profile 会被网关判成不存在的接口，用户看到的是「接口不存在」而不是「参数缺失」（小程序实测）。
     if (!this.data.id) {
       this.setData({ loading: false, error: '缺少电梯参数，请从电梯列表进入' })
       return

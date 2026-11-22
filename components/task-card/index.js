@@ -1,4 +1,3 @@
-// 任务卡（M2，屏 01）：时间 + 标题 + 描述 + 状态标签；整卡可点
 Component({
   options: { addGlobalClass: true },
   properties: {

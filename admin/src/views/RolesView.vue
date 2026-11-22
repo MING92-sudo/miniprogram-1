@@ -94,7 +94,6 @@
 </div>
 </template>
 <script setup>
-// 角色权限矩阵（原型 Views.roles 对齐）：域筛选 chips + 固定首列矩阵 + 角色详情抽屉；数据源 permission-v2 真实矩阵
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import GrantsView from './GrantsView.vue'
@@ -115,8 +114,6 @@ const toast = useToast()
 const route = useRoute()
 const router = useRouter()
 const perspective = usePerspectiveStore()
-// 合并页分页门禁（Tab 合并 2026-11-21 审查修复）：矩阵=role:assign，授权=invite:manage；
-// 与路由 meta.permByTab 同口径，无宿主权限但有分页权限的角色落地时收敛到可用分页
 function allow(code) { try { const s = state(perspective.activeRole, code); return s === 'Y' || s === 'C' } catch { return false } }
 const canMatrix = computed(() => allow('role:assign'))
 const canGrants = computed(() => allow('invite:manage'))
@@ -175,8 +172,6 @@ function webView(code) {
   return ''
 }
 function deptOf(r) {
-  // 部门推导单一事实源在 labels.roleDept（与后端 RoleCatalog.departmentOf 同口径）；
-  // 使用单位是外部客户主体（非内部部门），旧码 UNIT_ADMIN 同归此类，不能落到「平台」
   if (!r) return '平台'
   const d = roleDept(r)
   return d ? deptLabel(d) : '使用单位'

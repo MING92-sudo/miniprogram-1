@@ -15,7 +15,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Map;
 
-/** M4 作业域端点：记录修订（record:amend）+ 代报修（order:create_proxy）。 */
 @RestController
 public class WorkDomainController {
 

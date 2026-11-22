@@ -8,10 +8,6 @@ import org.springframework.stereotype.Service;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
-/**
- * 用户规范角色集（M1，规格 §3.2）：sys_user_role（EMPLOYEE）∪ 别名归一后的旧主角色。
- * 多角色权限取并集；跨部门禁止兼任由 R7 在授予侧校验（V41 合并同规则）。
- */
 @Service
 public class UserRoleService {
 

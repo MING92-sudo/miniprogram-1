@@ -11,13 +11,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Map;
 
-/**
- * 使用单位门户账号（W3，Task 9）——V41 单账号单会话后整链废弃保留至生产清库（docs/12 G 组，2026-11-16 审查标注）：
- * - POST /unit/accounts：旧开通链（管理端现行开通走 /users UNIT 角色 + useUnitId 锚点）；
- * - POST /unit/login、/unit/login-by-wechat、/unit/bind-wechat、/unit/account/password：旧门户令牌链，
- *   前端已无调用者；已迁移账号（account_migrated=1）登录一律 422 拒绝（裁决 R4 口径）。
- * 勿据此开发新功能；清库后与 JwtService.issueUnit/AuthInterceptor 门户分支一并删除。
- */
 @RestController
 public class UnitAccountController {
 
@@ -65,8 +58,6 @@ public class UnitAccountController {
     @PostMapping("/unit/account/password")
     public ApiResponse<Map<String, Object>> changePassword(@RequestBody(required = false) Map<String, Object> body,
                                                            HttpServletRequest request) {
-        // 客户主体（client_account）：口令在 client_account.password_hash，
-        // 不能走 use_unit.password_hash（V41 迁移后该列已清空，会返回 401 并把客户踢回登录页）。
         if (AuthInterceptor.isCustomerRequest(request)) {
             if (clientAccountService == null) {
                 throw new BizException(500, "客户账号服务未就绪");

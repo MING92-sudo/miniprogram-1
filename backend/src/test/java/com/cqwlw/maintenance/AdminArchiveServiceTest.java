@@ -36,10 +36,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/**
- * 档案维护（docs/09 一期）：1002 互斥冲突必须携带 data.conflicts[] 且不落库；
- * 角色白名单与账号唯一性在服务端校验（docs/09 决策 #3）。
- */
+/** 档案维护：1002 互斥冲突必须携带 data.conflicts[] 且不落库； */
 class AdminArchiveServiceTest {
 
     private CompanyMapper companyMapper;
@@ -408,7 +405,7 @@ class AdminArchiveServiceTest {
         verify(elevatorMapper, never()).insert(any(Elevator.class));
     }
 
-    /** 停保/启用直操作（2026-11-21 管理端电梯台账）：INACTIVE 落库；恢复在保必须显式 SET NULL（updateById 跳过 null 的回归锁） */
+    /** 恢复在保必须显式 SET NULL（updateById 跳过 null 的回归锁） */
     @Test
     void updateElevatorSuspendAndResumeStatus() {
         com.baomidou.mybatisplus.core.metadata.TableInfoHelper.initTableInfo(
@@ -494,7 +491,6 @@ class AdminArchiveServiceTest {
         verify(elevatorMapper).insert(any(Elevator.class));
     }
 
-    /** 登记证编码（V58）：独立字段透传进行列投影；选填不参与必传校验，不上报监管平台 2.6 */
     @Test
     void createElevatorPassesCertNoThrough() {
         Map<String, Object> body = new java.util.HashMap<>();
@@ -516,8 +512,6 @@ class AdminArchiveServiceTest {
         assertNull(captor.getAllValues().get(1).certNo);
     }
 
-    /** 建档即排期（2026-11-20 用户口径）：未传基线时默认=建档时间，下次到期=基线+15 天（首保计划日），
-     *  直建电梯建档当日起进入日历全年投影与定时派单滚动，不再需要手动首保派单 */
     @Test
     void createElevatorDefaultsScheduleBaseline() {
         Map<String, Object> body = new java.util.HashMap<>();
@@ -612,7 +606,6 @@ class AdminArchiveServiceTest {
         assertNotEquals("", captor.getValue().id);
     }
 
-    // ── 范围收敛新增（docs/04 A.9.0 / docs/09 V3.3）──
 
     @Test
     void batchGeoUpdatesByCodeAndReportsFailures() {
@@ -626,7 +619,6 @@ class AdminArchiveServiceTest {
                 Map.of("code", "DT404", "lng", "1", "lat", "1"),
                 Map.of("code", "DT001", "lng", "x", "lat", "1"))));
 
-        // mock 对任何查询条件都返回同一电梯 → DT001/DT404 都命中，仅经纬度格式错的一条失败
         assertEquals(2, ((List<?>) out.get("success")).size());
         assertEquals(1, ((List<?>) out.get("failed")).size());
         assertTrue(((List<?>) out.get("success")).stream()
@@ -647,7 +639,6 @@ class AdminArchiveServiceTest {
         assertEquals("监管平台凭证未配置", out.get("reason"));
     }
 
-    // ── 所属区域（区域工单池前置 Task 1：员工 regionId 读写链路）──
 
     /** 行投影带所属区域：regionId + 经 RegionMapper 解析的 regionName（未配置区域时为空串） */
     @Test
@@ -725,7 +716,7 @@ class AdminArchiveServiceTest {
         verify(employeeMapper).update(isNull(), any(LambdaUpdateWrapper.class));
     }
 
-    // ── 调人校验与审计（Task 3：目标班组必须存在于组织树 TEAM 节点，变更写审计）──
+    // ── 调人校验与审计──
 
     /** 目标班组必须是组织树中 status≠DISABLED 的 TEAM 节点名；不存在或已停用 → 422「目标班组不存在」且不落库 */
     @Test

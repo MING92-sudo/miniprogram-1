@@ -31,13 +31,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/**
- * 客户记录签字/拒签门禁 + 字段白名单（P1 T4，docs/14 §4.6 规则 1/2/3 + §4.7）：
- * 签字前依次 principalType=CUSTOMER → token useUnitId → 记录归属 → lifecycleStatus=PENDING_CLIENT_SIGNATURE
- * → confirmStatus=PENDING → 最新版本，任一失败 403/1403/422 无副作用；
- * 落库条件更新保证并发先签为准；客户路径绝不泄漏 reportPayload/context/shareToken 等内部字段；
- * 拒签原因必填且仅待签状态可拒（不触发平台 2.6——服务不注入上报结构）。
- */
+/** 客户仅可在待签状态签本人记录，所有校验失败均无副作用。 */
 class ClientRecordGateTest {
 
     private static final Set<String> CLIENT = Set.of("CLIENT_ADMIN");
@@ -88,8 +82,6 @@ class ClientRecordGateTest {
         MaintainRecord r = new MaintainRecord();
         r.id = id;
         r.elevatorCode = "DT-1";
-        // P2b T9：客户归属改看记录快照列（不再回查电梯当前归属）；既有门禁夹具补快照，
-        // 门禁断言一律不动——只让夹具对齐新的快照口径。
         r.useUnitId = UNIT;
         r.elevatorName = "1号楼电梯";
         r.workType = "半月保";
@@ -102,7 +94,7 @@ class ClientRecordGateTest {
         r.lifecycleStatus = lifecycleStatus;
         r.confirmStatus = "PENDING";
         r.satisfaction = 0;
-        // 内部字段：客户路径一律不得外泄（docs/14 §4.7「明确不返回」）
+        // 内部字段：客户路径一律不得外泄
         r.shareToken = "sg-secret";
         r.reportPayloadJson = "{\"originalRecordId\":\"OR-1\"}";
         r.previewContextJson = "{\"address\":\"某小区\"}";
@@ -135,7 +127,6 @@ class ClientRecordGateTest {
                 () -> service.getAs(RECORD_ID, CLIENT, UNIT)).getCode());
     }
 
-    /** T4-C2（§4.6 可见性表）：SIGNED/ARCHIVED/REFUSED_RETURNED 客户只读可见；签字门禁仍拒（可见≠可签） */
     @Test
     void signedArchivedRefusedAreReadOnlyVisible() {
         for (String state : new String[]{"SIGNED", "ARCHIVED", "REFUSED_RETURNED"}) {
@@ -160,7 +151,6 @@ class ClientRecordGateTest {
         verify(records, never()).update(any(), any());
     }
 
-    /** T4-C2：PENDING_REVIEW / NULL（历史行）不在可见集合 → 详情 422 */
     @Test
     void pendingReviewAndNullLifecycleInvisible() {
         MaintainRecord r = signable();
@@ -182,7 +172,6 @@ class ClientRecordGateTest {
                 () -> service.getAs(RECORD_ID, CLIENT, UNIT)).getCode());
     }
 
-    /** 旧版本签字 → 422（存在 prevVersionId=v1.id 的 v2，客户只能签记录链末端） */
     @Test
     void signRejectedForSupersededVersion() {
         MaintainRecord v1 = signable();
@@ -220,7 +209,6 @@ class ClientRecordGateTest {
                 Map.of("signatureUrl", "https://x/s1.png", "satisfaction", 5), CLIENT, UNIT).get("ok"));
         assertEquals("CONFIRMED", r.confirmStatus);
         assertEquals("https://x/s1.png", r.signatureUrl);
-        // T4-I3（§4.7）：satisfaction 不接收不落库（评价关闭），入参被忽略
         assertEquals(0, r.satisfaction.intValue());
         verify(lifecycle, times(1)).onClientSigned(r);
 
@@ -232,7 +220,7 @@ class ClientRecordGateTest {
         verify(records, times(1)).update(any(), any());
     }
 
-    /** T4-C1：匿名 token 签字同门禁——token 错 401 先于状态披露；非待签/NULL/旧版本 422 且零副作用 */
+    /** 非待签/NULL/旧版本 422 且零副作用 */
     @Test
     void confirmByTokenGatesStateAndVersion() {
         MaintainRecord r = signable();
@@ -264,7 +252,6 @@ class ClientRecordGateTest {
         verify(lifecycle, never()).onClientSigned(any());
     }
 
-    /** T4-C1：token 首签走同一条件更新（非 updateById 读-改-写）；satisfaction 字符串入参不再 CCE→500 */
     @Test
     void confirmByTokenSignsWithConditionalUpdate() {
         MaintainRecord r = signable();
@@ -287,7 +274,6 @@ class ClientRecordGateTest {
         verify(records, times(1)).update(any(), any());
     }
 
-    /** C-25⑧：匿名 token 端点记录不存在 → 401 与错 token 同文案（消除 1404/401 存在性 oracle），且零写副作用 */
     @Test
     void anonymousTokenEndpointsUnknownRecordIs401() {
         when(records.selectById("ur_missing")).thenReturn(null);
@@ -306,7 +292,6 @@ class ClientRecordGateTest {
         verify(lifecycle, never()).onClientSigned(any());
     }
 
-    /** C-25⑧ 对照：signView 错/缺 token → 401（与不存在记录同文案，匿名探测者两种情形不可区分） */
     @Test
     void signViewWrongToken401() {
         MaintainRecord r = signable();
@@ -317,7 +302,6 @@ class ClientRecordGateTest {
         assertEquals(401, assertThrows(BizException.class, () -> service.signView(RECORD_ID, null)).getCode());
     }
 
-    /** C-25⑧ 边界：客户认证路径（getAs/confirmAs）不归一，记录不存在仍 1404（仅匿名 token 端点收敛） */
     @Test
     void authenticatedClientPathsUnknownRecordStill404() {
         when(records.selectById("ur_missing")).thenReturn(null);
@@ -329,7 +313,6 @@ class ClientRecordGateTest {
         verify(records, never()).updateById(any(MaintainRecord.class));
     }
 
-    /** T4-I3：sign-view 不再返回 satisfaction（评价关闭，签字链路不带满意度） */
     @Test
     void signViewOmitsSatisfaction() {
         MaintainRecord r = signable();
@@ -349,7 +332,7 @@ class ClientRecordGateTest {
         verify(records, never()).update(any(), any());
     }
 
-    /** 字段白名单（docs/14 §4.7）：客户详情绝不返回内部字段，白名单字段齐备 */
+    /** 字段白名单：客户详情绝不返回内部字段，白名单字段齐备 */
     @Test
     void clientDetailOmitsInternalFields() {
         signable();
@@ -407,15 +390,12 @@ class ClientRecordGateTest {
         List<?> list = (List<?>) out.get("list");
         assertEquals(1, list.size());
         assertEquals(RECORD_ID, ((Map<?, ?>) list.get(0)).get("id"));
-        // P2b T9：归属改看记录快照列，电梯表 0 次查询；链末端仍批量判定，记录表至多 2 次
-        // （候选 1 + supersededIds 1）；不再逐条 selectCount / selectOne
         verify(records, never()).selectCount(any());
         verify(records, atMost(2)).selectList(any());
         verify(elevators, never()).selectOne(any());
         verify(elevators, atMost(1)).selectList(any());
     }
 
-    /** P2b T9 查询次数锁定：记录数/电梯数增长时 pendingAs 查询次数恒定（2+0），判定与旧逐条实现等价 */
     @Test
     void pendingAsQueryCountIsConstantAcrossRecords() {
         MaintainRecord a = record("ur_a", "PENDING_CLIENT_SIGNATURE");   // DT-1 本单位
@@ -470,7 +450,6 @@ class ClientRecordGateTest {
         assertEquals(422, assertThrows(BizException.class,
                 () -> real.refuseByToken(RECORD_ID, "sg-token", "照片不清晰")).getCode());
 
-        // T4-I4：归档异常残留 CONFIRMED+PENDING_CLIENT_SIGNATURE → 不得拒签回滚已签
         r.lifecycleStatus = "PENDING_CLIENT_SIGNATURE";
         r.confirmStatus = "CONFIRMED";
         assertEquals(422, assertThrows(BizException.class,
@@ -484,7 +463,6 @@ class ClientRecordGateTest {
         assertEquals("REFUSED_RETURNED", r.lifecycleStatus);
         assertEquals("照片不清晰", r.refuseReason);
 
-        // T4-I4：条件更新 0 行（并发已签抢先落库）→ 422，实体状态不改写
         MaintainRecord race = signable();
         race.shareToken = "sg-token";
         when(records.update(any(), any())).thenReturn(0);

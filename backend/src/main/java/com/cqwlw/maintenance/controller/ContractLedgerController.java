@@ -17,12 +17,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-/**
- * M3 合同台账（金额分级脱敏，spec §5.2）：服务端响应裁剪。
- * 维保主管仅期与台量（金额掩码）；经理/平台完整；安装部无页面（contract:view DENY→403）。
- * P1 终审 M6：FULL_AMOUNT 删 CLIENT_ADMIN——「使用单位完整」口径已随 T2 收回废止（docs/14 V2.1 客户不持
- * contract:view），死值残留会让异常混合角色借 CLIENT_ADMIN 绕过 MAINT_SUP 金额掩码。
- */
+/** 维保主管仅期与台量（金额掩码）； */
 @RestController
 public class ContractLedgerController {
 

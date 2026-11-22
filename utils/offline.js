@@ -1,6 +1,4 @@
-// 离线缓存与补传（docs/02 架构约定）
-// - em_order_<id>：按工单缓存本地快照（检查项填写等），弱网时先保本地
-// - offline_queue：待补传请求队列，网络恢复时自动逐条重放（复用任务 id 作幂等键）
+// 离线缓存与补传- em_order_<id>：按工单缓存本地快照（检查项填写等），弱网时先保本地- offline_queue：待补传请求队列，网络恢复时自动逐条重放（复用任务 id 作幂等键）
 const { request } = require('./request')
 const { uuid } = require('./util')
 const { uploadImage } = require('../services/upload')
@@ -46,9 +44,7 @@ function clearOrderCache(orderId) {
 
 // ── 待补传队列 ────────────────────────────────
 
-// task: { url, method, data, desc, photoPaths?, uploads? }；重放时自动携带幂等键
-// uploads: [{ field, path, fileId? }]，用于签名等单文件字段先补传再回填业务 data。
-// 同一 url+method 重复入队时替换旧任务（后提交者为准），保证队列级幂等
+// 重放时自动携带幂等键uploads: [{ field, path, fileId? }]，用于签名等单文件字段先补传再回填业务 data。
 function enqueue(task) {
   const queue = wx.getStorageSync(QUEUE_KEY) || []
   const taskFull = Object.assign({ id: uuid(), method: 'POST', createdAt: Date.now() }, task)
@@ -78,9 +74,6 @@ async function doFlushQueue() {
   for (let idx = 0; idx < queue.length; idx++) {
     const task = queue[idx]
     try {
-      // 离线期间拍摄的照片：补传时先补传图片文件，再把 fileId 填回业务数据。
-      // 断点续传：已成功照片的 fileId 记入 task.uploadedFileIds 并即时持久化，
-      // 单张失败不重传整批（docs/08 审查 #6）
       if (Array.isArray(task.photoPaths) && task.photoPaths.length > 0) {
         const fileIds = task.uploadedFileIds || []
         while (fileIds.length < task.photoPaths.length) {

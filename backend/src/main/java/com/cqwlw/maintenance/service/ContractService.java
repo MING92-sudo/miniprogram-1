@@ -16,10 +16,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-/**
- * 维保合同（最小版，Task 3）：建合同 + 合同↔电梯关联 + 生效期校验。
- * 管理端门禁在 ContractController 校验（非管理员 403，本服务不做角色判断）。
- */
 @Service
 public class ContractService {
 
@@ -105,9 +101,6 @@ public class ContractService {
         return c;
     }
 
-    /**
-     * 返回该电梯关联的「生效」合同（status=ACTIVE 且 start_date ≤ 今天 ≤ end_date），无则返回 null。
-     */
     public MaintenanceContract getActiveContractByElevator(String elevatorId) {
         List<ContractElevator> links = contractElevatorMapper.selectList(
                 new LambdaQueryWrapper<ContractElevator>().eq(ContractElevator::getElevatorId, elevatorId));

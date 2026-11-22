@@ -64,7 +64,7 @@
   </div>
 </template>
 <script setup>
-// 迁移核对（权限 P2 T8）：清单 + 单条裁定。后端 GET/POST 强校验为准，前端仅体验优化。
+// 后端 GET/POST 强校验为准，前端仅体验优化。
 import { ref, reactive, computed, onMounted } from 'vue'
 import DataTable from '../ui/DataTable.vue'
 import Modal from '../ui/Modal.vue'

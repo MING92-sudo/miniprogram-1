@@ -1,6 +1,5 @@
 import axios from 'axios'
 
-// API 基址：开发默认走 Vite 代理（/api → localhost:8080）；生产同域反代（docs/09 §五）
 export const API_BASE = import.meta.env.VITE_API_BASE || '/api'
 
 /** 幂等键（AGENTS §3：所有写接口自动携带 X-Idempotency-Key） */
@@ -11,12 +10,7 @@ export function idempotencyKey() {
   return 'idem-' + Date.now() + '-' + Math.random().toString(36).slice(2, 12)
 }
 
-/**
- * 统一信封解包（与小程序 utils/request.js 同口径）：{ code, message, data }。
- * code=0 → 返回 data；code!=0 → 抛出带 code/data 的错误
- * （401 登录过期；1002 手机号互斥 err.data.conflicts[]；2001 平台凭证未配置…）。
- * 非信封响应（如 PDF 二进制流）原样返回。
- */
+/** 统一解析 {code,message,data} 响应。 */
 export function resolveEnvelope(body) {
   if (body && typeof body === 'object' && 'code' in body) {
     if (body.code === 0) {

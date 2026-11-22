@@ -8,30 +8,14 @@ import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 
-/**
- * 本地文件访问签名：{@code HMAC-SHA256(key, fileId:expiry)} 的十六进制摘要，附带过期时间戳。
- *
- * <p>存在的原因：{@code GET /files/{id}} 不能靠 JWT 保护——小程序 {@code <image src>} 不会带
- * Authorization 头，而使用单位签字页是经 shareToken 匿名访问、同样要渲染签名图。因此改为
- * 所有下发给客户端的文件 URL 都携带该签名，读取时校验。
- *
- * <p>签名带时效（默认 1 小时）：URL 每次读时由
- * {@code FileStorageService.urlOf / resolveStoredUrl} 重新签发新鲜签名，客户端拿到的
- * 一定是未过期链接；过期旧链接失效，泄出的 URL 不会永久可读。
- *
- * <p>密钥复用已强制必填的 {@code app.jwtSecret}（缺失即启动失败），并加域隔离串，
- * 与取证令牌等其它 HMAC 用途派生独立密钥。
- */
+/** 从必填 JWT_SECRET 派生独立文件签名密钥。 */
 @Service
 public class FileAccessTokenService {
 
     /** 签名有效期（秒）；读时重签，故可取较短值 */
     static final long TTL_SECONDS = 3600;
 
-    /**
-     * 密钥域隔离串。与取证令牌各自从 jwtSecret 派生独立密钥，
-     * 否则同一密钥下的签名可跨用途互相伪造。
-     */
+    /** 密钥域隔离串。 */
     private static final String CONTEXT = "|file-access-v1";
 
     private final byte[] key;

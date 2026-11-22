@@ -26,10 +26,6 @@ import org.springframework.stereotype.Service;
 import java.io.ByteArrayOutputStream;
 import java.util.List;
 
-/**
- * C-12：三张移交表单导出（检查清单/整改清单/归档目录），版面照 docs/15 §2/§3.1/§4.1/§5。
- * A4 纵向、STSong-Light、每页重复表头、页脚「第 x 页/共 y 页」+「不替代监督检验」声明（B1）。
- */
 @Service
 public class HandoverPdfService {
 
@@ -176,7 +172,6 @@ public class HandoverPdfService {
         return s == null || s.isBlank() ? "—" : s;
     }
 
-    /** 页脚：第 x 页/共 y 页 + 不替代监督检验声明（B1）。 */
     private static class Footer extends com.lowagie.text.pdf.PdfPageEventHelper {
         private final BaseFont bf;
         private final String no;

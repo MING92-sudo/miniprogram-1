@@ -1,9 +1,4 @@
-// 维保员工全链路走查（mock 模式，AGENTS §7.3 合规主干）：
-// 李振国 13800000011（MAINT_TECH，platformId 6901282369105174537 命中 wo_1—wo_5 主维保）——
-// 登录/工作台 → 工单列表 → 签到（主+配合/动态码/定位缺失与重复签到负面）→ 作业清单（五项 422 负面 + 填满）→
-// 各签各的 → 签退（wo_1 时长不足 422 负面 + wo_2 完整签退生成记录）→ 记录预览（结论/S0/分组）。
-// 写操作只发生在 mock 内存库，重编译即还原，可重复执行。
-// 用法: node maint-full-flow.js（需 IDE 自动化端口 + useMock=true + packOptions 去 mock 排除；跑完还原）
+// 维保员工全链路走查（mock 模式）。
 const automator = require('miniprogram-automator'); const path = require('path')
 const sleep = ms => new Promise(r => setTimeout(r, ms))
 let fail = 0
@@ -18,7 +13,7 @@ async function login(mp, account) {
   await page.setData({ phone: account, password: '123456', agreed: true })
   await page.callMethod('onSubmit'); await sleep(2600)
 }
-// IDE 自动化连续 reLaunch 偶发时序抖动（docs/12 V1.17 环境限制）：轮询页面数据就绪，导航失败重试一次
+// IDE 自动化连续 reLaunch 偶发时序抖动：轮询页面数据就绪，导航失败重试一次
 async function waitData(mp, pred, tries) {
   for (let i = 0; i < (tries || 12); i++) {
     const p = await mp.currentPage(); const d = await p.data()
@@ -43,8 +38,6 @@ async function globalData(mp) {
     return { home: d.home, ws: d.workspace, qa: (d.quickActions || []).map(q => q.key) }
   })
 }
-// V1.17 IDE 自动化挂起自愈：evaluate 超时 → 重连 WS 重试一次
-//（重连不丢状态：mock 内存库与登录 storage 都在运行中的 app 实例里，reconnect 不触发重编译）
 let mp
 async function connect() {
   for (const port of [9420, 23854, 23853, 9421]) {
@@ -84,8 +77,6 @@ async function svc(fn, ...args) {
   assert('工单列表含 wo_1(待执行)/wo_2(进行中)', ids.includes('wo_1') && ids.includes('wo_2'), JSON.stringify(ids))
   await mp.screenshot({ path: path.join(__dirname, 'shots', 'maint-orders.png') })
 
-  // ── C. 签到链（wo_1 双人）──
-  // 主维保签到（el_1 坐标 106.633520,29.719210 → distance≈0）
   let c = await svc(async () => {
     const order = require('services/order.js')
     try {

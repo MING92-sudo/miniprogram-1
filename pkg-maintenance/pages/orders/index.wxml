@@ -20,7 +20,7 @@
     <skeleton wx:if="{{loading}}" rows="{{[{h:120},{h:120},{h:120}]}}"></skeleton>
     <error-retry wx:elif="{{error}}" message="{{error}}" bind:retry="onRetry"></error-retry>
     <block wx:elif="{{list.length}}">
-      <!-- 待接单池（D2/M1）：同区域未认领工单，到场签到即认领；池谓词由后端做，前端只拆段展示 -->
+      <!-- 池谓词由后端做，前端只拆段展示 -->
       <block wx:if="{{poolList.length}}">
         <view class="row between pool-head">
           <text class="fs22 w6">{{poolText.SECTION_TITLE}}</text>

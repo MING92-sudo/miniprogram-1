@@ -25,14 +25,9 @@ import java.util.HexFormat;
 import java.util.Map;
 import java.util.Set;
 
-/**
- * 记录生命周期（M1，规格 §4.1 / 蓝图 §6.2，裁决 R1）：叠加在签退之后。
- * 签退即冻结快照 + 2.6 即报不变（D2）；本服务不注入任何平台上报服务——结构上保证归档/修订/拒签不触发平台调用。
- */
 @Service
 public class RecordLifecycleService {
 
-    /** 使用单位拒签原因分类码（V56，docs/04 V2.80）：与小程序 constants REFUSE_REASON_OPTIONS 镜像同步 */
     public static final Map<String, String> REFUSE_CODES = Map.of(
             "R1", "记录内容与现场不符",
             "R2", "维保项目漏项或未按单执行",
@@ -130,7 +125,6 @@ public class RecordLifecycleService {
             throw new BizException(422, "双人签字未完成，不能发起使用单位签字");
         }
         r.lifecycleStatus = "PENDING_CLIENT_SIGNATURE";
-        // V56：签字 SLA 起算打点（待签列表倒计时/到期提醒同口径）；重新发起时重置提醒去重标记
         r.signRequestedAt = TimeUtil.now();
         r.signRemindedAt = null;
         recordMapper.updateById(r);
@@ -159,22 +153,11 @@ public class RecordLifecycleService {
         return Map.of("ok", true);
     }
 
-    /**
-     * 使用单位拒签（凭分享 token）：原因必填，退回维保人员重新走签字链路。
-     * T4-I4（docs/14 §4.6 规则 2/5）：补全门禁链 confirmStatus=PENDING + 最新版本，
-     * 落库改条件更新（WHERE lifecycle='PENDING_CLIENT_SIGNATURE' AND confirm_status='PENDING'）——
-     * 旧 updateById 整实体读-改-写与 confirmAs 并发可把已落库 CONFIRMED 覆盖回 PENDING（状态撕裂），
-     * 归档异常残留 CONFIRMED+PENDING_CLIENT_SIGNATURE 时也可能拒签退回已签记录；受影响行 0 → 422。
-     * 不注入上报服务，结构保证拒签不触发平台 2.6。
-     */
+    /** 使用单位拒签（凭分享 token）：原因必填，退回维保人员重新走签字链路。 */
     public Map<String, Object> refuseByToken(String recordId, String token, String reason) {
         return refuseByToken(recordId, token, null, reason);
     }
 
-    /**
-     * 使用单位拒签（V56 分类码版）：refuseCode 必填且 ∈ REFUSE_CODES（R5 其他必须附文字说明）；
-     * refuseReason 落库为「分类标签：说明」组合文本（无说明仅标签），refuse_code 单列供统计。
-     */
     public Map<String, Object> refuseByToken(String recordId, String token, String refuseCode, String reason) {
         MaintainRecord r = findOr401(recordId); // C-25⑧：不存在 → 401 同错 token 文案（匿名端点无存在性 oracle）
         if (token == null || token.isEmpty() || !token.equals(r.shareToken)) {
@@ -191,7 +174,7 @@ public class RecordLifecycleService {
         if (next != null && next > 0) {
             throw new BizException(422, "记录已被新版本替代，请处理最新记录");
         }
-        // V56：分类码必填；旧调用方（未传码）按兼容期回退——R5+说明 等价于原「原因必填」
+        // 旧调用方（未传码）按兼容期回退——R5+说明 等价于原「原因必填」
         String code = refuseCode == null || refuseCode.isBlank() ? "" : refuseCode.trim().toUpperCase();
         String detail = reason == null ? "" : reason.trim();
         if (code.isEmpty()) {
@@ -261,8 +244,6 @@ public class RecordLifecycleService {
                 .eq(Elevator::getElevatorCode, r.elevatorCode).last("LIMIT 1"));
         UseUnit uu = el == null || el.useUnitId == null ? null : useUnitMapper.selectById(el.useUnitId);
         // render 会把签名图重签为时效 URL（?s=）回填到 r 上供 PDF 取图——仅内存用途；
-        // 落库只写归档四字段（不变量§3.7：数据库只存不带签名的稳定 URL），
-        // 旧整实体 updateById 会把时效签名 URL 写死，过期后重渲染取不到图且不再回填。
         byte[] pdf = pdfService.render(r, el, uu);
         AppFile f = fileStorage.storeBytes(pdf, "record-" + r.id + ".pdf", "application/pdf", null);
         java.time.LocalDateTime now = TimeUtil.now();
@@ -287,12 +268,6 @@ public class RecordLifecycleService {
         return r;
     }
 
-    /**
-     * C-25⑧ 匿名 token 端点归一（refuseByToken）：shareToken 校验依赖已载记录，
-     * 无法「先验 token 后查库」，故记录不存在时抛与错 token 完全一致的 401 文案——
-     * 匿名探测者无法据 1404/401 区分记录 id 是否存在（消除存在性 oracle）。
-     * 内部认证路径（review/signRequest/archiveView）仍走 findOr404（1404），不归一。
-     */
     private MaintainRecord findOr401(String id) {
         MaintainRecord r = recordMapper.selectById(id);
         if (r == null) {

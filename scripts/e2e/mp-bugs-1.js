@@ -1,10 +1,4 @@
-/**
- * 小程序端 BUG 探测（第一轮）：只读巡检
- * - 连接自动化端口，挂 console / exception 监听
- * - 逐个打开注册路由，判定白屏、运行时异常、页面 data 异常
- * - 登录页走一次真实登录，验证分流
- * 输出：/tmp/wxauto/bugs-1/report.json + 截图
- */
+/** 小程序只读巡检：收集运行时异常、白屏和截图。 */
 const fs = require('fs')
 const path = require('path')
 const automator = require('C:/Users/18223/AppData/Local/Temp/wxauto/node_modules/miniprogram-automator')

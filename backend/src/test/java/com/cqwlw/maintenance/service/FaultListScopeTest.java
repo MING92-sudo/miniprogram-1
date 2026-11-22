@@ -27,11 +27,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-/**
- * 急修列表可见域（2026-11-21 客户报修→维保接单通道修复）：
- * 受限员工（V7 创建人收敛）仍须可见 ① OPEN 抢单池单（含客户报修 createdBy=unit:*）
- * ② 指派给本人的单；他人已接单/已闭环的他人单不可见。管理角色（ids==null）全可见不变。
- */
 class FaultListScopeTest {
 
     private DirectoryService svc;
@@ -63,7 +58,6 @@ class FaultListScopeTest {
         other.regionId = "r2";
         when(elevators.selectList(any())).thenReturn(List.of(own, other));
         when(elevators.selectOne(any())).thenReturn(own, other);
-        // 受限员工 e1：只见自己创建的单（V7 收敛）
         Employee me = new Employee();
         me.id = "e1";
         me.role = "MAINT_TECH";

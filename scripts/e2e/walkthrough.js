@@ -1,7 +1,3 @@
-// 博威无纸化小程序模拟器走查（真实绘制取证）：登录→三工作台→切 Tab→403。
-// 前置（dev 测试态，跑完还原）：① config/index.js useMock=true；② project.config.json packOptions.ignore 临时移除 mock 项（否则 mock 不入编译包）；③ 重编译。
-// 运行：cli auto --project <m2> --auto-port 9420，再 WS_ENDPOINT=ws://localhost:9420 node walkthrough.js
-// 截图存 scripts/e2e/shots/（gitignore）。注：automator 登录表单输入偶有残留抖动，必要时用 evaluate 直接注入 em_* 会话绕过登录。
 const path = require('path')
 const fs = require('fs')
 const automator = require('miniprogram-automator')

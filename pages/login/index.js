@@ -1,6 +1,3 @@
-// 登录页（M6 单账号多角色，规格 §3.2 + 屏 00）：账号/口令唯一表单，不选角色、不选通道；
-// 后端按账号自动识别内部员工 / 使用单位客户，响应 principalType + home 决定渲染哪个工作台。
-// 微信免密为已绑定账号可选能力（R5）。单账号单会话：登录即清旧门户会话。品牌=博威无纸化（D4/D5）。
 const auth = require('../../services/auth')
 const { clearUnitSession } = require('../../services/unit')
 const { isLoggedIn, getRoles, getHome } = require('../../utils/auth')
@@ -61,11 +58,7 @@ Page({
     nav.open('/pages/login/forgot')
   },
 
-  /**
-   * 统一登录结果处理（员工 / 客户同一形状）：
-   * - needSelectUnit：客户手机号在多个单位开通 → 凭 selectionToken 去选单位页；
-   * - 其余：落登录态后按 principalType 进对应工作台（客户固定客户首页，员工走 home/redirect）。
-   */
+  /** 统一登录结果处理（员工 / 客户同一形状）：- needSelectUnit：客户手机号在多个单位开通 → 凭 selectionToken 去选单位页； */
   enterApp(data) {
     if (data && data.needSelectUnit) {
       wx.setStorageSync('em_client_selection', {

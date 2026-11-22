@@ -8,11 +8,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.Set;
 
-/**
- * 6 范围读写双谓词门面（spec §4.4）。旧角色委托 EmployeeScopeService（V7 不动，证等价）；
- * 新角色 INST_MGR(ORG)/CLIENT_SIGNER(ORG_FLAT) 按 sys_role_scope 默认范围解析，不在 V7 等价靶内。
- * 读写分离红线：范围扩大只进读谓词，写严格本人/本组/被指派（AGENTS §3.1）。
- */
+/** 读写分离红线：范围扩大只进读谓词，写严格本人/本组/被指派（AGENTS §3.1）。 */
 @Service
 public class ScopeResolver {
 

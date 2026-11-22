@@ -1,5 +1,3 @@
-// scripts/asset-build/extract-zcool.js
-// 提取原型 ZCOOL 内嵌子集存档 + 落 required.txt（缺口检测在扩字后 TTF 上做，opentype.js 不解 WOFF2）
 const fs = require('fs')
 const path = require('path')
 const html = fs.readFileSync('C:/Users/18223/Desktop/UI/index.html', 'utf8')

@@ -156,8 +156,6 @@
   </div>
 </template>
 <script setup>
-// 工单详情（原型 Views.order 对齐）：工单头 SLA 进度 + 7 态时间轴 + 故障处置 + 使用单位确认区 + 操作条
-// 真实 API：GET /faults/{id}、POST /admin/faults/{id}/dispatch、/faults/{id}/close、/faults/{id}/cancel、/faults/{id}/proxy
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import http from '../api/client'

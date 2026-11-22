@@ -1,6 +1,3 @@
-// 2026-11-16 审查修复 automator 走查（mock 模式）：菜单角色感知 / CLIENT 首页数据 /
-// 签字态投影 / 记录单异常结论 / 移交内部审核全链路 / 资料提交 422 契约。
-// 用法: node review-fixes-flow.js（需 IDE 服务端口开启；跑完还原 config.useMock=false）
 const automator = require('miniprogram-automator'); const path = require('path')
 const sleep = ms => new Promise(r => setTimeout(r, ms))
 let fail = 0
@@ -15,7 +12,7 @@ async function login(mp, account) {
   await page.setData({ phone: account, password: '123456', agreed: true })
   await page.callMethod('onSubmit'); await sleep(2600)
 }
-// IDE 自动化连续 reLaunch 偶发时序抖动（docs/12 V1.17 环境限制）：轮询页面数据就绪，导航失败重试一次
+// IDE 自动化连续 reLaunch 偶发时序抖动：轮询页面数据就绪，导航失败重试一次
 async function waitData(mp, pred, tries) {
   for (let i = 0; i < (tries || 12); i++) {
     const p = await mp.currentPage(); const d = await p.data()

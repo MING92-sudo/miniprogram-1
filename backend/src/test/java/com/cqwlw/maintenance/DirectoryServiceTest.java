@@ -68,10 +68,6 @@ class DirectoryServiceTest {
                 mock(FileStorageService.class), tenantSnapshot);
     }
 
-    /**
-     * 2026-11-21 审查修复：员工中心 readMessage 与 list/unreadCount/readAll 同口径——
-     * 客户消息（use_unit_id 非空）与不存在同 1404（无存在性 oracle），不可被员工标读。
-     */
     @Test
     void readMessageRejectsClientScopedMessage() {
         com.cqwlw.maintenance.entity.Message clientMsg = new com.cqwlw.maintenance.entity.Message();

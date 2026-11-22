@@ -6,7 +6,6 @@ import lombok.Data;
 
 import java.time.LocalDateTime;
 
-/** 项目台账（biz_project，M3）。 */
 @Data
 @TableName("biz_project")
 public class BizProject {

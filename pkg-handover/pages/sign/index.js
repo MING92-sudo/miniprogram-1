@@ -1,4 +1,3 @@
-// 移交单确认归档（docs/04 A.9 / HandoverService.confirm）：维保部经理二次确认后归档，
 const { definePage } = require('../../../utils/guard')
 const { ROUTES } = require('../../../config/routes')
 // 后端同事务写电梯档案并预建首保工单（重复确认幂等）。
@@ -14,9 +13,6 @@ const {
 const { ensureLogin } = require('../../../utils/guard')
 const { hasAnyRole } = require('../../../utils/auth')
 
-// 确认归档岗位（HandoverService.NODE_ROLES：MAINTENANCE_CONFIRM + 维保经理）
-// 2026-11-21 审查修复：SYS_ADMIN 并入 PLATFORM_ADMIN 后补规范角色码（与 detail 页 ACTION_ROLES 同口径），
-// 否则 PLATFORM_ADMIN/MAINT_MGR/MAINT_SUP 账号丢失「确认归档」入口（仅 UI 门禁，后端强校验不变）
 const CONFIRM_ROLES = [ROLE.MAINT_MANAGER, ROLE.LEADER, ROLE.ADMIN, 'MAINT_MGR', 'MAINT_SUP', 'PLATFORM_ADMIN']
 
 definePage(ROUTES['/pkg-handover/pages/sign/index'], {

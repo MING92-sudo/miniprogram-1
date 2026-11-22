@@ -14,12 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 import java.util.Map;
 
-/**
- * 使用单位门户（W3，Task 10）：数据域一律收敛到本单位 useUnitId，不接受请求体指定单位。
- * M1 统一令牌（V41，2026-11-16 审查修复）：员工令牌按 CLIENT 角色锚点（sys_user_role.org_id）
- * 解析单位，与 UnitRecordController 同口径；旧门户令牌（ut=1，ATTR_UNIT_ID）兜底至生产清库；
- * 无 CLIENT 角色/无锚点 fail-closed 403。报修复用急修链路（POST /unit/faults）。
- */
+/** 旧门户令牌（ut=1，ATTR_UNIT_ID）兜底至生产清库； */
 @RestController
 public class UnitPortalController {
 
@@ -32,7 +27,6 @@ public class UnitPortalController {
         this.idempotencyService = idempotencyService;
     }
 
-    /** V56 客户门户消息（setter 注入，保持既有构造器签名） */
     private com.cqwlw.maintenance.service.ClientMessageService clientMessageService;
 
     @org.springframework.beans.factory.annotation.Autowired(required = false)
@@ -98,7 +92,6 @@ public class UnitPortalController {
                 portalService.cancelFault(id, com.cqwlw.maintenance.auth.MultiRoleGate.roles(request), unitId(request), reason));
     }
 
-    // ── 客户门户消息（V56 签字临期/超期提醒，docs/04 V2.80；数据域=本单位锚点）──
 
     /** 本单位消息列表（签字提醒等，倒序 ≤50） */
     @GetMapping("/unit/messages")

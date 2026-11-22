@@ -18,17 +18,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * 手机号互斥预校验（docs/01 §3.2.4 + docs/04 B.7：校验前移至建档期，AGENTS §4.5）。
- *
- * 互斥范围严格按 2.6 备注——仅五个角色：
- * 使用单位负责人 / 使用单位安全管理员 / 维保经理 / 维保人员1 / 维保人员2；
- * emergencyPhone 与 recorderPhone 不参与（docs/01 §3.2.4 V2.5 复核结论）。
- *
- * 冲突判定：同一手机号出现在 ≥2 个**不同**互斥角色上（同人同角色不算冲突，
- * 如员工表中的安全管理员与使用单位档案的安全管理员为同一人）。
- * 冲突返回 code=1002 + data.conflicts[]（具体到角色对，docs/04 A.0.1）。
- */
+/** 互斥范围严格按 2.6 备注——仅五个角色：使用单位负责人 / 使用单位安全管理员 / 维保经理 / 维保人员1 / 维保人员2； */
 @Service
 public class PhoneMutexService {
 
@@ -47,10 +37,6 @@ public class PhoneMutexService {
         this.employeeMapper = employeeMapper;
     }
 
-    /**
-     * 收集系统内既有的互斥角色手机号（排除被保存实体自身的旧值）。
-     * 电梯表不参与收集：workerPhone 均来源于员工档案，避免同角色同人误报。
-     */
     public List<Party> globalParties(String excludeType, String excludeId) {
         List<Party> parties = new ArrayList<>();
         Company c = companyMapper.selectList(null).stream().findFirst().orElse(null);
@@ -85,10 +71,6 @@ public class PhoneMutexService {
         return parties;
     }
 
-    /**
-     * 纯函数：检测冲突。同一手机号出现于 ≥2 个不同互斥角色 → 冲突对。
-     * 返回形如 [{phone, roles:[{role, owner}...]}]；空列表 = 通过。
-     */
     public static List<Map<String, Object>> findConflicts(List<Party> parties) {
         Map<String, List<Party>> byPhone = new LinkedHashMap<>();
         for (Party p : parties) {
@@ -151,20 +133,6 @@ public class PhoneMutexService {
         return findConflicts(parties);
     }
 
-    /**
-     * 工单口径五角色互斥校验（docs/01 §3.2.4 + 2.6 备注；用户 2026-11-19 要求前移至"维保作业前"）：
-     * 使用单位负责人 / 使用单位安全管理员 / 维保经理 / 维保人员1 / 维保人员2，
-     * emergencyPhone / recorderPhone 不参与。角色标签刻意用"维保人员1/2"区分，
-     * 使两人同号也能被 findConflicts 判为跨角色冲突（规范要求两人手机号不得重复）。
-     *
-     * 取数口径与 WorkOrderService.buildReportPayload（2.6 报文快照）完全一致：
-     * 安全管理员取电梯档案优先、回退使用单位；维保人员按工单 platformId 反查本人手机号
-     *（禁止按姓名/任意 WORKER 兜底，避免把他人号码冻结进报文）。
-     *
-     * @param workerPlatformId    主维保人员平台ID（工单 workerPlatformId）
-     * @param assistantPlatformId 配合人员平台ID（工单 assistantPlatformId，可空=单人作业）
-     * @param el                  工单对应电梯（可为 null；为 null 时跳过单位侧角色）
-     */
     public List<Map<String, Object>> checkWorkOrder(String workerPlatformId, String assistantPlatformId,
                                                     Elevator el) {
         List<Party> parties = new ArrayList<>();

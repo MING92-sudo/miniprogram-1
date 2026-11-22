@@ -1,5 +1,4 @@
-// 管理端中文文案唯一来源：状态/角色/数据范围/权限码/组织类型/报修渠道/三态等枚举 → 中文。
-// 仅用于「显示」，内部码值（与后端契约一致）保持不变；未知值原样返回，避免吞掉已是中文的内容。
+// 仅用于「显示」，内部码值（与后端契约一致）保持不变；
 
 const STATUS = {
   // 移交单
@@ -68,8 +67,6 @@ export function deptLabel(v) {
   return DEPT[String(v).toUpperCase()] || String(v)
 }
 
-// 角色 → 部门码（docs/14 §2；与后端 RoleCatalog.departmentOf 同口径的前缀推导，RolesView/UsersView 共用单一事实源）：
-// INST_*/INSTALLER→INSTALL、MAINT_*→MAINT、其余内部管理角色→PLATFORM；客户主体（CLIENT_*/UNIT_*）无内部部门返回 ''
 export function roleDept(v) {
   const r = String(v || '').toUpperCase()
   if (!r) return ''
@@ -119,8 +116,7 @@ export function channelLabel(v) { return CHANNEL[String(v || '').toUpperCase()] 
 const WORK_TYPE = { FM: '按需维保', HM: '半月维保', TM: '季度维保', SM: '半年维保', OY: '年度维保' }
 export function workTypeLabel(v) { return WORK_TYPE[String(v || '').toUpperCase()] || String(v || '') }
 
-// 使用单位拒签原因分类码（V56；与后端 RecordLifecycleService.REFUSE_CODES、小程序 constants
-// REFUSE_REASON_OPTIONS 三方镜像同步，改动必须三侧同改；小程序侧 R5 文案带「需填写说明」录入提示，展示侧统一用「其他」）
+// 与后端 RecordLifecycleService.REFUSE_CODES、小程序 constantsREFUSE_REASON_OPTIONS 三方镜像同步，改动必须三侧同改；
 const REFUSE_CODE = {
   R1: '记录内容与现场不符', R2: '维保项目漏项或未按单执行', R3: '现场照片不清晰或与实际不符',
   R4: '时间或人员信息有误', R5: '其他'

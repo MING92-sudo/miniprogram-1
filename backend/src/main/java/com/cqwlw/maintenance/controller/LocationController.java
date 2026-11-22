@@ -8,7 +8,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Map;
 
-/** LBS 逆地址解析代理：key 只在后端环境变量，前端不接触 key（docs/08 审查 #5） */
+/** LBS 逆地址解析代理：key 只在后端环境变量，前端不接触 key */
 @RestController
 public class LocationController {
 

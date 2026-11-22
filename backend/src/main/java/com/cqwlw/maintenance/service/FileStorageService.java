@@ -37,18 +37,12 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 
-/**
- * 文件存储（P4 STS 直传前的代理上传方案，Q6=A 决策）：
- * 配置 COS_BUCKET/COS_REGION 时上传腾讯云 COS（持久化源）+ 本地磁盘写穿缓存（读取优先命中本地，免 COS 下行流量费）；
- * 否则回退本地磁盘（仅本地开发，容器重建即丢失）。
- * 云托管托管桶无静态密钥，走云托管内网临时凭证（COS_AUTH_URL=/_/cos/getauth）；
- * 自建 COS 桶（本地联调）可注入 COS_SECRET_ID/COS_SECRET_KEY。
- */
+/** 云托管托管桶无静态密钥，走云托管内网临时凭证（COS_AUTH_URL=/_/cos/getauth）； */
 @Service
 public class FileStorageService {
 
     private static final Logger log = LoggerFactory.getLogger(FileStorageService.class);
-    /** 临时凭证提前 5 分钟刷新，避免临界过期（口径对齐 docs/04 B token 中控） */
+    /** 临时凭证提前 5 分钟刷新，避免临界过期 */
     private static final long EXPIRY_SLACK_SECONDS = 300;
 
     private final AppProperties props;
@@ -100,10 +94,7 @@ public class FileStorageService {
         return storeBytes(file.getBytes(), file.getOriginalFilename(), file.getContentType(), schemeHost);
     }
 
-    /** 字节级落库（M1 归档 PDF 等后端生成件）：与 store 同一持久化路径（COS 唯一源+写穿缓存） */
     public AppFile storeBytes(byte[] bytes, String originalFilename, String contentType, String schemeHost) {
-        // C1/M9：扩展名+contentType 双白名单（jpg/png/webp/pdf，覆盖 2.3 合同/2.4 证书 PDF），
-        // 拒绝 html/svg 等可执行类型落库，阻断存储型 XSS 与任意类型上传
         String declaredExt = ALLOWED_CONTENT_TYPES.get(contentType);
         String ext = extOf(originalFilename).toLowerCase();
         if (declaredExt == null || !ALLOWED_EXTS.contains(ext)) {
@@ -111,8 +102,7 @@ public class FileStorageService {
         }
         String id = Ids.next("file");
         String objectKey = LocalDate.now(TimeUtil.ZONE) + "/" + id + ext;
-        // 统一同源 /files/{id} 地址：公网域名可达，小程序/管理端/PDF 后端均可直接读取；
-        // 托管桶默认私有读，COS 直链外部无法访问（2026-10-05 急修单签名/照片不可见根因）
+        // 托管桶默认私有读，COS 直链外部无法访问
         if (cosClient != null) {
             // 持久化源：上传 COS（失败抛出——本地缓存会随容器重建丢失，COS 是唯一持久化源）
             ObjectMetadata meta = new ObjectMetadata();
@@ -155,16 +145,12 @@ public class FileStorageService {
                 .toAbsolutePath();
     }
 
-    /** M8：配置 app.public-base-url 时用它拼文件 URL，忽略请求 Host（防 Host 头污染落库） */
     private String resolveBase(String schemeHost) {
         String configured = props.getPublicBaseUrl();
         return configured != null && !configured.isEmpty() ? configured : schemeHost;
     }
 
-    /**
-     * 读取文件字节：优先本地磁盘缓存（免 COS 下行流量费）；缓存未命中再经内网凭证流式拉取 COS
-     * 并写回本地缓存（write-back），供后续读取直连本地。供 /files/{id} 同源下发，失败返回 null。
-     */
+    /** 缓存未命中再经内网凭证流式拉取 COS并写回本地缓存（write-back），供后续读取直连本地。 */
     public byte[] readBytes(AppFile f) {
         try {
             Path local = localPath(f);
@@ -204,11 +190,7 @@ public class FileStorageService {
         Files.write(target, bytes);
     }
 
-    /**
-     * fileId → 可访问 URL（本地 /files/{id} 带访问签名）；
-     * 入参已是 http(s) URL 时仅对本站 /files/ 链接重签，外链（演示图等）原样返回；
-     * 查不到返回空串。供记录归档时把 fileId 归一为 URL。
-     */
+    /** fileId → 可访问 URL（本地 /files/{id} 带访问签名）； */
     public String urlOf(String fileIdOrUrl) {
         if (fileIdOrUrl == null || fileIdOrUrl.isBlank()) {
             return "";
@@ -220,11 +202,7 @@ public class FileStorageService {
         return f == null || f.url == null ? "" : signedUrl(f.url, f.id);
     }
 
-    /**
-     * 读路径重签：库里存的是不带签名的稳定 URL（或历史无签名 URL），
-     * 每次返回给客户端前补上新鲜签名，避免归档链接 1 小时后全部失效。
-     * 外链（如演示图 picsum）不重签，原样返回。
-     */
+    /** 读路径重签：库里存的是不带签名的稳定 URL（或历史无签名 URL），每次返回给客户端前补上新鲜签名，避免归档链接 1 小时后全部失效。 */
     public String resolveStoredUrl(String url) {
         if (url == null || url.isBlank()) {
             return "";
@@ -237,12 +215,7 @@ public class FileStorageService {
         return signedUrl(url.substring(0, idx) + "/files/" + fileId, fileId);
     }
 
-    /**
-     * 从 /files/{id} 形态的 URL 提取 fileId，忽略 {@code ?s=} 签名与 fragment。
-     * 服务端内部按 URL 回源（PDF 抓图等）时必须先剥离 query，否则会把 "id?s=..." 当成主键。
-     *
-     * @return fileId；不是本站 /files/ 链接时返回 null
-     */
+    /** 服务端内部按 URL 回源（PDF 抓图等）时必须先剥离 query，否则会把 "id?s=..." 当成主键。 */
     public static String fileIdFromUrl(String url) {
         if (url == null) {
             return null;
@@ -280,11 +253,6 @@ public class FileStorageService {
         return base + sep + "s=" + fileToken.sign(fileId);
     }
 
-    /**
-     * P4 直传元数据（docs/04 A.6 POST /files/sts）：返回存储模式与直传所需元数据
-     * （bucket/region/授权目录/内网凭证地址）。真实 STS 临时凭证签发需云端 CAM 角色
-     * + cos-sts SDK，属部署项——未接入前照片/签名统一走 /files/upload 代理上传。
-     */
     public Map<String, Object> stsDirective(String rawDir, int rawMaxAge, String schemeHost) {
         String dir = sanitizeDir(rawDir);
         int maxAge = Math.max(60, Math.min(7200, rawMaxAge <= 0 ? 1800 : rawMaxAge));
@@ -351,10 +319,7 @@ public class FileStorageService {
             "application/pdf", ".pdf");
     private static final Set<String> ALLOWED_EXTS = Set.of(".jpg", ".jpeg", ".png", ".webp", ".pdf");
 
-    /**
-     * 云托管内网临时凭证提供器：GET /cos/getauth 换取临时密钥，缓存至过期前 5 分钟。
-     * 该内网地址仅云托管容器内可达；本地开发请配置静态密钥或保持本地磁盘回退。
-     */
+    /** 云托管内网临时凭证提供器：GET /cos/getauth 换取临时密钥，缓存至过期前 5 分钟。 */
     private final class WxCloudRunSessionCredentialsProvider implements COSCredentialsProvider {
 
         private volatile BasicSessionCredentials cached;

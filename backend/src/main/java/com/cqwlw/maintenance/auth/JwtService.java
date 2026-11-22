@@ -14,10 +14,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * 自建 JWT：签发与校验（云托管免鉴权 openid → 本服务 JWT，AGENTS/README 部署约定）。
- * 日志严禁打印完整 token（AGENTS §2.4）。
- */
+/** 日志严禁打印完整 token（AGENTS §2.4）。 */
 @Service
 public class JwtService {
 
@@ -26,8 +23,7 @@ public class JwtService {
 
     public JwtService(AppProperties props) {
         String secret = props.getJwtSecret();
-        // 签名密钥无默认值（application.yml 已移除 dev 默认串）：缺失即启动失败，
-        // 否则会以公开密钥签发 token，任何人可伪造 role=SYS_ADMIN（AGENTS §2.1）
+        // 签名密钥无默认值（application.yml 已移除 dev 默认串）：缺失即启动失败，否则会以公开密钥签发 token，任何人可伪造 role=SYS_ADMIN（AGENTS §2.1）
         if (secret == null || secret.isBlank()) {
             throw new IllegalStateException(
                     "JWT 签名密钥未配置：请注入环境变量 JWT_SECRET（建议 32 字节以上强随机串），"
@@ -37,7 +33,6 @@ public class JwtService {
         this.expireHours = props.getJwtExpireHours();
     }
 
-    /** 5 参兼容重载（JwtServiceTest 锁定）：scopeVersion 默认 0，与 pre-M1 旧 token 兼容口径一致。 */
     public String issue(String employeeId, String role, String openid, String client, String sessionId) {
         return issue(employeeId, role, openid, client, sessionId, 0);
     }
@@ -61,10 +56,6 @@ public class JwtService {
                 .compact();
     }
 
-    /**
-     * 使用单位门户令牌（Task 9）：subject=use_unit.id，claims 带 ut=1 让 AuthInterceptor 走门户分支。
-     * 门户账号不属员工目录、无单端会话（无 sid），故不与员工令牌共用会话覆盖逻辑。
-     */
     public String issueUnit(String useUnitId, String client) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("role", "UNIT_ADMIN");
@@ -80,11 +71,6 @@ public class JwtService {
                 .compact();
     }
 
-    /**
-     * P3 客户账号令牌（docs/14 §8）：subject=client_account.id，claim ut=2 走客户分支；
-     * 携带 role（CLIENT_*）、useUnitId（租户锚点）、sid（单会话）、sv（scope_version）。
-     * 客户账号独立于员工目录，不参与 sessionAdmin/sessionId 覆盖，故单独签发。
-     */
     public String issueClient(String accountId, String role, String useUnitId, String openid,
                               String sessionId, int scopeVersion) {
         Map<String, Object> claims = new HashMap<>();
@@ -107,10 +93,7 @@ public class JwtService {
                 .compact();
     }
 
-    /**
-     * P3 多单位选单位短时令牌（docs/14 §6.4）：口令校验通过后签发，subject=手机号，claim sel=1；
-     * 仅用于 /auth/client/select-unit 换取正式客户令牌，不能访问业务端点（白名单不含）。有效期 5 分钟。
-     */
+    /** 仅用于 /auth/client/select-unit 换取正式客户令牌，不能访问业务端点（白名单不含）。 */
     public String issueSelection(String phone) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("sel", "1");

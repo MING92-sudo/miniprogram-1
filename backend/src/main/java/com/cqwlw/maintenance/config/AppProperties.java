@@ -2,18 +2,13 @@ package com.cqwlw.maintenance.config;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
-/**
- * 自建应用配置（环境变量注入，禁止真实凭证入库，AGENTS §2）。
- */
+/** 自建应用配置（环境变量注入，禁止真实凭证入库，AGENTS §2）。 */
 @ConfigurationProperties(prefix = "app")
 public class AppProperties {
 
     private String jwtSecret;
     private int jwtExpireHours = 72;
-    /**
-     * 微信小程序凭证：code 换 openid（jscode2session）用，只允许环境变量注入（AGENTS §2.1）。
-     * 生产必须配置，否则 /auth/bind-wechat、/auth/wx-login 直接报错。
-     */
+    /** 微信小程序凭证：code 换 openid（jscode2session）用，只允许环境变量注入（AGENTS §2.1）。 */
     private String wxAppid;
     private String wxAppsecret;
     /** 云出口网关自签证书 SHA-256 白名单（逗号分隔）；默认空=严格 PKIX。 */
@@ -21,7 +16,6 @@ public class AppProperties {
     private boolean seedDemoData = false; // C5：默认不播种，与 yml 默认一致
     /** 作业时长下限（分钟，签到→签退）；默认 30，测试可临时调小（APP_WORK_DURATION_MINUTES） */
     private int workDurationMinutes = 30;
-    /** 签到定位阈值全局默认（米）；电梯级 elevator.checkin_threshold 优先（docs/02 §5.4） */
     private int checkinThresholdMeters = 200;
     private String cosSecretId;
     private String cosSecretKey;
@@ -29,14 +23,9 @@ public class AppProperties {
     private String cosBucket;
     private String cosAuthUrl; // Minor3：默认值只保留 yml 一处
     private String fileStorageDir = "./data/files";
-    /** M8：公网基础地址（如 https://api.example.com）；配置后文件 URL 不再从请求 Host 拼装，防 Host 头污染 */
     private String publicBaseUrl;
     private String lbsAmapKey;
     private String lbsTencentKey;
-    /**
-     * 已裁合规矩阵台账模块总开关（docs/01 §10.2：救援/演练/自检/知识库，前端零调用）。
-     * 默认 false：9 条端点一律 403；恢复交付时置 true（APP_LEGACY_MODULES_ENABLED）。
-     */
     private boolean legacyModulesEnabled = false;
 
     public boolean cosConfigured() {

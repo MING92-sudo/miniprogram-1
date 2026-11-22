@@ -1,5 +1,3 @@
-// 生成透明底圆形徽标 PNG（D5：仅圆形徽标，BOWEI 字样不上页，去白底适配深色主题）。
-// 从 assets/brand/logo.jpg 裁出圆形徽标区域（排除底部 BOWEI），近白像素转透明。
 const Jimp = require('jimp')
 const path = require('path')
 const ROOT = path.join(__dirname, '..', '..')

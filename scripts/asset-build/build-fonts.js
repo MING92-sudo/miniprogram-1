@@ -1,4 +1,3 @@
-// 显示字内嵌：assets/fonts/zcool-subset.ttf → woff2 → base64 → styles/fonts.wxss（M2，零外链）
 const fs = require('fs')
 const path = require('path')
 const ttf2woff2 = require('ttf2woff2')

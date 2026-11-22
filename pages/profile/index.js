@@ -1,5 +1,3 @@
-// 我的（屏 20 · 原型 V1.4 对齐）：身份卡（头像字+脱敏手机号）+ 我的角色（当前/兼任）+ 切换工作台（当前/无权限）
-// + 功能入口 + 微信绑定 + 署名 + 退出。单账号多角色，权限取并集、数据范围逐角色判断（AGENTS §3.9）。
 const auth = require('../../services/auth')
 const { definePage } = require('../../utils/guard')
 const { ROUTES } = require('../../config/routes')
@@ -57,7 +55,6 @@ definePage(ROUTES['/pages/profile/index'], {
       adminEntries: this.buildAdminEntries()
     })
   },
-  // P1 T8-B3：客户主体不渲染任何管理入口——矩阵已收回内部码（T2），此处再防旧会话缓存的过期 perms
   buildAdminEntries() {
     if (isCustomerPrincipal()) return []
     const perms = getPerms() || []

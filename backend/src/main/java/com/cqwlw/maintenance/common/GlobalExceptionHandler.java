@@ -70,10 +70,7 @@ public class GlobalExceptionHandler {
         return ApiResponse.error(400, "请求体格式错误");
     }
 
-    /**
-     * 路由未命中（含空路径段，如 /work-orders//checkin）：客户端错误须回 404，
-     * 不能被兜底 handler 报成 500 服务内部错误（掩盖真实原因、误导排障）。
-     */
+    /** 路由未命中（含空路径段，如 /work-orders//checkin）：客户端错误须回 404，不能被兜底 handler 报成 500 服务内部错误（掩盖真实原因、误导排障）。 */
     @ExceptionHandler({NoResourceFoundException.class, NoHandlerFoundException.class})
     @ResponseStatus(HttpStatus.NOT_FOUND)
     public ApiResponse<Void> handleNotFound(Exception e) {
@@ -86,10 +83,7 @@ public class GlobalExceptionHandler {
         return ApiResponse.error(405, "请求方法不支持");
     }
 
-    /**
-     * 缺少必填查询参数（如 /admin/plans/conflicts 少 planId）：客户端错误 400。
-     * 未映射时会被兜底 handler 报成 500，把「调用方漏参」伪装成「服务端故障」。
-     */
+    /** 未映射时会被兜底 handler 报成 500，把「调用方漏参」伪装成「服务端故障」。 */
     @ExceptionHandler(org.springframework.web.bind.MissingServletRequestParameterException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ApiResponse<Void> handleMissingParam(org.springframework.web.bind.MissingServletRequestParameterException e) {

@@ -1,6 +1,3 @@
-// 小程序菜单兜底镜像（M2，规格 §3.4）：逐字移植蓝图 routes-and-menus.md L239-334，
-// 与后端 MiniappMenuService.java 同源（漂移守卫 scripts/verify-miniapp-routes.js 双源锁定）。
-// 后端 /me/menus 是唯一事实源；本文件仅首屏占位与请求失败兜底。
 
 // 工作台优先级（维保 > 安装 > 使用单位 > 平台）
 const ROLE_PRIORITY = [
@@ -28,7 +25,6 @@ const TABS_ALIAS = {
   INSTALLER: 'INST_CLERK'
 }
 
-// 角色中文名（页面禁用提示/403/我的页用，D4 中文口径）
 const ROLE_TEXT = {
   INST_CLERK: '安装部资料员',
   INST_PM: '安装部项目负责人',
@@ -42,7 +38,6 @@ const ROLE_TEXT = {
   CLIENT_ADMIN: '使用单位管理员',
   CLIENT_SIGNER: '使用单位签字人',
   PLATFORM_ADMIN: '平台管理员',
-  // 旧角色码别名（RoleCatalog v2 兼容）
   WORKER: '维保人员', ASSISTANT: '配合维保人员', LEADER: '班组长',
   UNIT_ADMIN: '使用单位管理员', ADMIN: '平台管理员',
   INSTALL_MANAGER: '安装项目经理', INSTALL_CLERK: '安装文员', INSTALL_WORKER: '安装员',

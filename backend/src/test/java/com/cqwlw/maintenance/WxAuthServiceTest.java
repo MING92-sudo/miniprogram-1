@@ -15,10 +15,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-/**
- * 微信登录 code → openid：code 缺失/无效属客户端可重试（422），凭证未配置或微信侧故障属服务端（2001）。
- * 422 而非 401 是硬约束——前端 request.js 对 401 会清登录态，绑定刚登录完就会被误登出。
- */
+/** 微信登录 code → openid：code 缺失/无效属客户端可重试（422），凭证未配置或微信侧故障属服务端（2001）。 */
 class WxAuthServiceTest {
 
     private static AppProperties props(String appid, String secret) {

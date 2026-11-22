@@ -21,7 +21,7 @@
   </div>
 </template>
 <script setup>
-// 上报日志：GET /reg/upload-logs（reg_upload_log 分页，digest 脱敏只读，docs/09 §4.1）
+// 上报日志：GET /reg/upload-logs
 import { ref, onMounted } from 'vue'
 import DataTable from '../ui/DataTable.vue'
 import ViewHead from '../ui/ViewHead.vue'

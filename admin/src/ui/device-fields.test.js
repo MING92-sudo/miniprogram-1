@@ -4,9 +4,6 @@ import {
   deviceRules, deviceFormOf, missingRequiredOf
 } from './device-fields'
 
-// 用户 2026-11-19：设备信息档案字段，前 5 项是上传维保记录的必传项；
-// 「标签不允许错误」——电梯编码≠设备代码、注册代码≠出厂编号，这里逐字锁定。
-// 2026-11-21：+登记证编码 certNo（选填第 6 项，使用登记证编号，独立字段不上报平台）。
 describe('设备信息档案字段口径', () => {
   it('9 项字段与标签（顺序固定）', () => {
     expect(DEVICE_FIELDS.map((f) => f.key)).toEqual([

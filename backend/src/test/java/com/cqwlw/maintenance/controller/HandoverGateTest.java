@@ -21,10 +21,6 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/**
- * 移交端点门禁（2026-11-21 对齐矩阵 §4.1，17 账号矩阵驱动实测发现的缺口）：
- * POST /handovers 需 handover:create；复验、NA 审批与确认均保持各自权限和登录人来源校验。
- */
 class HandoverGateTest {
 
     private static MockHttpServletRequest req(String... roles) {
@@ -37,7 +33,6 @@ class HandoverGateTest {
     void handoverInitGatedToInstPm() {
         HandoverService svc = mock(HandoverService.class);
         HandoverController c = new HandoverController(svc);
-        // 2026-11-21 统一后平台管理员=唯一全权角色（含 handover:create），负例不再含 PLATFORM_ADMIN
         for (String role : new String[]{"MAINT_TECH", "MAINT_SUP", "MAINT_MGR", "MAINT_QUALITY", "MAINT_BIZ",
                 "INST_MGR", "INSTALLER"}) {
             BizException ex = assertThrows(BizException.class,
@@ -46,7 +41,6 @@ class HandoverGateTest {
         }
         verify(svc, never()).init(any());
         when(svc.init(any())).thenReturn(new HandoverOrder());
-        // 2026-11-21 裁决：handover:create 扩 INST_CLERK（资料员可起草）
         assertNotNull(c.init(Map.of("projectName", "演示项目"), req("INST_PM")));
         assertNotNull(c.init(Map.of("projectName", "演示项目"), req("INST_CLERK")));
         verify(svc, times(2)).init(any());

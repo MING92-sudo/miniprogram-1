@@ -27,12 +27,7 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
-/**
- * 管理端·维保记录（docs/09 §6.12）：
- * GET /admin/records/{id}            → 预览抽屉全量投影（基本信息/检查项明细/现场照片/三方签字/安全防护）
- * GET /admin/records/{id}/export-pdf → 维保记录 PDF（含照片/签字/签到签退时间）
- * JWT 鉴权（/admin/* 不在白名单，AdminRoleInterceptor 按 console:read 拦截）。
- */
+/** 维保记录详情与 PDF 导出，均需 console:read。 */
 @RestController
 public class AdminRecordController {
 
@@ -54,10 +49,6 @@ public class AdminRecordController {
         this.scopeService = scopeService;
     }
 
-    /**
-     * 记录预览详情（docs/09 §6.12）：抽屉结构与 PDF 同源，含检查项明细、照片墙与三位签字图。
-     * 单条懒加载而非并入列表：items_json/photos_json 为 MEDIUMTEXT，塞进分页列表会拖垮管理端。
-     */
     @RequirePerm(PermissionMatrix.RECORD_VIEW)
     @GetMapping("/admin/records/{id}")
     public ApiResponse<Map<String, Object>> detail(@PathVariable String id, HttpServletRequest request) {

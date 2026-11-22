@@ -1,5 +1,3 @@
-// 资料上传（M4，资料员 D1–D20）：移交资料核对，3 项强制卡点（监督检验报告/维保说明书/整机质量证明），
-// 缺件可标记待补办（容缺受理），补传完成前不得生效。提交走 submitHandoverDocs。
 const { getHandoverDetail, submitHandoverDocs } = require('../../../services/handover')
 const { uploadImage } = require('../../../services/upload')
 const { definePage } = require('../../../utils/guard')

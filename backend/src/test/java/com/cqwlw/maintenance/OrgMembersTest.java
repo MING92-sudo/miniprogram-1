@@ -24,12 +24,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-/**
- * 组织节点成员只读端点（GET /org/{id}/members，D1）：
- * TEAM 节点按 groupName=节点名过滤；DEPT 节点按名称映射部门码
- * （维保→MAINT / 安装→INSTALL / 平台→PLATFORM）；COMPANY=维保部+安装部全部；
- * UNIT 或无匹配规则→空列表；节点不存在→1404。
- */
 class OrgMembersTest {
 
     private final SysOrgMapper orgMapper = mock(SysOrgMapper.class);

@@ -9,7 +9,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Map;
 
-/** 首页工作台汇总（docs/04 A.2 /home/summary） */
 @RestController
 public class HomeController {
 

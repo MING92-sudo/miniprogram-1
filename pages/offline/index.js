@@ -1,4 +1,3 @@
-// 离线队列（M2 迁自 pages/mine/offline）：本地缓存 + 补传队列；网络恢复自动补传（utils/offline 不动）。
 const config = require('../../config/index')
 const offline = require('../../utils/offline')
 const { formatTime } = require('../../utils/util')

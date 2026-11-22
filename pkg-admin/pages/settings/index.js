@@ -1,4 +1,3 @@
-// 系统配置（M6，平台管理员 config:manage）：SLA/保养周期/签字模板/复核开关/脱敏开关；取值约束见管理端，保存留痕。
 const admin = require('../../services/admin')
 const { definePage } = require('../../../utils/guard')
 const { ROUTES } = require('../../../config/routes')

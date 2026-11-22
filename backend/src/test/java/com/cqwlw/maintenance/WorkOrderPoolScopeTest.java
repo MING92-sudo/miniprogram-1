@@ -34,14 +34,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-/**
- * 区域抢单池可见性与归属谓词（2026-11-20 区域抢单池设计 §4.2，M9/M11）：
- * 未认领（workerPlatformId 空）工单——登录人持平台ID 且（工单不限区域 regionId 空，
- * 或工单 regionId == 登录人 regionId）即可见/可操作；无平台ID 一律不可见（D4 门禁）。
- * 已认领工单不走池分支，仍按 主/配合人 platformId 命中判断（认领后同区域其他人不可操作，
- * 防代签到/代签退，AGENTS §3.1）；管理角色（scope 返回 ids==null）全可见语义不变。
- * 列表读（scopeOrders）与归属/写（requireOrderScope）共用同一条池谓词。
- */
+/** 区域抢单池可见性与归属谓词：未认领（workerPlatformId 空）工单——登录人持平台ID 且（工单不限区域 regionId 空，或工单 regionId == 登录人 regionId）即可见/可操作； */
 class WorkOrderPoolScopeTest {
 
     private static final String R1 = "region_yubei";
@@ -101,7 +94,6 @@ class WorkOrderPoolScopeTest {
         assertEquals(1403, e.getCode());
     }
 
-    /** 池象限③：同区域但无平台ID → 不可见、1403（D4：无平台ID 不能接单，从源头杜绝 2.6 缺 workMan1Id） */
     @Test
     void unclaimedOrderInvisibleToWorkerWithoutPlatformId() {
         WorkOrder o = poolOrder("wo_pool_r1", R1);
@@ -110,7 +102,6 @@ class WorkOrderPoolScopeTest {
         assertEquals(1403, e.getCode());
     }
 
-    /** 池象限④：工单不限区域（regionId 空）→ 所有持平台ID者可见，含无区域员工（M9/M3） */
     @Test
     void noRegionOrderVisibleToAnyPlatformIdHolder() {
         WorkOrder o = poolOrder("wo_pool_free", null);

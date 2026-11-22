@@ -18,12 +18,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * 平台上报服务（P3，docs/07-full-test 实测口径沉淀）：
- * 签退后自动转发 2.6（失败不自动重试，AGENTS §2.3 红线），
- * FAILED 记录允许手动重报；2.8 存量推送仅在 legacy-upload-enabled 开关打开时执行。
- * 上报日志 request_digest 脱敏：手机号打码、不含 token（AGENTS §2.4）。
- */
+/** 平台上报服务：签退后自动转发 2.6（失败不自动重试，AGENTS §2.3 红线），FAILED 记录允许手动重报； */
 @Service
 public class PlatformReportService {
 
@@ -49,10 +44,6 @@ public class PlatformReportService {
         return tokenService.configured();
     }
 
-    /**
-     * 签退后自动上报：平台未配置或转发失败均不抛出（不阻塞签退主流程）。
-     * 返回最终 reportStatus：REPORTED / FAILED / SUBMITTED（未配置 = 待上报）。
-     */
     public String attemptUpload(MaintainRecord r) {
         if (!configured()) {
             return "SUBMITTED";
@@ -138,8 +129,6 @@ public class PlatformReportService {
         return n;
     }
 
-    /** 2.8 存量提交（/record/uploadMaintainRecord）：与 2.6 不同接口——传姓名而非 ID；
-     * 无配合人员时回退主维保姓名（与 2.6 workMan2Id 必填同口径） */
     private String uploadLegacy(MaintainRecord r) {
         Map<String, Object> payload = JsonUtil.readMap(r.reportPayloadJson);
         if (payload == null || payload.isEmpty()) {

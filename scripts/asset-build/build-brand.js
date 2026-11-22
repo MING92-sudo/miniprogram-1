@@ -1,5 +1,3 @@
-// 品牌徽标内嵌：assets/brand/logo-mark.png（透明底圆形徽标，BOWEI 字样不上页）→ base64 → styles/brand.wxss
-// logo-mark.png 由 build-logo-mark.js 从 logo.jpg 裁出圆形徽标并去白底生成（D5：深色主题无白框）。
 const fs = require('fs')
 const path = require('path')
 const ROOT = path.join(__dirname, '..', '..')

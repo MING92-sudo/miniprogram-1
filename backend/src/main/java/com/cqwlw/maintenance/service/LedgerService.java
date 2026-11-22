@@ -26,11 +26,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * M3 台账域：组织树 / 项目台账 / 邀请码 / 电梯移装停用报废双人确认。
- * 写操作先校验后落库并写审计；组织层级口径为「公司 → 部门 → 班组」三层且单公司
- * （与 V51 修正后的存量数据一致）；电梯变更确认人必须不同于发起人。
- */
+/** 电梯变更确认人必须不同于发起人。 */
 @Service
 public class LedgerService {
 
@@ -60,14 +56,7 @@ public class LedgerService {
         this.audit = audit;
     }
 
-    /**
-     * 组织树（GET /org）：只渲染内部组织（公司 → 部门 → 班组）。
-     *
-     * UNIT（使用单位）是外部客户主体，归「使用单位档案」维护，不进本视图；
-     * V51 已下线 V36 遗留的「使用单位」DEPT 分组占位节点并解除 UNIT 父子关系，
-     * 这里保留 type=UNIT 的内存过滤作为历史数据兜底。
-     * 内存过滤（而非 SQL ne）避免把 type=NULL 的历史行一并丢掉。
-     */
+    /** 组织树（GET /org）：只渲染内部组织（公司 → 部门 → 班组）。 */
     public List<SysOrg> orgTree() {
         List<SysOrg> out = new ArrayList<>();
         for (SysOrg o : orgMapper.selectList(new LambdaQueryWrapper<SysOrg>().orderByAsc(SysOrg::getSortOrder))) {
@@ -78,13 +67,7 @@ public class LedgerService {
         return out;
     }
 
-    /**
-     * 组织节点成员（GET /org/{id}/members，组织架构可见成员 D1）：
-     * TEAM 节点按 groupName=节点名；DEPT 节点按名称映射部门码（维保→MAINT / 安装→INSTALL /
-     * 平台→PLATFORM）；COMPANY 节点=维保部+安装部全部（UNIT/客户主体天然不在 MAINT/INSTALL 内）；
-     * UNIT 节点或无匹配规则的名称→空列表（UNIT 是外部客户主体，无内部成员）。
-     * 只读，不写审计。regionName 解析口径同 AdminArchiveService.regionNameOf（空/查不到回空串）。
-     */
+    /** 只读，不写审计。 */
     public List<Map<String, Object>> orgMembers(String orgId) {
         SysOrg org = orgMapper.selectById(orgId);
         if (org == null) {
@@ -194,20 +177,11 @@ public class LedgerService {
         return org;
     }
 
-    /**
-     * 组织层级口径校验（修复 V51 暴露的同类问题：部门/班组与公司平级）。
-     *
-     * <p>规则与 V51 迁移后的存量数据一致：
-     * 公司必须是唯一根；部门必须挂在公司下；班组必须挂在部门下。
-     * 缺了这一层校验，「新建组织」可以再次造出 parent_id 为空的部门——
-     * 组织树上就会重新出现与公司并排的「安装部/维保部」。</p>
-     */
     private void requireValidParent(String type, String parentId, SysOrg parent) {
         if ("COMPANY".equals(type)) {
             if (parentId != null) {
                 throw new BizException(422, "公司为顶级组织，不能指定上级");
             }
-            // 单公司模型（V51 取 sort_order 最小的 COMPANY 挂部门，多公司会挂错）
             Long companies = orgMapper.selectCount(
                     new LambdaQueryWrapper<SysOrg>().eq(SysOrg::getType, "COMPANY"));
             if (companies != null && companies > 0) {
@@ -266,12 +240,7 @@ public class LedgerService {
         return p;
     }
 
-    /**
-     * 项目挂靠部门只接受 DEPT 节点（维保部/安装部）。历史上这两列可存任意字符串，
-     * 若存成公司/班组/使用单位，组织口径统计与派单归属都会错位。
-     *
-     * @param orgId 允许为空（草稿项目尚未指定部门）
-     */
+    /** 历史上这两列可存任意字符串，若存成公司/班组/使用单位，组织口径统计与派单归属都会错位。 */
     private String requireDeptOrg(String orgId, String label) {
         if (orgId == null) {
             return null;

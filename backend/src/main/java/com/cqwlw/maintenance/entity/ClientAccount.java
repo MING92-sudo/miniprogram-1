@@ -6,11 +6,7 @@ import lombok.Data;
 
 import java.time.LocalDateTime;
 
-/**
- * 客户账号（P3，docs/14 §8）：独立租户主体，脱离 sys_employee。
- * 一个使用单位 1..N 个账号（默认 1 个 CLIENT_ADMIN）；同一单位内活跃手机号/openid 唯一，
- * 跨单位可多账号。客户账号不进入员工组织树/统计（R7），签字动作记快照（R13）。
- */
+/** 同一单位内活跃手机号/openid 唯一，跨单位可多账号。 */
 @Data
 @TableName("client_account")
 public class ClientAccount {

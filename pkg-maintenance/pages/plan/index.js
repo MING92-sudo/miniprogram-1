@@ -1,5 +1,3 @@
-// 维保计划（M3 迁自 pages/calendar，逻辑保留）：GET /maintenance-calendar 只读前向投影，按月/日分组；不触发派单。
-// 2026-11-20：条目带执行状态（计划/已派单/已完成/超期）；窗口新增「全年」（建档即排满一年口径）。
 const { getMaintenanceCalendar } = require('../../../services/unit')
 const { CALENDAR_WINDOWS, CALENDAR_TEXT, CALENDAR_STATUS, WORK_TYPE_CODES, TOAST_TEXT } = require('../../../constants/index')
 const { definePage } = require('../../../utils/guard')

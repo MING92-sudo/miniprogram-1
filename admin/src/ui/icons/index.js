@@ -1,5 +1,4 @@
-// 内联 SVG sprite 图标（D4 离线，无外部请求）——与原型 UI/admin/assets/icons.svg 完全一致。
-// sprite 本体挂载在 App.vue（#sprite），此处生成 <use> 引用；旧图标名保留别名兼容。
+// 旧图标名保留别名兼容。
 const ALIAS = {
   dashboard: 'gauge', org: 'sitemap', ledger: 'folder', handover: 'exchange', plan: 'calendar',
   dispatch: 'bolt', stats: 'chart', audit: 'history', settings: 'sliders', compliance: 'shield',

@@ -48,28 +48,17 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 
-/**
- * 演示种子数据（与 mock/data.js 对齐，仅联调用；生产 SEED_DEMO_DATA=false）。
- * 口令只存 BCrypt 哈希，演示密码 123456 与 mock 登录提示一致。
- */
+/** 演示种子数据（与 mock/data.js 对齐，仅联调用； */
 @Component
 @Order(0)
 public class DemoDataSeeder implements ApplicationRunner {
 
     private static final Logger log = LoggerFactory.getLogger(DemoDataSeeder.class);
     private static final String DEMO_SIGNATURE = "https://picsum.photos/seed/em-sig/480/180";
-    /**
-     * 演示人员平台ID（2.5 同步产物）。电梯绑定 / 工单 / 维保记录必须引用这里的常量：
-     * 班组数据权限（V7）按 platformId 过滤工单，一旦与 employee() 种子不一致，
-     * 作业人员登录后将看不到自己的工单（列表为空、签到链路走不通）。
-     */
     private static final String PID_ZHANGWEI = "6901282369105174537";
     private static final String PID_CHENGANG = "990002";
     private static final String PID_LIQIANG = "6901284774286860288";
-    /**
-     * 演示班组（与 mock/data.js 的 groupName 一致）。班组数据权限（V7）按 group_name 归组：
-     * 组长可见本组员工工单；缺失时 sameGroup() 只返回自己，陈刚(LEADER) 登录后工单列表恒为空。
-     */
+    /** 缺失时 sameGroup() 只返回自己，陈刚(LEADER) 登录后工单列表恒为空。 */
     private static final String DEMO_GROUP = "维保一班";
 
     private final AppProperties props;
@@ -160,11 +149,9 @@ public class DemoDataSeeder implements ApplicationRunner {
         employee("emp_3", "李强", "13800000004", "WORKER", "维保人员", DEMO_GROUP,
                 PID_LIQIANG, "CQ3601030003", "2024-08-01", 500, enc);
 
-        // ── 管理端演示账号：唯一全权管理员=平台管理员（2026-11-21 统一，SYS_ADMIN 账号已删）──
         employee("emp_admin", "郑浩", "13800000009", "ADMIN", "平台管理员", "",
                 "", "", "", 0, enc);
 
-        // ── 渲染口径对齐（2026-11-15 裁决）：三部门演示账号补齐，与 mock/data.js 同号 ──
         employee("emp_lzg", "李振国", "13800000011", "MAINT_TECH", "维保人员", "维保一组",
                 PID_ZHANGWEI, "CQ3601030011", "2023-03-01", 400, enc);
         employee("emp_wq", "王强", "13800000013", "INST_PM", "安装部项目负责人", "安装一部",
@@ -180,8 +167,6 @@ public class DemoDataSeeder implements ApplicationRunner {
         useUnit("uu_1", "重庆世纪物业管理有限公司", "91500106MAABU3796N", "刘建国", "13910001001", "王芳", "13800000003", "02367612345");
         useUnit("uu_2", "重庆蓝湾物业服务有限公司", "91500106MAABU3797P", "周涛", "13930003002", "吴静", "13800003005", "02367991234");
 
-        // ── 客户账号（P3：使用单位联系人独立于员工体系，统一登录 /auth/login 按手机号自动分流）──
-        // 不再写进 sys_employee：同一个人两套登录身份会导致「停用客户账号仍能用员工通道登录」。
         clientAccount("ca_1", "uu_1", "王芳", "13800000003", ClientAccount.ROLE_ADMIN, enc);
         clientAccount("ca_2", "uu_1", "张伟", "13800000012", ClientAccount.ROLE_SIGNER, enc);
         clientAccount("ca_3", "uu_1", "签字人", "13800000018", ClientAccount.ROLE_SIGNER, enc);
@@ -319,9 +304,7 @@ public class DemoDataSeeder implements ApplicationRunner {
                 "FM", false, "19480012609000008", "REPORTED", 30, "CONFIRMED", 5,
                 "mock_file_sig1", DEMO_SIGNATURE);
 
-        // 张工 INST_MGR 测试账号（P-1，spec §6.1；不升任张伟 emp_1）。仅演示种子，绝不进 Flyway/生产。
-        // 不用 employee() helper（其 11 参签名内部即 insert，无法在 insert 前设 department）——
-        // 手动构建以便 department 先于 insert 落值，且只 insert 一次（避免重复插入）。
+        // 仅演示种子，绝不进 Flyway/生产。
         Employee zhang = new Employee();
         zhang.id = "emp_zhang";
         zhang.name = "张工";
@@ -339,13 +322,6 @@ public class DemoDataSeeder implements ApplicationRunner {
         insertEmployeeRole(zhang.id, "INST_MGR", "");
     }
 
-    /**
-     * 组织树骨架（单公司模型）：公司 → 部门 → 班组。
-     *
-     * <p>空库上 V36 只建了部门骨架（parent_id 为空），没有任何 COMPANY 节点 —— 部门会与公司平级、
-     * 甚至自己当根。种子必须先把公司节点补出来，再把部门/班组挂到正确父级，
-     * 否则「新建库」与「修过的库」组织口径不一致（V51/V52 只能修已有公司的情况）。
-     */
     private void seedOrgTree(String companyName) {
         String companyId = companyOrgId();
         if (companyId == null) {
@@ -427,10 +403,7 @@ public class DemoDataSeeder implements ApplicationRunner {
         return null;
     }
 
-    /**
-     * 演示客户账号（P3）：使用单位联系人不进 sys_employee，独立存 client_account。
-     * 初始口令同样 123456；登录页只有一个入口，输入手机号即自动识别为客户主体（无需切换模式）。
-     */
+    /** 登录页只有一个入口，输入手机号即自动识别为客户主体（无需切换模式）。 */
     private void clientAccount(String id, String useUnitId, String name, String phone, String role,
                                BCryptPasswordEncoder enc) {
         ClientAccount c = new ClientAccount();
@@ -458,7 +431,6 @@ public class DemoDataSeeder implements ApplicationRunner {
         e.passwordHash = enc.encode("123456");
         e.role = role;
         e.roleText = roleText;
-        // V31 口径：部门由角色派生（列表「所属组织」与部门数据域谓词都看它，不能留空）
         e.department = RoleCatalog.departmentOf(role);
         e.groupName = groupName;
         e.openid = null;
@@ -561,7 +533,6 @@ public class DemoDataSeeder implements ApplicationRunner {
         o.originalRecordId = originalRecordId;
         o.reportStatus = reportStatus;
         o.autoDispatched = false;
-        // 租户快照（权限 P2 T3）：与 TenantSnapshotService.applyOrder 同语义，Seeder 上下文直接用已有 Mapper
         Elevator el = elevatorMapper.selectById(elevatorId);
         if (el != null && el.useUnitId != null && !el.useUnitId.isBlank()) {
             o.useUnitId = el.useUnitId;
@@ -590,10 +561,8 @@ public class DemoDataSeeder implements ApplicationRunner {
         f.descr = descr;
         f.status = status;
         f.handleDesc = handleDesc;
-        // C-18/V62 演示数据：困人类型默认 2 人（真机走查「急修待接」KPI/横幅/下钻用）
         f.trappedCount = faultType != null && faultType.contains("困人") ? 2 : 0;
         f.createdAt = TimeUtil.parse(createdAt);
-        // 租户快照（权限 P2 T4）：种子急修按电梯编码内联使用单位（不注入服务，沿用 order() 口径）
         Elevator el = elevatorMapper.selectOne(new LambdaQueryWrapper<Elevator>()
                 .eq(Elevator::getElevatorCode, elevatorCode).last("LIMIT 1"));
         if (el != null && el.useUnitId != null && !el.useUnitId.isBlank()) {
@@ -654,7 +623,6 @@ public class DemoDataSeeder implements ApplicationRunner {
                 new LambdaQueryWrapper<Elevator>()
                         .eq(Elevator::getElevatorCode, elevatorCode).last("LIMIT 1"));
         UseUnit uu = el == null ? null : useUnitMapper.selectById(el.useUnitId);
-        // 租户快照（权限 P2 T4）：种子记录内联使用单位，与签退新链路口径一致
         if (el != null && el.useUnitId != null && !el.useUnitId.isBlank()) {
             r.useUnitId = el.useUnitId;
             r.useUnitName = uu == null ? null : uu.unitName;

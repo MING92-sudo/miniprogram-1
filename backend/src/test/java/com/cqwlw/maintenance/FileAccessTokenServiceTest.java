@@ -10,10 +10,7 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * 文件访问签名：读文件靠它把门（小程序 image 标签不带 Authorization 头，且使用单位
- * 签字页匿名访问需要渲染签名图），因此签名必须确定性、不可跨文件复用、不可枚举。
- */
+/** 文件访问签名：读文件靠它把门（小程序 image 标签不带 Authorization 头，且使用单位签字页匿名访问需要渲染签名图），因此签名必须确定性、不可跨文件复用、不可枚举。 */
 class FileAccessTokenServiceTest {
 
     private FileAccessTokenService token;

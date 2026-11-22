@@ -1,5 +1,3 @@
-// 使用单位工作台（M2，屏 10）：问候 + 待签提醒 + 快捷动作 + KPI + 我的电梯 + 最近记录 + 年检提醒。
-// P1 T8-B2：评价入口下线（docs/14 §4.7 评价关闭，T3-Important#1），提醒仅保留待签记录单。
 const { definePage } = require('../../../utils/guard')
 const { ROUTES } = require('../../../config/routes')
 const home = require('../../../services/home')
@@ -27,14 +25,13 @@ definePage(ROUTES['/pages/client/home/index'], {
     this.load()
   },
   load(force) {
-    // 重显保留旧数据静默刷新，仅首屏/重试显示骨架屏（响应速度审计 2026-11-15）
+    // 重显保留旧数据静默刷新，仅首屏/重试显示骨架屏
     this.setData({ loading: !!force || !this.data.kpis.length, error: '' })
     home.getClientHome()
       .then((r) => this.setData({ loading: false, signAlerts: r.signAlerts, kpis: r.kpis, elevators: r.elevators, records: r.records, notice: r.notice }))
       .catch((e) => this.setData({ loading: false, error: (e && e.message) || '加载失败' }))
   },
   onRetry() { this.load(true) },
-  // P1 T8-B2：评价入口下线后提醒仅剩待签记录单，一律进待办页
   onSignAlert() { nav.open('/pkg-client/pages/todo/index') },
   onRecordSign(e) { nav.open('/pkg-client/pages/todo/index') },
   onElevator(e) { nav.open('/pages/elevator/detail/index?id=' + e.currentTarget.dataset.id) },

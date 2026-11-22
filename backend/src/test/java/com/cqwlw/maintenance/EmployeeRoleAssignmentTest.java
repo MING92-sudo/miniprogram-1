@@ -27,10 +27,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/**
- * 人员建档的角色与部门（docs/14 §3，V31）：三部门岗位都能建号，部门由角色派生；
- * 使用单位账号不在人员目录（走 use_unit 账号），选它必须 422。
- */
+/** 使用单位账号不在人员目录（走 use_unit 账号），选它必须 422。 */
 class EmployeeRoleAssignmentTest {
 
     private final EmployeeMapper employeeMapper = mock(EmployeeMapper.class);

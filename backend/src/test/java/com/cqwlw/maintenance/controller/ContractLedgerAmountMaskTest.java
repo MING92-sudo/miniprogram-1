@@ -19,11 +19,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-/**
- * P1 终审 M6：合同台账金额分级脱敏——FULL_AMOUNT 删除 CLIENT_ADMIN 死值。
- * T2 收回后客户不持 contract:view（纯客户到不了金额逻辑），该值只剩
- * 「异常混合角色借 CLIENT_ADMIN 绕过 MAINT_SUP 金额掩码」的漏洞面（「使用单位完整」口径已废止，docs/14 V2.1）。
- */
 class ContractLedgerAmountMaskTest {
 
     private final MaintenanceContractMapper contractMapper = mock(MaintenanceContractMapper.class);

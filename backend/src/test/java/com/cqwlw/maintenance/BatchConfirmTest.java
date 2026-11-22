@@ -23,11 +23,7 @@ import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-/**
- * 批量签字（V56，docs/04 V2.80）：同一签名一次确认多条待签记录——
- * 逐条独立门禁（本单位 + 可签状态 + 条件更新先签为准），单条失败不拖累其余；
- * ≤20 条、签名先于循环校验、越权/状态失败逐条入 failed[]。
- */
+/** ≤20 条、签名先于循环校验、越权/状态失败逐条入 failed[]。 */
 class BatchConfirmTest {
 
     private static final Set<String> CLIENT_ROLES = Set.of("CLIENT_ADMIN");

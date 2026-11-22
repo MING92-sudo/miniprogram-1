@@ -6,7 +6,6 @@ import lombok.Data;
 
 import java.time.LocalDateTime;
 
-/** 移交整改记录（Task 4）：安装部上传整改前后照片 + 原查验工程师复验结果 */
 @TableName("handover_rectification")
 @Data
 public class HandoverRectification {
@@ -21,7 +20,6 @@ public class HandoverRectification {
     public String recheckerId;
     public String recheckerName;
     public LocalDateTime recheckedAt;
-    /** C-12：1:1 映射检查项 + 逐条复验 */
     public Integer itemNo;
     public String respParty;
     public String dueDate;

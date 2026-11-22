@@ -17,13 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.List;
 
-/**
- * 签字到期提醒（V56，docs/04 V2.80）：定时扫描「待使用单位签署」记录，向客户门户推送消息。
- * 两档各至多一条（sign_reminded_at 去重）：
- *   临期——剩余 ≤ SLA 的 1/3（默认 72h → 24h）时推送「签字临期提醒」；
- *   超期——超过截止时间推送「签字超期提醒」。
- * 无单位快照（useUnitId 空）的记录无受众，跳过；推送只写消息表，不触碰记录状态机与平台上报。
- */
+/** 推送只写消息表，不触碰记录状态机与平台上报。 */
 @Service
 public class SignReminderService {
 
@@ -82,9 +76,7 @@ public class SignReminderService {
             if (r.signRemindedAt != null && (overdue ? !r.signRemindedAt.isBefore(deadline) : true)) {
                 continue;
             }
-            // 守卫式最小更新（confirmAs 状态撕裂教训）：只盖 sign_reminded_at 且要求记录仍在
-            // 待签状态——扫描间隙被客户签署/拒签的记录命中 0，整实体 updateById 会把 CONFIRMED
-            // 回写成 PENDING，此处既不回写任何状态也不再推送消息。
+            // 仅更新待签记录的提醒时间，避免覆盖并发签署结果。
             int stamped = recordMapper.update(null, new LambdaUpdateWrapper<MaintainRecord>()
                     .eq(MaintainRecord::getId, r.id)
                     .eq(MaintainRecord::getLifecycleStatus, "PENDING_CLIENT_SIGNATURE")

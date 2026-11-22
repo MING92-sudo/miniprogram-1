@@ -5,11 +5,7 @@ import jakarta.servlet.http.HttpServletRequest;
 
 import java.util.Set;
 
-/**
- * M3 多角色三态门控：读 ATTR_ROLES（M1 多角色集），任一角色对能力码达 Y（写）或 Y/C（读）即放行。
- * 新码不走 AdminRoleInterceptor 旧两档（其 allows 仅认 24 旧码），M3 新端点用本门控显式判定。
- * 后端唯一安全边界；越权 403 且无副作用（AGENTS §3.1）。
- */
+/** 后端唯一安全边界； */
 public final class MultiRoleGate {
 
     private MultiRoleGate() {

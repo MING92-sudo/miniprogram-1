@@ -47,19 +47,6 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/**
- * P1 T5：员工/组织/统计内部视图临时排除客户主体 + 菜单 badges 本单位收敛（docs/14）。
- * ① GET /employees 人员目录与 GET /users 账号视图不含客户主体行——生效角色集（主角色 ∪ sys_user_role）
- *   任一内部（principalTypeOf==EMPLOYEE）即保留、全 CUSTOMER 排除；判定不用 department 字面量
- *   （客户 department 存 UNIT/null 两代值，字面量会漏判一半）；
- * ② GET /org 内部组织树不渲染 UNIT 节点（数据保留，P3 组织树重建）；
- * ③ GET /stats 平台级全量口径、无人数统计键；客户令牌已被 T3 业务路由白名单拒绝
- *   （AuthInterceptorV2Test 锁定 /users /org /stats /employees 403），内部全量不变；
- * ④ CLIENT badges.pendingSigns 修复跨单位数量泄漏：按本单位锚点（sys_user_role.org_id，
- *   与 UnitPortalController.unitId 同口径）+ T4 可签集合（lifecycleStatus=PENDING_CLIENT_SIGNATURE
- *   + confirmStatus=PENDING + 链末端最新版本）计数，不再计 PENDING_CLIENT_SIGN（双签未齐），
- *   无锚点 fail-closed 计 0、绝不回退全表 count。
- */
 class ClientExclusionTest {
 
     // ── fixtures ──
@@ -121,8 +108,6 @@ class ClientExclusionTest {
         Employee onlyRoles = emp("emp_n", "多角色客户", null);       // 主角色缺失、多角色集全客户 → 排除
         Employee mixed = emp("emp_m", "兼任", "WORKER");            // 角色集含内部（WORKER→EMPLOYEE）→ 保留（规则锁定，R7 正常不产生此数据）
         when(employees.selectList(any())).thenReturn(List.of(tech, client, legacy, onlyRoles, mixed));
-        // P2 T5（N+1 消除）：sys_user_role 改为一次 .in(userId) 批量载入按 userId 分组，
-        // 单一 stub 返回全部角色行（等价于旧逐员工 .eq(userId) 查询的并集），排除结论逐条不变
         when(userRoles.selectList(any())).thenReturn(List.of(
                 ur("emp_zw", "CLIENT_ADMIN", "uu_1"),
                 ur("emp_n", "CLIENT_SIGNER", "uu_1"),
@@ -196,7 +181,6 @@ class ClientExclusionTest {
         assertTrue(ex.getMessage().contains("使用单位档案"), "应引导至「使用单位档案」开通");
     }
 
-    // ── ③ 统计口径（无人数键，内部全量保持；客户令牌不可达由 T3 锁定） ──
 
     @Test
     void statsKeepsInternalTotalsAndHasNoHeadcount() {
@@ -220,7 +204,6 @@ class ClientExclusionTest {
                 "stats 不含人数统计键；客户令牌 GET /stats 已被 T3 白名单 403（AuthInterceptorV2Test）");
     }
 
-    // ── ④ CLIENT badges：本单位 + T4 可签口径 ──
 
     /** brief Step 1：CLIENT_ADMIN(uu_1) pendingSigns 只数本单位可签，不含 uu_2；不计 PENDING_CLIENT_SIGN、不计旧版本 */
     @Test
@@ -253,12 +236,10 @@ class ClientExclusionTest {
 
         assertEquals(1L, badges.get("pendingSigns"), "只计 本单位+可签+最新版本（ur_1）");
         assertEquals(0L, badges.get("pendingOrders"));
-        // P2 T5（N+1 消除）：链末端判定批量化——记录表至多 2 次查询（候选 1 + supersededIds 1），不再逐条 selectCount
         verify(records, never()).selectCount(any());
         verify(records, atMost(2)).selectList(any());
     }
 
-    /** 无锚点 fail-closed：计 0 且不再全表 count（修复跨单位数量泄漏的旧实现路径） */
     @Test
     @SuppressWarnings("unchecked")
     void clientBadgeWithoutAnchorFailClosed() {

@@ -1,7 +1,3 @@
-/**
- * 登录链路诊断：区分「后端拒绝」「前端逻辑」「守卫误跳」三类原因
- * 用法：node mp-diag.js <port> <phone> <password>
- */
 const automator = require('C:/Users/18223/AppData/Local/Temp/wxauto/node_modules/miniprogram-automator')
 const PORT = Number(process.argv[2] || 9420)
 const PHONE = process.argv[3]

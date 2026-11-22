@@ -1,4 +1,3 @@
-// 节标题（M2）：左标题 + 右可点文本动作
 Component({
   options: { addGlobalClass: true },
   properties: {

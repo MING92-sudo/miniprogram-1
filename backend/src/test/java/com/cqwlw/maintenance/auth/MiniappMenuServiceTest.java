@@ -21,10 +21,6 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/**
- * 小程序菜单下发（M1，规格 §3.4）：ROLE_TABS 逐字镜像蓝图 routes-and-menus.md L257–315，
- * 多角色并集去重 ≤5、workspace 切换、actions=PermissionMatrix 并集、badges 键存在。
- */
 class MiniappMenuServiceTest {
 
     private MiniappMenuService svc() {
@@ -161,11 +157,6 @@ class MiniappMenuServiceTest {
         assertTrue(badges.containsKey("pendingSigns"));
     }
 
-    /**
-     * 2026-11-21 真机反馈修复：「工单」角标=WorkOrderService.countActionableOrders
-     * （数据域内未闭环工单 PENDING/PROCESSING，与工单列表同 scopeOrders 谓词），
-     * 不再是 fault OPEN 计数（角标曾恒显示开放急修数 2，与工单页内容无关）。
-     */
     @Test
     @SuppressWarnings("unchecked")
     void ordersBadgeCountsActionableWorkOrders() {
@@ -184,7 +175,6 @@ class MiniappMenuServiceTest {
         assertEquals(7L, badges.get("pendingOrders"));
     }
 
-    /** P1 T5：CLIENT 角标只按本单位锚点（sys_user_role.org_id）+ T4 可签口径计数，不再全表 count（跨单位泄漏） */
     @Test
     @SuppressWarnings("unchecked")
     void clientPendingSignsBadgeScopedToOwnUnit() {
@@ -216,8 +206,6 @@ class MiniappMenuServiceTest {
         Map<String, Object> badges =
                 (Map<String, Object>) svc.menusOf(Set.of("CLIENT_ADMIN"), null, me).get("badges");
         assertEquals(1L, badges.get("pendingSigns"));
-        // P2 T5（N+1 消除）：链末端判定走共享 supersededIds 批量查询（第二次 selectList 命中同一 stub，
-        // r.prevVersionId=null → 无被替代），记录表至多 2 次查询、不再逐条 selectCount
         verify(records, never()).selectCount(any());
         verify(records, atMost(2)).selectList(any());
     }
@@ -230,7 +218,6 @@ class MiniappMenuServiceTest {
                 keys(svc().menusOf(Set.of("INSTALLER"), null, null)));
     }
 
-    /** 2026-11-21 修复：别名角色 home 归属最近工作台（原 resolveHome 无 TABS_ALIAS 兜底，落在「我的」页） */
     @Test
     void extensionRolesHomeFallsToAliasWorkspace() {
         assertEquals("/pages/maint/home/index", svc().menusOf(Set.of("MAINT_QUALITY"), null, null).get("home"));
@@ -253,7 +240,7 @@ class MiniappMenuServiceTest {
         assertFalse(keys(out).isEmpty());
     }
 
-    /** 2026-11-15 裁决：SYS_ADMIN 平台域首页/5tabs；维保工作台仅保留现行工单与计划入口。 */
+    /** 维保工作台仅保留现行工单与计划入口。 */
     @Test
     void sysAdminPlatformHomeAndTabs() {
         Map<String, Object> out = svc().menusOf(Set.of("SYS_ADMIN"), null, null);

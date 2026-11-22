@@ -21,11 +21,7 @@ import java.util.Map;
 
 import static com.cqwlw.maintenance.util.JsonUtil.MAPPER;
 
-/**
- * 平台业务接口转发（docs/04 B.2/B.7 实测口径）：
- * POST + x-www-form-urlencoded 表单；code 兼容数字/字符串 "200"；
- * HTTP 401 → 清 token 缓存重登并重试 1 次。
- */
+/** code 兼容数字/字符串 "200"； */
 @Service
 public class PlatformClient {
 
@@ -34,7 +30,6 @@ public class PlatformClient {
     private final PlatformProperties props;
     private final RestTemplate restTemplate;
     private final PlatformTokenService tokenService;
-    /** 2.3/2.4 文件转发专用：读超时 120s（docs/04 A.0 大文件口径），避免默认 30s 掐断大附件 */
     private final RestTemplate uploadRestTemplate = newUploadRestTemplate(120_000);
 
     public PlatformClient(PlatformProperties props, RestTemplate restTemplate, PlatformTokenService tokenService) {
@@ -104,11 +99,6 @@ public class PlatformClient {
         return List.of();
     }
 
-    /**
-     * 2.6 记录上报（docs/07-full-test 实测：POST /elevator/maintenanceRecord，20 字段表单）。
-     * reportPayload 为签退冻结快照，直接取用不重新组装（docs/08 V1.4）；
-     * problemCode 传 JSON 数组字符串（docs/04 B.6 V1.1：数组是确定答案）。
-     */
     public Map<String, Object> uploadMaintenanceRecord(Map<String, Object> payload) {
         MultiValueMap<String, String> form = new org.springframework.util.LinkedMultiValueMap<>();
         payload.forEach((k, v) -> {
@@ -124,8 +114,6 @@ public class PlatformClient {
         return postForm("/elevator/maintenanceRecord", form);
     }
 
-    /** 2.8 存量上报（POST /record/uploadMaintainRecord）：与 2.6 报文差异——不带 workMan1Id/2Id，
-     * 须传 workManName1/2 姓名（规范必填） */
     public Map<String, Object> uploadLegacyRecord(Map<String, Object> payload,
                                                   String workManName1, String workManName2) {
         Map<String, Object> legacy = new java.util.LinkedHashMap<>(payload);
@@ -156,14 +144,12 @@ public class PlatformClient {
         return List.of();
     }
 
-    /** 2.3 建立维保服务关系（multipart + contractFile，参数名按实测 useUnitName，docs/07） */
     public Map<String, Object> registerServiceState(Map<String, String> fields,
                                                     byte[] contractFile, String contractFilename) {
         return postMultipart("/entity/updateServiceState", fields, "contractFile",
                 contractFile, contractFilename);
     }
 
-    /** 2.4 登记维保人员（multipart + certificateFile，docs/07 实测口径） */
     public Map<String, Object> registerWorkerState(Map<String, String> fields,
                                                    byte[] certificateFile, String certificateFilename) {
         return postMultipart("/entity/updateWorkState", fields, "certificateFile",
@@ -285,7 +271,7 @@ public class PlatformClient {
             }
             return body;
         } catch (HttpClientErrorException.Unauthorized e) {
-            // HTTP 401：清缓存重登，重试 1 次（docs/04 B.1 实测结论）
+            // HTTP 401：清缓存重登，重试 1 次
             log.info("平台 token 失效，清缓存重登重试: path={}", path);
             tokenService.invalidate();
             throw new TokenExpired();

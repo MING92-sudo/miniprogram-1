@@ -1,7 +1,4 @@
-/**
- * 客户令牌「员工端点白名单」穿透测试：一次性找出所有"白名单放行但 controller 只认员工主体"的端点。
- * 判据：白名单内的读接口返回 1403/401/空结果 = 主体支持不完整（客户被放行却拿不到自己的数据）。
- */
+/** 客户令牌「员工端点白名单」穿透测试：一次性找出所有"白名单放行但 controller 只认员工主体"的端点。 */
 const { get, post, login, colors } = require('./lib')
 const { accounts, seed } = require('./seed')
 

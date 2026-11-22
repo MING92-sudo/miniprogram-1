@@ -5,10 +5,6 @@ import com.cqwlw.maintenance.util.JsonUtil;
 import java.util.List;
 import java.util.Map;
 
-/**
- * 内存分页（管理端列表通用）：{@code {list, total}}，page 从 1 开始，size 默认 20。
- * 数据量级为单维保单位的移交/建档单，先内存分页；将来上量再下沉到 SQL 分页。
- */
 public final class Paginate {
 
     private Paginate() {

@@ -19,8 +19,7 @@ page{background:var(--ink);color:var(--text)}
   background: var(--em-brand);
 }
 
-/* 注意：列表卡片不得使用 .row 类——全局 .bw .row{display:flex}（tokens.wxss）优先级更高，
-   会把卡片变成横向 flex，单号被挤压成逐字竖排（2026-11-21 真机反馈）。卡片纵向堆叠靠 view 默认 block。 */
+/** 注意：列表卡片不得使用 .row 类——全局 .bw .row{display:flex}（tokens.wxss）优先级更高，会把卡片变成横向 flex，单号被挤压成逐字竖排。 */
 
 .row-head {
   display: flex;

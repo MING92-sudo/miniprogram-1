@@ -22,8 +22,7 @@ function updateFault(id, data) {
   return put(`/faults/${id}`, data)
 }
 
-// 急修单闭环：处理结果 + 使用单位安全管理员签字（docs/01 §3.9.2）
-// 契约保留、小程序暂无入口：现闭环走 submit → confirm（使用单位确认）
+// 急修单闭环：处理结果 + 使用单位安全管理员签字契约保留、小程序暂无入口：现闭环走 submit → confirm（使用单位确认）
 function closeFault(id, data) {
   return post(`/faults/${id}/close`, {
     result: data.result,
@@ -31,7 +30,6 @@ function closeFault(id, data) {
   })
 }
 
-// M1 急修七态（docs/04 V2.53）：抢单/到场打卡/提交/使用单位确认/取消/评价
 function grabFault(id) {
   return post(`/faults/${id}/grab`, {})
 }

@@ -1,5 +1,3 @@
-// 维保双人签字（M3，屏 05）：主检/配合各签各的（POST /work-orders/{id}/signature，后端严格校验角色）+ 版本号/哈希核对。
-// 同一账号不能同时主检与配合；双签齐才可发起使用单位签字（record-detail）。
 const { getOrderDetail, signOrder } = require('../../../services/order')
 const { uploadImage } = require('../../../services/upload')
 const { getUserInfo } = require('../../../utils/auth')
@@ -23,7 +21,6 @@ definePage(ROUTES['/pkg-maintenance/pages/record-sign/index'], {
   fetchOrder() {
     this.setData({ loading: true, error: '' })
     getOrderDetail(this.data.orderId).then((order) => {
-      // 布尔口径 workerSigned/assistantSigned（WorkOrderService.toMap）；文本/主按钮随状态投影（2026-11-16 审查修复）
       this.setData(Object.assign({ order: order, loading: false }, buildSignState(order, getUserInfo() || {})))
     }).catch((e) => this.setData({ loading: false, error: (e && e.message) || '加载失败' }))
   },

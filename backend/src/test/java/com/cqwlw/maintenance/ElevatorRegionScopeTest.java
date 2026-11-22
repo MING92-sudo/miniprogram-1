@@ -31,15 +31,6 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/**
- * 电梯读/写谓词的区域化（区域抢单池 D2/M9 配套，2026-11-21 审查裁决必修缺口）：
- * 池化新梯不再写 worker/assistant 绑定字段（恒 NULL），旧「按绑定 platformId 匹配」谓词
- * 导致非管理角色对池化新梯恒不可见/恒 1403。新口径：
- * 读（listView/profile）——管理角色（ids==null）旁路；非管理角色按区域匹配键
- * （电梯 regionId 空=不限区域放行，或 == 登录人 regionId）。
- * 写（updateProjectName/updateLocal）——不扩区域（AGENTS §3.1）：该梯在途工单（status≠DONE）的
- * 主/配合 platformId 命中登录人，或管理角色。
- */
 class ElevatorRegionScopeTest {
 
     private ElevatorMapper elevatorMapper;
@@ -78,7 +69,6 @@ class ElevatorRegionScopeTest {
         el.elevatorCode = "CQ-" + id;
         el.elevatorName = "验证梯 " + id;
         el.regionId = regionId;
-        // 池化新梯：绑定字段恒 NULL（Task 11 起建档/移交均不再写入）
         return el;
     }
 

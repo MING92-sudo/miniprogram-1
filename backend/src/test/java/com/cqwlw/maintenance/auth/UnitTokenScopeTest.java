@@ -15,10 +15,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-/**
- * 门户令牌的作用域（docs/14 §4 部门域互斥）：使用单位账号只能打 /unit/** 与 /files/**，
- * 借门户令牌读取移交单、工单等员工端点必须 403。
- */
+/** 门户令牌的作用域：使用单位账号只能打 /unit/** 与 /files/**，借门户令牌读取移交单、工单等员工端点必须 403。 */
 class UnitTokenScopeTest {
 
     private static AuthInterceptor interceptor(String subject, boolean unitToken) {
@@ -63,7 +60,6 @@ class UnitTokenScopeTest {
         assertTrue(interceptor("uu_1", true).preHandle(req("/files/upload"), null, null));
     }
 
-    // ── M1：门户读端点改统一令牌 + CLIENT 本单位谓词 ──
 
     private com.cqwlw.maintenance.service.UnitRecordService recordService(
             com.cqwlw.maintenance.mapper.MaintainRecordMapper records,
@@ -84,7 +80,6 @@ class UnitTokenScopeTest {
         r.id = id;
         r.elevatorCode = elevatorCode;
         r.confirmStatus = "PENDING";
-        // P1 T4：客户待签列表只认唯一可签状态（docs/14 §4.6），门禁前置后 fixture 须为可签记录
         r.lifecycleStatus = "PENDING_CLIENT_SIGNATURE";
         return r;
     }
@@ -111,7 +106,6 @@ class UnitTokenScopeTest {
     void clientPendingOnlyOwnUnit() {
         var records = mock(com.cqwlw.maintenance.mapper.MaintainRecordMapper.class);
         var elevators = mock(com.cqwlw.maintenance.mapper.ElevatorMapper.class);
-        // P2b T9：归属改看记录快照列；r1 快照 u1、r2 快照 u2（他单位）→ 只见 r1
         com.cqwlw.maintenance.entity.MaintainRecord r1 = record("r1", "DT-1");
         r1.useUnitId = "u1";
         com.cqwlw.maintenance.entity.MaintainRecord r2 = record("r2", "DT-2");

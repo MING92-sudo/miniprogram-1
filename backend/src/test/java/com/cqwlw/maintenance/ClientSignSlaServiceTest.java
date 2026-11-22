@@ -16,7 +16,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-/** 签字 SLA（V56）：缺省 72h / 配置生效 / 非法值回退；起算=signRequestedAt、旧记录回退 createdAt */
 class ClientSignSlaServiceTest {
 
     private static ClientSignSlaService service(String cfgValue) {

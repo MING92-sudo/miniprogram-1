@@ -1,4 +1,3 @@
-// 校验 TSG T5002—2017 附件A—D 检查项模板数量、编码与关键项规则
 const {
   APPENDIX_TPLS,
   FREQ_CHAIN,

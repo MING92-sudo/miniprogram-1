@@ -1,12 +1,4 @@
-// C-24 闭环走查（mock 模式）：员工内部读记录详情 GET /records/{id}（record:view + V7 班组谓词）。
-// ① MAINT_TECH（李振国，platformId 命中 ur_1 主维保）→ record-detail?recordId=ur_1 真实谓词 200 渲染；
 // ② MAINT_MGR（赵经理，主角色规范码不落旧码 DEPT_WIDE 集合 → 本人兜底 fail-closed）→ 同页 1403 错误提示；
-// ③ 服务层直调 getRecordDetail 不存在记录 1404（内部路径保持）。
-// 用法: node c24-record-detail.js [--full]（需 IDE 服务端口 + useMock=true + packOptions 去 mock 排除；跑完还原）
-//   默认仅跑①段（单次登录，可重复执行，D-03 口径）；--full 追加②③段（多次登录）。
-// 2026-11-17 实测：① 6 项全 PASS（截图 shots/c24-record-detail-tech.png）；②③ 在第二次 login 处
-// automator 超时挂起（docs/12 V1.17 连续 reLaunch 已知限制，两次复现）→ 按门禁规则停跑；
-// 1403/1404/浅拷贝谓词等价已由 scripts/verify-p1-mock.js B8/I1/I2（Node 级 47 项）覆盖，UI 1403 提示归人工门禁。
 const automator = require('miniprogram-automator'); const path = require('path')
 const sleep = ms => new Promise(r => setTimeout(r, ms))
 const FULL = process.argv.includes('--full') // ②③段多次登录有 IDE 挂起风险（V1.17），默认只跑①段
@@ -22,7 +14,7 @@ async function login(mp, account) {
   await page.setData({ phone: account, password: '123456', agreed: true })
   await page.callMethod('onSubmit'); await sleep(2600)
 }
-// IDE 自动化连续 reLaunch 偶发时序抖动（docs/12 V1.17 环境限制）：轮询页面数据就绪，导航失败重试一次
+// IDE 自动化连续 reLaunch 偶发时序抖动：轮询页面数据就绪，导航失败重试一次
 async function waitData(mp, pred, tries) {
   for (let i = 0; i < (tries || 12); i++) {
     const p = await mp.currentPage(); const d = await p.data()

@@ -12,10 +12,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * 设备信息档案字段口径（用户 2026-11-19）：8 项字段、前 5 项为上传维保记录必传项。
- * 标签属对外口径——`注册代码` 不等于 `产品编号`，`电梯编码` 不等于 `设备代码`，标签写错即测试失败。
- */
 class DeviceProfileValidatorTest {
 
     private static Elevator complete() {

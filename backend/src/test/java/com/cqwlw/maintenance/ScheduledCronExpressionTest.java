@@ -16,14 +16,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * 回归闸门：`@Scheduled` 的 cron 表达式必须能被 Spring 解析。
- *
- * <p>背景：曾出现 `cron = "17 4* * * ?"` 只有 5 段，Spring CronExpression 要求 6 段
- * （秒 分 时 日 月 周），该 Bean 解析失败会抛 UnsatisfiedDependencyException 导致整个
- * Spring 上下文无法启动；而默认 mvn test 中 DB 集成测试会跳过、从不加载上下文，
- * 使该缺陷被"全绿"完全掩盖。
- */
+/** 回归闸门：`@Scheduled` 的 cron 表达式必须能被 Spring 解析。 */
 class ScheduledCronExpressionTest {
 
     private static final String BASE_PACKAGE = "com.cqwlw.maintenance";

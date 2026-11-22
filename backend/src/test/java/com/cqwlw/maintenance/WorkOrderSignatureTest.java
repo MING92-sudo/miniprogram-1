@@ -37,11 +37,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/**
- * 双人维保协同：签字各自手机签（docs/01 §3.7.5，用户需求 2026-11-11）。
- * ①签字严格各签各的：普通作业人员仅可签本人对应角色，组长/管理员可代签；
- * ②仅 PROCESSING 状态可签；③签退仅主维保可操作（配合人员不可代签退，防平台 2.6 虚假数据）。
- */
+/** ①签字严格各签各的：普通作业人员仅可签本人对应角色，组长/管理员可代签； */
 class WorkOrderSignatureTest {
 
     private static final String GROUP = "维保一班";
@@ -127,7 +123,6 @@ class WorkOrderSignatureTest {
         verify(orderMapper, never()).updateById(any(WorkOrder.class));
     }
 
-    /** 组长可代签（对本组负责，docs/01 §3.7.5） */
     @Test
     void leaderCanSignAnyRole() {
         service.signOrder(DUAL_ORDER, sign("ASSISTANT", "file_by_leader"), EMP_CHEN);

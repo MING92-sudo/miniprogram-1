@@ -1,5 +1,4 @@
 page{background:var(--ink);color:var(--text)}
-/* 日历条目执行状态徽标（PLANNED/DISPATCHED/DONE/OVERDUE，docs/04 A.x GET /maintenance-calendar） */
 .st{font-size:20rpx;line-height:1.5;padding:2rpx 12rpx;border-radius:8rpx;border:1rpx solid var(--line-2)}
 .st-PLANNED{color:var(--dim)}
 .st-DISPATCHED{color:var(--amber);border-color:var(--amber)}

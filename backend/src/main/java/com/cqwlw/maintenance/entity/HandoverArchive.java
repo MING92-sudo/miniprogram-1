@@ -6,7 +6,6 @@ import lombok.Data;
 
 import java.time.LocalDateTime;
 
-/** 移交归档目录 + SHA-256（C-12，4 年留存）。 */
 @Data
 @TableName("handover_archive")
 public class HandoverArchive {

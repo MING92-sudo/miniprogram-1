@@ -18,10 +18,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-/**
- * 区域可见范围（Task 8，设计文档 §8）：区域=读范围，班组与本人继续有效；
- * 写谓词（visibleWorkerPlatformIds）保持不变——区域不能扩到签到/签退，否则等于代签到。
- */
 class RegionScopeTest {
 
     private static Employee emp(String id, String role, String regionId, String groupName, String platformId) {
@@ -92,10 +88,6 @@ class RegionScopeTest {
         assertNull(svc.visibleReadPlatformIds(emp("q", "MAINT_QUALITY", "r1", null, "wp_q")));
     }
 
-    /**
-     * 合规红线（AGENTS §3.1）：写谓词不受区域影响。
-     * 同区域同事的工单 → 仍 1403，否则可代签到、代签退并向监管平台写入虚假数据。
-     */
     @Test
     void writeScopeStaysStrictEvenInSameRegion() {
         Employee me = emp("emp_a", "WORKER", "r1", "g1", "wp_a");
@@ -129,8 +121,6 @@ class RegionScopeTest {
         assertEquals(401, ex.getCode());
     }
 
-    /** C-26 规范码归一（2026-11-20）：MAINT_MGR=旧码 MAINT_MANAGER 同口径部门级全量读（null 不限），
-     *  修复前规范码主角色落空回退本人兜底，经理读列表恒空（真机实测缺陷） */
     @Test
     void canonicalMaintMgrGetsDeptWideRead() {
         Employee mgr = emp("emp_m", "MAINT_MGR", null, null, "wp_m");
@@ -138,7 +128,7 @@ class RegionScopeTest {
         assertNull(svc.visibleReadPlatformIds(mgr));
     }
 
-    /** C-26：MAINT_SUP=旧码 LEADER 同口径——本班组读+写谓词，不再本人兜底 */
+    /** MAINT_SUP=旧码 LEADER 同口径——本班组读+写谓词，不再本人兜底 */
     @Test
     void canonicalMaintSupGetsTeamScope() {
         Employee sup = emp("emp_s", "MAINT_SUP", null, "g1", "wp_s");
@@ -148,7 +138,6 @@ class RegionScopeTest {
         assertEquals(Set.of("wp_s", "wp_t"), svc.visibleWorkerPlatformIds(sup));
     }
 
-    /** C-26：PLATFORM_ADMIN=旧码 ADMIN 同口径——读/写/急修谓词均不限（null） */
     @Test
     void canonicalPlatformAdminUnrestricted() {
         Employee pa = emp("emp_p", "PLATFORM_ADMIN", null, null, null);
@@ -158,7 +147,6 @@ class RegionScopeTest {
         assertNull(svc.visibleCreatorIds(pa));
     }
 
-    /** C-26：规范安装码不接触作业域（空集 fail-closed，与旧码三岗同口径） */
     @Test
     void canonicalInstallRolesNoFieldAccess() {
         EmployeeScopeService svc = service(List.of(), List.of());

@@ -8,7 +8,6 @@ import java.nio.charset.StandardCharsets;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** V35/V36 结构不变量（无测试库，按 classpath SQL 文本断言；spec §7.2）。 */
 class RbacV2MigrationTest {
 
     private String sql(String name) throws Exception {
@@ -47,7 +46,6 @@ class RbacV2MigrationTest {
         assertTrue(s.contains("INSERT IGNORE INTO sys_org"), "缺 sys_org 节点");
         assertTrue(s.contains("MAINT_TECH"), "ASSISTANT/WORKER 应合并映射 MAINT_TECH");
         assertTrue(s.contains("CLIENT_ADMIN"), "use_unit 账号应回填 CLIENT_ADMIN");
-        // 旧→新映射方向（spec §6.1 / M0 表1）
         assertTrue(s.contains("INSTALL_MANAGER") && s.contains("INST_PM"), "INSTALL_MANAGER→INST_PM");
         assertTrue(s.contains("LEADER") && s.contains("MAINT_SUP"), "LEADER→MAINT_SUP");
         String up = s.toUpperCase();

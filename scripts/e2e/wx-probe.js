@@ -1,5 +1,4 @@
-// 微信登录 API 真实链路探测：模拟器 wx.login 取 code → 云托管 /auth/wx-login（jscode2session）。
-// 只读探测：不落地会话；token 脱敏不打印。
+// 只读探测：不落地会话；
 const automator = require('miniprogram-automator'); const path = require('path')
 const sleep = ms => new Promise(r => setTimeout(r, ms))
 ;(async () => {

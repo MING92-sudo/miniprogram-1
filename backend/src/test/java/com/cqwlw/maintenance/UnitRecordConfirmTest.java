@@ -19,11 +19,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/**
- * 使用单位确认（本机确认端点 POST /unit/records/{id}/confirm）：
- * 已确认记录不可被二次提交覆盖签字/满意度——与 confirmByToken 行为一致
- * （docs/05 §2.9 冻结与不可变、§10.4 #13「确认后状态不可重复提交」）。
- */
+/** 使用单位确认（本机确认端点 POST /unit/records/{id}/confirm）：已确认记录不可被二次提交覆盖签字/满意度——与 confirmByToken 行为一致。 */
 class UnitRecordConfirmTest {
 
     private static final String RECORD_ID = "ur_1";

@@ -1,6 +1,3 @@
-// 2026-11-16 审查修复 automator 走查·移交审核链（mock 模式，独立会话）：
-// 创建→缺件 422→齐件提交→PENDING_INST_REVIEW→MGR 详情 canReview→审核页通过→INSPECTING。
-// 用法: node review-handover-chain.js（需 IDE 自动化端口；与 review-fixes-flow.js 分会话跑，规避长会话挂起）
 const automator = require('miniprogram-automator'); const path = require('path')
 const sleep = ms => new Promise(r => setTimeout(r, ms))
 let fail = 0
@@ -15,7 +12,7 @@ async function login(mp, account) {
   await page.setData({ phone: account, password: '123456', agreed: true })
   await page.callMethod('onSubmit'); await sleep(2600)
 }
-// IDE 自动化连续 reLaunch 偶发时序抖动（docs/12 V1.17 环境限制）：轮询页面数据就绪，导航失败重试一次
+// IDE 自动化连续 reLaunch 偶发时序抖动：轮询页面数据就绪，导航失败重试一次
 async function waitData(mp, pred, tries) {
   let last = null
   for (let i = 0; i < (tries || 12); i++) {

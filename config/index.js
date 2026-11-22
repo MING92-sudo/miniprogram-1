@@ -1,19 +1,11 @@
-// 全局配置
-// dev = 本地自建后端（日常开发默认）；prod = 云托管（部署/云端联调用 wx.cloud.callContainer，见 docs/11）
 const ENV = 'prod'
 
 const API_BASE_URL = {
-  // dev：自建后端（P2 最小代理：平台 token 中控 + 41 条业务契约，docs/08 P2）。
-  // 本地开发：backend/ Spring Boot 默认 8080（开发者工具需开启"不校验合法域名"）
-  // 真机联调：用电脑局域网 IP（手机须与电脑同一 Wi-Fi），本机 8080 已放通防火墙
-  // 云托管联调：改为云托管域名（容器监听 80），路由与本地完全一致
-  // 注意：监管平台凭证（.env 中 REG_*）只存在于后端进程，小程序代码中严禁出现
+  // 真机联调使用局域网 IP；监管平台凭证只能放后端。
   dev: 'http://192.168.1.2:8080',
   prod: 'https://springboot-l1ws-321794-10-1498557567.sh.run.tcloudbase.com'
 }
 
-// 云托管（微信云开发）：小程序经 wx.cloud.callContainer 调容器，走微信↔腾讯私有链路，免配 request 合法域名。
-// env   = 云开发环境 ID（环境名 prod，微信云托管）；service = 云托管服务名（控制台「环境/服务」页可查）。
 // 上传仍走 wx.uploadFile（callContainer 只收 JSON），该域名需配到「uploadFile 合法域名」。
 const CLOUD = {
   enabled: ENV === 'prod', // ★ callContainer 私有链路：免域名、免备案、免配 request 合法域名
@@ -23,16 +15,13 @@ const CLOUD = {
 
 const config = {
   env: ENV,
-  // ★ 前端独立开发开关：true = 全部接口走 mock/ 本地数据（无需后端）
-  //   后端就绪联调时改为 false，services 层接口签名不变
+  // ★ 前端独立开发开关：true = 全部接口走 mock/ 本地数据（无需后端）后端就绪联调时改为 false，services 层接口签名不变
   useMock: false,
   apiBaseUrl: API_BASE_URL[ENV],
   cloud: CLOUD,
   requestTimeout: 15000, // 普通请求 15s（接口文档 A.0 约定）
   uploadTimeout: 120000, // 文件上传 120s
   pageSize: 20, // 分页默认 size
-  // 作业时长下限（分钟，签到→签退；docs/01 §3.6.4 业主补充规则，上线前待业务/合规确认）。
-  // ★ 测试跑通签退流程时临时调小/置 0；回归验收后务必恢复 30。
   minWorkDurationMinutes: 30
 }
 

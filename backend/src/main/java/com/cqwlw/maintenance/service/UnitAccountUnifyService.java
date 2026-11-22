@@ -16,22 +16,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/**
- * 使用单位门户账号迁移（V34 遗留 use_unit.account → P3 客户账号表）。
- *
- * <p>口径修正（2026-11-19）：V41 曾把门户账号并进 sys_employee（角色 CLIENT_ADMIN），
- * 与 P3「客户账号独立于员工体系」（docs/14 §6，R7）冲突——同一个人出现两套登录身份，
- * 停用一处另一处仍可登录。现统一迁移目标为 <b>client_account</b>，员工表不再承载客户主体。
- *
- * <p>规则：
- * <ul>
- *   <li>手机号已被内部员工占用：不开通（跨主体互斥，R2/R7），保持 account_migrated=0 待人工处理；</li>
- *   <li>同单位同手机号已有客户账号：幂等跳过，只补标记；</li>
- *   <li>口令沿用门户口令哈希；缺失时用手机号后 6 位（与 ClientAccountService 初始口令同口径）；</li>
- *   <li>同一单位内 openid 已被其他客户账号占用则不复制（不抢夺微信绑定）；</li>
- *   <li>只 INSERT/UPDATE，不 DELETE（审计留存）。</li>
- * </ul>
- */
+/** </li><li>同单位同手机号已有客户账号：幂等跳过，只补标记； */
 @Service
 public class UnitAccountUnifyService {
 

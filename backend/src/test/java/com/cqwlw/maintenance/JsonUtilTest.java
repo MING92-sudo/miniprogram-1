@@ -9,12 +9,7 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-/**
- * JsonUtil 回归：隐患码 / 照片 URL 这类 JSON 列存的是**字符串数组**（WorkOrderService 签退冻结快照），
- * 必须用 readStringList 解析。历史上用 readList（List&lt;Map&gt;）会在签退与种子数据阶段抛
- * IllegalStateException（"Cannot construct instance of LinkedHashMap ... from String value ('S5')"），
- * 导致后端启动失败（SEED_DEMO_DATA=true）与工单/使用单位接口 500。
- */
+/** JsonUtil 回归：隐患码 / 照片 URL 这类 JSON 列存的是**字符串数组**（WorkOrderService 签退冻结快照），必须用 readStringList 解析。 */
 class JsonUtilTest {
 
     @Test

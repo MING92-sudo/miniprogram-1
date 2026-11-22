@@ -1,5 +1,3 @@
-// 自定义底部导航（M2，规格 §1.2）：4–5 项自适应等宽、角标、safe-area；tab 切换 reLaunch 清栈。
-// 数据源 globalData.tabs/badges（/me/menus 下发）；active 由当前路由匹配。
 const { ICONS } = require('../../config/icons')
 const nav = require('../../utils/nav')
 

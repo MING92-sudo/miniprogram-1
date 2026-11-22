@@ -1,8 +1,3 @@
-/**
- * 小程序端 BUG 探测（第三轮）：带真实 id 的纵深巡检 + 多角色
- * 用法：node mp-bugs-3.js <port> <phone> <password> <tag>
- * 思路：先登录 → 列表页取真实 id → 带 id 打开详情页 → 校验 error / 关键字段
- */
 const fs = require('fs')
 const path = require('path')
 const automator = require('C:/Users/18223/AppData/Local/Temp/wxauto/node_modules/miniprogram-automator')
@@ -74,8 +69,7 @@ async function main() {
 
   // 登录（definePage 包装后方法挂载有时序竞态，重试 3 次并区分"未挂载"与"凭证错"）
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
-  // 关键：先清登录态。IDE 会保留上次会话的 em_token，guard 直接把页面导向上次角色的首页，
-  // 会让"登录失败"看起来像"登录成功但分流错误"（第一轮就踩了，三个账号全落同一页）。
+  // 清理 IDE 保留的会话，避免旧角色首页干扰登录结果判断。
   await mini.evaluate(function () {
     try {
       wx.clearStorageSync()

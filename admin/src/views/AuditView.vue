@@ -34,8 +34,7 @@
   </div>
 </template>
 <script setup>
-// 审计日志（原型 Views.audit 对齐）：只读，无删除/编辑入口；动作/结果筛选 + 导出
-// 真实 API：GET /audit?limit=200 → SysAuditLog[]（actorId/actorRole/action/target/orgId/projectId/ip/result/hashRef/createdAt）
+// 审计日志（原型 Views.audit 对齐）：只读，无删除/编辑入口；
 import { ref, computed, onMounted } from 'vue'
 import http from '../api/client'
 import DataTable from '../ui/DataTable.vue'

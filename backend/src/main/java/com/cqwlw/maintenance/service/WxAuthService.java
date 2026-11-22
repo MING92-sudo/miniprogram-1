@@ -27,13 +27,7 @@ import java.util.Map;
 
 import static com.cqwlw.maintenance.util.JsonUtil.MAPPER;
 
-/**
- * 微信小程序登录凭证校验（code → openid，微信 auth.code2Session）：
- * GET https://api.weixin.qq.com/sns/jscode2session?appid=&secret=&js_code=&grant_type=authorization_code
- *
- * <p>openid 只能由微信签发的 code 换取，禁止用 dev_openid 或客户端可控值兜底——否则全员落库
- * 同一 openid，按 openid 查人会串号。凭证只存在于后端；日志不打印 code/secret/完整 openid。
- */
+/** openid 只能由 code 换取，禁止客户端可控值兜底。 */
 @Service
 public class WxAuthService {
 
@@ -54,13 +48,7 @@ public class WxAuthService {
         return props.wxConfigured();
     }
 
-    /**
-     * 用 wx.login 的 code 换取真实 openid。
-     *
-     * @throws BizException 422 缺 code 或 code 无效/已使用/超频（客户端应重新 wx.login；<b>不能用 401</b>——
-     *                      前端 request.js 对 401 会清登录态，bind-wechat 刚登录完就可能被误登出）；
-     *                      2001 未配置 WX_APPID/WX_APPSECRET 或微信接口不可用（服务端问题）
-     */
+    /** 用 wx.login 的 code 换取真实 openid。 */
     public String openidFromCode(String code) {
         if (code == null || code.trim().isEmpty()) {
             throw new BizException(422, "缺少微信 code，请重新进入小程序登录");
@@ -95,8 +83,7 @@ public class WxAuthService {
         } catch (BizException e) {
             throw e;
         } catch (Exception e) {
-            // 只记异常类型与脱敏后的 cause：请求 URL 含 appid/secret/js_code，
-            // HttpURLConnection 非 2xx 的 IOException message 会回显完整 URL，落日志前必须截掉查询串（AGENTS §2.6）
+            // 异常日志只保留脱敏信息，必须移除 URL 查询串。
             Throwable cause = e.getCause();
             log.warn("微信 jscode2session 请求异常: {} cause={} {}", e.getClass().getSimpleName(),
                     cause == null ? "-" : cause.getClass().getSimpleName(),
@@ -108,12 +95,7 @@ public class WxAuthService {
         }
     }
 
-    /**
-     * 异常 message 落日志前脱敏：截掉 URL 查询串（appid/secret/js_code 均在查询参数），
-     * 保留 HTTP 码/主机路径等排障上下文；空消息归一为 "-"。
-     * @param msg 原始异常 message（可能为 null）
-     * @return 不含凭证查询参数的日志安全文本
-     */
+    /** @param msg 原始异常 message（可能为 null）@return 不含凭证查询参数的日志安全文本 */
     static String sanitizeCauseMessage(String msg) {
         if (msg == null || msg.isEmpty()) {
             return "-";
@@ -190,10 +172,7 @@ public class WxAuthService {
         }
     }
 
-    /**
-     * 云环境出口网关 TLS 拦截适配（C-14）：默认严格 PKIX；仅当对端符合自签+固定 CN 画像且
-     * SHA-256 命中 WX_GATEWAY_TRUSTED_SHA256 显式白名单时放行。未配置指纹一律拒绝，绝不只凭 CN 信任。
-     */
+    /** 未配置指纹一律拒绝，绝不只凭 CN 信任。 */
     public static final class GatewayAwareTrustManager implements X509TrustManager {
         private final X509TrustManager delegate;
         private final java.util.Set<String> trustedFingerprints;

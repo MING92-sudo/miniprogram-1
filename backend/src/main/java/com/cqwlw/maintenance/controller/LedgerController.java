@@ -28,10 +28,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * M3 台账域端点：组织树/项目/邀请/限时授权/电梯双人变更/角色矩阵（只读）。
- * 新码门控走 MultiRoleGate（多角色三态），不依赖 AdminRoleInterceptor 旧两档。
- */
 @RestController
 public class LedgerController {
 
@@ -55,7 +51,6 @@ public class LedgerController {
         return ApiResponse.ok(ledger.orgTree());
     }
 
-    /** 组织节点可见成员（组织架构成员面板数据源，D1）；与 GET /org 同码门禁 */
     @GetMapping("/org/{id}/members")
     public ApiResponse<List<Map<String, Object>>> orgMembers(@PathVariable String id, HttpServletRequest req) {
         MultiRoleGate.requireRead(req, PermissionMatrix.USER_VIEW);

@@ -1,5 +1,4 @@
-// 微信开发者工具 MCP stdio 客户端（本地走查辅助）。token 运行时从 DevTools 本地 mcp.json 读取，严禁写入代码/入库。
-// 用法: node mcp-client.js list | node mcp-client.js call <tool> [jsonArgs]
+// token 运行时从 DevTools 本地 mcp.json 读取，严禁写入代码/入库。
 const { spawn } = require('child_process')
 const fs = require('fs')
 const path = require('path')

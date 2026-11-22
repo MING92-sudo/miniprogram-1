@@ -21,9 +21,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-/**
- * 电梯档案视图（docs/01 §3.4.1 + 平台 2.7 回填字段，字段名与前端契约一致）。
- */
 @Service
 public class ElevatorService {
 
@@ -53,15 +50,12 @@ public class ElevatorService {
     }
 
     public List<Map<String, Object>> listView(String empId) {
-        // 读范围（区域抢单池 D2/M9 配套，2026-11-21 裁决）：管理角色（ids==null）不限；
-        // 非管理角色按区域匹配键——电梯不限区域（regionId 空）或与登录人同区域可见。
-        // 电梯绑定字段（worker/assistant platformId）池化后不再写入（Task 11），不作归属键。
+        // 电梯绑定字段（worker/assistant platformId）池化后不再写入，不作归属键。
         Employee e = scopeService.require(empId);
         Set<String> ids = scopeService.visibleReadPlatformIds(e);
         String maintUnitName = maintUnitName();
         return elevatorMapper.selectList(new LambdaQueryWrapper<Elevator>().orderByAsc(Elevator::getId))
                 .stream()
-                // 停用（INACTIVE）电梯小程序不可见（docs/09 §6.6 / V8 迁移注释）；status 多为 NULL，故在内存过滤
                 .filter(el -> !"INACTIVE".equals(el.status))
                 .filter(el -> ids == null || regionVisible(el, e))
                 .map(el -> mapRow(el, maintUnitName)).toList();
@@ -75,10 +69,7 @@ public class ElevatorService {
         return el.regionId.equals(e.regionId);
     }
 
-    /**
-     * 写谓词（AGENTS §3.1 写绝不扩区域）：认领制下「本人负责」= 本人作为主维保/配合人持有
-     * 该梯在途工单（status≠DONE，已签退 DONE 工单不再构成维护授权）。platformId 缺失 fail-closed。
-     */
+    /** 写谓词（AGENTS §3.1 写绝不扩区域）：认领制下「本人负责」= 本人作为主维保/配合人持有该梯在途工单（status≠DONE，已签退 DONE 工单不再构成维护授权）。 */
     private boolean assignedToOpenOrder(String elevatorId, String platformId) {
         if (platformId == null || platformId.isBlank()) {
             return false;
@@ -91,7 +82,6 @@ public class ElevatorService {
         return c != null && c > 0;
     }
 
-    /** 使用单位账号电梯收敛本单位（2026-11-15 用户裁决）；无锚点 fail-closed 返回空。 */
     public List<Map<String, Object>> listViewForUnit(String unitId) {
         if (unitId == null || unitId.isBlank()) {
             return List.of();
@@ -112,10 +102,7 @@ public class ElevatorService {
         m.put("deviceCode", el.deviceCode);
         m.put("regCode", el.regCode);
         m.put("model", el.model);
-        // 项目名称 = 小区/楼盘名称（elevator.project_name），与使用单位名称解耦（docs/01 §3.4.1）
         m.put("projectName", nz(el.projectName));
-        // 小程序列表行契约（mock listElevators 同口径，2026-11-21 真机反馈补齐）：
-        // 下次维保日期（建档即排期/签退滚动维护）+ 维保单位名（company 表首条，本系统单维保单位）
         m.put("nextMaintenanceDate", TimeUtil.formatDate(el.nextMaintenanceDate));
         m.put("maintUnitName", maintUnitName);
         return m;
@@ -131,7 +118,6 @@ public class ElevatorService {
         return c == null || c.name == null ? "" : c.name;
     }
 
-    /** 扫码回填电梯信息（急修单用，docs/04 A.6） */
     public Map<String, Object> viewByCode(String code) {
         Elevator el = getByCode(code == null ? "" : code.trim());
         if (el == null) {
@@ -160,7 +146,6 @@ public class ElevatorService {
             throw new BizException(1404, "电梯不存在");
         }
         // 越权防护：非管理角色按区域匹配键（同区域或不限区域可读），防跨区域读取管理员/应急电话等敏感字段；
-        // 管理角色（ids==null）旁路。绑定字段池化后不再写入（Task 11），不作归属键。
         Employee e = scopeService.require(empId);
         Set<String> ids = scopeService.visibleWorkerPlatformIds(e);
         if (ids != null && !regionVisible(el, e)) {
@@ -169,11 +154,6 @@ public class ElevatorService {
         return profileView(el);
     }
 
-    /**
-     * 客户（使用单位）档案视图（P1 终审 I1，docs/04 A.12.1①「GET /elevators* 含 profile 本单位谓词」）：
-     * 只做本单位校验（锚点缺失/跨单位一律 1403 fail-closed），**不走 worker-scope 班组谓词**——
-     * 客户员工无 platformId，visibleWorkerPlatformIds 恒 Set.of()，旧实现对本单位已派梯恒 1403 与契约矛盾。
-     */
     public Map<String, Object> profileForUnit(String useUnitId, String elevatorId) {
         if (useUnitId == null || useUnitId.isBlank()) {
             throw new BizException(1403, "当前账号无使用单位数据权限");
@@ -210,7 +190,6 @@ public class ElevatorService {
         local.put("lat", el.lat != null ? String.valueOf(el.lat) : "");
         local.put("brand", nz(el.brand));
         local.put("manufacturer", nz(el.manufacturer));
-        // 出厂编号（V59 彻底统一，无回退）
         local.put("factoryNumber", nz(el.factoryNumber));
         local.put("driveMode", nz(el.driveMode));
         local.put("ratedLoad", el.ratedLoad != null ? el.ratedLoad + (el.ratedLoadUnit == null ? "kg" : el.ratedLoadUnit) : "");
@@ -230,8 +209,7 @@ public class ElevatorService {
         return out;
     }
 
-    /** 维保人员现场更正项目名称（小区名称，管理端可能写错；docs/01 §3.4.1）。
-     *  写不扩区域（AGENTS §3.1）：认领制下仅持该梯在途工单的主维保/配合人可改，或管理角色；越权 1403。 */
+    /** 越权 1403。 */
     public void updateProjectName(String id, String empId, String projectName) {
         Elevator el = get(id);
         if (el == null) {
@@ -252,11 +230,7 @@ public class ElevatorService {
         elevatorMapper.updateById(patch);
     }
 
-    /** 维保人员现场维护设备本地信息（docs/01 §3.4.1）。
-     *  写不扩区域（AGENTS §3.1）：认领制下仅持该梯在途工单的主维保/配合人可改，或管理角色；越权 1403。
-     *  可改：项目名称/安装地址/品牌/制造单位/产品编号/驱动方式/额定载重/额定速度/层站门/下次检验、维保日期。
-     *  不开放：经纬度（签到围栏，严禁伪造坐标）、使用单位负责人（属使用单位档案，非设备信息）。
-     *  项目名称变更时同步 elevatorName（电梯名称 = 项目名称，合并，用户需求 2026-11-11）。 */
+    /** 越权 1403。 */
     public void updateLocal(String id, String empId, Map<String, Object> body) {
         Elevator el = get(id);
         if (el == null) {
@@ -275,7 +249,6 @@ public class ElevatorService {
             if (v.isEmpty()) {
                 throw new BizException(422, "项目名称不能为空");
             }
-            // 电梯名称 = 项目名称（小区），合并维护（docs/01 §3.4.1）
             uw.set(Elevator::getProjectName, v).set(Elevator::getElevatorName, v);
             any = true;
         }
@@ -291,7 +264,6 @@ public class ElevatorService {
             uw.set(Elevator::getManufacturer, str(body, "manufacturer"));
             any = true;
         }
-        // 出厂编号（V59 彻底统一，productNo 已全仓移除）
         if (body != null && body.containsKey("factoryNumber")) {
             uw.set(Elevator::getFactoryNumber, str(body, "factoryNumber"));
             any = true;

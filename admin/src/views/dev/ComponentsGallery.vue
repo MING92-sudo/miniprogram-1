@@ -8,7 +8,6 @@
   </div>
 </template>
 <script setup>
-// M2 开发态组件廊（D-A3，走查基准）
 import StatusTag from '../../ui/StatusTag.vue'
 import PermButton from '../../ui/PermButton.vue'
 import DataTable from '../../ui/DataTable.vue'

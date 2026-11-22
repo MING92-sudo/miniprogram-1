@@ -24,12 +24,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * 客户账号管理（P3，docs/14 §6）：内部开通/停用/重置/换绑/恢复，独立于员工体系。
- * 安全红线：客户账号不进 sys_employee（R7）；同单位活跃手机号唯一、跨员工/客户互斥；
- * 停用/重置/换绑/角色变更清会话 + 递增 scope_version（旧 token 立即 401）；所有操作写审计（§7）。
- * 客户账号不删除，只停用/归档（R13，审计留存）。
- */
+/** 安全红线：客户账号不进 sys_employee（R7）； */
 @Service
 public class ClientAccountService {
 
@@ -49,7 +44,6 @@ public class ClientAccountService {
         this.auditLogService = auditLogService;
     }
 
-    /** 默认初始口令（开通时如未提供）：手机号后 6 位；强制首次登录后修改由前端引导（docs/14 §6.1）。 */
     private static String initialPassword(String phone) {
         String digits = phone == null ? "" : phone.replaceAll("\\D", "");
         return digits.length() >= 6 ? digits.substring(digits.length() - 6) : "123456";
@@ -69,10 +63,6 @@ public class ClientAccountService {
         return out;
     }
 
-    /**
-     * 开通客户账号（docs/14 §6.1）：默认 1 个 CLIENT_ADMIN；手机号/初始口令；
-     * 单位档案须先存在；同单位活跃手机号唯一；员工/客户跨表手机号互斥。
-     */
     @Transactional
     public Map<String, Object> create(String useUnitId, Map<String, Object> body, String operatorId) {
         UseUnit unit = useUnitMapper.selectById(useUnitId);
@@ -237,7 +227,6 @@ public class ClientAccountService {
         return row(c);
     }
 
-    /** 临时恢复 GRACE（按账号单条，限时；docs/14 §6.3 规则 2；不批量、不恢复报修能力由业务侧收敛） */
     @Transactional
     public Map<String, Object> restoreGrace(String id, Map<String, Object> body, String operatorId) {
         ClientAccount c = findOr404(id);
@@ -263,7 +252,6 @@ public class ClientAccountService {
 
     // ── 登录/鉴权侧查询（供 AuthController / AuthInterceptor 使用）─────────────
 
-    /** 按手机号查所有客户账号（多单位登录：先验口令后返回候选，docs/14 §6.4） */
     public List<ClientAccount> findByPhone(String phone) {
         return mapper.selectList(new LambdaQueryWrapper<ClientAccount>()
                 .eq(ClientAccount::getPhone, phone));
@@ -287,10 +275,7 @@ public class ClientAccountService {
         mapper.updateById(c);
     }
 
-    /**
-     * 微信验证自助重置（忘记密码，免旧口令）：新口令 ≥6 位，清会话（旧 token 立即 401）。
-     * 仅在 openid 已由服务端 code 换取并命中账号后调用，不做口令校验。
-     */
+    /** 微信验证自助重置（忘记密码，免旧口令）：新口令 ≥6 位，清会话（旧 token 立即 401）。 */
     @Transactional
     public void resetPasswordAfterWechatVerify(String id, String newPassword) {
         ClientAccount c = findOr404(id);
@@ -324,7 +309,6 @@ public class ClientAccountService {
 
     // ── 内部校验 ───────────────────────────────────────────────
 
-    /** 同单位活跃手机号唯一 + 员工/客户跨表手机号互斥（docs/14 §6.1 第 4 条、R2/R7） */
     private void requirePhoneAvailable(String useUnitId, String phone, String excludeId) {
         ClientAccount dup = mapper.selectOne(new LambdaQueryWrapper<ClientAccount>()
                 .eq(ClientAccount::getUseUnitId, useUnitId)
@@ -346,10 +330,7 @@ public class ClientAccountService {
         c.scopeVersion = (c.scopeVersion == null ? 1 : c.scopeVersion) + 1;
     }
 
-    /**
-     * 注销会话（POST /auth/logout 的客户分支）：清 sid + 递增 scope_version，使旧令牌立即 401。
-     * 幂等：账号不存在直接返回，不抛错（注销请求不因账号已被删而失败）。
-     */
+    /** 幂等：账号不存在直接返回，不抛错（注销请求不因账号已被删而失败）。 */
     public void revokeSession(String id) {
         ClientAccount c = id == null || id.isBlank() ? null : mapper.selectById(id);
         if (c == null) {
@@ -386,7 +367,7 @@ public class ClientAccountService {
         }
     }
 
-    /** 管理端投影：禁返 password_hash/session_id/openid 全文/shareToken 等敏感字段（docs/14 §4.7） */
+    /** 管理端投影：禁返 password_hash/session_id/openid 全文/shareToken 等敏感字段 */
     private Map<String, Object> row(ClientAccount c) {
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("id", c.id);
@@ -407,11 +388,7 @@ public class ClientAccountService {
         return m;
     }
 
-    /**
-     * GRACE 到期日扫（docs/14 §6.3 规则 2）：宽限期已过的客户账号自动降级 DISABLED 并清会话。
-     * 每天 02:10 执行；幂等（只处理 status=GRACE 且 grace_until &lt; now）；逐条写审计（actorRole=SYSTEM）。
-     * 不恢复报修能力、不删除账号——只收紧，由人工显式 enable 才恢复（R13）。
-     */
+    /** 幂等（只处理 status=GRACE 且 grace_until &lt; now）； */
     @org.springframework.scheduling.annotation.Scheduled(cron = "0 10 2 * * ?", zone = "Asia/Shanghai")
     @Transactional
     public int sweepExpiredGrace() {
@@ -436,7 +413,6 @@ public class ClientAccountService {
         return expired.size();
     }
 
-    /** 系统任务审计：actorId=SYSTEM、actorRole=SYSTEM，与人工操作区分（docs/14 §7）。 */
     private void auditSystem(String useUnitId, String action, String target, String reason) {
         try {
             SysAuditLog a = new SysAuditLog();

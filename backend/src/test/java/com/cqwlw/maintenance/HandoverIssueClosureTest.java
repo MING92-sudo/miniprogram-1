@@ -43,10 +43,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/**
- * 首保签退遗留问题回写（Task 5 后半）：首保工单 handoverIssue=true 时，
- * 签退须把来源移交单标记遗留问题并通知安装部；无遗留问题不写、来源单缺失只记日志不阻断签退。
- */
+/** 无遗留问题不写、来源单缺失只记日志不阻断签退。 */
 class HandoverIssueClosureTest {
 
     private static final String EMP_LI = "emp_li";
@@ -104,7 +101,6 @@ class HandoverIssueClosureTest {
         el.id = "el_1";
         el.elevatorName = "1号楼客梯";
         el.elevatorCode = "EM-001";
-        // 上传维保记录的 5 项必传项（docs/01 §3.4.1）：签退门禁要求齐备
         el.deviceCode = "DT-CQ-2024-001";
         el.regCode = "TSCQ5001120001";
         el.insideNumber = "KT-01";

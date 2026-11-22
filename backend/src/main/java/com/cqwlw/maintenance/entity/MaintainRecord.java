@@ -10,7 +10,6 @@ import java.time.LocalDateTime;
 @Data
 
 
-/** 维保记录（签退冻结快照；即"使用单位待确认记录"，P3 上报来源） */
 @TableName("maintain_record")
 public class MaintainRecord {
     @TableId
@@ -28,9 +27,7 @@ public class MaintainRecord {
     public String duration;
     public String itemsJson;
     public String photosJson;
-    /** 安全防护确认勾选（JSON：warning/barrier/powerOff/twoPerson，V20） */
     public String safetyJson;
-    /** 待办事项（V20；空=无待办） */
     public String todoDesc;
     public String workerSignatureUrl;
     public String assistantSignatureUrl;
@@ -45,29 +42,23 @@ public class MaintainRecord {
     public String signatureUrl;
     public String shareToken;
     public String reportPayloadJson;
-    /** 预览上下文快照 JSON（地址/单位/手机号/签到经纬度/条目数，docs/03 §六，V11 迁移） */
     @TableField("preview_context")
     public String previewContextJson;
-    /** M4 版本链：修订生成 v2 + 新哈希，v1 与签名永久保留 */
     public Integer version;
     public String prevVersionId;
     public String amendReason;
     public String amendedBy;
     public LocalDateTime amendedAt;
-    /** 存量单人豁免（P-4），新工单恒0 */
     public Integer soloExempt;
-    /** 记录生命周期（V42，M1，蓝图 §6.2）：PENDING_REVIEW/PENDING_CLIENT_SIGN/PENDING_CLIENT_SIGNATURE/SIGNED/ARCHIVED/REFUSED_RETURNED */
     public String lifecycleStatus;
     public String workOrderId;
     public String refuseReason;
     public LocalDateTime archivedAt;
     public String archiveFileId;
     public String archiveHash;
-    /** P2 租户快照（V47）：生成时冻结的租户归属/单位名称/电梯 id */
     public String useUnitId;
     public String useUnitName;
     public String elevatorId;
-    /** P3 客户签字人快照（V48）：签字/拒签写入具体账号与姓名，先签为准可追溯 */
     public String clientAccountId;
     public String clientSignerName;
     public LocalDateTime clientSignedAt;
@@ -75,11 +66,8 @@ public class MaintainRecord {
     public String clientRefuserName;
     public String clientRefuseReason;
     public LocalDateTime clientRefusedAt;
-    /** 发起使用单位签字时刻（签字 SLA 起算，V56；NULL=旧记录回退 createdAt） */
     public LocalDateTime signRequestedAt;
-    /** 最近一次签字临期/超期提醒推送时刻（提醒去重，V56） */
     public LocalDateTime signRemindedAt;
-    /** 拒签原因分类码（V56：R1 内容不符/R2 漏项/R3 照片不符/R4 信息有误/R5 其他） */
     public String refuseCode;
     public LocalDateTime createdAt;
 }

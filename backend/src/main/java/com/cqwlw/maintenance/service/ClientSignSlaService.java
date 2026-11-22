@@ -8,11 +8,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 
-/**
- * 使用单位签字 SLA（V56，docs/04 V2.80）：
- * 起算=signRequestedAt（旧记录回退 createdAt），时长=sys_config client_sign_sla_hours（缺省/非法 72h）。
- * 签字页倒计时、待签列表剩余时间与到期提醒共用同一口径，三处不得各自为政。
- */
+/** 签字页倒计时、待签列表剩余时间与到期提醒共用同一口径，三处不得各自为政。 */
 @Service
 public class ClientSignSlaService {
 
@@ -41,7 +37,6 @@ public class ClientSignSlaService {
         return DEFAULT_SLA_HOURS;
     }
 
-    /** SLA 起算时刻：发起签字时刻；V56 前旧记录回退记录创建时刻 */
     public LocalDateTime baseOf(MaintainRecord r) {
         return r.signRequestedAt != null ? r.signRequestedAt : r.createdAt;
     }

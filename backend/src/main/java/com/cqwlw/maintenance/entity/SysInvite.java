@@ -6,7 +6,6 @@ import lombok.Data;
 
 import java.time.LocalDateTime;
 
-/** 邀请码/组织二维码（sys_invite，M3）。 */
 @Data
 @TableName("sys_invite")
 public class SysInvite {

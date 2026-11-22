@@ -19,16 +19,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-/**
- * 维保日历（Task 11）：只读前向投影，不预生成计划、不落库（设计文档 §9.2）。
- * 锚点=该梯首保（首次 HM 半月保）计划日；此后逐日推进，
- * 按累加式规则判定当天应做的最高类别：365 天=年度 OY、180=半年 SM、90=季度 TM、15 的倍数=半月 HM。
- * 建档即排期（2026-11-20 用户口径）：锚点链追加「建档基线 lastMaintenanceAt + intervalDays」，
- * 管理端直建电梯建档时默认基线=建档时间，故建档当日起即可投影全年计划。
- * 条目带执行状态：当日有 DONE 工单=已完成；有未完成工单=已派单；计划日已过且未派单=超期；否则=计划。
- * 可见范围（2026-11-21 区域抢单池 M9 修正）：与 ElevatorService.listView 同谓词——管理角色不限，
- * 非管理角色按区域匹配键（电梯不限区域或与登录人同区域）；电梯绑定字段池化后不作归属键。
- */
+/** 电梯绑定字段池化后不作归属键。 */
 @Service
 public class MaintenanceCalendarService {
 
@@ -55,10 +46,6 @@ public class MaintenanceCalendarService {
         this.scopeService = scopeService;
     }
 
-    /**
-     * 投影指定窗口内的应做维保日。from/to 为空时默认「今天 → 今天+12 个月」。
-     * 返回按日期升序的扁平列表，每条一台电梯一天，便于小程序按日分组渲染。
-     */
     public Map<String, Object> calendar(String empId, LocalDate from, LocalDate to) {
         Employee emp = employeeMapper.selectById(empId);
         if (emp == null) {
@@ -94,11 +81,7 @@ public class MaintenanceCalendarService {
             }
         }
         LocalDate today = LocalDate.now();
-        // 每梯 DONE 历史一次批量查出（避免逐梯 N+1；不用 .select 列裁剪——Lambda 列解析
-        // 依赖 TableInfo 缓存，纯单测环境未初始化会抛 lambda cache 异常，与 windowOrders 查询同风格）：
-        // 类别升级的 per-type 基线 = DispatchService「lastOf(类型, 首保)」同口径——
-        // 锚点（最近一次任意类型 DONE 签退日）滚动只顺延节奏，不得把 TM/SM/OY 的
-        // 「上次同类」视为刚发生（旧实现 lastOY/SM/TM 恒从 0 起算，稳定维保的电梯永不投影季度以上）。
+        // 纯单测未初始化 TableInfo，不能使用 Lambda 列裁剪。
         Map<String, List<WorkOrder>> doneHistory = new LinkedHashMap<>();
         if (!elevators.isEmpty()) {
             List<WorkOrder> history = workOrderMapper.selectList(new LambdaQueryWrapper<WorkOrder>()
@@ -120,13 +103,7 @@ public class MaintenanceCalendarService {
             if (anchor == null) {
                 continue;
             }
-            // 类别状态机（2026-11-21 修复，与 DispatchService.createOrderIfDue 同口径）：
-            // 锚点日=HM；格点（step=电梯 intervalDays）上距上次同类 ≥365/180/90 天升级为 年度/半年/季度，
-            // 否则半月；年度落首个 ≥365 的格点（不再孤立在节奏格外）；从锚点日起推进，
-            // 窗口前的日期只推进状态机不出条目，保证窗口内类别与派单一致。
-            // per-type 基线（同日审查修复）：「上次同类」取该类型最近一次 DONE 签退，
-            // 未执行过的类型回退首保日（最早 DONE 签退，DispatchService 的 first 口径）；
-            // 无 DONE 历史时保持建档口径——各类别时钟自锚点起算（2026-11-21 用户确认）。
+            // 从锚点日起推进，窗口前的日期只推进状态机不出条目，保证窗口内类别与派单一致。
             int step = el.intervalDays != null && el.intervalDays > 0 ? el.intervalDays : 15;
             long lastOY = 0, lastSM = 0, lastTM = 0;
             List<WorkOrder> hist = doneHistory.getOrDefault(el.id, List.of());
@@ -203,16 +180,6 @@ public class MaintenanceCalendarService {
     }
 
 
-    /**
-     * 首保锚点，取首个可用：最早一张半月保（HM）工单计划日 → 归档日+15 天 → 下次到期日
-     * → 建档基线 lastMaintenanceAt + intervalDays（建档即排期：直建电梯默认基线=建档时间，首保=+15 天）
-     */
-    /**
-     * 锚点（2026-11-21 修复，用户确认）：随实际维保滚动——有 DONE 工单时取**最近一次 DONE 签退日**，
-     * 提前/延后维保后日历与派单同口径顺延（旧实现锚定「最早 HM 工单计划日」永久冻结，
-     * 提前维保后投影与派单脱节）。尚无 DONE 时保持旧链：
-     * 最早 HM 工单计划日（首保前投影）→ 移交归档+15 → 下次到期 → 建档基线+intervalDays。
-     */
     LocalDate anchorDate(Elevator el) {
         WorkOrder lastDone = workOrderMapper.selectOne(new LambdaQueryWrapper<WorkOrder>()
                 .eq(WorkOrder::getElevatorId, el.id)
@@ -248,10 +215,7 @@ public class MaintenanceCalendarService {
         return null;
     }
 
-    /** 本期可见范围：本人名下（worker_platform_id）；区域/班组扩大在 Task 8 接入 */
     private List<Elevator> scopedElevators(Employee emp) {
-        // 区域抢单池读谓词（2026-11-21 M9，与 ElevatorService.listView 同口径）：
-        // 管理角色（ids==null）不限；非管理角色——电梯不限区域（regionId 空）或与登录人同区域可见。
         // 电梯绑定字段（worker*/assistant*）池化后不作归属键（旧 workerName/workerPlatformId 过滤已失效）。
         Set<String> ids = scopeService.visibleReadPlatformIds(emp);
         List<Elevator> list = elevatorMapper.selectList(new LambdaQueryWrapper<>());

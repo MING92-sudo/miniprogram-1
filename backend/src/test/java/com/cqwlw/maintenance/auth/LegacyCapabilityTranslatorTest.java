@@ -68,10 +68,6 @@ class LegacyCapabilityTranslatorTest {
         assertFalse(LegacyCapabilityTranslator.allows("ADMIN", null));
     }
 
-    /**
-     * v2 规范码账号与旧字面量同判定（2026-11-21 修复：存规范码的 INST_PM/INST_CLERK/MAINT_MGR/MAINT_SUP
-     * 此前在 /admin/**、/platform/** 等旧两档门禁被误拒 403，同角色旧码账号却放行）。
-     */
     @Test
     void canonicalRolesInheritLegacyGrants() {
         // console:read 门控：规范码 adminConsole 角色放行（含 INST_MGR——CANONICAL 设计 adminConsole=true）

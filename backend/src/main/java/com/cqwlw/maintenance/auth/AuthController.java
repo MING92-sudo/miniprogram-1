@@ -25,17 +25,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * 认证（docs/04 A.1 契约）：账号密码登录（BCrypt）→ 自建 JWT。
- *
- * <p><b>唯一登录入口</b>（用户需求）：小程序只有一个登录页，不选通道、不选角色。
- * {@code POST /auth/login} 按账号自动判定主体——员工目录（sys_employee）命中即内部人员，
- * 否则按客户账号（client_account）校验；两端各自签发令牌，响应统一带 principalType，
- * 前端据 home/principalType 直接渲染对应工作台。微信登录 {@code POST /auth/wx-login} 同口径。
- *
- * <p>openid 只有一个来源——后端 jscode2session（WxAuthService）：不回退 app.dev-openid，
- * 也不信任可伪造的 X-WX-OPENID 请求头。
- */
+/** openid 只能由后端 jscode2session 获取，禁止客户端请求头兜底。 */
 @RestController
 public class AuthController {
 
@@ -46,7 +36,6 @@ public class AuthController {
     private final WxAuthService wxAuthService;
     /** 统一登录的客户分支（client_account：口令/微信/多单位选择） */
     private final ClientLoginService clientLoginService;
-    /** M1：规范角色集（sys_user_role ∪ 旧主角色别名归一） */
     private final UserRoleService userRoleService;
     private final BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
 
@@ -65,11 +54,7 @@ public class AuthController {
         this.clientAccountService = clientAccountService;
     }
 
-    /**
-     * 取当前客户主体账号（client_account）。
-     * 客户令牌的 subject 是 client_account.id，不在员工目录里——这条路径不得回落到 employeeMapper，
-     * 否则会返回 401 让前端清登录态（BUG-1 的成因）。
-     */
+    /** 客户令牌的 subject 是 client_account.id，不在员工目录里——这条路径不得回落到 employeeMapper，否则会返回 401 让前端清登录态（BUG-1 的成因）。 */
     private com.cqwlw.maintenance.entity.ClientAccount requireClientAccount(HttpServletRequest request) {
         Object id = request.getAttribute(AuthInterceptor.ATTR_EMP_ID);
         com.cqwlw.maintenance.entity.ClientAccount c = id == null || clientAccountMapper == null
@@ -90,11 +75,6 @@ public class AuthController {
         this.userRoleService = userRoleService;
     }
 
-    /**
-     * 账号密码登录（唯一入口）：自动识别内部员工 / 使用单位客户。
-     * 判定顺序：员工目录（按账号）→ 客户账号（按手机号）→ 401。
-     * 手机号在两侧互斥（docs/14 §6.1），不会歧义。
-     */
     @PostMapping("/auth/login")
     public ApiResponse<Map<String, Object>> login(@RequestBody Map<String, Object> body) {
         String account = body.get("phone") == null ? "" : String.valueOf(body.get("phone")).trim();
@@ -114,8 +94,7 @@ public class AuthController {
             if (Boolean.FALSE.equals(user.enabled)) {
                 throw new BizException(403, "账号已停用，请联系系统管理员");
             }
-            // 管理端会话白名单（docs/09 §3.2）：client=admin 仅 ADMIN/SYS_ADMIN/PLATFORM_ADMIN；
-            // 小程序端（不带 client）不受影响。
+            // 管理端会话白名单：client=admin 仅 ADMIN/SYS_ADMIN/PLATFORM_ADMIN；
             if (adminConsole && !AdminRoles.canUseAdminConsole(user.role)) {
                 throw new BizException(403, "该账号无管理端权限，请使用小程序登录");
             }
@@ -136,11 +115,7 @@ public class AuthController {
         throw new BizException(401, "账号或密码错误");
     }
 
-    /**
-     * 微信绑定（登录后调用，需 Bearer）。openid 由 code 换取并写入当前账号。
-     * 事务：先解绑同一 openid 的其他账号、再写当前账号，两写必须同成同败
-     * （否则解绑成功、绑定失败会让原账号丢掉微信登录）。
-     */
+    /** 事务：先解绑同一 openid 的其他账号、再写当前账号，两写必须同成同败（否则解绑成功、绑定失败会让原账号丢掉微信登录）。 */
     @PostMapping("/auth/bind-wechat")
     @Transactional
     public ApiResponse<Map<String, Object>> bindWeChat(@RequestBody Map<String, Object> body,
@@ -200,8 +175,6 @@ public class AuthController {
     public ApiResponse<Map<String, Object>> changePassword(HttpServletRequest request, @RequestBody Map<String, Object> body) {
         String oldPassword = body.get("oldPassword") == null ? "" : String.valueOf(body.get("oldPassword"));
         String newPassword = body.get("newPassword") == null ? "" : String.valueOf(body.get("newPassword"));
-        // 客户主体（白名单放行 /auth/change-password）：改 client_account.password_hash。
-        // 此前落到 employeeMapper 查询为空 → 401 → 前端清登录态，客户在个人中心改密必被踢。
         if (AuthInterceptor.isCustomerRequest(request)) {
             com.cqwlw.maintenance.entity.ClientAccount account = requireClientAccount(request);
             if (clientAccountService == null) {
@@ -228,10 +201,7 @@ public class AuthController {
         return ApiResponse.ok(Map.of("ok", true));
     }
 
-    /**
-     * 忘记密码（登录页入口，免登录）：code 换 openid 匹配账号后重置；重置后清会话。
-     * 员工与客户同一入口：先查员工绑定，再查客户账号绑定。
-     */
+    /** 忘记密码（登录页入口，免登录）：code 换 openid 匹配账号后重置； */
     @PostMapping("/auth/reset-password-by-wechat")
     @Transactional
     public ApiResponse<Map<String, Object>> resetPasswordByWechat(@RequestBody Map<String, Object> body) {
@@ -264,14 +234,9 @@ public class AuthController {
         throw new BizException(422, "该微信尚未绑定账号，请联系单位管理员重置密码");
     }
 
-    /**
-     * 注销：吊销当前会话，旧令牌立即失效（修复前为空实现——登出后令牌在有效期内仍可继续调用）。
-     * 员工：清 sid（小程端/管理端两枚会话都断）+ 递增 scope_version；
-     * 客户：清 sid + 递增 scope_version。幂等，不因令牌主体已被删除而失败。
-     */
+    /** 幂等，不因令牌主体已被删除而失败。 */
     @PostMapping("/auth/logout")
     public ApiResponse<Map<String, Object>> logout(HttpServletRequest request) {
-        // 本端点免鉴权（登出时令牌可能刚过期），主体直接从 Authorization 里的 JWT 解析；
         // 令牌无效/已过期视为无需吊销，仍返回 ok（幂等，前端不必区分）。
         String auth = request.getHeader("Authorization");
         if (auth != null && auth.startsWith("Bearer ")) {
@@ -282,8 +247,7 @@ public class AuthController {
                 // 令牌损坏或已过期：无会话可吊销，仍返回 ok（幂等）
                 return ApiResponse.ok(Map.of("ok", true));
             }
-            // 吊销动作放在 try 之外：令牌有效但吊销失败必须暴露为错误，
-            // 否则接口谎报登出成功、旧令牌继续可用——正是本端点修复前的缺陷形态。
+            // 吊销动作放在 try 之外：令牌有效但吊销失败必须暴露为错误，否则接口谎报登出成功、旧令牌继续可用——正是本端点修复前的缺陷形态。
             String subject = claims.getSubject();
             if (subject != null && !subject.isBlank()) {
                 if ("2".equals(claims.get("ut", String.class))) {
@@ -307,8 +271,6 @@ public class AuthController {
 
     @GetMapping("/auth/me")
     public ApiResponse<Map<String, Object>> me(HttpServletRequest request) {
-        // 客户主体：subject=client_account.id，不在员工目录里，不能查 employeeMapper 后抛 401。
-        // 该端点在客户端白名单内（AuthInterceptor.clientAllowed），返回 401 会让调用方清登录态。
         if (AuthInterceptor.isCustomerRequest(request)) {
             return ApiResponse.ok(customerInfo(request));
         }
@@ -352,11 +314,9 @@ public class AuthController {
         out.put("token", issueSessionToken(user, user.role, openid, client));
         out.put("userInfo", userInfo(user));
         out.put("role", user.role);
-        // M1 扩展（规格 §3.2）：多角色并集 + 能力码并集 + 范围投影 + 默认工作台；旧字段保留兼容
+        // 旧字段保留兼容
         java.util.Set<String> roles = userRoleService.canonicalRolesOf(user.id, user.role);
         out.put("roles", new java.util.ArrayList<>(roles));
-        // P1 T8-A2：主体类型（与 mock loginPayload.principalType 同口径）——生效角色集全为客户角色
-        // → CUSTOMER，否则 EMPLOYEE；小程序据此收敛客户入口（profile 管理入口/守卫判定）
         out.put("principalType", (RoleCatalog.isCustomerPrincipal(roles)
                 ? RoleCatalog.PrincipalType.CUSTOMER
                 : RoleCatalog.PrincipalType.EMPLOYEE).name());

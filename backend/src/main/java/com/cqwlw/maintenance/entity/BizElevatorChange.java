@@ -6,7 +6,6 @@ import lombok.Data;
 
 import java.time.LocalDateTime;
 
-/** 电梯移装/停用/报废双人确认（biz_elevator_change，M3）。 */
 @Data
 @TableName("biz_elevator_change")
 public class BizElevatorChange {

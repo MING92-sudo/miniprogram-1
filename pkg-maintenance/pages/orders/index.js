@@ -1,8 +1,3 @@
-// 我的维保工单（M3 迁自 pages/order/list，逻辑保留）：状态筛选 + 搜索/扫码 + 到期下钻 + 分页。
-// 2026-11-20 卡片 UI 重做：工单类型徽标 + 设备档案行（设备代码/注册代码/编号/型号）+ 计划/工单号/人员网格 +
-// 到期标记（今日/3日内/超期）+ 进行中已作业时长 + 已完成上报状态，字段均为列表行投影既有字段（docs/04 A.2）。
-// 2026-11-20 区域抢单池（D2/M1）：列表分「待接单池」与「我的工单」两段——池谓词（同区域+持平台ID）由后端做，
-// 前端只按「PENDING 且未认领（workerName/workerPlatformId 空）」拆段；签到按钮即认领（无独立接单按钮）。
 const { getOrderList, resolveByElevatorCode } = require('../../../services/order')
 const { STATUS_TEXT, REPORT_STATUS_TEXT, TOAST_TEXT, EMPTY_TEXT, POOL_TEXT } = require('../../../constants/index')
 const { formatTime, parseTime } = require('../../../utils/util')
@@ -45,7 +40,6 @@ function enrich(o) {
   return item
 }
 
-// 池工单判定（D2/M1）：待接单池 = PENDING 且未认领；认领人由签到写入（M1 签到即认领）
 function isPoolOrder(o) {
   return o.status === 'PENDING' && !o.workerName && !o.workerPlatformId
 }

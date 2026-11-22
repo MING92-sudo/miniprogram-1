@@ -13,11 +13,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
-/**
- * 租户快照收口服务（权限 P2 T3；spec §6 / plan Task 3/4/6）：
- * 派单/排班工单、急修单、签退记录创建时冻结 useUnitId/useUnitName，避免后续电梯过户改写归属。
- * 过户嫌疑口径：biz_elevator_change 存在 CONFIRMED 的 TRANSFER 行即命中。
- */
 @Service
 public class TenantSnapshotService {
 
@@ -25,7 +20,6 @@ public class TenantSnapshotService {
 
     private final UseUnitMapper useUnitMapper;
     private final BizElevatorChangeMapper bizElevatorChangeMapper;
-    /** plan T3 Consumes 明列，裁决 R3：T3 即注入，T4 的 applyRecord 消费 */
     private final MigrationIssueService migrationIssueService;
 
     public TenantSnapshotService(UseUnitMapper useUnitMapper,
@@ -48,7 +42,6 @@ public class TenantSnapshotService {
         f.useUnitName = unitNameOf(el.useUnitId);
     }
 
-    /** 签退记录快照：继承工单快照；缺失时过户嫌疑置 NULL 留痕，否则回退电梯（权限 P2 T4，裁决 R3）。 */
     public void applyRecord(MaintainRecord r, WorkOrder o, Elevator el) {
         if (r == null) {
             return;

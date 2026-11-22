@@ -24,11 +24,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-/**
- * GET /elevators 列表行投影（2026-11-21 真机反馈补齐）：
- * mapRow 必须带 nextMaintenanceDate（yyyy-MM-dd，空取 ""）与 maintUnitName（company 表首条，缺省 ""），
- * 与 mock listElevators 同口径——小程序列表行「下次维保 · 维保单位」依赖这两个字段。
- */
+/** 列表投影必须包含 nextMaintenanceDate 和 maintUnitName。 */
 class ElevatorListProjectionTest {
 
     @BeforeAll

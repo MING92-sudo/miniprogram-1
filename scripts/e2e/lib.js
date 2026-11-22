@@ -1,10 +1,4 @@
 'use strict'
-/**
- * E2E 测试内核：HTTP 客户端 + 断言 + 结果收集。
- *
- * 后端契约（GlobalExceptionHandler）：业务异常返回 **HTTP 200 + body.code != 0**，
- * 因此断言看 body.code，不看 HTTP status；HTTP 5xx 或 body.code >= 500 一律判 FAIL。
- */
 
 const BASE = process.env.E2E_BASE || 'http://localhost:8080'
 
@@ -73,15 +67,7 @@ const put = (p, b, t, o = {}) => call('PUT', p, { token: t, body: b === undefine
 const del = (p, t, o = {}) => call('DELETE', p, { token: t, ...o })
 const patch = (p, b, t, o = {}) => call('PATCH', p, { token: t, body: b === undefined ? {} : b, ...o })
 
-/**
- * 记录一条用例结果。
- * expect:
- *   'ok'        必须 code === 0
- *   'biz'       必须是业务拒绝（code 为 4xx/14xx，且 != 0）
- *   'forbidden' 必须 code === 403 或 1403
- *   数字        必须等于该 code
- *   'any'       只要求不是 5xx / 网络错误
- */
+/** expect 支持 ok、biz、forbidden、any 或精确错误码。 */
 function record(name, r, expect = 'any', note = '') {
   const isNetwork = r.http === 0
   // 业务码是 4 位数（1001/1403/2001…），不能按 >=500 判 5xx，否则 2001「未配置」会被误判为服务端异常

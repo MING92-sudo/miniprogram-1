@@ -22,12 +22,6 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
-/**
- * P3 验收项（docs/14 §12）：客户签字写 sys_audit_log.use_unit_id（租户单列，不复用 org_id），
- * 审计失败不影响签字主流程；签字/状态门禁与客户账号身份链路。
- * 注：LambdaUpdateWrapper 的列解析依赖 MyBatis-Plus 初始化，纯单测环境无法断言 SQL 段；
- * 客户快照列写入由 ClientAccountService/UnitRecordService 代码契约保证（条件更新带 set）。
- */
 class ClientSignSnapshotTest {
 
     private MaintainRecordMapper recordMapper;

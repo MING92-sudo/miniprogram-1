@@ -21,13 +21,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-/**
- * 使用单位门户（W3，Task 10，docs/14 §4）：数据域 = 本 useUnitId 名下的电梯，
- * 以及快照 useUnitId 归属本单位的维保记录与急修单（P2b T9：不再按当前电梯归属过滤）。
- * 记录/急修列表在内存里再按快照列过滤一次——谓词写在查询条件上的同时保留这层防御，
- * 避免将来改查询时漏条件（AGENTS §3.1 越权无副作用）。
- * 报修复用急修链路（DirectoryService.createFault），并派给该梯责任人；无责任人留 OPEN 待调度。
- */
 @Service
 public class UnitPortalService {
 
@@ -35,7 +28,7 @@ public class UnitPortalService {
     public static final String REPORTER_PREFIX = "unit:";
     /** 门户列表上限：先给固定窗口，分页等门户页落地后再补 */
     private static final int LIST_LIMIT = 50;
-    /** 客户可见生命周期集合（docs/14 §4.6 可见性表，T4-I5）：待签 + 已签/归档/拒签三态只读；NULL/其他不可见 */
+    /** 客户可见生命周期集合：待签 + 已签/归档/拒签三态只读； */
     private static final Set<String> CLIENT_VISIBLE_LIFECYCLES =
             Set.of("PENDING_CLIENT_SIGNATURE", "SIGNED", "ARCHIVED", "REFUSED_RETURNED");
 
@@ -55,7 +48,6 @@ public class UnitPortalService {
         this.directoryService = directoryService;
     }
 
-    /** V56 签字 SLA（setter 注入，兼容既有单测构造器）：待签行下发截止时间/超期标记 */
     private ClientSignSlaService clientSignSlaService;
 
     @org.springframework.beans.factory.annotation.Autowired(required = false)
@@ -83,13 +75,6 @@ public class UnitPortalService {
         return out;
     }
 
-    /**
-     * 本单位维保记录（按签退时间倒序）。
-     * T4-I5（docs/14 §4.6 可见性表）：客户只见 PENDING_CLIENT_SIGNATURE/SIGNED/ARCHIVED/REFUSED_RETURNED
-     * 且为链末端最新版本——PENDING_REVIEW/PENDING_CLIENT_SIGN/NULL（历史）不外显；
-     * 可见集合谓词统一在 visibleRecords()（查询条件 + 内存防御双保险）。
-     * 行投影 recordRow 不含 shareToken（§4.7 白名单；兼容期例外仅 pendingSigns）。
-     */
     public List<Map<String, Object>> records(String useUnitId) {
         List<Map<String, Object>> out = new ArrayList<>();
         for (MaintainRecord r : visibleRecords(useUnitId)) {
@@ -98,13 +83,7 @@ public class UnitPortalService {
         return out;
     }
 
-    /**
-     * 待签字（docs/14 §4.6）：仅唯一可签状态 PENDING_CLIENT_SIGNATURE + confirmStatus=PENDING
-     * （本单位/可见集合/最新版本已由 visibleRecords() 保证）。
-     * P1 兼容期（T7-C2/T8-A1，§4.6 规则 8）：仅此路径行内保留 shareToken——小程序待办「去签字」
-     * 以行内 token 拼签字链接（sign 页只有 token 路径、无会话回退，去掉即断签字链路）；
-     * records 列表与记录详情白名单仍排除（§4.7）。与 mock clientPendingSignRow 口径对齐。
-     */
+    /** 待签字：仅唯一可签状态 PENDING_CLIENT_SIGNATURE + confirmStatus=PENDING（本单位/可见集合/最新版本已由 visibleRecords() 保证）。 */
     public List<Map<String, Object>> pendingSigns(String useUnitId) {
         List<Map<String, Object>> out = new ArrayList<>();
         for (MaintainRecord r : visibleRecords(useUnitId)) {
@@ -125,7 +104,6 @@ public class UnitPortalService {
         if (useUnitId == null || useUnitId.isBlank()) {
             return List.of();
         }
-        // P2b T9（权限 P2）：归属改看记录快照列；use_unit_id NULL 行天然不命中 → 客户隐藏（fail-closed）
         List<MaintainRecord> list = recordMapper.selectList(new LambdaQueryWrapper<MaintainRecord>()
                 .eq(MaintainRecord::getUseUnitId, useUnitId)
                 .in(MaintainRecord::getLifecycleStatus, CLIENT_VISIBLE_LIFECYCLES)
@@ -141,8 +119,6 @@ public class UnitPortalService {
             }
             candidates.add(r);
         }
-        // P2 T5（N+1 消除）：链末端最新版本改用共享 supersededIds 批量判定——一次 IN 查询
-        // 替代逐记录 selectCount，可见集合与旧 isLatestVersion 逐条判定相等（docs/14 §4.6 规则 1）
         List<String> ids = new ArrayList<>();
         for (MaintainRecord r : candidates) {
             ids.add(r.id);
@@ -158,21 +134,12 @@ public class UnitPortalService {
         return out;
     }
 
-    /**
-     * 本单位急修单（按报修时间倒序）。
-     * C-25②（投影补齐）：Fault 表无电梯名列，elevatorName 按 elevatorCode 联电梯档案取；
-     * P2b T9：归属改看急修单快照列；电梯名 map 复用同一次 ownElevators 已载入结果（一次遍历建成），
-     * 不再重查电梯（省 1 次查询），电梯/急修单空列表均短路；
-     * 缺名回退 elevatorCode（与 pkg-client orders 页 `item.elevatorName || item.elevatorCode` 同显示语义）。
-     * trapped 依赖 C-18 增列，不改表裁决，本投影暂不下发。
-     */
     public List<Map<String, Object>> faults(String useUnitId) {
         if (useUnitId == null || useUnitId.isBlank()) {
             return List.of(); // 空锚点短路：eq(null) 会退化为全表，且下方 equals 会 NPE
         }
         // 电梯列表仍按当前归属（spec §5）；此处 own 只用于电梯名 map，不再参与急修单归属判定
         List<Elevator> own = ownElevators(useUnitId);
-        // P2b T9：急修单归属改看快照列；NULL 快照永不等于非空 useUnitId → 客户隐藏（fail-closed）
         List<Fault> list = faultMapper.selectList(new LambdaQueryWrapper<Fault>()
                 .eq(Fault::getUseUnitId, useUnitId)
                 .orderByDesc(Fault::getCreatedAt)
@@ -181,7 +148,6 @@ public class UnitPortalService {
             return List.of(); // 空列表短路
         }
         // 电梯名 map 仅由本单位在保档案建成（他单位/停用同码电梯不进入，数据域较旧 codes 重查更严格）；
-        // 缺名/空白名不入 map，由投影层回退 elevatorCode（C-25② 口径不变）
         Map<String, String> elevatorNames = new LinkedHashMap<>();
         for (Elevator el : own) {
             if (el.elevatorCode != null && el.elevatorName != null && !el.elevatorName.isBlank()) {
@@ -223,10 +189,7 @@ public class UnitPortalService {
         return directoryService.cancelFault(faultId, roles, reason, null, useUnitId);
     }
 
-    /**
-     * 使用单位报修：电梯必须属本单位（越权 1403 且不落单），复用急修链路建单后派给该梯责任人。
-     * 登记人记为 unit:{useUnitId}，员工端展示为“使用单位报修”（DirectoryService.enrichFaultViews）。
-     */
+    /** 使用单位报修：电梯必须属本单位（越权 1403 且不落单），复用急修链路建单后派给该梯责任人。 */
     public Map<String, Object> reportFault(String useUnitId, Map<String, Object> body) {
         String code = body == null ? null : str(body, "elevatorCode");
         if (code == null || code.isBlank()) {
@@ -254,7 +217,6 @@ public class UnitPortalService {
         return directoryService.dispatchFault(faultId, worker.id);
     }
 
-    /** 该梯责任人：workerPlatformId → sys_employee（派单口径，见 docs/14 §4） */
     private Employee responsibleWorker(Elevator el) {
         if (el.workerPlatformId == null || el.workerPlatformId.isBlank()) {
             return null;
@@ -280,8 +242,6 @@ public class UnitPortalService {
                 .toList();
     }
 
-    /** 列表行投影（客户安全字段）：T4-I5 增 lifecycleStatus/version 供前端区分 待签/只读 与版本链；
-     *  V56 增签字 SLA 组（signRequestedAt/signDeadline/overdue，SLA 服务缺省时不下发） */
     private Map<String, Object> recordRow(MaintainRecord r) {
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("id", r.id);

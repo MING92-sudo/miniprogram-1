@@ -13,12 +13,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * 客户门户消息（V56，docs/04 V2.80）：message.use_unit_id 非空行为客户受众——
- * 签字临期/超期提醒由 SignReminderService 写入，客户在待办签字页查看并标记已读。
- * 数据域一律按 token 单位锚点收敛：读/标读均校验消息归属本单位，越权 1403 无副作用；
- * 员工消息中心（DirectoryService）只读 use_unit_id IS NULL 的行，两侧互不串扰。
- */
+/** 数据域一律按 token 单位锚点收敛：读/标读均校验消息归属本单位，越权 1403 无副作用； */
 @Service
 public class ClientMessageService {
 

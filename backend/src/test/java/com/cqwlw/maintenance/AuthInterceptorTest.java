@@ -19,10 +19,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/**
- * M1：员工被删除/停用时必须 401（前端清登录态），不得 NPE 500；
- * M2：角色以数据库为准——token claims 中的 role 在 DB 降权后不生效。
- */
+/** 员工被删除/停用时必须 401（前端清登录态），不得 NPE 500； */
 class AuthInterceptorTest {
 
     private static final String EMP = "emp_1";
@@ -53,7 +50,6 @@ class AuthInterceptorTest {
         when(claims.get("role")).thenReturn("SYS_ADMIN");
     }
 
-    /** M1：user == null 先判空 → 401（旧实现先解引用 user.sessionAdmin → NPE 500） */
     @Test
     void deletedEmployeeReturns401Not500() {
         when(employeeMapper.selectById(EMP)).thenReturn(null);
@@ -62,7 +58,6 @@ class AuthInterceptorTest {
         assertEquals(401, e.getCode());
     }
 
-    /** M2：claims.role=SYS_ADMIN 但 DB 已降权 WORKER → 实际角色取库值 */
     @Test
     void roleComesFromDatabaseNotClaims() {
         when(employeeMapper.selectById(EMP)).thenReturn(user("WORKER", "sid_1", "sid_1"));

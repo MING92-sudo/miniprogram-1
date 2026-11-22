@@ -23,9 +23,6 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 import java.util.Map;
 
-/**
- * 救援/故障/演练/自检/消息/知识库（docs/04 A.3/A.6/A.7）。
- */
 @RestController
 public class DirectoryController {
 
@@ -44,7 +41,6 @@ public class DirectoryController {
 
     private final com.cqwlw.maintenance.mapper.SysUserRoleMapper userRoleMapper;
 
-    /** M1：CLIENT 角色的组织锚点（sys_user_role.org_id = use_unit.id），本单位谓词用 */
     private String unitAnchor(HttpServletRequest request) {
         com.cqwlw.maintenance.entity.SysUserRole row = userRoleMapper.selectOne(
                 new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<com.cqwlw.maintenance.entity.SysUserRole>()
@@ -55,7 +51,6 @@ public class DirectoryController {
         return row == null ? null : row.orgId;
     }
 
-    /** M1：抢单（本区域校验） */
     @PostMapping("/faults/{id}/grab")
     public ApiResponse<Object> grabFault(@PathVariable String id,
                                          @org.springframework.web.bind.annotation.RequestHeader(
@@ -70,7 +65,6 @@ public class DirectoryController {
         return ApiResponse.ok(result);
     }
 
-    /** M1：到场打卡（GPS 必填） */
     @PostMapping("/faults/{id}/arrive")
     public ApiResponse<Object> arriveFault(@PathVariable String id, @RequestBody Map<String, Object> body,
                                            @org.springframework.web.bind.annotation.RequestHeader(
@@ -87,7 +81,6 @@ public class DirectoryController {
         return ApiResponse.ok(result);
     }
 
-    /** M1：提交急修单 */
     @PostMapping("/faults/{id}/submit")
     public ApiResponse<Object> submitFault(@PathVariable String id, @RequestBody Map<String, Object> body,
                                            @org.springframework.web.bind.annotation.RequestHeader(
@@ -102,7 +95,6 @@ public class DirectoryController {
         return ApiResponse.ok(result);
     }
 
-    /** M1：使用单位确认/拒绝 */
     @PostMapping("/faults/{id}/confirm")
     public ApiResponse<Object> confirmFault(@PathVariable String id, @RequestBody Map<String, Object> body,
                                             @org.springframework.web.bind.annotation.RequestHeader(
@@ -120,7 +112,6 @@ public class DirectoryController {
         return ApiResponse.ok(result);
     }
 
-    /** M1：取消（原因必填） */
     @PostMapping("/faults/{id}/cancel")
     public ApiResponse<Object> cancelFault(@PathVariable String id, @RequestBody Map<String, Object> body,
                                            @org.springframework.web.bind.annotation.RequestHeader(
@@ -138,7 +129,7 @@ public class DirectoryController {
         return ApiResponse.ok(result);
     }
 
-    /** M1：服务评价（仅已闭环、1-5 星、一次性） */
+    /** 服务评价（仅已闭环、1-5 星、一次性） */
     @PostMapping("/faults/{id}/evaluate")
     public ApiResponse<Object> evaluate(@PathVariable String id, @RequestBody Map<String, Object> body,
                                         @org.springframework.web.bind.annotation.RequestHeader(
@@ -234,7 +225,6 @@ public class DirectoryController {
         return ApiResponse.ok(directoryService.closeFault(id, body, empId(request)));
     }
 
-    /** 急修单 PDF（一梯一档预览/下载，docs/04 A.3） */
     @GetMapping("/admin/faults/{id}/export-pdf")
     public ResponseEntity<byte[]> exportFaultPdf(@PathVariable String id, HttpServletRequest request) {
         Map<String, Object> view = directoryService.getFault(id, empId(request));
@@ -247,7 +237,6 @@ public class DirectoryController {
                 .body(pdf);
     }
 
-    /** 急修单派单（管理端调度）：指派接单维保员（docs/04 V2.28 派单系统） */
     @PostMapping("/admin/faults/{id}/dispatch")
     public ApiResponse<Map<String, Object>> dispatchFault(@PathVariable String id,
                                                           @RequestBody Map<String, Object> body) {

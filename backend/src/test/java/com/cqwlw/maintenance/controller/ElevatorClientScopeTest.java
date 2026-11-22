@@ -23,7 +23,6 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/** 2026-11-15 裁决：使用单位账号电梯列表/档案收敛本单位，跨单位 1403，无锚点 fail-closed。 */
 class ElevatorClientScopeTest {
 
     private final ElevatorService elevatorService = mock(ElevatorService.class);
@@ -82,7 +81,6 @@ class ElevatorClientScopeTest {
         el.id = "el_1";
         el.useUnitId = "uu_1";
         when(elevatorService.get("el_1")).thenReturn(el);
-        // P1 终审 I1：客户档案走 profileForUnit 本单位谓词，不走 worker-scope 的 profile(empId)
         when(elevatorService.profileForUnit("uu_1", "el_1")).thenReturn(Map.of("elevatorId", "el_1"));
         assertEquals("el_1", controller().profile("el_1", request(Set.of("CLIENT_ADMIN"))).getData().get("elevatorId"));
         verify(elevatorService).profileForUnit("uu_1", "el_1");

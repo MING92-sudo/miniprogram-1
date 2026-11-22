@@ -1,5 +1,3 @@
-// scripts/verify-m1-sync.js
-// 接口三处同步守卫：services / mock / 后端控制器；不依赖已删除的 docs/04。
 const fs = require('fs')
 const path = require('path')
 const ROOT = path.join(__dirname, '..')

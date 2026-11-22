@@ -22,11 +22,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-/**
- * 手机号互斥预校验（docs/01 §3.2.4 + docs/05 §2.3）：
- * 互斥范围仅五个角色，emergencyPhone/recorderPhone 不参与；
- * 同一手机号跨 ≥2 个不同角色 → 1002 + conflicts[]；同角色同人不算冲突。
- */
+/** 手机号互斥预校验：互斥范围仅五个角色，emergencyPhone/recorderPhone 不参与； */
 class PhoneMutexServiceTest {
 
     private CompanyMapper companyMapper;
@@ -105,7 +101,6 @@ class PhoneMutexServiceTest {
 
     @Test
     void useUnitSaveFlagsWorkerAndPrincipalCollisions() {
-        // 新使用单位：负责人与其他单位负责人同号 → 同角色不算冲突（视为同一人）；
         // 安全管理员填了维保人员手机 → 跨角色冲突 1 组
         List<Map<String, Object>> conflicts = service.checkUseUnit(
                 "uu_new", "13930003002", "13800000001");
@@ -115,7 +110,6 @@ class PhoneMutexServiceTest {
 
     @Test
     void emergencyPhoneDoesNotParticipate() {
-        // 应急电话与维保人员同号：按 docs/01 §3.2.4 不参与互斥 → 通过
         UseUnit u = new UseUnit();
         u.id = "uu_new";
         u.unitName = "新物业";
@@ -132,7 +126,6 @@ class PhoneMutexServiceTest {
         assertEquals(1, service.checkEmployee(null, "WORKER", "13930003002").size());
     }
 
-    // ── 工单口径五角色互斥（用户 2026-11-19：作业前门禁） ──
 
     private Elevator workOrderElevator(String useUnitId, String adminPhone, String emergencyPhone) {
         Elevator el = new Elevator();
@@ -152,10 +145,6 @@ class PhoneMutexServiceTest {
         return e;
     }
 
-    /**
-     * 按调用顺序模拟"按 platformId 反查员工"：checkWorkOrder 内 addWorkerParty 依次查维保人员1、2。
-     * 纯单元测试环境无 MyBatis-Plus lambda 缓存，无法解析 wrapper 条件，故用按序返回替代。
-     */
     @SafeVarargs
     private final void stubWorkersByPlatform(java.util.List<Employee>... resultsPerCall) {
         org.mockito.stubbing.OngoingStubbing<List<Employee>> stubbing =

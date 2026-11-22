@@ -149,7 +149,6 @@ const perspective = usePerspectiveStore()
 const rows = ref([])
 const loading = ref(false)
 const detail = ref(null)
-// D1 成员区块：打开详情抽屉时懒加载 GET /org/{id}/members；调人走 PUT /employees/{id} {groupName}
 const members = ref([])
 const membersLoading = ref(false)
 const moveTarget = ref({})
@@ -160,7 +159,6 @@ const formId = ref(null)
 const formParent = ref(null)
 const formRef = ref(null)
 const model = ref({ name: '', type: 'DEPT', code: '', leader: '', phone: '', parentId: '' })
-// 层级口径（与后端 requireValidParent 及 V51 存量数据一致）：公司 → 部门 → 班组，单公司
 const rules = {
   name: [(v) => (v ? '' : '请输入组织名称')],
   type: [(v) => (v ? '' : '类型必填')],

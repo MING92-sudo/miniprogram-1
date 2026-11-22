@@ -1,5 +1,3 @@
-// 移交单详情（屏 02 · 原型 V1.4 对齐）：plate 抬头 + 四节点进度 + 技术资料容缺格 + 现场验收分组摘要 + 底部动作条。
-// 状态机/权限/上传/分配逻辑沿用 docs/04 A.9；查验摘要取 74 项清单按 G01—G13 分组（docs/15 附录 A）。
 const { definePage } = require('../../../utils/guard')
 const { ROUTES } = require('../../../config/routes')
 const {
@@ -24,7 +22,6 @@ const {
 const { ensureLogin } = require('../../../utils/guard')
 const { hasAnyRole } = require('../../../utils/auth')
 
-// 各动作的允许岗位（docs/14 §5 移交单）
 const ACTION_ROLES = {
   docs: [ROLE.INSTALL_MANAGER, ROLE.INSTALL_CLERK, ROLE.ADMIN, 'INST_PM', 'INST_CLERK', 'INST_MGR', 'PLATFORM_ADMIN'],
   assign: [ROLE.MAINT_MANAGER, ROLE.LEADER, ROLE.ADMIN, 'MAINT_MGR', 'MAINT_SUP', 'PLATFORM_ADMIN'],

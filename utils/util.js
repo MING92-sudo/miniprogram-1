@@ -36,7 +36,6 @@ function parseTime(str) {
   return new Date(String(str).replace(/-/g, '/')).getTime()
 }
 
-// 时长格式化 HH:mm:ss（24小时制，如 02:35:00，对齐 docs/04 A.2 duration 格式）
 function formatDuration(ms) {
   if (!ms || ms < 0) ms = 0
   const s = Math.floor(ms / 1000)
@@ -46,7 +45,6 @@ function formatDuration(ms) {
   return pad(Math.floor(s / 3600)) + ':' + pad(Math.floor((s % 3600) / 60)) + ':' + pad(s % 60)
 }
 
-// Haversine 球面距离（米）：签到坐标 vs 电梯档案坐标（docs/02 §5.4）。
 // 仅用于前端"实时距离三态"提示，拦截以服务端为准（后端 WorkOrderService.checkin 同口径计算）。
 function distanceMeters(lat1, lng1, lat2, lng2) {
   const a = [lat1, lng1, lat2, lng2].map(Number)

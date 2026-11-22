@@ -1,5 +1,3 @@
-// 自定义导航栏（M2，规格 §1.2/§2.5）：状态栏高度自适应 + 胶囊避让 + 返回/品牌区。
-// 品牌 = 圆形徽标裁切件 + 博威无纸化（D5：BOWEI 字母不上页）。
 const nav = require('../../utils/nav')
 const { BRAND } = require('../../constants/index')
 

@@ -3,7 +3,6 @@ import { mount, flushPromises } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import { createRouter, createWebHashHistory } from 'vue-router'
 
-// D1：组织架构节点成员列表 + 调人交互（mock API，模式同 views-m3m5.test.js）
 vi.mock('../api/client', () => ({
   default: {
     get: vi.fn(() => Promise.resolve([])),

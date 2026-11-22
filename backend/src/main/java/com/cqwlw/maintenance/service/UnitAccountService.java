@@ -14,17 +14,10 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 
-/**
- * 使用单位门户账号（W3，Task 9，docs/14 §3）：一间单位一个账号，角色固定 UNIT_ADMIN。
- * - 开通：管理端（ADMIN/SYS_ADMIN/MAINT_MANAGER）给 use_unit 发账号 + 初始口令 + 8 位邀请码；
- * - 登录：账号口令 → 门户 JWT（subject=use_unit.id，claim ut=1，见 AuthInterceptor）；
- * - 绑定微信：邀请码 + wx.login code（openid 只由服务端 jscode2session 换取，AGENTS §2.3）。
- * 账号不建在 sys_employee：使用单位不属维保单位员工目录，避免部门/班组谓词串号。
- */
+/** - 绑定微信：邀请码 + wx.login code（openid 只由服务端 jscode2session 换取，AGENTS §2.3）。 */
 @Service
 public class UnitAccountService {
 
-    /** 可开通使用单位账号的角色（与 docs/14 §6「使用单位档案」写权限一致） */
     private static final Set<String> PROVISION_ROLES = Set.of("ADMIN", "SYS_ADMIN", "MAINT_MANAGER");
     /** 邀请码字符集：去掉 0/O/1/I 等易混字符，方便电话口述 */
     private static final String INVITE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
@@ -43,10 +36,7 @@ public class UnitAccountService {
         this.wxAuthService = wxAuthService;
     }
 
-    /**
-     * 开通/重置使用单位账号：返回一次性明文初始口令与邀请码（之后只存哈希）。
-     * 账号留空时自动生成（U + 8 位数字），必须全局唯一。
-     */
+    /** 开通/重置使用单位账号：返回一次性明文初始口令与邀请码（之后只存哈希）。 */
     public Map<String, Object> createAccount(String actorRole, String useUnitId,
                                              String account, String password) {
         if (!PROVISION_ROLES.contains(actorRole)) {
@@ -82,10 +72,6 @@ public class UnitAccountService {
         return out;
     }
 
-    /**
-     * 账号口令登录 → 门户令牌；未开通（无口令哈希）与口令错误统一 401，不区分原因。
-     * @deprecated V41 单账号单会话后废弃保留至生产清库（docs/12 G 组）；已迁移账号一律拒绝。
-     */
     @Deprecated
     public Map<String, Object> login(String account, String password) {
         String acc = account == null ? "" : account.trim();
@@ -99,18 +85,13 @@ public class UnitAccountService {
         return sessionOf(unit);
     }
 
-    /** V41 账号统一（2026-11-16 审查）：account_migrated=1 不得再经废弃门户链签发 ut=1 令牌（裁决 R4 口径落地） */
     private static void requireNotMigrated(UseUnit unit) {
         if (unit.accountMigrated != null && unit.accountMigrated == 1) {
             throw new BizException(422, "该账号已并入统一登录，请使用手机号在登录页登录");
         }
     }
 
-    /**
-     * 微信免密登录（已绑定的使用单位）：wx.login code → 服务端换 openid → 反查 use_unit。
-     * 未绑定/绑定被重置一律 422，不泄露“哪些单位绑了微信”。
-     * @deprecated V41 废弃保留至生产清库；已迁移账号一律拒绝。
-     */
+    /** 微信免密登录（已绑定的使用单位）：wx.login code → 服务端换 openid → 反查 use_unit。 */
     @Deprecated
     public Map<String, Object> loginByWechat(String wxCode) {
         if (wxCode == null || wxCode.isBlank()) {

@@ -1,8 +1,3 @@
-/**
- * 小程序端 BUG 探测（第二轮）：真实登录 + 角色页面巡检
- * 用法：node mp-bugs-2.js <port> <phone> <password> [tag]
- * 输出：Temp/wxauto/bugs-2/<tag>-report.json + 失败页截图
- */
 const fs = require('fs')
 const path = require('path')
 const automator = require('C:/Users/18223/AppData/Local/Temp/wxauto/node_modules/miniprogram-automator')

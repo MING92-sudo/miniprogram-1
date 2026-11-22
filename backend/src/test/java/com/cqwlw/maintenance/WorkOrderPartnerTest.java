@@ -41,14 +41,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/**
- * 区域抢单池配合人链路（2026-11-20 设计 D3/D4/D6/M5/M10）：
- * ①候选 = 工单 regionId 快照同区域（快照空=不限 → 全部）∧ 持平台ID ∧ 在职 ∧ 排除主维保本人；
- * ②指派仅主维保本人（1403），配合人未签到前可改选；候选人服务端复核同一谓词（不信任前端列表），跨区 422；
- * ③配合人签到先做身份比对（login.platformId == order.assistantPlatformId，不符 1003 且动态码不被消费），
- *   再消费动态码；永不做距离拦截（D6，geoStatus=ASSISTANT_EXEMPT，距离照常留痕），定位仍必填 422（M2）；
- * ④存量工单 assistantPlatformId 为空（配合人来自建档绑定）时维持原动态码口径（M8 兼容分支）。
- */
+/** ③配合人签到先做身份比对（login.platformId == order.assistantPlatformId，不符 1003 且动态码不被消费），再消费动态码； */
 class WorkOrderPartnerTest {
 
     private static final String ORDER = "wo_partner";
@@ -195,7 +188,6 @@ class WorkOrderPartnerTest {
         verify(orderMapper, never()).consumeDynamicCodeIfUnused(any(), any(), any());
         assertNull(order.assistantCheckinExtraJson, "身份不符不得写签到留痕");
 
-        // 关键顺序（M5）：身份比对先于消费——同一验证码仍可被正确人选（王五）使用
         Map<String, Object> r = service.checkin(ORDER, assistantBody(code, 29.61, 106.51), "emp_wang");
         assertEquals(Boolean.TRUE, r.get("passed"));
         assertEquals("ASSISTANT", r.get("role"));
@@ -236,7 +228,6 @@ class WorkOrderPartnerTest {
         assertNull(order.assistantCheckinExtraJson);
     }
 
-    /** D9：坐标回填仅限主维保——配合人免围栏（D6）后其远距定位不得污染围栏基线 */
     @Test
     void assistantCheckinDoesNotBackfillElevatorCoordinates() {
         order.assistantName = "王五";
@@ -254,10 +245,8 @@ class WorkOrderPartnerTest {
         verify(elevatorMapper, never()).updateById(any(Elevator.class));
     }
 
-    /** M8 兼容分支：存量工单 assistantPlatformId 为空（配合人仅有建档绑定姓名）→ 维持原动态码口径，不做身份比对 */
     @Test
     void legacyOrderWithoutAssistantPlatformIdKeepsCodeOnlyFlow() {
-        // 存量工单口径：regionId 空（V57 不回填）且留痕无 claimedViaPool 标记（M8）
         order.regionId = null;
         order.assistantName = "王五";
         order.assistantPlatformId = null;
@@ -270,11 +259,6 @@ class WorkOrderPartnerTest {
         assertNotNull(order.assistantCheckinExtraJson);
     }
 
-    /**
-     * I2 fail-closed（最终审查合并前必修）：池化新单（regionId 非空）未指定配合人时，
-     * 任何人以 ASSISTANT 签到一律 1003「主维保尚未指定配合人」——先于动态码消费
-     *（不得吞码、不得落库），否则匿名签到会锁死工单（签退 D8 422 / 改选 1003 / 认领落败）。
-     */
     @Test
     void pooledOrderWithoutAssignedAssistantRejectsAssistantCheckin() {
         order.assistantName = "";

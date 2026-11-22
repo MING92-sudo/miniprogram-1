@@ -19,10 +19,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.util.Map;
 import java.util.List;
 
-/**
- * 平台档案同步与写链路（P3，docs/07 实测口径沉淀）：
- * 2.2/2.7/2.5 拉回落库；2.3/2.4 登记转发（multipart）；2.6 手动重报仅限 FAILED（AGENTS §2.3）。
- */
+/** 2.6 手动重报仅限 FAILED（AGENTS §2.3）。 */
 @RestController
 public class PlatformController {
 
@@ -48,7 +45,7 @@ public class PlatformController {
         return ApiResponse.ok(platformSyncService.syncAll());
     }
 
-    /** 存量维保人员 platform_id 回填（docs/04 B.5，手动兜底）：调 2.5 全量查询，按证书号回填所有本地有证书人员。 */
+    /** 存量维保人员 platform_id 回填：调 2.5 全量查询，按证书号回填所有本地有证书人员。 */
     @PostMapping("/platform/workers/backfill")
     public ApiResponse<Map<String, Object>> backfillWorkers() {
         return ApiResponse.ok(workerIdService.backfillAllFromPlatform());
@@ -60,8 +57,7 @@ public class PlatformController {
         return ApiResponse.ok(platformClient.queryWorkList(changState, null));
     }
 
-    /** 2.7 单梯查询（管理端新建电梯回填用）。实测平台不支持按 elevatorCode 查询（docs/06 #8 已修正结论），
-     * 仅接受 deviceCode / factoryNumber / registrationCode 之一 */
+    /** 实测平台不支持按 elevatorCode 查询，仅接受 deviceCode / factoryNumber / registrationCode 之一 */
     @PostMapping("/platform/query/elevator")
     public ApiResponse<Object> queryElevator(@RequestBody Map<String, Object> body) {
         if (!platformClient.configured()) {
@@ -93,7 +89,6 @@ public class PlatformController {
                 "reportStatus", r.reportStatus == null ? "" : r.reportStatus));
     }
 
-    /** 2.3 建立维保服务关系（multipart + contractFile，参数名按实测 useUnitName，docs/07） */
     @PostMapping("/platform/register/service")
     public ApiResponse<Object> registerService(
             @RequestParam String useUnitName,
@@ -114,7 +109,6 @@ public class PlatformController {
         return ApiResponse.ok(resp.get("data") == null ? Map.of("ok", true) : resp.get("data"));
     }
 
-    /** 2.4 登记维保人员（multipart + certificateFile，docs/07 实测口径） */
     @PostMapping("/platform/register/worker")
     public ApiResponse<Object> registerWorker(
             @RequestParam String workManName,
@@ -158,9 +152,7 @@ public class PlatformController {
         } catch (Exception ignored) {
             // 建档失败不影响登记结果（可用同步兜底）
         }
-        // 2.4 建立(changState=0)成功后自动调 2.5 查询整个单位所有绑定维保人员（全量），
-        // 按证书号回填所有本地有证书人员的 platform_id（立即查 + 失败退避重试）；中止态不回填。
-        // 2.4 本身不返回人员ID（docs/04 B.5 事实更正），必须靠 2.5 查询获得。
+        // 2.4 本身不返回人员ID，必须靠 2.5 查询获得。
         Map<String, Object> platformBackfill = Map.of("status", "SKIPPED");
         if (!"1".equals(changState)) {
             try {

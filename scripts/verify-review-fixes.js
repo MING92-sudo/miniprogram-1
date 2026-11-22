@@ -1,5 +1,3 @@
-// 2026-11-16 审查修复回归断言（P0/P1/P2 前端项）：node scripts/verify-review-fixes.js
-// 行为断言走 pkg-maintenance/utils/record-view 纯函数；结构断言锁定导出/入口/映射不再漂移。
 const fs = require('fs')
 const path = require('path')
 const assert = require('assert')
@@ -12,13 +10,11 @@ function check(name, fn) {
 }
 const read = (p) => fs.readFileSync(path.join(ROOT, p), 'utf8')
 
-// P0-1/2：HANDOVER_DOCS 必须导出（sign 页页面级求值、detail 页回退分支依赖）
 check('P0-1 HANDOVER_DOCS 导出且结构完整', () => {
   assert(Array.isArray(C.HANDOVER_DOCS) && C.HANDOVER_DOCS.length === 3, 'HANDOVER_DOCS 应为 3 项数组')
   C.HANDOVER_DOCS.forEach((d) => assert(d.field && d.label, '缺 field/label'))
 })
 
-// P0-4：记录单结论/统计必须反映异常项（纯函数行为断言）
 let rv
 try { rv = require(path.join(ROOT, 'pkg-maintenance/utils/record-view.js')) } catch (e) { rv = null }
 check('P0-4 pkg-maintenance/utils/record-view 模块存在', () => assert(rv, 'pkg-maintenance/utils/record-view.js 缺失'))
@@ -46,7 +42,6 @@ check('P0-4 维保项按周期分组（不套用移交 G01—G13）', () => {
   assert(s.groups.every((g) => !/^G\d\d$/.test(g.label)), '分组标签不得为移交项类码')
 })
 
-// P1-2：签字页状态投影（布尔口径，签后文本/主按钮随状态变化）
 check('P1-2 未签 → 未签字文本 + 本机签字按钮', () => {
   const st = rv.buildSignState({ workerName: '张三', assistantName: '李四' }, { name: '张三' })
   assert.strictEqual(st.workerSignText, C.RECORD_TEXT.UNSIGNED)
@@ -78,7 +73,6 @@ check('P1-2 页面已接线纯函数', () => {
   assert(read('pkg-maintenance/pages/record-detail/index.js').indexOf('buildRecordSummary') > -1)
 })
 
-// P1-1：内部审核状态与入口
 check('P1-1 PENDING_INST_REVIEW 状态与中文文案', () => {
   assert.strictEqual(C.HANDOVER_STATUS.PENDING_INST_REVIEW, 'PENDING_INST_REVIEW')
   assert(C.HANDOVER_STATUS_TEXT.PENDING_INST_REVIEW && !/[A-Z_]{4,}/.test(C.HANDOVER_STATUS_TEXT.PENDING_INST_REVIEW), '须为中文文案')
@@ -89,18 +83,15 @@ check('P1-1 详情页有审核入口、列表筛选含审核态', () => {
   assert(read('pkg-handover/pages/list/index.js').indexOf('PENDING_INST_REVIEW') > -1, 'list 筛选缺审核态')
 })
 
-// P1-3/7：图标映射与菜单可达
 check('P1-7 ICONS 含 bullhorn/calendar-check-r', () => {
   assert(ICONS.bullhorn && ICONS['calendar-check-r'], 'ICONS 缺映射')
 })
 
-// P1-4：资料提交恒走后端三平铺字段契约
 check('P1-4 submitDocs 不再发 docs 数组分支', () => {
   const src = read('pkg-handover/pages/detail/index.js')
   assert(src.indexOf('payload.docs') < 0, 'payload.docs 与后端契约不符')
 })
 
-// P2：文案键与死函数
 check('P2 RECORD_TEXT 签字/结论文案键齐全', () => {
   ;['SIGNED', 'UNSIGNED', 'SIGN_SELF', 'VIEW_RECORD', 'CONCLUSION_ABNORMAL'].forEach((k) => assert(C.RECORD_TEXT[k], '缺 ' + k))
 })

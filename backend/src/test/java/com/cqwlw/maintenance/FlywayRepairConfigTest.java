@@ -19,10 +19,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
-/**
- * 启动自愈：云托管上 MySQL 5.7 迁移中断会留下 success=0 的历史行，
- * 之后每次启动都在 Validate 阶段失败；这里保证启动前只清掉失败行、不做 checksum 对齐。
- */
+/** 这里保证启动前只清掉失败行、不做 checksum 对齐。 */
 class FlywayRepairConfigTest {
 
     @AfterEach

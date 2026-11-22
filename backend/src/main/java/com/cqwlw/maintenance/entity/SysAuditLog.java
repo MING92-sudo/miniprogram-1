@@ -26,7 +26,6 @@ public class SysAuditLog {
     public String ip;
     public String gps;
     public String result;
-    /** P3（V49）：客户租户 id；内部审计为空，不复用 org_id */
     public String useUnitId;
     public LocalDateTime createdAt;
 }

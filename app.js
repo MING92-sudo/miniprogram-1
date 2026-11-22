@@ -1,5 +1,3 @@
-// 应用入口（M2 单账号多角色，规格 §3.2/§5.3）：单会话 globalData + 菜单驱动导航。
-// 云托管初始化/版本更新/离线补传监听沿用；登录态恢复扩展 roles/perms/workspace/home。
 const { getToken, getUserInfo, getRole, getRoles, getPerms, getWorkspace, getHome, getScope, clearAuth } = require('./utils/auth')
 
 App({
@@ -51,7 +49,6 @@ App({
     } catch (e) { /* 低版本基础库无 UpdateManager */ }
   },
 
-  // 网络恢复自动补传离线队列（docs/02 离线策略，逻辑不动）
   watchNetwork() {
     wx.onNetworkStatusChange((res) => {
       if (!res.isConnected) return
@@ -63,7 +60,6 @@ App({
     })
   },
 
-  // 从本地存储恢复登录态（单会话；旧门户令牌仅未迁移账号兜底，M6 删除）
   restoreAuth() {
     const g = this.globalData
     g.token = getToken() || ''
@@ -99,8 +95,7 @@ App({
     return getMenus(workspace || this.globalData.workspace)
   },
 
-  // 菜单变更通知（2026-11-21）：菜单晚到时底栏/工作台只在 attached/show 时 sync，
-  // 数据到了界面不补渲染 → 底栏与快捷动作整块消失。applyToGlobal 写完 globalData 后统一发通知。
+  // 菜单变更通知：菜单晚到时底栏/工作台只在 attached/show 时 sync，数据到了界面不补渲染 → 底栏与快捷动作整块消失。
   _menuListeners: [],
   onMenusUpdated(cb) {
     if (typeof cb === 'function') this._menuListeners.push(cb)

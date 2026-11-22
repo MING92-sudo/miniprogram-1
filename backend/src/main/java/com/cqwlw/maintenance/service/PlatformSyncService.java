@@ -20,12 +20,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * 平台档案同步（P2 验收：2.2/2.7 从平台拉回真实数据）：
- * 2.2 对维保单位与各使用单位查 entityID 落库；2.7 按电梯出厂编号/注册代码/设备代码
- * 回填电梯编码/使用单位主体ID/安全管理员与应急电话（实测未脱敏，AGENTS §4.4），本地不一致以平台为准（手机号除外）；
- * 平台返回多条记录时按标识匹配归属，无法确认则 fail-closed 跳过（禁止盲取首条）。
- */
+/** 2.7 按电梯出厂编号/注册代码/设备代码回填电梯编码/使用单位主体ID/安全管理员与应急电话（实测未脱敏，AGENTS §4.4），本地不一致以平台为准（手机号除外）； */
 @Service
 public class PlatformSyncService {
 
@@ -73,10 +68,6 @@ public class PlatformSyncService {
         return summary;
     }
 
-    /**
-     * 2.5 人员 platform_id 同步（docs/04 B.4：按证书号轮询精确匹配回填），
-     * 随 /platform/sync 一并触发；单人失败不影响其余人员。
-     */
     private int syncWorkers(List<Map<String, Object>> workers) {
         if (workers.isEmpty()) {
             return 0;
@@ -161,7 +152,6 @@ public class PlatformSyncService {
         if (c != null && c.organizationCode != null) {
             Map<String, Object> entity = platformClient.queryEntity(c.organizationCode, c.name);
             c.entityId = String.valueOf(entity.get("entityID"));
-            // 维保单位名称以平台 2.2 返回为准（2026-10-05 用户确认）
             String platformName = entity.get("unitName") == null ? "" : String.valueOf(entity.get("unitName"));
             if (!platformName.isEmpty()) {
                 c.name = platformName;
@@ -184,17 +174,12 @@ public class PlatformSyncService {
         for (Elevator el : elevatorMapper.selectList(new LambdaQueryWrapper<>())) {
             try {
                 Map<String, String> cond = new LinkedHashMap<>();
-                // AGENTS §4.4 / docs/06 #8：平台 2.7 不支持按 elevatorCode 查询，
-                // 只按出厂编号/注册代码/设备代码查询；elevatorCode 仅作为返回记录归属校验字段
                 cond.put("factoryNumber", el.factoryNumber);
                 cond.put("registrationCode", el.regCode);
                 cond.put("deviceCode", el.deviceCode);
                 List<Map<String, Object>> list = platformClient.queryElevatorInfo(cond);
                 Map<String, Object> p = matchRecord(cond, list);
                 if (p == null) {
-                    // fail-closed：无法确认返回记录就是本梯时一律不回写。原实现盲取 list.get(0)，
-                    // 平台返回他梯记录时会把他的 elevatorCode 写成本梯的，而该字段是 2.7 查询
-                    // 与派单的身份键，一旦写错后续同步与派单都会落到别的梯上
                     log.warn("电梯 2.7 同步跳过：返回 {} 条但无一条与本地标识匹配, code={}",
                             list.size(), el.elevatorCode);
                     continue;
@@ -205,7 +190,6 @@ public class PlatformSyncService {
                 if (p.get("useUnitEntityId") != null) {
                     el.useUnitEntityId = String.valueOf(p.get("useUnitEntityId"));
                 }
-                // 手机号脱敏值不覆盖本地真实号码（docs/04 B.7：以平台为准、手机号除外）
                 if (hasRealValue(str(p.get("elevatorAdministerPhone")))) {
                     el.elevatorAdministerPhone = str(p.get("elevatorAdministerPhone"));
                 }
@@ -225,11 +209,7 @@ public class PlatformSyncService {
         return n;
     }
 
-    /**
-     * 从平台返回中挑出能确认是本梯的记录：出厂编号/注册代码/设备代码/电梯编码任一非空且相等。
-     * 平台 2.7 会回显这些标识字段（docs/04 B.7 实测样例），故可据此确认归属；
-     * 四项本地标识全为空时无法确认，返回 null 由调用方跳过。
-     */
+    /** 平台 2.7 会回显这些标识字段，故可据此确认归属； */
     private static Map<String, Object> matchRecord(Map<String, String> cond,
                                                    List<Map<String, Object>> list) {
         for (Map<String, Object> p : list) {

@@ -1,9 +1,3 @@
-// 待办签字（M5）：待签记录单 + 待确认急修单合并视图。P1 T8-B5：client:sign 为 CLIENT_ADMIN/
-// CLIENT_SIGNER 双 Y（docs/14 §5.4 两角色能力相同），签字权由路由 perm 保证，页内不再算 canSign。
-// P1 T8-I2（fix round 1，spec D1 精神）：客户急修确认前后端双重关闭（order:confirm 收回 T2、
-// POST /faults/{id}/confirm 不在客户白名单 T3），客户主体隐藏「待确认急修单」区块并停发
-// getUnitFaults（首页 KPI 聚合用途不受影响）；非客户主体保持原合并视图。
-// V2.80：①签字提醒（临期/超期消息，点「知道了」标读）；②每条待签显示 SLA 剩余/超期标签并按紧迫排序；
 // ③批量签字模式（勾选多条 → 批量签署页，同一签名一次确认，≤20 条）。
 const unit = require('../../../services/unit')
 const { definePage } = require('../../../utils/guard')
@@ -14,7 +8,6 @@ const nav = require('../../../utils/nav')
 
 const BATCH_LIMIT = 20
 
-// 每条待签的 SLA 标签（后端 signDeadline/overdue，V56）：超期 sig；<24h amber；其余 dim
 function decorate(r) {
   const out = Object.assign({}, r)
   out.overdue = !!r.overdue

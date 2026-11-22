@@ -18,11 +18,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
-/**
- * 限时授权（spec §5.1）：PENDING→ACTIVE→REVOKED/WITHDRAWN，到期自动回收 + 递增 scope_version + 审计。
- * 回收是授权时效，与 AGENTS §2.4「上报无自动重试」无关；不触派单（AGENTS §3.6）。
- * 发起/撤回管理端点随 M3 #/grants；M1 交付机制 + 测试夹具。
- */
+/** 回收是授权时效，与 AGENTS §2.4「上报无自动重试」无关； */
 @Service
 public class GrantService {
 

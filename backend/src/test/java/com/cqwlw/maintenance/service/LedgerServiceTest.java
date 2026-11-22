@@ -24,7 +24,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/** M3 台账域业务规则：组织单级/电梯双人确认/邀请有效期。 */
 class LedgerServiceTest {
 
     private final SysOrgMapper orgMapper = mock(SysOrgMapper.class);
@@ -58,7 +57,6 @@ class LedgerServiceTest {
         verify(orgMapper).insert(any(SysOrg.class));
     }
 
-    // ── 层级口径（V51 同类错误的防回归）：公司 → 部门 → 班组，且单公司 ──
 
     @Test
     void deptMustHangUnderCompany() {

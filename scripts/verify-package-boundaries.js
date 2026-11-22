@@ -1,5 +1,4 @@
 // 主包/分包依赖边界：仅分包使用的 services/utils 不得留在主包目录。
-// 运行：node scripts/verify-package-boundaries.js
 const fs = require('fs')
 const path = require('path')
 

@@ -27,12 +27,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * C-12：GB/T 10060—2023 74 项移交检查清单。
- * 判定照 7.2/7.3（重要项任一不合格即不合格）；不合格项按 item_no 1:1 自动生成整改清单（不可增删）；
- * 逐条复验（全部 PASS 才回待确认）；☆项置 NA 须经理审批；归档 SHA-256 + 4 年留存。
- * 本清单为内部移交把关，不替代监督检验（B1）。
- */
 @Service
 public class HandoverChecklistService {
 
@@ -76,8 +70,7 @@ public class HandoverChecklistService {
             if (cnt > 0) {
                 return existing; // 已有清单任意状态可读（整改/待确认/归档态查看）
             }
-            // 历史缺陷行自愈（2026-11-20）：result 未置空串时代生成失败留下的 0 项清单——
-            // 查验中删除重建（幂等）；非查验中不重建（只读展示，下方 getChecklist 返回空明细）
+            // 历史缺陷行自愈：result 未置空串时代生成失败留下的 0 项清单——查验中删除重建（幂等）；
             if (!INSPECTING.equals(o.status)) {
                 return existing;
             }
@@ -103,8 +96,6 @@ public class HandoverChecklistService {
             it.itemName = t.name();
             it.requirement = t.requirement();
             it.important = t.important();
-            // result 列 NOT NULL 无默认值（V40）：置空串=未填写（前端/管理端 '' 即待检口径）；
-            // 此前不设值 → 严格模式插入失败 → 清单生成后 0 项（2026-11-20 真机缺陷）
             it.result = "";
             itemMapper.insert(it);
         }
@@ -132,7 +123,6 @@ public class HandoverChecklistService {
         HandoverCheck check = generateChecklist(handoverId);
         List<HandoverCheckItem> items = itemMapper.selectList(
                 new LambdaQueryWrapper<HandoverCheckItem>().eq(HandoverCheckItem::getCheckId, check.id));
-        // 齐备基线是模板 74 项而非存量行数（2026-11-20 真机缺陷：0 项缺陷行曾空转判定 QUALIFIED）
         if (items.size() != HandoverChecklistTemplate.items().size()) {
             throw new BizException(422, "检查清单数据异常（" + items.size() + "/"
                     + HandoverChecklistTemplate.items().size() + " 项），请重新进入查验生成");
@@ -240,7 +230,6 @@ public class HandoverChecklistService {
         return r;
     }
 
-    /** 逐条复验；全部 PASS 才回 PENDING_CONFIRM（M6）。 */
     @Transactional
     public HandoverOrder recheckItem(String handoverId, String rectId, Map<String, Object> body) {
         HandoverOrder o = requireOrder(handoverId);

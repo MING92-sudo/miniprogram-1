@@ -9,13 +9,11 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** RoleCatalog v2：旧→新别名、13 规范角色、部门/adminConsole、同部门兼任（R7）。 */
 class RoleCatalogV2Test {
 
     @Test
     void legacyCodesAliasToCanonical() {
         assertEquals("PLATFORM_ADMIN", RoleCatalog.canonical("ADMIN"));
-        // 2026-11-21 统一：SYS_ADMIN 并入 PLATFORM_ADMIN（唯一全权角色）
         assertEquals("PLATFORM_ADMIN", RoleCatalog.canonical("SYS_ADMIN"));
         assertEquals("INST_PM", RoleCatalog.canonical("INSTALL_MANAGER"));
         assertEquals("INST_CLERK", RoleCatalog.canonical("INSTALL_CLERK"));
@@ -57,7 +55,6 @@ class RoleCatalogV2Test {
 
     @Test
     void canonicalCodesAreTwelve() {
-        // 2026-11-21：SYS_ADMIN 退出规范码（13→12），唯一全权角色=PLATFORM_ADMIN
         assertEquals(Set.of("PLATFORM_ADMIN", "INST_MGR", "INST_PM", "INST_CLERK", "INSTALLER",
                 "MAINT_MGR", "MAINT_SUP", "MAINT_TECH", "MAINT_BIZ", "MAINT_QUALITY",
                 "CLIENT_ADMIN", "CLIENT_SIGNER"), RoleCatalog.canonicalCodes());
@@ -75,7 +72,6 @@ class RoleCatalogV2Test {
         assertFalse(RoleCatalog.canonicalRole("MAINT_TECH").adminConsole());
         assertFalse(RoleCatalog.canonicalRole("INSTALLER").adminConsole());
         assertFalse(RoleCatalog.canonicalRole("CLIENT_SIGNER").adminConsole());
-        // M1：CLIENT_ADMIN 仍不可登录管理端（M5 新能力）
         assertFalse(RoleCatalog.canonicalRole("CLIENT_ADMIN").adminConsole());
         assertFalse(RoleCatalog.canUseAdminConsole("UNIT_ADMIN"));
     }
@@ -98,11 +94,7 @@ class RoleCatalogV2Test {
         assertEquals("维保班组长", RoleCatalog.nameOf("LEADER"));
     }
 
-    /**
-     * E2E 回归：人员建档传规范码（MAINT_TECH/INSTALLER…）曾被判「角色不合法」，
-     * 因为 known/assignable 只查历史码表。系统其余部分（登录响应、种子、角色分配）已切规范码，
-     * 判定必须同口径；客户主体仍不得在人员目录建档。
-     */
+    /** 系统其余部分（登录响应、种子、角色分配）已切规范码，判定必须同口径； */
     @Test
     void canonicalCodesKnownAndAssignable() {
         assertTrue(RoleCatalog.known("MAINT_TECH"));

@@ -1,5 +1,3 @@
-// 水印相机：拍照 → canvas 合成水印（时间/工单号/定位标识）→ 压缩导出回传
-// 约定：压缩后长边 ≤1200px、≤500KB（docs/04），压缩实现见 utils/image
 const { formatTime } = require('../../utils/util')
 const { compressImage } = require('../../utils/image')
 
@@ -19,9 +17,6 @@ Page({
   },
 
   onLoad(query) {
-    // 具体位置文字（逆地址解析结果，优先）；无地址时回退坐标
-    // 部分基础库/真机不会自动解码 query（上一页用 encodeURIComponent 编码了中文），
-    // 这里手动解码一次；已解码的字符串不含 % 序列，重复解码无副作用
     let locationText = ''
     try {
       locationText = decodeURIComponent(query.address || '')
@@ -55,8 +50,7 @@ Page({
   },
 
   onReady() {
-    // 必须等渲染完成（onReady）再拉起相机：onLoad 阶段部分安卓机不弹相机，
-    // 且此时 #wm-canvas 未布局，拍完立即合成会报"画布初始化失败"
+    // 必须等渲染完成（onReady）再拉起相机：onLoad 阶段部分安卓机不弹相机，且此时 #wm-canvas 未布局，拍完立即合成会报"画布初始化失败"
     this.takePhoto()
   },
 
@@ -95,8 +89,7 @@ Page({
   // 将照片绘制到 canvas 并叠加水印文字
   renderWatermark(src) {
     this.setData({ processing: true })
-    // 先取照片真实宽高：部分真机 canvas.createImage() 的 width/height 偶发为 0，
-    // 导致 drawImage 按 0 尺寸绘制 → 画布只剩黑色底，导出黑图
+    // 先取照片真实宽高：部分真机 canvas.createImage() 的 width/height 偶发为 0，导致 drawImage 按 0 尺寸绘制 → 画布只剩黑色底，导出黑图
     wx.getImageInfo({
       src,
       success: (info) => this._drawWatermark(src, info.width, info.height),

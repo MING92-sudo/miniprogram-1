@@ -9,11 +9,6 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * JsonUtil 时间序列化回归（E2E 发现）：历史实现是裸 new ObjectMapper()，
- * 未注册 JavaTimeModule，convertValue(含 LocalDateTime 的实体, Map) 会抛
- * 「Java 8 date/time type not supported」，导致移交单/外接备案详情等接口 500。
- */
 class JsonUtilTimeTest {
 
     @Test

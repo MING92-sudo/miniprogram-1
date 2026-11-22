@@ -20,7 +20,6 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 import java.util.Map;
 
-/** M5 数据域端点：统计/审计只读/系统配置/敏感导出审批。 */
 @RestController
 public class DataDomainController {
 

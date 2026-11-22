@@ -1,8 +1,5 @@
 'use strict'
-/**
- * 核心业务流：串行链路，每步都断言，任何一环断了整条 flow 记为失败。
- * 覆盖：建档 → 客户账号开通 → 登录 → 工单现场作业（签到/动态码/清单/双签/签退）→ 客户签字 → 管理端归档。
- */
+/** 覆盖：建档 → 客户账号开通 → 登录 → 工单现场作业（签到/动态码/清单/双签/签退）→ 客户签字 → 管理端归档。 */
 
 const fs = require('fs')
 const path = require('path')
@@ -45,11 +42,7 @@ async function step(name, fn, expect = 'ok') {
   return r
 }
 
-/**
- * 上传一张 1×1 PNG 作为签名图，返回真实 fileId。
- * 签退时 resolveSignatureUrl 会查 app_file 取 URL，伪造的 fileId（如 'f_sig_principal'）解析为空，
- * 会被判「请完成主维保人员签名」——必须走真实上传。
- */
+/** 签退时 resolveSignatureUrl 会查 app_file 取 URL，伪造的 fileId（如 'f_sig_principal'）解析为空，会被判「请完成主维保人员签名」——必须走真实上传。 */
 async function uploadSignature(token, name) {
   const png = Buffer.from(
     'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
@@ -177,9 +170,7 @@ async function runFlowCases(ctx) {
   suite('F2. 工单：签到 → 动态码 → 清单 → 双签 → 签退')
   const woId = seed.workOrders.wo1
   try {
-    // 前置：把演示工单 wo_1 复位到「未签到」的干净初始态。
-    // 必须无条件重置——只看 status 不够：上次中断可能留下 checkin_extra（签到痕迹）而状态已回 PENDING，
-    // 会导致「主维保人员已签到，不可重复签到」。
+    // 必须无条件重置——只看 status 不够：上次中断可能留下 checkin_extra（签到痕迹）而状态已回 PENDING，会导致「主维保人员已签到，不可重复签到」。
     const before = dbExec(`SELECT CONCAT(status,'|',IFNULL(checkin_extra,''),'|',IFNULL(assistant_checkin_extra,'')) FROM work_order WHERE id='${woId}'`)
     dbExec(
       `UPDATE work_order SET status='PENDING', checkin_time=NULL, checkout_time=NULL, ` +
@@ -293,8 +284,7 @@ async function runFlowCases(ctx) {
     // 客户令牌查记录详情有状态门禁（未到「待客户签字」后的可见态一律 422），属预期业务拒绝
     record('⑰b 客户令牌查详情受状态门禁（预期拒绝）', await get(`/unit/records/${recordId}`, clientTok), 'biz')
 
-    // ⑰c 发起使用单位签字：门控「双签齐」，把记录从 PENDING_CLIENT_SIGN 推到 PENDING_CLIENT_SIGNATURE，
-    // 否则 sign-view / confirm-by-token 一律 422（此前漏了这一步，⑱⑲⑳ 实际没跑到却报绿）
+    // 发起签字前必须已完成双签。
     const sr = await step('⑰c 发起使用单位签字（双签齐门控）', () =>
       post(`/work-orders/${recordId}/sign-request`, {}, tech))
     const shareToken = (sr.data && sr.data.shareToken) ||
@@ -303,9 +293,7 @@ async function runFlowCases(ctx) {
     const signView = await get(`/unit/records/${recordId}/sign-view?token=${shareToken}`)
     record('⑰ 分享链接签字视图（share_token）', signView, 'ok')
 
-    // 客户签字：设计通道是匿名分享链接（POST /unit/records/{id}/confirm-by-token?token=share_token）。
-    // 签名图必须先落 app_file，而 POST /files/upload 不在客户令牌白名单（客户只有 GET /files/*），
-    // 因此签名文件用员工令牌上传，确认动作仍走匿名令牌——与真实分享页一致。
+    // 签名图必须先落 app_file，而 POST /files/upload 不在客户令牌白名单（客户只有 GET /files/*），因此签名文件用员工令牌上传，确认动作仍走匿名令牌——与真实分享页一致。
     const clientSig = await uploadSignature(tech, 'client-sign.png')
     const conf = await post(`/unit/records/${recordId}/confirm-by-token?token=${shareToken}`,
       { signatureFileId: clientSig, satisfaction: 5 }, null)
@@ -339,10 +327,6 @@ async function runFlowCases(ctx) {
     console.log(colors.yellow(`  ! F3 中断：${e.message}`))
   }
 
-  // ══════════════ F4. 报修全链路（2026-11-21 重写，C-18/V62 困人字段 + 抢单池可见域修复）══════════════
-  // 客户报修（困人）→ 维保端 trapped=1 可见 → 抢单 → 到场 → 提交（PENDING_CONFIRM）；
-  // 客户确认按 T8-I2 裁决前后端双重关闭（断言 403 + 状态不变）；管理端代报修（建单 + proxy 标来源）。
-  // 全部步骤严格断言，测后 SQL 清理测试单。
   suite('F4. 报修全链路：客户报修 → 维保端接单 → 闭环 + 代报修')
   const f4ids = []
   const OWNER_CODE = 'EM-2024-001'
@@ -394,8 +378,6 @@ async function runFlowCases(ctx) {
       post(`/faults/${faultId}/submit`, { faultReason: '门锁触点氧化', handleDesc: '清洁触点并更换，恢复运行' }, tech))
     assertEq(sb.data && sb.data.status, 'PENDING_CONFIRM', '提交后待确认')
 
-    // T8-I2 既有产品裁决：客户急修确认前后端双重关闭（order:confirm 收回、/faults/*/confirm 不在客户白名单），
-    // 客户主体隐藏「待确认急修单」——闭环动作不在小程序客户侧，链路止于 PENDING_CONFIRM
     record('⑨ 客户令牌确认被拒（T8-I2 双重关闭，预期 403）', await post(`/faults/${faultId}/confirm`, { pass: true }, signerTok), 'biz')
     const st = dbExec(`SELECT status FROM fault WHERE id='${faultId}'`)
     record(`⑩ 急修单保持 PENDING_CONFIRM（${st}）`, { http: 200, code: st === 'PENDING_CONFIRM' ? 0 : 500, message: st, ms: 0 }, 'ok')

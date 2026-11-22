@@ -17,12 +17,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-/**
- * P1（2026-11-16 审查）：快捷动作必须与路由白名单/权限矩阵同口径（权限面=渲染面）：
- * CLIENT 不得下发维保子包页面；MAINT_TECH 不得下发 plan；
- * plan 入口下发给 MAINT_SUP/MAINT_MGR；外接建档模块移除后任何角色都不得收到 filing 快捷动作；
- * 扫码开工深链未实现前不得下发 mode=scan（docs/12 C-17）。
- */
+/** 快捷动作必须与路由白名单/权限矩阵同口径（权限面=渲染面）：CLIENT 不得下发维保子包页面； */
 class MiniappMenuQuickActionsTest {
 
     private MiniappMenuService svc() {
@@ -46,8 +41,6 @@ class MiniappMenuQuickActionsTest {
         assertTrue(paths.contains("/pkg-client/pages/todo/index"), "CLIENT 待办签字入口保留");
     }
 
-    /** 2026-11-21 裁决：客户一键报修重开（client:report CA/CS 双 Y）——quickActions 恢复 report 首位；
-     *  急修进度/评价仍下线（emergency 不下发、client:evaluate 不入 BUTTON_CODES） */
     @Test
     @SuppressWarnings("unchecked")
     void clientQuickActionsIncludeReportExcludeEvaluate() {
@@ -96,7 +89,6 @@ class MiniappMenuQuickActionsTest {
 
     @Test
     void instQaMatchesRouteRoles() {
-        // 2026-11-21 裁决：handover:create 扩 INST_CLERK——create/upload 均 INST_CLERK/INST_PM
         List<String> clerk = qaPaths(Set.of("INST_CLERK"));
         assertTrue(clerk.stream().anyMatch(p -> p.contains("/create/index")), "CLERK 有 handover:create");
         assertTrue(clerk.stream().anyMatch(p -> p.contains("/upload/index")));

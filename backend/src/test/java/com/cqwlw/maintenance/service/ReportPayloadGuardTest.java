@@ -39,12 +39,6 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/**
- * 2.6 报文数据正确性护栏（批次1 B1/B2/B3）：
- * B1 联系人手机号必须按平台人员 ID 强关联，禁止按姓名/任意 WORKER 兜底（虚假数据上平台）；
- * B2 维保单位档案缺失时中断而非上报空负责人；
- * B3 签退本地落库必须走事务——记录落库失败回滚，工单不得独留 DONE。
- */
 class ReportPayloadGuardTest {
 
     private static final String EMP_LI = "emp_li";
@@ -84,7 +78,6 @@ class ReportPayloadGuardTest {
                 fileStorage, tx.template, new AppProperties());
     }
 
-    /** 设备信息档案齐备（上传维保记录的 5 项必传项，docs/01 §3.4.1） */
     private static Elevator completeElevator() {
         Elevator el = new Elevator();
         el.id = "el_1";
@@ -142,7 +135,7 @@ class ReportPayloadGuardTest {
         return e;
     }
 
-    /** B1：姓名与档案不一致时，手机号仍按 platformId 精确取本人，绝不取他人 */
+    /** 姓名与档案不一致时，手机号仍按 platformId 精确取本人，绝不取他人 */
     @Test
     void recorderPhoneFollowsPlatformIdNotName() {
         when(companyMapper.selectList(any())).thenReturn(List.of(completeCompany()));
@@ -153,7 +146,7 @@ class ReportPayloadGuardTest {
         assertEquals("张三", payload.get("recorder"));
     }
 
-    /** B1：平台人员 ID 必须唯一，多条本地档案不得取首条冒充本人。 */
+    /** 平台人员 ID 必须唯一，多条本地档案不得取首条冒充本人。 */
     @Test
     void duplicateWorkerPlatformIdInterruptsReport() {
         when(companyMapper.selectList(any())).thenReturn(List.of(completeCompany()));
@@ -168,7 +161,7 @@ class ReportPayloadGuardTest {
         assertTrue(e.getMessage().contains("唯一"), e.getMessage());
     }
 
-    /** B1：platformId 查不到本人 → 中断上报（旧实现会兜底取任意 WORKER 手机号） */
+    /** platformId 查不到本人 → 中断上报 */
     @Test
     void recorderPhoneMissingPlatformLinkInterrupts() {
         when(companyMapper.selectList(any())).thenReturn(List.of(new Company()));
@@ -178,7 +171,6 @@ class ReportPayloadGuardTest {
         assertEquals(422, e.getCode());
     }
 
-    /** B2：company 表空 = 建档缺失，中断而非上报空负责人 */
     @Test
     void missingCompanyInterruptsReport() {
         when(companyMapper.selectList(any())).thenReturn(List.of());
@@ -241,7 +233,6 @@ class ReportPayloadGuardTest {
         verify(reportService, never()).attemptUpload(any());
     }
 
-    /** B3：维保记录落库失败 → 事务回滚、不上传平台、工单相关写不生效 */
     @Test
     void checkoutRecordInsertFailureRollsBack() {
         AppProperties props = new AppProperties();

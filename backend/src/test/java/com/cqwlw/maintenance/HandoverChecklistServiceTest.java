@@ -33,10 +33,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/**
- * C-12：GB/T 10060—2023 74 项移交检查清单。
- * 覆盖 74 项生成/幂等、7.2/7.3 五路径判定、不合格项 1:1 整改、逐条复验、☆NA 经理审批、缺项/缺描述/缺照片拦截、归档 SHA-256。
- */
+/** 覆盖 74 项生成/幂等、7.2/7.3 五路径判定、不合格项 1:1 整改、逐条复验、☆NA 经理审批、缺项/缺描述/缺照片拦截、归档 SHA-256。 */
 class HandoverChecklistServiceTest {
 
     private final HandoverOrderMapper orderMapper = mock(HandoverOrderMapper.class);
@@ -125,7 +122,7 @@ class HandoverChecklistServiceTest {
         assertEquals(74, check.totalItems);
         verify(itemMapper, times(74)).insert(any(HandoverCheckItem.class));
         verify(checkMapper, times(1)).insert(any(HandoverCheck.class));
-        // result 列 NOT NULL 无默认值：生成时必须置空串（未填写），否则真实库插入失败、清单 0 项（2026-11-20 真机缺陷）
+        // result 列 NOT NULL 无默认值：生成时必须置空串（未填写），否则真实库插入失败、清单 0 项
         org.mockito.ArgumentCaptor<HandoverCheckItem> captor = org.mockito.ArgumentCaptor.forClass(HandoverCheckItem.class);
         verify(itemMapper, org.mockito.Mockito.atLeastOnce()).insert(captor.capture());
         for (HandoverCheckItem it : captor.getAllValues()) {
@@ -146,7 +143,6 @@ class HandoverChecklistServiceTest {
         verify(itemMapper, never()).insert(any(HandoverCheckItem.class));
     }
 
-    /** 0 项缺陷行自愈（2026-11-20 真机缺陷：result 未置空串时代生成失败留下的空清单）：查验中删除重建 */
     @Test
     void generateHealsZeroItemCheck() {
         order("INSPECTING");
@@ -161,7 +157,6 @@ class HandoverChecklistServiceTest {
         verify(itemMapper, times(74)).insert(any(HandoverCheckItem.class));
     }
 
-    /** 提交齐备基线为模板 74 项（2026-11-20 真机缺陷：0 项缺陷行曾空转判定 QUALIFIED 并推进状态） */
     @Test
     void submitRejectsAbnormalItemCount() {
         order("INSPECTING");

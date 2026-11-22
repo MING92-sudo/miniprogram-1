@@ -28,14 +28,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * 管理端·计划调度与延期审批（docs/04 A.5 落地，docs/09 二期）：
- * 到期电梯生成排班池（maintain_plan）→ 指派（校验：platform_id 未同步 1004 /
- * 证件有效期与排班互斥 1007（docs/01 §3.2.4 ④：主/配合互斥且均 ≠ 维保经理）/
- * 电梯已有未完成工单 1007）→ 生成工单（auto_dispatched=false，与自动派单并存）。
- * 延期：LEADER+ 发起 → ADMIN 审批；最近记录已上报成功时平台侧 nextMaintenanceDate
- * 已固化，响应返回 platformDateSynced=false 提示（A.5 约束）。
- */
 @Service
 public class AdminScheduleService {
 
@@ -196,13 +188,11 @@ public class AdminScheduleService {
         Employee assistant = assistantId == null || assistantId.isBlank()
                 ? null : assignable(assistantId, "配合人员");
 
-        // docs/01 §3.2.4 ④：排班派工前 主/配合互斥、且均 ≠ 维保经理（1007）
         checkDispatchMutex(principal, assistant);
         checkCert(principal, date);
         if (assistant != null) {
             checkCert(assistant, date);
         }
-        // 1004：platform_id 未同步不可派工（docs/04 A.0 码表）
         requirePlatformId(principal);
         if (assistant != null) {
             requirePlatformId(assistant);
@@ -444,7 +434,6 @@ public class AdminScheduleService {
         }
     }
 
-    /** docs/01 §3.2.4 ④：主/配合互斥、且均 ≠ 维保经理 */
     private void checkDispatchMutex(Employee principal, Employee assistant) {
         if (assistant != null && notBlank(principal.phone) && principal.phone.equals(assistant.phone)) {
             throw new BizException(1007, "配置冲突：主维保（" + principal.name + "）与配合人员（"

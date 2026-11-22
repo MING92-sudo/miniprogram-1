@@ -1,8 +1,5 @@
 'use strict'
-/**
- * E2E 种子基线：账号口令与演示数据 ID。
- * 与 DemoDataSeeder 对齐；数据库重建后若 ID 变化，只需改这里。
- */
+/** 数据库重建后若 ID 变化，只需改这里。 */
 
 const accounts = {
   // 平台/管理

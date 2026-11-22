@@ -9,10 +9,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 
-/**
- * 业务审计（spec §5.2）：只 append + 查询，无删除/更新端点（只读不可删改）。
- * 与旧 op_log + AuditInterceptor 并存；落库失败由调用方吞异常（不影响主流程）。
- */
+/** 业务审计（spec §5.2）：只 append + 查询，无删除/更新端点（只读不可删改）。 */
 @Service
 public class AuditLogService {
 

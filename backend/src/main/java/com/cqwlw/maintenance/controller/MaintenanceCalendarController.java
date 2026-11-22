@@ -11,10 +11,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.time.LocalDate;
 import java.util.Map;
 
-/**
- * 维保日历（Task 11）：只读投影，不落库、不触发派单。
- * 可见范围=本人名下电梯；区域/班组扩大随 Task 8 的谓词接入。
- */
+/** 维保日历：只读投影，不落库、不触发派单。 */
 @RestController
 public class MaintenanceCalendarController {
 

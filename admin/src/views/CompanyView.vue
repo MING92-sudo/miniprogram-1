@@ -38,8 +38,6 @@
   </div>
 </template>
 <script setup>
-// 单位信息（系统配置 Tab，2026-11-21）：维保单位档案查看/编辑（config:manage）。
-// 数据：GET /company、PUT /company（后端 AdminArchiveService.updateCompany 含五类手机号互斥校验）。
 defineProps({ embedded: Boolean })
 import { ref, onMounted } from 'vue'
 import { company as fetchCompany, updateCompany } from '../api/archive'

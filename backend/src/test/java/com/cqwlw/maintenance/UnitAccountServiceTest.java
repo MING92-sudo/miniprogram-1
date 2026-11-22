@@ -25,10 +25,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/**
- * 使用单位门户账号（W3，Task 9，docs/14 §3）：一间单位一个账号，角色固定 UNIT_ADMIN。
- * 登录签发 ut=1 的门户 JWT（subject=use_unit.id）；微信绑定只认服务端换来的 openid。
- */
+/** 微信绑定只认服务端换来的 openid。 */
 class UnitAccountServiceTest {
 
     private final UseUnitMapper useUnitMapper = mock(UseUnitMapper.class);
@@ -230,7 +227,6 @@ class UnitAccountServiceTest {
                 () -> service.changePassword("nope", "x", "NewPass!45")).getCode());
     }
 
-    /** V41 账号统一（2026-11-16 审查）：account_migrated=1 的单位不得再经废弃门户链签发 ut=1 令牌 */
     @Test
     void loginRejectsMigratedAccount() {
         UseUnit u = unit();

@@ -79,7 +79,6 @@ Page({
             // EventChannel 失效时走通道②
           }
         }
-        // 通道②：直接调用上一页方法（未注册 events 监听 / EventChannel 失效时兜底；
         // 两通道同时生效时 setData 幂等，无副作用）
         {
           const pages = getCurrentPages()

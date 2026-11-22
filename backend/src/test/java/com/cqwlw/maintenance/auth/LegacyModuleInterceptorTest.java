@@ -10,7 +10,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** 已裁模块总开关（docs/01 §10.2）：默认 403，APP_LEGACY_MODULES_ENABLED=true 放行。 */
 class LegacyModuleInterceptorTest {
 
     private static LegacyModuleInterceptor interceptor(boolean enabled) {

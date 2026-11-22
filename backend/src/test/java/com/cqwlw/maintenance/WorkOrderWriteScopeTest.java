@@ -40,11 +40,6 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/**
- * 现场作业端点的工单归属校验（V7 班组数据权限）：签到 / 清单 / 单项提交 / 本次仍执行 / 签退
- * 都须先过 requireOrderScope。缺此校验时任一已登录作业人员凭他人工单 id 即可代签到、代填检查项、
- * 代签退，而签退会自动转发平台 2.6 —— 等于向监管平台写入虚假维保数据（AGENTS §6 合规底线 → Blocker）。
- */
 class WorkOrderWriteScopeTest {
 
     private static final String GROUP = "维保一班";
@@ -124,7 +119,7 @@ class WorkOrderWriteScopeTest {
         verify(reportService, never()).attemptUpload(any());
     }
 
-    /** C3：resolve-by-elevator 同样须过归属校验——凭电梯编码不得读取他班组工单全量信息 */
+    /** resolve-by-elevator 同样须过归属校验——凭电梯编码不得读取他班组工单全量信息 */
     @Test
     void workerCannotResolveForeignOrderByElevatorCode() {
         com.cqwlw.maintenance.entity.Elevator el = new com.cqwlw.maintenance.entity.Elevator();
@@ -135,7 +130,6 @@ class WorkOrderWriteScopeTest {
         assertForbidden(() -> service.resolveByElevator("code_x", EMP_LI));
     }
 
-    /** M14：检测数值接受数字字符串（前端可能传字符串），非法类型 422 而非 500 */
     @Test
     void itemValueAcceptsNumericStringButRejectsGarbage() {
         Map<String, Object> ok = new java.util.HashMap<>();
@@ -162,7 +156,6 @@ class WorkOrderWriteScopeTest {
         assertNotNull(service.getChecklist(OWN_ORDER, EMP_LI).get("items"));
     }
 
-    /** 组长保留 V7 班组清单视角，但签到必须主维保本人，管理视角不能变成代签到权限。 */
     @Test
     void groupLeaderCanReadChecklistButCannotCheckinForMember() {
         assertForbidden(() -> service.checkin(GROUP_ORDER,

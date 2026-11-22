@@ -24,15 +24,10 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * 管理端聚合查询（docs/09 一期：看板 / 上报异常闭环 / 同步看板 / 统计）。
- * 工单到期口径与 WorkOrderService.homeSummary 一致；隐患分布按 problemCodesJson 聚合（docs/09 §4.1）；
- * 上报日志仅返回脱敏摘要（request_digest 落库时已脱敏，AGENTS §2.4），本服务不做明文还原。
- */
+/** 上报日志仅返回脱敏摘要（request_digest 落库时已脱敏，AGENTS §2.4），本服务不做明文还原。 */
 @Service
 public class AdminService {
 
-    /** 隐患码固定范围 S0—S7（docs/01：S3 重复为规范笔误，连续编码待平台确认 docs/06 #9） */
     private static final List<String> HAZARD_CODES =
             List.of("S0", "S1", "S2", "S3", "S4", "S5", "S6", "S7");
 
@@ -63,7 +58,7 @@ public class AdminService {
     // ── 看板（GET /admin/dashboard）──
 
     public Map<String, Object> dashboard() {
-        // 读接口不触发派单（docs/04 A.10.9）：派单只由定时任务与管理端显式操作驱动
+        // 读接口不触发派单：派单只由定时任务与管理端显式操作驱动
         String today = TimeUtil.date(TimeUtil.now());
         String soonEnd = TimeUtil.date(TimeUtil.now().plusDays(3));
         int dueToday = 0;
@@ -231,7 +226,6 @@ public class AdminService {
         m.put("uploadStatus", UnitRecordService.uploadStatus(r.reportStatus));
         m.put("retryCount", r.retryCount == null ? 0 : r.retryCount);
         m.put("confirmStatus", nz(r.confirmStatus));
-        // V56：拒签分类投影（列表行「拒签 + 分类码」标记与拒签筛选；与详情 adminPreview 同源）
         m.put("lifecycleStatus", nz(r.lifecycleStatus));
         m.put("refuseCode", nz(r.refuseCode));
         m.put("refuseReason", nz(r.refuseReason));
@@ -280,7 +274,6 @@ public class AdminService {
         return out;
     }
 
-    // ── 平台同步看板（GET /reg/sync-status，docs/04 A.3 口径）──
 
     public Map<String, Object> syncStatus() {
         List<Employee> employees = employeeMapper.selectList(new LambdaQueryWrapper<>());
@@ -323,7 +316,6 @@ public class AdminService {
         out.put("elevatorGeoMissingList", geoMissing);
         out.put("lastSyncAt", lastSyncAt);
 
-        // 1006 语义（docs/04 A.0）：特殊类别（消防/防爆）电梯缺少启用中的自定义模板数（TSG 第二条）
         java.util.List<String> specialTypes = java.util.List.of("消防电梯", "防爆电梯");
         java.util.Map<String, Long> customByScope = new java.util.LinkedHashMap<>();
         for (String scope : specialTypes) {
@@ -349,7 +341,6 @@ public class AdminService {
         return out;
     }
 
-    // ── 统计（GET /admin/stats，聚合在后端完成，docs/09 决策 #6）──
 
     public Map<String, Object> stats(String rangeDays) {
         int days = Math.max(1, Math.min(365, intOf(rangeDays, 30)));

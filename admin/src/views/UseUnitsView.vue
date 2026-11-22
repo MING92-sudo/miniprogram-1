@@ -150,7 +150,6 @@
   </div>
 </template>
 <script setup>
-// 使用单位档案（docs/09 §4.1 / docs/04 A 部分 use-units）：列表 + 详情 + 新增/编辑/删除（client:edit）。
 // 字段口径：unitPrincipal=使用单位负责人、elevatorAdminister=使用单位安全管理员（平台 2.6 冻结字段）。
 import { ref, onMounted } from 'vue'
 import DataTable from '../ui/DataTable.vue'
@@ -190,7 +189,6 @@ async function load() {
 }
 function openDetail(row) { detail.value = row; loadAccounts(row.id) }
 
-// ── P3 客户账号（docs/14 §6）：在使用单位详情内开通/停用/启用/重置/恢复宽限 ──
 const accounts = ref([])
 const accountsLoading = ref(false)
 async function loadAccounts(useUnitId) {

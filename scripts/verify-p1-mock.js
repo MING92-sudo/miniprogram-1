@@ -1,7 +1,3 @@
-// P1 T7 mock 客户路由契约断言：node scripts/verify-p1-mock.js
-// 逐条对齐后端 P1 门禁/白名单（UnitRecordService.toClientMap/requireSignable/requireViewable、
-// RecordLifecycleService.refuseByToken、UnitPortalService 本单位谓词、RoleCatalog.isCustomerPrincipal）。
-// 直接驱动 mock/server.js（Node 内 require，wx 桩），断言响应体与错误码；不启 IDE、不发真实请求。
 const path = require('path')
 const assert = require('assert')
 const ROOT = path.join(__dirname, '..')
@@ -23,7 +19,6 @@ const OWN_RECORD = 'ur_1' // EM-2024-001 → el_1 → uu_1（本单位，可签�
 const OTHER_RECORD = 'ur_2' // EM-2024-003 → el_3 → uu_2（跨单位）
 const OWN_TOKEN = 'sg-mock-1'
 
-// 客户路径禁返字段（后端 toClientMap「明确不返回」+ satisfaction，docs/14 §4.7）
 const FORBIDDEN = ['context', 'previewContext', 'reportPayload', 'shareToken', 'originalRecordId',
   'workerPlatformId', 'assistantPlatformId', 'refuseReason', 'reportStatus', 'uploadStatus',
   'satisfaction', 'retryCount']
@@ -45,7 +40,6 @@ async function expectCode(code, method, url, data) {
     assert.strictEqual(e && e.code, code, '期望 code=' + code + '，实际 ' + JSON.stringify(e))
   }
 }
-// except：裁决明文允许的兼容期例外字段（仅 T7-C2 的 pending-signs.shareToken 一处使用）
 function noForbidden(obj, label, except) {
   FORBIDDEN.filter((k) => (except || []).indexOf(k) < 0)
     .forEach((k) => assert(!Object.prototype.hasOwnProperty.call(obj, k), (label || '响应') + ' 含禁返字段 ' + k))
@@ -66,7 +60,6 @@ async function check(name, fn) {
 }
 
 ;(async () => {
-  // ── A. loginPayload.principalType（T1 RoleCatalog.isCustomerPrincipal 口径）+ 别名表引用根 ALIAS ──
   await check('A1 客户登录 principalType=CUSTOMER', async () => {
     const p = await login(CLIENT_ACCOUNT)
     assert.strictEqual(p.principalType, 'CUSTOMER', JSON.stringify({ pt: p.principalType, roles: p.roles }))
@@ -122,8 +115,6 @@ async function check(name, fn) {
       d.db.unitRecords = d.db.unitRecords.filter((x) => x.id !== 'ur_tmp_v2')
     }
   })
-  // C-24：员工读记录详情走内部端点 GET /records/:id（后端 RecordController 同口径：
-  // record:view + V7 班组谓词 + 内部全量投影）；/unit/records/:id 还原客户专用契约（后端 getAs）
   await check('B7 员工读记录详情走内部端点保留内部投影（C-24 GET /records/:id）', async () => {
     await login(TECH_ACCOUNT)
     const r = await req('GET', '/records/' + OWN_RECORD)
@@ -207,7 +198,6 @@ async function check(name, fn) {
       assert.strictEqual(r.id, OWN_RECORD, '混入非本单位/非链末端记录: ' + r.id)
     })
   })
-  // 裁决 T7-C2（docs/14 §4.6 规则 8 兼容期）：待办行保留 shareToken 维持「去签字」链路；
   // 其余客户投影（records/list、records/pending、详情）一律不含签字凭证
   await check('D2 /unit/pending-signs 按可签集合 + 本单位，兼容期含 shareToken', async () => {
     const list = await req('GET', '/unit/pending-signs')
@@ -359,7 +349,6 @@ async function check(name, fn) {
     await expectCode(1404, 'POST', '/unit/records/ur_missing/confirm', { signatureUrl: 'https://mock/s.png' })
   })
 
-  // ── G. 菜单角标与 T6 保留项 ──
   await login(CLIENT_ACCOUNT)
   await check('G1 客户 badges.pendingSigns 按本单位可签口径（不计跨单位/不可签）', async () => {
     const m = await req('GET', '/me/menus')
@@ -423,7 +412,6 @@ async function check(name, fn) {
     await login(INST_PM_ACCOUNT)
     await expectCode(1403, 'GET', '/unit/records/' + OWN_RECORD)
     await expectCode(1403, 'GET', '/unit/records/不存在的记录id')
-    // C-24 内部端点同口径：门禁最先，无 record:view（含不存在 id）1403 不泄漏存在性
     await expectCode(1403, 'GET', '/records/' + OWN_RECORD)
     await expectCode(1403, 'GET', '/records/不存在的记录id')
   })

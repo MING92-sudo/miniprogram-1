@@ -34,7 +34,6 @@ page{background:var(--ink);color:var(--text)}
 .tk-footer{position:fixed;left:0;right:0;bottom:0;padding:16rpx 24rpx calc(16rpx + env(safe-area-inset-bottom));background:rgba(255,255,255,.96);border-top:1rpx solid var(--line);backdrop-filter:blur(8rpx)}
 .tk-gh-title{flex:1;min-width:0;overflow:hidden}
 .tk-gh-count{flex:none;white-space:nowrap}
-/* 2026-11-21 真机反馈：现场照片固定尺寸缩略图 + 换行排列，拍完立即在当前项可见；
-   覆盖 tokens 全局的 flex:1 拉伸（空态加号铺满整行、照片被拉变形） */
+/** 覆盖 tokens 全局的 flex:1 拉伸（空态加号铺满整行、照片被拉变形） */
 .bw .photo-row{flex-wrap:wrap}
 .bw .photo-row .thumb{width:140rpx;height:104rpx;flex:none}

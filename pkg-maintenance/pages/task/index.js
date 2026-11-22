@@ -1,8 +1,4 @@
-// 作业执行（M3，屏 04）：合并 order/detail+checklist+item-form 为单页双态（list 清单 / edit 填写）。
-// 合规逻辑逐字保留：周期项 notInThisRun 豁免、关键项 photoRequired≥1 照片（NA 除外）、异常显式 S1–S7、
-// 数值超限不得按正常保存、离线快照补传。清单按真实模板 freqLabel 分节（附件 A—D）。
-// 2026-11-20 真机修复：goItemForm 补写 data.itemId（此前恒空串 → 保存检查项 POST 空路径 404「接口不存在」）；
-// 「下一项」改从当前展开项之后推进（旧逻辑恒命中当前项被 toggle 收起）；周期性条目并入默认折叠组（⑨）。
+// 合规逻辑逐字保留：周期项 notInThisRun 豁免、关键项 photoRequired≥1 照片（NA 除外）、异常显式 S1–S7、数值超限不得按正常保存、离线快照补传。
 const { getChecklist, getOrderDetail, runItemThisTime, submitChecklistItem, partnerCandidates, assignPartner } = require('../../../services/order')
 const { uploadImage } = require('../../../services/upload')
 const { reverseGeocode } = require('../../services/location')
@@ -54,8 +50,7 @@ function groupByFreq(items) {
   return sections
 }
 
-// 周期性条目合并组（2026-11-20 真机反馈⑨）：半月保单只展开本周期项目，
-// 季度/半年/年度等「本次无需执行」条目收进默认折叠组，仍可「本次执行」加回
+// 周期性条目合并组：半月保单只展开本周期项目，季度/半年/年度等「本次无需执行」条目收进默认折叠组，仍可「本次执行」加回
 const PERIODIC_LABEL = '周期性项目（本次无需执行）'
 function splitSections(items, collapsed) {
   const active = []; const periodic = []
@@ -87,7 +82,6 @@ definePage(ROUTES['/pkg-maintenance/pages/task/index'], {
     workTypeCode: '', workType: '', elevatorName: '', projectName: '',
     sections: [], photos: [], doneCount: 0, requiredTotal: 0, normalCount: 0, abnormalCount: 0, naCount: 0, pendingCount: 0, progress: 0,
     loading: true, error: '',
-    // 配合人选择（D3/D8：认领后主维保指定同区域配合人，未签到前可改选；候选来自 partner-candidates）
     poolText: POOL_TEXT, needPartner: false, partnerList: [], partnerOptions: [], partnerIndex: -1, partnerName: '', assigning: false,
     // edit 态字段（迁自 item-form）
     itemId: '', item: null, result: '', value: '', valueText: '', abnormalDesc: '', problemCode: '', problemDesc: '',
@@ -107,8 +101,6 @@ definePage(ROUTES['/pkg-maintenance/pages/task/index'], {
       this.refreshPartnerGate(order)
     }).catch(() => {})
   },
-  // 配合人选择卡片门禁（D3/D8）：本人=主维保（platformId 匹配）、工单未签退、尚未指定配合人时展示。
-  // 存量在途单人豁免工单（M8）assistantName 可能为「无」，同样视为未指定——改选由后端复核放行。
   refreshPartnerGate(order) {
     const me = getUserInfo() || {}
     const isPrincipal = !!(order && order.workerPlatformId && me.platformId && order.workerPlatformId === me.platformId)
@@ -192,8 +184,6 @@ definePage(ROUTES['/pkg-maintenance/pages/task/index'], {
     if (!target) {
       return wx.showToast({ title: this.data.expandedId ? '当前已是最后一项待检' : '全部检查项已完成', icon: 'none' })
     }
-    // 2026-11-20 真机反馈⑧：展开状态下「下一项」必须推进到下一待检项
-    // （旧逻辑恒定位首个未完成项=当前展开项，toggle 后原地收起，看似不跳转）
     if (this.data.expandedId) this.setData({ expandedId: '', item: null, itemId: '' })
     this.goItemForm({ currentTarget: { dataset: { id: target.id } } })
     wx.pageScrollTo({ selector: '#item-' + target.id, offsetTop: -120, duration: 200 })

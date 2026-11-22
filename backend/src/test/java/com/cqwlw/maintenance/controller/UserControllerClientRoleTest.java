@@ -24,10 +24,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/**
- * 客户主体归属（P3，docs/14 §6 / R7）：使用单位账号只存 client_account，
- * 人员目录（/users）拒绝一切客户角色，避免同一人两套登录身份（停用一处另一处仍可登录）。
- */
+/** 客户主体归属：使用单位账号只存 client_account，人员目录（/users）拒绝一切客户角色，避免同一人两套登录身份（停用一处另一处仍可登录）。 */
 class UserControllerClientRoleTest {
 
     private final EmployeeMapper employeeMapper = mock(EmployeeMapper.class);

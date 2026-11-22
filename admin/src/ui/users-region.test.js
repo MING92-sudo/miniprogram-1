@@ -3,8 +3,6 @@ import { mount, flushPromises } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import { createRouter, createWebHashHistory } from 'vue-router'
 
-// Task 5（D5）：账号管理维护所属区域——开通/编辑表单「所属区域」下拉（可空=不限区域）、
-// 列表「区域」列、详情区域行。区域选项来自 GET /regions；开通统一走 POST /employees 带 regionId。
 vi.mock('../api/client', () => ({
   default: {
     get: vi.fn(() => Promise.resolve([])),
@@ -26,7 +24,6 @@ const router = createRouter({ history: createWebHashHistory(), routes: [
 const USERS = [
   { id: 'emp_1', name: '张三', phone: '13800000001', department: 'MAINT', status: 'NORMAL', roles: ['MAINT_TECH'] }
 ]
-// GET /employees 行投影（Task 1 产出）：regionId/regionName 合并进账号列表行
 const EMPLOYEES = [
   { id: 'emp_1', name: '张三', phone: '13800000001', role: 'MAINT_TECH', regionId: 'reg_1', regionName: '渝北区', enabled: true }
 ]

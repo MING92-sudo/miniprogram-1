@@ -53,7 +53,6 @@
       </DataTable>
     </div>
 
-    <!-- 维保工单池（区域抢单池 D2/M7）：待接单显示「待接单 · 区域名」，已认领显示认领人；行内退回池（D10/M12） -->
     <div v-else class="mt16">
       <DataTable :columns="poolCols" :rows="poolRows" :loading="poolLoading"
         :search-keys="['orderNo', 'elevatorCode', 'elevatorName', 'projectName']" search-placeholder="搜索工单号 / 设备码 / 项目"
@@ -137,7 +136,6 @@
       </div>
     </Modal>
 
-    <!-- 退回池（D10/M12，order:dispatch）：审计先行，已签到留痕转入审计快照后清空 -->
     <Modal :open="!!releaseTarget" title="退回池" :sub="releaseTarget ? (releaseTarget.orderNo || releaseTarget.id) : ''"
       icon="refresh" danger note="order:dispatch · 审计先行" require-confirm
       :confirm-text="releaseConfirmText" confirm-label="确认退回池"
@@ -147,10 +145,6 @@
   </div>
 </template>
 <script setup>
-// 工单调度（原型 Views.dispatch 对齐）：急修/报修统一池 + SLA 倒计时 + 派单/批量派单/代报修
-// 真实 API：GET /faults（.list）、POST /admin/faults/{id}/dispatch、POST /faults + /faults/{id}/proxy、GET /employees、GET /elevators
-// 2026-11-20 区域抢单池（D2/D10）：新增「维保工单池」页签——GET /work-orders（行含 regionId/regionName 快照），
-// 未认领 PENDING 显示「待接单 · 区域名」，行内「退回池」调 POST /admin/orders/{id}/release-to-pool（审计先行 M12）。
 import { ref, computed, onMounted } from 'vue'
 import http from '../api/client'
 import { workOrders, releaseToPool } from '../api/orders'
@@ -171,7 +165,6 @@ const loading = ref(false)
 const workers = ref([])
 const elevators = ref([])
 const slaP1 = ref(30)
-// 急修七态（V43）→ 原型中文态
 const FAULT_STATUS = { OPEN: '待接单', ASSIGNED: '已接单', PROCESSING: '处置中', PENDING_CONFIRM: '待使用单位确认', REFUSED: '待整改', CLOSED: '已闭环', CANCELLED: '已取消' }
 function faultStatusLabel(s) { return FAULT_STATUS[s] || s }
 const filters = [
@@ -305,7 +298,6 @@ async function submitProxy() {
   } catch (e) { toast.error(e.message || '代报修提交失败') }
 }
 
-// ── 维保工单池（区域抢单池 D2/M7，退回池 D10/M12） ──
 const tab = ref('faults')
 const poolRows = ref([])
 const poolLoading = ref(false)
@@ -323,7 +315,6 @@ const poolCols = [
 const poolFilters = [
   { key: 'status', label: '状态', options: Object.keys(POOL_STATUS).map(k => ({ value: k, label: POOL_STATUS[k] })) }
 ]
-// 待接单 = PENDING 且无人认领（区域池语义 M1/M7：谁先签到谁认领）
 function isUnclaimed(row) { return row.status === 'PENDING' && !row.workerName && !row.workerPlatformId }
 function switchTab(t) {
   tab.value = t

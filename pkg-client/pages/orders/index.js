@@ -1,4 +1,3 @@
-// 本单位工单（M5）：只读 + 进度（order:view_own，后端本单位谓词收敛）。
 const unit = require('../../../services/unit')
 const { FAULT_STATUS_TEXT, FAULT_STATUS_SHORT, FAULT_STATUS_TONE, TOAST_TEXT } = require('../../../constants/index')
 const { definePage } = require('../../../utils/guard')

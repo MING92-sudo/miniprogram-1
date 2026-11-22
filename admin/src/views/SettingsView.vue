@@ -130,10 +130,6 @@
 </div>
 </template>
 <script setup>
-// 系统配置（原型 Views.settings 对齐）：SLA / 保养周期 / 抽查 / 脱敏开关 / 签字模板，分组保存即时生效 + 写审计
-// 真实 API：GET /settings（key→value map）、PUT /settings/{key} {value}（后端校验范围并写审计）
-// 扩展键（sla_urgent_minutes/sla_report_minutes/maint_cycle_quarter_days/mask_*/sign_templates）后端按非数值配置放行；
-// 脱敏开关写入后端配置，实际脱敏由服务端按配置执行。敏感导出审批已按原型移至统计报表页。
 import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import RegionView from './RegionView.vue'
@@ -153,9 +149,6 @@ const toast = useToast()
 const route = useRoute()
 const router = useRouter()
 const perspective = usePerspectiveStore()
-// 合并页分页门禁（Tab 合并 2026-11-21 审查修复）：配置/单位=config:manage，区域=region:view，
-// 模板=template:view；与路由 meta.permByTab 同口径——维保经理/质检（template:view）落地
-// /settings 时收敛到模板分页，不再整页 403
 function allow(code) { try { const s = state(perspective.activeRole, code); return s === 'Y' || s === 'C' } catch { return false } }
 const canConfig = computed(() => allow('config:manage'))
 const canRegions = computed(() => allow('region:view'))

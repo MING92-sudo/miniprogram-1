@@ -1,6 +1,3 @@
-// scripts/asset-build/build-icons.js
-// svg → svgfont → ttf → woff2 → assets/icons/icons.wxss（类名与原型 #i-xxx 逐字一致）
-// 绕过 fantasticon：其内部 path.join 生成反斜杠 glob pattern，glob v10 在 Windows 下当转义符致 0 匹配
 const fs = require('fs')
 const path = require('path')
 const SVGIcons2SVGFontStream = require('svgicons2svgfont')

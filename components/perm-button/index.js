@@ -1,7 +1,4 @@
-// 双档权限按钮（M2，roles-permissions §8.4）：
-// 一档 永久权限拒绝（无权限码）= 原生 disabled + 中文「所需能力·允许角色」注（不可聚焦）；
-// 二档 临时前置未满足（有权限但 gate）= aria-disabled + catchtap 拦截 + 原因文本（保持可聚焦）。
-// 小程序无 DOM 捕获阶段，catchtap 不冒泡即等价拦截；后端校验仍是唯一安全边界。
+// 后端校验仍是唯一安全边界。
 Component({
   options: { addGlobalClass: true },
   properties: {

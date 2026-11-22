@@ -20,9 +20,6 @@
       <div class="card-head"><h3><svg class="ic" aria-hidden="true"><use href="#i-elevator" /></svg>基本信息</h3></div>
       <div class="card-body">
         <div class="kv-grid">
-          <!-- 基本信息（2026-11-21 用户定版，顺序固定）：
-               注册代码/设备种类/电梯编码/登记证编码/使用单位/单位内编号/下次检验日期 + 应急救援电话。
-               登记证编码 = V58 独立列 certNo（使用登记证编号，不上报平台）；应急救援电话 = emergencyPhone -->
           <div class="kv"><span class="k">注册代码</span><span class="v mono">{{ row.registrationCode || '—' }}</span></div>
           <div class="kv"><span class="k">设备种类</span><span class="v">{{ row.category || '—' }}</span></div>
           <div class="kv"><span class="k">电梯编码</span><span class="v mono">{{ row.elevatorCode || '—' }}</span></div>
@@ -39,9 +36,7 @@
       </div>
     </div>
 
-    <!-- 电梯参数 5 字段（2026-11-21 用户定版）：出厂编号/制造单位/额定速度/载重/层站数。
-         映射核对：均取台账行 row（elevatorAdminRow 投影，el.* 直出）；
-         注意 profile.local 无 factoryNumber（仅在 profile.platform），读 local 会恒空 -->
+    <!-- 注意 profile.local 无 factoryNumber（仅在 profile.platform），读 local 会恒空 -->
     <div v-if="tab === 'params'" class="card card-pad0 mt16">
       <div class="card-head"><h3><svg class="ic" aria-hidden="true"><use href="#i-sliders" /></svg>电梯参数</h3></div>
       <div class="card-body">
@@ -55,9 +50,7 @@
       </div>
     </div>
 
-    <!-- 维保计划：全年日历视图（2026-11-21 用户定版）。
-         数据 /maintenance-calendar 前向投影（只读，不触发派单），按 elevatorId 前端过滤；
-         单元格徽标 = 当日维保类别（半月/季度/半年/年度，取最高类别），颜色区分 -->
+    <!-- 数据 /maintenance-calendar 前向投影（只读，不触发派单），按 elevatorId 前端过滤； -->
     <div v-if="tab === 'plans'" class="mt16">
       <div class="cal-legend card-body">
         <span v-for="t in TYPE_META" :key="t.code" class="cal-lg-i">
@@ -87,7 +80,6 @@
       </div>
     </div>
 
-    <!-- 维保工单 = 该梯全部维保记录（2026-11-21 用户定版）：预览（新页打开 PDF）/下载/批量下载 -->
     <div v-if="tab === 'orders'" class="mt16">
       <DataTable :columns="recordCols" :rows="records" :loading="ordersLoading"
         :search-keys="['workerName', 'assistantName', 'workType']" search-placeholder="搜索维保人员 / 类别"
@@ -128,10 +120,6 @@
   </div>
 </template>
 <script setup>
-// 电梯档案下级页（2026-11-21 台账操作列「电梯档案」入口）：
-// 5 Tab = 基本信息 / 电梯参数 / 维保计划 / 维保工单 / 维修工单；各 Tab 首进懒加载。
-// 接线口径：维保计划走后端 elevatorId 过滤（/admin/plans）；维保工单走 /work-orders keyword
-// （服务端匹配 elevatorCode）；维修工单 /faults 暂无电梯过滤参数，先按 elevatorCode 前端过滤（待后端补参）。
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import http from '../api/client'

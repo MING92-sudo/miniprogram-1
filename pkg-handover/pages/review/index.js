@@ -1,4 +1,3 @@
-// 内部审核（C-13，安装主管）：移交单 + 资料 + 查验结论核对；审核通过→INSPECTING / 退回→DOC_SUBMITTING（原因+期限）；作废。
 const { getHandoverDetail, getHandoverChecklist, reviewHandover, voidHandover } = require('../../../services/handover')
 const { definePage } = require('../../../utils/guard')
 const { ROUTES } = require('../../../config/routes')

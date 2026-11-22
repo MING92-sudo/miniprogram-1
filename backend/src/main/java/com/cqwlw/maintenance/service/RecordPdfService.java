@@ -40,19 +40,11 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * 《电梯维护保养记录》与《电梯急修记录单》导出（版面口径见 docs/13）：
- * 两张表单均为 A4 纵向单色表格——标题 + 记录编号 + 使用单位与设备基本情况 + 作业/报修信息 +
- * 明细表 + 处理记载 + 签字确认，项目表分页时重复表头，页脚带页码与留存声明。
- * 依据 TSG T5002—2017 第七条（记录内容）、第八条（品种技术参数）、第十条（不可更改）、附件 A—D（项目表）。
- * 中文字体用 OpenPDF CID 字体 STSong-Light（UniGB-UCS2-H），不向仓库提交字体文件。
- */
 @Service
 public class RecordPdfService {
 
     private static final Logger log = LoggerFactory.getLogger(RecordPdfService.class);
 
-    /** 维保结果记号（docs/13 §3.4）：√ 符合 / × 不符合 / — 不适用 */
     private static final Map<String, String> RESULT_MARK =
             Map.of("NORMAL", "√", "ABNORMAL", "×", "NA", "—");
     /** 周期短标签：快照 item.freq → 表内「周期」列 */
@@ -104,7 +96,6 @@ public class RecordPdfService {
             }
 
             doc.add(title("电梯维护保养记录", f));
-            // 记录编号居左、附件表号居右（docs/13 §3.1 版面：编号为档案检索主键置页首左，表号置页首右）
             doc.add(subtitleRow("记录编号：" + recordNo,
                     rangeLabel(appendixOf(el == null ? null : el.category), workTypeCodeOf(r)), f));
             backfillOrderSignatures(r);
@@ -408,7 +399,6 @@ public class RecordPdfService {
         return p;
     }
 
-    /** 副标题行（无边框两列）：左=记录编号，右=附件表号（docs/13 §3.1 版面口径） */
     private static PdfPTable subtitleRow(String left, String right, Fonts f) {
         PdfPTable t = new PdfPTable(2);
         t.setWidthPercentage(100);
@@ -428,10 +418,7 @@ public class RecordPdfService {
         return t;
     }
 
-    /**
-     * 签字回退：记录未落签字 URL 时（历史/直导入数据），按来源工单的各自手机签 fileId 解析
-     * （与签退 resolveSignatureUrl 同口径；仅内存回填用于导出渲染，不落库）。
-     */
+    /** 仅内存回填用于导出渲染，不落库）。 */
     private void backfillOrderSignatures(MaintainRecord r) {
         if (workOrderMapper == null || r == null || nz(r.workOrderId).isBlank()) {
             return;
@@ -459,10 +446,6 @@ public class RecordPdfService {
         }
     }
 
-    /**
-     * 四列键值表：sectionTitle 非空时作为跨列灰底区块标题行。
-     * rows 元素为 4 段（标签,值,标签,值）或 2 段（标签,整行取值，自动跨 3 列）。
-     */
     private PdfPTable kvTable(String sectionTitle, List<String[]> rows, Fonts f) {
         PdfPTable t = new PdfPTable(4);
         t.setWidthPercentage(100);
@@ -575,13 +558,6 @@ public class RecordPdfService {
         return c;
     }
 
-    /**
-     * P2b/R13：维保记录 PDF「使用单位」单元格取值——记录快照名优先（避免改名后的档案名覆盖快照），
-     * null/blank 快照回退内部标注「归属待核对」（客户侧因 Task 9 NULL 隐藏拿不到该 PDF）。
-     *
-     * @param snapshotUnitName 记录冻结的使用单位名（r.useUnitName）
-     * @param uu               兼容调用形态保留，不再用于单位名取值
-     */
     static String unitNameForSnapshot(String snapshotUnitName, UseUnit uu) {
         if (snapshotUnitName != null && !snapshotUnitName.isBlank()) {
             return snapshotUnitName.trim();
@@ -589,7 +565,6 @@ public class RecordPdfService {
         return "归属待核对";
     }
 
-    /** 附件 A—D 与表号（docs/13 §3.6）：品种 → 附件字母 */
     static String appendixOf(String category) {
         if (category == null) {
             return "A";
@@ -705,7 +680,6 @@ public class RecordPdfService {
         return sb.length() == 0 ? "无异常项" : sb.toString();
     }
 
-    /** 安全防护确认勾选行：safety_json 回显 ☑/☐（V20 采集） */
     private static String safetyLine(String safetyJson) {
         Map<String, Object> flags;
         try {
@@ -716,8 +690,7 @@ public class RecordPdfService {
         } catch (Exception e) {
             flags = Map.of();
         }
-        // 存量数据里有把缺省值写成字符串 "null" 的记录（JsonUtil.write(null)），
-        // Jackson 对字面量 null 会正常返回 null 而非抛错，必须再兜一层，否则整份 PDF 生成失败
+        // 存量数据里有把缺省值写成字符串 "null" 的记录（JsonUtil.write(null)），Jackson 对字面量 null 会正常返回 null 而非抛错，必须再兜一层，否则整份 PDF 生成失败
         if (flags == null) {
             flags = Map.of();
         }
@@ -733,11 +706,7 @@ public class RecordPdfService {
         return Boolean.parseBoolean(String.valueOf(flag)) ? "■" : "□";
     }
 
-    /**
-     * PDF 照片源：优先按检查项 photoFileIds 解析（可恢复旧记录已上传但 photos 仍冻结为
-     * wxfile://、http://tmp/ 本地路径的照片），无 fileId 时才回退冻结的 photos_json。
-     * 本地临时路径跨设备不可读，必须过滤，避免 PDF 中打印成"照片加载失败"。
-     */
+    /** 本地临时路径跨设备不可读，必须过滤，避免 PDF 中打印成"照片加载失败"。 */
     List<String> recordPhotoUrls(MaintainRecord r, List<Map<String, Object>> items) {
         List<String> resolved = new ArrayList<>();
         for (Map<String, Object> item : items) {
@@ -777,7 +746,6 @@ public class RecordPdfService {
         }
         try {
             if (url.startsWith("http")) {
-                // 同源 /files/{id}：直接读存储（本地或 COS），避免自调用 HTTP（2026-10-05）；
                 // 链接可能带 ?s= 访问签名，必须剥离后再取主键
                 String sharedId = FileStorageService.fileIdFromUrl(url);
                 if (sharedId != null) {
@@ -832,7 +800,6 @@ public class RecordPdfService {
 
     // ────────────────────────────── 字体与工具 ──────────────────────────────
 
-    /** 表单统一字体组（版式见 docs/13 §1） */
     private static final class Fonts {
         final Font title = font(16, Font.BOLD);
         final Font section = font(9.5f, Font.BOLD);
@@ -917,7 +884,6 @@ public class RecordPdfService {
         return name == null || name.isBlank() ? role + "（签字）" : role + "（" + name + "）签字";
     }
 
-    /** 空值统一打印 —（docs/13 §1：不留空白格，避免被误读为漏填） */
     private static String orDash(String s) {
         return s == null || s.isBlank() ? "—" : s;
     }

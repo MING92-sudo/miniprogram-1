@@ -15,10 +15,6 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
-/**
- * P3 客户令牌（ut=2）拦截器分支（docs/14 §4.6 路由白名单、§8 单会话/状态门禁）：
- * 账号状态、单会话 sid、scopeVersion、路径白名单四条门禁 fail-closed。
- */
 class ClientTokenInterceptorTest {
 
     private JwtService jwt;

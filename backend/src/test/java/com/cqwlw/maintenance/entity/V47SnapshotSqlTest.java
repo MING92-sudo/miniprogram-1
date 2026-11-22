@@ -8,7 +8,6 @@ import java.nio.charset.StandardCharsets;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** V47 租户快照结构不变量（无测试库，按 classpath SQL 文本断言；spec §4）。 */
 class V47SnapshotSqlTest {
 
     private String sql(String name) throws Exception {

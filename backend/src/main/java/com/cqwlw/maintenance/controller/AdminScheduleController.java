@@ -17,11 +17,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Map;
 
-/**
- * 管理端·计划调度与延期审批（docs/04 A.5 落地，docs/09 二期）。
- * 角色：读 LEADER+；指派/生成/审批 = ADMIN/SYS_ADMIN；发起延期 = 班组长及以上（LEADER+，
- * 拦截器 LEADER 可写例外）。校验失败码：1004（platform_id 未同步）/1007（互斥/证件/重复派单）。
- */
 @RestController
 public class AdminScheduleController {
 
@@ -37,12 +32,7 @@ public class AdminScheduleController {
         this.workOrderService = workOrderService;
     }
 
-    /**
-     * 到期投影（2026-11-21 管理端维保计划页改版）：与自动派单同一基线的只读投影，
-     * 解决 maintain_plan 表无数据（D-A1 不做批量生成）导致计划页恒空的问题。不落库、不触发派单。
-     * 区域抢单池（D2）：行内 regionStaffed 为区域覆盖提示（false = 该区域无持平台ID的在职维保员，
-     * 前端标「区域无人」预警），取代原绑定标记 bound。
-     */
+    /** 到期投影：与自动派单同一基线的只读投影，解决 maintain_plan 表无数据（D-A1 不做批量生成）导致计划页恒空的问题。 */
     @GetMapping("/admin/plans/projection")
     public ApiResponse<Object> projection() {
         return ApiResponse.ok(dispatchService.dueProjection());
@@ -115,11 +105,7 @@ public class AdminScheduleController {
                 str(body, "comment"), String.valueOf(request.getAttribute(AuthInterceptor.ATTR_EMP_ID))));
     }
 
-    /**
-     * 退回池（2026-11-20 区域抢单池设计 §4.4 / D10/M12，order:dispatch 权限）：
-     * 被错领/认领人无法继续的工单清回区域池——审计先行（操作人/原认领人/原配合人/签到留痕快照），
-     * 同事务清空认领与签到留痕回 PENDING；DONE 422；未认领 PENDING 幂等 ok。
-     */
+    /** 未认领 PENDING 幂等 ok。 */
     @PostMapping("/admin/orders/{id}/release-to-pool")
     public ApiResponse<Map<String, Object>> releaseToPool(@PathVariable String id,
                                                           HttpServletRequest request) {

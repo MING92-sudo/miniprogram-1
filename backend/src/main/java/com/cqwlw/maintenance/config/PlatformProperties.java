@@ -2,10 +2,7 @@ package com.cqwlw.maintenance.config;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
-/**
- * 监管平台（重庆市智慧特种设备安全管理系统）接入配置。
- * 凭证全部来自环境变量 / .env，严禁硬编码进代码或提交入库。
- */
+/** 监管平台（重庆市智慧特种设备安全管理系统）接入配置。 */
 @ConfigurationProperties(prefix = "platform")
 public class PlatformProperties {
 
@@ -15,7 +12,6 @@ public class PlatformProperties {
     /** 业务接口根路径，例如 https://tzsb.scjgj.cq.gov.cn:1443/api/wlw/maintenance/ */
     private String apiBaseUrl;
 
-    /** 登录四参数（V1.5 规范 2.1，注意平台通知中可能写作 scret） */
     private String username;
     private String key;
     private String appcode;

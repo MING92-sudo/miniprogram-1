@@ -6,11 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * P0（2026-11-16 审查）：jscode2session 请求 URL 含 appid/secret/js_code，
- * HttpURLConnection 非 2xx 的 IOException message 惯例回显完整 URL，
- * 作为 cause 落日志前必须脱敏（AGENTS §2.6 日志不得打印平台/微信密钥）。
- */
+/** 非 2xx 异常落日志前必须移除 URL 查询串，避免泄露密钥。 */
 class WxAuthServiceLogSanitizeTest {
 
     @Test

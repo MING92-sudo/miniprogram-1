@@ -25,7 +25,6 @@
         <button wx:if="{{order && order.status === 'DONE'}}" class="btn btn-ghost btn-sm" bindtap="goRecord">查看记录单</button>
       </view>
 
-      <!-- 配合人选择（D3/D8：认领后必选，双人作业才可签退；候选=同区域持平台ID，未签到前可改选） -->
       <view wx:if="{{needPartner}}" class="card col gap6">
         <view class="fs22 w6">{{poolText.PARTNER_TITLE}}</view>
         <view class="fs18 dim">{{poolText.PARTNER_TIP}}</view>

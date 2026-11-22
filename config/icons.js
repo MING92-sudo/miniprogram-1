@@ -1,5 +1,3 @@
-// 图标 key → 本地 iconfont 类映射（M2，裁决 R2：仅用 assets/icons/icons.wxss 既有 64 类，零外链）
-// 蓝图 icon key 与 FA 原名不一致处按语义最近映射；守卫 verify-miniapp-routes.js icons-map 锁定。
 const ICONS = {
   gauge: 'i-gauge-high',
   clipboard: 'i-clipboard-list',

@@ -28,9 +28,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-/**
- * 急修七态（M1，蓝图 §6.3）：抢单区域校验/到场 GPS/提交必填/确认角色/取消角色/评价闭环一次性。
- */
 class FaultLifecycleTest {
 
     private FaultMapper faults;

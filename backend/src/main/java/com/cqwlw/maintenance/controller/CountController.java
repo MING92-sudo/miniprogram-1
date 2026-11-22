@@ -11,10 +11,6 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
-/**
- * 云托管模板示例接口 /api/count（wx.cloud.callContainer 联调用）。
- * 骨架阶段使用内存计数；接入 MySQL 后可改为落库。
- */
 @RestController
 public class CountController {
 

@@ -18,11 +18,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-/**
- * 小程序菜单下发（M1，规格 §3.4）：ROLE_TABS 逐字镜像蓝图 routes-and-menus.md L257–315。
- * 后端是唯一事实来源；前端 config/menus.js 仅兜底（M2 镜像 + 漂移守卫）。
- * 多角色按 ROLE_PRIORITY 取并集、按 key 去重、最多 5 项；workspace 切换以该角色表为准。
- */
 @Service
 public class MiniappMenuService {
 
@@ -49,8 +44,6 @@ public class MiniappMenuService {
             "MAINT_BIZ", "MAINT_SUP",
             "INSTALLER", "INST_CLERK");
 
-    // P1 T6：client:evaluate 移除（评价入口下线，T2 矩阵对客户 DENY）；client:sign 保留
-    // 2026-11-21 裁决：client:report 重开（CA/CS 双 Y），按钮码恢复下发
     private static final List<String> BUTTON_CODES = List.of(
             "order:grab", "order:arrive", "order:submit", "order:confirm", "order:cancel",
             "record:sign_tech", "record:sign_request", "record:review", "record:export",
@@ -79,9 +72,6 @@ public class MiniappMenuService {
         this.elevatorMapper = elevatorMapper;
     }
 
-    /** 客户主体（ut=2）菜单：tabs/quickActions/actions 与员工端同一 ROLE_TABS/快捷动作/矩阵口径。
-     *  2026-11-21 修复：此前 controller 返回空 tabs/quickActions 空调 stub，客户请求一旦落到本端点
-     *  （旧会话无 principalType、时序竞争等），前端 applyToGlobal 无条件覆盖会清空底栏与快捷动作。 */
     public Map<String, Object> clientMenusOf(Set<String> roles, String accountId) {
         Map<String, Object> out = menusOf(roles, null, null);
         @SuppressWarnings("unchecked")
@@ -125,8 +115,7 @@ public class MiniappMenuService {
                 return ROLE_HOME.get(r);
             }
         }
-        // 扩展角色归属最近工作台（与 resolveTabs/TABS_ALIAS 同口径、与 menus.js 镜像一致：
-        // INSTALLER→安装工作台、MAINT_QUALITY/MAINT_BIZ→维保工作台），缺省回退「我的」
+        // 扩展角色归属最近工作台（与 resolveTabs/TABS_ALIAS 同口径、与 menus.js 镜像一致：INSTALLER→安装工作台、MAINT_QUALITY/MAINT_BIZ→维保工作台），缺省回退「我的」
         for (String r : roles) {
             String alias = TABS_ALIAS.get(r);
             if (alias != null) {
@@ -178,11 +167,7 @@ public class MiniappMenuService {
         return tabs.size() > 5 ? tabs.subList(0, 5) : tabs;
     }
 
-    /**
-     * 快捷动作按工作区 + 角色集下发（2026-11-16 审查修复：权限面=渲染面，逐条对齐 config/routes.js 角色白名单）：
-     * plan 仅 MAINT_SUP/MAINT_MGR；create 仅 INST_PM；upload 仅 INST_CLERK/INST_PM；
-     * CLIENT 不得指向维保子包；扫码开工深链未实现（docs/12 C-17）暂不下发。
-     */
+    /** CLIENT 不得指向维保子包； */
     private List<Map<String, Object>> quickActions(String ws, Set<String> roles) {
         if (ws == null) {
             return List.of();
@@ -198,8 +183,6 @@ public class MiniappMenuService {
             return list;
         }
         if (ws.startsWith("CLIENT")) {
-            // 2026-11-21 裁决：客户一键报修重开（client:report CA/CS 双 Y，报修页客户走 /unit/faults）；
-            // 急修进度/评价入口仍下线（client:evaluate 矩阵 DENY）
             return List.of(
                     qa("report", "一键报修", "wrench", "/pages/order/report/index"),
                     qa("elevators", "我的电梯", "elevator", "/pages/elevator/list/index"),
@@ -207,7 +190,6 @@ public class MiniappMenuService {
         }
         if (ws.startsWith("INST")) {
             List<Map<String, Object>> list = new ArrayList<>();
-            // 2026-11-21 裁决：handover:create 增 INST_CLERK，快捷动作同步放开
             if (roles.contains("INST_PM") || roles.contains("INST_CLERK")) {
                 list.add(qa("create", "发起移交", "file-signature", "/pkg-handover/pages/create/index"));
             }
@@ -224,11 +206,8 @@ public class MiniappMenuService {
         long pendingSigns = 0;
         if (me != null) {
             if (roles.stream().anyMatch(r -> r.startsWith("MAINT"))) {
-                // 角标=数据域内未闭环工单（PENDING/PROCESSING，与工单页同 scopeOrders 谓词）；
-                // 旧实现错挂 fault OPEN 计数，「工单」角标恒等于开放急修数（2026-11-21 真机反馈）
                 pendingOrders = workOrderService == null ? 0 : workOrderService.countActionableOrders(me.id);
             }
-            // P1（T5）：客户分支判定用 principalTypeOf（含 UNIT_ADMIN 旧码），不用 startsWith 字面量
             if (roles.stream().anyMatch(r -> RoleCatalog.principalTypeOf(r) == RoleCatalog.PrincipalType.CUSTOMER)) {
                 pendingSigns = clientPendingSigns(me);
             }
@@ -236,15 +215,7 @@ public class MiniappMenuService {
         return Map.of("pendingOrders", pendingOrders, "pendingSigns", pendingSigns);
     }
 
-    /**
-     * 客户待签角标（P1 T5，修复跨单位数量泄漏 + 与 T4 口径不一致）：
-     * ① 本单位锚点 = sys_user_role.org_id 的 CUSTOMER 角色行（V41 并号时写入，与
-     *   UnitPortalController.unitId 同口径）；无锚点 fail-closed 计 0，绝不回退全表 count；
-     * ② 计数口径对齐 T4 可签集合（docs/14 §4.6，与 UnitRecordService.pendingAs 同谓词）：
-     *   lifecycleStatus=PENDING_CLIENT_SIGNATURE + confirmStatus=PENDING + 链末端最新版本 + 本单位
-     *   （记录归属按电梯 useUnitId 判定，同 UnitRecordService.unitOf）；
-     *   不再计 PENDING_CLIENT_SIGN（双签未齐，T4 已从客户待签列表剔除）。
-     */
+    /** 无锚点 fail-closed 计 0，绝不回退全表 count； */
     private long clientPendingSigns(Employee me) {
         String unitId = clientUnitAnchor(me);
         if (unitId == null) {
@@ -266,8 +237,6 @@ public class MiniappMenuService {
             }
             ids.add(r.id);
         }
-        // P2 T5（N+1 消除）：链末端最新版本改用共享 supersededIds 批量判定——一次 IN 查询
-        // 替代逐记录 selectCount，计数口径与旧实现逐集合相等（docs/14 §4.6 规则 1）
         Set<String> superseded = RecordVersionUtil.supersededIds(recordMapper, ids);
         long count = 0;
         for (String id : ids) {

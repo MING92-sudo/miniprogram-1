@@ -14,12 +14,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * 检查项模板管理（docs/04 A.4.2，docs/09 二期）：
- * OFFICIAL 257 行只读（TSG 附件原文，改动须走模板修订流程并复测 docs/05 §10.5）；
- * CUSTOM（消防/防爆等按制造单位要求）可新建/编辑/启停，category_scope 匹配 elevator.special_type，
- * 未配置时 sync-status.templateMissing 计数（1006 语义）。
- */
+/** 检查项模板管理：OFFICIAL 257 行只读； */
 @Service
 public class AdminTemplateService {
 

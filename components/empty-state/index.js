@@ -1,4 +1,3 @@
-// 空态双分支（M2，屏 13）：mode=empty 本来没有数据（引导创建/接单）；mode=filtered 筛选后 0 条（引导清空筛选）。
 Component({
   options: { addGlobalClass: true },
   properties: {

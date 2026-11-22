@@ -15,11 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Map;
 
-/**
- * 管理端·迁移核对清单（权限 P2 T7，spec §6.6）：
- * GET 列表门控 audit:view；POST 单条人工裁定门控 config:manage；响应统一 ApiResponse{code,message,data}。
- * 不提供批量端点（§6.6 硬约束）；仅在 controller 层做门控与委托，业务校验在 MigrationIssueService。
- */
+/** 仅在 controller 层做门控与委托，业务校验在 MigrationIssueService。 */
 @RestController
 public class AdminMigrationIssueController {
 

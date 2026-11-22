@@ -1,11 +1,3 @@
-/**
- * 路由守卫纯函数（docs/09 §七.2；docs/14 §9.4：越权进 /403）。M5 起用 permission-v2（12 角色/86 码三态）。
- * - 未登录访问受保护页 → /login（携带 redirect）
- * - 已登录访问 /login → /dashboard
- * - 有 token 但角色缺少该路由 `meta.perm` 能力（Y/C 放行）→ /403（前端门禁只是体验，后端仍强校验）
- * - 合并页（meta.permByTab）：带 ?tab=X 时按分页专属权限判；无 tab 默认落地时宿主/任一分页权限
- *   其一放行，由视图收敛到首个可用分页（Tab 合并后 /grants→/roles?tab=grants 等重定向不再误 403）
- */
 import { state } from '../ui/permission-v2'
 
 function hasPerm(role, code) {

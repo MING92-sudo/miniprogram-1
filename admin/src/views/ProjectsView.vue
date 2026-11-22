@@ -136,9 +136,6 @@ const toast = useToast()
 const route = useRoute()
 const router = useRouter()
 const perspective = usePerspectiveStore()
-// 合并页分页门禁（Tab 合并 2026-11-21 审查修复）：项目=project:view，合同=contract:view；
-// 与路由 meta.permByTab 同口径——维保商务（contract:view=Y、project:view=DENY）
-// 落地 /projects 时收敛到合同分页，不再 403/空表
 function allow(code) { try { const s = state(perspective.activeRole, code); return s === 'Y' || s === 'C' } catch { return false } }
 const canProjects = computed(() => allow('project:view'))
 const canContracts = computed(() => allow('contract:view'))

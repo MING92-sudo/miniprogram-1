@@ -1,6 +1,3 @@
-// 逆地址解析：经纬度 → 具体位置文字（省市区 + 道路/POI）
-// P2 起由自建后端代理（/location/reverse，docs/08 审查 #5 收口）：
-// 高德/腾讯 key 只在后端环境变量，前端彻底不接触 key；坐标系均为 gcj02
 const { get } = require('../../utils/request')
 const config = require('../../config/index')
 

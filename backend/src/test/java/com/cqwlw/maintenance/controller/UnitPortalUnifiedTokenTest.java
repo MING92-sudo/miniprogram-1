@@ -21,12 +21,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/**
- * P0（2026-11-16 审查）：V41 统一账号后 CLIENT 工作台持员工令牌（em_token），
- * /unit/elevators、/unit/pending-signs、/unit/faults 等须按 UnitRecordController 同口径
- * 「统一令牌 + CLIENT 锚点（sys_user_role.org_id）」解析单位；旧门户令牌（ut=1）兜底；
- * 无 CLIENT 角色/无锚点 fail-closed 403，不得静默放行。
- */
+/** 无 CLIENT 角色/无锚点 fail-closed 403，不得静默放行。 */
 class UnitPortalUnifiedTokenTest {
 
     private final UnitPortalService portalService = mock(UnitPortalService.class);

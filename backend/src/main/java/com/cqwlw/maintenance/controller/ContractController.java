@@ -16,12 +16,6 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 import java.util.Map;
 
-/**
- * 维保合同（最小版，Task 3）：建合同 + 合同列表/详情。
- * 权限按能力码判（docs/14 §6）：读=contract:read（含安装经理/维保经理/商务），写=contract:write（商务+平台层）。
- * 项目合同台账需要跨部门查阅，安装部保留读权限，不使用 requireAdmin 一刀切。
- * /contracts/** 不在 AdminRoleInterceptor 覆盖清单，故在本控制器内自判（403 且无副作用）。
- */
 @RestController
 public class ContractController {
 

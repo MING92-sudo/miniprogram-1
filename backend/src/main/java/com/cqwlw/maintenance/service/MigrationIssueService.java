@@ -30,28 +30,19 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-/**
- * 人工核对清单服务（client_migration_issue，V47；spec §6.6 / §19-15）：
- * upsert 按 uk_issue 幂等留痕（Runner 重跑安全），list 分页投影，resolve 单条人工裁定。
- * 不提供批量 resolve（§6.6 硬约束）；只 INSERT/UPDATE，禁止 DELETE（留存红线）。
- * resolve 顺序（裁决 R2）：全量前置校验 → 条件更新认领（WHERE resolution='PENDING'，
- * 受影响 0 行=422 已处理）→ BACKFILLED 回填对象行快照列 → 审计；校验失败一律 422 零副作用。
- */
+/** spec §6.6 / §19-15）：upsert 按 uk_issue 幂等留痕（Runner 重跑安全），list 分页投影，resolve 单条人工裁定。 */
 @Service
 public class MigrationIssueService {
 
     private static final Logger log = LoggerFactory.getLogger(MigrationIssueService.class);
 
-    /** 允许的人工裁定值（初始态 PENDING 不是裁定值；V47 列默认 'PENDING'） */
     private static final Set<String> RESOLUTIONS = Set.of("BACKFILLED", "SKIPPED", "MANUAL_DONE");
-    /** 支持 BACKFILLED 回填的对象类型；ACCOUNT 类 issue P3 才出现，P2 裁定走 SKIPPED/MANUAL_DONE */
     private static final Set<String> BACKFILL_OBJECT_TYPES = Set.of("RECORD", "FAULT", "ORDER");
 
     private final ClientMigrationIssueMapper issueMapper;
     private final MaintainRecordMapper recordMapper;
     private final FaultMapper faultMapper;
     private final WorkOrderMapper orderMapper;
-    /** plan T2 依赖清单要求（构造注入 7 个依赖）；本任务行为规格无消费路径，注入备核对视图扩展 */
     private final ElevatorMapper elevatorMapper;
     private final UseUnitMapper useUnitMapper;
     private final AuditLogService auditLogService;
@@ -69,12 +60,7 @@ public class MigrationIssueService {
         this.auditLogService = auditLogService;
     }
 
-    /**
-     * 幂等留痕（spec §6）：按 uk_issue(objectType,objectId,issueType) 判存在——
-     * 无则 INSERT（resolution=PENDING；显式 id/createdAt，T1 审查前瞻提示：created_at NOT NULL
-     * 无 DB 默认、@TableId 走全局 ASSIGN_ID，不得依赖自动填充）；
-     * 有则仅更新 evidence/confidence，不覆盖已有人工裁定（resolution/decisionJson/resolveNote 等）。
-     */
+    /** 幂等留痕（spec §6）：按 uk_issue(objectType,objectId,issueType) 判存在——无则 INSERT（resolution=PENDING； */
     public void upsert(String objectType, String objectId, String issueType, String elevatorCode,
                        String currentUnitId, String candidateUnitId, String evidence, String confidence) {
         ClientMigrationIssue exist = issueMapper.selectOne(new LambdaQueryWrapper<ClientMigrationIssue>()
@@ -104,10 +90,6 @@ public class MigrationIssueService {
         issueMapper.insert(row);
     }
 
-    /**
-     * 分页列表（管理端核对视图，spec §6.6）：issueType/resolution 筛选，SQL 分页（LIMIT 下推）。
-     * 裁决 R10：total=筛选后总数；pending=全局 PENDING 总数（页头角标语义，不受筛选影响）。
-     */
     public Map<String, Object> list(String issueType, String resolution, int page, int size) {
         LambdaQueryWrapper<ClientMigrationIssue> w = new LambdaQueryWrapper<>();
         if (issueType != null && !issueType.isBlank()) {
@@ -131,16 +113,6 @@ public class MigrationIssueService {
         return out;
     }
 
-    /**
-     * 单条人工裁定（spec §6.6；执行顺序=裁决 R2）：
-     * ①全量前置校验——resolution ∈ {BACKFILLED,SKIPPED,MANUAL_DONE}；BACKFILLED 必须带
-     * backfillUnitId 且 use_unit 命中、对象类型 ∈ {RECORD,FAULT,ORDER}（ACCOUNT 类 422，P3 才有）、
-     * 对象行命中——任一失败 422 零副作用；
-     * ②条件更新认领 issue（eq id + eq resolution='PENDING'，set 五字段；受影响 0 行 →
-     * 422「该问题已处理」，双击/并发第二次在此被拒且不重复回填）；
-     * ③BACKFILLED 回填对象行 useUnitId/useUnitName（updateById）；
-     * ④审计（migration:resolve）。decision 非空时 JsonUtil.write 存 decisionJson（P3 Runner 消费，本期只存不读）。
-     */
     @Transactional
     public Map<String, Object> resolve(String id, String resolution, String backfillUnitId,
                                        Map<String, Object> decision, String note, String actorEmpId) {
@@ -201,7 +173,6 @@ public class MigrationIssueService {
         return Map.of("ok", true);
     }
 
-    /** 行视图：client_migration_issue 全部列；decisionJson 原样字符串（管理端/P3 Runner 自行解析） */
     private Map<String, Object> rowView(ClientMigrationIssue i) {
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("id", i.id);

@@ -15,7 +15,6 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-/** M5 数据域：配置范围校验/敏感导出审批（用途≥10字、仅待审批可批）。 */
 class DataDomainServiceTest {
 
     private final SysConfigMapper configMapper = mock(SysConfigMapper.class);

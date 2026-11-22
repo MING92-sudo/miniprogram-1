@@ -1,13 +1,9 @@
-// 派单引擎验证脚本（node scripts/verify-dispatch.js，验证后自动清理）
-// 区域抢单池口径（D2/M4，2026-11-20）：派单不带人——worker*/assistant* 一律为空，
-// 工单落 regionId 快照（= 电梯所在区域），状态 PENDING=待接单，由同区域持平台ID的维保员签到认领。
 const { formatTime } = require('../utils/util')
 const d = require('../mock/data')
 const DAY = 86400000
 const now = Date.now()
 
-// 场景：同一项目（uu_1）6 台电梯同日到期（maintenance 里随意填了历史绑定字段——派单链路不再读取）
-// → 到期一次性全部派单，计划时间统一为当日 09:00:00，工单不带人、落 regionId 快照。
+// 场景：同一项目（uu_1）6 台电梯同日到期（maintenance 里随意填了历史绑定字段——派单链路不再读取）→ 到期一次性全部派单，计划时间统一为当日 09:00:00，工单不带人、落 regionId 快照。
 for (let i = 1; i <= 6; i++) {
   d.db.elevators.push({
     id: 'vt_' + i, elevatorCode: 'VT-' + i, elevatorName: '验证梯-' + i, useUnitId: 'uu_1', category: '曳引与强制驱动电梯',

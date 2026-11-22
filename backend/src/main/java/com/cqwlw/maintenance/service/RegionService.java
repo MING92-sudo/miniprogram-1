@@ -13,11 +13,6 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 import java.util.Map;
 
-/**
- * 区域主数据 + 电梯区域分配（Task 1，移交/使用单位门户的可见性范围谓词）。
- * 管理端门禁在 RegionController 校验（非管理员 403，本服务不做角色判断）。
- * 员工所属区域不设专职方法：随 POST/PUT /employees 建档/编辑一并维护（D5，AdminArchiveService）。
- */
 @Service
 public class RegionService {
 
@@ -99,7 +94,6 @@ public class RegionService {
         elevatorMapper.updateById(patch);
     }
 
-    /** 员工分配区域端点已下线（D5 死代码清理）：员工所属区域随 POST/PUT /employees 维护（AdminArchiveService） */
 
     private String requireRegion(String regionId) {
         String rid = regionId == null ? "" : regionId.trim();

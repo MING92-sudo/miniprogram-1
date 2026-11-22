@@ -1,5 +1,4 @@
-// scripts/asset-build/check-zcool-gap.js
-// 扩字后 TTF 子集 cmap 缺口检测（opentype.js 仅解析 TTF/OTF，不解 WOFF2）
+// scripts/asset-build/check-zcool-gap.js扩字后 TTF 子集 cmap 缺口检测（opentype.js 仅解析 TTF/OTF，不解 WOFF2）
 const fs = require('fs')
 const path = require('path')
 const opentype = require('opentype.js')

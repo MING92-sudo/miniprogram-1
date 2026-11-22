@@ -1,6 +1,4 @@
-// 请求层看门狗回归（2026-11-16 真机调试登录挂起根因修复）：
-// 真机调试通道下 wx.cloud.callContainer 可能永不回调（平台限制），request 必须自行兜底 settle，
-// 否则登录页 logging 恒 true、按钮禁用、无任何提示。node scripts/test-request-watchdog.js
+// 请求层看门狗回归：真机调试通道下 wx.cloud.callContainer 可能永不回调（平台限制），request 必须自行兜底 settle，否则登录页 logging 恒 true、按钮禁用、无任何提示。
 const assert = require('assert')
 const path = require('path')
 const ROOT = path.join(__dirname, '..')

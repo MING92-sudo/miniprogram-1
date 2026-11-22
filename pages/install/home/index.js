@@ -1,4 +1,3 @@
-// 安装工作台（M2，屏 01 范式适配）：问候 + 移交 KPI + 进行中移交 + 快捷动作 + 周统计。
 const { definePage } = require('../../../utils/guard')
 const { ROUTES } = require('../../../config/routes')
 const { greetPeriod } = require('../../../utils/util')
@@ -24,7 +23,7 @@ definePage(ROUTES['/pages/install/home/index'], {
     this.load()
   },
   load(force) {
-    // 重显保留旧数据静默刷新，仅首屏/重试显示骨架屏（响应速度审计 2026-11-15）
+    // 重显保留旧数据静默刷新，仅首屏/重试显示骨架屏
     this.setData({ loading: !!force || !this.data.kpis.length, error: '' })
     home.getInstallHome()
       .then((r) => this.setData({ loading: false, kpis: r.kpis, tasks: r.tasks, week: r.week }))

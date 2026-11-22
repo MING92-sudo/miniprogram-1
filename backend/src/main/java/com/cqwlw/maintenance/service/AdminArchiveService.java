@@ -38,11 +38,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.regex.Pattern;
 
-/**
- * 管理端档案维护（docs/09 一期：维保单位/使用单位/人员/电梯四类档案）。
- * 写接口一律：管理端写角色门禁（拦截器）+ X-Idempotency-Key（控制器）+ 手机号互斥预校验（1002+conflicts[]）。
- * 电梯读接口沿用 GET /elevators（小程序共用），管理端用 GET /admin/elevators 富视图（含 geoStatus）。
- */
 @Service
 public class AdminArchiveService {
 
@@ -179,16 +174,9 @@ public class AdminArchiveService {
 
     // ── 人员（GET/POST/PUT /employees）──
 
-    /**
-     * 人员目录（GET /employees）。P1（T5）临时排除客户主体行：客户账号在「使用单位档案」下开通
-     * （docs/14 §9.1），不进内部人员目录视图；数据保留不删。判定用 principalTypeOf 而非
-     * department 字面量（客户 department 存 UNIT/null 两代值）。P3 账号体系重建后再定正式口径。
-     */
     public List<Map<String, Object>> employeeList() {
         List<Employee> all = employeeMapper.selectList(new LambdaQueryWrapper<Employee>()
                 .orderByAsc(Employee::getId));
-        // P2 T5（N+1 消除）：一次 .in(userId) 批量载入全部员工 sys_user_role（EMPLOYEE 行）按 userId 分组，
-        // 替代逐员工查询；每员工角色集与旧 .eq(userId) 逐条查询逐集合相等，排除结论不变
         Map<String, List<SysUserRole>> rolesByUser = employeeRolesByUser(all);
         List<Map<String, Object>> list = new ArrayList<>();
         for (Employee e : all == null ? List.<Employee>of() : all) {
@@ -200,11 +188,7 @@ public class AdminArchiveService {
         return list;
     }
 
-    /**
-     * 批量载入员工角色行并按 userId 分组（P2 T5）。
-     * 空 id 集短路不发起查询——MyBatis-Plus in() 空集会退化为无条件（全表），必须守卫；
-     * null userId 行不入分组（旧 .eq(userId) 语义下 NULL 永不匹配任何员工）。
-     */
+    /** 空 id 集短路不发起查询——MyBatis-Plus in() 空集会退化为无条件（全表），必须守卫； */
     private Map<String, List<SysUserRole>> employeeRolesByUser(List<Employee> all) {
         Map<String, List<SysUserRole>> map = new LinkedHashMap<>();
         Set<String> empIds = new LinkedHashSet<>();
@@ -303,8 +287,7 @@ public class AdminArchiveService {
         e.enabled = true;
         requirePlatformIdAvailable(e.platformId, null);
         employeeMapper.insert(e);
-        // 账号管理页 /users 的角色列只读 sys_user_role；建档（含平台登记自动建号）必须同步写一行，
-        // 否则新账号在账号管理页显示为空角色。口径与 UserController.insertRole 一致。
+        // 建档（含平台登记自动建号）必须同步写一行，否则新账号在账号管理页显示为空角色。
         insertPrimaryRole(e.id, role);
         Map<String, Object> out = employeeRow(e);
         out.put("initialPassword", initialPassword);
@@ -377,8 +360,7 @@ public class AdminArchiveService {
         if (elevators != null && elevators > 0) {
             throw new BizException(422, "该单位名下有 " + elevators + " 台电梯，请先移除关联后再删除");
         }
-        // 客户账号是使用单位的附庸：单位删除后账号必须一并失效，否则「单位已删、账号仍可登录」，
-        // 登录后归属单位悬空（跳转到不存在的租户）。签字历史保留姓名快照，仅解绑外键避免悬空引用。
+        // 客户账号是使用单位的附庸：单位删除后账号必须一并失效，否则「单位已删、账号仍可登录」，登录后归属单位悬空（跳转到不存在的租户）。
         int removedAccounts = 0;
         if (maintainRecordMapper != null) {
             maintainRecordMapper.update(null, new LambdaUpdateWrapper<MaintainRecord>()
@@ -409,7 +391,6 @@ public class AdminArchiveService {
         return Map.of("ok", true);
     }
 
-    /** 账号启停（SYS_ADMIN，docs/04 A.1 用户权限） */
     public Map<String, Object> setEmployeeEnabled(String id, boolean enabled) {
         Employee e = employeeMapper.selectById(id);
         if (e == null) {
@@ -420,7 +401,6 @@ public class AdminArchiveService {
         return employeeRow(e);
     }
 
-    /** 重置密码（SYS_ADMIN，docs/04 A.1 用户权限） */
     public Map<String, Object> resetEmployeePassword(String id, String password) {
         Employee e = employeeMapper.selectById(id);
         if (e == null) {
@@ -450,7 +430,6 @@ public class AdminArchiveService {
         if (body.get("phone") != null) {
             String newPhone = str(body, "phone");
             requireMobile(newPhone, "手机号");
-            // 登录按 account 查（AuthController）；默认账号=手机号，改号时同步，避免改完手机号登录不了。
             // 仅在 account 仍等于旧手机号（默认账号）时同步，自定义账号不覆盖。
             if (e.account == null || e.account.isBlank() || e.account.equals(e.phone)) {
                 e.account = newPhone;
@@ -490,8 +469,6 @@ public class AdminArchiveService {
         }
         if (body.get("groupName") != null) {
             String newGroup = str(body, "groupName");
-            // 调人校验（D1）：目标班组非空且与旧值不同时，必须等于组织树中某个 type=TEAM 且
-            // status≠DISABLED 节点的 name；空串=清除班组不校验。校验失败不落库（不改任何状态）。
             if (!newGroup.isBlank() && !newGroup.equals(nz(oldGroupName))) {
                 boolean teamExists = sysOrgMapper.selectList(new LambdaQueryWrapper<SysOrg>()
                         .eq(SysOrg::getType, "TEAM")
@@ -533,7 +510,6 @@ public class AdminArchiveService {
                     .eq(Employee::getId, e.id)
                     .set(Employee::getRegionId, null));
         }
-        // 改角色时同步 sys_user_role 主角色行，保持账号管理页角色列与权限判定一致。
         // 仅当该账号只有主角色一行时对齐（多角色账号由「分配角色」端点专门管理，不在此覆盖）。
         if (roleChanged) {
             List<SysUserRole> existing = userRoleMapper.selectList(
@@ -542,7 +518,6 @@ public class AdminArchiveService {
                 insertPrimaryRole(e.id, e.role);
             }
         }
-        // 调人审计（D1）：班组实际发生变化（含清除为空）时留痕——操作人、员工 id、原班组→新班组
         if (body.get("groupName") != null && !java.util.Objects.equals(nz(oldGroupName), nz(e.groupName))) {
             appendGroupChangeAudit(actorId, e.id, oldGroupName, e.groupName);
         }
@@ -607,17 +582,11 @@ public class AdminArchiveService {
         Elevator el = new Elevator();
         el.id = Ids.next("el");
         applyElevator(el, body);
-        // 设备信息档案 5 项必传（电梯编码/设备代码/注册代码/单位内编号/出厂编号，docs/01 §3.4.1）
         DeviceProfileValidator.requireForCreate(el);
         // elevator_name 为库表 NOT NULL：未填项目名称时以单位内编号（梯号）兜底，再退电梯编码
         if (isBlank(el.elevatorName)) {
             el.elevatorName = isBlank(el.insideNumber) ? el.elevatorCode : el.insideNumber;
         }
-        // 区域抢单池（D2/M6）：建档不再写维保人员绑定（worker*/assistant*），绑定手机号互斥预校验随之取消
-        // 建档即排期（用户口径 2026-11-20：首次建档就把一年维保计划排出来，进维保日历）：
-        // 基线缺省 = 建档时间（维保责任起始，AGENTS §3.6「无已完成维保回退建档 lastMaintenanceAt」）；
-        // 下次到期缺省 = 基线 + intervalDays（缺省 15）= 首保计划日。此后到期前一日定时派单接管、
-        // 签退滚动 nextMaintenanceDate，日历从锚点向前投影全年——直建电梯不再需要手动首保派单。
         if (el.lastMaintenanceAt == null) {
             el.lastMaintenanceAt = TimeUtil.now();
         }
@@ -645,14 +614,11 @@ public class AdminArchiveService {
             el.elevatorName = isBlank(el.insideNumber) ? nz(el.elevatorCode) : el.insideNumber;
         }
         elevatorMapper.updateById(el);
-        // 经纬度清空（留空保存）必须显式置 NULL——updateById 默认跳过 null 字段，
-        // 否则错误的首采坐标永远无法清除（清空后下次签到重新现场采集，docs/02 §5.4）
+        // 经纬度清空（留空保存）必须显式置 NULL——updateById 默认跳过 null 字段，否则错误的首采坐标永远无法清除
         boolean clearLng = body.get("lng") != null && str(body, "lng").isBlank();
         boolean clearLat = body.get("lat") != null && str(body, "lat").isBlank();
         // 所在区域置空同理（updateById 跳过 null 字段，必须显式 SET NULL）
         boolean clearRegion = body.get("regionId") != null && str(body, "regionId").isBlank();
-        // 停保恢复（status=ACTIVE/空 → 在保）同理：applyElevator 置 null 后 updateById 跳过，
-        // 不显式 SET NULL 会导致「启用」永远写不回（docs/09 §6.6：NULL=在保）
         boolean clearStatus = body.get("status") != null && !"INACTIVE".equals(str(body, "status"));
         if (clearLng || clearLat || clearRegion || clearStatus) {
             LambdaUpdateWrapper<Elevator> uw = new LambdaUpdateWrapper<Elevator>().eq(Elevator::getId, id);
@@ -792,7 +758,6 @@ public class AdminArchiveService {
         if (body.get("location") != null) {
             el.location = str(body, "location");
         }
-        // 电梯名称 = 项目名称（小区），合并维护（用户需求 2026-11-11）；projectName 优先
         if (body.get("projectName") != null) {
             el.projectName = str(body, "projectName");
             el.elevatorName = el.projectName;
@@ -805,7 +770,6 @@ public class AdminArchiveService {
         } else if (body.get("regCode") != null) {
             el.regCode = str(body, "regCode");
         }
-        // 登记证编码（V58）：使用登记证上的独立编号（梯11渝BSP8194(20) 式），不上报监管平台
         if (body.get("certNo") != null) {
             el.certNo = str(body, "certNo");
         }
@@ -853,8 +817,6 @@ public class AdminArchiveService {
         if (body.get("nextMaintenanceDate") != null) {
             el.nextMaintenanceDate = TimeUtil.parseDate(str(body, "nextMaintenanceDate"));
         }
-        // 上次维保日期 = 排期基线（建档即排全年，2026-11-20 用户口径）：存量建档传真实日期（yyyy-MM-dd
-        // 或 yyyy-MM-dd HH:mm:ss）；非法值 422——基线错了整张年表都错，不能静默吞掉
         if (body.get("lastMaintenanceAt") != null) {
             String raw = str(body, "lastMaintenanceAt");
             if (raw.isBlank()) {
@@ -943,7 +905,6 @@ public class AdminArchiveService {
         }
         if (body.get("status") != null) {
             String s = str(body, "status");
-            // 停保=INACTIVE；空/ACTIVE=恢复在保（docs/09 §6.6：停保后不派单、小程序不可见）
             el.status = "INACTIVE".equals(s) ? "INACTIVE" : null;
         }
     }
@@ -1022,10 +983,8 @@ public class AdminArchiveService {
         m.put("regCode", nz(el.regCode));
         // 注册代码：管理端「设备信息档案」对外字段名（用户口径）；regCode 保留给旧调用方
         m.put("registrationCode", nz(el.regCode));
-        // 登记证编码（V58）：独立于注册代码的使用登记证编号
         m.put("certNo", nz(el.certNo));
         m.put("deviceCode", nz(el.deviceCode));
-        // 区域与建档来源（Task 14 Step 2）：区域决定维保人员可见范围，来源区分 存量/移交/外接
         m.put("regionId", nz(el.regionId));
         m.put("regionName", regionName);
         // 上传维保记录的必传项（前 5 项）缺失清单：管理端据此显示「待补全」
@@ -1058,7 +1017,6 @@ public class AdminArchiveService {
         m.put("platformSyncedAt", TimeUtil.format(el.platformSyncedAt));
         m.put("lng", el.lng == null ? "" : String.valueOf(el.lng));
         m.put("lat", el.lat == null ? "" : String.valueOf(el.lat));
-        // 位置待补高亮数据源（docs/09 决策 #4，docs/01 §3.4.1 降级策略）
         m.put("geoStatus", el.lng == null || el.lat == null ? "MISSING" : "OK");
         m.put("workerName", nz(el.workerName));
         m.put("workerPhone", nz(el.workerPhone));
@@ -1073,9 +1031,7 @@ public class AdminArchiveService {
         return m;
     }
 
-    // ── 范围收敛新增（docs/04 V2.9 A.9.0 / docs/09 V3.3 §5.5·§6.6）──
 
-    /** 批量导入经纬度（docs/09 V3.1/V3.3：位置待补补录入口），按 elevatorCode 更新坐标 */
     public Map<String, Object> batchGeo(Map<String, Object> body) {
         if (!(body.get("items") instanceof List<?> rawItems) || rawItems.isEmpty()) {
             throw new BizException(422, "items 不能为空");
@@ -1120,14 +1076,12 @@ public class AdminArchiveService {
         return Map.of("success", success, "failed", failed);
     }
 
-    /** 2.2 单主体同步：维保单位（docs/09 V3.1 ④，复用 /platform/sync 的 queryID 逻辑） */
     public Map<String, Object> syncCompanyEntityId() {
         Company c = companyMapper.selectList(null).stream().findFirst()
                 .orElseThrow(() -> new BizException(1404, "维保单位档案不存在"));
         return syncEntityId(c.organizationCode, c.name, () -> {
             Map<String, Object> entity = platformClient.queryEntity(c.organizationCode, c.name);
             c.entityId = String.valueOf(entity.get("entityID"));
-            // 维保单位名称以平台 2.2 返回为准（2026-10-05 用户确认：本单位名称以平台登录侧获取为准）
             String platformName = entity.get("unitName") == null ? "" : String.valueOf(entity.get("unitName"));
             if (!platformName.isEmpty()) {
                 c.name = platformName;
@@ -1174,10 +1128,6 @@ public class AdminArchiveService {
         }
     }
 
-    /**
-     * 电梯贴梯二维码 PNG（docs/09 V3.3 §6.6）：内容=电梯编码字符串，
-     * 小程序扫码后经 resolve-by-elevator / elevators/by-code 识别工单。
-     */
     public byte[] elevatorQrPng(String elevatorId) {
         Elevator el = elevatorMapper.selectById(elevatorId);
         if (el == null) {
@@ -1205,7 +1155,6 @@ public class AdminArchiveService {
         }
     }
 
-    /** 角色中文名统一取 RoleCatalog（docs/14 §3），避免两处维护漂移 */
     private static String defaultRoleText(String role) {
         String name = RoleCatalog.nameOf(role);
         return name == null ? role : name;

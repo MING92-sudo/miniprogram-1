@@ -1,10 +1,6 @@
 import http from './client'
 
-/**
- * 档案维护（docs/09 §1.2-4）：
- * GET /company、PUT /company；GET/POST/PUT /use-units、/employees；POST/PUT /elevators、GET /admin/elevators。
- * 写接口幂等键由 client 统一附加；1002 互斥冲突以 err.data.conflicts[] 返回。
- */
+/** 写接口幂等键由 client 统一附加； */
 export function company() {
   return http.get('/company')
 }
@@ -58,7 +54,6 @@ export function deleteUseUnit(id) {
   return http.delete(`/use-units/${id}`)
 }
 
-// ── P3 客户账号（docs/14 §6，独立于员工体系；路径挂 /use-units/{id}/accounts）──
 
 /** 某单位的客户账号列表 */
 export function clientAccounts(useUnitId) {
@@ -118,7 +113,6 @@ export function elevatorArchive(id) {
   return http.get(`/elevators/${id}/archive`)
 }
 
-// ── 范围收敛新增（docs/04 V2.9 A.9.0 / docs/09 V3.3）──
 
 /** 批量导入经纬度：{items:[{code,lng,lat}]}，逐条回显成败 */
 export function batchGeo(items) {
@@ -130,7 +124,7 @@ export function elevatorQrPng(id) {
   return http.post(`/elevators/${id}/qrcode`, {}, { responseType: 'blob', timeout: 60000 })
 }
 
-/** 重置密码（docs/09 V2.2 方案 A）：12 位随机一次性返回 */
+/** 重置密码：12 位随机一次性返回 */
 export function resetEmployeePassword(id) {
   return http.post(`/employees/${id}/reset-password`, {})
 }

@@ -38,10 +38,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/**
- * 派单验收口径（AGENTS §6 / scripts/verify-dispatch.js）：
- * 同项目 6 台同日到期 → 当日一次性全部 09:00 派单；保养类型按时间自动升级。
- */
+/** 派单验收口径（AGENTS §6 / scripts/verify-dispatch.js）：同项目 6 台同日到期 → 当日一次性全部 09:00 派单； */
 class DispatchServiceTest {
 
     private ElevatorMapper elevatorMapper;
@@ -149,8 +146,7 @@ class DispatchServiceTest {
         assertEquals("年度维保", created.get(0).workType);
     }
 
-    /** 累加式升级基线 = 首次维保日期（用户确认 2026-11-06）：
-     *  只做过半月保、从未做过季/半年/年保的电梯，应按最早一次 DONE 签退起算，而非最近一次任意维保。 */
+    /** 累加式升级基线 = 首次维保日期：只做过半月保、从未做过季/半年/年保的电梯，应按最早一次 DONE 签退起算，而非最近一次任意维保。 */
     @Test
     void neverDoneTypeUpgradesFromFirstMaintenanceDate() {
         Elevator el = dueElevator("el_first");
@@ -189,7 +185,6 @@ class DispatchServiceTest {
         assertEquals(0, service.ensureDueOrders().size());
     }
 
-    /** 区域抢单池（D2/M4）：自动派单不带人——主/配合人四字段一律为空、落 regionId 快照、PENDING=待接单 */
     @Test
     void autoDispatchCreatesUnassignedPoolOrder() {
         Elevator el = dueElevator("el_pool"); // 档案绑定字段随意填（派单链路不再读取）
@@ -208,7 +203,6 @@ class DispatchServiceTest {
         assertEquals("rg_1", o.regionId, "工单应落电梯 regionId 快照（池查询不 join 电梯表）");
     }
 
-    /** 区域抢单池（D2）：电梯未绑定主维保不再跳过派单——池化工单天然不需要预绑定 */
     @Test
     void autoDispatchNoLongerSkipsUnboundElevator() {
         Elevator el = dueElevator("el_nb");
@@ -243,7 +237,6 @@ class DispatchServiceTest {
         verify(orderMapper, times(1)).insert(any(WorkOrder.class));
     }
 
-    /** 到期投影与派单同一基线：区域覆盖提示 regionStaffed、类型升级、超期判定（2026-11-21 维保计划页口径） */
     @Test
     void dueProjectionMatchesDispatchBaseline() {
         Elevator staffed = dueElevator("el_p1");

@@ -6,7 +6,7 @@ import lombok.Data;
 
 import java.time.LocalDateTime;
 
-/** 移交节点确认记录（Task 6 signNode 消费，本任务仅建表）：内部账号「节点通过即签字」 */
+/** 移交节点确认记录：内部账号「节点通过即签字」 */
 @TableName("handover_sign")
 @Data
 public class HandoverSign {

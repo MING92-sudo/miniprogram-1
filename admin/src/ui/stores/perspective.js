@@ -1,5 +1,3 @@
-// 视角 store：activeRole / scope 一律由「服务端下发的真实登录角色」派生。
-// 前端不持有可切换的角色集——切换角色 = 换一个真实账号登录（docs/09 §二：登录页不选角色）。
 import { defineStore } from 'pinia'
 import { defaultScope, canonical } from '../permission-v2'
 import { useAuthStore } from '../../stores/auth'

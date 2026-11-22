@@ -6,7 +6,6 @@ import lombok.Data;
 
 import java.time.LocalDateTime;
 
-/** 移交资料核对 D1—D20（C-12）。 */
 @Data
 @TableName("handover_doc")
 public class HandoverDoc {

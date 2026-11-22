@@ -2,13 +2,11 @@
 const TOKEN_KEY = 'em_token'
 const USER_KEY = 'em_user'
 const ROLE_KEY = 'em_role'
-// M1 单账号多角色：规范角色集/能力码/默认工作台（统一登录响应扩展字段）
 const ROLES_KEY = 'em_roles'
 const PERMS_KEY = 'em_perms'
 const WORKSPACE_KEY = 'em_workspace'
 const HOME_KEY = 'em_home'
 const SCOPE_KEY = 'em_scope'
-// P1 T8-B6：登录体主体类型（CUSTOMER/EMPLOYEE，后端 AuthController.loginResult 下发）
 const PRINCIPAL_KEY = 'em_principal'
 
 function getToken() {
@@ -27,7 +25,6 @@ function isLoggedIn() {
   return !!getToken()
 }
 
-// 保存登录态（/auth/login 返回；M1 扩展 roles/perms/activeWorkspace/home；P1 扩展 principalType）
 function saveAuth({ token, userInfo, role, roles, perms, activeWorkspace, home, scope, principalType }) {
   wx.setStorageSync(TOKEN_KEY, token)
   wx.setStorageSync(USER_KEY, userInfo)
@@ -77,7 +74,6 @@ function clearAuth() {
 }
 
 
-// 规范角色别名（docs/14 §3 十三规范角色；旧码→规范码，与后端 RoleCatalog / mock loginPayload 同口径）
 const ROLE_ALIAS = {
   WORKER: 'MAINT_TECH', ASSISTANT: 'MAINT_TECH', LEADER: 'MAINT_SUP',
   UNIT_ADMIN: 'CLIENT_ADMIN', ADMIN: 'PLATFORM_ADMIN',
@@ -101,8 +97,6 @@ function hasAnyRole(list) {
   return (list || []).some(function (r) { return session.indexOf(r) > -1 })
 }
 
-// 客户主体判定（P1 T8-B6，后端 RoleCatalog.isCustomerPrincipal 同口径）：优先登录体 principalType；
-// 旧会话无该字段时回退角色集归一判定（非空且全部为 CLIENT_ADMIN/CLIENT_SIGNER，含旧码 UNIT_ADMIN 别名）
 function isCustomerPrincipal() {
   const pt = getPrincipalType()
   if (pt) return pt === 'CUSTOMER'

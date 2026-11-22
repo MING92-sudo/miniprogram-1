@@ -2,11 +2,6 @@ package com.cqwlw.maintenance.service;
 
 import java.util.List;
 
-/**
- * C-12：GB/T 10060—2023 表1 74 项检查模板（13 项类 G01—G13，☆重要项 49）。
- * 序号/条款/项类/重要与 docs/15 附录 A 逐字一致；requirement 为条款要点压缩（B4 条款号回填）。
- * 消防/防爆（55/56）不内置子项（B3），仅留附页记录位。
- */
 public final class HandoverChecklistTemplate {
 
     public record Item(int no, String group, String clause, String name, String requirement, boolean important) {

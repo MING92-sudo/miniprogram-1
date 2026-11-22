@@ -24,11 +24,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/**
- * 工单发号：自动派单与管理端人工指派共用同一发号点。
- * 序号按当日的工单数推算，且撞唯一键必须递增重试——人工指派原先用全表总数取模、
- * 撞键直接 500，与自动派单是两套实现，会互相撞号。
- */
+/** 序号按当日的工单数推算，且撞唯一键必须递增重试——人工指派原先用全表总数取模、撞键直接 500，与自动派单是两套实现，会互相撞号。 */
 class OrderNoIssuerTest {
 
     private static final String TODAY = TimeUtil.date(LocalDateTime.now()).replace("-", "");
@@ -94,8 +90,7 @@ class OrderNoIssuerTest {
 
     @Test
     void retriesAfterDuplicateKeyByRecounting() {
-        // 首次计数 0 → WO-001 撞键；并发对端已提交 → 重试时重统计为 1 → WO-002（紧邻下一空闲号）。
-        // 旧实现「计数 + attempt」在重试时会把对端新提交的号与重试次数重复累加，得出 WO-003 跳过 002。
+        // 并发对端已提交 → 重试时重统计为 1 → WO-002（紧邻下一空闲号）。
         when(orderMapper.selectCount(any())).thenReturn(0L, 1L);
         WorkOrder o = newOrder();
         when(orderMapper.insert(o))

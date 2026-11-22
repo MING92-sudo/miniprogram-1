@@ -18,17 +18,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-/**
- * 维保人员平台ID回填（docs/04 B.5）：
- * 2.4 建档本身不返回人员ID，须在建档后调 2.5 queryWorkList 按证书号精确匹配取 id，
- * 写回 employee.platform_id，供 2.6 上报的 workMan1Id/workMan2Id 使用。
- *
- * 关键约束（docs/04 B.5）：
- * - 匹配键必须是 workManCertificate（证书号平台内唯一），严禁用姓名匹配（会重名）；
- * - 匹配 0 条 → 重试（平台建档后同步有延迟）；匹配多条 → 告警人工处理，不自动取首条；
- * - 未回填 platform_id 的人员不可派工（1004），否则 2.6 必然失败；
- * - 2.5 按 workEndDate > 当前日期过滤，故查询口径与 syncAll 一致取 now+1y。
- */
+/** 关键约束：- 匹配键必须是 workManCertificate（证书号平台内唯一），严禁用姓名匹配（会重名）； */
 @Service
 public class PlatformWorkerIdService {
 
@@ -40,7 +30,7 @@ public class PlatformWorkerIdService {
     public static final String NO_CERT = "NO_CERT";
     public static final String DISABLED = "DISABLED";
 
-    /** 立即查失败后的退避重试间隔（秒），累计约 5 分钟（docs/04 B.5 的 5s/15s/60s 口径）。 */
+    /** 立即查失败后的退避重试间隔（秒），累计约 5 分钟。 */
     private static final long[] RETRY_SECONDS = {5, 15, 60, 60, 60, 60, 40};
 
     private final PlatformClient platformClient;
@@ -62,11 +52,7 @@ public class PlatformWorkerIdService {
         this.employeeMapper = employeeMapper;
     }
 
-    /**
-     * 2.4 建档成功后触发：调 2.5 查询整个单位所有绑定的维保人员（全量），
-     * 按证书号精确匹配回填所有本地人员的 platform_id；本次建档人未命中则退避重试。
-     * 返回 status（本次建档人状态）+ 全量回填统计。
-     */
+    /** 本次建档人未命中则退避重试。 */
     public Map<String, Object> backfillWithRetry(String certificate) {
         BackfillOutcome outcome = backfillAll();
         String selfStatus;
@@ -213,10 +199,6 @@ public class PlatformWorkerIdService {
         }
     }
 
-    /**
-     * 调 2.5 按证书号精确匹配回填 platform_id。
-     * 返回 SYNCED / NOT_FOUND / AMBIGUOUS / NO_CERT / DISABLED。
-     */
     public String backfillByCertificate(String certificate) {
         if (certificate == null || certificate.isBlank()) {
             return NO_CERT;
@@ -233,7 +215,6 @@ public class PlatformWorkerIdService {
             return NOT_FOUND;
         }
         if (matched.size() > 1) {
-            // docs/04 B.5：证书号重复不自动取第一条，交人工确认
             log.warn("人员平台ID回填跳过：证书号 {} 在 2.5 命中 {} 条（不自动取首条），需人工确认",
                     certificate, matched.size());
             return AMBIGUOUS;

@@ -1,5 +1,3 @@
-// scripts/asset-build/subset-zcool.js
-// OFL 全字 → required.txt 子集（subset-font/harfbuzz WASM，无需系统 fonttools）
 const fs = require('fs')
 const path = require('path')
 const subsetFont = require('subset-font')

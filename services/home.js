@@ -1,5 +1,4 @@
-// 工作台汇总（M2，规格 §5.1）：客户端聚合既有端点，不新增后端接口。
-// 每个数据源独立 catch 降级（该区块空态，不整页失败）；页面只调本模块。
+// 页面只调本模块。
 const { get } = require('../utils/request')
 const order = require('./order')
 const fault = require('./fault')
@@ -47,8 +46,7 @@ function getMaintHome() {
       title: '急修 · ' + (f.elevatorName || f.elevatorCode || ''),
       desc: f.desc || '', tagText: '急修', tagTone: 'signal'
     }))
-    // 急修横幅只显示未闭环工单（2026-11-20 真机反馈④）：无在途困人急修时隐藏横幅，
-    // 不再回退展示已闭环工单（已闭环属历史，不该占据警示位）
+    // 急修横幅只显示未闭环工单：无在途困人急修时隐藏横幅，不再回退展示已闭环工单（已闭环属历史，不该占据警示位）
     const sosSrc = trapped[0] || open[0] || null
     const sos = sosSrc ? {
       id: sosSrc.id,
@@ -94,8 +92,6 @@ function getInstallHome() {
   })
 }
 
-// 使用单位工作台（屏 10）：待签提醒 / KPI / 我的电梯 / 最近记录 / 年检提醒
-// P1 T8-B2：评价入口下线（docs/14 §4.7 评价关闭），不再聚合「已闭环待评价」急修提醒
 function getClientHome() {
   return Promise.all([
     unit.getUnitPendingSigns().catch(() => []),
@@ -117,7 +113,6 @@ function getClientHome() {
     ]
     const elevRows = elevators.slice(0, 2).map((e) => ({
       id: e.id, name: e.elevatorName || e.elevatorCode,
-      // P1 终审 M12：/unit/elevators 投影字段为 nextMaintenanceDate（E1 锁定），旧键 nextMaintenanceAt 不存在恒回退年检日期
       desc: '下次维保 ' + String(e.nextMaintenanceDate || e.nextCheckDate || '').slice(0, 10),
       tagText: '正常', tagTone: 'ok'
     }))

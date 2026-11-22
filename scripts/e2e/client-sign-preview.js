@@ -1,7 +1,3 @@
-// 使用单位签字预览闭环走查（mock 模式，2026-11-20 sign-view 扩项验收）：
-// 客户王芳登录 → 待办签字 → 签署确认页渲染维保记录预览（维保项目逐项明细/异常整改/现场照片/使用单位/维保日期）。
-// 只读走查：不触发签署/拒签写操作，保持 mock 待签状态可重复执行（D-03 口径，单次登录）。
-// 用法: node client-sign-preview.js（需 IDE 服务端口 + useMock=true + packOptions 去 mock 排除；跑完还原）
 const automator = require('miniprogram-automator'); const path = require('path')
 const sleep = ms => new Promise(r => setTimeout(r, ms))
 let fail = 0
@@ -16,7 +12,7 @@ async function login(mp, account) {
   await page.setData({ phone: account, password: '123456', agreed: true })
   await page.callMethod('onSubmit'); await sleep(2600)
 }
-// IDE 自动化连续 reLaunch 偶发时序抖动（docs/12 V1.17 环境限制）：轮询页面数据就绪，导航失败重试一次
+// IDE 自动化连续 reLaunch 偶发时序抖动：轮询页面数据就绪，导航失败重试一次
 async function waitData(mp, pred, tries) {
   for (let i = 0; i < (tries || 12); i++) {
     const p = await mp.currentPage(); const d = await p.data()

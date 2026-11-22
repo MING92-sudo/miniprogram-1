@@ -39,10 +39,6 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/**
- * 租户快照存量幂等回填 Runner 单测（权限 P2 T6；spec §6 / 裁决 R4/R6）。
- * 全 mock mapper + MigrationIssueService，直接 new Runner（@PostConstruct 在纯单测中不会被 Spring 调用）。
- */
 class TenantSnapshotBackfillRunnerTest {
 
     private MaintainRecordMapper records;
@@ -365,13 +361,7 @@ class TenantSnapshotBackfillRunnerTest {
         assertEquals("o-good", cap.getValue().id);
     }
 
-    // ---------- 回归：keyset 游标分页消除 issue-only 行死循环（C-1 / R12） ----------
 
-    /**
-     * issue-only 行（UNMATCHED，use_unit_id 恒 null）在旧实现会被 while(true) 反复取回 → 死循环。
-     * 本用例用 thenAnswer 计数（首批返回该行、之后空批）保证有限终止；再用 captor 钉住
-     * “第二次查询带 gt(id,lastId) 且游标值为上批末元素”——旧实现无 gt → RED。
-     */
     @SuppressWarnings({"rawtypes", "unchecked"})
     @Test
     void cursorSkipsIssueOnlyRowsNoInfiniteLoop() {

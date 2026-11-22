@@ -1,4 +1,3 @@
-// 移交单列表（docs/04 A.9 GET /handovers）：状态筛选 + 分页，点行进详情；
 const { definePage } = require('../../../utils/guard')
 const { ROUTES } = require('../../../config/routes')
 // 有写权限的岗位顶部可发起移交（安装部）。列表接口不可用时给出重试，不留死链。
@@ -16,8 +15,7 @@ const { getRoles } = require('../../../utils/auth')
 
 const SIZE = 20
 
-// 维保部读收敛（2026-11-20 真机反馈③，与后端 HandoverService.list 同口径）：纯维保部角色
-// 的筛选 Tab 只保留维保验收阶段，安装内部阶段（资料移交中/内部审核中）不出现
+// 维保部读收敛：纯维保部角色的筛选 Tab 只保留维保验收阶段，安装内部阶段（资料移交中/内部审核中）不出现
 const MAINT_VISIBLE_FILTERS = ['', 'INSPECTING', 'RECTIFYING', 'PENDING_CONFIRM', 'ARCHIVED']
 function filtersFor(roles) {
   const maintOnly = (roles || []).some((r) => r.indexOf('MAINT') === 0)
@@ -38,7 +36,7 @@ const FILTERS = [
 function decorate(o) {
   return Object.assign({}, o, {
     statusText: HANDOVER_STATUS_TEXT[o.status] || o.status,
-    // 缺省兜底：未关联设备的草稿（无项目名/梯名）也保持卡片可读（2026-11-21 真机反馈）
+    // 缺省兜底：未关联设备的草稿（无项目名/梯名）也保持卡片可读
     projectName: o.projectName || '未命名项目',
     subtitle: [o.elevatorName, o.elevatorCode].filter(function (x) { return !!x }).join(' · ')
   })

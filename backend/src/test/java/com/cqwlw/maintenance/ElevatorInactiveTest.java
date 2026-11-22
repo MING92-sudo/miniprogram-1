@@ -34,10 +34,6 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/**
- * 电梯停用（status=INACTIVE）后的行为（docs/09 §6.6 / V8 迁移注释：停用后不派单、小程序不可见、二维码失效）：
- * 原实现只在批量绑定处校验，自动派单与电梯列表都没过滤，停用电梯仍会生成工单并触发 2.6 上报。
- */
 class ElevatorInactiveTest {
 
     private static Elevator elevator(String id, String status) {
@@ -114,8 +110,6 @@ class ElevatorInactiveTest {
         assertEquals("el_on", list.get(0).get("id"));
     }
 
-    // 原 miniProgramElevatorListScopedToOwnWorker（绑定 platformId 读谓词口径）已随区域化删除——
-    // 池化新梯绑定字段恒 NULL，读范围改按区域匹配键，新口径用例见 ElevatorRegionScopeTest。
 
     private static Employee workerWithPlatformId() {
         Employee e = new Employee();
@@ -179,7 +173,6 @@ class ElevatorInactiveTest {
         assertEquals(422, e.getCode(), "停用电梯的贴梯二维码应提示失效（docs/09 §6.6）");
     }
 
-    // ── 现场维护设备本地信息（docs/01 §3.4.1；用户需求 2026-11-11：全部本地字段可改 + 电梯名称=项目名称合并）──
 
     private static void initElevatorTableInfo() {
         // LambdaUpdateWrapper/LambdaQueryWrapper 需要 TableInfo 缓存（纯 Mockito 单测无 MyBatis 环境，手动初始化一次）

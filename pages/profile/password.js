@@ -1,4 +1,3 @@
-// 修改密码（M2 迁自 pages/mine/password，深色壳）：原口令 + 新口令≥6 位 + 确认一致。
 const auth = require('../../services/auth')
 const { isCustomerPrincipal } = require('../../utils/auth')
 const { definePage } = require('../../utils/guard')
@@ -20,8 +19,7 @@ definePage(ROUTES['/pages/profile/password'], {
     this.setData({ submitting: true })
     auth.changePassword(oldPassword, newPassword)
       .then(() => {
-        // 客户改密由后端 ClientAccountService 清会话（安全设计：口令变更即令牌作废），
-        // 员工改密不动会话。提示必须区分，否则客户返回上一页会被 401 静默踢回登录页。
+        // 客户改密由后端 ClientAccountService 清会话（安全设计：口令变更即令牌作废），员工改密不动会话。
         if (isCustomerPrincipal()) {
           wx.showToast({ title: '修改成功，请用新密码重新登录', icon: 'none' })
           setTimeout(() => wx.reLaunch({ url: '/pages/login/index' }), 1200)

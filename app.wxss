@@ -1,14 +1,11 @@
 /**app.wxss 全局样式**/
-/* M2 深色工业风设计系统（.bw 作用域，旧页浅色体系暂留至 M6） */
 @import './styles/tokens.wxss';
 @import './assets/icons/icons.wxss';
 @import './styles/fonts.wxss';
 @import './styles/brand.wxss';
 @import './styles/legacy-dark.wxss';
 
-/* 新壳按钮重置（仅 .bw 内，避免影响旧页原生 button）；
-   width:auto 根治 wx button UA 固定 width:184px（2026-11-20 真机反馈：
-   group-head 等自定义类按钮被 UA 宽度挤压换行；.btn/.link 已在 tokens 同步修复） */
+/** 新壳按钮重置（仅 .bw 内，避免影响旧页原生 button）； */
 .bw button{background:none;border:none;padding:0;margin:0;font-size:inherit;line-height:inherit;color:inherit;width:auto}
 .bw button::after{border:none}
 .bw .page-pad{padding:18rpx 28rpx 20rpx}

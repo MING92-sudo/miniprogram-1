@@ -3,9 +3,6 @@ import { mount, flushPromises } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import { createRouter, createWebHashHistory } from 'vue-router'
 
-// Task 10（D10/M12 + 设计 §4.4）：工单调度「维保工单池」页签——
-// 未认领池工单显示「待接单 · 区域名」，已认领显示认领人；行内「退回池」（order:dispatch）
-// 调 POST /admin/orders/{id}/release-to-pool；已签到工单退回的二次确认须含「已签到留痕将转入审计」。
 vi.mock('../api/client', () => ({
   default: {
     get: vi.fn(() => Promise.resolve([])),

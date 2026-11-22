@@ -38,13 +38,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/**
- * 区域抢单池「签到即认领」（2026-11-20 设计 §4.2 / M1/D4）：
- * ①池工单（未认领）首个 PRINCIPAL 签到经原子条件更新认领，worker* 指向登录人，工单转 PROCESSING；
- * ②并发认领落败（claimOrder 命中 0 行）→ 1003 并回显现认领人姓名，无写副作用；
- * ③登录人无平台ID → 422「请先在管理端完成平台人员登记」，零写副作用（不落库、不认领）；
- * ④已认领工单由他人签到 → requireOrderScope 1403 拦截（池谓词只放行未认领工单）。
- */
+/** 区域抢单池「签到即认领」：①池工单（未认领）首个 PRINCIPAL 签到经原子条件更新认领，worker* 指向登录人，工单转 PROCESSING； */
 class WorkOrderClaimTest {
 
     private static final String ORDER = "wo_claim";
@@ -138,7 +132,6 @@ class WorkOrderClaimTest {
 
     @Test
     void claimWithoutPlatformIdRejected() {
-        // ADMIN 走 privileged 谓词可越过归属校验，但无平台ID 仍不得认领（D4 门禁兜底）
         Employee admin = new Employee();
         admin.id = "emp_admin";
         admin.name = "管理员";

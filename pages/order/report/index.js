@@ -1,6 +1,4 @@
-// 一键报修（M3，合并 fault/report + unit/report）：扫码回填电梯 + 故障描述（≥5 字）+ 故障等级 + 困人人数 + 现场照片。
-// 客户一键报修（client:report，2026-11-21 重开）与维保主管代报修共用：客户主体走 POST /unit/faults
-// （客户令牌白名单仅放 /unit/**，且电梯属本单位校验在服务端，越权 1403），员工走 POST /faults。
+// 客户一键报修与维保主管代报修共用：客户主体走 POST /unit/faults（客户令牌白名单仅放 /unit/**，且电梯属本单位校验在服务端，越权 1403），员工走 POST /faults。
 const { reportFault } = require('../../../services/fault')
 const { reportUnitFault, getUnitElevators } = require('../../../services/unit')
 const { getElevatorByCode } = require('../../../services/elevator')
@@ -93,7 +91,6 @@ definePage(ROUTES['/pages/order/report/index'], {
   onSubmit() {
     if (!this.data.elevatorCode) return wx.showToast({ title: this.data.isCustomer ? '请选择本单位电梯' : '请输入电梯编号', icon: 'none' })
     if (!this.data.desc || this.data.desc.trim().length < 5) return wx.showToast({ title: '故障描述至少 5 个字', icon: 'none' })
-    // 困人急修必填被困人数（C-18/V62：trappedCount 是工作台急修 KPI 取数口径）
     const trapped = Number(this.data.trappedCount) || 0
     if (this.data.faultType === FAULT_TYPE_TRAPPED && trapped < 1) {
       return wx.showToast({ title: '困人急修请填写被困人数', icon: 'none' })

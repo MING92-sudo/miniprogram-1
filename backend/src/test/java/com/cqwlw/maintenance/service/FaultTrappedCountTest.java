@@ -25,11 +25,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-/**
- * 急修单困人人数（C-18/V62 落地）：
- * 建单接收 trappedCount（0-99，越界 422）→ faultView 下发（缺省 0）→ 列表 trapped=1 过滤仅困人单。
- * 工作台「急修待接」KPI / 困人横幅 / order/list?state=urgent 三处共用此口径。
- */
 class FaultTrappedCountTest {
 
     private DirectoryService svc;

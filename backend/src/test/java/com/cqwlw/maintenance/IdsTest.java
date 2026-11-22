@@ -9,10 +9,6 @@ import java.util.Set;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * originalRecordId 生成口径（docs/01 待确认#10：我方暂定 19 位；平台 2026-09-30 实测接受 19 位）。
- * 23 位会超出 19 位口径并可能对端 BIGINT 溢出 → 上报被拒/截断即监管数据丢失（AGENTS §6）。
- */
 class IdsTest {
 
     @Test

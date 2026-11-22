@@ -1,9 +1,5 @@
 'use strict'
-/**
- * 全端点 smoke：按当前 Controller 契约逐条调用。
- * 判据：不得出现 5xx / 网络错误；读接口尽量要求 code=0，写接口允许业务拒绝。
- * 破坏性操作一律作用在本脚本新建的临时实体上，收尾删除。
- */
+/** 判据：不得出现 5xx / 网络错误； */
 
 const { get, post, put, del, patch, record, suite, assert, assertEq, call, login, colors } = require('./lib')
 const { seed, accounts } = require('./seed')
@@ -151,15 +147,12 @@ async function runSmokeCases(ctx) {
   // ── 认证端点剩余 4 条（统一登录改造后仍在线，逐条覆盖）──
   record('POST /auth/bind-wechat（微信未配置）', await post('/auth/bind-wechat', { code: 'e2e' }, tech), 'any')
   record('POST /auth/change-password（错误原口令）', await post('/auth/change-password', { oldPassword: 'wrong', newPassword: '123456' }, tech), 'biz')
-  // 客户主体走同两个「员工端点」时必须按主体分流：返回 401 会让前端 request 层清登录态，
-  // 表现为客户在个人中心改密/绑微信后被踢回登录页（BUG-1 同类，2026-11-20 静态排查修）。
+  // 客户主体走同两个「员工端点」时必须按主体分流：返回 401 会让前端 request 层清登录态，表现为客户在个人中心改密/绑微信后被踢回登录页。
   record('POST /auth/change-password（客户令牌·错误原口令应为 422 不是 401）',
     await post('/auth/change-password', { oldPassword: 'wrong', newPassword: '12345678' }, client), 422)
   record('POST /auth/bind-wechat（客户令牌不应 401）', await post('/auth/bind-wechat', { code: 'e2e' }, client), 'any')
   // 白名单已收窄到精确电梯读端点；移交档案属 handover:view，客户角色无权
   record('GET /elevators/{id}/archive（客户令牌）', await get(`/elevators/${seed.elevators.el1}/archive`, client), 403)
-  // 统一登录改造后的遗留通道已于 2026-11-20 删除（角色切换收敛为多角色并集），此处锁 404：
-  // 任何人把它们加回来都会在这里变红，必须重新论证「登录后自铸角色令牌」的必要性。
   record('POST /auth/bind-employee（遗留通道已删除）', await post('/auth/bind-employee', { role: 'LEADER' }, tech), 404)
   record('POST /auth/bind-use-unit（遗留通道已删除）', await post('/auth/bind-use-unit', {}, tech), 404)
 
@@ -200,7 +193,6 @@ async function runSmokeCases(ctx) {
   record('GET /admin/faults/{id}/export-pdf', await get(`/admin/faults/${seed.faults.ft1}/export-pdf`, admin), 'any')
   record('POST /admin/faults/{id}/dispatch', await post(`/admin/faults/${seed.faults.ft1}/dispatch`, { workerId: seed.employees.maintTech }, admin), 'any')
   record('POST /faults/{id}/proxy', await post(`/faults/${seed.faults.ft1}/proxy`, { targetId: seed.employees.worker }, tech), 'any')
-  // 已裁合规矩阵台账模块（docs/01 §10.2）：APP_LEGACY_MODULES_ENABLED 默认关闭 → 一律 403
   record('GET /rescues (已裁停用)', await get('/rescues', tech), 'forbidden')
   record('GET /rescues/{id} (已裁停用)', await get(`/rescues/${seed.rescues.rs1}`, tech), 'forbidden')
   record('POST /rescues (已裁停用)', await post('/rescues', { elevatorId: seed.elevators.el1, desc: 'E2E救援' }, tech), 'forbidden')
@@ -231,7 +223,6 @@ async function runSmokeCases(ctx) {
   // multipart 上传用 JSON 探测：应被拒但不是 5xx
   record('POST /files/upload（非 multipart）', await post('/files/upload', {}, tech), 'any')
   // 客户令牌只有 GET /files/*（时效签名），写上传不在白名单 → 403。
-  // 影响：客户门户签字页无法自行上传签名图，只能由员工侧上传或内联 signatureUrl（已在报告登记）。
   record('POST /files/upload（客户令牌越权写）', await post('/files/upload', {}, client), 403)
 
   await probe(ctx, 'C12')
@@ -320,7 +311,6 @@ async function runSmokeCases(ctx) {
   record('GET /unit/elevators（客户）', await get('/unit/elevators', client), 'ok')
   record('GET /unit/records/list（客户）', await get('/unit/records/list', client), 'ok')
   record('GET /unit/pending-signs（客户）', await get('/unit/pending-signs', client), 'ok')
-  // V2.80 客户门户消息（签字临期/超期提醒）
   record('GET /unit/messages（客户）', await get('/unit/messages', client), 'ok')
   record('GET /unit/messages/unread-count（客户）', await get('/unit/messages/unread-count', client), 'ok')
   record('POST /unit/messages/{id}/read（不存在归一业务拒绝）', await post('/unit/messages/msg_none/read', {}, client), 'any')
@@ -341,7 +331,6 @@ async function runSmokeCases(ctx) {
   record('POST /unit/records/{id}/confirm', await post(`/unit/records/${seed.records.ur1}/confirm`, {}, client), 'any')
   record('POST /unit/records/{id}/confirm-by-token', await post(`/unit/records/${seed.records.ur1}/confirm-by-token`, {}, client), 'any')
   record('POST /unit/records/{id}/refuse-by-token', await post(`/unit/records/${seed.records.ur1}/refuse-by-token`, { reason: 'e2e' }, client), 'any')
-  // V2.80 批量签字（逐条独立门禁；空 ids 422、不存在记录入 failed[]）
   record('POST /unit/records/batch-confirm（空 ids 422）', await post('/unit/records/batch-confirm', { recordIds: [], signatureFileId: 'f_e2e' }, client), 'any')
   record('POST /unit/records/batch-confirm（逐条 failed 不拖累）', await post('/unit/records/batch-confirm', { recordIds: ['ur_none'], signatureFileId: 'f_e2e' }, client), 'any')
 

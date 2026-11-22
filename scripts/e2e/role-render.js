@@ -1,4 +1,3 @@
-// 逐账号渲染面断言（2026-11-15 裁决）：tabs/home/quickActions 与权限面一致，无跨部门渲染。
 const automator = require('miniprogram-automator'); const path = require('path')
 const sleep = ms => new Promise(r => setTimeout(r, ms))
 const EXPECT = {
@@ -9,7 +8,6 @@ const EXPECT = {
   '13800000014': { home: '/pages/install/home/index', tabs: ['install-home', 'handover-list', 'handover-docs', 'profile'] },
   '13800000099': { home: '/pages/install/home/index', tabs: ['install-home', 'handover-list', 'handover-review', 'stats', 'profile'] },
   '13800000017': { home: '/pages/install/home/index', tabs: ['install-home', 'handover-list', 'handover-docs', 'profile'] },
-  // 2026-11-21 裁决：客户一键报修重开——快捷动作 report/elevators/todo（报修按 perms client:report 门控），急修进度仍下线
   '13800000003': { home: '/pages/client/home/index', tabs: ['client-home', 'client-todo', 'client-elevators', 'profile'], qa: ['report', 'elevators', 'todo'], noqa: ['emergency'] },
   '13800000018': { home: '/pages/client/home/index', tabs: ['client-home', 'client-todo', 'client-elevators', 'profile'], qa: ['report', 'elevators', 'todo'], noqa: ['emergency'] },
   '13800000009': { home: '/pkg-admin/pages/users/index', tabs: ['admin-org', 'stats', 'admin-audit', 'admin-settings', 'profile'] }
@@ -37,7 +35,6 @@ const SHOTS = ['13800000009', '13800000017', '13800000003', '13800000015']
     const e = EXPECT[account]
     const okHome = g.home === e.home
     const okTabs = JSON.stringify(g.tabs) === JSON.stringify(e.tabs)
-    // qa/noqa 支持字符串或数组（P1 T6 客户账号双键断言）：qa 全含 + noqa 全不含
     const okQa = [].concat(e.qa || []).every(k => g.qa.includes(k)) && ![].concat(e.noqa || []).some(k => g.qa.includes(k))
     const ok = okHome && okTabs && okQa
     if (!ok) fail++

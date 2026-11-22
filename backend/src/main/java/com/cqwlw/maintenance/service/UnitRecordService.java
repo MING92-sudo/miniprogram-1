@@ -17,9 +17,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-/**
- * 使用单位确认（docs/04 A.3）：待确认列表/详情/本机确认/分享链接视图/凭 token 签字。
- */
+/** 使用单位确认：待确认列表/详情/本机确认/分享链接视图/凭 token 签字。 */
 @Service
 public class UnitRecordService {
 
@@ -27,7 +25,6 @@ public class UnitRecordService {
     private final WorkOrderService workOrderService;
     private final FileStorageService fileStorageService;
 
-    /** M1 生命周期钩子（setter 注入；生产 Spring 必注入） */
     private RecordLifecycleService recordLifecycleService;
 
     @org.springframework.beans.factory.annotation.Autowired(required = false)
@@ -46,11 +43,7 @@ public class UnitRecordService {
 
     private final com.cqwlw.maintenance.mapper.ElevatorMapper elevatorMapper;
 
-    /**
-     * M1：统一令牌 + CLIENT 本单位谓词（旧门户令牌 UNIT_ADMIN 兜底）。
-     * P1 T4（docs/14 §4.6）：客户待签列表只含 本单位 + 唯一可签状态 PENDING_CLIENT_SIGNATURE + 链末端最新版本，
-     * 投影一律走 toClientMap 白名单（内部字段不外泄）。
-     */
+    /** 统一令牌 + CLIENT 本单位谓词（旧门户令牌 UNIT_ADMIN 兜底）。 */
     public Map<String, Object> pendingAs(Map<String, String> query, java.util.Set<String> roles, String unitId) {
         requireClient(roles, unitId);
         List<MaintainRecord> candidates = recordMapper.selectList(new LambdaQueryWrapper<MaintainRecord>()
@@ -61,13 +54,9 @@ public class UnitRecordService {
                 // 内存双保险：与 SQL 同谓词（历史数据 lifecycle 为 NULL 不作为客户可见记录，§4.6 表）
                 .filter(r -> "PENDING".equals(r.confirmStatus) && "PENDING_CLIENT_SIGNATURE".equals(r.lifecycleStatus))
                 .collect(Collectors.toList());
-        // P2b T9（权限 P2）：归属直接取记录快照列，不再回查电梯当前归属（电梯表零查询）；
-        // NULL 快照归一空串，与非空 token unitId 永不相等 → fail-closed，客户不可见
         List<MaintainRecord> own = candidates.stream()
                 .filter(r -> unitId.equals(r.useUnitId == null ? "" : r.useUnitId))
                 .collect(Collectors.toList());
-        // P2 T5：链末端最新版本批量化——共享 supersededIds（一次 IN 查询替代逐记录 selectCount，
-        // docs/14 §4.6 规则 1，判定逐集合相等）
         Set<String> superseded = RecordVersionUtil.supersededIds(recordMapper,
                 own.stream().map(r -> r.id).collect(Collectors.toList()));
         List<Map<String, Object>> list = own.stream()
@@ -89,10 +78,6 @@ public class UnitRecordService {
         return confirmAs(id, body, roles, unitId, null, null);
     }
 
-    /**
-     * P3 客户账号签字（docs/14 §12 验收项）：带真实客户账号 id + 姓名快照（由 Controller 从令牌身份查库得到，
-     * 绝不采信客户端 body）。匿名分享链签字（confirmByToken）传 null，不写客户账号快照。
-     */
     public Map<String, Object> confirmAs(String id, Map<String, Object> body, java.util.Set<String> roles,
                                          String unitId, String signerAccountId, String signerName) {
         requireClient(roles, unitId);
@@ -102,11 +87,7 @@ public class UnitRecordService {
         return signRecord(r, body, signerAccountId, signerName);
     }
 
-    /**
-     * 批量签字（V56，docs/04 V2.80）：同一签名图一次确认多条待签记录。
-     * 逐条独立门禁（本单位 + requireSignable + 条件更新先签为准），单条失败不影响其余——
-     * 返回 failed[] 逐条原因，前端据实提示；上限 20 条防误操作放大，签名校验先于循环。
-     */
+    /** 批量签字：同一签名图一次确认多条待签记录。 */
     public Map<String, Object> batchConfirmAs(List<String> recordIds, Map<String, Object> body,
                                               java.util.Set<String> roles, String unitId,
                                               String signerAccountId, String signerName) {
@@ -148,18 +129,11 @@ public class UnitRecordService {
         return out;
     }
 
-    /**
-     * 签字落库（confirmAs / confirmByToken 共用，docs/14 §4.6 规则 2/3，门禁须已前置通过）：
-     * 条件更新 WHERE confirm_status='PENDING' AND lifecycle_status='PENDING_CLIENT_SIGNATURE'，
-     * 受影响行 0 → 422 已签（并发先签为准，不覆盖首签）；satisfaction 不接收（§4.7 评价关闭，
-     * 不塞进签字端点；旧实现对字符串入参还会 CCE→500）；落库成功后才回写内存态并归档
-     * （onClientSigned 只置 SIGNED+归档，不注入上报服务，结构保证不触发平台 2.6）。
-     */
+    /** 仅待签记录可条件更新，并发时以首签为准。 */
     private Map<String, Object> signRecord(MaintainRecord r, Map<String, Object> body) {
         return signRecord(r, body, null, null);
     }
 
-    /** 签字落库（P3：带客户账号快照 + 审计）。signerAccountId/signerName 来自令牌身份，不可信客户端 body。 */
     private Map<String, Object> signRecord(MaintainRecord r, Map<String, Object> body,
                                            String signerAccountId, String signerName) {
         String signatureUrl = WorkOrderService.strOrEmpty(body.get("signatureUrl"));
@@ -175,7 +149,6 @@ public class UnitRecordService {
                 .set(MaintainRecord::getConfirmStatus, "CONFIRMED")
                 .set(MaintainRecord::getSignatureFileId, signatureFileId)
                 .set(MaintainRecord::getSignatureUrl, signatureUrl);
-        // P3 客户签字人快照：仅当从客户令牌身份解析到账号时落库（兼容匿名分享链为空）
         if (signerAccountId != null && !signerAccountId.isBlank()) {
             uw.set(MaintainRecord::getClientAccountId, signerAccountId)
               .set(MaintainRecord::getClientSignerName, signerName == null ? "" : signerName)
@@ -197,12 +170,10 @@ public class UnitRecordService {
         if (recordLifecycleService != null) {
             recordLifecycleService.onClientSigned(r);
         }
-        // P3 验收项：成功签字写审计（客户租户 id 单列，不复用 org_id）。落库失败不影响主流程。
         appendSignAudit(r, signerAccountId, signerName);
         return JsonUtil.map("ok", true);
     }
 
-    /** 客户签字审计（docs/14 §7）：actor_type=CUSTOMER，use_unit_id 写租户。审计失败吞异常。 */
     private void appendSignAudit(MaintainRecord r, String signerAccountId, String signerName) {
         if (auditLogService == null) {
             return;
@@ -224,7 +195,6 @@ public class UnitRecordService {
         }
     }
 
-    /** P3 客户账号审计服务（setter 注入，兼容既有单测构造器） */
     private AuditLogService auditLogService;
 
     @org.springframework.beans.factory.annotation.Autowired(required = false)
@@ -232,7 +202,6 @@ public class UnitRecordService {
         this.auditLogService = auditLogService;
     }
 
-    /** V56 签字 SLA（setter 注入，兼容既有单测构造器）：sign-view 倒计时/批量签字共用口径 */
     private ClientSignSlaService clientSignSlaService;
 
     @org.springframework.beans.factory.annotation.Autowired(required = false)
@@ -240,11 +209,6 @@ public class UnitRecordService {
         this.clientSignSlaService = clientSignSlaService;
     }
 
-    /**
-     * 门禁链①②（docs/14 §4.6 规则 2）：principalType=CUSTOMER（T1 RoleCatalog，CLIENT_ADMIN/CLIENT_SIGNER
-     * 及 UNIT_ADMIN 别名）+ token useUnitId 锚点。链末「账号启用」由 AuthInterceptor 会话校验保证
-     * （删除→401、停用 bumpScopeVersion→sv 不符 401、单会话顶号→sid 不符 401），服务层无 empId 不重复查。
-     */
     private void requireClient(java.util.Set<String> roles, String unitId) {
         if (roles == null || roles.stream().noneMatch(
                 r -> RoleCatalog.principalTypeOf(r) == RoleCatalog.PrincipalType.CUSTOMER)) {
@@ -255,7 +219,6 @@ public class UnitRecordService {
         }
     }
 
-    /** 门禁链③：记录归属——P2b T9 改看记录快照列（unitOf），NULL 快照 fail-closed；越权 1403 无副作用 */
     private void requireOwnUnit(MaintainRecord r, String unitId, String message) {
         if (!unitId.equals(unitOf(r))) {
             throw new BizException(1403, message);
@@ -273,12 +236,7 @@ public class UnitRecordService {
         requireLatestVersion(r, "记录已被新版本替代，请签署最新记录");
     }
 
-    /**
-     * 查看门禁（docs/14 §4.6 可见性表，T4-C2）：客户只读可见集合 =
-     * PENDING_CLIENT_SIGNATURE（可签）/ SIGNED / ARCHIVED / REFUSED_RETURNED（只读）；
-     * PENDING_REVIEW / PENDING_CLIENT_SIGN / NULL / 其他一律不可见（422），历史版本仅内部/审计可见。
-     * 与签字门禁分离：可见 ≠ 可签，签字一律走 requireSignable。
-     */
+    /** 查看门禁：客户只读可见集合 =PENDING_CLIENT_SIGNATURE（可签）/ SIGNED / ARCHIVED / REFUSED_RETURNED（只读）； */
     private void requireViewable(MaintainRecord r) {
         String lc = r.lifecycleStatus;
         if (!"PENDING_CLIENT_SIGNATURE".equals(lc) && !"SIGNED".equals(lc)
@@ -294,14 +252,12 @@ public class UnitRecordService {
         }
     }
 
-    /** docs/14 §4.6 规则 1：最新版本 = 不存在 prev_version_id = 本记录 id 的后续版本（历史版本仅内部/审计可见） */
     private boolean isLatestVersion(MaintainRecord r) {
         Long next = recordMapper.selectCount(new LambdaQueryWrapper<MaintainRecord>()
                 .eq(MaintainRecord::getPrevVersionId, r.id));
         return next == null || next == 0;
     }
 
-    /** P2b T9：归属取记录快照列；不再回查电梯当前归属。NULL 归一空串 → 非空 unitId 永不相等（fail-closed） */
     private String unitOf(MaintainRecord r) {
         return r.useUnitId == null ? "" : r.useUnitId;
     }
@@ -314,12 +270,6 @@ public class UnitRecordService {
         return r;
     }
 
-    /**
-     * C-25⑧ 匿名 token 端点归一（signView/confirmByToken）：shareToken 校验依赖已载记录，
-     * 无法「先验 token 后查库」，故记录不存在时抛与错 token 完全一致的 401 文案——
-     * 匿名探测者无法据 1404/401 区分记录 id 是否存在（消除存在性 oracle）。
-     * 内部认证路径（getAs/confirmAs/confirm/get）仍走 findOr404（1404），不归一。
-     */
     private MaintainRecord findOr401(String id) {
         MaintainRecord r = recordMapper.selectById(id);
         if (r == null) {
@@ -343,8 +293,6 @@ public class UnitRecordService {
     /** 内部直确路径（UnitRecordConfirmTest 锁定）：客户令牌路径一律走 confirmAs 门禁链 + 条件更新，不经此方法 */
     public Map<String, Object> confirm(String id, Map<String, Object> body) {
         MaintainRecord r = findOr404(id);
-        // 已确认记录不可被二次提交覆盖签字/满意度（与 confirmByToken 一致）：
-        // docs/05 §2.9 冻结与不可变、§10.4 #13「确认后状态不可重复提交」
         if ("CONFIRMED".equals(r.confirmStatus)) {
             return JsonUtil.map("ok", true, "already", true);
         }
@@ -371,8 +319,6 @@ public class UnitRecordService {
         }
         List<Map<String, Object>> allItems = resolveItems(r.itemsJson);
         List<String> photos = resolveRecordPhotos(allItems, r.photosJson);
-        // 使用单位签署核对扩项（2026-11-20，docs/14 §4.7 白名单增补）：检查项明细（过滤本轮未执行项）
-        // + 现场照片墙 + 使用单位/维保日期/确认状态，供 sign 页「核对项目/异常整改/照片」；
         // 白名单禁令不变：不回显 shareToken/reportPayload/context/平台ID/refuseReason/satisfaction
         List<Map<String, Object>> items = previewItems(allItems);
         Map<String, Object> m = new LinkedHashMap<>();
@@ -392,14 +338,9 @@ public class UnitRecordService {
         m.put("itemTotal", items.size());
         m.put("photos", photos);
         m.put("photoCount", photos.size());
-        // P1 T8-A3（与 mock sign-view 契约对齐，sign 页「签署前核对」）：记录版本号 + 归档 SHA-256 前 8 位；
-        // 未归档（签字前常态）hashPrefix 为空串，前端隐藏该行
         m.put("recordVersion", r.version);
         m.put("hashPrefix", hashPrefix(r.archiveHash));
-        // T4-I3：satisfaction 不再返回（docs/14 §4.7 评价关闭，签字链路不带满意度）
         m.put("signatureUrl", fileStorageService.resolveStoredUrl(r.signatureUrl));
-        // V56 签字 SLA 倒计时（sign 页）：deadline=发起签字（旧记录回退创建时刻）+slaHours；
-        // serverNow 供前端对齐时钟（不信任客户端时间）；SLA 服务缺省（单测）不下发该组字段
         if (clientSignSlaService != null) {
             java.time.LocalDateTime base = clientSignSlaService.baseOf(r);
             java.time.LocalDateTime deadline = clientSignSlaService.deadlineOf(r);
@@ -421,12 +362,7 @@ public class UnitRecordService {
         return archiveHash.substring(0, Math.min(8, archiveHash.length()));
     }
 
-    /**
-     * 匿名分享链接签字（P1/P2 兼容期，docs/14 §4.6 规则 8）：token 即凭证（401 先于状态披露）；
-     * T4-C1：状态/版本门禁与条件更新与 confirmAs 完全一致——此前无 lifecycle 门禁且 updateById
-     * 读-改-写非原子，持链接可对 PENDING_REVIEW/PENDING_CLIENT_SIGN/NULL 记录签字（虚假签字合规绕过），
-     * 并发 token 后写还会覆盖首签。已签/旧版本一律 422（先签为准），不再回 already 幂等体。
-     */
+    /** 匿名分享链接签字：token 即凭证（401 先于状态披露）； */
     public Map<String, Object> confirmByToken(String id, String token, Map<String, Object> body) {
         MaintainRecord r = findOr401(id); // C-25⑧：不存在 → 401 同错 token 文案（匿名端点无存在性 oracle）
         if (token == null || token.isEmpty() || !token.equals(r.shareToken)) {
@@ -436,12 +372,6 @@ public class UnitRecordService {
         return signRecord(r, body);
     }
 
-    /**
-     * 匿名分享链签字页签名图上传（V2.80 修复）：token 即凭证，与 confirmByToken 同门禁
-     * （findOr401 无 oracle + shareToken 比对 + requireSignable），校验全部先于文件写盘——
-     * /files/upload 必须登录，免登录 token 链此前无可用上传通道（生产 401 签不了字）。
-     * 已签/退回记录不再接受签名图；上传与 confirm 之间的竞态由 confirm 的条件更新兜底（孤儿文件无害）。
-     */
     public Map<String, Object> signatureUploadByToken(String id, String token,
                                                       org.springframework.web.multipart.MultipartFile file,
                                                       String schemeHost) throws java.io.IOException {
@@ -457,7 +387,6 @@ public class UnitRecordService {
         return JsonUtil.map("fileId", f.id, "url", f.url == null ? "" : f.url);
     }
 
-    /** 内部/管理端全量投影（含上报与预览上下文）：客户路径禁用，一律走 toClientMap（P1 T4，docs/14 §4.7） */
     public Map<String, Object> toMap(MaintainRecord r) {
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("id", r.id);
@@ -484,41 +413,24 @@ public class UnitRecordService {
         m.put("retryCount", r.retryCount);
         m.put("nextMaintenanceDate", TimeUtil.formatDate(r.nextMaintenanceDate));
         m.put("confirmStatus", r.confirmStatus);
-        // C-24：生命周期/版本链投影（GET /records/{id} 员工链路，record-detail 页消费）；
-        // hashPrefix=归档 SHA-256 前 8 位（与 signView 同口径，未归档空串）；客户路径仍走 toClientMap 白名单
         m.put("lifecycleStatus", r.lifecycleStatus);
         m.put("version", r.version);
         m.put("prevVersionId", r.prevVersionId);
         m.put("hashPrefix", hashPrefix(r.archiveHash));
-        // final-fix Minor#2：归档时刻投影（与 archiveHash 同时落库）——record-detail「版本核对」行
-        // 的「版本生成时刻」数据源（此前仅 mock 种子有 frozenAt，真实环境恒空串）；未归档收敛空串
         m.put("archivedAt", TimeUtil.format(r.archivedAt));
         m.put("satisfaction", r.satisfaction);
-        // V56：拒签分类码与原因（内部投影；客户白名单 toClientMap 不含）
         m.put("refuseCode", WorkOrderService.nz(r.refuseCode));
         m.put("refuseReason", WorkOrderService.nz(r.refuseReason));
         m.put("signatureFileId", r.signatureFileId);
         m.put("signatureUrl", fileStorageService.resolveStoredUrl(r.signatureUrl));
         m.put("shareToken", r.shareToken);
         m.put("reportPayload", r.reportPayloadJson == null ? null : JsonUtil.readMap(r.reportPayloadJson));
-        // 预览上下文（docs/03 §六）：地址/使用单位/维保单位/手机号/平台ID/签到经纬度/条目总数
         m.put("context", r.previewContextJson == null ? Map.of() : JsonUtil.readMap(r.previewContextJson));
         return m;
     }
 
-    /**
-     * 管理端记录预览投影（docs/09 §6.12：抽屉预览 = 基本信息 + 检查项明细 + 现场照片 + 三方签字，与 PDF 同源）。
-     * 与 {@link #toMap} 的差异：① 不返回 shareToken/reportPayload/幂等键等预览用不到的字段（纵深防御，
-     * 也避免管理端页面成为匿名签署链接的泄露源）；② 补安全防护勾选与待办事项（PDF「五、落实情况」同源，
-     * 列表投影不含）；③ 过滤 notInThisRun 未执行项——不得把「本轮未执行」显示成「正常」误导复核，
-     * 与小程序 record-detail 的 executed 口径一致。
-     *
-     * <p>仅供单条查询使用：items_json/photos_json 是 MEDIUMTEXT，禁止下放到 /admin/records 分页列表
-     * （AdminService.records 的 SQL 分页下推注释即为此约束）。
-     */
+    /** 与 {@link #toMap} 的差异：① 不返回 shareToken/reportPayload/幂等键等预览用不到的字段（纵深防御，也避免管理端页面成为匿名签署链接的泄露源）； */
     public Map<String, Object> adminPreview(MaintainRecord r) {
-        // 照片墙先按全量明细解析（photoFileIds 优先，历史记录可恢复已上传但快照仍为本地路径的照片），
-        // 明细列表再过滤未执行项，两者不互相影响
         List<Map<String, Object>> allItems = resolveItems(r.itemsJson);
         List<String> photos = resolveRecordPhotos(allItems, r.photosJson);
         List<Map<String, Object>> items = previewItems(allItems);
@@ -538,11 +450,9 @@ public class UnitRecordService {
         m.put("originalRecordId", WorkOrderService.nz(r.originalRecordId));
         m.put("confirmStatus", WorkOrderService.nz(r.confirmStatus));
         m.put("lifecycleStatus", WorkOrderService.nz(r.lifecycleStatus));
-        // V56：拒签分类码与原因（复核/统计用；客户白名单不含）
         m.put("refuseCode", WorkOrderService.nz(r.refuseCode));
         m.put("refuseReason", WorkOrderService.nz(r.refuseReason));
         m.put("reportStatus", WorkOrderService.nz(r.reportStatus));
-        // 版本链（M4）：修订后为 v2，v1 与签名永久保留，抽屉需让复核人看到当前版本
         m.put("version", r.version);
         m.put("archivedAt", TimeUtil.format(r.archivedAt));
         m.put("hashPrefix", hashPrefix(r.archiveHash));
@@ -553,27 +463,21 @@ public class UnitRecordService {
         // 现场照片墙（已重签 URL，前端缩略图 + 点击放大）
         m.put("photos", photos);
         m.put("photoCount", photos.size());
-        // 三方签字（docs/13 §3.7）：主检 / 配合人 / 使用单位安全管理人员；缺失返回空串，前端渲染「待签字」占位
+        // 三方签字：主检 / 配合人 / 使用单位安全管理人员；
         m.put("workerSignatureUrl", fileStorageService.resolveStoredUrl(r.workerSignatureUrl));
         m.put("assistantSignatureUrl", fileStorageService.resolveStoredUrl(r.assistantSignatureUrl));
         m.put("clientSignatureUrl", fileStorageService.resolveStoredUrl(r.signatureUrl));
         m.put("clientSignerName", WorkOrderService.nz(r.clientSignerName));
         m.put("clientSignedAt", TimeUtil.format(r.clientSignedAt));
-        // 现场安全防护勾选（V20）+ 待办事项：PDF「五、落实情况」同源
         m.put("safety", r.safetyJson == null || r.safetyJson.isBlank()
                 ? Map.of() : JsonUtil.readMap(r.safetyJson));
         m.put("todoDesc", WorkOrderService.nz(r.todoDesc));
-        // 预览上下文快照（V11）：使用单位/地址/签到经纬度，复核人据此核对作业地点
         m.put("context", r.previewContextJson == null
                 ? Map.of() : JsonUtil.readMap(r.previewContextJson));
         return m;
     }
 
-    /**
-     * 检查项明细投影（过滤 notInThisRun 未执行项——不得把「本轮未执行」显示成「正常」误导核对）：
-     * 名称/结果/实测值/异常描述/跳过原因/周期标签/照片URL，均为记录内容字段、不含内部标识。
-     * 管理端预览（adminPreview）与使用单位签署核对（signView）共用同一口径。
-     */
+    /** 检查项明细投影（过滤 notInThisRun 未执行项——不得把「本轮未执行」显示成「正常」误导核对）：名称/结果/实测值/异常描述/跳过原因/周期标签/照片URL，均为记录内容字段、不含内部标识。 */
     private List<Map<String, Object>> previewItems(List<Map<String, Object>> allItems) {
         return allItems.stream()
                 .filter(i -> !Boolean.TRUE.equals(i.get("notInThisRun")))
@@ -596,12 +500,7 @@ public class UnitRecordService {
                 .collect(Collectors.toList());
     }
 
-    /**
-     * 客户字段白名单投影（P1 T4，docs/14 §4.7，只取现有列）：仅返回客户签署确认所需内容。
-     * 明确不返回：reportStatus/uploadStatus/retryCount/reportPayload/context(previewContext)/shareToken/
-     * originalRecordId/workerPlatformId/assistantPlatformId/refuseReason（内部复核退回）/satisfaction/幂等键/平台日志。
-     * DC5：P1 无 client_refuse_reason 独立列（P3 增），客户拒签原因暂不回显，避免与内部 refuseReason 混回。
-     */
+    /** 客户投影不返回上报、复核、分享和平台人员字段。 */
     private Map<String, Object> toClientMap(MaintainRecord r) {
         List<Map<String, Object>> resolved = resolveItems(r.itemsJson);
         // items 同为白名单投影：仅 名称/结果/实测值/照片URL（照片已按 fileId 重签）
@@ -641,12 +540,7 @@ public class UnitRecordService {
         return m;
     }
 
-    /**
-     * 记录详情是长期读路径：照片优先按 photoFileIds 重签为当前可访问 URL，
-     * 历史快照里的本地临时路径（wxfile://、http://tmp/）不可跨设备访问，必须过滤掉。
-     * 2026-11-06 前的记录可能已成功上传 fileId、但 photos 仍冻结为本地路径，
-     * 只重签 photos 会让其他手机与管理端继续显示断图（本轮修复）。
-     */
+    /** 记录详情是长期读路径：照片优先按 photoFileIds 重签为当前可访问 URL，历史快照里的本地临时路径（wxfile://、http://tmp/）不可跨设备访问，必须过滤掉。 */
     private List<Map<String, Object>> resolveItems(String itemsJson) {
         if (itemsJson == null || itemsJson.isEmpty()) {
             return List.of();
@@ -672,10 +566,7 @@ public class UnitRecordService {
         return items;
     }
 
-    /**
-     * 记录级照片墙与检查项明细同源：优先取已解析的检查项照片（可恢复旧记录的 fileId），
-     * 仅当明细没有照片时才回退到冻结的 photos_json。
-     */
+    /** 记录级照片墙与检查项明细同源：优先取已解析的检查项照片（可恢复旧记录的 fileId），仅当明细没有照片时才回退到冻结的 photos_json。 */
     private List<String> resolveRecordPhotos(List<Map<String, Object>> items, String photosJson) {
         List<String> fromItems = items.stream()
                 .flatMap(i -> WorkOrderService.asList(i.get("photos")).stream()
@@ -691,7 +582,6 @@ public class UnitRecordService {
                 .collect(Collectors.toList());
     }
 
-    /** 上报状态归一（docs/04 A.3 P3 修订）：REPORTED→SUCCESS，FAILED→FAILED，其余 PENDING */
     static String uploadStatus(String reportStatus) {
         if ("REPORTED".equals(reportStatus)) {
             return "SUCCESS";

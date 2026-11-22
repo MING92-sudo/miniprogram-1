@@ -2,13 +2,7 @@ package com.cqwlw.maintenance.auth;
 
 import java.util.Set;
 
-/**
- * 管理端角色口径（docs/14 §3/§6，语义由 {@link RoleCatalog} / {@link PermissionMatrix} 承载）：
- * READ  = 可登录管理端的 8 个角色（console:read），LEADER 只读；
- * WRITE = ADMIN/SYS_ADMIN（console:write，旧两档门禁；部门内细粒度写权限由能力码表达，P3 起端点标注）；
- * WORKER/UNIT_ADMIN 不使用管理端（小程序端角色不受影响）。
- * 本类仅为既有调用点保留常量与方法，新代码直接用 RoleCatalog / PermissionMatrix。
- */
+/** 管理端角色口径：READ = 可登录管理端的 8 个角色（console:read），LEADER 只读； */
 public final class AdminRoles {
 
     public static final String WORKER = RoleCatalog.WORKER;
@@ -35,7 +29,6 @@ public final class AdminRoles {
         return RoleCatalog.canUseAdminConsole(role);
     }
 
-    /** 建档允许分配的角色（docs/14 §3）：历史码与规范码等价接受，客户主体排除，规则见 RoleCatalog.assignable */
     public static boolean assignable(String role) {
         return RoleCatalog.assignable(role);
     }

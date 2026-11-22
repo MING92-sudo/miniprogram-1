@@ -1,9 +1,3 @@
-// 签署确认（M5，屏 11）：一次性任务 taskId+token（免登录）；核对项目明细/异常整改/现场照片（2026-11-20
-// sign-view 扩项，docs/14 §4.7）→ 勾选确认门控（§8.4 第二档）→ 手写签名 → 时间戳/GPS（后端写入）→ 锁定。
-// token 重放/转发由后端一次性校验拦截。
-// V2.80：①签字 SLA 倒计时（sign-view 下发 signDeadline/serverNow，按服务器时钟对齐，不信任本机时间）；
-// ②拒签原因分类码（R1—R5 面板选择，R5 必填说明）；③批量签署模式（mode=batch&ids=…，同一签名一次确认
-// ≤20 条，逐条结果据实提示）；④签名先经 services/upload 上传再提交（签名统一走 upload，AGENTS §4.1）。
 const unit = require('../../../services/unit')
 const { uploadImage, uploadSignatureByToken } = require('../../../services/upload')
 const { definePage } = require('../../../utils/guard')
@@ -26,11 +20,8 @@ definePage(ROUTES['/pkg-client/pages/sign/index'], {
   data: {
     rid: '', token: '', view: null, summary: null, confirmed: false, refused: false,
     hasDrawn: false, consent: false, submitting: false, loadError: '',
-    // V2.80 SLA 倒计时
     slaText: '', slaOver: false,
-    // V2.80 拒签分类码面板
     refuseOpen: false, refuseCode: '', refuseReason: '', refuseOptions: REFUSE_REASON_OPTIONS, refuseSubmitting: false,
-    // V2.80 批量签署模式
     batch: false, batchIds: [], batchList: [], batchFailed: []
   },
   onLoad(query) {
@@ -69,7 +60,6 @@ definePage(ROUTES['/pkg-client/pages/sign/index'], {
       .catch((e) => this.setData({ loadError: (e && e.message) || '链接无效或已失效' }))
   },
 
-  // ── V2.80 SLA 倒计时（serverNow 对齐时钟，1s 步进）──
   startSlaTimer(view) {
     this.clearSlaTimer()
     if (!view || !view.signDeadline) return
@@ -108,8 +98,7 @@ definePage(ROUTES['/pkg-client/pages/sign/index'], {
   onClear() { if (!this.ctx) return; this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height); this.setData({ hasDrawn: false }) },
   toggleConsent() { this.setData({ consent: !this.data.consent }) },
 
-  // 导出签名并上传（签名统一走 services/upload，返回 {fileId,url}）：
-  // 批量模式=已登录客户走 /files/upload；单条免登录 token 链走 signature-upload（无会话，token 即凭证）
+  // 单条免登录 token 链走 signature-upload（无会话，token 即凭证）
   exportAndUpload() {
     return new Promise((resolve, reject) => {
       wx.canvasToTempFilePath({
@@ -148,14 +137,12 @@ definePage(ROUTES['/pkg-client/pages/sign/index'], {
       })
   },
 
-  // ── V2.80 批量签署（客户令牌链路，待办页勾选进入）──
   fetchBatch() {
     this.setData({ loadError: '' })
     Promise.all(this.data.batchIds.map((id) => unit.getRecord(id).catch((e) => ({ id, loadError: (e && e.message) || '加载失败' }))))
       .then((rows) => {
         const broken = rows.filter((r) => r.loadError)
-        // 部分加载失败 → 清空可签清单：签名板/提交按钮门控在 batchList.length 上，
-        // 绝不让用户对从未核看到的记录落笔（loadError 卡片引导返回重试）
+        // 部分加载失败 → 清空可签清单：签名板/提交按钮门控在 batchList.length 上，绝不让用户对从未核看到的记录落笔（loadError 卡片引导返回重试）
         this.setData({
           batchList: broken.length ? [] : rows.map((r) => Object.assign({}, r, {
             workDate: (r.checkoutTime || r.checkinTime || '').slice(0, 10)
@@ -180,7 +167,6 @@ definePage(ROUTES['/pkg-client/pages/sign/index'], {
       })
   },
 
-  // ── V2.80 拒签分类码（R1—R5；R5 必填说明）──
   openRefuse() { this.setData({ refuseOpen: true, refuseCode: '', refuseReason: '' }) },
   closeRefuse() { if (!this.data.refuseSubmitting) this.setData({ refuseOpen: false }) },
   onRefuseCodeChange(e) { this.setData({ refuseCode: e.currentTarget.dataset.code }) },

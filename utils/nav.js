@@ -1,5 +1,3 @@
-// 统一跳转（M2，规格 §1.2/§1.5）：tab=reLaunch 清栈；详情=navigateTo；所有路径来自白名单。
-// 2026-11-16 审查清理：M6 后全部路由已建，删 TRANSITION_MAP 过渡映射与 parseScene 深链（零调用；扫码深链待 docs/12 C-17）。
 const { ROUTES } = require('../config/routes')
 const { resolveHome } = require('../config/menus')
 const { getRoles, getHome } = require('./auth')

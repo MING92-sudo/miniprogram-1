@@ -18,7 +18,6 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/** 操作审计（docs/02 op_log）：管理写操作留痕（POST/PUT/DELETE），GET 不记录，异常记 FAILED */
 class AuditInterceptorTest {
 
     private OpLogMapper opLogMapper;

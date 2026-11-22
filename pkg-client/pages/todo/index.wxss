@@ -1,7 +1,5 @@
 page{background:var(--ink);color:var(--text)}
-/* V2.80 签字提醒卡片：左侧琥珀条提示 */
 .todo-msg{border-left:6rpx solid var(--amber)}
-/* V2.80 批量选择复选框（与签字页 .cb 同视觉） */
 .todo-cb{width:32rpx;height:32rpx;border-radius:6rpx;border:1rpx solid var(--amber);display:flex;align-items:center;justify-content:center;flex:none;align-self:center}
 .todo-cb.on{background:var(--amber)}
 .cb-ico{font-size:18rpx;color:#171005}

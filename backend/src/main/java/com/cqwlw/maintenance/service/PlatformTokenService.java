@@ -16,11 +16,7 @@ import java.util.Map;
 
 import static com.cqwlw.maintenance.util.JsonUtil.MAPPER;
 
-/**
- * 平台 token 中控（docs/04 B.1 实测口径）：
- * 2.1 为 GET + 查询串；缓存 TTL = expires_in − 60s；被动获取不提前刷新；
- * 401 清缓存重登重试 1 次由 PlatformClient 触发。日志脱敏：不打印完整 token/凭证。
- */
+/** 日志脱敏：不打印完整 token/凭证。 */
 @Service
 public class PlatformTokenService {
 
@@ -77,15 +73,14 @@ public class PlatformTokenService {
                 .queryParam("appcode", props.getAppcode())
                 .queryParam("secret", props.getSecret())
                 .build().encode().toUriString();
-        // 网络瞬时异常（冷启动连接超时等）重试 1 次；平台业务非 200（凭证/白名单）不重试。
-        // 2.1 为幂等 GET 登录，与 2.6/2.8 上报禁止自动重试（AGENTS §2.4）无关。
+        // 平台业务非 200（凭证/白名单）不重试。
         BizException last = null;
         for (int attempt = 1; attempt <= 2; attempt++) {
             try {
                 ResponseEntity<String> resp = restTemplate.getForEntity(url, String.class);
                 Map<String, Object> body = MAPPER.readValue(resp.getBody(), new TypeReference<Map<String, Object>>() {
                 });
-                // code 兼容数字/字符串 "200"（docs/04 B.1）
+                // code 兼容数字/字符串 "200"
                 if (!"200".equals(String.valueOf(body.get("code")).trim())) {
                     log.warn("平台登录失败: code={}, message={}", body.get("code"), body.get("message"));
                     throw new BizException(2001, "监管平台 token 获取失败");

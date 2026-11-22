@@ -1,5 +1,3 @@
-// 路由守卫（M2，规格 §3.5 四层：登录态→角色→权限码→单据状态<页内/后端>）。
-// 保留旧 ensureLogin/redirectToLogin（旧页与 401 复用）；新增 canAccess/ensureAuth/definePage（新页双层校验）。
 const { isLoggedIn, getToken, getRoles, getPerms } = require('./auth')
 const { ROLE_TEXT } = require('../config/menus')
 

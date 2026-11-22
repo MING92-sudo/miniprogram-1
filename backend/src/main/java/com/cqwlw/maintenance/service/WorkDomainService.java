@@ -16,10 +16,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-/**
- * M4 作业域：记录归档后修订（新版本 + 明确变更集，旧版本与签名永久保留）+ 代报修。
- * 修订不触发任何上报（P-5 interim，AGENTS §2.4 无自动重试）；仅已确认且已归档可发起。
- */
 @Service
 public class WorkDomainService {
 

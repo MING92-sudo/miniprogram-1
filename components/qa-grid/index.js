@@ -1,4 +1,3 @@
-// 快捷动作宫格（M2，屏 01）：items=[{key,text,icon}]，icon 经 ICONS 映射本地类；event action(detail={key,item})
 const { ICONS } = require('../../config/icons')
 Component({
   options: { addGlobalClass: true },

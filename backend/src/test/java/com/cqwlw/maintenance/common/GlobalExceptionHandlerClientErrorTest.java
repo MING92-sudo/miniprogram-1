@@ -9,10 +9,7 @@ import org.springframework.web.multipart.MultipartException;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.mock;
 
-/**
- * 客户端错误映射回归（E2E 发现）：缺查询参数与非 multipart 上传原本落到兜底 handler，
- * 返回 500「服务内部错误」，把「调用方漏参」伪装成服务端故障。
- */
+/** 客户端错误映射回归（E2E 发现）：缺查询参数与非 multipart 上传原本落到兜底 handler，返回 500「服务内部错误」，把「调用方漏参」伪装成服务端故障。 */
 class GlobalExceptionHandlerClientErrorTest {
 
     private final GlobalExceptionHandler handler = new GlobalExceptionHandler(mock(AuditLogService.class));

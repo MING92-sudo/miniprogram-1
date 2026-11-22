@@ -8,7 +8,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** P1 主体类型底座：EMPLOYEE/CUSTOMER 归类、客户部门投影为 null、客户不可分配（task-1-brief 断言逐字）。 */
 class RoleCatalogPrincipalTypeTest {
 
     @Test

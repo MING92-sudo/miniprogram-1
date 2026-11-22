@@ -28,11 +28,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/**
- * P3 平台上报服务（docs/07-full-test 实测口径沉淀）：
- * 2.6 报文直接取签退冻结快照；失败不自动重试（AGENTS §2.3）；
- * reupload 仅对 FAILED 放行；2.8 开关关闭时不推送；日志摘要脱敏。
- */
+/** 失败不自动重试（AGENTS §2.3）； */
 class PlatformReportServiceTest {
 
     private MaintainRecordMapper recordMapper;

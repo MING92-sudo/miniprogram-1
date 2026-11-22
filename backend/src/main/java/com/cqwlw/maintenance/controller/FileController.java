@@ -20,9 +20,7 @@ import java.nio.file.Files;
 import java.util.Set;
 import java.util.Map;
 
-/**
- * 文件上传（wx.uploadFile 兜底端点，docs/04 A.0.1）：照片/签名代理上传 COS（Q6=A）。
- */
+/** 文件上传：照片/签名代理上传 COS（Q6=A）。 */
 @RestController
 public class FileController {
 
@@ -53,10 +51,7 @@ public class FileController {
         return ApiResponse.ok(Map.of("fileId", f.id, "url", f.url == null ? "" : f.url));
     }
 
-    /**
-     * 同源文件下发：本地文件直读；COS 模式经内网凭证流式拉取（托管桶私有读，直链不可访问）。
-     * 读取必须带 URL 时效签名（小程序 image 标签不带 Authorization 头，签字页也需匿名渲染）。
-     */
+    /** COS 模式经内网凭证流式拉取（托管桶私有读，直链不可访问）。 */
     @GetMapping("/files/{id}")
     public ResponseEntity<byte[]> serve(@PathVariable String id,
                                         @RequestParam(name = "s", required = false) String signature) throws Exception {
@@ -67,7 +62,7 @@ public class FileController {
         if (f == null) {
             throw new BizException(1404, "文件不存在");
         }
-        // Minor1：全量读入内存前限制大小（与 multipart 上限一致 20MB），防并发下载内存压力
+        // 全量读取前限制为 20MB，避免并发下载占用过多内存。
         if (f.sizeBytes != null && f.sizeBytes > 20L * 1024 * 1024) {
             throw new BizException(422, "文件过大，暂不支持在线读取");
         }
@@ -75,22 +70,19 @@ public class FileController {
         if (data == null) {
             throw new BizException(1404, "文件不存在");
         }
-        // C1：仅白名单类型按原 contentType 下发（图片内联展示/PDF 预览），其余一律 octet-stream，
-        // 并强制 nosniff，防止客户端可控 contentType 被浏览器执行（存储型 XSS）
+        // 仅白名单类型按原 contentType 下发（图片内联展示/PDF 预览），其余一律 octet-stream，并强制 nosniff，防止客户端可控 contentType 被浏览器执行（存储型 XSS）
         String ct = f.contentType == null ? "" : f.contentType;
         MediaType mediaType = SERVEABLE_TYPES.contains(ct)
                 ? MediaType.parseMediaType(ct) : MediaType.APPLICATION_OCTET_STREAM;
         return ResponseEntity.ok()
                 .header("X-Content-Type-Options", "nosniff")
-                // 客户端缓存 1 小时（与访问签名 TTL 一致）：签名过期后客户端自然换新 URL，
-                // 管理端/小程序对同一签名 URL 短期内不再重复回源，进一步省服务器与 COS 流量
+                // 客户端缓存 1 小时（与访问签名 TTL 一致）：签名过期后客户端自然换新 URL，管理端/小程序对同一签名 URL 短期内不再重复回源，进一步省服务器与 COS 流量
                 .header("Cache-Control", "private, max-age=3600")
                 .contentType(mediaType)
                 .contentLength(data.length)
                 .body(data);
     }
 
-    /** P4 直传元数据（docs/04 A.6 POST /files/sts）：返回存储模式与直传元数据，真实 STS 签发为云端 CAM 部署项 */
     @PostMapping("/files/sts")
     public ApiResponse<Map<String, Object>> sts(@org.springframework.web.bind.annotation.RequestBody(required = false)
                                                 Map<String, Object> body,

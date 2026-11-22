@@ -10,7 +10,6 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** P4 直传元数据（docs/04 A.6 POST /files/sts）：模式探测 + 上传目录消毒（真实 STS 签发放置云端 CAM 部署） */
 class FileStorageServiceStsTest {
 
     private FileStorageService service(AppProperties props) {
@@ -33,7 +32,6 @@ class FileStorageServiceStsTest {
         AppProperties p = new AppProperties();
         p.setCosBucket("7072-prod-d3gg6nba2f3160af9-1498557567");
         p.setCosRegion("ap-shanghai");
-        // Minor3：Java 侧不再带默认值——yml 绑定注入（此处显式模拟 yml 默认）
         p.setCosAuthUrl("http://api.weixin.qq.com/_/cos/getauth");
         Map<String, Object> m = service(p).stsDirective("checkin/20260928/", 1800, "http://x");
         assertEquals("COS", m.get("mode"));

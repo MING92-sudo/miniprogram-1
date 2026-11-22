@@ -22,10 +22,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
-/**
- * 登出吊销回归（E2E 发现）：`POST /auth/logout` 原为空实现，返回 {ok:true} 却不做任何事，
- * 令牌在有效期内仍可继续调用受保护接口。修复后必须清会话并递增 scope_version。
- */
+/** 修复后必须清会话并递增 scope_version。 */
 class AuthControllerLogoutTest {
 
     private final EmployeeMapper employeeMapper = mock(EmployeeMapper.class);
@@ -108,10 +105,7 @@ class AuthControllerLogoutTest {
         verifyNoInteractions(employeeMapper);
     }
 
-    /**
-     * 回归：吊销失败不能被吞掉。修复前 try 块包住了 update，写库异常会被静默忽略，
-     * 接口返回 ok 而会话仍在——必须向外抛错，让调用方知道登出未生效。
-     */
+    /** 修复前 try 块包住了 update，写库异常会被静默忽略，接口返回 ok 而会话仍在——必须向外抛错，让调用方知道登出未生效。 */
     @Test
     void revokeFailurePropagatesInsteadOfSilentlySucceeding() {
         Claims claims = mock(Claims.class);

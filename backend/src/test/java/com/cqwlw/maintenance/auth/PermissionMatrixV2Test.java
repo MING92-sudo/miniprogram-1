@@ -7,7 +7,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** 矩阵 v2：三态 state、allowsNew 要求 Y、84 码、fail-closed、22 个现行旧常量。 */
 class PermissionMatrixV2Test {
 
     @Test
@@ -26,9 +25,7 @@ class PermissionMatrixV2Test {
         assertEquals(PermissionMatrix.TriState.DENY, PermissionMatrix.state("INST_CLERK", "handover:review"));
         // §4.1 handover:view：资料员△=C
         assertEquals(PermissionMatrix.TriState.C, PermissionMatrix.state("INST_CLERK", "handover:view"));
-        // §4.3 record:view：CA 目标态无（M0 row7），旧别名 record:read 仍含 UA（Task 6 冻结）
         assertEquals(PermissionMatrix.TriState.DENY, PermissionMatrix.state("CLIENT_ADMIN", "record:view"));
-        // M0 §2.2 扩展：MQ record:spotcheck✔、MB client:edit✔、IW handover:inspect✔
         assertEquals(PermissionMatrix.TriState.Y, PermissionMatrix.state("MAINT_QUALITY", "record:spotcheck"));
         assertEquals(PermissionMatrix.TriState.Y, PermissionMatrix.state("MAINT_BIZ", "client:edit"));
         assertEquals(PermissionMatrix.TriState.Y, PermissionMatrix.state("INSTALLER", "handover:inspect"));
@@ -44,7 +41,6 @@ class PermissionMatrixV2Test {
         assertFalse(PermissionMatrix.allowsNew("MAINT_TECH", "config:manage"));
     }
 
-    /** 用户裁决 2026-11-15：SYS_ADMIN 全权限；安装员条件读移交单。 */
     @Test
     void userRulings20261115() {
         for (String code : PermissionMatrix.canonicalCapabilities()) {
@@ -53,17 +49,11 @@ class PermissionMatrixV2Test {
         assertEquals(PermissionMatrix.TriState.C, PermissionMatrix.state("INSTALLER", "handover:view"));
         // 维保人员现场验收需读移交单（菜单「移交验收」下发 MAINT 全工作区，权限面=渲染面）
         assertEquals(PermissionMatrix.TriState.C, PermissionMatrix.state("MAINT_TECH", "handover:view"));
-        // 2026-11-20 用户裁决：74 项现场查验（逐项留证+提交）由维保人员执行，handover:inspect C→Y
         assertEquals(PermissionMatrix.TriState.Y, PermissionMatrix.state("MAINT_TECH", "handover:inspect"));
-        // P1 T2（2026-11-16 裁决）：客户收回全部内部码，handover:view 由 C → DENY
         assertEquals(PermissionMatrix.TriState.DENY, PermissionMatrix.state("CLIENT_ADMIN", "handover:view"));
     }
 
-    /**
-     * P1 T2（2026-11-16 裁决，spec §5.4）：客户能力集 = client:elevator_view/download/sign（CA+CS 均 Y）；
-     * 2026-11-21 裁决：client:report 重开（CA/CS 双 Y，客户一键报修走 /unit/faults）；
-     * evaluate/user_manage/invite 仍默认关闭；内部码全收回（相关码仅平台管理员经全 Y 循环持有）。
-     */
+    /** 内部码全收回（相关码仅平台管理员经全 Y 循环持有）。 */
     @Test
     void clientMinimalCapabilitySetP1() {
         // 客户最小集
@@ -73,7 +63,6 @@ class PermissionMatrixV2Test {
         assertEquals(PermissionMatrix.TriState.Y, PermissionMatrix.state("CLIENT_ADMIN", "client:download"));
         assertEquals(PermissionMatrix.TriState.Y, PermissionMatrix.state("CLIENT_SIGNER", "client:elevator_view"));
         assertEquals(PermissionMatrix.TriState.Y, PermissionMatrix.state("CLIENT_SIGNER", "client:download"));
-        // 2026-11-21：一键报修重开
         assertEquals(PermissionMatrix.TriState.Y, PermissionMatrix.state("CLIENT_ADMIN", "client:report"));
         assertEquals(PermissionMatrix.TriState.Y, PermissionMatrix.state("CLIENT_SIGNER", "client:report"));
         // 默认关闭

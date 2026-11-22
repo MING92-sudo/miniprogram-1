@@ -1,5 +1,4 @@
-// Mock 数据仓库（仅 config.useMock=true 时生效；后端就绪后可整体删除 mock/ 目录）
-// 数据为内存态：小程序冷启动后重置，一次会话内保持状态流转
+// Mock 数据仓库（仅 config.useMock=true 时生效；
 const { formatTime, formatDuration, parseTime, distanceMeters } = require('../utils/util')
 const {
   APPENDIX_TPLS,
@@ -12,10 +11,6 @@ const {
 const DEMO_PHOTO = 'https://picsum.photos/seed/em-elev/600/450'
 const DEMO_SIGNATURE = 'https://picsum.photos/seed/em-sig/480/180'
 
-// 按维保频次生成 TSG 附件A 累加式检查清单（docs/01 §3.7.3）：
-// HM=表A-1(31项)；TM=+表A-2(44)；SM=+表A-3(59)；OY=+表A-4(76)；FM 按需取半月基础表
-// 周期性/季节性条目（execCycleMonth/ageCondition/seasonWindow）默认"本次无需执行"，
-// 灰显不计入未完成项，允许人工点选"本次仍要执行"（docs/03 §6.1）
 function buildChecklist(workTypeCode, categoryCode) {
   const chain = FREQ_CHAIN[workTypeCode] || FREQ_CHAIN.HM
   const appendix = CATEGORY_APPENDIX[categoryCode] || 'A'
@@ -104,7 +99,6 @@ function addDays(n) {
 }
 
 const db = {
-  // 维保单位档案（平台 2.6 冻结字段来源：workMenegerName/workMenegerPhone，拼写与规范 2.6 原文一致）
   company: {
     organizationCode: '91500106MAABU3795M',
     name: '重庆博威电梯有限公司',
@@ -118,8 +112,6 @@ const db = {
     { id: 'uu_2', unitName: '重庆蓝湾物业服务有限公司', unitPrincipal: '周涛', unitPrincipalPhone: '13930003002', elevatorAdminister: '吴静', elevatorAdministerPhone: '13800003005', emergencyPhone: '023-67991234' }
   ],
 
-  // P3 客户账号（独立于员工体系，不进 sys_employee；一单位 1..N 账号，同一单位活跃手机号唯一）。
-  // 统一登录：/auth/login 员工目录未命中时按手机号在本表校验，前端不区分通道。
   // password 仅 mock 明文（真实环境 BCrypt），演示密码与员工一致 123456。
   clientAccounts: [
     { id: 'ca_1', useUnitId: 'uu_1', name: '王芳', phone: '13800000003', password: '123456', role: 'CLIENT_ADMIN', roleText: '使用单位管理员', principalType: 'CUSTOMER', status: 'ACTIVE', enabled: 1, graceUntil: '', wechatBound: false, createdBy: '', createdAt: '2026-11-19 10:00:00', lastLoginAt: '', disabledReason: '' },
@@ -127,10 +119,7 @@ const db = {
     { id: 'ca_3', useUnitId: 'uu_1', name: '张伟', phone: '13800000012', password: '123456', role: 'CLIENT_ADMIN', roleText: '使用单位管理员', principalType: 'CUSTOMER', status: 'ACTIVE', enabled: 1, graceUntil: '', wechatBound: false, createdBy: '', createdAt: '2026-11-19 10:10:00', lastLoginAt: '', disabledReason: '' }
   ],
 
-  // 演示账号（正式版由 /auth/wx-login + 绑定流程产生）；platformId 为平台人员ID（2.5 同步产物）
-  // 2.5 规范字段对齐：workManCertificate=同步匹配键（严禁姓名匹配）、workStartDate/workEndDate=
-  // 合同期（到期从平台列表消失→不可派工）、workStat=normal 才可派工、syncStatus=本地同步状态
-  // 登录方式（用户需求）：账号由维保单位系统分配，手机号为账号（account），演示密码统一 123456
+  // platformId 取自平台同步，派工只接受 workStat=normal。
   employees: {
     WORKER: { id: 'emp_1', name: '张伟', phone: '13800000001', account: '13800000001', password: '123456', role: 'WORKER', roleText: '维保人员', groupName: '维保一班', platformId: '6901282369105174537', regionId: 'rg_yubei',
       certificate: 'CQ3601030001', workStartDate: '2024-03-01', workEndDate: addDays(400), workStat: 'normal', syncStatus: 'ACTIVE' },
@@ -138,7 +127,7 @@ const db = {
       certificate: 'CQ3601030002', workStartDate: '2023-06-01', workEndDate: addDays(250), workStat: 'normal', syncStatus: 'ACTIVE' },
     WORKER2: { id: 'emp_3', name: '李强', phone: '13800000004', account: '13800000004', password: '123456', role: 'WORKER', roleText: '维保人员', groupName: '维保一班', platformId: '6901284774286860288', regionId: 'rg_jiangbei',
       certificate: 'CQ3601030003', workStartDate: '2024-08-01', workEndDate: addDays(500), workStat: 'normal', syncStatus: 'ACTIVE' },
-    // ── M2 蓝图基准演示人物（spec §5.2-6，多角色；旧账号保留兼容） ──
+    // 旧账号保留兼容） ──
     MAINT_TECH: { id: 'emp_lzg', name: '李振国', phone: '13800000011', account: '13800000011', password: '123456', role: 'MAINT_TECH', roles: ['MAINT_TECH'], roleText: '维保人员', groupName: '维保一组', jobNo: 'T3101', platformId: '6901282369105174537', regionId: 'rg_jiangbei',
       certificate: 'CQ3601030011', workStartDate: '2023-03-01', workEndDate: addDays(400), workStat: 'normal', syncStatus: 'ACTIVE' },
     INST_PM: { id: 'emp_wq', name: '王强', phone: '13800000013', account: '13800000013', password: '123456', role: 'INST_PM', roles: ['INST_PM'], roleText: '安装部项目负责人', groupName: '安装一部', platformId: '',
@@ -149,7 +138,6 @@ const db = {
       certificate: 'CQ3601030015', workStartDate: '2020-01-01', workEndDate: addDays(600), workStat: 'normal', syncStatus: 'ACTIVE' },
     PLATFORM: { id: 'emp_pt', name: '平台管理员', phone: '13800000016', account: '13800000016', password: '123456', role: 'PLATFORM_ADMIN', roles: ['PLATFORM_ADMIN'], roleText: '平台管理员', groupName: '平台', platformId: '',
       certificate: '', workStartDate: '', workEndDate: '', workStat: '', syncStatus: 'NOT_SYNCED' },
-    // ── 渲染口径对齐（2026-11-15 裁决）：平台双账号/安装主管/安装员/使用单位签字人，与后端 seeder 同号 ──
     ADMIN: { id: 'emp_admin', name: '郑浩', phone: '13800000009', account: '13800000009', password: '123456', role: 'ADMIN', roles: ['PLATFORM_ADMIN'], roleText: '平台管理员', groupName: '平台', platformId: '',
       certificate: '', workStartDate: '', workEndDate: '', workStat: '', syncStatus: 'NOT_SYNCED' },
     INST_MGR: { id: 'emp_zhang', name: '张工', phone: '13800000099', account: '13800000099', password: '123456', role: 'INST_MGR', roles: ['INST_MGR'], roleText: '安装部主管', groupName: '安装部', platformId: 'P_ZHANG',
@@ -204,8 +192,6 @@ const db = {
 
   orders: [
     {
-      // 区域抢单池演示件（D2/M4）：已发布未认领——worker*/assistant* 一律留空，落 regionId 快照，
-      // 同区域持平台ID的维保员到场签到即认领（M1）；类型升级为季度保（el_2 今日已完成半月保 wo_3）
       id: 'wo_pool_1', orderNo: 'WO20261120-101', elevatorId: 'el_2',
       workType: '季度维保', workTypeCode: 'TM', planTime: today('09:00:00'), status: 'PENDING',
       workerName: '', assistantName: '', workerPlatformId: '', assistantPlatformId: '',
@@ -258,7 +244,6 @@ const db = {
     { id: 'msg_1', title: '今日维保任务提醒', content: '您今日有 2 条维保任务，请按时到场扫码签到', createdAt: today('07:30:00'), read: false },
     { id: 'msg_2', title: '排班确认通知', content: '下周排班表已发布，请确认后回复', createdAt: today('06:10:00'), read: false },
     { id: 'msg_3', title: '平台对接公告', content: '监管平台业务接口已开放至 2.7，详见联调记录', createdAt: today('08:00:00'), read: true },
-    // V2.80 客户门户消息（useUnitId 受众；员工消息中心过滤此类行，两侧互不串扰）
     { id: 'msg_cu_1', title: '签字临期提醒', content: '世纪大厦 1# 客梯 半月维保记录即将到达签字截止时间，请及时到「待办签字」完成确认。', createdAt: today('09:10:00'), useUnitId: 'uu_1', readFlag: false }
   ],
 
@@ -277,8 +262,6 @@ const db = {
       clientSigner: '张伟', clientRole: 'CLIENT_SIGNER', slaReport: 12, slaArrive: 24, slaDone: 30 }
   ],
 
-  // ── 合规台账（TSG 法定项，docs/01 §3.17/3.18；数据暂存本地，不上报平台）──
-  // 应急演练：每半年至少 1 轮，覆盖本单位在保的全部电梯品种
   drills: [
     {
       id: 'dr_1', drillDate: addDays(-20), category: '曳引与强制驱动电梯', scene: '困人救援',
@@ -313,9 +296,7 @@ const db = {
       originalRecordId: '19480012609000011', reportStatus: 'REPORTED', retryCount: 0,
       nextMaintenanceDate: addDays(15),
       confirmStatus: 'PENDING', satisfaction: null, signatureFileId: '', signatureUrl: '',
-      // 生命周期（V42）+ 版本链（P1 T4/T7 门禁演示）：本单位 uu_1、唯一可签状态、链末端最新版本
       lifecycleStatus: 'PENDING_CLIENT_SIGNATURE', version: 1, prevVersionId: '',
-      // V2.80 签字 SLA 演示：发起于 48 小时前 → 距 72h 截止剩约 24 小时（待办「临期」+ 签字页倒计时）
       signRequestedAt: formatTime(new Date(Date.now() - 48 * 3600000))
     },
     {
@@ -380,17 +361,7 @@ function nextRecordId() {
   return '1948' + String(Date.now()) + '01'
 }
 
-// ── 自动排期引擎（mock 演示：对齐 docs/04 设计的 /plans/generate + /plans/assign）─────
-// 规则：
-//   1) 电梯维护配置（maintenance）：维保频次周期；区域抢单池（D2/M4，2026-11-20）后
-//      派单不带人——工单 worker*/assistant* 一律留空，落 regionId 快照（电梯所在区域），
-//      由同区域持平台ID的维保员签到认领（maintenance 里的绑定字段保留但派单链路不再读取）；
-//   2) 上次签退时间（无历史时取 lastMaintenanceAt）+ 周期天数 = 下次维保到期日；
-//   3) **到期前一天**自动把名下全部到期电梯一次性派单（不限时段/台数——
-//      作业时长由签退时 30 分钟校验把关，即"只验证作业时间"，用户确认 2026-09-30）；
-//   4) 保养类型按时间自动升级（TSG 累加式：年365/半年180/季90/半月15）；
-//   5) 派单同时写入消息中心通知。
-// 真实后端实现为：plans 计划表 + 定时任务（到期前一天触发）+ 派单通知。
+// 3) **到期前一天**自动把名下全部到期电梯一次性派单；
 const WORK_TYPE_LABEL = { HM: '半月维保', TM: '季度维保', SM: '半年维保', OY: '年度维保', FM: '按需维保' }
 
 function ensureDueOrders() {
@@ -418,11 +389,7 @@ function ensureDueOrders() {
     const intervalMs = (cfg.intervalDays || WORK_TYPE_INTERVAL_DAYS[cfg.workTypeCode] || 15) * 86400000
     const dueMs = last + intervalMs
     if (now < dueMs - 86400000) return // 未到"到期前一天"，暂不派单
-    // ★ 保养类型按时间自动升级（TSG 附件A 累加式：季度=半月+季度项，半年=+半年项，年度=+年度项）：
-    //   距上次年度维保 ≥365 天 → 本次派年度单（76 项清单）
-    //   距上次半年维保 ≥180 天 → 半年单（59 项）；距上次季度维保 ≥90 天 → 季度单（44 项）；否则半月单（31 项）
-    //   某类型从未执行时以其"首次维保日期"起算（用户确认 2026-11-06）：最早一次 DONE 签退，
-    //   无任何已完成维保时回退建档基线 lastMaintenanceAt（而非最近一次任意维保，否则只做半月保的电梯永不升级）
+    // 否则半月单（31 项）某类型从未执行时以其"首次维保日期"起算：最早一次 DONE 签退，无任何已完成维保时回退建档基线 lastMaintenanceAt（而非最近一次任意维保，否则只做半月保的电梯永不升级）
     let first = null
     db.orders.forEach(function (o) {
       if (o.elevatorId === el.id && o.status === 'DONE' && o.checkoutTime) {
@@ -462,7 +429,6 @@ function ensureDueOrders() {
       workTypeCode: code,
       planTime: planTime,
       status: 'PENDING', // 池化语义 = 待接单
-      // 区域抢单池（D2/M4）：派单不带人，落 regionId 快照；认领人由签到写入
       workerName: '',
       assistantName: '',
       workerPlatformId: '',
@@ -517,7 +483,6 @@ function getHomeSummary() {
     openFaults: db.faults.filter(function (f) {
       return f.status === 'OPEN'
     }).length,
-    // 年检预警：自行检查逾期未检台数（须在定期检验前完成，docs/01 §3.17）
     overdueInspects: listInspects().filter(function (i) {
       return i.status === '逾期未检'
     }).length,
@@ -537,10 +502,6 @@ function getUseUnit(id) {
   return db.useUnits.find((u) => u.id === id) || null
 }
 
-// ── 电梯详细档案（docs/01 §3.4.1 + 平台 2.7 回填，docs/04 B.7）──
-// 字段分两组标注来源：
-//   platform: 平台 2.7 自动获取（8 字段；电话未脱敏，可直接回填用于 2.6 上报）
-//   local:    平台不提供、本地维护（安装地址/经纬度/型号品牌/制造单位/下次检验日期等）
 function getElevatorProfile(id) {
   const el = getElevator(id)
   if (!el) return null
@@ -585,7 +546,6 @@ function getElevatorProfile(id) {
 
 // 电梯列表（工作台看板/市监局对接卡片下钻）
 function listElevators() {
-  // 停用（INACTIVE）电梯小程序不可见、不派单（docs/09 §6.6）
   return db.elevators.filter(function (el) { return el.status !== 'INACTIVE' }).map(function (el) {
     return {
       id: el.id,
@@ -611,13 +571,10 @@ function getOrder(id) {
   const elView = Object.assign({}, getElevator(o.elevatorId))
   if (elView.checkinThreshold == null) elView.checkinThreshold = 200
   const view = Object.assign({}, o, { elevator: elView })
-  // 双人分别签到状态（docs/01 §3.7.2）
   view.principalCheckedIn = !!o.checkinExtra
   view.assistantCheckedIn = !!o.assistantCheckinExtra
-  // 各自手机签状态（docs/01 §3.7.5）
   view.workerSigned = !!o.workerSignatureFileId
   view.assistantSigned = !!o.assistantSignatureFileId
-  // 已完成工单附带完整维保记录视图数据（签字/确认状态，docs/01 §3.12.5 归档留痕）
   if (o.status === 'DONE' && o.originalRecordId) {
     const rec = db.unitRecords.find(function (r) { return r.originalRecordId === o.originalRecordId })
     if (rec) {
@@ -695,7 +652,6 @@ function listOrders(query) {
   }))
 }
 
-// 签到（body 对齐 docs/04 A.2：lng/lat/locationAccuracy/photoFileId/role/dynamicCode/collectedAt）
 function markCheckin(orderId, body, geo) {
   const o = db.orders.find((x) => x.id === orderId)
   if (!o) return null
@@ -721,7 +677,7 @@ function markCheckin(orderId, body, geo) {
   return o
 }
 
-// ── 双人动态码（docs/03 §3.2 项6：每 5 秒刷新、60 秒有效、绑定工单、一次性使用）──
+// ── 双人动态码──
 const DYNAMIC_CODE_STEP_SECONDS = 5
 const DYNAMIC_CODE_TTL_SECONDS = 60
 
@@ -823,13 +779,10 @@ function markCheckout(orderId, body) {
     satisfaction: null,
     signatureFileId: '',
     signatureUrl: '',
-    // 生命周期初值与后端 RecordLifecycleService.initialStatus() 同口径（复核开关默认关 → 待使用单位签字），
-    // 客户可见/可签须先经「发起使用单位签字」推进到 PENDING_CLIENT_SIGNATURE（P1 T7 门禁）
     lifecycleStatus: 'PENDING_CLIENT_SIGN',
     version: 1,
     prevVersionId: ''
   }
-  // 预览上下文快照（docs/03 §六）：与后端 maintain_record.preview_context 同口径，随记录冻结
   const executed = items.filter((i) => i.notInThisRun !== true)
   const pickGeo = (extra) => ({
     latitude: (extra && extra.latitude != null) ? String(extra.latitude) : '',
@@ -859,12 +812,10 @@ function markCheckout(orderId, body) {
   return record
 }
 
-// 平台 2.6 报文快照（20 字段冻结，docs/04 B.6；含 workMeneger 拼写按规范原文）
 function buildReportPayload(r, el, uu) {
   el = el || getElevatorByCode(r.elevatorCode) || {}
   uu = uu || getUseUnit(el.useUnitId) || {}
   const c = db.company
-  // recorderPhone：按记录填写人姓名查人员档案（原实现硬编码张伟，双人/配合人员签退时会错）
   let recorderPhone = ''
   Object.keys(db.employees).forEach(function (k) {
     if (db.employees[k].name === r.workerName) recorderPhone = db.employees[k].phone
@@ -905,8 +856,6 @@ function updateChecklistItem(orderId, itemId, patch) {
 }
 
 function createRescue(body) {
-  // 救援节点耗时自动计算（docs/01 §3.9.3.1：系统自动计算并留痕各节点耗时，
-  // 抵达超 30 分钟自动标记超时且记录不可删除；重庆为直辖市，法定时限 30 分钟）
   const arriveMin = body.arriveAt && body.alarmAt
     ? Math.round((parseTime(body.arriveAt) - parseTime(body.alarmAt)) / 60000)
     : null
@@ -965,7 +914,6 @@ function createFault(body) {
   return f
 }
 
-// 急修单派单（docs/04 V2.28 派单系统）：OPEN → ASSIGNED
 function dispatchFault(id, workerId) {
   const f = db.faults.find((x) => x.id === id)
   if (!f) throw { code: 1404, message: '急修单不存在' }
@@ -993,7 +941,6 @@ function closeFault(id, body) {
   return f
 }
 
-// ── 应急演练（docs/01 §3.18）──
 function listDrills() {
   // 覆盖检查：近半年内，本单位在保的每个电梯品种均须有演练记录
   const halfYearAgo = Date.now() - 182 * 86400000
@@ -1030,7 +977,6 @@ function createDrill(body) {
   return r
 }
 
-// ── 自行检查（docs/01 §3.17，独立记录类型 inspect_record，不触发 2.6 上报）──
 function listInspects() {
   const now = Date.now()
   return db.elevators.map(function (el) {

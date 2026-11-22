@@ -19,9 +19,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * M5 数据域：业务配置（保存写审计）+ 敏感导出审批（用途≥10字+二次确认）+ 统计聚合 + 审计只读。
- */
 @Service
 public class DataDomainService {
 
@@ -122,11 +119,6 @@ public class DataDomainService {
         return approvalMapper.selectList(new LambdaQueryWrapper<BizExportApproval>().orderByDesc(BizExportApproval::getCreatedAt));
     }
 
-    /**
-     * 平台级统计（GET /stats）。P1（T5）裁决：本聚合无人数统计键，内部管理员保持全量口径；
-     * 客户令牌已被 AuthInterceptor 业务路由白名单拒绝（T3，AuthInterceptorV2Test 锁定 /stats 403），
-     * 故此处不做客户过滤；将来若新增人数/账号类统计，须排除客户主体（RoleCatalog.isCustomerPrincipal）。
-     */
     public Map<String, Object> stats() {
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("elevators", elevatorMapper.selectCount(null));

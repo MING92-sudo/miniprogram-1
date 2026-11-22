@@ -1,5 +1,3 @@
-// 图片压缩（docs/04 约定：压缩后长边 ≤1200px、文件 ≤500KB，见 constants/IMAGE_LIMIT）
-// 任何一步失败均回退原图，不阻断业务流程
 const { IMAGE_LIMIT } = require('../constants/index')
 
 const QUALITY_STEPS = [80, 60, 40, 20]
@@ -21,7 +19,6 @@ function getFileSize(path) {
   })
 }
 
-// wx.compressImage：quality 0-100；compressedWidth/Height 需基础库 2.25.0+，低版本自动忽略
 function compressOnce(src, quality, width, height) {
   return new Promise((resolve, reject) => {
     const opts = { src, quality, success: resolve, fail: reject }

@@ -1,5 +1,3 @@
-// 403 无权限范式页（M2，屏 12 + 裁决 R3）：中文能力名/允许角色/我的角色/数据范围，
-// 不回显权限码原文、路由原文、目标 id（防 403/404 差异探测数据是否存在）。
 const { definePage } = require('../../utils/guard')
 const { ROUTES } = require('../../config/routes')
 const { ROLE_TEXT, resolveHome } = require('../../config/menus')

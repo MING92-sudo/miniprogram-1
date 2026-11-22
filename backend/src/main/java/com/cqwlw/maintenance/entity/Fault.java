@@ -16,14 +16,11 @@ public class Fault {
     public String faultNo;
     public String elevatorCode;
     public String faultType;
-    /** 困人人数（C-18/V62：报修表单填写，NULL/0=非困人急修；工作台急修 KPI 取数口径） */
     public Integer trappedCount;
-    /** 登记人（empId；组长按班组可见，V7） */
     public String createdBy;
     public String descr;
     public String siteDesc;
     public String status;
-    /** 接单维保员（派单系统，V20） */
     public String dispatchWorkerId;
     /** 派单时间 */
     public java.time.LocalDateTime dispatchedAt;
@@ -36,13 +33,11 @@ public class Fault {
     public String photos;
     public String signature;
     public LocalDateTime confirmedAt;
-    /** M4 代报修 + SLA 快照 */
     public String proxySource;
     public String recordingNo;
     public String proxyBy;
     public Integer slaMinutes;
     public LocalDateTime deadline;
-    /** M1 急修七态扩展（V43） */
     public String faultReason;
     public String cancelReason;
     public String refuseReason;
@@ -50,7 +45,6 @@ public class Fault {
     public String evaluateText;
     public LocalDateTime evaluatedAt;
     public LocalDateTime escalatedAt;
-    /** P2 租户快照（V47）：登记时冻结的租户归属/单位名称 */
     public String useUnitId;
     public String useUnitName;
     public LocalDateTime createdAt;

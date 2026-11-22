@@ -22,7 +22,6 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-/** AuthInterceptor v2：sv 校验（null 安全）、ATTR_ROLES、门户 CLIENT_ADMIN 别名。 */
 class AuthInterceptorV2Test {
 
     private final JwtService jwt = mock(JwtService.class);
@@ -112,8 +111,6 @@ class AuthInterceptorV2Test {
         assertEquals(Set.of("MAINT_TECH"), roles); // 回退主角色规范码
     }
 
-    // ── P1 T3：客户主体令牌业务路由白名单（task-3-brief；403 口径同 ut=1 门户分支 BizException，
-    //    经 GlobalExceptionHandler 统一 {code,message} 响应并落 BLOCKED 审计） ──
 
     /** 构造合法统一令牌（client=mp、sid/sv 匹配），sys_user_role 返回给定角色码（经 canonical 归一）。 */
     private AuthInterceptor interceptorFor(String sub, String primaryRole, String... roleCodes) {
@@ -138,7 +135,6 @@ class AuthInterceptorV2Test {
         return req;
     }
 
-    /** 客户令牌打内部/管理端点 → 403（P1 前员工统一令牌对这些 M3/M5 路由无按角色限制，可直达） */
     @Test
     void customerTokenRejectedOnInternalEndpoints() {
         AuthInterceptor interceptor = interceptorFor("emp_c", "UNIT_ADMIN", "CLIENT_ADMIN");
@@ -206,9 +202,6 @@ class AuthInterceptorV2Test {
         assertEquals(403, ex.getCode());
     }
 
-    /** P1 终审 I2：历史混合形态（主角色=内部 WORKER、行仅 CLIENT_ADMIN，UnitAccountUnifyService V41 合并可产生）——
-     *  生效角色集 = 行 ∪ 主角色 canonical（与 UserRoleService.canonicalRolesOf 同口径）→ {MAINT_TECH, CLIENT_ADMIN}，
-     *  不得判为全客户锁进白名单（isCustomer=false，内部端点放行）；登录 principalType 与拦截器口径一致 */
     @Test
     void internalPrimaryWithCustomerRowsTakesEmployeePath() {
         AuthInterceptor interceptor = interceptorFor("emp_h", "WORKER", "CLIENT_ADMIN");
@@ -220,9 +213,6 @@ class AuthInterceptorV2Test {
         assertTrue(interceptor.preHandle(request("/users"), response, handler));
     }
 
-    /** P1 终审 M8：/elevators 白名单斜杠边界——前缀形 URI（如 /elevators-secret）不得放行；
-     *  POST /unit/faults（/unit/** 前缀）放行；
-     *  2026-11-21：POST /files/upload 对客户放行（重开 client:report 配套，报修现场照片） */
     @Test
     void clientWhitelistUsesSlashBoundary() {
         AuthInterceptor interceptor = interceptorFor("emp_c", "UNIT_ADMIN", "CLIENT_ADMIN");

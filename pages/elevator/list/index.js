@@ -1,4 +1,3 @@
-// 电梯列表（M2）：搜索 + 状态收敛（后端谓词）+ 四态；tab 宿主。
 const { getElevatorList } = require('../../../services/elevator')
 const unit = require('../../../services/unit')
 const { isCustomerPrincipal } = require('../../../utils/auth')
@@ -12,8 +11,7 @@ definePage(ROUTES['/pages/elevator/list/index'], {
   onShow() { this.fetchList() },
   fetchList() {
     this.setData({ loading: true, error: '' })
-    // 客户主体必须走门户接口 /unit/elevators：/elevators 是员工读接口，按员工数据域过滤，
-    // 客户令牌调它恒返回空数组 → 客户看到「暂无电梯」而本单位明明有梯（小程序实测）。
+    // 客户主体必须走门户接口 /unit/elevators：/elevators 是员工读接口，按员工数据域过滤，客户令牌调它恒返回空数组 → 客户看到「暂无电梯」而本单位明明有梯（小程序实测）。
     const request = isCustomerPrincipal() ? unit.getUnitElevators() : getElevatorList()
     request
       .then((list) => {

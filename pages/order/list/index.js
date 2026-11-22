@@ -1,6 +1,4 @@
-// 报修接单池（M3，屏 07）：七态筛选 + 急修优先排序 + 抢单（order:grab 本区域）+ 四态双分支。
-// 「一键报修」入口按权限面渲染（2026-11-20 真机反馈）：仅 order:create/order:create_proxy 可见
-// （routes 报修页 perm 同口径；MAINT_TECH 无报修权限不显示，权限面=渲染面 docs/14 §7.1）。
+// 「一键报修」入口按权限面渲染：仅 order:create/order:create_proxy 可见（routes 报修页 perm 同口径；
 const { getFaultList, grabFault } = require('../../../services/fault')
 const { definePage } = require('../../../utils/guard')
 const { ROUTES } = require('../../../config/routes')
@@ -21,7 +19,6 @@ definePage(ROUTES['/pages/order/list/index'], {
   onLoad(query) {
     const perms = getPerms() || []
     this.setData({ canReport: perms.indexOf('order:create') > -1 || perms.indexOf('order:create_proxy') > -1 })
-    // C-18/V62：「急修待接」KPI 下钻只看困人单（trapped=1）；「报修待接」为其余待接单
     if (query && query.state === 'urgent') this.setData({ status: 'OPEN', activeTab: 'OPEN', trapped: '1' })
     else if (query && query.state === 'pending') this.setData({ status: 'OPEN', activeTab: 'OPEN', trapped: '0' })
   },

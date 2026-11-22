@@ -18,10 +18,6 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
-/**
- * P3 客户账号开通核心不变量（docs/14 §6、R2/R7/R13）：
- * 单位档案必须存在、同单位活跃手机号唯一、员工/客户跨表互斥、停用清会话+递增 sv、不删除只停用。
- */
 class ClientAccountServiceTest {
 
     private ClientAccountMapper mapper;
@@ -148,7 +144,6 @@ class ClientAccountServiceTest {
         assertFalse(String.valueOf(row).contains("secrethash"));
     }
 
-    // ── GRACE 到期日扫（docs/14 §6.3 规则 2）──
 
     @Test
     void sweepDisablesExpiredGraceAccountAndKillsSession() {

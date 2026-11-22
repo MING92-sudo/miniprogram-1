@@ -24,12 +24,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-/**
- * P1 终审 I1：客户电梯档案**真实谓词**测试（ElevatorService/EmployeeScopeService 不 mock）。
- * 契约（docs/04 A.12.1①）：客户令牌 `GET /elevators*` 含 profile，仅本单位谓词，跨单位 1403。
- * 旧缺陷：客户员工 platformId 为空 → visibleWorkerPlatformIds 恒 Set.of()（非 null）→
- * 「仅本人负责电梯」谓词对任何已派梯恒 1403，与本分支明文契约矛盾（列表可看、档案 403）。
- */
+/** 契约：客户令牌 `GET /elevators*` 含 profile，仅本单位谓词，跨单位 1403。 */
 class ElevatorClientProfileTest {
 
     private final ElevatorMapper elevatorMapper = mock(ElevatorMapper.class);
@@ -109,11 +104,7 @@ class ElevatorClientProfileTest {
         assertEquals(1403, ex.getCode());
     }
 
-    /**
-     * 内部员工 profile（区域抢单池 D2/M9 配套，2026-11-21 裁决）：绑定字段不再是归属键——
-     * 非管理角色按区域匹配键（同区域可读；跨区域 1403）。原「绑定 platformId 命中 200 / 未命中 1403」
-     * 用例翻转为本用例（池化新梯绑定字段恒 NULL，旧口径恒 1403 为已裁决缺陷）。
-     */
+    /** 内部员工 profile：绑定字段不再是归属键——非管理角色按区域匹配键（同区域可读； */
     @Test
     void internalEmployeeRegionPredicate() {
         Employee tech = employee("e2", "WORKER", "pid_zhang");

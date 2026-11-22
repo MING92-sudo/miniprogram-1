@@ -22,10 +22,6 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/**
- * 签字到期提醒（V56）：临期（剩余 ≤ SLA/3）与超期各至多一条（signRemindedAt 去重）；
- * 无单位快照跳过；消息写 use_unit_id 客户受众。
- */
 class SignReminderServiceTest {
 
     private MaintainRecordMapper recordMapper;
@@ -41,7 +37,6 @@ class SignReminderServiceTest {
         recordMapper = mock(MaintainRecordMapper.class);
         messageMapper = mock(MessageMapper.class);
         // 守卫式最小更新（只盖 sign_reminded_at + 状态谓词）默认命中 1 行；
-        // 「扫描间隙被签署」场景在并发测试里单独 stub 0
         when(recordMapper.update(any(), any())).thenReturn(1);
         service = new SignReminderService(recordMapper, messageMapper,
                 new ClientSignSlaService(mock(com.cqwlw.maintenance.mapper.SysConfigMapper.class)));
@@ -112,11 +107,6 @@ class SignReminderServiceTest {
         assertTrue(true);
     }
 
-    /**
-     * 2026-11-21 审查修复（状态撕裂）：扫描读出 PENDING 后、落提醒前客户完成签署——
-     * 守卫式更新的状态谓词命中 0 行，此时既不推送消息，也绝不整实体回写
-     * （旧 updateById 会把 CONFIRMED 覆盖回 PENDING）。
-     */
     @Test
     void concurrentSignBetweenScanAndStampSkipsSilently() {
         MaintainRecord r = pending("ur_1", "uu_1", TimeUtil.now().minusHours(80));

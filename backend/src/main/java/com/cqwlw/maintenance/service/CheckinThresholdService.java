@@ -6,12 +6,6 @@ import com.cqwlw.maintenance.entity.SysParam;
 import com.cqwlw.maintenance.mapper.SysParamMapper;
 import org.springframework.stereotype.Service;
 
-/**
- * 签到定位阈值三级解析（docs/02 §5.4）：
- * 电梯级 `elevator.checkin_threshold` → 品种级 `sys_param['checkin.threshold.category.<品种>']`
- * → 全局 `sys_param['checkin.threshold.default']` → `app.checkin-threshold-meters`（默认 200 米）。
- * 品种级数值属业务/合规参数，未确认前不预置（缺行即回退全局），由运维按需写入 sys_param（V12 迁移注释含示例）。
- */
 @Service
 public class CheckinThresholdService {
 

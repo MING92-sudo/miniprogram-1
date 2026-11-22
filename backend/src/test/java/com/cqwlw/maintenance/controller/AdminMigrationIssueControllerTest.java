@@ -21,13 +21,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
-/**
- * 迁移核对清单管理端点（权限 P2 T7）：
- * GET /admin/migration-issues 门控 requireRead(audit:view)，
- * POST /admin/migration-issues/{id}/resolve 门控 requireWrite(config:manage)。
- * 三态矩阵实测 audit:view / config:manage 仅 PA/SA 为 Y（冻结，不扩）；
- * controller 直接 mock service，门控用真实 MultiRoleGate + MockHttpServletRequest 的 ATTR_ROLES 规范码集。
- */
+/** 三态矩阵实测 audit:view / config:manage 仅 PA/SA 为 Y（冻结，不扩）； */
 class AdminMigrationIssueControllerTest {
 
     /** 矩阵持有者：PA=PLATFORM_ADMIN（audit:view/config:manage 均 Y） */

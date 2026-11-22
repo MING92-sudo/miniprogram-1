@@ -259,9 +259,6 @@
   </div>
 </template>
 <script setup>
-// 记录单复核（原型 Views.records/openRecordDetail 对齐）：双签核验展示 + 复核/退回/送签/归档投影/修订 v2。
-// 真实数据口径：/admin/records 投影 confirmStatus/reportStatus/problemCodes；生命周期门控（PENDING_REVIEW/
-// PENDING_CLIENT_SIGN/ARCHIVED）由服务端校验，前端按 confirmStatus 渲染操作入口，422 拦截以 toast 呈现。
 import { ref, computed, onMounted } from 'vue'
 import http from '../api/client'
 import DataTable from '../ui/DataTable.vue'
@@ -310,7 +307,6 @@ onMounted(load)
 const detailOpen = ref(false)
 const detail = ref({})
 const archiveInfo = ref({})
-// 预览详情（docs/09 §6.12）：单条懒加载，列表行只带摘要，明细/照片/签字由 /admin/records/{id} 补齐。
 // items_json/photos_json 是 MEDIUMTEXT，不能塞进分页列表，所以必须二次拉取。
 const detailLoading = ref(false)
 const previewUrl = ref('')
@@ -395,7 +391,6 @@ async function signRequest() {
   } catch (e) { toast.error(e.message || '双签未完成，禁止送使用单位') }
 }
 
-// 修订新版本（不重报，P-5）：必须基于原记录明细提交实际变更集。
 const amendModal = ref(false)
 const amendTarget = ref(null)
 const amendReason = ref('')

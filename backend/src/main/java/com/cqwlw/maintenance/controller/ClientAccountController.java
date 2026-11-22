@@ -21,11 +21,6 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 import java.util.Map;
 
-/**
- * 客户账号管理（P3，docs/14 §6.2）：内部在「使用单位详情」开通/停用/重置/换绑/恢复。
- * 路径挂 /use-units/{id}/accounts，已被 AdminRoleInterceptor 覆盖；写操作叠加 USEUNIT_WRITE，
- * 读操作 USEUNIT_READ。客户账号不进员工体系，客户管理员默认无管理权（client:user_manage DENY）。
- */
 @RestController
 public class ClientAccountController {
 

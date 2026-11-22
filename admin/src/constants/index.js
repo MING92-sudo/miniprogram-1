@@ -6,7 +6,6 @@ export const ROLE_TEXT = {
   ADMIN: '维保部管理员',
 }
 
-// 严重事故隐患码（需求文档 §6.2 / 平台 V1.5 规范 3.2；S0—S7 连续编码）
 export const PROBLEM_CODES = {
   S0: '未发现严重事故隐患',
   S1: '使用非法生产的特种设备',
@@ -30,5 +29,4 @@ export const CONFIRM_STATUS = {
   CONFIRMED: '已确认'
 }
 
-// 五类手机号互斥角色（docs/01 §3.2.4；emergencyPhone/recorderPhone 不参与）
 export const MUTEX_ROLES = ['使用单位负责人', '使用单位安全管理员', '维保经理', '维保人员']

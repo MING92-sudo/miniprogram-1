@@ -19,7 +19,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/** 客户门户消息（V56）：列表/未读数按单位锚点收敛；标读校验归属，越权 1403 无副作用 */
+/** 标读校验归属，越权 1403 无副作用 */
 class ClientMessageServiceTest {
 
     private MessageMapper messageMapper;

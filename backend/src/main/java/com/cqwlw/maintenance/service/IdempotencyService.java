@@ -11,10 +11,7 @@ import org.springframework.stereotype.Service;
 import java.util.Map;
 import java.time.temporal.ChronoUnit;
 
-/**
- * 写接口幂等：所有写接口携带 X-Idempotency-Key（AGENTS §3）。
- * 同 key 重放直接返回首次响应（离线队列补传/网络重试语义）。
- */
+/** 写接口幂等：所有写接口携带 X-Idempotency-Key（AGENTS §3）。 */
 @Service
 public class IdempotencyService {
 
@@ -33,7 +30,6 @@ public class IdempotencyService {
             return new Guard(null, exist.responseJson);
         }
         if (exist != null) {
-            // M4：无响应的悬挂记录（业务异常后未 commit）10 分钟过期放行，避免同 key 永久 422；
             // 10 分钟内视为首次请求仍在处理中，拒绝并发重复提交
             boolean stale = (exist.responseJson == null || exist.responseJson.isEmpty())
                     && exist.createdAt != null

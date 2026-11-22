@@ -30,10 +30,6 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/**
- * 记录生命周期（M1，蓝图 §6.2 / 裁决 R1/D2）：复核可配、发起签署门控、配合退回、
- * 拒签原因必填、自动归档 SHA-256 且不重报 2.6、越权无副作用。
- */
 class RecordLifecycleTest {
 
     private MaintainRecordMapper records;
@@ -56,7 +52,6 @@ class RecordLifecycleTest {
                 mock(ElevatorMapper.class), mock(UseUnitMapper.class), pdf, files, configs);
     }
 
-    /** T4-I4 fixture 同步：拒签门禁补 confirmStatus=PENDING + 条件更新（mock 命中 1 行）；LambdaUpdateWrapper 需 TableInfo 缓存 */
     @BeforeAll
     static void initTableInfo() {
         com.baomidou.mybatisplus.core.metadata.TableInfoHelper.initTableInfo(
@@ -181,11 +176,6 @@ class RecordLifecycleTest {
         assertEquals("PENDING_CLIENT_SIGNATURE", r.lifecycleStatus);
     }
 
-    /**
-     * P1 T8-A4 口径锁定：小程序 record-detail 改传记录 id（此前误传 orderId → 真实后端 1404），
-     * 以记录 id 调 signRequest 可推进 PENDING_CLIENT_SIGN → PENDING_CLIENT_SIGNATURE 并回传真实 shareToken
-     * （客户端待办兼容期凭此拼签字链接，docs/14 §4.6 规则 8）。
-     */
     @Test
     void signRequestByRecordIdAdvancesAndReturnsShareToken() {
         MaintainRecord r = record("PENDING_CLIENT_SIGN");
@@ -242,7 +232,6 @@ class RecordLifecycleTest {
         assertEquals("确认链接无效或已失效", ex.getMessage());
     }
 
-    /** C-25⑧：匿名拒签记录不存在 → 401 与错 token 同文案（消除 1404/401 存在性 oracle），零写副作用 */
     @Test
     void refuseByTokenUnknownRecordIs401() {
         when(records.selectById("ur_missing")).thenReturn(null);
@@ -254,7 +243,6 @@ class RecordLifecycleTest {
         verify(records, never()).updateById(any(MaintainRecord.class));
     }
 
-    /** C-25⑧ 对照：内部认证路径（review/signRequest/archiveView）不归一，记录不存在仍 1404 */
     @Test
     void internalPathsUnknownRecordStill404() {
         when(records.selectById("ur_missing")).thenReturn(null);
@@ -267,7 +255,6 @@ class RecordLifecycleTest {
         verify(records, never()).updateById(any(MaintainRecord.class));
     }
 
-    /** T4-I4：已确认（含归档异常残留 CONFIRMED+PENDING_CLIENT_SIGNATURE）不得拒签回滚已签 */
     @Test
     void refuseByTokenRejectedWhenAlreadyConfirmed() {
         MaintainRecord r = record("PENDING_CLIENT_SIGNATURE");
@@ -279,7 +266,6 @@ class RecordLifecycleTest {
         verify(records, never()).update(any(), any());
     }
 
-    /** T4-I4：旧版本（存在 prevVersionId=本记录 id 的后续版本）不可拒签 */
     @Test
     void refuseByTokenRejectedForSupersededVersion() {
         MaintainRecord r = record("PENDING_CLIENT_SIGNATURE");
@@ -291,7 +277,6 @@ class RecordLifecycleTest {
         verify(records, never()).update(any(), any());
     }
 
-    /** T4-I4：条件更新 0 行（并发签字抢先落库）→ 422，实体不改写（防状态撕裂） */
     @Test
     void refuseByTokenConditionalUpdateZeroRows() {
         MaintainRecord r = record("PENDING_CLIENT_SIGNATURE");
@@ -318,11 +303,6 @@ class RecordLifecycleTest {
         assertEquals("SUCCESS", r.reportStatus); // D2：2.6 不重报
     }
 
-    /**
-     * 2026-11-21 审查修复（不变量§3.7）：归档落库只写归档四字段——render 会把签名图重签为
-     * 时效 URL（?s=）回填实体取图，旧整实体 updateById 会把该时效 URL 写死入库（过期即死链），
-     * 现改守卫式最小更新，签名 URL 列绝不出现在 SET 子句。
-     */
     @Test
     void archivePersistsOnlyArchiveFields() {
         MaintainRecord r = record("PENDING_CLIENT_SIGNATURE");

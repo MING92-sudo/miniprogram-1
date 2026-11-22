@@ -28,10 +28,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/**
- * 使用单位门户（W3，Task 10，docs/14 §4）：只见本 useUnitId 的电梯/记录/急修；
- * 报修复用急修链路，并派给该梯责任人（无责任人则留待派单）。
- */
+/** 使用单位门户：只见本 useUnitId 的电梯/记录/急修； */
 class UnitPortalServiceTest {
 
     private final ElevatorMapper elevatorMapper = mock(ElevatorMapper.class);
@@ -54,12 +51,10 @@ class UnitPortalServiceTest {
         return el;
     }
 
-    /** T4-I5 fixture 同步：客户可见性按 §4.6 表过滤后，列表 fixture 须为可签状态才可见 */
     private static MaintainRecord record(String id, String code) {
         return record(id, code, "uu_1");
     }
 
-    /** P2b T9：客户读路径改按记录快照 useUnitId 过滤，fixture 须显式钉住快照列 */
     private static MaintainRecord record(String id, String code, String useUnitId) {
         MaintainRecord r = new MaintainRecord();
         r.id = id;
@@ -77,7 +72,6 @@ class UnitPortalServiceTest {
         return fault(id, code, "uu_1");
     }
 
-    /** P2b T9：急修读路径改按 Fault 快照 useUnitId 过滤，fixture 须显式钉住快照列 */
     private static Fault fault(String id, String code, String useUnitId) {
         Fault f = new Fault();
         f.id = id;
@@ -108,12 +102,6 @@ class UnitPortalServiceTest {
         assertEquals("EM-1", svc.faults("uu_1").get(0).get("elevatorCode"));
     }
 
-    /**
-     * C-25②（投影补齐）：Fault 表无 elevatorName 列，急修行电梯名按 elevatorCode 批量联本单位电梯
-     * （一次 .in 查询建 code→name，查询次数不随急修行数增长 = 无 N+1）；
-     * 缺名回退 elevatorCode（与 pkg-client orders 页 `item.elevatorName || item.elevatorCode` 同显示语义）；
-     * 跨单位过滤口径不变。trapped 依赖 C-18 增列，不改表裁决，本投影暂不下发。
-     */
     @Test
     void faultsCarryElevatorNameFromBatchJoin() {
         Elevator nameless = elevator("el_2", "EM-2", "uu_1", null);
@@ -128,13 +116,11 @@ class UnitPortalServiceTest {
 
         List<Map<String, Object>> out = service().faults("uu_1");
 
-        // 跨单位急修仍被过滤（ft_4/EM-9 非 uu_1 名下电梯）
         assertEquals(List.of("ft_1", "ft_2", "ft_3"), out.stream().map(r -> r.get("id")).toList());
         assertEquals("EM-1 梯", out.get(0).get("elevatorName"));
         assertEquals("EM-1 梯", out.get(1).get("elevatorName"));
         assertEquals("EM-2", out.get(2).get("elevatorName"));
-        // 无 N+1（P2 T5/T3 minor）：电梯表只查 1 次——codes 与电梯名 map 复用同一次 ownElevators 结果，
-        // 不再按 codes 重查电梯；更不得逐行查
+        // 更不得逐行查
         verify(elevatorMapper, atMost(1)).selectList(any());
     }
 
@@ -152,7 +138,6 @@ class UnitPortalServiceTest {
         assertEquals("ur_wait", out.get(0).get("id"));
     }
 
-    /** T4-I5（docs/14 §4.6 可见性表）：客户列表只含 待签/已签/归档/拒签 四态 + 链末端最新版本；行投影带 lifecycleStatus/version */
     @Test
     void recordsFollowVisibilityTable() {
         when(elevatorMapper.selectList(any())).thenReturn(List.of(elevator("el_1", "EM-1", "uu_1", null)));
@@ -183,12 +168,10 @@ class UnitPortalServiceTest {
                 out.stream().map(r -> r.get("id")).toList());
         assertEquals("PENDING_CLIENT_SIGNATURE", out.get(0).get("lifecycleStatus"));
         assertEquals(1, out.get(0).get("version"));
-        // P2 T5（N+1 消除）：最新版本判定批量化——记录表至多 2 次查询（列表 1 + supersededIds 1），不再逐条 selectCount
         verify(recordMapper, never()).selectCount(any());
         verify(recordMapper, atMost(2)).selectList(any());
     }
 
-    /** T4-I5：待签列表剔除 双签未齐/已签/状态撕裂残留（PENDING_CLIENT_SIGNATURE+CONFIRMED） */
     @Test
     void pendingSignsOnlySignableState() {
         when(elevatorMapper.selectList(any())).thenReturn(List.of(elevator("el_1", "EM-1", "uu_1", null)));
@@ -207,12 +190,6 @@ class UnitPortalServiceTest {
         assertEquals("ur_sign", out.get(0).get("id"));
     }
 
-    /**
-     * P1 T8-A1（控制器裁决 T7-C2，docs/14 §4.6 规则 8 兼容期）：
-     * 仅 /unit/pending-signs 行保留 shareToken（小程序待办「去签字」以行内 token 拼签字链接，
-     * sign 页只有 token 路径、无会话回退）；/unit/records/list 行一律不含（§4.7 白名单）。
-     * 与 mock clientPendingSignRow/clientRecordRow 口径对齐。
-     */
     @Test
     void pendingSignsCarryShareTokenWhileRecordsDoNot() {
         when(elevatorMapper.selectList(any())).thenReturn(List.of(elevator("el_1", "EM-1", "uu_1", null)));
@@ -287,10 +264,6 @@ class UnitPortalServiceTest {
         assertTrue(noDesc.getMessage().contains("描述"));
     }
 
-    /**
-     * P2b T9（快照谓词）：记录归属以 r.useUnitId 快照为准，不再看当前电梯归属。
-     * r.elevatorCode=EM-1 属 uu_1 电梯，但快照 useUnitId=uuB → uuA 不含、uuB 含。
-     */
     @Test
     void recordsFilteredBySnapshotUnitNotElevatorCode() {
         when(elevatorMapper.selectList(any())).thenReturn(List.of(elevator("el_1", "EM-1", "uu_1", null)));
@@ -304,10 +277,6 @@ class UnitPortalServiceTest {
         assertEquals("ur_snap_b", b.get(0).get("id"));
     }
 
-    /**
-     * P2b T9（NULL fail-closed）：use_unit_id 为 NULL 的历史记录对客户完全隐藏，
-     * records() 与 pendingSigns() 两条读路径均不得下发。
-     */
     @Test
     void nullSnapshotHiddenFromClient() {
         when(elevatorMapper.selectList(any())).thenReturn(List.of(elevator("el_1", "EM-1", "uu_1", null)));
@@ -318,10 +287,6 @@ class UnitPortalServiceTest {
         assertTrue(svc.pendingSigns("uu_1").isEmpty(), "NULL 快照记录不得出现在客户待签列表");
     }
 
-    /**
-     * P2b T9（快照谓词）：急修单归属以 f.useUnitId 快照为准，不再看当前电梯归属。
-     * 电梯名 map 仍按本单位在保档案投影（缺名回退 elevatorCode 口径不变）。
-     */
     @Test
     void faultsFilteredBySnapshotUnit() {
         when(elevatorMapper.selectList(any())).thenReturn(List.of(elevator("el_1", "EM-1", "uu_1", null)));

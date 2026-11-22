@@ -23,13 +23,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-/**
- * 部门域谓词（docs/14 §4 部门互斥、§5 部门内可见范围）：不起 Spring 容器，
- * EmployeeMapper 按查询参数模拟 manager_id / group_name 过滤。
- */
 class DeptScopeServiceTest {
 
-    /** 组织树：维保经理 m1 → 班组长 l1 → 维保人员 w1/w2；m1 另带 w3（B 组）；安装经理 i1 独立部门 */
     private final List<Employee> roster = List.of(
             employee("m1", RoleCatalog.MAINT_MANAGER, null, "MAINT", null),
             employee("l1", RoleCatalog.LEADER, "A", "MAINT", "m1"),
@@ -88,7 +83,6 @@ class DeptScopeServiceTest {
         return service(mapper());
     }
 
-    /** docs/14 §5 平台级 + §4 部门互斥 */
     @Test
     void platformAndDepartmentIsolation() {
         DeptScopeService scope = service();
@@ -105,20 +99,17 @@ class DeptScopeServiceTest {
         assertFalse(scope.sameDepartment(null, byId("w1")));
     }
 
-    /** 存量/新建档未填 department 时按角色回退，避免 V31 回填之外的账号失去部门口径 */
     @Test
     void departmentFallsBackToRole() {
         DeptScopeService scope = service();
         assertEquals("MAINT", scope.departmentOf(employee("x1", RoleCatalog.WORKER, "A", null, null)));
         assertEquals("INSTALL", scope.departmentOf(employee("x2", RoleCatalog.INSTALL_CLERK, null, null, null)));
-        // P1 裁决（task-1）：客户主体部门投影为 null（存量已回填 department=UNIT 的账号仍走存量值，见 L159）
         assertNull(scope.departmentOf(employee("x3", RoleCatalog.UNIT_ADMIN, null, null, null)));
         assertEquals("MAINT", scope.departmentOf(byId("l1")));
         assertNull(scope.departmentOf(null));
         assertNull(scope.departmentOf(employee("x4", "HACKER", null, null, null)));
     }
 
-    /** docs/14 §5 管理链：经理 → 班组长 → 维保人员（本人 + 直接/间接下属） */
     @Test
     void managerChainIncludesSelfAndIndirectSubordinates() {
         DeptScopeService scope = service();
@@ -137,7 +128,7 @@ class DeptScopeServiceTest {
         assertEquals(Set.of("self"), new DeptScopeService(mapper).subordinateEmpIds(self));
     }
 
-    /** docs/14 §5 班组：本班组员工；无班组仅本人；平台级不限（null） */
+    /** 无班组仅本人； */
     @Test
     void groupAndSelfVisibility() {
         DeptScopeService scope = service();
@@ -153,7 +144,6 @@ class DeptScopeServiceTest {
         assertTrue(scope.selfVisible(null).isEmpty());
     }
 
-    /** docs/14 §5 使用单位域：UNIT_ADMIN 只可见绑定单位，其它角色不适用 */
     @Test
     void useUnitScopeOnlyAppliesToUnitAdmin() {
         DeptScopeService scope = service();

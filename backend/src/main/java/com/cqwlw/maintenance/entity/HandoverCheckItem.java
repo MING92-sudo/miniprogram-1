@@ -4,7 +4,6 @@ import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 
-/** 移交查验单项（Task 4）：6 类 item_type，result=PASS/FAIL/NA */
 @TableName("handover_check_item")
 @Data
 public class HandoverCheckItem {
@@ -16,7 +15,6 @@ public class HandoverCheckItem {
     /** PASS/FAIL/NA */
     public String result;
     public String remark;
-    /** C-12：74 项标准清单字段（GB/T 10060—2023 表1） */
     public Integer itemNo;
     public String itemGroup;
     public String clauseNo;

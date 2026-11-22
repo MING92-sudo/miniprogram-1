@@ -1,5 +1,3 @@
-// P3 客户选单位页（docs/14 §6.4）：口令/微信已验证后，凭 selectionToken 列出候选单位，
-// 选定后换发正式客户令牌。selectionToken 由登录页存 storage，不落地 URL。
 const client = require('../../../services/client')
 const auth = require('../../../services/auth')
 const { clearUnitSession } = require('../../../services/unit')

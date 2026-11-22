@@ -3,7 +3,6 @@ import { mount, flushPromises } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import { createRouter, createWebHashHistory } from 'vue-router'
 
-// V56 拒签分类展示：列表行「拒签 + 分类码」标记、详情抽屉拒签分类/拒签原因区块
 vi.mock('../api/client', () => ({
   default: {
     get: vi.fn(),

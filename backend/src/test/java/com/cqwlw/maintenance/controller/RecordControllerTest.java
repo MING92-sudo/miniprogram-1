@@ -29,15 +29,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/**
- * C-24 员工内部读记录详情端点（GET /records/{id}）：
- * 门禁链 MultiRoleGate.requireRead(record:view)（冻结矩阵 Y=MAINT_SUP/MAINT_MGR/PLATFORM_ADMIN/SYS_ADMIN，
- * C=MAINT_TECH）→ EmployeeScopeService.require → V7 班组读谓词 visibleReadPlatformIds（按主角色 e.role 旧码判定：
- * ADMIN/SYS_ADMIN/MAINT_MANAGER/MAINT_QUALITY→null 不限；安装部三岗/MAINT_BIZ→空集任何记录 1403；
- * 其余=本人+区域+LEADER 本组）→ 范围外 1403 无副作用 → toMap 内部全量投影。
- * 真实 EmployeeScopeService + UnitRecordService，仅 mock mapper；客户路径零改动
- * （/unit/records/{id} getAs 仍 requireClient，见 UnitTokenScopeTest/ClientRecordGateTest）。
- */
+/** 真实 EmployeeScopeService + UnitRecordService，仅 mock mapper； */
 class RecordControllerTest {
 
     private MaintainRecordMapper records;
@@ -156,14 +148,6 @@ class RecordControllerTest {
         assertEquals("ur_5", controller.get("ur_5", req(Set.of("PLATFORM_ADMIN"), "emp_adm")).getData().get("id"));
     }
 
-    /**
-     * NO_FIELD 主角色（MAINT_BIZ）→ 空集，任何记录 1403——即使 workerPlatformId=本人也不放行。
-     * 多角色权限并集（§3.9）：门禁经 MAINT_TECH 的 C 通过，数据范围仍按主角色判（防御纵深：
-     * 即使未来矩阵给 MAINT_BIZ 授 record:view，谓词层仍拦）。
-     * fix round 1：存量 NULL 列（worker/assistant_platform_id 可 NULL，V38 有 IS NULL 处理）必须
-     * 1403 而非 NPE→500——NO_FIELD 空集为 Set.of() 不可变集，contains(null) 抛 NPE 且丢失
-     * BLOCKED 审计，谓词须带 null 守卫（ElevatorService.profile L115-118 同款范式）。
-     */
     @Test
     void bizPrimaryRoleEmptyScopeGets1403EvenForOwnPlatformId() {
         when(employees.selectById("emp_b")).thenReturn(emp("emp_b", "MAINT_BIZ", "P_B", ""));

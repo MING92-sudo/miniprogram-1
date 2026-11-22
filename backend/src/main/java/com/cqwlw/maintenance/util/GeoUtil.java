@@ -1,8 +1,5 @@
 package com.cqwlw.maintenance.util;
 
-/**
- * 签到定位距离计算（docs/02 §5.4：Haversine 球面距离，签到坐标 vs 电梯档案登记坐标）。
- */
 public final class GeoUtil {
 
     private static final double EARTH_RADIUS_METERS = 6371000d;

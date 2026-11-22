@@ -14,9 +14,6 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-/**
- * 合同接口权限（Task 12/14）：项目合同台账按能力码控制：读=contract:read、写=contract:write。
- */
 class ContractPermissionTest {
 
     private final ContractService contractService = mock(ContractService.class);
@@ -46,7 +43,6 @@ class ContractPermissionTest {
         assertEquals(0, controller.create(java.util.Map.of("contractNo", "HT-1"), request("MAINT_BIZ")).getCode());
     }
 
-    /** 维保人员不可读合同；使用单位按 docs/14 §4「本单位合同读」放行 */
     @Test
     void workerCannotReadButUnitAdminCan() {
         assertEquals(403, assertThrows(BizException.class,

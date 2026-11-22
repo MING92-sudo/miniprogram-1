@@ -3,8 +3,6 @@ import { mount, flushPromises } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import { createRouter, createWebHashHistory } from 'vue-router'
 
-// Task 10（D2）：维保计划到期投影从绑定时代 bound 切换为 regionStaffed 区域覆盖提示——
-// regionStaffed=false 的行显示「区域无人」预警；「主维保 / 配合」计划绑定人列下线（池化派单不带人）。
 vi.mock('../api/client', () => ({
   default: {
     get: vi.fn(() => Promise.resolve([])),

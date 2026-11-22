@@ -1,5 +1,3 @@
-// 人员档案（「我的」身份卡点击进入）：/auth/me 取本人信息，失败回退会话缓存 userInfo。
-// 后端 AuthController.userInfo() 与 mock /auth/me 同口径；客户主体返回简表，缺失字段显示 -。
 const auth = require('../../services/auth')
 const { definePage } = require('../../utils/guard')
 const { ROUTES } = require('../../config/routes')

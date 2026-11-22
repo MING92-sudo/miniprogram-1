@@ -28,11 +28,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/**
- * 门禁改造兼容性（docs/14 §9.3）：{@link AdminRoleInterceptor} 改走 PermissionMatrix 后，
- * 现有 5 个角色在 (HTTP 方法, 路由) 组合上的放行结果必须与改造前逐条一致。
- * 改造前的两档规则在测试内联为 legacy 期望，避免"实现与期望同源"。
- */
+/** 门禁改造兼容性：{@link AdminRoleInterceptor} 改走 PermissionMatrix 后，现有 5 个角色在 (HTTP 方法, 路由) 组合上的放行结果必须与改造前逐条一致。 */
 class AdminRoleInterceptorCompatTest {
 
     /** 改造前：读=LEADER/ADMIN/SYS_ADMIN，写=ADMIN/SYS_ADMIN */
@@ -121,7 +117,6 @@ class AdminRoleInterceptorCompatTest {
         assertTrue(patterns.contains("/elevators/**"), "门禁注册列表异常: " + patterns);
     }
 
-    /** docs/14 §9.3 解析预留：端点标注 @RequirePerm 时按能力码判定（方法级优先），不再走读/写两档 */
     @Test
     void requirePermAnnotationOverridesTierRules() throws Exception {
         Method method = PermAnnotated.class.getMethod("handler");

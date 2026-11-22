@@ -74,7 +74,6 @@
           <div class="kv"><span class="k">经度（GCJ-02）</span><span class="v mono">{{ current.lng || '—' }}</span></div>
           <div class="kv"><span class="k">纬度（GCJ-02）</span><span class="v mono">{{ current.lat || '—' }}</span></div>
           <div class="kv"><span class="k">定位状态</span><span class="v">{{ current.geoStatus === 'OK' ? '已定位' : '待补 / 待重新采集' }}</span></div>
-          <!-- 绑定字段 M6：库中保留历史值仅作展示，派单/归属链路一律不再读取（区域抢单池取代） -->
           <div class="kv"><span class="k">主维保（历史绑定）</span><span class="v">{{ current.workerName || '—' }}</span></div>
           <div class="kv"><span class="k">配合人员（历史绑定）</span><span class="v">{{ current.assistantName || '—' }}</span></div>
         </div>
@@ -217,9 +216,6 @@
   </div>
 </template>
 <script setup>
-// 电梯台账（原型 Views.elevators + openElevDetail/doElevQr/doElevEdit 对齐）：
-// 档案增删改查（elevator:edit）+ 一梯一档归档目录（只读 SHA-256）+ 停保/启用（status=INACTIVE 直操作）+ 真实设备码 PNG
-// 2026-11-21 用户裁决：行内「移装/停用/报废」变更单入口下线，替换为「停保 / 删除电梯」直操作（存量变更单仍可确认）
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import http from '../api/client'
@@ -255,7 +251,6 @@ const rows = ref([])
 const changes = ref([])
 const loading = ref(false)
 const categories = ['曳引与强制驱动电梯', '液压驱动电梯', '杂物电梯', '自动扶梯与自动人行道']
-// 列口径（2026-11-21 用户定版 7 列）：小区名称 / 内部编号 / 所在区域 / 注册代码 / 电梯编码 / 使用单位 / 操作；
 // 设备代码、上次/下次维保、状态、详细地址从表格拿掉，仅在档案抽屉与电梯档案页可见
 const cols = [
   { key: 'projectName', label: '小区名称', sortable: true },
@@ -407,7 +402,6 @@ async function submitDelete() {
   catch (e) { toast.error(e.message || '删除失败') }
 }
 
-// 停保 / 启用（PUT /elevators/{id} status：INACTIVE=停保后不派单、小程序不可见，docs/09 §6.6；可逆）
 async function toggleSuspend(row) {
   if (!row || !row.id) return
   const suspend = row.status !== 'INACTIVE'

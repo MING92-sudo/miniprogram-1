@@ -1,4 +1,3 @@
-/* 我的（屏 20 · 原型 V1.4）：身份卡 / 我的角色 / 切换工作台 / 功能入口 */
 page{background:var(--ink);color:var(--text)}
 .pf-avatar{width:96rpx;height:96rpx;border-radius:50%;background:#E4EAEE;border:1rpx solid #C6D0D7;display:flex;align-items:center;justify-content:center;font-size:44rpx;color:#55666F;flex:none}
 .pf-sec{padding:2rpx 2rpx 0}

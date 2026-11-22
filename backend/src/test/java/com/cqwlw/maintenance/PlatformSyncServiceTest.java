@@ -24,12 +24,6 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/**
- * 2.7 平台档案同步归属校验：
- * 平台按条件查询可能返回多台梯，原实现盲取 list.get(0)，会把别的电梯的 elevatorCode
- * 写成本梯的；该字段是 2.7 查询与派单的身份键，写错后同步与派单都会落到别的梯上。
- * 故无法确认归属时必须 fail-closed 跳过。
- */
 class PlatformSyncServiceTest {
 
     private CompanyMapper companyMapper;
@@ -149,7 +143,6 @@ class PlatformSyncServiceTest {
         assertEquals("130421", el.elevatorCode);
         assertEquals("5633318206815862786", el.useUnitEntityId);
         assertEquals("张三", el.elevatorAdminister);
-        // docs/04 B.7：平台手机号为脱敏值，不得覆盖本地真实号码
         assertEquals("13800000001", el.elevatorAdministerPhone);
     }
 }

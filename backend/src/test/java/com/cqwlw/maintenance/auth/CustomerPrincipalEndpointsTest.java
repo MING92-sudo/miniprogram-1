@@ -21,11 +21,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
-/**
- * 客户主体在「员工端点」上的行为回归（小程序端实测发现）：
- * /me/menus 与 /auth/me 都在客户端白名单内，若对客户返回 401，前端 request 层会清登录态并回登录页，
- * 表现为「客户登录成功后立刻被踢回登录页」——两个端点必须对客户返回 200。
- */
+/** /me/menus 与 /auth/me 必须允许客户访问，避免被前端踢回登录页。 */
 class CustomerPrincipalEndpointsTest {
 
     private HttpServletRequest customerRequest(String accountId) {
@@ -103,7 +99,6 @@ class CustomerPrincipalEndpointsTest {
         assertFalse(ex.getMessage().isEmpty());
     }
 
-    // ── 2026-11-20 静态排查：白名单放行但只认员工主体的三个端点 ──────────────
 
     @Test
     void changePasswordRoutesCustomerToClientAccountNotEmployee() {
@@ -165,8 +160,6 @@ class CustomerPrincipalEndpointsTest {
 
         assertEquals(0, resp.getCode());
         org.mockito.Mockito.verify(clientService).changePassword("ca_1", "123456", "12345678");
-        // 客户口令在 client_account.password_hash；use_unit.password_hash 迁移后已清空，
-        // 走旧口径会 401 并让客户被踢回登录页
         verifyNoInteractions(unitAccountService);
     }
 }

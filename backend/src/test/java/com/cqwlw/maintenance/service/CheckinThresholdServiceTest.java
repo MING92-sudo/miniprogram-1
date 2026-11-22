@@ -11,10 +11,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-/**
- * 签到定位阈值三级解析（docs/02 §5.4）：电梯级 → 品种级（sys_param）→ 全局（sys_param）→ app 配置。
- * 品种级数值属业务/合规参数，未预置时必须安全回退，不得因缺行导致签到被误拦或放行无阈值。
- */
+/** 品种级数值属业务/合规参数，未预置时必须安全回退，不得因缺行导致签到被误拦或放行无阈值。 */
 class CheckinThresholdServiceTest {
 
     private static final String CATEGORY = "液压驱动电梯";

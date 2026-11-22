@@ -37,8 +37,7 @@ class JwtServiceTest {
 
     @Test
     void missingSecretFailsFastAtStartup() {
-        // 回归：签名密钥已无默认值（application.yml 移除 dev 默认串）。缺失必须启动失败，
-        // 否则会以公开密钥签发 token，可伪造任意 role
+        // 回归：签名密钥已无默认值（application.yml 移除 dev 默认串）。
         AppProperties props = new AppProperties();
         IllegalStateException e = assertThrows(IllegalStateException.class, () -> new JwtService(props));
         org.junit.jupiter.api.Assertions.assertTrue(e.getMessage().contains("JWT_SECRET"));

@@ -20,14 +20,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-/**
- * 客户会话端点（P3）：登录已并入唯一入口 {@code POST /auth/login} / {@code POST /auth/wx-login}
- * （AuthController 自动分流，前端不再区分通道）；本控制器只保留「登录后」能力：
- * 选单位、本人信息、自助改密。
- *
- * <p>选单位：口令/微信已验证的 selectionToken（claim sel=1）+ useUnitId → 正式客户令牌（ut=2）；
- * 选定前不暴露单位列表，避免手机号枚举。
- */
+/** 本控制器只保留「登录后」能力：选单位、本人信息、自助改密。 */
 @RestController
 public class ClientAuthController {
 

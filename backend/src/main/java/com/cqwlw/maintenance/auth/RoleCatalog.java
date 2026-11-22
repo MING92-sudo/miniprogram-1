@@ -5,13 +5,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-/**
- * 角色目录（docs/14 §3 角色码表）：角色码 → 部门 / 中文名 / 可否登录管理端 / 直属上级。
- * 只做静态映射，不做鉴权判定（判定见 {@link PermissionMatrix}）；未知角色返回 null。
- */
+/** 只做静态映射，不做鉴权判定（判定见 {@link PermissionMatrix}）； */
 public final class RoleCatalog {
 
-    /** 部门码（docs/14 §2）：三个业务部门平级，PLATFORM 为平台层 */
     public static final String PLATFORM = "PLATFORM";
     public static final String INSTALL = "INSTALL";
     public static final String MAINT = "MAINT";
@@ -30,16 +26,10 @@ public final class RoleCatalog {
     public static final String ASSISTANT = "ASSISTANT";
     public static final String UNIT_ADMIN = "UNIT_ADMIN";
 
-    /**
-     * 角色定义。
-     *
-     * @param parentRole 直属上级角色，仅用于建档/展示口径，不参与鉴权判定（真实的上级是
-     *                   {@code sys_employee.manager_id}，见 service/DeptScopeService）
-     */
+    /** parentRole 仅用于展示，不参与鉴权。 */
     public record Role(String code, String department, String name, boolean adminConsole, String parentRole) {
     }
 
-    /** 主体类型（P1）：EMPLOYEE 内部员工（平台/安装/维保），CUSTOMER 使用单位（外部客户租户）。 */
     public enum PrincipalType {
         EMPLOYEE, CUSTOMER
     }
@@ -49,7 +39,6 @@ public final class RoleCatalog {
     static {
         Map<String, Role> roles = new LinkedHashMap<>();
         for (Role role : List.of(
-                // 平台层（2026-11-21 统一：唯一全权管理员=平台管理员；SYS_ADMIN 降为 ALIAS）
                 new Role(ADMIN, PLATFORM, "平台管理员", true, null),
                 // 安装部
                 new Role(INSTALL_MANAGER, INSTALL, "安装项目经理", true, ADMIN),
@@ -75,7 +64,6 @@ public final class RoleCatalog {
     private static final java.util.Map<String, String> ALIAS = new java.util.LinkedHashMap<>();
 
     static {
-        // 规范角色：adminConsole 按 spec §3.1（CLIENT_ADMIN M1 仍 false，M5 才开 Web）
         CANONICAL.put("PLATFORM_ADMIN", new Role("PLATFORM_ADMIN", "PLATFORM", "平台管理员", true, null));
         CANONICAL.put("INST_MGR", new Role("INST_MGR", "INSTALL", "安装部主管", true, null));
         CANONICAL.put("INST_PM", new Role("INST_PM", "INSTALL", "安装部项目负责人", true, "INST_MGR"));
@@ -86,12 +74,10 @@ public final class RoleCatalog {
         CANONICAL.put("MAINT_TECH", new Role("MAINT_TECH", "MAINT", "维保人员", false, "MAINT_SUP"));
         CANONICAL.put("MAINT_BIZ", new Role("MAINT_BIZ", "MAINT", "维保商务", true, "MAINT_MGR"));
         CANONICAL.put("MAINT_QUALITY", new Role("MAINT_QUALITY", "MAINT", "维保质量", true, "MAINT_MGR"));
-        // P1：客户角色 department=null（使用单位为外部租户主体，不属内部部门；数据域走 org_id=use_unit 锚点）
         CANONICAL.put("CLIENT_ADMIN", new Role("CLIENT_ADMIN", null, "使用单位管理员", false, null));
         CANONICAL.put("CLIENT_SIGNER", new Role("CLIENT_SIGNER", null, "使用单位签字人", false, null));
 
         ALIAS.put("ADMIN", "PLATFORM_ADMIN");
-        // 2026-11-21 统一：系统管理员并入平台管理员（唯一全权角色），历史 SYS_ADMIN 一律按平台管理员判定
         ALIAS.put("SYS_ADMIN", "PLATFORM_ADMIN");
         ALIAS.put("INSTALL_MANAGER", "INST_PM");
         ALIAS.put("INSTALL_CLERK", "INST_CLERK");
@@ -113,18 +99,11 @@ public final class RoleCatalog {
         return role == null ? null : ROLES.get(role);
     }
 
-    /** 角色码集合（12 个：docs/14 §3 十二行） */
     public static Set<String> codes() {
         return ROLES.keySet();
     }
 
-    /**
-     * 部门码：PLATFORM/INSTALL/MAINT；客户主体（P1）与未知角色返回 null。
-     *
-     * <p>先按历史码查（保持既有文案/口径不变），再按规范码归一 —— 账号管理、人员建档等
-     * 入口传的是 13 个规范码（MAINT_TECH/INSTALLER/…），只查历史码会返回 null，
-     * 导致新建账号 department 落空、部门数据域谓词失效。
-     */
+    /** 兼容历史角色码，并归一到规范角色码。 */
     public static String departmentOf(String role) {
         if (principalTypeOf(role) == PrincipalType.CUSTOMER) {
             return null; // P1：使用单位是外部租户，不再投影 UNIT 部门（旧 ROLES 表字段保留，仅供历史展示）
@@ -150,39 +129,25 @@ public final class RoleCatalog {
         return "PLATFORM_ADMIN".equals(canonical(role));
     }
 
-    /** 管理端是否可登录（docs/14 §3「可登录端」列 + §10 #1/#2 越权用例） */
+    /** 管理端是否可登录 */
     public static boolean canUseAdminConsole(String role) {
         Role r = role(role);
         if (r == null) {
-            // v2 规范码账号（INST_PM/MAINT_MGR/MAINT_SUP…）与旧字面量同口径：
-            // 只查历史 ROLES 会把规范码判为不可登录，/admin/** 旧两档门禁误拒（docs/14 §3.1 别名表）
             r = canonicalRole(role);
         }
         return r != null && r.adminConsole();
     }
 
-    /**
-     * 是否已知角色码：历史码与规范码都算（canonical 先查规范表再经 ALIAS 翻译）。
-     * 只查历史 {@code ROLES} 会让 MAINT_TECH/INSTALLER 等规范码被判未知——登录响应、种子数据、
-     * 角色分配都已切规范码，判定必须同口径。
-     */
+    /** 同时识别历史码和规范码。 */
     public static boolean known(String role) {
         return canonical(role) != null;
     }
 
-    /**
-     * 建档可分配的角色（管理端「新建人员」判定）：仅员工主体。
-     * 接受历史码（WORKER…）与规范码（MAINT_TECH…）两种写法；客户主体（CLIENT_* / UNIT_ADMIN）
-     * 一律不可在人员目录建档——使用单位账号走「使用单位档案 → 客户账号」。
-     */
+    /** 建档可分配的角色（管理端「新建人员」判定）：仅员工主体。 */
     public static boolean assignable(String role) {
         return principalTypeOf(role) == PrincipalType.EMPLOYEE;
     }
 
-    /**
-     * 建档可分配的角色（管理端「新建人员」下拉）：仅员工主体（P1 按 principalType 过滤）。
-     * 使用单位账号不建在员工目录（走 use_unit 账号，docs/14 §9.1），故不可选。
-     */
     public static java.util.List<Role> assignableRoles() {
         return ROLES.values().stream()
                 .filter(r -> principalTypeOf(r.code()) == PrincipalType.EMPLOYEE)
@@ -225,10 +190,6 @@ public final class RoleCatalog {
         return c == null ? null : CANONICAL.get(c);
     }
 
-    /**
-     * 主体类型（P1）：经 canonical 归一后 CLIENT_ADMIN/CLIENT_SIGNER → CUSTOMER，
-     * 其余规范码 → EMPLOYEE；null/未知码返回 null。T3—T6 消费此方法判客户。
-     */
     public static PrincipalType principalTypeOf(String anyCode) {
         String c = canonical(anyCode);
         if (c == null) {
@@ -239,13 +200,7 @@ public final class RoleCatalog {
                 : PrincipalType.EMPLOYEE;
     }
 
-    /**
-     * P1（T5）：行级客户主体判定——码集非空且全部规范为 CUSTOMER 才是客户；
-     * 含任一内部角色（EMPLOYEE）或未知码不视为客户（内部视图全量保持，只剔除客户行）。
-     * 与 AuthInterceptor.isCustomer（T3 令牌级）同口径；调用方负责组装生效角色集
-     * （主角色 ∪ sys_user_role 多角色集）。判定必须走本方法/主角色集，不得用
-     * department 字面量（客户 department 存 UNIT/null 两代值，字面量判定会漏判一半）。
-     */
+    /** 判定必须走本方法/主角色集，不得用department 字面量（客户 department 存 UNIT/null 两代值，字面量判定会漏判一半）。 */
     public static boolean isCustomerPrincipal(java.util.Collection<String> anyCodes) {
         if (anyCodes == null || anyCodes.isEmpty()) {
             return false;
@@ -258,7 +213,6 @@ public final class RoleCatalog {
         return true;
     }
 
-    /** 同部门方可兼任（docs/14 R7）；跨部门/未知拒绝。客户角色部门为 null（同为外部租户，视为同域）。 */
     public static boolean sameDepartmentAssignable(String roleA, String roleB) {
         Role a = canonicalRole(roleA);
         Role b = canonicalRole(roleB);

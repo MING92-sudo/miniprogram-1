@@ -28,9 +28,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-/**
- * M3 账号管理：列表/开通/停用/分配角色。多角色同部门校验（R7）；停用吊销 token（bumpScopeVersion）。
- */
+/** 停用吊销 token（bumpScopeVersion）。 */
 @RestController
 public class UserController {
 
@@ -47,11 +45,6 @@ public class UserController {
         return String.valueOf(req.getAttribute(AuthInterceptor.ATTR_EMP_ID));
     }
 
-    /**
-     * 账号列表。P1（T5）临时排除客户主体行：生效角色集（多角色 ∪ 主角色）任一内部
-     * （principalTypeOf==EMPLOYEE）即保留、全 CUSTOMER 排除；判定不用 department 字面量
-     * （客户 department 存 UNIT/null 两代值）。客户账号在「使用单位档案」下管理，数据保留不删。
-     */
     @GetMapping("/users")
     public ApiResponse<List<Map<String, Object>>> list(HttpServletRequest req) {
         MultiRoleGate.requireRead(req, PermissionMatrix.USER_VIEW);
@@ -167,10 +160,6 @@ public class UserController {
         userRoleMapper.insert(ur);
     }
 
-    /**
-     * 人员目录只承载内部主体（P3 客户账号独立）：客户角色一律拒绝并引导到「使用单位档案 → 客户账号」。
-     * 客户账号存 client_account，登录统一走 /auth/login（按账号自动分流）；混入员工表会造成「停用一处、另一处仍可登录」。
-     */
     private static void requireInternalRoles(List<String> roles) {
         for (String r : roles) {
             if (RoleCatalog.principalTypeOf(r) == RoleCatalog.PrincipalType.CUSTOMER) {

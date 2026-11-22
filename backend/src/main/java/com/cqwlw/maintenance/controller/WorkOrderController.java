@@ -16,10 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 import java.util.Map;
 
-/**
- * 工单与现场作业（docs/04 A.2）：签到/双人动态码/清单/签退均带幂等键去重（AGENTS §3）；
- * 详情与现场作业端点一律把登录人 empId 交给服务层校验工单归属（V7 班组数据权限，AGENTS §6）。
- */
+/** 工单与现场作业：签到/双人动态码/清单/签退均带幂等键去重（AGENTS §3）； */
 @RestController
 public class WorkOrderController {
 
@@ -35,7 +32,7 @@ public class WorkOrderController {
 
     private final com.cqwlw.maintenance.service.RecordLifecycleService recordLifecycleService;
 
-    /** M1：配合人退回签字（仅配合人本人，无上报副作用） */
+    /** 配合人退回签字（仅配合人本人，无上报副作用） */
     @PostMapping("/work-orders/{id}/signature-refuse")
     public ApiResponse<Object> signatureRefuse(@PathVariable String id,
                                                @RequestHeader(value = "X-Idempotency-Key", required = false) String idemKey,
@@ -49,7 +46,6 @@ public class WorkOrderController {
         return ApiResponse.ok(result);
     }
 
-    /** M1：主管复核（通过/退回，退回原因必填） */
     @PostMapping("/work-orders/{id}/review")
     public ApiResponse<Object> review(@PathVariable String id, @RequestBody Map<String, Object> body,
                                       @RequestHeader(value = "X-Idempotency-Key", required = false) String idemKey,
@@ -66,7 +62,6 @@ public class WorkOrderController {
         return ApiResponse.ok(result);
     }
 
-    /** M1：发起使用单位签字（门控双签齐） */
     @PostMapping("/work-orders/{id}/sign-request")
     public ApiResponse<Object> signRequest(@PathVariable String id,
                                            @RequestHeader(value = "X-Idempotency-Key", required = false) String idemKey,
@@ -81,7 +76,6 @@ public class WorkOrderController {
         return ApiResponse.ok(result);
     }
 
-    /** M1：归档投影（PDF 重签 URL + SHA-256；存量 SIGNED 按需补归档） */
     @GetMapping("/work-orders/{id}/archive")
     public ApiResponse<Map<String, Object>> archive(@PathVariable String id, HttpServletRequest request) {
         return ApiResponse.ok(recordLifecycleService.archiveView(id, empId(request)));
@@ -112,7 +106,6 @@ public class WorkOrderController {
         return String.valueOf(request.getAttribute(com.cqwlw.maintenance.auth.AuthInterceptor.ATTR_EMP_ID));
     }
 
-    // Minor7：只读查询改 GET，不再占用幂等表
     @GetMapping("/work-orders/resolve-by-elevator")
     public ApiResponse<Object> resolveByElevator(@RequestParam String elevatorCode,
                                                  HttpServletRequest request) {
@@ -132,7 +125,7 @@ public class WorkOrderController {
         return ApiResponse.ok(result);
     }
 
-    /** 主维保生成双人动态码（60 秒有效、绑定工单、一次性；docs/03 §3.2 项6） */
+    /** 主维保生成双人动态码（60 秒有效、绑定工单、一次性； */
     @PostMapping("/work-orders/{id}/dynamic-code")
     public ApiResponse<Map<String, Object>> issueDynamicCode(@PathVariable String id, HttpServletRequest request) {
         return ApiResponse.ok(workOrderService.issueDynamicCode(id, empId(request)));
@@ -145,7 +138,7 @@ public class WorkOrderController {
         return ApiResponse.ok(workOrderService.verifyDynamicCode(id, body, empId(request)));
     }
 
-    /** 配合人候选（D3/D4/M10：工单区域快照同区域+持平台ID+在职+排除主维保；仅主维保本人） */
+    /** 仅主维保本人） */
     @GetMapping("/work-orders/{id}/partner-candidates")
     public ApiResponse<Map<String, Object>> partnerCandidates(@PathVariable String id, HttpServletRequest request) {
         return ApiResponse.ok(workOrderService.partnerCandidates(id, empId(request)));
@@ -190,7 +183,7 @@ public class WorkOrderController {
         return ApiResponse.ok(workOrderService.runThisTime(id, itemId, empId(request)));
     }
 
-    /** 主维保/配合人员各自手机签字（docs/01 §3.7.5）：写操作带幂等键去重 */
+    /** 主维保/配合人员各自手机签字：写操作带幂等键去重 */
     @PostMapping("/work-orders/{id}/signature")
     public ApiResponse<Object> signOrder(@PathVariable String id, @RequestBody Map<String, Object> body,
                                          @RequestHeader(value = "X-Idempotency-Key", required = false) String idemKey,

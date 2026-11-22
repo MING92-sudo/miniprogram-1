@@ -24,14 +24,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-/**
- * 租户快照存量幂等回填 Runner（权限 P2 T6；spec §6 / plan Task 6）：
- * 启动期把历史 work_order / maintain_record / fault 的 use_unit_id/use_unit_name 快照补齐。
- * 幂等：只处理 use_unit_id IS NULL 行；问题按 uk_issue 由 MigrationIssueService.upsert 幂等留痕。
- * 过户嫌疑集 S（CONFIRMED TRANSFER）内电梯的历史对象不自动回填，逐行写 TRANSFER_SUSPECT 人工核对。
- * 回填一律「新实体仅 set id + 快照列」后 updateById，绝不整行回写（裁决 R6，避免覆盖并发变更）。
- * 只 INSERT/UPDATE，禁止 DELETE（留存红线）。
- */
 @Service
 public class TenantSnapshotBackfillRunner {
 
@@ -121,7 +113,6 @@ public class TenantSnapshotBackfillRunner {
             for (WorkOrder o : batch) {
                 handleOrder(o, rep, suspects, unitNames);
             }
-            // orderByAsc(id) 下末元素即本批最大 id，推进游标跳过本批（含只写 issue 的未回填行）
             lastId = batch.get(batch.size() - 1).id;
         }
     }
@@ -169,7 +160,6 @@ public class TenantSnapshotBackfillRunner {
             for (MaintainRecord r : batch) {
                 handleRecord(r, rep, suspects, unitNames);
             }
-            // orderByAsc(id) 下末元素即本批最大 id，推进游标跳过本批（含只写 issue 的未回填行）
             lastId = batch.get(batch.size() - 1).id;
         }
     }
@@ -241,7 +231,6 @@ public class TenantSnapshotBackfillRunner {
             for (Fault f : batch) {
                 handleFault(f, rep, suspects, unitNames);
             }
-            // orderByAsc(id) 下末元素即本批最大 id，推进游标跳过本批（含只写 issue 的未回填行）
             lastId = batch.get(batch.size() - 1).id;
         }
     }

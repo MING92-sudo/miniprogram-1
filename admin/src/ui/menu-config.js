@@ -1,7 +1,3 @@
-// IA 菜单常量（2026-11-22 精简，对齐 sptecloud 参考：7 组 18 项，合并页用 Tab 承载）。
-// perm=null 表示无条件可见（工作台落地页，实际访问由路由守卫/后端判）。
-// 合并口径：合同→/projects?tab=contracts；授权→/roles?tab=grants；区域/模板→/settings?tab=…；
-// 下线（演示数据/占位，路由保留可直达）：消息模板 /msg-templates、服务评价 /reviews、大屏调度 /board。
 import { state } from './permission-v2'
 export const MENU_GROUPS = [
   { title: '概览', items: [{ path: '/dashboard', title: '概览工作台', perm: null, icon: 'gauge' }] },
@@ -35,8 +31,6 @@ export const MENU_GROUPS = [
     { path: '/settings', title: '系统配置', perm: 'config:manage', icon: 'sliders' }
   ] }
 ]
-// 已落地视图白名单：AppShell 用它过滤「配置了菜单但页面还没做」的项。
-// 含被合并/下线但路由仍活的直达路径（/contracts /grants /regions /templates 重定向到合并页）。
 // 新增页面必须同步登记，否则菜单里根本不出现（回归守卫见 menu.test.js）。
 export const IMPLEMENTED_PATHS = ['/dashboard', '/elevators', '/projects', '/dispatch', '/records',
   '/handovers', '/plans', '/users', '/roles', '/use-units', '/org',

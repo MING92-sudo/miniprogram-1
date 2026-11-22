@@ -43,12 +43,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
-/**
- * 演示数据补全（仅 SEED_DEMO_DATA=true）：在基础种子之外，按域幂等补全管理端各页演示数据
- * （区域/项目/合同/移交含 74 项清单+整改+归档/邀请码/限时授权/敏感导出审批）。
- * 每域 selectCount==0 才写入，引用现有电梯/使用单位/账号，不覆盖已有数据、不清库。
- * 基础 DemoDataSeeder 先跑（@Order(0)），本补全后跑（@Order(1)）；生产置 SEED_DEMO_DATA=false。
- */
+/** 演示数据补全（仅 SEED_DEMO_DATA=true）：在基础种子之外，按域幂等补全管理端各页演示数据（区域/项目/合同/移交含 74 项清单+整改+归档/邀请码/限时授权/敏感导出审批）。 */
 @Component
 @Order(1)
 public class DemoDataAugmentSeeder implements ApplicationRunner {

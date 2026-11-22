@@ -12,10 +12,6 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * 角色目录与权限矩阵（docs/14 §3 角色码表、§6 管理端矩阵、§7 小程序矩阵）：
- * 11 个角色的能力判定、未知码启动即失败、管理端可登录口径。
- */
 class RbacMatrixTest {
 
     private static final List<String> ALL_ROLES = List.of(
@@ -28,7 +24,6 @@ class RbacMatrixTest {
     private static final String ADMIN = RoleCatalog.ADMIN;
     private static final String SYS_ADMIN = RoleCatalog.SYS_ADMIN;
 
-    /** 逐角色断言能力，失败信息带角色码，便于对照 docs/14 §6/§7 */
     private static void assertGrants(String capability, List<String> allowed) {
         for (String role : ALL_ROLES) {
             assertEquals(allowed.contains(role), PermissionMatrix.allows(role, capability),
@@ -69,7 +64,6 @@ class RbacMatrixTest {
                 RoleCatalog.UNIT_ADMIN));
     }
 
-    /** docs/14 §8 R3：质量负责人只读异常清单，不可重报 */
     @Test
     void reportRetryExcludesQualityAndInstall() {
         assertGrants(PermissionMatrix.REPORT_RETRY,
@@ -98,8 +92,7 @@ class RbacMatrixTest {
                 ADMIN, SYS_ADMIN, RoleCatalog.INSTALL_MANAGER, RoleCatalog.INSTALL_CLERK,
                 RoleCatalog.MAINT_MANAGER, RoleCatalog.MAINT_QUALITY);
         assertGrants(PermissionMatrix.HANDOVER_READ, readers);
-        // docs/14 §6：安装文员可上传资料（W，端点级在 P3 收敛到 submit-docs）；ADMIN 平台兜底可写，
-        // 但节点签字仍由 HandoverService.NODE_ROLES 限角色，写权限不等于代签
+        // ADMIN 平台兜底可写，但节点签字仍由 HandoverService.NODE_ROLES 限角色，写权限不等于代签
         List<String> handoverWriters = List.of(
                 ADMIN, SYS_ADMIN, RoleCatalog.INSTALL_MANAGER, RoleCatalog.INSTALL_CLERK,
                 RoleCatalog.INSTALL_WORKER, RoleCatalog.MAINT_MANAGER);
@@ -146,7 +139,6 @@ class RbacMatrixTest {
         assertFalse(PermissionMatrix.allows("", PermissionMatrix.ORDER_WRITE));
     }
 
-    /** docs/14 §3「可登录端」：只有小程序端的角色登录管理端即 403（§10 用例 1） */
     @Test
     void adminConsoleEntry() {
         for (String role : List.of(RoleCatalog.WORKER, RoleCatalog.ASSISTANT,
@@ -166,7 +158,6 @@ class RbacMatrixTest {
         assertFalse(RoleCatalog.canUseAdminConsole("HACKER"));
     }
 
-    /** 2026-11-21 修复：v2 规范码账号与旧字面量同口径（原只查历史 ROLES 表误拒规范码） */
     @Test
     void adminConsoleEntryCanonicalCodes() {
         for (String role : List.of("PLATFORM_ADMIN", "SYS_ADMIN", "INST_MGR", "INST_PM", "INST_CLERK",
@@ -178,10 +169,8 @@ class RbacMatrixTest {
         }
     }
 
-    /** docs/14 §3 角色码表：部门、中文名、上级 */
     @Test
     void roleCatalogMatchesDesignDoc() {
-        // 2026-11-21 统一：SYS_ADMIN 并入 ADMIN（唯一全权=平台管理员），旧码 12→11
         assertEquals(Set.of(RoleCatalog.ADMIN,
                         RoleCatalog.INSTALL_MANAGER, RoleCatalog.INSTALL_CLERK, RoleCatalog.INSTALL_WORKER,
                         RoleCatalog.MAINT_MANAGER, RoleCatalog.MAINT_BIZ, RoleCatalog.LEADER,
@@ -194,7 +183,6 @@ class RbacMatrixTest {
         assertEquals("MAINT", RoleCatalog.departmentOf(RoleCatalog.MAINT_BIZ));
         assertEquals("MAINT", RoleCatalog.departmentOf(RoleCatalog.MAINT_QUALITY));
         assertEquals("INSTALL", RoleCatalog.departmentOf(RoleCatalog.INSTALL_CLERK));
-        // P1 裁决（task-1）：客户主体部门投影为 null；旧 ROLES 表 UNIT_ADMIN 的 department 字段仍保留 UNIT
         assertNull(RoleCatalog.departmentOf(RoleCatalog.UNIT_ADMIN));
         assertEquals("PLATFORM", RoleCatalog.departmentOf(RoleCatalog.ADMIN));
         assertEquals("PLATFORM", RoleCatalog.departmentOf(RoleCatalog.SYS_ADMIN));

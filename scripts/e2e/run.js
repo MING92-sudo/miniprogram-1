@@ -1,12 +1,5 @@
 'use strict'
-/**
- * 端到端测试入口。
- *   node scripts/e2e/run.js                 # 全部（认证 + 全端点 + 业务流）
- *   node scripts/e2e/run.js --only auth     # 只跑认证矩阵
- *   node scripts/e2e/run.js --only smoke    # 只跑全端点 smoke
- *   node scripts/e2e/run.js --only flow     # 只跑业务流
- * 退出码：0 全通过；1 有失败。
- */
+/** E2E 入口：--only 支持 auth、smoke、flow。 */
 
 const fs = require('fs')
 const path = require('path')

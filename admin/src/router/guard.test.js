@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { resolveRoute } from './guard'
 
-/** 路由守卫回归（docs/09 §七.2）：未登录跳 /login；已登录访问 /login 跳 /dashboard */
 describe('resolveRoute', () => {
   const protectedRoute = { path: '/dashboard', meta: { title: '监控看板' }, fullPath: '/dashboard' }
   const publicRoute = { path: '/login', meta: { public: true }, fullPath: '/login' }
@@ -25,7 +24,6 @@ describe('resolveRoute', () => {
     expect(resolveRoute(publicRoute, { token: '' })).toBe(true)
   })
 
-  // ── 合并页 permByTab（2026-11-21 审查修复：Tab 合并重定向不再误 403）──
   const rolesRoute = {
     path: '/roles', fullPath: '/roles',
     meta: { title: '角色权限', perm: 'role:assign', permByTab: { grants: 'invite:manage' } }

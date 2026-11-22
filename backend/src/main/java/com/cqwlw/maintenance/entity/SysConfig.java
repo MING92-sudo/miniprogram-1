@@ -6,7 +6,6 @@ import lombok.Data;
 
 import java.time.LocalDateTime;
 
-/** 业务配置（sys_config，M5）。 */
 @Data
 @TableName("sys_config")
 public class SysConfig {

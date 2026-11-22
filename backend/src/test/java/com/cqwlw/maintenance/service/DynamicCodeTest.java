@@ -38,11 +38,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/**
- * 双人动态码时效化 + 主维保/配合人员分别签到（docs/01 §3.7.2、docs/03 §3.2 项6「60 秒动态码，每 5 秒刷新」、docs/05 §2.5）。
- * 原实现为固定 888888（无时效、不绑工单、可无限重放），且工单只允许一人签到（第二人 1003），双人作业闭环断裂。
- * 放在 service 包内以便用包可见的 currentStep()/dynamicCode() 精确校验 60 秒窗口边界。
- */
+/** 双人动态码时效化 + 主维保/配合人员分别签到。 */
 class DynamicCodeTest {
 
     private static final String ORDER = "wo_dual";
@@ -198,8 +194,7 @@ class DynamicCodeTest {
         assertEquals(422, e.getCode());
     }
 
-    /** #7 修复：动态码消费为原子条件更新（UPDATE ... WHERE dynamic_code IS NULL/''）。
-     *  并发下同一码只有一条命中；对端先抢注 → 本端命中 0 行 → 1003，且不落任何签到留痕。 */
+    /** #7 修复：动态码消费为原子条件更新（UPDATE ... WHERE dynamic_code IS NULL/''）。 */
     @Test
     void concurrentConsumeRejectsLoser() {
         String code = String.valueOf(service.issueDynamicCode(ORDER, EMP_P).get("code"));
@@ -212,7 +207,6 @@ class DynamicCodeTest {
         assertNull(order.assistantCheckinExtraJson, "输家不得写任何签到留痕");
     }
 
-    /** docs/01 §3.7.2：主维保与配合人员分别签到，两人留痕互不覆盖 */
     @Test
     void principalAndAssistantCheckinSeparately() {
         service.checkin(ORDER, checkin("PRINCIPAL", null), EMP_P);

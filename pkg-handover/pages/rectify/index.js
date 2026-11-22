@@ -1,4 +1,3 @@
-// 整改回复（M4，C-12 1:1 逐条）：不合格项按 itemNo 1:1 映射（不可增删），安装部逐条上传整改，维保逐条复验（全 PASS 才回待确认）。
 const { getHandoverRectifications, rectifyHandoverItem, recheckHandoverItem, getHandoverDetail } = require('../../../services/handover')
 const { uploadImage } = require('../../../services/upload')
 const { getUserInfo } = require('../../../utils/auth')

@@ -1,15 +1,10 @@
 'use strict'
-/**
- * 认证与权限矩阵：统一登录分流、双主体边界、越权拒绝。
- * 每个 case 都是对"一个通道 + 一种身份 + 一个结论"的验证。
- */
+/** 认证与权限矩阵：统一登录分流、双主体边界、越权拒绝。 */
 
 const { get, post, record, suite, login, assert, assertEq } = require('./lib')
 const { accounts, seed } = require('./seed')
 
-/**
- * @param {object} ctx 上下文，写回 tokens
- */
+/** @param {object} ctx 上下文，写回 tokens */
 async function runAuthCases(ctx) {
   suite('A. 认证与登录分流')
 
@@ -120,7 +115,7 @@ async function runAuthCases(ctx) {
   record('维保人员 GET /users → 403', await get('/users', ctx.tokens.maintTech), 'forbidden')
   record('维保人员 POST /use-units → 403', await post('/use-units', { unitName: 'x' }, ctx.tokens.maintTech), 'forbidden')
   record('维保人员 DELETE /employees/emp_1 → 403', await require('./lib').del('/employees/emp_1', ctx.tokens.maintTech), 'forbidden')
-  // 班组长可登录管理端**只读**（PermissionMatrix.CONSOLE_READ 含 LEADER，docs/14 §3），但不得写档
+  // 班组长可登录管理端**只读**，但不得写档
   record('班组长 GET /admin/dashboard（只读放行）', await get('/admin/dashboard', ctx.tokens.leader), 'ok')
   record('班组长 POST /use-units → 403（写仅平台层）', await post('/use-units', { unitName: 'x' }, ctx.tokens.leader), 'forbidden')
 

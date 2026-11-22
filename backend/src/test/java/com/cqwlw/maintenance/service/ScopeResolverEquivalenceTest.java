@@ -13,7 +13,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-/** ScopeResolver 与 V7 谓词逐集合相等（spec §4.5）；读写不对称保留；写绝不扩区域/部门。 */
+/** 写绝不扩区域/部门。 */
 class ScopeResolverEquivalenceTest {
 
     private final EmployeeMapper employeeMapper = mock(EmployeeMapper.class);
@@ -30,7 +30,6 @@ class ScopeResolverEquivalenceTest {
 
     @Test
     void readWriteEquivalenceForAllLegacyEmployeeRoles() {
-        // 区域 r1 含 p1/p2；班组 g1 含 p1/p3
         Employee r1m1 = emp("e1", "WORKER", "p1", "r1", "g1");
         Employee r1m2 = emp("e2", "WORKER", "p2", "r1", "g2");
         Employee g1m3 = emp("e3", "WORKER", "p3", "r2", "g1");
@@ -54,7 +53,6 @@ class ScopeResolverEquivalenceTest {
         Employee mm = emp("mm", "MAINT_MANAGER", "p_mm", "r1", "g1");
         assertEquals(null, resolver.readPlatformIds(mm));
         assertEquals(Set.of("p_mm"), resolver.writePlatformIds(mm));
-        // WORKER 读含区域 p1/p2/p_self，写仅本人
         Employee w = emp("w", "WORKER", "p_self", "r1", "g1");
         assertEquals(Set.of("p_self"), resolver.writePlatformIds(w));
     }

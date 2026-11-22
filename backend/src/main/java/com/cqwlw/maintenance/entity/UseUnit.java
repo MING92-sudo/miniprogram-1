@@ -19,12 +19,11 @@ public class UseUnit {
     public String elevatorAdministerPhone;
     public String emergencyPhone;
     public String entityId;
-    /** 门户登录账号 / 口令哈希 / 邀请码 / 绑定 openid（V34 迁移，Task 9） */
+    /** 门户登录账号 / 口令哈希 / 邀请码 / 绑定 openid */
     public String account;
     public String passwordHash;
     public String inviteCode;
     public String openid;
     public java.time.LocalDateTime boundAt;
-    /** 门户账号并入 sys_employee 标记（V41，M1）：0=未迁移（跨部门兜底），1=已迁移 */
     public Integer accountMigrated;
 }

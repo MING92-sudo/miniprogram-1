@@ -40,12 +40,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/**
- * 签到定位校验（docs/02 §5.4 阈值配置 + docs/04 A.0.1 码表 1001/1005）：
- * ①电梯坐标已登记 → Haversine 超阈拦截 1001，且不产生任何副作用（不落库、不改状态）；
- * ②电梯级阈值优先于全局默认；③坐标未登记 → geoStatus=UNKNOWN，只留痕不拦截；
- * ④签到缺定位 → 422（合规底线：定位失败如实提示，严禁伪造坐标兜底）。
- */
+/** ④签到缺定位 → 422（合规底线：定位失败如实提示，严禁伪造坐标兜底）。 */
 class CheckinGeoFenceTest {
 
     private static final String ORDER = "wo_geo";
@@ -125,7 +120,6 @@ class CheckinGeoFenceTest {
         assertEquals("PENDING", order.status, "拦截后不得改状态（无副作用）");
     }
 
-    /** D7/D9：自采（SELF_COLLECTED）坐标立即生效为围栏基准——超距与 PROVIDED 同等拦截 1001，不设豁免 */
     @Test
     void selfCollectedBaselineFencesImmediately() {
         elevator.geoStatus = "SELF_COLLECTED";
@@ -153,7 +147,6 @@ class CheckinGeoFenceTest {
         assertEquals("UNKNOWN", r.get("geoStatus"), "坐标未登记只留痕不拦截（码表 1005 语义）");
         assertEquals(Boolean.TRUE, r.get("passed"));
         assertEquals(Boolean.TRUE, r.get("geoBackfilled"), "无坐标电梯应以本次签到定位回填");
-        // 无坐标电梯签到后回填坐标并标记为现场采集（用户需求③ + docs/02 §5.4 geo_status）
         assertEquals("SELF_COLLECTED", elevator.geoStatus);
         verify(elevatorMapper).backfillGeoIfMissing(any(), any(), any());
         verify(elevatorMapper, never()).updateById(any(Elevator.class));

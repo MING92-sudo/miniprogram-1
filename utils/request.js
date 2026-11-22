@@ -1,6 +1,3 @@
-// 统一请求封装：云托管走 wx.cloud.callContainer（免 request 合法域名），本地自建后端走 wx.request。
-// 约定：统一响应 { code:0, message, data }；鉴权 Authorization: Bearer <JWT>；
-// 写接口自动携带 X-Idempotency-Key；401 清登录态并跳转登录页。
 const config = require('../config/index')
 const { ERROR_CODES } = require('../constants/index')
 const { getToken, clearAuth } = require('./auth')
@@ -74,9 +71,7 @@ function request(options) {
     }
 
     const timeoutMs = timeout || config.requestTimeout
-    // 看门狗（2026-11-16 真机登录挂起根因修复）：真机调试通道下 callContainer 可能永不回调
-    // （平台限制），请求层必须自行 settle——否则登录页 logging 恒 true、按钮禁用且无任何提示。
-    // 传输自带 timeout 之外再兜底 +2s；settled 后迟到回调一律忽略，杜绝二次 settle。
+    // 看门狗：真机调试通道下 callContainer 可能永不回调（平台限制），请求层必须自行 settle——否则登录页 logging 恒 true、按钮禁用且无任何提示。
     let settled = false
     const timer = setTimeout(() => {
       if (settled) return
@@ -96,8 +91,6 @@ function request(options) {
       reject({ code: -1, message: (err && err.errMsg) || '网络异常' })
     }
 
-    // 云托管：path 传接口路径（以 / 开头），服务名用 X-WX-SERVICE 头指定；
-    // 走微信内网识别小程序身份，无需把域名配到 request 合法域名（docs/11）。
     if (canCallContainer()) {
       h['X-WX-SERVICE'] = config.cloud.service
       wx.cloud.callContainer({

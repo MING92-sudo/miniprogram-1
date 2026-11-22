@@ -1,9 +1,5 @@
 package com.cqwlw.maintenance.common;
 
-/**
- * 统一响应包装。
- * TODO 与前端 services 层约定的 { code, message, data } 结构对齐。
- */
 public class ApiResponse<T> {
 
     private int code;

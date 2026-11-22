@@ -19,11 +19,6 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/**
- * P2 T5（N+1 批量化）：共享 supersededIds 与逐条 selectCount(prev_version_id=id) 语义等价
- * （docs/14 §4.6 规则 1：最新版本 = 不存在 prev_version_id = 本记录 id 的后续版本）。
- * isLatest(id) = !supersededIds(ids).contains(id)。
- */
 class RecordVersionUtilTest {
 
     private static MaintainRecord rec(String id, String prevVersionId) {
@@ -61,10 +56,7 @@ class RecordVersionUtilTest {
         verify(mapper, times(1)).selectList(any());
     }
 
-    /**
-     * 结果行 prevVersionId=null 忽略；返回集 contains(null) 必须安全返回 false——
-     * 不得用 Set.of()（其 contains(null) 抛 NPE，参见 2026-11-16 班组谓词 NULL 守卫 500 教训）
-     */
+    /** 返回集 contains(null) 必须安全返回 false——不得用 Set.of() */
     @Test
     void nullPrevVersionIdsIgnoredAndContainsNullSafe() {
         MaintainRecordMapper mapper = mock(MaintainRecordMapper.class);
@@ -84,15 +76,12 @@ class RecordVersionUtilTest {
         assertTrue(RecordVersionUtil.supersededIds(mapper, List.of("ur_1")).isEmpty());
     }
 
-    /** 等价性锁定：同一 fixture（版本链 v1←v2←v3 + 孤立记录）上，批量结果与逐条语义逐集合相等 */
     @Test
     void batchResultEqualsPerRecordSemantics() {
-        // fixture：v2.prev=v1、v3.prev=v2（版本链）；solo 无链
         List<MaintainRecord> all = List.of(
                 rec("v1", null), rec("v2", "v1"), rec("v3", "v2"), rec("solo", null));
         List<String> ids = all.stream().map(r -> r.id).toList();
 
-        // 逐条语义（内存模拟旧实现 selectCount(prev_version_id=id)>0 → 被替代）
         Set<String> expected = new HashSet<>();
         for (String id : ids) {
             if (all.stream().anyMatch(next -> id.equals(next.prevVersionId))) {

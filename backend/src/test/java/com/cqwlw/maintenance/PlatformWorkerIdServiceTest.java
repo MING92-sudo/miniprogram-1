@@ -21,11 +21,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/**
- * 维保人员平台ID回填（docs/04 B.5）：
- * 2.4 建档只返回 code/message，platform_id 必须靠 2.5 按证书号精确匹配回填。
- * 证书号重复不得自动取首条，否则会把别人的平台ID写到本系统人员上，2.6 上报错误数据。
- */
+/** 维保人员平台ID回填：2.4 建档只返回 code/message，platform_id 必须靠 2.5 按证书号精确匹配回填。 */
 class PlatformWorkerIdServiceTest {
 
     private PlatformClient platformClient;
@@ -72,7 +68,6 @@ class PlatformWorkerIdServiceTest {
 
     @Test
     void duplicateCertificateDoesNotAutoPickFirst() {
-        // docs/04 B.5：证书号重复必须告警人工处理，不自动取第一条
         Employee e = employee("CERT-DUP");
         when(platformClient.queryWorkList(anyString(), any())).thenReturn(List.of(
                 worker("CERT-DUP", 111L), worker("CERT-DUP", 222L)));

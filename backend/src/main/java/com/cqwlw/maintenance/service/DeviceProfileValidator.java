@@ -8,18 +8,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * 设备信息档案字段口径（用户 2026-11-19 需求，docs/01 §3.4.1）：
- *
- * <p>档案共 8 项，其中**前 5 项为上传维保记录（platform 2.6）的必传项**，缺任一项都不得生成/上传记录：
- * 电梯编码（elevatorCode）、设备代码（deviceCode）、注册代码（registrationCode）、
- * 单位内编号（insideNumber）、出厂编号（factoryNumber）。
- *
- * <p>后 3 项选填：项目名称/小区名称（projectName）、所在区域（regionId）、年检日期（nextCheckDate）。
- *
- * <p>**标签为对外口径，不得改写**：注册代码 不是「产品编号」也不是「设备码」，
- * 电梯编码（本系统内部编码/二维码内容）与设备代码（监管平台设备代码）是两个不同字段。
- */
+/** 2.6 上报前五项设备字段必填，缺失不得生成或上传记录。 */
 public final class DeviceProfileValidator {
 
     private DeviceProfileValidator() {
@@ -73,10 +62,6 @@ public final class DeviceProfileValidator {
         return missing;
     }
 
-    /**
-     * 上传维保记录前置校验：5 项必传字段缺一不可。
-     * 抛出 422 并**逐项列出缺失字段的中文标签**，让现场一眼知道缺什么、去哪里补。
-     */
     public static void requireForRecord(Elevator el) {
         List<String> missing = missingRequired(el);
         if (!missing.isEmpty()) {
@@ -85,9 +70,6 @@ public final class DeviceProfileValidator {
         }
     }
 
-    /**
-     * 新建设备信息档案：5 项必填，一次列全（不做逐字段打断）。
-     */
     public static void requireForCreate(Elevator el) {
         List<String> missing = missingRequired(el);
         if (!missing.isEmpty()) {

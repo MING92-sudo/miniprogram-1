@@ -14,10 +14,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/**
- * M4：无响应的悬挂幂等记录（业务异常后未 commit）10 分钟过期放行——
- * 否则离线队列同 key 重试永远 422，任务永久卡死。
- */
+/** 无响应的悬挂幂等记录（业务异常后未 commit）10 分钟过期放行——否则离线队列同 key 重试永远 422，任务永久卡死。 */
 class IdempotencyServiceTest {
 
     private final IdempotencyKeyMapper mapper = mock(IdempotencyKeyMapper.class);

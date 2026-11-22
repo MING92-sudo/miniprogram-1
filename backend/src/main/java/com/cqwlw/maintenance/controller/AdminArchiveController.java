@@ -15,11 +15,6 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 import java.util.Map;
 
-/**
- * 管理端·档案维护（docs/09 §4.1：维保单位/使用单位/人员/电梯）。
- * 写接口携带 X-Idempotency-Key（AGENTS §3）；手机号互斥预校验在服务层（1002+conflicts[]，docs/04 B.7）。
- * 写角色门禁（ADMIN/SYS_ADMIN）由 AdminRoleInterceptor 承担。
- */
 @RestController
 public class AdminArchiveController {
 
@@ -133,7 +128,6 @@ public class AdminArchiveController {
         return ApiResponse.ok(result);
     }
 
-    // ── 用户权限（SYS_ADMIN 专属，docs/04 A.1）──
 
     @PutMapping("/admin/employees/{id}/enabled")
     public ApiResponse<Object> setEnabled(@PathVariable String id,
@@ -142,10 +136,7 @@ public class AdminArchiveController {
         return ApiResponse.ok(archiveService.setEmployeeEnabled(id, enabled));
     }
 
-    // 旧 SYS_ADMIN 专属端点 PUT /admin/employees/{id}/password 已删除（docs/01 §10.2：SYS_ADMIN 及其专属功能裁剪）：
-    // 重置密码统一走下方 POST /employees/{id}/reset-password（ADMIN+，12 位随机一次性返回）。
-
-    /** 重置密码（docs/09 V2.2 忘记密码方案 A：ADMIN 操作，12 位随机一次性返回，V8 收敛新增） */
+    /** 重置密码 */
     @PostMapping("/employees/{id}/reset-password")
     public ApiResponse<Object> resetPasswordRandom(@PathVariable String id,
                                                    @RequestHeader(value = "X-Idempotency-Key", required = false) String idemKey) {
@@ -185,9 +176,7 @@ public class AdminArchiveController {
         return ApiResponse.ok(result);
     }
 
-    // ── 范围收敛新增（docs/04 V2.9 A.9.0 / docs/09 V3.3）──
 
-    /** 批量导入经纬度（位置待补补录，docs/09 §6.6） */
     @PostMapping("/elevators/batch-geo")
     public ApiResponse<Object> batchGeo(@RequestBody Map<String, Object> body,
                                         @RequestHeader(value = "X-Idempotency-Key", required = false) String idemKey) {
@@ -200,7 +189,6 @@ public class AdminArchiveController {
         return ApiResponse.ok(result);
     }
 
-    /** 电梯贴梯二维码 PNG（内容=电梯编码，docs/09 §6.6） */
     @PostMapping("/elevators/{id}/qrcode")
     public org.springframework.http.ResponseEntity<byte[]> elevatorQrCode(@PathVariable String id) {
         byte[] png = archiveService.elevatorQrPng(id);
@@ -210,7 +198,6 @@ public class AdminArchiveController {
                 .body(png);
     }
 
-    /** 2.2 维保单位主体ID拉取（docs/09 V3.1 ④） */
     @PostMapping("/company/sync-entity-id")
     public ApiResponse<Object> syncCompanyEntityId(
             @RequestHeader(value = "X-Idempotency-Key", required = false) String idemKey) {
@@ -223,7 +210,6 @@ public class AdminArchiveController {
         return ApiResponse.ok(result);
     }
 
-    /** 2.2 使用单位主体ID拉取（docs/09 V3.1 ④） */
     @PostMapping("/use-units/{id}/sync-entity-id")
     public ApiResponse<Object> syncUseUnitEntityId(@PathVariable String id,
                                                    @RequestHeader(value = "X-Idempotency-Key", required = false) String idemKey) {

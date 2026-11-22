@@ -37,12 +37,6 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/**
- * P2 人工核对清单服务（client_migration_issue，spec §6.6 / §19-15；裁决 R2/R10 + T1 前瞻提示）：
- * resolve 执行顺序 = 全量前置校验 → 条件更新认领（WHERE resolution='PENDING'）→ 回填对象行 → 审计，
- * 校验失败 422 零副作用、并发第二次 422 且不重复回填；upsert 按 uk_issue 幂等且不触碰已有裁定；
- * list 返回 {list,total,pending}（pending=全局 PENDING 口径，不受筛选影响）。
- */
 class MigrationIssueServiceTest {
 
     private ClientMigrationIssueMapper issueMapper;
@@ -109,7 +103,6 @@ class MigrationIssueServiceTest {
         assertEquals(true, out.get("ok"));
     }
 
-    /** m-1：BACKFILLED 成功回填——FAULT 分支钉住 faultMapper.updateById */
     @Test
     void resolveBackfillsFaultRowWithUnitIdAndName() {
         issue("FAULT", "f1");
@@ -124,7 +117,6 @@ class MigrationIssueServiceTest {
         assertEquals(true, out.get("ok"));
     }
 
-    /** m-1：BACKFILLED 成功回填——ORDER 分支钉住 orderMapper.updateById */
     @Test
     void resolveBackfillsOrderRowWithUnitIdAndName() {
         issue("ORDER", "wo1");
@@ -223,7 +215,6 @@ class MigrationIssueServiceTest {
         assertEquals("emp9", a.actorId);
     }
 
-    /** T1 前瞻提示：created_at NOT NULL 无 DB 默认、@TableId 走全局 ASSIGN_ID——INSERT 必须显式 id/createdAt */
     @Test
     void upsertInsertsNewPendingIssueWithExplicitIdAndCreatedAt() {
         when(issueMapper.selectOne(any())).thenReturn(null);
@@ -259,7 +250,6 @@ class MigrationIssueServiceTest {
                 () -> svc.resolve("mi1", "BACKFILLED", "uu1", null, "note", "emp1"));
         assertEquals(422, ex.getCode()); // ACCOUNT 类 P3 才有，不支持回填
         verify(issueMapper, never()).update(any(), any()); // 未认领零副作用
-        // 对照：非 BACKFILLED 裁定不受对象类型限制（P3 迁移裁定走 SKIPPED/MANUAL_DONE）
         svc.resolve("mi1", "MANUAL_DONE", null, null, "已带外迁移", "emp1");
         verify(issueMapper).update(any(), any());
     }
@@ -276,7 +266,6 @@ class MigrationIssueServiceTest {
         verify(orderMapper, never()).updateById(any(WorkOrder.class));
     }
 
-    /** 行为规格 4：decision != null → JsonUtil.write 存 decisionJson（P3 Runner 消费，本期只存不读） */
     @SuppressWarnings("unchecked")
     @Test
     void resolveStoresDecisionJsonForRunner() {

@@ -1,5 +1,4 @@
-// 现场验收（M4，C-12 GB/T 10060—2023 表1 74 项）：逐项留证（结果/实测值/不合格描述/NA 原因码/照片），
-// ☆重要项与试验项不合格强制照片；7.2/7.3 判定由后端冻结，前端仅采集 + 有条件移交三条件输入。
+// 7.2/7.3 判定由后端冻结，前端仅采集 + 有条件移交三条件输入。
 const { getHandoverChecklist, submitHandoverChecklist } = require('../../../services/handover')
 const { uploadImage } = require('../../../services/upload')
 const { definePage } = require('../../../utils/guard')

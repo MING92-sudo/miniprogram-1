@@ -31,11 +31,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-/**
- * 工单列表 status=OPEN 过滤（2026-11-21 工作台「待维保」KPI 下钻口径）：
- * OPEN 为虚拟状态 = 未闭环（排除 DONE），mock listOrders 同口径两处同步；
- * 精确状态（PENDING/PROCESSING/DONE）过滤语义不变。
- */
 class WorkOrderListOpenFilterTest {
 
     private static final String EMP_ADMIN = "emp_admin";

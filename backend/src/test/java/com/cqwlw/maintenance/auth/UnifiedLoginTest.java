@@ -25,11 +25,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-/**
- * 统一登录（用户需求）：小程序只有一个登录页，不选通道。
- * {@code POST /auth/login} 按账号自动判定——员工目录命中即员工，否则按 client_account 客户账号校验；
- * 响应统一带 principalType，前端据 home 渲染对应工作台。微信登录同口径。
- */
+/** 统一登录（用户需求）：小程序只有一个登录页，不选通道。 */
 class UnifiedLoginTest {
 
     private final EmployeeMapper employeeMapper = mock(EmployeeMapper.class);
@@ -184,10 +180,6 @@ class UnifiedLoginTest {
         assertEquals(401, ex.getCode());
     }
 
-    /**
-     * 历史残留：员工表还有客户角色行（V54 之前遗留）→ 不再签发员工令牌，按 client_account 校验。
-     * 旧员工口令登不进去；客户账号口令可以登进去。
-     */
     @Test
     void legacyCustomerEmployeeRowBypassedToClientAccount() {
         Employee legacy = new Employee();

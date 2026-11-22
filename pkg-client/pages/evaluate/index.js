@@ -1,4 +1,3 @@
-// 服务评价（M5）：已闭环急修单评价（client:evaluate，1–5 星 + 文字，重复评价后端 422）。
 const { evaluateFault, getFaultDetail } = require('../../../services/fault')
 const { definePage } = require('../../../utils/guard')
 const { ROUTES } = require('../../../config/routes')

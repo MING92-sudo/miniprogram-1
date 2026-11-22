@@ -20,10 +20,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/**
- * PDF 抓图按 /files/{id}?s=... 回源：签名参数不得被当成主键的一部分，
- * 否则导出时照片/签字全部退化成占位文字。
- */
+/** PDF 抓图按 /files/{id}?s=... 回源：签名参数不得被当成主键的一部分，否则导出时照片/签字全部退化成占位文字。 */
 class RecordPdfSignedUrlTest {
 
     private static final byte[] IMAGE = new byte[]{1, 2, 3};

@@ -1,7 +1,6 @@
 // 签退自检：自检项确认 + 签名 + 提交
 const { definePage } = require('../../../utils/guard')
 const { ROUTES } = require('../../../config/routes')
-// 业务规则：签到—签退间隔不少于 N 分钟（config.minWorkDurationMinutes，前后端双重校验）
 // 提交后触发记录生成与监管平台上报（后端）
 const { getOrderDetail, getChecklist, checkout } = require('../../../services/order')
 const { formatDuration, parseTime, uuid } = require('../../../utils/util')
@@ -52,7 +51,6 @@ definePage(ROUTES['/pkg-maintenance/pages/checkout/index'], {
   },
 
   onShow() {
-    // 从检查项页返回后刷新完成度预检（docs/03 §5.7：N/M 完成 + 关键项未拍照红色列出）
     if (this.data.orderId) this.refreshCheckState()
   },
 
@@ -90,8 +88,6 @@ definePage(ROUTES['/pkg-maintenance/pages/checkout/index'], {
         checkinTime: order.checkinTime || '',
         hasAssistant: !!(order.assistantName && order.assistantName !== '无'),
         assistantCheckedIn: !!order.assistantCheckedIn,
-        // 池化判定以 regionId 快照为准（mock 行透出）；真实后端列表/详情未透出时跳过前置，
-        // 由后端 422「请选择配合人员/配合人员未签到」拦截（文案同 TOAST_TEXT，弹层完整展示）
         pooled: !!order.regionId,
         workerSigned: !!order.workerSigned,
         assistantSigned: !!order.assistantSigned,
@@ -138,7 +134,7 @@ definePage(ROUTES['/pkg-maintenance/pages/checkout/index'], {
     })
   },
 
-  // 安全防护确认勾选（docs/04 V2.28：签退采集，写入维保记录）
+  // 安全防护确认勾选
   onSafetyToggle(e) {
     const key = e.currentTarget.dataset.key
     this.setData({
@@ -155,9 +151,8 @@ definePage(ROUTES['/pkg-maintenance/pages/checkout/index'], {
   async onSubmit() {
     const allChecked = this.data.selfChecks.every((c) => c.checked)
     if (!allChecked) return wx.showToast({ title: '请完成全部自检项', icon: 'none' })
-    // 签字已在各自手机完成（docs/01 §3.7.5），此处仅做完整性预检，后端 422 双保险
+    // 签字已在各自手机完成，此处仅做完整性预检，后端 422 双保险
     if (!this.data.workerSigned) return wx.showToast({ title: '请完成主维保签字', icon: 'none' })
-    // D8 池化新单恒双人前置提示（服务端 422 同文案兜底）：未选配合人 → 回作业页选择；已选未签到 → 等配合人到场
     if (this.data.pooled && !this.data.hasAssistant) {
       return wx.showToast({ title: TOAST_TEXT.PARTNER_REQUIRED, icon: 'none' })
     }
@@ -184,7 +179,7 @@ definePage(ROUTES['/pkg-maintenance/pages/checkout/index'], {
     }
     const idem = this.data.rework ? this.data.reworkAttemptKey : 'co_' + this.data.orderId
     try {
-      // 响应：{ duration, originalRecordId, reportStatus, recordId, shareToken }（docs/04 A.2）
+      // 响应：{ duration, originalRecordId, reportStatus, recordId, shareToken }
       const resp = await checkout(this.data.orderId, payload, { idempotencyKey: idem })
       // 签退成功 → 进入签名确认页（安全管理员本机代签，或分享链接远程签字）
       wx.showToast({ title: '签退成功', icon: 'success' })
@@ -207,8 +202,6 @@ definePage(ROUTES['/pkg-maintenance/pages/checkout/index'], {
           wx.reLaunch({ url: '/pages/maint/home/index' })
         }, 1200)
       } else {
-        // 长文案用弹窗完整展示：设备信息档案必传项缺失的提示会把「缺哪几项、去哪补」说全，
-        // toast 单行会被截断（后端 422 文案见 DeviceProfileValidator）
         const msg = (e && e.message) || '签退失败'
         if (msg.length > 24) {
           wx.showModal({ title: '无法签退', content: msg, showCancel: false, confirmText: '知道了' })

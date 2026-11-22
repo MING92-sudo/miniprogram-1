@@ -74,11 +74,6 @@
   </div>
 </template>
 <script setup>
-// 维保计划（2026-11-21 改版）：GET /admin/plans/projection 到期投影（与自动派单同一基线），
-// 解决 maintain_plan 表无数据（D-A1 不做批量生成）导致页面恒空的问题；延期审批沿用原端点。
-// 区域抢单池（D2，Task 10）：投影行 bound 已由 regionStaffed 取代——区域覆盖提示
-//（false = 该区域无持平台ID的在职维保员，行内标「区域无人」预警）；「主维保 / 配合」
-// 计划绑定人列下线（池化派单不带人），改为「区域」列（regionId 经 GET /regions 解析名称）。
 import { ref, reactive, computed, onMounted } from 'vue'
 import http from '../api/client'
 import DataTable from '../ui/DataTable.vue'

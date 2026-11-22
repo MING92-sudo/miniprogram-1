@@ -1,10 +1,7 @@
-// 签到流程：定位（实时距离三态）→ 水印自拍 → 提交
-// 区域抢单池（2026-11-20 设计 §4.2/M1/D4）：主维保首次签到未认领工单即原子认领；
-// 落败 1003 回显认领人、无平台ID 422，认领成功引导选择配合人（D8 双人作业）
+// 签到流程：定位（实时距离三态）→ 水印自拍 → 提交区域抢单池：主维保首次签到未认领工单即原子认领；
 const { definePage } = require('../../../utils/guard')
 const { ROUTES } = require('../../../config/routes')
-// 错误码约定：1001 定位超阈（服务端拦截，定位申诉审核流已裁 docs/01 §10.2）、1003 状态/动态码类拦截；
-// 1006/1007 为配置类拦截（docs/04 A.0.1）
+// 错误码约定：1001 定位超阈、1003 状态/动态码类拦截；
 const { checkin, getOrderDetail, issueDynamicCode } = require('../../../services/order')
 const { uploadImage } = require('../../../services/upload')
 const { reverseGeocode } = require('../../services/location')
@@ -12,7 +9,6 @@ const { formatTime, distanceMeters } = require('../../../utils/util')
 const { getUserInfo } = require('../../../utils/auth')
 const { POOL_TEXT } = require('../../../constants/index')
 
-// 角色（docs/04 A.2）：主维保 PRINCIPAL / 配合人员 ASSISTANT
 const ROLES = [
   { value: 'PRINCIPAL', label: '主维保人' },
   { value: 'ASSISTANT', label: '配合人员' }
@@ -57,14 +53,12 @@ definePage(ROUTES['/pkg-maintenance/pages/checkin/index'], {
     try {
       const order = await getOrderDetail(this.data.orderId)
       const el = order.elevator || {}
-      // 认领判定（M1）：载入时工单未认领 → 本次主维保签到即认领，成功后引导选择配合人
       this._wasUnclaimed = !order.workerName && !order.workerPlatformId
       this.setData({
         elevatorName: el.elevatorName || '',
         elevatorGeo: {
           lat: Number(el.lat) || null,
           lng: Number(el.lng) || null,
-          // 电梯级阈值优先，缺省用全局默认 200 米（后端同口径，docs/02 §5.4）
           threshold: Number(el.checkinThreshold) || 200
         }
       })
@@ -91,7 +85,6 @@ definePage(ROUTES['/pkg-maintenance/pages/checkin/index'], {
       (me.name === order.assistantName ||
         (!!order.assistantPlatformId && me.platformId === order.assistantPlatformId))
     if (!isDual) {
-      // 池化未认领工单（D2/M1）：签到即认领，身份恒为主维保；存量单人工单维持旧文案
       const identity = this._wasUnclaimed ? POOL_TEXT.CLAIM_IDENTITY : '单人作业 · 主维保人'
       this.setData({ role: 'PRINCIPAL', roleLocked: true, isDual: false, identityText: identity })
     } else if (isPrincipal) {
@@ -147,8 +140,7 @@ definePage(ROUTES['/pkg-maintenance/pages/checkin/index'], {
     this.stopCodeTimer()
   },
 
-  // 实时距离三态（docs/03 §3.2 项5）：范围内 / 接近阈值 / 超出阈值；
-  // 电梯坐标未登记 → UNKNOWN，只留痕不拦截（docs/04 A.0.1 码表 1005）。前端仅提示，拦截以服务端为准。
+  // 电梯坐标未登记 → UNKNOWN，只留痕不拦截。
   updateGeoState() {
     const loc = this.data.location
     if (!loc) return
@@ -183,9 +175,7 @@ definePage(ROUTES['/pkg-maintenance/pages/checkin/index'], {
 
   getLocation() {
     this.setData({ locateFailed: false, locationText: '定位获取中...' })
-    // 防卡死兜底：wx.getLocation 在隐私协议未配置/权限异常等场景可能回调不触发，
-    // 超时 8s 未返回则按定位失败处理（回调只处理一次）。
-    // 合规约定（docs/08 P1）：定位失败必须如实提示并重试，严禁伪造坐标兜底。
+    // 合规约定：定位失败必须如实提示并重试，严禁伪造坐标兜底。
     let settled = false
     const settle = (res) => {
       if (settled) return
@@ -261,7 +251,6 @@ definePage(ROUTES['/pkg-maintenance/pages/checkin/index'], {
     this.setData({ submitting: true })
     try {
       const uploaded = await uploadImage(this.data.photo)
-      // 字段对齐 docs/04 A.2：定位三要素 + 角色 + 动态码 + 本地采集时间（离线补传时为原始时间戳）
       const payload = {
         latitude: this.data.location.latitude,
         longitude: this.data.location.longitude,
@@ -270,10 +259,8 @@ definePage(ROUTES['/pkg-maintenance/pages/checkin/index'], {
         role: this.data.role,
         collectedAt: formatTime()
       }
-      // docs/04 A.2：role=ASSISTANT 时 dynamicCode 必传，服务端校验有效期/工单匹配
       if (this.data.role === 'ASSISTANT') payload.dynamicCode = this.data.dynamicCode
       await checkin(this.data.orderId, payload)
-      // 认领成功（M1）：引导选择配合人（D8 双人作业），跳作业页由 picker 选择候选
       if (this.data.role === 'PRINCIPAL' && this._wasUnclaimed) {
         wx.showModal({
           title: POOL_TEXT.CLAIMED_GUIDE_TITLE,
@@ -289,7 +276,7 @@ definePage(ROUTES['/pkg-maintenance/pages/checkin/index'], {
       wx.redirectTo({ url: `/pkg-maintenance/pages/task/index?orderId=${this.data.orderId}` })
     } catch (e) {
       if (e.code === 1001) {
-        // 定位超阈（服务端 Haversine 校验）：定位申诉审核流已裁剪（docs/01 §10.2），如实提示并引导到现场重试
+        // 定位超阈（服务端 Haversine 校验）：定位申诉审核流已裁剪，如实提示并引导到现场重试
         wx.showModal({
           title: '签到被拦截',
           content: '服务端判定签到位置超出允许范围：' + (e.message || '') + '。请到现场后重新定位签到。',

@@ -15,20 +15,11 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * 客户主体登录（统一登录页的客户分支）：账号在 client_account，不在员工目录（R7）。
- *
- * <p>唯一入口是 {@code POST /auth/login} 与 {@code POST /auth/wx-login}——AuthController 在员工目录
- * 未命中时转到这里，前端不区分通道，按响应 principalType 渲染对应工作台。
- * 多单位账号先验口令再返回候选，选定后经 {@code POST /auth/client/select-unit} 换正式令牌。
- *
- * <p>安全口径：口令错误 401、账号全停用 403、单账号单会话（issueSession 覆盖旧会话）、
- * 令牌 subject=client_account.id，claim ut=2（AuthInterceptor 客户分支）。
- */
+/** 单账号单会话；令牌 subject 使用 client_account.id。 */
 @Service
 public class ClientLoginService {
 
-    /** 客户能力集（docs/14 §4.7）：我的电梯只读 / 记录签字 / 报告下载 / 一键报修（2026-11-21 重开 client:report） */
+    /** 客户能力集：我的电梯只读 / 记录签字 / 报告下载 / 一键报修 */
     public static final List<String> CLIENT_PERMS =
             List.of("client:elevator_view", "client:sign", "client:download", "client:report");
     /** 客户默认工作台（与前端 config/menus.HOME_BY_ROLE 同口径） */
@@ -72,10 +63,6 @@ public class ClientLoginService {
         clientService.resetPasswordAfterWechatVerify(accountId, newPassword);
     }
 
-    /**
-     * 口令登录：先筛活跃账号再逐个验口令（同手机号可在多个单位各开一个账号）。
-     * 全部停用 → 403；有活跃账号但口令不匹配 → 401（不区分账号/口令，避免枚举）。
-     */
     public Map<String, Object> loginByPassword(String phone, String password) {
         List<ClientAccount> all = clientService.findByPhone(phone);
         List<ClientAccount> active = new ArrayList<>();
@@ -146,14 +133,7 @@ public class ClientLoginService {
         return out;
     }
 
-    /**
-     * 签发客户令牌：单账号单会话（覆盖 session_id），旧令牌同账号即失效。
-     * 会话体补齐 roles/home/activeWorkspace/scope，与员工登录响应同形状，前端一套渲染逻辑。
-     */
-    /**
-     * 注销会话：清 sid + 递增 scope_version，旧客户令牌立刻 401（幂等）。
-     * 与停用/改密同一失效机制，避免「登出后令牌在有效期内继续可用」。
-     */
+    /** 注销会话：清 sid + 递增 scope_version，旧客户令牌立刻 401（幂等）。 */
     public void revokeSession(String accountId) {
         clientService.revokeSession(accountId);
     }

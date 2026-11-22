@@ -25,10 +25,7 @@ import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-/**
- * 使用单位拒签分类码（V56，docs/04 V2.80）：refuseCode ∈ R1—R5 必填（旧调用兼容回退「原因必填」）；
- * R5 必须附说明；refuseReason 落库为「分类标签：说明」组合文本；refuse_code 单列持久化。
- */
+/** R5 必须附说明； */
 class RecordRefuseCodeTest {
 
     private static final String RECORD_ID = "ur_1";

@@ -1,7 +1,3 @@
-// 区域抢单池 mock 冒烟（node scripts/verify-region-pool.js）：
-// 覆盖 2026-11-20 区域抢单池设计 §4.2/§4.5 小程序链路——池可见性（M9/M11）、签到即认领（M1/D4）、
-// 认领落败 1003、无平台ID 422、配合人候选/指派/改选门禁（D3/D8/M10）、签退恒双人门禁 422（D8）。
-// 直接驱动 mock/server.js（Node 内 require，wx 桩），断言响应体与错误码；不启 IDE、不发真实请求。
 const path = require('path')
 const assert = require('assert')
 const ROOT = path.join(__dirname, '..')
@@ -10,8 +6,6 @@ global.wx = { getStorageSync: () => null, setStorageSync: () => {}, removeStorag
 const { mockRequest } = require(path.join(ROOT, 'mock/server.js'))
 const d = require(path.join(ROOT, 'mock/data.js'))
 
-// 演示账号（mock/data.js）：张伟=rg_yubei+平台ID、陈刚=rg_yubei+平台ID（候选）、
-// 李强/李振国=rg_jiangbei+平台ID、INST_PM 王强=无平台ID（D4 门禁演示）
 const ACC_ZHANG = '13800000001'
 const ACC_CHEN = '13800000002'
 const ACC_LI = '13800000004'
@@ -39,7 +33,6 @@ async function check(name, fn) {
 }
 
 ;(async () => {
-  // ── A. 池可见性（M9/M11）：同区域+持平台ID 才见池工单 ──
   await login(ACC_ZHANG)
   await check('A1 张伟（rg_yubei）可见同区域未认领池工单，不可见跨区池工单', async () => {
     const r = await req('GET', '/work-orders', { page: 1, size: 50 })
@@ -58,7 +51,6 @@ async function check(name, fn) {
     assert.strictEqual(r.total, 0, '无平台ID安装岗不应见任何工单: ' + JSON.stringify(r.list && r.list.map((o) => o.id)))
   })
 
-  // ── B. 认领（M1/D4）：签到即认领 / 落败 1003 / 无平台ID 422 ──
   await check('B1 认领前 partner-candidates 仅主维保本人可调（1403）', async () => {
     await login(ACC_ZHANG)
     await expectCode(1403, 'GET', '/work-orders/' + POOL_ORDER + '/partner-candidates')
@@ -109,7 +101,6 @@ async function check(name, fn) {
     assert(!o.dynamicCode, '守卫拦截不得吞动态码')
   })
 
-  // ── C. 配合人候选与指派（D3/D4/M10）──
   await check('C1 候选=同区域+持平台ID+排除本人（含 陈刚；不含 张伟/李强/李振国）', async () => {
     await login(ACC_ZHANG)
     const r = await req('GET', '/work-orders/' + POOL_ORDER + '/partner-candidates')
@@ -148,7 +139,6 @@ async function check(name, fn) {
     }
   })
 
-  // ── D. 签退恒双人门禁（D8，池化新单 422 文案）──
   await check('D1 未选配合人签退 → 422「请选择配合人员」', async () => {
     // 李强认领 rg_jiangbei 池工单（el_4 自动派单件），不选配合人直接签退
     await login(ACC_LI)

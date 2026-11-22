@@ -42,13 +42,6 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/**
- * 签退恒双人门禁（2026-11-20 区域抢单池设计 D8/M8，docs/superpowers/specs §4.2）：
- * 池化新单（V57 起派单落 regionId 快照）签退必须 ①已选配合人（assistantPlatformId 非空）、
- * ②配合人已签到（assistantCheckinExtraJson 非空）、③双签齐全（既有 hasAssistant 分支升级为恒触发）；
- * 三道门禁均先于检查项/时长校验与任何写操作。
- * 存量在途工单仍保留原签到/签名校验路径，但 2.6 最终门禁要求补配合人，禁止生成单人不完整报文。
- */
 class WorkOrderCheckoutDuoTest {
 
     private static final String EMP_LI = "emp_li";
@@ -99,7 +92,6 @@ class WorkOrderCheckoutDuoTest {
         li.platformId = PID_LI;
         li.phone = "13800000000";
         when(employeeMapper.selectById(EMP_LI)).thenReturn(li);
-        // buildReportPayload（B1）按 platformId 强关联取 recorderPhone
         when(employeeMapper.selectList(any())).thenReturn(List.of(li));
         Company company = new Company();
         company.workMenegerName = "维保经理";
@@ -108,7 +100,6 @@ class WorkOrderCheckoutDuoTest {
         when(elevatorMapper.selectById("el_1")).thenReturn(completeElevator());
     }
 
-    /** D8 门禁①：池化新单未选配合人 → 422「请选择配合人员」，不落任何库 */
     @Test
     void pooledOrderWithoutAssistantRejected() {
         WorkOrder o = pooledOrder();
@@ -124,7 +115,6 @@ class WorkOrderCheckoutDuoTest {
         verify(recordMapper, never()).insert(any(MaintainRecord.class));
     }
 
-    /** D8 恒触发：池化新单上即使残留单人豁免标记（assistantName="无"）也不得放行 */
     @Test
     void pooledOrderSoloMarkerNotHonored() {
         WorkOrder o = pooledOrder();
@@ -140,7 +130,6 @@ class WorkOrderCheckoutDuoTest {
         verify(recordMapper, never()).insert(any(MaintainRecord.class));
     }
 
-    /** D8 门禁②：已选配合人但配合人未签到 → 422「配合人员未签到」，不落任何库 */
     @Test
     void pooledOrderAssistantNotCheckedInRejected() {
         WorkOrder o = pooledOrder();
@@ -157,7 +146,6 @@ class WorkOrderCheckoutDuoTest {
         verify(recordMapper, never()).insert(any(MaintainRecord.class));
     }
 
-    /** D8 门禁③：配合人已选已签到但缺配合人签名 → 422 双签缺一，不落任何库 */
     @Test
     void pooledOrderMissingAssistantSignatureRejected() {
         WorkOrder o = pooledOrder();
@@ -191,7 +179,6 @@ class WorkOrderCheckoutDuoTest {
         verify(recordMapper).insert(any(MaintainRecord.class));
     }
 
-    /** D8 判定双信号：不限区域池化新单（regionId 空但签到认领打标 claimedViaPool）未选配合人 → 422 且零写库 */
     @Test
     void noRegionPoolOrderSoloCheckoutRejected() {
         WorkOrder o = legacyOrder(); // regionId 空（不限区域电梯的池化新单）
@@ -224,7 +211,6 @@ class WorkOrderCheckoutDuoTest {
         verify(recordMapper, never()).insert(any(MaintainRecord.class));
     }
 
-    /** M8 回归：存量带配合人工单（regionId 空）维持旧口径——缺配合人签名仍 422 */
     @Test
     void legacyDuoOrderStillRequiresAssistantSignature() {
         WorkOrder o = legacyOrder();
@@ -256,7 +242,6 @@ class WorkOrderCheckoutDuoTest {
         verify(recordMapper, never()).insert(any(MaintainRecord.class));
     }
 
-    /** 池化新单（V57 起派单落 regionId 快照）：主维保已认领，PROCESSING */
     private static WorkOrder pooledOrder() {
         WorkOrder o = base(POOLED_ORDER);
         o.regionId = "region_yubei";
@@ -283,7 +268,6 @@ class WorkOrderCheckoutDuoTest {
         return o;
     }
 
-    /** 设备信息档案齐备（上传维保记录的 5 项必传项，docs/01 §3.4.1） */
     private static Elevator completeElevator() {
         Elevator el = new Elevator();
         el.id = "el_1";

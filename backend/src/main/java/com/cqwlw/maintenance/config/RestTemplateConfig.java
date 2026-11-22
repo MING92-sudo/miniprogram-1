@@ -14,10 +14,6 @@ import java.net.HttpURLConnection;
 import java.security.SecureRandom;
 import java.time.Duration;
 
-/**
- * 调用监管平台/LBS 的 HTTP 客户端。
- * 超时按 docs/08 P2：连接 3s / 读 30s（文件接口 120s，P2 无文件转发）。
- */
 @Configuration
 public class RestTemplateConfig {
 
@@ -30,7 +26,6 @@ public class RestTemplateConfig {
         return new RestTemplate(f);
     }
 
-    /** 微信 jscode2session 专用：云出口网关 TLS 拦截适配（C-14 用户裁决），其余链路仍严格 PKIX。 */
     @Bean
     public RestTemplate wxRestTemplate(AppProperties props) {
         try {

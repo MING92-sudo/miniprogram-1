@@ -6,7 +6,7 @@ import lombok.Data;
 
 import java.time.LocalDateTime;
 
-/** P2 回填 / P3 账号迁移的人工核对清单（client_migration_issue，V47；幂等 upsert）。 */
+/** 幂等 upsert）。 */
 @Data
 @TableName("client_migration_issue")
 public class ClientMigrationIssue {

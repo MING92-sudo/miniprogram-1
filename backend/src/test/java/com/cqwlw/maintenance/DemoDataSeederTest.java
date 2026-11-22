@@ -43,15 +43,9 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/**
- * 演示种子数据一致性：电梯绑定 / 工单 / 维保记录上的作业人员 platformId
- * 必须来自人员档案（employee 种子），否则班组数据权限（V7）按 platformId 过滤后
- * 作业人员登录看不到自己的工单，签到→清单→签退整条链路走不通。
- * 同理，班组长 group_name 缺失会让 sameGroup() 只返回自己 → 组长视角工单恒为 0（V7 无法验收）。
- */
 class DemoDataSeederTest {
 
-    /** C5：种子默认必须关闭——生产首启不得自动写入弱口令账号与假电梯 */
+    /** 种子默认必须关闭——生产首启不得自动写入弱口令账号与假电梯 */
     @Test
     void seedDemoDataDefaultsToFalse() {
         assertFalse(new AppProperties().isSeedDemoData());
@@ -186,7 +180,6 @@ class DemoDataSeederTest {
         assertTrue(zhangWei != null && "WORKER".equals(zhangWei.role), "张伟 emp_1 不得升任");
     }
 
-    /** 租户快照（权限 P2 T3）：种子工单必须带非空 useUnitId/useUnitName */
     @Test
     void seededOrdersCarryTenantSnapshot() throws Exception {
         seeder.run(null);
@@ -201,7 +194,6 @@ class DemoDataSeederTest {
         });
     }
 
-    /** 租户快照（权限 P2 T4）：种子急修单/维保记录必须带非空 useUnitId/useUnitName */
     @Test
     void seededFaultsAndRecordsCarryTenantSnapshot() throws Exception {
         seeder.run(null);
@@ -222,7 +214,6 @@ class DemoDataSeederTest {
         });
     }
 
-    /** 客户主体唯一口径（P3）：使用单位联系人只进 client_account，不得再播种到 sys_employee */
     @Test
     void clientPrincipalsSeedIntoClientAccountOnly() throws Exception {
         seeder.run(null);

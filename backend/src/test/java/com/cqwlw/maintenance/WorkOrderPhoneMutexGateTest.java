@@ -40,10 +40,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/**
- * 作业前手机号互斥门禁（用户 2026-11-19：维保作业开始前拦截 2.6 五角色同号）：
- * 冲突时 checkin 抛 1002 + conflicts[]，且不落库、不改状态、不消费动态码（无副作用）。
- */
+/** 作业前手机号互斥门禁：冲突时 checkin 抛 1002 + conflicts[]，且不落库、不改状态、不消费动态码（无副作用）。 */
 class WorkOrderPhoneMutexGateTest {
 
     private static final String ORDER = "wo_mutex";

@@ -6,7 +6,6 @@ import lombok.Data;
 
 import java.time.LocalDateTime;
 
-/** 移交定角照片（C-12）。 */
 @Data
 @TableName("handover_photo")
 public class HandoverPhoto {

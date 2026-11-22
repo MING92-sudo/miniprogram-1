@@ -24,10 +24,6 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 import java.util.Map;
 
-/**
- * C-12：74 项移交检查清单/整改清单/归档目录端点（docs/15 §6.2）。
- * 判定/1:1 整改/逐条复验/NA 审批/SHA-256 归档在 HandoverChecklistService；三张表单导出 HandoverPdfService。
- */
 @RestController
 public class HandoverChecklistController {
 
@@ -104,7 +100,7 @@ public class HandoverChecklistController {
         return ApiResponse.ok(checklist.archiveByElevator(id));
     }
 
-    /** C-12：按移交单取一梯一档归档目录（管理端移交详情用，幂等生成 7 条 + SHA-256）。 */
+    /** 按移交单取一梯一档归档目录（管理端移交详情用，幂等生成 7 条 + SHA-256）。 */
     @GetMapping("/handovers/{id}/archive")
     public ApiResponse<List<HandoverArchive>> handoverArchive(@PathVariable String id, HttpServletRequest req) {
         MultiRoleGate.requireRead(req, PermissionMatrix.HANDOVER_VIEW);

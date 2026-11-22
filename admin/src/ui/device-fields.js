@@ -1,13 +1,4 @@
-// 设备信息档案字段口径（用户 2026-11-19 需求；后端 DeviceProfileValidator 同口径，标签不得改写）。
-//
-// 9 项字段，**前 5 项为上传维保记录（监管平台 2.6）的必传项**，缺任一项都不能上传维保记录：
-//   电梯编码 elevatorCode  —— 本系统电梯编码（贴梯二维码内容），不是「设备代码」
-//   设备代码 deviceCode    —— 监管平台设备代码
-//   注册代码 registrationCode —— 特种设备注册代码（后端列名 reg_code；≠ 登记证编码）
-//   单位内编号 insideNumber   —— 使用单位内部梯号
-//   出厂编号 factoryNumber    —— 设备铭牌出厂编号
-// 后 4 项选填：登记证编码 certNo（使用登记证编号，如 梯11渝BSP8194(20)，独立字段不上报平台）、
-//   项目名称（小区名称）projectName、所在区域 regionId、年检日期 nextCheckDate
+// 后端 DeviceProfileValidator 同口径，标签不得改写）。
 export const DEVICE_FIELDS = [
   { key: 'elevatorCode', label: '电梯编码', required: true, mono: true, placeholder: '本系统电梯编码（贴梯二维码内容）' },
   { key: 'deviceCode', label: '设备代码', required: true, mono: true, placeholder: '监管平台设备代码' },

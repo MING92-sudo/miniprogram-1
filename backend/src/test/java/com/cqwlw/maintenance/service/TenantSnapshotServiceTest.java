@@ -27,10 +27,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
-/**
- * 租户快照服务（权限 P2 T3）：派单/排班工单冻结 useUnitId/useUnitName；
- * 过户嫌疑按 biz_elevator_change 的 CONFIRMED TRANSFER 行判定；unitNameOf 空值收敛 null。
- */
 class TenantSnapshotServiceTest {
 
     private UseUnitMapper units;

@@ -42,11 +42,6 @@ import java.util.stream.Collectors;
 
 import static com.cqwlw.maintenance.util.JsonUtil.map;
 
-/**
- * 台账与目录类业务（docs/04 A.3/A.6/A.7）：
- * 困人救援（节点耗时自动计算，超 30 分钟标记超时且不可删除）、故障闭环、
- * 应急演练（半年覆盖检查）、自行检查（年检预警）、消息、知识库。
- */
 @Service
 public class DirectoryService {
 
@@ -178,7 +173,6 @@ public class DirectoryService {
         f.id = Ids.next("ft");
         f.createdBy = empId;
         f.elevatorCode = strOrEmpty(body.get("elevatorCode"));
-        // 故障等级：一般故障 / 困人（紧急）（小程序登记页选择，V2.28）
         f.faultType = strOrEmpty(body.get("faultType")).isEmpty() ? "一般故障" : strOrEmpty(body.get("faultType"));
         // 困人人数：仅困人类型保留，必须为整数 1-99；非困人恒 0，禁止类型与 KPI 相互矛盾。
         boolean trappedFault = f.faultType.contains("困人");
@@ -195,7 +189,7 @@ public class DirectoryService {
         if (f.arrivedAt == null) {
             f.arrivedAt = f.createdAt;
         }
-        // 租户快照（权限 P2 T4）：按电梯编码回填使用单位；查不到时两列留 NULL（Runner 兜底）
+        // 查不到时两列留 NULL（Runner 兜底）
         Elevator el = elevatorMapper.selectOne(new LambdaQueryWrapper<Elevator>()
                 .eq(Elevator::getElevatorCode, f.elevatorCode).last("LIMIT 1"));
         if (el != null) {
@@ -226,7 +220,6 @@ public class DirectoryService {
         return trappedFault ? value : 0;
     }
 
-    /** 急修单派单（管理端调度）：指派接单维保员，OPEN → ASSIGNED（docs/04 V2.28 派单系统） */
     public Map<String, Object> dispatchFault(String id, String workerId) {
         Fault f = faultMapper.selectById(id);
         if (f == null) {
@@ -248,7 +241,6 @@ public class DirectoryService {
         return view;
     }
 
-    /** M1 急修七态：抢单（本区域校验）OPEN→ASSIGNED */
     public Map<String, Object> grabFault(String id, String empId) {
         Fault f = faultOr404(id);
         if (!"OPEN".equals(f.status)) {
@@ -272,7 +264,6 @@ public class DirectoryService {
         return faultView(f);
     }
 
-    /** M1：到场打卡（GPS 必填）ASSIGNED→PROCESSING；显式打卡优先于签到推导 */
     public Map<String, Object> arriveFault(String id, String empId, Double lat, Double lng) {
         Fault f = faultOr404(id);
         if (!"ASSIGNED".equals(f.status)) {
@@ -290,7 +281,6 @@ public class DirectoryService {
         return faultView(f);
     }
 
-    /** M1：提交急修单（故障原因/处理措施必填）PROCESSING→PENDING_CONFIRM */
     public Map<String, Object> submitFault(String id, String empId, Map<String, Object> body) {
         Fault f = faultOr404(id);
         if (!List.of("PROCESSING", "REFUSED").contains(f.status)) {
@@ -312,7 +302,6 @@ public class DirectoryService {
         return faultView(f);
     }
 
-    /** M1：使用单位确认（CLIENT_SIGNER，管理员须兼任）PENDING_CONFIRM→CLOSED/REFUSED */
     public Map<String, Object> confirmFault(String id, java.util.Set<String> roles, String unitId,
                                             boolean pass, String reason) {
         Fault f = faultOr404(id);
@@ -342,7 +331,6 @@ public class DirectoryService {
         return faultView(f);
     }
 
-    /** M1：取消（OPEN=本单位管理员；接单后=本组主管；原因必填） */
     public Map<String, Object> cancelFault(String id, java.util.Set<String> roles, String reason,
                                            String empId, String unitId) {
         Fault f = faultOr404(id);
@@ -370,7 +358,7 @@ public class DirectoryService {
         return faultView(f);
     }
 
-    /** M1：服务评价（仅已闭环、1-5 星、一次性） */
+    /** 服务评价（仅已闭环、1-5 星、一次性） */
     public Map<String, Object> evaluate(String id, java.util.Set<String> roles, String unitId,
                                         Map<String, Object> body) {
         Fault f = faultOr404(id);
@@ -395,7 +383,6 @@ public class DirectoryService {
         return faultView(f);
     }
 
-    /** M1 SLA 升级（系统自动）：超时未闭环标记 escalatedAt 留痕；真实推送依赖 C-01 订阅消息 */
     @org.springframework.scheduling.annotation.Scheduled(fixedDelay = 780000)
     public void scanEscalation() {
         for (Fault f : faultMapper.selectList(new LambdaQueryWrapper<Fault>()
@@ -444,7 +431,6 @@ public class DirectoryService {
         return prefix + String.format("%03d", count + 1);
     }
 
-    /** 到场时间：当日该梯最早一次维保签到（docs/04 A.3 急修单到场以签到为准） */
     private LocalDateTime firstCheckinToday(String elevatorCode) {
         Elevator el = elevatorMapper.selectList(new LambdaQueryWrapper<Elevator>()
                 .eq(Elevator::getElevatorCode, elevatorCode)).stream().findFirst().orElse(null);
@@ -840,9 +826,6 @@ public class DirectoryService {
                 "reviewerSign", r.reviewerSign);
     }
 
-    // ── 消息 ──
-    // V56：员工消息中心只读 use_unit_id IS NULL 的行——use_unit_id 非空为客户门户受众
-    // （签字临期/超期提醒，ClientMessageService/SignReminderService），两侧互不串扰
     public Map<String, Object> listMessages(Map<String, String> query) {
         List<Map<String, Object>> views = messageMapper.selectList(new LambdaQueryWrapper<Message>()
                         .isNull(Message::getUseUnitId)
@@ -870,8 +853,7 @@ public class DirectoryService {
 
     public Map<String, Object> readMessage(String id) {
         Message msg = messageMapper.selectById(id);
-        // 员工中心只可读员工消息：客户消息（use_unit_id 非空）与不存在同 1404（无存在性 oracle），
-        // 与 list/unreadCount/readAll 的 use_unit_id IS NULL 谓词同口径（2026-11-21 审查补齐）
+        // 员工中心只可读员工消息：客户消息（use_unit_id 非空）与不存在同 1404（无存在性 oracle），与 list/unreadCount/readAll 的 use_unit_id IS NULL 谓词同口径
         if (msg == null || msg.useUnitId != null) {
             throw new BizException(1404, "消息不存在");
         }

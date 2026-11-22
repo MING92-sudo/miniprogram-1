@@ -78,9 +78,7 @@
   </div>
 </template>
 <script setup>
-// 统计报表（原型 Views.stats 对齐）：KPI 7 指标 + 分项目台量 + 敏感导出审批链
-// 真实 API：GET /stats、/faults、/records、/contracts、/elevators、/export-approvals；POST /export-approvals、/export-approvals/{id}/approve
-// 指标按真实返回防御计算；后端尚未聚合的指标显示「—」并注明待聚合接口，不伪造数值。
+// 后端尚未聚合的指标显示「—」并注明待聚合接口，不伪造数值。
 import { ref, computed, onMounted } from 'vue'
 import http from '../api/client'
 import ViewHead from '../ui/ViewHead.vue'

@@ -12,9 +12,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Map;
 
-/**
- * 使用单位确认（docs/04 A.3）：sign-view / confirm-by-token 凭分享 token 免登录访问。
- */
+/** 使用单位确认：sign-view / confirm-by-token 凭分享 token 免登录访问。 */
 @RestController
 public class UnitRecordController {
 
@@ -32,7 +30,6 @@ public class UnitRecordController {
 
     private final com.cqwlw.maintenance.mapper.SysUserRoleMapper userRoleMapper;
     private final com.cqwlw.maintenance.service.RecordLifecycleService recordLifecycleService;
-    /** P3 客户账号 Mapper（setter 注入，客户令牌签字时取真实账号身份） */
     private com.cqwlw.maintenance.mapper.ClientAccountMapper clientAccountMapper;
 
     @org.springframework.beans.factory.annotation.Autowired(required = false)
@@ -40,7 +37,6 @@ public class UnitRecordController {
         this.clientAccountMapper = clientAccountMapper;
     }
 
-    /** P3：客户令牌（ut=2）签字身份——从令牌 subject 查库取真实账号 id + 姓名；非客户令牌返回 null。 */
     private String[] signerOf(jakarta.servlet.http.HttpServletRequest request) {
         Object principal = request.getAttribute(com.cqwlw.maintenance.auth.AuthInterceptor.ATTR_PRINCIPAL_TYPE);
         if (principal == null || !"CUSTOMER".equals(String.valueOf(principal)) || clientAccountMapper == null) {
@@ -54,7 +50,7 @@ public class UnitRecordController {
         return c == null ? null : new String[]{c.id, c.name};
     }
 
-    /** M1：门户读端点改统一令牌 + CLIENT 谓词；旧门户令牌（ut=1）兜底 */
+    /** 旧门户令牌（ut=1）兜底 */
     private java.util.Set<String> portalRoles(jakarta.servlet.http.HttpServletRequest request) {
         java.util.Set<String> roles = com.cqwlw.maintenance.auth.MultiRoleGate.roles(request);
         if (roles.isEmpty() && request.getAttribute(com.cqwlw.maintenance.auth.AuthInterceptor.ATTR_UNIT_ID) != null) {
@@ -111,7 +107,7 @@ public class UnitRecordController {
         return ApiResponse.ok(result);
     }
 
-    /** M1：使用单位拒签（凭分享 token，原因必填，退回维保人员） */
+    /** 使用单位拒签（凭分享 token，原因必填，退回维保人员） */
     @PostMapping("/unit/records/{id}/refuse-by-token")
     public ApiResponse<Object> refuseByToken(@PathVariable String id,
                                              @RequestParam(required = false) String token,
@@ -123,14 +119,13 @@ public class UnitRecordController {
             return ApiResponse.ok(guard.replayedResult());
         }
         String reason = body == null || body.get("reason") == null ? "" : String.valueOf(body.get("reason"));
-        // V56：拒签原因分类码（R1—R5；旧客户端未传码时按兼容期「原因必填」回退）
+        // 旧客户端未传码时按兼容期「原因必填」回退）
         String code = body == null || body.get("refuseCode") == null ? "" : String.valueOf(body.get("refuseCode"));
         Map<String, Object> result = recordLifecycleService.refuseByToken(id, token, code, reason);
         guard.commit(result);
         return ApiResponse.ok(result);
     }
 
-    /** V56 批量签字（docs/04 V2.80）：同一签名一次确认多条待签记录（≤20），逐条独立门禁、失败不拖累其余 */
     @PostMapping("/unit/records/batch-confirm")
     public ApiResponse<Object> batchConfirm(@RequestBody(required = false) Map<String, Object> body,
                                             @org.springframework.web.bind.annotation.RequestHeader(
@@ -178,7 +173,6 @@ public class UnitRecordController {
         return ApiResponse.ok(result);
     }
 
-    /** V2.80 修复：免登录 token 链签名图上传（/files/upload 必须登录，匿名签字页此前无上传通道） */
     @PostMapping("/unit/records/{id}/signature-upload")
     public ApiResponse<Map<String, Object>> signatureUpload(@PathVariable String id,
                                                             @RequestParam(required = false) String token,

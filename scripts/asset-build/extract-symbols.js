@@ -1,5 +1,3 @@
-// scripts/asset-build/extract-symbols.js
-// 从原型 index.html 提取 64 个 Font Awesome symbol → 独立 SVG（M0 资产管线）
 const fs = require('fs')
 const path = require('path')
 const html = fs.readFileSync('C:/Users/18223/Desktop/UI/index.html', 'utf8')
