@@ -51,6 +51,59 @@ async function check(name, fn) {
     assert.strictEqual(r.ok, true)
   })
 
+  // ── 预览页路由与未登录返回（小程序端）──
+  await check('app.json 注册 pages/preview/index', async () => {
+    const appJson = JSON.parse(require('fs').readFileSync(path.join(ROOT, 'app.json'), 'utf8'))
+    assert(appJson.pages.indexOf('pages/preview/index') > -1, 'app.json pages 缺 pages/preview/index')
+  })
+
+  await check('routes.js 预览页 auth:false', async () => {
+    const { ROUTES } = require(path.join(ROOT, 'config/routes.js'))
+    const meta = ROUTES['/pages/preview/index']
+    assert(meta, 'routes.js 缺 /pages/preview/index')
+    assert.strictEqual(meta.auth, false, '预览页必须 auth:false')
+  })
+
+  await check('back() 未登录无栈 → reLaunch 预览页（不死循环）', async () => {
+    const calls = []
+    global.getCurrentPages = () => [] // 无返回栈（入口页）
+    global.wx.getStorageSync = () => '' // 未登录（无 token）
+    global.wx.reLaunch = (o) => { calls.push(['reLaunch', o.url]) }
+    global.wx.navigateBack = () => { calls.push(['navigateBack']) }
+    delete require.cache[require.resolve(path.join(ROOT, 'utils/auth.js'))]
+    delete require.cache[require.resolve(path.join(ROOT, 'utils/nav.js'))]
+    const nav = require(path.join(ROOT, 'utils/nav.js'))
+    nav.back()
+    assert.deepStrictEqual(calls, [['reLaunch', '/pages/preview/index']],
+      '未登录无栈返回应去预览页，实际 ' + JSON.stringify(calls))
+  })
+
+  await check('back() 有栈 → navigateBack（行为不变）', async () => {
+    const calls = []
+    global.getCurrentPages = () => [{ route: 'pages/preview/index' }, { route: 'pages/login/index' }]
+    global.wx.reLaunch = (o) => { calls.push(['reLaunch', o.url]) }
+    global.wx.navigateBack = () => { calls.push(['navigateBack']) }
+    delete require.cache[require.resolve(path.join(ROOT, 'utils/nav.js'))]
+    const nav = require(path.join(ROOT, 'utils/nav.js'))
+    nav.back()
+    assert.deepStrictEqual(calls, [['navigateBack']], '有栈应 navigateBack，实际 ' + JSON.stringify(calls))
+  })
+
+  await check('back() 已登录无栈 → reLaunch 工作台/兜底（不回预览页）', async () => {
+    const calls = []
+    global.getCurrentPages = () => []
+    global.wx.getStorageSync = (k) => (k === 'em_token' ? 'tok-1' : '')
+    global.wx.reLaunch = (o) => { calls.push(['reLaunch', o.url]) }
+    global.wx.navigateBack = () => { calls.push(['navigateBack']) }
+    delete require.cache[require.resolve(path.join(ROOT, 'utils/auth.js'))]
+    delete require.cache[require.resolve(path.join(ROOT, 'utils/nav.js'))]
+    const nav = require(path.join(ROOT, 'utils/nav.js'))
+    nav.back()
+    assert.strictEqual(calls.length, 1, '应恰好一次 reLaunch')
+    assert(calls[0][0] === 'reLaunch' && calls[0][1] !== '/pages/preview/index',
+      '已登录无栈不应回预览页，实际 ' + JSON.stringify(calls))
+  })
+
   const failed = results.filter((r) => !r.ok)
   results.forEach((r) => console.log((r.ok ? 'PASS' : 'FAIL') + '  ' + r.name + (r.ok ? '' : '  → ' + r.err)))
   console.log(failed.length ? failed.length + '/' + results.length + ' 失败' : '全部 ' + results.length + ' 项通过')

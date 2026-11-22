@@ -1,0 +1,44 @@
+<view class="bw">
+  <nav-bar title="{{text.TITLE}}"></nav-bar>
+  <view class="pv-page">
+    <view class="pv-hero">
+      <view class="row gap10">
+        <view class="brand-mark pv-mark"></view>
+        <view>
+          <view class="disp fs40">{{appName}}</view>
+          <view class="mono fs18 dim ls12">{{appSub}}</view>
+        </view>
+      </view>
+      <view class="fs20 dim pv-sub">{{text.SUB}}</view>
+    </view>
+
+    <view class="pv-hazard"></view>
+
+    <view class="em-card pv-card">
+      <view class="fs22 w6">{{text.STEP_TITLE}}</view>
+      <view class="pv-steps">
+        <block wx:for="{{text.STEPS}}" wx:key="*this">
+          <view wx:if="{{index > 0}}" class="pv-arrow"><text class="i i-chevron-right"></text></view>
+          <view class="pv-step"><text class="mono fs18 pv-step-n">0{{index + 1}}</text><text class="fs20">{{item}}</text></view>
+        </block>
+      </view>
+    </view>
+
+    <view class="pv-grid">
+      <view class="em-card pv-mod" wx:for="{{text.MODULES}}" wx:key="name">
+        <text class="i {{item.icon}} pv-mod-ico"></text>
+        <view class="fs22 w6 mt6">{{item.name}}</view>
+        <view class="fs18 dim pv-mod-desc">{{item.desc}}</view>
+      </view>
+    </view>
+
+    <view class="pv-hint">
+      <text class="i i-circle-info pv-hint-ico"></text>
+      <text class="fs20 dim">{{text.ACCOUNT_HINT}}</text>
+    </view>
+
+    <button class="btn btn-primary pv-login" bindtap="goLogin">{{text.LOGIN_BTN}}</button>
+
+    <view class="pv-foot">{{foot}}</view>
+  </view>
+</view>

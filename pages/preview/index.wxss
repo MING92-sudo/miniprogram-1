@@ -1,0 +1,19 @@
+page{background:var(--ink);color:var(--text)}
+.pv-page{padding:24rpx 40rpx 40rpx;box-sizing:border-box;min-height:100vh}
+.pv-hero{margin-top:16rpx}
+.pv-mark{width:72rpx;height:72rpx;flex:none}
+.pv-sub{margin-top:16rpx;line-height:1.6}
+.pv-hazard{height:8rpx;border-radius:2rpx;background:repeating-linear-gradient(45deg,var(--amber) 0 18rpx,#17242D 18rpx 36rpx);opacity:.85;margin:24rpx 0}
+.pv-card{padding:24rpx}
+.pv-steps{display:flex;align-items:center;flex-wrap:wrap;gap:10rpx;margin-top:16rpx}
+.pv-step{display:flex;align-items:center;gap:8rpx;background:#F7F9FA;border:1rpx solid #D9E0E6;border-radius:6rpx;padding:12rpx 16rpx}
+.pv-step-n{color:var(--amber)}
+.pv-arrow{color:var(--dim)}
+.pv-grid{display:grid;grid-template-columns:1fr 1fr;gap:16rpx;margin-top:16rpx}
+.pv-mod{padding:22rpx}
+.pv-mod-ico{font-size:34rpx;color:var(--amber)}
+.pv-mod-desc{margin-top:6rpx;line-height:1.5}
+.pv-hint{display:flex;align-items:center;gap:10rpx;margin-top:24rpx}
+.pv-hint-ico{color:var(--amber)}
+.pv-login{width:100%;margin-top:24rpx}
+.pv-foot{font-size:20rpx;color:var(--dim);text-align:center;line-height:1.7;margin-top:32rpx}

@@ -13,6 +13,7 @@ const LIST = [
   R('/pages/login/index', '登录', { auth: false, built: true }),
   R('/pages/login/agreement', '用户协议与隐私政策', { auth: false, built: true }),
   R('/pages/login/forgot', '忘记密码', { auth: false, built: true }),
+  R('/pages/preview/index', '功能预览', { auth: false, built: true }),
   R('/pages/install/home/index', '安装工作台', { roles: INST.concat(['INSTALLER']), tab: true, built: true }),
   R('/pages/maint/home/index', '维保工作台', { roles: MAINT_EXT, tab: true, built: true }),
   R('/pages/client/home/index', '使用单位首页', { roles: CLIENT, tab: true, built: true }),
