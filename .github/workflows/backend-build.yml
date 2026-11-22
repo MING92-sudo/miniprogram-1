@@ -44,11 +44,12 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-      - name: Regression scripts (dispatch / templates / handover-template)
+      - name: Regression scripts (dispatch / templates / handover-template / login-flow)
         run: |
           node scripts/verify-dispatch.js
           node scripts/verify-templates.js
           node scripts/verify-handover-template.js
+          node scripts/verify-login-flow.js
       - name: Root lint (mini-program)
         run: |
           npm ci --no-audit --no-fund

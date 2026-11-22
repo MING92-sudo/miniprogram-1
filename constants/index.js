@@ -298,6 +298,11 @@ const LOGIN_TEXT = {
   WECHAT: '微信一键登录',
   AGREE_PRE: '已阅读并同意',
   AGREE_MID: '与',
+  AGREEMENT: '用户协议',
+  PRIVACY: '隐私政策',
+  BROWSE: '暂不登录，先随便看看',
+  WECHAT_UNBOUND: '该微信未绑定账号。请使用账号密码登录，登录成功后将自动绑定本机微信。',
+  WECHAT_BIND_FAIL: '微信绑定未成功，可稍后在「我的」中绑定',
   POINTS: ['电子签名固化', '弱网自动续传', '作业全程留痕'],
   STATS: [
     { n: '24/7', label: '应急响应', tone: 'amber' },
@@ -305,6 +310,22 @@ const LOGIN_TEXT = {
     { n: '100%', label: '签字留痕', tone: 'ok' }
   ],
   FLOORS: ['12F', '09F', '06F', '03F', '01F']
+}
+const PREVIEW_TEXT = {
+  TITLE: '功能预览',
+  SUB: '登录前可浏览功能介绍，登录后进入真实工作台',
+  LOGIN_BTN: '前往登录',
+  MODULES: [
+    { icon: 'i-calendar-check-r', name: '维保计划', desc: '半月保任务自动下发，到期提醒' },
+    { icon: 'i-clipboard-list', name: '工单执行', desc: '电子工单全流程闭环跟踪' },
+    { icon: 'i-location-dot', name: '签到签退', desc: '围栏定位打卡，作业留痕' },
+    { icon: 'i-signature', name: '电子签名', desc: '维保双人签字，固化归档' },
+    { icon: 'i-cloud-arrow-up', name: '监管上报', desc: '维保记录直报监管平台' },
+    { icon: 'i-file-circle-check', name: '移交查验', desc: '安装移交与现场验收管理' }
+  ],
+  STEPS: ['到场签到', '作业清单', '完工签退', '双人签字', '监管上报'],
+  STEP_TITLE: '一次维保作业',
+  ACCOUNT_HINT: '账号由所属单位管理员统一开通'
 }
 const RECORD_TEXT = {
   KICKER: '电梯维护保养记录',
@@ -459,6 +480,7 @@ module.exports = {
   HANDOVER_CREATE_TEXT,
   BRAND,
   LOGIN_TEXT,
+  PREVIEW_TEXT,
   RECORD_TEXT,
   ORDER_TEXT,
   ELEVATOR_TEXT,

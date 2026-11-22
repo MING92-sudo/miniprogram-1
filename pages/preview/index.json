@@ -1,0 +1,6 @@
+{
+  "navigationBarTitleText": "功能预览",
+  "usingComponents": {
+    "nav-bar": "/components/nav-bar/index"
+  }
+}

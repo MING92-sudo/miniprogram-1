@@ -1,6 +1,6 @@
 const { ROUTES } = require('../config/routes')
 const { resolveHome } = require('../config/menus')
-const { getRoles, getHome } = require('./auth')
+const { getRoles, getHome, isLoggedIn } = require('./auth')
 
 // 无旧等价页兜底（pkg-admin 等）→ profile
 const FALLBACK = '/pages/profile/index'
@@ -44,11 +44,12 @@ function open(url) {
   setTimeout(() => reLaunch(FALLBACK), 300)
 }
 
-// 返回：有栈 navigateBack，无栈回当前工作台
+// 返回：有栈 navigateBack；无栈已登录回当前工作台，未登录回预览页（避免弹回登录页死循环）
 function back() {
   const pages = getCurrentPages()
-  if (pages.length > 1) wx.navigateBack()
-  else reLaunch(currentHome())
+  if (pages.length > 1) { wx.navigateBack(); return }
+  if (isLoggedIn()) { reLaunch(currentHome()); return }
+  reLaunch('/pages/preview/index')
 }
 
 function safeRedirect(raw) {
