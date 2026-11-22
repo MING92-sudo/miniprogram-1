@@ -56,7 +56,7 @@ class BatchConfirmTest {
     }
 
     private static Map<String, Object> signBody() {
-        return Map.of("signatureFileId", "file_sign_1", "signatureUrl", "https://x/sign.png");
+        return Map.of("signatureFileId", "file_sign_1", "signatureUrl", "/files/file_sign_1");
     }
 
     @Test

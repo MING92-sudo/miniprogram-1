@@ -206,9 +206,9 @@ class ClientRecordGateTest {
         when(records.update(any(), any())).thenReturn(1);
 
         assertEquals(Boolean.TRUE, service.confirmAs(RECORD_ID,
-                Map.of("signatureUrl", "https://x/s1.png", "satisfaction", 5), CLIENT, UNIT).get("ok"));
+                Map.of("signatureUrl", "/files/file_s1", "satisfaction", 5), CLIENT, UNIT).get("ok"));
         assertEquals("CONFIRMED", r.confirmStatus);
-        assertEquals("https://x/s1.png", r.signatureUrl);
+        assertEquals("/files/file_s1", r.signatureUrl);
         assertEquals(0, r.satisfaction.intValue());
         verify(lifecycle, times(1)).onClientSigned(r);
 
@@ -216,7 +216,7 @@ class ClientRecordGateTest {
         BizException ex = assertThrows(BizException.class, () -> service.confirmAs(RECORD_ID,
                 Map.of("signatureUrl", "https://x/forged.png"), CLIENT, UNIT));
         assertEquals(422, ex.getCode());
-        assertEquals("https://x/s1.png", r.signatureUrl);
+        assertEquals("/files/file_s1", r.signatureUrl);
         verify(records, times(1)).update(any(), any());
     }
 
@@ -259,9 +259,9 @@ class ClientRecordGateTest {
         when(records.update(any(), any())).thenReturn(1);
 
         assertEquals(Boolean.TRUE, service.confirmByToken(RECORD_ID, "sg-token",
-                Map.of("signatureUrl", "https://x/t1.png", "satisfaction", "五")).get("ok"));
+                Map.of("signatureUrl", "/files/file_t1", "satisfaction", "五")).get("ok"));
         assertEquals("CONFIRMED", r.confirmStatus);
-        assertEquals("https://x/t1.png", r.signatureUrl);
+        assertEquals("/files/file_t1", r.signatureUrl);
         assertEquals(0, r.satisfaction.intValue()); // 不接收 satisfaction（§4.7）
         verify(lifecycle, times(1)).onClientSigned(r);
         verify(records, never()).updateById(any(MaintainRecord.class));
@@ -270,7 +270,7 @@ class ClientRecordGateTest {
         BizException ex = assertThrows(BizException.class, () -> service.confirmByToken(RECORD_ID, "sg-token",
                 Map.of("signatureUrl", "https://x/forged.png")));
         assertEquals(422, ex.getCode());
-        assertEquals("https://x/t1.png", r.signatureUrl);
+        assertEquals("/files/file_t1", r.signatureUrl);
         verify(records, times(1)).update(any(), any());
     }
 
