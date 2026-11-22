@@ -178,13 +178,9 @@ public class DirectoryService {
         f.elevatorCode = strOrEmpty(body.get("elevatorCode"));
         // 故障等级：一般故障 / 困人（紧急）（小程序登记页选择，V2.28）
         f.faultType = strOrEmpty(body.get("faultType")).isEmpty() ? "一般故障" : strOrEmpty(body.get("faultType"));
-        // 困人人数（C-18/V62）：0-99；缺省 0=非困人急修
-        Object tc = body.get("trappedCount");
-        int trapped = tc == null ? 0 : ((Number) tc).intValue();
-        if (trapped < 0 || trapped > 99) {
-            throw new BizException(422, "困人人数须在 0-99 之间");
-        }
-        f.trappedCount = trapped;
+        // 困人人数：仅困人类型保留，必须为整数 1-99；非困人恒 0，禁止类型与 KPI 相互矛盾。
+        boolean trappedFault = f.faultType.contains("困人");
+        f.trappedCount = parseTrappedCount(body.get("trappedCount"), trappedFault);
         f.descr = strOrEmpty(body.get("desc"));
         f.siteDesc = strOrEmpty(body.get("siteDesc"));
         f.photos = JsonUtil.write(body.get("photos") == null ? List.of() : body.get("photos"));
@@ -205,6 +201,27 @@ public class DirectoryService {
         }
         faultMapper.insert(f);
         return faultView(f);
+    }
+
+    private int parseTrappedCount(Object raw, boolean trappedFault) {
+        int value;
+        try {
+            if (raw instanceof Number number) {
+                double d = number.doubleValue();
+                if (!Double.isFinite(d) || d != Math.rint(d) || d < 0 || d > 99) {
+                    throw new BizException(422, "困人人数必须为 0-99 的整数");
+                }
+                value = number.intValue();
+            } else {
+                value = raw == null ? 0 : Integer.parseInt(String.valueOf(raw).trim());
+            }
+        } catch (NumberFormatException e) {
+            throw new BizException(422, "困人人数必须为整数");
+        }
+        if (value < 0 || value > 99 || (trappedFault && value < 1)) {
+            throw new BizException(422, trappedFault ? "困人急修人数须在 1-99 之间" : "困人人数须在 0-99 之间");
+        }
+        return trappedFault ? value : 0;
     }
 
     /** 急修单派单（管理端调度）：指派接单维保员，OPEN → ASSIGNED（docs/04 V2.28 派单系统） */
@@ -244,10 +261,12 @@ public class DirectoryService {
         if (me.regionId != null && el != null && el.regionId != null && !me.regionId.equals(el.regionId)) {
             throw new BizException(1403, "超出本区域范围，请联系主管派单");
         }
+        if (faultMapper.claimOpen(id, empId, TimeUtil.now()) != 1) {
+            throw new BizException(422, "该急修单已被其他人员认领，请刷新后查看");
+        }
         f.dispatchWorkerId = empId;
         f.dispatchedAt = TimeUtil.now();
         f.status = "ASSIGNED";
-        faultMapper.updateById(f);
         return faultView(f);
     }
 
@@ -272,8 +291,8 @@ public class DirectoryService {
     /** M1：提交急修单（故障原因/处理措施必填）PROCESSING→PENDING_CONFIRM */
     public Map<String, Object> submitFault(String id, String empId, Map<String, Object> body) {
         Fault f = faultOr404(id);
-        if (!"PROCESSING".equals(f.status)) {
-            throw new BizException(422, "仅处置中的急修单可提交");
+        if (!List.of("PROCESSING", "REFUSED").contains(f.status)) {
+            throw new BizException(422, "仅处置中或已退回的急修单可提交");
         }
         if (!empId.equals(f.dispatchWorkerId)) {
             throw new BizException(1403, "仅被指派维保人员可提交");
@@ -303,21 +322,27 @@ public class DirectoryService {
         }
         checkUnit(f, unitId);
         if (pass) {
+            if (faultMapper.closePending(id) != 1) {
+                throw new BizException(422, "急修单已被其他请求确认，请刷新后查看");
+            }
             f.status = "CLOSED";
             f.confirmedAt = TimeUtil.now();
         } else {
             if (reason.trim().isEmpty()) {
                 throw new BizException(422, "拒绝原因必填");
             }
+            if (faultMapper.refusePending(id, reason) != 1) {
+                throw new BizException(422, "急修单已被其他请求处理，请刷新后查看");
+            }
             f.status = "REFUSED";
             f.refuseReason = reason;
         }
-        faultMapper.updateById(f);
         return faultView(f);
     }
 
-    /** M1：取消（接单前单位管理员/接单后主管；原因必填） */
-    public Map<String, Object> cancelFault(String id, java.util.Set<String> roles, String reason) {
+    /** M1：取消（OPEN=本单位管理员；接单后=本组主管；原因必填） */
+    public Map<String, Object> cancelFault(String id, java.util.Set<String> roles, String reason,
+                                           String empId, String unitId) {
         Fault f = faultOr404(id);
         if (reason.trim().isEmpty()) {
             throw new BizException(422, "取消原因必填");
@@ -326,8 +351,16 @@ public class DirectoryService {
             throw new BizException(422, "已闭环/已取消的急修单不可取消");
         }
         boolean beforeAccept = "OPEN".equals(f.status);
-        if (beforeAccept ? !roles.contains("CLIENT_ADMIN") : !roles.contains("MAINT_SUP")) {
-            throw new BizException(1403, beforeAccept ? "接单前仅使用单位管理员可取消" : "接单后仅维保主管可取消");
+        if (beforeAccept) {
+            if (!roles.contains("CLIENT_ADMIN")) {
+                throw new BizException(1403, "接单前仅使用单位管理员可取消");
+            }
+            checkUnit(f, unitId);
+        } else {
+            if (!roles.contains("MAINT_SUP")) {
+                throw new BizException(1403, "接单后仅维保主管可取消");
+            }
+            requireFaultReadAccess(f, empId);
         }
         f.status = "CANCELLED";
         f.cancelReason = reason;
@@ -376,12 +409,7 @@ public class DirectoryService {
     }
 
     private void checkUnit(Fault f, String unitId) {
-        if (unitId == null) {
-            return;
-        }
-        Elevator el = elevatorMapper.selectOne(new LambdaQueryWrapper<Elevator>()
-                .eq(Elevator::getElevatorCode, f.elevatorCode).last("LIMIT 1"));
-        if (el == null || !unitId.equals(el.useUnitId)) {
+        if (unitId == null || unitId.isBlank() || f.useUnitId == null || !unitId.equals(f.useUnitId)) {
             throw new BizException(1403, "仅本单位急修单可操作");
         }
     }
@@ -449,14 +477,14 @@ public class DirectoryService {
     public Map<String, Object> listFaults(Map<String, String> query, String empId) {
         List<Fault> list = faultMapper.selectList(new LambdaQueryWrapper<Fault>()
                 .orderByDesc(Fault::getCreatedAt));
-        Set<String> creatorIds = scopeService.visibleCreatorIds(scopeService.require(empId));
+        Employee me = scopeService.require(empId);
+        Set<String> creatorIds = scopeService.visibleCreatorIds(me);
         if (creatorIds != null) {
-            // 历史数据 createdBy 为 NULL：对全员可见（V7 前-only 数据）
-            // OPEN 单 = 区域抢单池语义（grab 谓词只查区域），不属任何人的既有工作量——
-            // 若按创建人收敛，客户报修（createdBy=unit:*）在维保端列表永不可见、无人能接单（2026-11-21 通道修复）；
-            // 已指派给本人的单同样必须可见，否则接单后从本人列表消失、无法到场/提交。
-            list = list.stream().filter(f -> f.createdBy == null || creatorIds.contains(f.createdBy)
-                    || "OPEN".equals(f.status) || empId.equals(f.dispatchWorkerId)).toList();
+            // OPEN 仅本区域池可见；已派单允许本人或本组受派人持续可见，客户报修也不会从主管视野消失。
+            list = list.stream().filter(f -> (f.createdBy != null && creatorIds.contains(f.createdBy))
+                    || ("OPEN".equals(f.status) && poolVisible(f, me))
+                    || empId.equals(f.dispatchWorkerId)
+                    || (f.dispatchWorkerId != null && creatorIds.contains(f.dispatchWorkerId))).toList();
         }
         String status = query.get("status");
         if (status != null && !status.isEmpty()) {
@@ -552,13 +580,23 @@ public class DirectoryService {
     }
 
     private Set<String> requireFaultReadAccess(Fault f, String empId) {
-        Set<String> creatorIds = scopeService.visibleCreatorIds(scopeService.require(empId));
-        boolean visible = creatorIds == null || f.createdBy == null || creatorIds.contains(f.createdBy)
-                || "OPEN".equals(f.status) || java.util.Objects.equals(empId, f.dispatchWorkerId);
+        Employee me = scopeService.require(empId);
+        Set<String> creatorIds = scopeService.visibleCreatorIds(me);
+        boolean visible = creatorIds == null || (f.createdBy != null && creatorIds.contains(f.createdBy))
+                || ("OPEN".equals(f.status) && poolVisible(f, me))
+                || java.util.Objects.equals(empId, f.dispatchWorkerId)
+                || (f.dispatchWorkerId != null && creatorIds.contains(f.dispatchWorkerId));
         if (!visible) {
-            throw new BizException(1403, "仅可查看本人、本班组或待认领的急修单");
+            throw new BizException(1403, "仅可查看本人、本班组或本区域待认领的急修单");
         }
         return creatorIds;
+    }
+
+    private boolean poolVisible(Fault f, Employee me) {
+        Elevator el = elevatorMapper.selectOne(new LambdaQueryWrapper<Elevator>()
+                .eq(Elevator::getElevatorCode, f.elevatorCode).last("LIMIT 1"));
+        // 与 grabFault 的区域口径一致：任一侧未分区不拦截，双方非空且不同则拒绝。
+        return me == null || me.regionId == null || el == null || el.regionId == null || me.regionId.equals(el.regionId);
     }
 
     private void requireFaultOperator(Fault f, String empId) {
@@ -567,6 +605,14 @@ public class DirectoryService {
         if (creatorIds != null && !java.util.Objects.equals(empId, f.dispatchWorkerId)) {
             throw new BizException(1403, "仅被派单作业人员或管理角色可操作急修单");
         }
+    }
+
+    public Map<String, Object> getClientFault(String id, String unitId) {
+        Fault f = faultOr404(id);
+        checkUnit(f, unitId);
+        Map<String, Object> view = faultView(f);
+        enrichFaultViews(List.of(view));
+        return view;
     }
 
     public Map<String, Object> getFault(String id, String empId) {
@@ -581,7 +627,7 @@ public class DirectoryService {
     public Map<String, Object> updateFault(String id, Map<String, Object> body, String empId) {
         Fault f = faultOr404(id);
         requireFaultOperator(f, empId);
-        if (!List.of("OPEN", "ASSIGNED", "PROCESSING").contains(f.status)) {
+        if (!List.of("OPEN", "ASSIGNED", "PROCESSING", "REFUSED").contains(f.status)) {
             throw new BizException(1003, "当前状态不允许修改维修过程或处理结果");
         }
         if (body.get("siteDesc") != null) {
@@ -608,26 +654,8 @@ public class DirectoryService {
         if ("CLOSED".equals(f.status)) {
             return faultView(f);
         }
-        if (!"PENDING_CONFIRM".equals(f.status)) {
-            throw new BizException(1003, "仅待使用单位确认的急修单可执行旧版关闭");
-        }
-        String result = strOrEmpty(body == null ? null : body.get("result"));
-        String signature = strOrEmpty(body == null ? null : body.get("signature"));
-        if (WorkOrderService.isBlank(result)) {
-            throw new BizException(422, "请填写处理结果");
-        }
-        if (WorkOrderService.isBlank(signature)) {
-            throw new BizException(422, "请先由使用单位安全管理员签字确认");
-        }
-        f.status = "CLOSED";
-        f.handleDesc = result;
-        if (f.finishedAt == null) {
-            f.finishedAt = TimeUtil.now();
-        }
-        f.signature = signature;
-        f.confirmedAt = TimeUtil.now();
-        faultMapper.updateById(f);
-        return map("ok", true);
+        // 七态急修闭环只能由使用单位通过 /unit/faults/{id}/confirm 确认，员工不得代确认。
+        throw new BizException(1403, "急修闭环须由使用单位确认，员工不可代签关闭");
     }
 
     // ── 应急演练 ──

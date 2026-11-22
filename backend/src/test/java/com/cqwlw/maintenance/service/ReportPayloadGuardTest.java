@@ -64,6 +64,7 @@ class ReportPayloadGuardTest {
         companyMapper = mock(CompanyMapper.class);
         recordMapper = mock(MaintainRecordMapper.class);
         orderMapper = mock(WorkOrderMapper.class);
+        when(orderMapper.completeCheckout(any(), any(), any(), any(), any(), any())).thenReturn(1);
         elevatorMapper = mock(ElevatorMapper.class);
         reportService = mock(PlatformReportService.class);
         FileStorageService fileStorage = mock(FileStorageService.class);

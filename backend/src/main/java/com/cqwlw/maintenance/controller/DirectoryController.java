@@ -132,7 +132,8 @@ public class DirectoryController {
         }
         String reason = body.get("reason") == null ? "" : String.valueOf(body.get("reason"));
         Map<String, Object> result = directoryService.cancelFault(id,
-                com.cqwlw.maintenance.auth.MultiRoleGate.roles(request), reason);
+                com.cqwlw.maintenance.auth.MultiRoleGate.roles(request), reason,
+                empId(request), unitAnchor(request));
         guard.commit(result);
         return ApiResponse.ok(result);
     }

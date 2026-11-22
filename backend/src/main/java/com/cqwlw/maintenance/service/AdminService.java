@@ -154,7 +154,19 @@ public class AdminService {
     // ── 维保记录管理端查询（GET /admin/records）──
 
     public Map<String, Object> records(Map<String, String> q) {
+        return records(q, null);
+    }
+
+    public Map<String, Object> records(Map<String, String> q, java.util.Set<String> visiblePlatformIds) {
+        if (visiblePlatformIds != null && visiblePlatformIds.isEmpty()) {
+            return Map.of("list", List.of(), "total", 0,
+                    "page", intOf(q.get("page"), 1), "size", intOf(q.get("size"), 20));
+        }
         LambdaQueryWrapper<MaintainRecord> w = new LambdaQueryWrapper<>();
+        if (visiblePlatformIds != null) {
+            w.and(x -> x.in(MaintainRecord::getWorkerPlatformId, visiblePlatformIds)
+                    .or().in(MaintainRecord::getAssistantPlatformId, visiblePlatformIds));
+        }
         if (notBlank(q.get("reportStatus"))) {
             w.eq(MaintainRecord::getReportStatus, q.get("reportStatus"));
         }

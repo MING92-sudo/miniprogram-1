@@ -77,7 +77,7 @@ public class HandoverChecklistController {
     @PostMapping("/handovers/{id}/rectifications/{rectId}/recheck")
     public ApiResponse<HandoverOrder> recheck(@PathVariable String id, @PathVariable String rectId,
                                               @RequestBody Map<String, Object> body, HttpServletRequest req) {
-        MultiRoleGate.requireWrite(req, PermissionMatrix.HANDOVER_REVIEW);
+        MultiRoleGate.requireWrite(req, PermissionMatrix.HANDOVER_INSPECT);
         return ApiResponse.ok(checklist.recheckItem(id, rectId, body));
     }
 

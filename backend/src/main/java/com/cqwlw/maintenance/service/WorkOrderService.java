@@ -213,8 +213,12 @@ public class WorkOrderService {
         int dueSoon = 0;
         int overdue = 0;
         int inProgress = 0;
+        int openOrders = 0;
         for (WorkOrder o : scopeOrders(orderMapper.selectList(null), empId)) {
             String planDay = o.planTime == null ? "" : TimeUtil.date(o.planTime);
+            if (!"DONE".equals(o.status)) {
+                openOrders++;
+            }
             if ("PROCESSING".equals(o.status)) {
                 inProgress++;
             }
@@ -258,6 +262,7 @@ public class WorkOrderService {
         m.put("dueSoon", dueSoon);
         m.put("overdue", overdue);
         m.put("inProgress", inProgress);
+        m.put("openOrders", openOrders);
         m.put("unconfirmed", unconfirmed);
         m.put("platformTotal", elevatorMapper.selectCount(null));
         m.put("openFaults", openFaults);
@@ -534,11 +539,15 @@ public class WorkOrderService {
         // D9：回填仅限主维保——配合人免围栏（D6），其远距定位不得污染围栏基线
         boolean geoBackfilled = false;
         if (!assistant && el != null && (el.lng == null || el.lat == null)) {
-            el.lng = java.math.BigDecimal.valueOf(lng);
-            el.lat = java.math.BigDecimal.valueOf(lat);
-            el.geoStatus = "SELF_COLLECTED";
-            elevatorMapper.updateById(el);
-            geoBackfilled = true;
+            java.math.BigDecimal backfillLng = java.math.BigDecimal.valueOf(lng);
+            java.math.BigDecimal backfillLat = java.math.BigDecimal.valueOf(lat);
+            int updated = elevatorMapper.backfillGeoIfMissing(el.id, backfillLng, backfillLat);
+            if (updated == 1) {
+                el.lng = backfillLng;
+                el.lat = backfillLat;
+                el.geoStatus = "SELF_COLLECTED";
+                geoBackfilled = true;
+            }
         }
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("checkinId", Ids.next("chk"));
@@ -1147,10 +1156,30 @@ public class WorkOrderService {
         // 拦截在写状态之前——覆盖"签到后档案被改动"导致的漏网冲突，与 2.6 取数同源。
         requirePhoneMutexForOrder(o, el);
 
+        String expectedOriginalRecordId = isBlank(o.originalRecordId) ? null : o.originalRecordId;
+        boolean rework = expectedOriginalRecordId != null;
+        MaintainRecord previous = null;
+        if (rework) {
+            previous = recordMapper.selectOne(new LambdaQueryWrapper<MaintainRecord>()
+                    .eq(MaintainRecord::getWorkOrderId, o.id)
+                    .orderByDesc(MaintainRecord::getVersion)
+                    .orderByDesc(MaintainRecord::getCreatedAt)
+                    .last("LIMIT 1"));
+            if (previous == null) {
+                previous = recordMapper.selectOne(new LambdaQueryWrapper<MaintainRecord>()
+                        .eq(MaintainRecord::getOriginalRecordId, expectedOriginalRecordId)
+                        .orderByDesc(MaintainRecord::getVersion)
+                        .orderByDesc(MaintainRecord::getCreatedAt)
+                        .last("LIMIT 1"));
+            }
+            if (previous == null) {
+                throw new BizException(1404, "原维保记录不存在，无法生成本地更正版本");
+            }
+        }
         o.status = "DONE";
         o.checkoutTime = checkoutTime;
-        o.originalRecordId = Ids.nextRecordId();
-        o.reportStatus = "SUBMITTED";
+        o.originalRecordId = rework ? expectedOriginalRecordId : Ids.nextRecordId();
+        o.reportStatus = rework ? "DRAFT" : "SUBMITTED";
         o.duration = TimeUtil.formatDuration(TimeUtil.toMillis(checkoutTime) - TimeUtil.toMillis(o.checkinTime));
 
         UseUnit uu = el.useUnitId == null ? null : useUnitMapper.selectById(el.useUnitId);
@@ -1223,6 +1252,10 @@ public class WorkOrderService {
         r.originalRecordId = o.originalRecordId;
         r.reportStatus = o.reportStatus;
         r.retryCount = 0;
+        if (rework) {
+            r.version = (previous.version == null ? 1 : previous.version) + 1;
+            r.prevVersionId = previous.id;
+        }
         r.nextMaintenanceDate = LocalDate.now(TimeUtil.ZONE).plusDays(interval);
         r.confirmStatus = "PENDING";
         // M1：记录生命周期初始化（复核开关分流）+ 来源工单关联（复核退回回写用）
@@ -1234,12 +1267,16 @@ public class WorkOrderService {
         SHARE_TOKEN_RANDOM.nextBytes(shareTokenBytes);
         r.shareToken = "sg" + java.util.HexFormat.of().formatHex(shareTokenBytes);
         r.createdAt = TimeUtil.now();
-        r.reportPayloadJson = JsonUtil.write(buildReportPayload(r, el, uu));
+        r.reportPayloadJson = rework ? null : JsonUtil.write(buildReportPayload(r, el, uu));
         r.previewContextJson = JsonUtil.write(buildPreviewContext(o, el, uu, items.size(), mustRun.size()));
         // B3：本地落库原子化（工单 DONE + 维保记录 + 电梯滚动）——任一失败全部回滚，
-        // 避免"工单已完成但记录丢失"的合规证据链断裂；平台上传移出事务避免长事务持锁
+        // completeCheckout 同时以状态和本次原记录 ID 抢占，防止不同请求重复签退/重复上报。
         transactionTemplate.executeWithoutResult(tx -> {
-            orderMapper.updateById(o);
+            int completed = orderMapper.completeCheckout(o.id, o.checkoutTime, o.originalRecordId,
+                    o.reportStatus, o.duration, expectedOriginalRecordId);
+            if (completed != 1) {
+                throw new BizException(1003, "工单已被其他请求签退，请刷新后查看");
+            }
             recordMapper.insert(r);
             if (el != null) {
                 el.nextMaintenanceDate = r.nextMaintenanceDate;
@@ -1252,12 +1289,11 @@ public class WorkOrderService {
         if (o.sourceHandoverId != null && Boolean.TRUE.equals(o.handoverIssue)) {
             writeBackHandoverIssue(o);
         }
-        // P3：签退成功后自动转发平台 2.6（失败不自动重试，AGENTS §2.3；
-        // 平台凭证未配置时保持 SUBMITTED=待上报，本地/演示流程不受影响）
-        r.reportStatus = reportService.attemptUpload(r);
-        recordMapper.updateById(r);
+        // P3：仅首次签退自动转发 2.6；复核退回整改只生成本地新版本，保留原 originalRecordId 且绝不上报。
+        r.reportStatus = rework ? "DRAFT" : reportService.attemptUpload(r);
+        // 最终只回写上报状态，不能用整实体覆盖复核退回刚写出的 lifecycle/工单状态。
         o.reportStatus = r.reportStatus;
-        orderMapper.updateById(o);
+        orderMapper.updateReportStatus(o.id, o.reportStatus);
 
         return JsonUtil.map(
                 "workOrderId", o.id,

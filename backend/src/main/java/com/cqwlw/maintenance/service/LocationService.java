@@ -2,6 +2,7 @@ package com.cqwlw.maintenance.service;
 
 import com.cqwlw.maintenance.config.AppProperties;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.cqwlw.maintenance.util.LogSanitizer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -62,7 +63,7 @@ public class LocationService {
                 }
             }
         } catch (Exception e) {
-            log.warn("高德逆地址解析失败，已回退坐标: {}", e.getMessage());
+            log.warn("高德逆地址解析失败，已回退坐标: {}", LogSanitizer.withoutQuery(e.getMessage()));
         }
         return fallback;
     }
@@ -91,7 +92,7 @@ public class LocationService {
                 }
             }
         } catch (Exception e) {
-            log.warn("腾讯逆地址解析失败，已回退坐标: {}", e.getMessage());
+            log.warn("腾讯逆地址解析失败，已回退坐标: {}", LogSanitizer.withoutQuery(e.getMessage()));
         }
         return fallback;
     }

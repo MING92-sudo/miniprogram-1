@@ -24,7 +24,9 @@ function getMaintHome() {
     const faults = arr(faultsRes)
     const open = faults.filter((f) => f.status === 'OPEN')
     const trapped = open.filter((f) => (f.trappedCount || 0) > 0)
-    const due = (summary.dueToday || 0) + (summary.dueSoon || 0) + (summary.overdue || 0)
+    const due = summary.openOrders != null
+      ? summary.openOrders
+      : (summary.dueToday || 0) + (summary.dueSoon || 0) + (summary.overdue || 0)
     const kpis = [
       { value: pad(due), label: '待维保', path: '/pkg-maintenance/pages/orders/index?status=OPEN' },
       { value: pad(trapped.length), label: '急修待接', alert: true, path: '/pages/order/list/index?state=urgent' },

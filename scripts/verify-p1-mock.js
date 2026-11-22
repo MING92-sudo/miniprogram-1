@@ -469,6 +469,56 @@ async function check(name, fn) {
     await login(CLIENT_ACCOUNT)
   })
 
+  await check('J1 客户急修详情/确认/取消按本单位与角色收敛', async () => {
+    d.db.faults.push({ id: 'ft_gate', elevatorCode: 'EM-2024-001', useUnitId: 'uu_1', desc: '门禁验证', status: 'PENDING_CONFIRM' })
+    d.db.faults.push({ id: 'ft_cancel', elevatorCode: 'EM-2024-001', useUnitId: 'uu_1', desc: '取消验证', status: 'OPEN' })
+    try {
+      await login(CLIENT_ACCOUNT)
+      const own = await req('GET', '/unit/faults/ft_gate')
+      assert.strictEqual(own.id, 'ft_gate')
+      await login('13800003005')
+      await expectCode(1403, 'GET', '/unit/faults/ft_gate')
+      await login('13800000018')
+      const closed = await req('POST', '/unit/faults/ft_gate/confirm', { pass: true })
+      assert.strictEqual(closed.status, 'CLOSED')
+      await expectCode(422, 'POST', '/unit/faults/ft_gate/confirm', { pass: true })
+      await login(CLIENT_ACCOUNT)
+      const cancelled = await req('POST', '/unit/faults/ft_cancel/cancel', { reason: '误报' })
+      assert.strictEqual(cancelled.status, 'CANCELLED')
+    } finally {
+      d.db.faults = d.db.faults.filter((f) => f.id !== 'ft_gate' && f.id !== 'ft_cancel')
+    }
+  })
+  await check('J2 员工旧 close 不得替代客户确认', async () => {
+    await login(TECH_ACCOUNT)
+    await expectCode(1403, 'POST', '/faults/ft_1/close', { result: '伪造闭环', signature: 'forged' })
+  })
+
+  await check('J3 客户报修自动派单与过户后快照归属', async () => {
+    await login(CLIENT_ACCOUNT)
+    const created = await req('POST', '/unit/faults', {
+      elevatorCode: 'EM-2024-001', desc: '客户报修自动派单验证', faultType: '一般故障', trappedCount: 0, photos: []
+    })
+    try {
+      assert.strictEqual(created.status, 'ASSIGNED', '有责任人时客户报修未自动派单')
+      const el = d.db.elevators.find((x) => x.id === 'el_1')
+      const oldUnit = el.useUnitId
+      try {
+        el.useUnitId = 'uu_2'
+        const list = await req('GET', '/unit/faults')
+        assert(list.some((f) => f.id === created.id), '过户后历史急修未按快照保留给原单位')
+      } finally { el.useUnitId = oldUnit }
+    } finally {
+      d.db.faults = d.db.faults.filter((f) => f.id !== created.id)
+    }
+  })
+  await check('J4 mock 待维保 KPI 与 OPEN 列表同数据域', async () => {
+    await login('13800000001')
+    const summary = await req('GET', '/home/summary')
+    const open = await req('GET', '/work-orders', { status: 'OPEN', page: 1, size: 100 })
+    assert.strictEqual(summary.openOrders, open.total, 'KPI 包含了他区域/他人工单')
+  })
+
   const failed = results.filter((r) => !r.ok)
   results.forEach((r) => console.log((r.ok ? 'PASS' : 'FAIL') + '  ' + r.name + (r.ok ? '' : '  → ' + r.err)))
   console.log(failed.length ? failed.length + '/' + results.length + ' 失败' : '全部 ' + results.length + ' 项通过')

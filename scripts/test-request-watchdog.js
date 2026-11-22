@@ -18,6 +18,10 @@ global.wx = {
 }
 global.getCurrentPages = () => [{ route: 'pages/login/index' }]
 
+const config = require(path.join(ROOT, 'config/index.js'))
+// 本脚本专测 callContainer 黑洞；显式固定云通道，避免随本地 ENV='dev' 漂移。
+config.cloud.enabled = true
+config.useMock = false
 const { post } = require(path.join(ROOT, 'utils/request.js'))
 const results = []
 async function check(name, fn) {

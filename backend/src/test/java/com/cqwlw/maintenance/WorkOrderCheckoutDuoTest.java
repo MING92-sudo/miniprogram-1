@@ -66,6 +66,7 @@ class WorkOrderCheckoutDuoTest {
     @BeforeEach
     void setUp() {
         orderMapper = mock(WorkOrderMapper.class);
+        when(orderMapper.completeCheckout(any(), any(), any(), any(), any(), any())).thenReturn(1);
         recordMapper = mock(MaintainRecordMapper.class);
         EmployeeMapper employeeMapper = mock(EmployeeMapper.class);
         ElevatorMapper elevatorMapper = mock(ElevatorMapper.class);

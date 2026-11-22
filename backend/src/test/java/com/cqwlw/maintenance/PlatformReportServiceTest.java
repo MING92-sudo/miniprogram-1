@@ -51,6 +51,7 @@ class PlatformReportServiceTest {
         props = new PlatformProperties();
         service = new PlatformReportService(recordMapper, logMapper,
                 platformClient, tokenService, props);
+        when(recordMapper.beginLegacyUpload(anyString())).thenReturn(1);
     }
 
     private MaintainRecord record(String reportStatus) {
@@ -120,6 +121,7 @@ class PlatformReportServiceTest {
     @Test
     void reuploadFailedRecordSucceedsAndLogsReupload() {
         when(platformClient.uploadMaintenanceRecord(any())).thenReturn(Map.of("code", 200));
+        when(recordMapper.beginReupload("ur_1")).thenReturn(1);
         MaintainRecord r = record("FAILED");
         when(recordMapper.selectById("ur_1")).thenReturn(r);
 
@@ -139,16 +141,95 @@ class PlatformReportServiceTest {
     }
 
     @Test
-    void legacySyncUploadsUnreportedRecordsWhenSwitchOn() {
+    void legacySyncUploadsOnlySubmittedLeafRecordsWhenSwitchOn() {
         props.setLegacyUploadEnabled(true);
         when(tokenService.configured()).thenReturn(true);
         MaintainRecord done = record("REPORTED");
         MaintainRecord failed = record("FAILED");
-        when(recordMapper.selectList(any())).thenReturn(List.of(done, failed));
+        MaintainRecord submitted = record("SUBMITTED");
+        when(recordMapper.selectList(any())).thenReturn(List.of(done, failed, submitted));
         when(platformClient.uploadLegacyRecord(any(), any(), any())).thenReturn(Map.of("code", 200));
 
-        assertEquals(2, service.syncLegacy());
-        verify(platformClient, times(2)).uploadLegacyRecord(any(), any(), any());
+        assertEquals(1, service.syncLegacy());
+        verify(platformClient, times(1)).uploadLegacyRecord(any(), any(), any());
+    }
+
+    @Test
+    void concurrentReuploadAllowsOnlyOnePlatformCall() {
+        MaintainRecord first = record("FAILED");
+        MaintainRecord second = record("FAILED");
+        when(recordMapper.selectById("ur_1")).thenReturn(first, second);
+        when(recordMapper.beginReupload("ur_1")).thenReturn(1, 0);
+        when(platformClient.uploadMaintenanceRecord(any())).thenReturn(Map.of("code", 200));
+
+        service.reupload("ur_1");
+        BizException loser = assertThrows(BizException.class, () -> service.reupload("ur_1"));
+
+        assertEquals(1003, loser.getCode());
+        verify(platformClient, times(1)).uploadMaintenanceRecord(any());
+    }
+
+    @Test
+    void reuploadRejectsSupersededRecord() {
+        MaintainRecord old = record("FAILED");
+        when(recordMapper.selectById("ur_1")).thenReturn(old);
+        when(recordMapper.selectCount(any())).thenReturn(1L);
+
+        BizException e = assertThrows(BizException.class, () -> service.reupload("ur_1"));
+
+        assertEquals(1003, e.getCode());
+        verify(platformClient, never()).uploadMaintenanceRecord(any());
+        verify(recordMapper, never()).beginReupload(anyString());
+    }
+
+    @Test
+    void legacySyncSkipsSupersededSubmittedRecord() {
+        props.setLegacyUploadEnabled(true);
+        when(tokenService.configured()).thenReturn(true);
+        when(recordMapper.selectList(any())).thenReturn(List.of(record("SUBMITTED")));
+        when(recordMapper.selectCount(any())).thenReturn(1L);
+
+        assertEquals(0, service.syncLegacy());
+        verify(platformClient, never()).uploadLegacyRecord(any(), any(), any());
+    }
+
+    @Test
+    void reuploadFailureReturnsRecordToFailed() {
+        MaintainRecord r = record("FAILED");
+        when(recordMapper.selectById("ur_1")).thenReturn(r);
+        when(recordMapper.beginReupload("ur_1")).thenReturn(1);
+        when(platformClient.uploadMaintenanceRecord(any())).thenThrow(new RuntimeException("network"));
+
+        assertThrows(RuntimeException.class, () -> service.reupload("ur_1"));
+
+        assertEquals("FAILED", r.reportStatus);
+        verify(recordMapper).completeReupload("ur_1", "FAILED");
+    }
+
+    @Test
+    void concurrentLegacySyncClaimsRecordOnlyOnce() {
+        props.setLegacyUploadEnabled(true);
+        when(tokenService.configured()).thenReturn(true);
+        when(recordMapper.selectList(any())).thenReturn(List.of(record("SUBMITTED"), record("SUBMITTED")));
+        when(recordMapper.beginLegacyUpload("ur_1")).thenReturn(1, 0);
+        when(platformClient.uploadLegacyRecord(any(), any(), any())).thenReturn(Map.of("code", 200));
+
+        assertEquals(1, service.syncLegacy());
+        verify(platformClient, times(1)).uploadLegacyRecord(any(), any(), any());
+    }
+
+    @Test
+    void legacyUploadFailureRestoresSubmittedWithoutRetry() {
+        props.setLegacyUploadEnabled(true);
+        when(tokenService.configured()).thenReturn(true);
+        MaintainRecord r = record("SUBMITTED");
+        when(recordMapper.selectList(any())).thenReturn(List.of(r));
+        when(platformClient.uploadLegacyRecord(any(), any(), any())).thenThrow(new RuntimeException("network"));
+
+        assertEquals(0, service.syncLegacy());
+        assertEquals("SUBMITTED", r.reportStatus);
+        verify(recordMapper).completeLegacyUpload("ur_1", "SUBMITTED");
+        verify(platformClient, times(1)).uploadLegacyRecord(any(), any(), any());
     }
 
     @Test

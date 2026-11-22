@@ -13,11 +13,12 @@ const ownElevators = [
 let definition
 let loadCalls = 0
 let submitted = null
+let unitListImpl = () => Promise.resolve(ownElevators)
 
 const unitService = {
   getUnitElevators() {
     loadCalls += 1
-    return Promise.resolve(ownElevators)
+    return unitListImpl()
   },
   reportUnitFault(payload) {
     submitted = payload
@@ -30,7 +31,7 @@ Module._load = function (request, parent, isMain) {
   if (parent && parent.filename === pagePath) {
     if (request === '../../../services/fault') return { reportFault: unitService.reportUnitFault }
     if (request === '../../../services/unit') return unitService
-    if (request === '../../../services/elevator') return { getElevatorByCode: () => Promise.resolve(ownElevators[0]) }
+    if (request === '../../../services/elevator') return { getElevatorByCode: (code) => Promise.resolve(ownElevators.find((e) => e.elevatorCode === code)) }
     if (request === '../../../services/upload') return { uploadImage: () => Promise.resolve({ url: '' }) }
     if (request === '../../../constants/index') return { FAULT_TYPE_OPTIONS: ['一般故障', '困人急修'], FAULT_TYPE_TRAPPED: '困人急修' }
     if (request === '../../../utils/auth') return { isCustomerPrincipal: () => true }
@@ -71,6 +72,25 @@ async function main() {
   page.onSubmit()
   assert(submitted, '选择电梯后应能提交报修')
   assert.strictEqual(submitted.elevatorCode, 'EL-002', '提交值必须来自所选本单位电梯')
+
+  page.onTypeChange({ detail: { value: '1' } })
+  page.onTrappedInput({ detail: { value: '2' } })
+  page.onTypeChange({ detail: { value: '0' } })
+  submitted = null
+  page.onSubmit()
+  assert.strictEqual(submitted.trappedCount, 0, '切回一般故障必须清空被困人数')
+
+  let releaseList
+  unitListImpl = () => new Promise((resolve) => { releaseList = resolve })
+  const raced = createPage()
+  raced.onLoad({})
+  raced.backfill('EL-002')
+  await new Promise((resolve) => setImmediate(resolve))
+  assert.strictEqual(raced.data.elevatorCode, 'EL-002')
+  releaseList(ownElevators)
+  await new Promise((resolve) => setImmediate(resolve))
+  assert.strictEqual(raced.data.elevatorCode, 'EL-002', '单位列表迟到时不得清空先完成的扫码选择')
+  assert.strictEqual(raced.data.elevator.id, 'el_2')
 
   const wxml = fs.readFileSync(path.join(root, 'pages/order/report/index.wxml'), 'utf8')
   assert(wxml.includes('range="{{elevatorOptions}}"'), '客户电梯应使用选择器')

@@ -2,6 +2,7 @@ package com.cqwlw.maintenance.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import com.cqwlw.maintenance.auth.PermissionMatrix;
 import com.cqwlw.maintenance.common.BizException;
 import com.cqwlw.maintenance.entity.AppFile;
 import com.cqwlw.maintenance.entity.Elevator;
@@ -47,6 +48,12 @@ public class RecordLifecycleService {
     private final RecordPdfService pdfService;
     private final FileStorageService fileStorage;
     private final SysConfigMapper configMapper;
+    private EmployeeScopeService scopeService;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    public void setScopeService(EmployeeScopeService scopeService) {
+        this.scopeService = scopeService;
+    }
 
     public RecordLifecycleService(MaintainRecordMapper recordMapper, WorkOrderMapper orderMapper,
                                   EmployeeMapper employeeMapper, ElevatorMapper elevatorMapper,
@@ -71,10 +78,15 @@ public class RecordLifecycleService {
 
     /** 主管复核（管理端动作，小程序仅展示状态）：通过→待使用单位签字；退回→作业中（原因必填） */
     public Map<String, Object> review(String recordId, boolean pass, String reason, Set<String> roles) {
-        if (roles.stream().noneMatch(r -> "MAINT_SUP".equals(r) || "MAINT_MGR".equals(r))) {
+        return review(recordId, pass, reason, roles, null);
+    }
+
+    public Map<String, Object> review(String recordId, boolean pass, String reason, Set<String> roles, String empId) {
+        if (roles.stream().noneMatch(r -> PermissionMatrix.allowsNew(r, PermissionMatrix.RECORD_REVIEW))) {
             throw new BizException(1403, "无复核权限");
         }
         MaintainRecord r = findOr404(recordId);
+        requireRecordScope(r, empId);
         if (!"PENDING_REVIEW".equals(r.lifecycleStatus)) {
             throw new BizException(422, "记录不在待复核状态");
         }
@@ -100,10 +112,15 @@ public class RecordLifecycleService {
 
     /** 发起使用单位签字（主检/主管）：门控双签齐（或存量单人豁免） */
     public Map<String, Object> signRequest(String recordId, Set<String> roles) {
-        if (roles.stream().noneMatch(r -> "MAINT_TECH".equals(r) || "MAINT_SUP".equals(r))) {
+        return signRequest(recordId, roles, null);
+    }
+
+    public Map<String, Object> signRequest(String recordId, Set<String> roles, String empId) {
+        if (roles.stream().noneMatch(r -> PermissionMatrix.allowsNew(r, PermissionMatrix.RECORD_SIGN_REQUEST))) {
             throw new BizException(1403, "无发起签署权限");
         }
         MaintainRecord r = findOr404(recordId);
+        requireRecordScope(r, empId);
         if (!"PENDING_CLIENT_SIGN".equals(r.lifecycleStatus)) {
             throw new BizException(422, "记录不在待使用单位签字状态");
         }
@@ -216,7 +233,12 @@ public class RecordLifecycleService {
 
     /** 归档投影：存量 SIGNED 按需补归档（幂等）；非归档态 422 */
     public Map<String, Object> archiveView(String recordId) {
+        return archiveView(recordId, null);
+    }
+
+    public Map<String, Object> archiveView(String recordId, String empId) {
         MaintainRecord r = findOr404(recordId);
+        requireRecordScope(r, empId);
         if ("SIGNED".equals(r.lifecycleStatus)) {
             archive(r);
         }
@@ -226,6 +248,12 @@ public class RecordLifecycleService {
         return Map.of("url", fileStorage.urlOf(r.archiveFileId),
                 "hash", r.archiveHash == null ? "" : r.archiveHash,
                 "archivedAt", TimeUtil.format(r.archivedAt));
+    }
+
+    private void requireRecordScope(MaintainRecord r, String empId) {
+        if (scopeService != null && !scopeService.canReadRecord(scopeService.require(empId), r)) {
+            throw new BizException(1403, "仅可查看本人或本班组记录");
+        }
     }
 
     private void archive(MaintainRecord r) {

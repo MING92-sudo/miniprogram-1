@@ -34,4 +34,20 @@ public interface WorkOrderMapper extends BaseMapper<WorkOrder> {
     int claimOrder(@Param("id") String id,
                    @Param("name") String name,
                    @Param("pid") String pid);
+
+    /** 签退原子抢占：首次要求原记录 ID 为空，整改要求仍为本次读取到的原记录 ID。 */
+    @Update("UPDATE work_order SET status = 'DONE', checkout_time = #{checkoutTime}, "
+            + "original_record_id = #{originalRecordId}, report_status = #{reportStatus}, duration = #{duration} "
+            + "WHERE id = #{id} AND status = 'PROCESSING' AND ("
+            + "(#{expectedOriginalRecordId} IS NULL AND (original_record_id IS NULL OR original_record_id = '')) "
+            + "OR (#{expectedOriginalRecordId} IS NOT NULL AND original_record_id = #{expectedOriginalRecordId}))")
+    int completeCheckout(@Param("id") String id,
+                         @Param("checkoutTime") LocalDateTime checkoutTime,
+                         @Param("originalRecordId") String originalRecordId,
+                         @Param("reportStatus") String reportStatus,
+                         @Param("duration") String duration,
+                         @Param("expectedOriginalRecordId") String expectedOriginalRecordId);
+
+    @Update("UPDATE work_order SET report_status = #{reportStatus} WHERE id = #{id}")
+    int updateReportStatus(@Param("id") String id, @Param("reportStatus") String reportStatus);
 }

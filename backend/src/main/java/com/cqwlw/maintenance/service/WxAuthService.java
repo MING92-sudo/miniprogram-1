@@ -7,6 +7,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.ResponseEntity;
+import com.cqwlw.maintenance.util.LogSanitizer;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
@@ -117,8 +118,7 @@ public class WxAuthService {
         if (msg == null || msg.isEmpty()) {
             return "-";
         }
-        int q = msg.indexOf('?');
-        return q < 0 ? msg : msg.substring(0, q) + "?<query-redacted>";
+        return LogSanitizer.withoutQuery(msg);
     }
 
     /** SSL 失败时捕获对端证书链并落 issuer（仅诊断：trust-all 只用于读证书，不发送任何凭证，不影响真实请求校验）。 */
@@ -191,25 +191,48 @@ public class WxAuthService {
     }
 
     /**
-     * 云环境出口网关 TLS 拦截适配（C-14，用户裁决 2026-11-15：信任出口网关证书）。
-     * 网关对 443 呈现轮换的自签证书（CN=api.weixin.qq.com），静态导入不可行；
-     * 默认仍走严格 PKIX，仅当校验失败且对端符合网关画像（自签+固定 CN）时 TOFU 信任并留指纹审计。
-     * 信任边界=本云环境出口基础设施（密钥亦存于该环境）；非网关画像的失败一律拒绝。
+     * 云环境出口网关 TLS 拦截适配（C-14）：默认严格 PKIX；仅当对端符合自签+固定 CN 画像且
+     * SHA-256 命中 WX_GATEWAY_TRUSTED_SHA256 显式白名单时放行。未配置指纹一律拒绝，绝不只凭 CN 信任。
      */
     public static final class GatewayAwareTrustManager implements X509TrustManager {
         private final X509TrustManager delegate;
+        private final java.util.Set<String> trustedFingerprints;
 
         public GatewayAwareTrustManager(X509TrustManager delegate) {
+            this(delegate, "");
+        }
+
+        public GatewayAwareTrustManager(X509TrustManager delegate, String trustedSha256) {
             this.delegate = delegate;
+            this.trustedFingerprints = parseFingerprints(trustedSha256);
+        }
+
+        private static java.util.Set<String> parseFingerprints(String raw) {
+            if (raw == null || raw.isBlank()) {
+                return java.util.Set.of();
+            }
+            java.util.Set<String> out = new java.util.HashSet<>();
+            for (String part : raw.split(",")) {
+                String value = part.trim().toLowerCase(java.util.Locale.ROOT).replace(":", "");
+                if (!value.matches("[0-9a-f]{64}")) {
+                    throw new IllegalStateException("WX_GATEWAY_TRUSTED_SHA256 含非法 SHA-256 指纹");
+                }
+                out.add(value);
+            }
+            return java.util.Collections.unmodifiableSet(out);
         }
 
         public static GatewayAwareTrustManager withDefaultTrust() {
+            return withDefaultTrust("");
+        }
+
+        public static GatewayAwareTrustManager withDefaultTrust(String trustedSha256) {
             try {
                 TrustManagerFactory tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
                 tmf.init((KeyStore) null);
                 for (TrustManager tm : tmf.getTrustManagers()) {
                     if (tm instanceof X509TrustManager x) {
-                        return new GatewayAwareTrustManager(x);
+                        return new GatewayAwareTrustManager(x, trustedSha256);
                     }
                 }
                 throw new IllegalStateException("no X509TrustManager");
@@ -235,12 +258,16 @@ public class WxAuthService {
             } catch (CertificateException e) {
                 if (chain.length > 0 && isGatewayProfile(chain[0])) {
                     try {
-                        log.warn("信任云出口网关自签证书（C-14 用户裁决）: sha256={}", HexFormat.of().formatHex(
-                                MessageDigest.getInstance("SHA-256").digest(chain[0].getEncoded())));
+                        String fingerprint = HexFormat.of().formatHex(
+                                MessageDigest.getInstance("SHA-256").digest(chain[0].getEncoded()));
+                        if (trustedFingerprints.contains(fingerprint)) {
+                            log.warn("信任显式配置的云出口网关证书: sha256={}", fingerprint);
+                            return;
+                        }
+                        log.warn("拒绝未配置指纹的云出口自签证书: sha256={}", fingerprint);
                     } catch (Exception ignored) {
-                        // 指纹仅审计用，失败不影响信任决策
+                        // 指纹计算失败同样 fail-closed。
                     }
-                    return;
                 }
                 throw e;
             }

@@ -1,5 +1,7 @@
 package com.cqwlw.maintenance.service;
 
+import com.cqwlw.maintenance.common.BizException;
+import com.cqwlw.maintenance.entity.Elevator;
 import com.cqwlw.maintenance.entity.Employee;
 import com.cqwlw.maintenance.entity.Fault;
 import com.cqwlw.maintenance.mapper.CompanyMapper;
@@ -33,26 +35,39 @@ import static org.mockito.Mockito.when;
 class FaultListScopeTest {
 
     private DirectoryService svc;
+    private FaultMapper faults;
+    private ElevatorMapper elevators;
+    private EmployeeMapper employees;
+    private EmployeeScopeService scope;
+    private WorkOrderService workOrderService;
 
     @BeforeEach
     void setUp() {
-        FaultMapper faults = mock(FaultMapper.class);
-        WorkOrderService workOrderService = mock(WorkOrderService.class);
-        ElevatorMapper elevators = mock(ElevatorMapper.class);
-        EmployeeMapper employees = mock(EmployeeMapper.class);
-        EmployeeScopeService scope = mock(EmployeeScopeService.class);
+        faults = mock(FaultMapper.class);
+        workOrderService = mock(WorkOrderService.class);
+        elevators = mock(ElevatorMapper.class);
+        employees = mock(EmployeeMapper.class);
+        scope = mock(EmployeeScopeService.class);
         svc = new DirectoryService(mock(RescueMapper.class), faults, mock(DrillMapper.class),
                 mock(InspectRecordMapper.class), mock(MessageMapper.class), mock(KnowledgeMapper.class),
                 elevators, mock(ChecklistService.class), workOrderService,
                 scope, employees, mock(UseUnitMapper.class),
                 mock(WorkOrderMapper.class), mock(CompanyMapper.class), mock(FileStorageService.class),
                 mock(TenantSnapshotService.class));
-        when(elevators.selectList(any())).thenReturn(List.of());
         when(employees.selectList(any())).thenReturn(List.of());
+        Elevator own = new Elevator();
+        own.elevatorCode = "EM-1";
+        own.regionId = "r1";
+        Elevator other = new Elevator();
+        other.elevatorCode = "EM-2";
+        other.regionId = "r2";
+        when(elevators.selectList(any())).thenReturn(List.of(own, other));
+        when(elevators.selectOne(any())).thenReturn(own, other);
         // 受限员工 e1：只见自己创建的单（V7 收敛）
         Employee me = new Employee();
         me.id = "e1";
         me.role = "MAINT_TECH";
+        me.regionId = "r1";
         when(scope.require("e1")).thenReturn(me);
         when(scope.visibleCreatorIds(me)).thenReturn(Set.of("e1"));
         // 管理角色：null = 全可见
@@ -62,12 +77,16 @@ class FaultListScopeTest {
         when(scope.require("boss")).thenReturn(admin);
         when(scope.visibleCreatorIds(admin)).thenReturn(null);
 
+        Fault cross = fault("f_cross", "unit:uu_2", "OPEN", null);
+        cross.elevatorCode = "EM-2";
+        when(faults.selectById("f_cross")).thenReturn(cross);
         when(faults.selectList(any())).thenReturn(List.of(
                 fault("f_mine", "e1", "CLOSED", "e1"),
                 fault("f_pool", "unit:uu_1", "OPEN", null),      // 客户报修·抢单池
                 fault("f_myjob", "unit:uu_1", "ASSIGNED", "e1"), // 客户报修·已指派给我
                 fault("f_other", "unit:uu_1", "ASSIGNED", "e2"), // 他人已接单
-                fault("f_done", "e2", "CLOSED", "e2")));         // 他人闭环单
+                fault("f_done", "e2", "CLOSED", "e2"),         // 他人闭环单
+                cross));                                           // 跨区域 OPEN，不得进入本区域池
         when(workOrderService.paginate(any(), any())).thenAnswer((inv) -> {
             List<Map<String, Object>> views = inv.getArgument(0);
             return Map.of("list", views, "total", views.size());
@@ -83,7 +102,46 @@ class FaultListScopeTest {
     @Test
     void privilegedSeesAll() {
         Map<String, Object> res = svc.listFaults(Map.of("page", "1", "size", "50", "status", "", "trapped", ""), "boss");
-        assertEquals(5, res.get("total"));
+        assertEquals(6, res.get("total"));
+    }
+
+    @Test
+    void crossRegionOpenFaultIsInvisibleInListAndDetail() {
+        Map<String, Object> res = svc.listFaults(Map.of("page", "1", "size", "50", "status", "OPEN", "trapped", ""), "e1");
+        assertEquals(1, res.get("total"));
+        BizException ex = org.junit.jupiter.api.Assertions.assertThrows(BizException.class, () -> svc.getFault("f_cross", "e1"));
+        assertEquals(1403, ex.getCode());
+    }
+
+    @Test
+    void supervisorKeepsVisibilityAfterClientFaultAssignedToTeam() {
+        Employee sup = new Employee();
+        sup.id = "sup";
+        sup.role = "MAINT_SUP";
+        sup.regionId = "r1";
+        when(scope.require("sup")).thenReturn(sup);
+        when(scope.visibleCreatorIds(sup)).thenReturn(Set.of("e1", "e2"));
+
+        Map<String, Object> res = svc.listFaults(Map.of("page", "1", "size", "50", "status", "ASSIGNED", "trapped", ""), "sup");
+
+        assertEquals(2, res.get("total"));
+    }
+
+    @Test
+    void crossGroupSupervisorCannotCancelAssignedFault() {
+        Employee sup = new Employee();
+        sup.id = "sup";
+        sup.role = "MAINT_SUP";
+        sup.regionId = "r1";
+        when(scope.require("sup")).thenReturn(sup);
+        when(scope.visibleCreatorIds(sup)).thenReturn(Set.of("e1"));
+        Fault assigned = fault("f_other", "unit:uu_1", "ASSIGNED", "e2");
+        when(faults.selectById("f_other")).thenReturn(assigned);
+
+        BizException ex = org.junit.jupiter.api.Assertions.assertThrows(BizException.class,
+                () -> svc.cancelFault("f_other", Set.of("MAINT_SUP"), "跨组取消", "sup", null));
+
+        assertEquals(1403, ex.getCode());
     }
 
     private static Fault fault(String id, String createdBy, String status, String dispatcher) {

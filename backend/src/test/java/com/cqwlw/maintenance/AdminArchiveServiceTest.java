@@ -156,6 +156,35 @@ class AdminArchiveServiceTest {
     }
 
     @Test
+    void updateElevatorTracksManualGeoSource() {
+        Elevator el = new Elevator();
+        el.id = "el_9";
+        el.geoStatus = "SELF_COLLECTED";
+        el.lng = new java.math.BigDecimal("106.1");
+        el.lat = new java.math.BigDecimal("29.2");
+        when(elevatorMapper.selectById("el_9")).thenReturn(el);
+
+        service.updateElevator("el_9", Map.of("lng", "106.55", "lat", "29.56"));
+        assertEquals("PROVIDED", el.geoStatus);
+        service.updateElevator("el_9", Map.of("lng", "", "lat", ""));
+        assertEquals("UNKNOWN", el.geoStatus);
+    }
+
+    @Test
+    void batchGeoUsesManualSourceAndRangeValidation() {
+        Elevator el = new Elevator();
+        el.id = "el_9";
+        el.elevatorCode = "EM-1";
+        el.geoStatus = "SELF_COLLECTED";
+        when(elevatorMapper.selectList(any())).thenReturn(List.of(el));
+        Map<String, Object> out = service.batchGeo(Map.of("items", List.of(
+                Map.of("code", "EM-1", "lng", "106.55", "lat", "29.56"),
+                Map.of("code", "EM-1", "lng", "181", "lat", "29.56"))));
+        assertEquals("PROVIDED", el.geoStatus);
+        assertEquals(1, ((List<?>) out.get("failed")).size());
+    }
+
+    @Test
     void updateElevatorRejectsIncompleteGeoWithoutWriting() {
         Elevator el = new Elevator();
         el.id = "el_9";

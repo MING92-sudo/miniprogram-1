@@ -148,13 +148,28 @@ class CheckinGeoFenceTest {
     void unknownElevatorGeoNotIntercepted() {
         elevator.lat = null;
         elevator.lng = null;
+        when(elevatorMapper.backfillGeoIfMissing(any(), any(), any())).thenReturn(1);
         Map<String, Object> r = service.checkin(ORDER, body(EL_LAT + 0.5, EL_LNG), EMP);
         assertEquals("UNKNOWN", r.get("geoStatus"), "坐标未登记只留痕不拦截（码表 1005 语义）");
         assertEquals(Boolean.TRUE, r.get("passed"));
         assertEquals(Boolean.TRUE, r.get("geoBackfilled"), "无坐标电梯应以本次签到定位回填");
         // 无坐标电梯签到后回填坐标并标记为现场采集（用户需求③ + docs/02 §5.4 geo_status）
         assertEquals("SELF_COLLECTED", elevator.geoStatus);
-        verify(elevatorMapper).updateById(elevator);
+        verify(elevatorMapper).backfillGeoIfMissing(any(), any(), any());
+        verify(elevatorMapper, never()).updateById(any(Elevator.class));
+    }
+
+    @Test
+    void backfillLosingRaceDoesNotOverwriteManualGeo() {
+        elevator.lat = null;
+        elevator.lng = null;
+        when(elevatorMapper.backfillGeoIfMissing(any(), any(), any())).thenReturn(0);
+
+        Map<String, Object> r = service.checkin(ORDER, body(EL_LAT + 0.5, EL_LNG), EMP);
+
+        assertEquals(false, r.get("geoBackfilled"));
+        assertEquals(null, elevator.geoStatus);
+        verify(elevatorMapper, never()).updateById(any(Elevator.class));
     }
 
     @Test

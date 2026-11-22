@@ -1,84 +1,46 @@
 // scripts/verify-miniapp-m0.js
-// M0 映射基线结构守卫（结构等价取证）：集合完整性校验，缺口退出码 1
+// 当前代码结构守卫：路由、状态集合、权限镜像与静态资源；不依赖已删除的历史设计文档。
 const fs = require('fs')
 const path = require('path')
 const ROOT = path.join(__dirname, '..')
-const M0 = fs.readFileSync(path.join(ROOT, 'docs/superpowers/specs/2026-11-15-miniapp-redesign-m0-mappings.md'), 'utf8')
-const SPEC = fs.readFileSync(path.join(ROOT, 'docs/superpowers/specs/2026-11-15-miniapp-redesign-design.md'), 'utf8')
 const results = []
 function check(name, missing, total) {
   results.push({ name, total, missingCount: missing.length, missing })
   if (missing.length) process.exitCode = 1
 }
-function section(n) {
-  const re = new RegExp('## ' + n + ' [^\\n]*\\n([\\s\\S]*?)(?=\\n## \\d |$)')
-  const m = M0.match(re)
-  return m ? m[1] : ''
+function read(p) { return fs.readFileSync(path.join(ROOT, p), 'utf8') }
+
+const app = JSON.parse(read('app.json'))
+const routes = require('../config/routes')
+const appPages = (app.pages || []).concat((app.subPackages || []).reduce((acc, sp) =>
+  acc.concat((sp.pages || []).map((p) => sp.root + '/' + p)), []))
+check('routes-meta', appPages.filter((p) => !routes.ROUTES['/' + p]), appPages.length)
+check('routes-built', appPages.filter((p) => routes.ROUTES['/' + p] && !routes.ROUTES['/' + p].built), appPages.length)
+
+const woSrc = read('backend/src/main/java/com/cqwlw/maintenance/service/WorkOrderService.java')
+for (const state of ['PENDING', 'PROCESSING', 'DONE']) {
+  check('work-order-state-' + state, woSrc.includes('"' + state + '"') ? [] : [state], 1)
 }
-// 1 记录域：旧态全覆盖（严格双形态：status 赋值 或 "X".equals(o.status)；双捕获组归一）
-const woSrc = fs.readFileSync(path.join(ROOT, 'backend/src/main/java/com/cqwlw/maintenance/service/WorkOrderService.java'), 'utf8')
-const recordStates = [...new Set([...woSrc.matchAll(/status = "([A-Z_]+)"|"([A-Z_]+)"\.equals\(o\.status\)/g)].map(m => m[1] || m[2]))]
-check('record-states', recordStates.filter(s => !section(1).includes('| ' + s + ' ')), recordStates.length)
-// 2 移交域：旧态全覆盖（基准六值取自 HandoverService.java:48–53 状态常量块）
-const hoSrc = fs.readFileSync(path.join(ROOT, 'backend/src/main/java/com/cqwlw/maintenance/service/HandoverService.java'), 'utf8')
-const hoBlock = hoSrc.split('\n').slice(47, 53).join('')
-const handoverStates = [...new Set((hoBlock.match(/"([A-Z_]+)"/g) || []).map(s => s.slice(1, -1)))]
-check('handover-states', handoverStates.filter(s => !section(2).includes('| ' + s + ' ')), handoverStates.length)
-check('handover-baseline', handoverStates.length === 6 ? [] : ['expect 6 got ' + handoverStates.length], 6)
-// 3 急修域：旧态全覆盖 + 漂移检测（严格双形态，排除 BWJX 单号前缀等大写串误报；M1 后基线=七态）
+const handoverSrc = read('backend/src/main/java/com/cqwlw/maintenance/service/HandoverService.java')
+const handoverStates = ['INIT', 'DOC_SUBMITTING', 'INSPECTING', 'RECTIFYING', 'PENDING_CONFIRM', 'ARCHIVED', 'PENDING_INST_REVIEW', 'VOIDED']
+check('handover-states', handoverStates.filter((s) => !handoverSrc.includes('"' + s + '"')), handoverStates.length)
+const faultSrc = read('backend/src/main/java/com/cqwlw/maintenance/service/DirectoryService.java')
 const faultStates = ['OPEN', 'ASSIGNED', 'PROCESSING', 'PENDING_CONFIRM', 'CLOSED', 'REFUSED', 'CANCELLED']
-const faultSrc = fs.readFileSync(path.join(ROOT, 'backend/src/main/java/com/cqwlw/maintenance/service/DirectoryService.java'), 'utf8')
-const faultFound = [...new Set([...faultSrc.matchAll(/status = "([A-Z_]+)"|"([A-Z_]+)"\.equals\(f\.status\)/g)].map(m => m[1] || m[2]))]
-check('fault-states', faultStates.filter(s => !section(3).includes('| ' + s + ' ')), faultStates.length)
-check('fault-drift', faultFound.filter(s => !faultStates.includes(s)), faultFound.length)
-// 4 路由：旧页全覆盖 + 新路由全覆盖（单元格精确解析，防子串误匹配）
-const app = JSON.parse(fs.readFileSync(path.join(ROOT, 'app.json'), 'utf8'))
-const s4 = section(4)
-const oldCol = new Set()
-const newCol = new Set()
-for (const line of s4.split('\n')) {
-  const cells = line.split('|').map(c => c.trim())
-  if (cells.length >= 4 && cells[1] && cells[1] !== '新路由' && !cells[1].startsWith('---')) {
-    newCol.add(cells[1])
-    cells[2].split('+').forEach(x => oldCol.add(x.trim()))
-  }
-}
-// M6 收紧（裁决 R1）：旧页全删，app.json 全部页（主包+子包）∈ newCol 且计数 48
-// （2026-11-16 审查清理：dynamic-code 内联 checkin、record-archive 内联 record-detail，删 2 不可达页）
-const allAppPages = (app.pages || []).concat((app.subPackages || []).reduce((acc, sp) => acc.concat((sp.pages || []).map(p => sp.root + '/' + p)), []))
-check('routes-old', allAppPages.filter(p => !newCol.has(p)), allAppPages.length)
-// 49 = 48 基线 + P3 多单位选单位页（pages/client/select-unit/index，2026-11-20 补登记）
-check('routes-total', allAppPages.length === 49 ? [] : ['expect 49 got ' + allAppPages.length], 49)
-const spec14 = SPEC.split('### 1.4')[1].split('### 1.5')[0]
-const specRoutes = new Set()
-for (const line of spec14.split('\n')) {
-  const cells = line.split('|').map(c => c.trim())
-  if (cells.length >= 5 && cells[3] && cells[3] !== '新路由' && !cells[3].startsWith('---')) {
-    cells[3].split('+').forEach(part => {
-      const p = part.split('（')[0].trim()
-      const brace = p.match(/\{([^}]+)\}/)
-      if (brace) brace[1].split(',').forEach(x => specRoutes.add(p.replace(brace[0], x)))
-      else if (/^(pages|pkg-[a-z]+)\//.test(p)) specRoutes.add(p)
-    })
-  }
-}
-check('routes-new', [...specRoutes].filter(p => !newCol.has(p)), specRoutes.size)
-check('routes-count', specRoutes.size === 49 && newCol.size === 49 ? [] : ['spec=' + specRoutes.size + ' m0=' + newCol.size], 49)
-// 5 权限码：106 唯一全覆盖
-const pmSrc = fs.readFileSync(path.join(ROOT, 'backend/src/main/java/com/cqwlw/maintenance/auth/PermissionMatrix.java'), 'utf8')
-const codes = [...new Set([...pmSrc.matchAll(/public static final String [A-Z_0-9]+ = "([a-z_]+:[a-z_]+)"/g)].map(m => m[1]))]
-const s5 = section(5)
-check('perm-codes', codes.filter(c => !s5.includes('| ' + c + ' ')), codes.length)
-check('perm-count', codes.length === 106 ? [] : ['expect 106 got ' + codes.length], 106)
-// 6 资产：logo/64 图标/字体缺口
+check('fault-states', faultStates.filter((s) => !faultSrc.includes('"' + s + '"')), faultStates.length)
+
+const pm = require('../constants/permission-matrix')
+check('permission-count', pm.canonicalCodes().size === 86 ? [] : ['expect 86 got ' + pm.canonicalCodes().size], 86)
+const javaPm = read('backend/src/main/java/com/cqwlw/maintenance/auth/PermissionMatrix.java')
+const missingMirror = [...pm.canonicalCodes()].filter((code) => !javaPm.includes('"' + code + '"'))
+check('permission-mirror', missingMirror, pm.canonicalCodes().size)
+
 const assets = []
 if (!fs.existsSync(path.join(ROOT, 'assets/brand/logo.jpg'))) assets.push('logo.jpg')
-const iconCss = fs.existsSync(path.join(ROOT, 'assets/icons/icons.wxss'))
-  ? fs.readFileSync(path.join(ROOT, 'assets/icons/icons.wxss'), 'utf8') : ''
+const iconCss = fs.existsSync(path.join(ROOT, 'assets/icons/icons.wxss')) ? read('assets/icons/icons.wxss') : ''
 const glyphCount = (iconCss.match(/\.i-[a-z0-9-]+:before/g) || []).length
 if (glyphCount !== 64) assets.push('icons glyphs=' + glyphCount)
-const gap = fs.existsSync(path.join(ROOT, 'assets/fonts/zcool-gap.json'))
-  ? JSON.parse(fs.readFileSync(path.join(ROOT, 'assets/fonts/zcool-gap.json'), 'utf8')) : { missing: ['gap.json 缺失'] }
+const gapPath = path.join(ROOT, 'assets/fonts/zcool-gap.json')
+const gap = fs.existsSync(gapPath) ? JSON.parse(read('assets/fonts/zcool-gap.json')) : { missing: ['gap.json 缺失'] }
 if (gap.missing.length && !gap.userApprovedFallback) assets.push('zcool missing=' + gap.missing.join(''))
 check('assets', assets, 3)
 console.log(JSON.stringify(results, null, 2))

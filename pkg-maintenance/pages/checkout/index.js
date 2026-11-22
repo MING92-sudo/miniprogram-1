@@ -4,7 +4,7 @@ const { ROUTES } = require('../../../config/routes')
 // 业务规则：签到—签退间隔不少于 N 分钟（config.minWorkDurationMinutes，前后端双重校验）
 // 提交后触发记录生成与监管平台上报（后端）
 const { getOrderDetail, getChecklist, checkout } = require('../../../services/order')
-const { formatDuration, parseTime } = require('../../../utils/util')
+const { formatDuration, parseTime, uuid } = require('../../../utils/util')
 const { TOAST_TEXT } = require('../../../constants/index')
 const config = require('../../../config/index')
 const offline = require('../../../utils/offline')
@@ -41,6 +41,8 @@ definePage(ROUTES['/pkg-maintenance/pages/checkout/index'], {
     ],
     todoDesc: '', // 待办事项（V20 采集；空=无待办）
     checkBlocked: true, // 检查项未全部填写时灰置提交（docs/03 §5.7）
+    rework: false,
+    reworkAttemptKey: '',
     submitting: false
   },
 
@@ -92,7 +94,8 @@ definePage(ROUTES['/pkg-maintenance/pages/checkout/index'], {
         // 由后端 422「请选择配合人员/配合人员未签到」拦截（文案同 TOAST_TEXT，弹层完整展示）
         pooled: !!order.regionId,
         workerSigned: !!order.workerSigned,
-        assistantSigned: !!order.assistantSigned
+        assistantSigned: !!order.assistantSigned,
+        rework: !!order.originalRecordId
       })
       this.startTicker()
     } catch (e) {
@@ -176,9 +179,13 @@ definePage(ROUTES['/pkg-maintenance/pages/checkout/index'], {
       safetyConfirm: this.data.safety.reduce((m, c) => Object.assign(m, { [c.key]: c.checked }), {}),
       todoDesc: this.data.todoDesc
     }
+    if (this.data.rework && !this.data.reworkAttemptKey) {
+      this.setData({ reworkAttemptKey: 'co_' + this.data.orderId + '_rework_' + uuid() })
+    }
+    const idem = this.data.rework ? this.data.reworkAttemptKey : 'co_' + this.data.orderId
     try {
       // 响应：{ duration, originalRecordId, reportStatus, recordId, shareToken }（docs/04 A.2）
-      const resp = await checkout(this.data.orderId, payload)
+      const resp = await checkout(this.data.orderId, payload, { idempotencyKey: idem })
       // 签退成功 → 进入签名确认页（安全管理员本机代签，或分享链接远程签字）
       wx.showToast({ title: '签退成功', icon: 'success' })
       this._leaving = true
@@ -191,6 +198,7 @@ definePage(ROUTES['/pkg-maintenance/pages/checkout/index'], {
           url: `/work-orders/${this.data.orderId}/checkout`,
           method: 'POST',
           data: payload,
+          idempotencyKey: idem,
           desc: '签退提交'
         })
         wx.showToast({ title: '网络异常，签退已存入离线补传', icon: 'none' })

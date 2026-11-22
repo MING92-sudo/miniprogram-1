@@ -1,5 +1,5 @@
 // scripts/verify-m1-sync.js
-// M1 三处同步守卫（结构等价取证）：新端点必须同时出现在 services / mock / docs/04
+// 接口三处同步守卫：services / mock / 后端控制器；不依赖已删除的 docs/04。
 const fs = require('fs')
 const path = require('path')
 const ROOT = path.join(__dirname, '..')
@@ -17,21 +17,27 @@ const ENDPOINTS = [
   ['POST', '/faults/:id/submit'],
   ['POST', '/faults/:id/confirm'],
   ['POST', '/faults/:id/cancel'],
-  ['POST', '/faults/:id/evaluate']
+  ['POST', '/faults/:id/evaluate'],
+  ['GET', '/unit/faults/:id'],
+  ['POST', '/unit/faults/:id/confirm'],
+  ['POST', '/unit/faults/:id/cancel']
 ]
 const servicesDir = path.join(ROOT, 'services')
 const servicesSrc = fs.readdirSync(servicesDir).filter(f => f.endsWith('.js'))
   .map(f => fs.readFileSync(path.join(servicesDir, f), 'utf8')).join('\n')
 const mockSrc = fs.readFileSync(path.join(ROOT, 'mock/server.js'), 'utf8')
-const docSrc = fs.readFileSync(path.join(ROOT, 'docs/04-接口文档.md'), 'utf8')
+const controllerDir = path.join(ROOT, 'backend/src/main/java/com/cqwlw/maintenance/controller')
+const backendSrc = fs.readdirSync(controllerDir).filter(f => f.endsWith('.java'))
+  .map(f => fs.readFileSync(path.join(controllerDir, f), 'utf8')).join('\n')
+  + '\n' + fs.readFileSync(path.join(ROOT, 'backend/src/main/java/com/cqwlw/maintenance/auth/MiniappMenuController.java'), 'utf8')
 const results = []
 for (const [method, p] of ENDPOINTS) {
-  // services 用模板字符串（变量名不限）：:id → ${任意标识符}
   const svcRe = new RegExp(p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(':id', '\\$\\{[a-zA-Z]+\\}'))
+  const backendPath = p.replace(':id', '{id}')
   const missing = []
   if (!svcRe.test(servicesSrc) && !servicesSrc.includes(p)) missing.push('services')
   if (!mockSrc.includes("'" + p + "'")) missing.push('mock')
-  if (!docSrc.includes(p)) missing.push('docs04')
+  if (!backendSrc.includes('"' + backendPath + '"')) missing.push('backend')
   results.push({ method, path: p, missing })
   if (missing.length) process.exitCode = 1
 }

@@ -2,6 +2,7 @@ package com.cqwlw.maintenance.service;
 
 import com.cqwlw.maintenance.common.BizException;
 import com.cqwlw.maintenance.config.PlatformProperties;
+import com.cqwlw.maintenance.util.LogSanitizer;
 import com.fasterxml.jackson.core.type.TypeReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -99,7 +100,7 @@ public class PlatformTokenService {
             } catch (BizException e) {
                 throw e;
             } catch (Exception e) {
-                log.warn("平台登录请求异常(第{}次): {}", attempt, e.getMessage());
+                log.warn("平台登录请求异常(第{}次): {}", attempt, LogSanitizer.withoutQuery(e.getMessage()));
                 last = new BizException(2001, "监管平台 token 获取失败");
             }
         }

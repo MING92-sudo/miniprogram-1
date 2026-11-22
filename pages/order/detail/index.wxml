@@ -68,7 +68,7 @@
         <view wx:if="{{fault.refuseReason}}" class="kv-row"><text class="dim">拒绝原因</text><text>{{fault.refuseReason}}</text></view>
       </view>
 
-      <view wx:if="{{fault.status === 'PROCESSING' || fault.status === 'REFUSED'}}" class="card col gap8">
+      <view wx:if="{{!isClient && (fault.status === 'PROCESSING' || fault.status === 'REFUSED')}}" class="card col gap8">
         <view class="panel-title">维修过程</view>
         <textarea class="od-textarea" value="{{siteDesc}}" bindinput="onSiteInput" placeholder="现场情况（原因，必填）" placeholder-class="od-ph"></textarea>
         <textarea class="od-textarea" value="{{handleDesc}}" bindinput="onHandleInput" placeholder="处理结果（措施，必填）" placeholder-class="od-ph"></textarea>
@@ -82,13 +82,12 @@
     </block>
   </view>
   <view class="page-footer" wx:if="{{!loading && !error && fault}}">
-    <button wx:if="{{fault.status === 'OPEN' || fault.status === 'ASSIGNED'}}" class="btn btn-ghost od-f-ghost" bindtap="onCancel">{{text.CANCEL}}</button>
-    <button wx:if="{{fault.status === 'OPEN'}}" class="btn btn-primary od-f-main" bindtap="onGrab"><text class="i i-bolt"></text> {{text.GRAB}}</button>
-    <button wx:if="{{fault.status === 'ASSIGNED'}}" class="btn btn-primary od-f-main" bindtap="onArrive"><text class="i i-location-dot"></text> {{text.ARRIVE}}</button>
+    <button wx:if="{{canCancel}}" class="btn btn-ghost od-f-ghost" bindtap="onCancel">{{text.CANCEL}}</button>
+    <button wx:if="{{!isClient && fault.status === 'OPEN'}}" class="btn btn-primary od-f-main" bindtap="onGrab"><text class="i i-bolt"></text> {{text.GRAB}}</button>
+    <button wx:if="{{!isClient && fault.status === 'ASSIGNED'}}" class="btn btn-primary od-f-main" bindtap="onArrive"><text class="i i-location-dot"></text> {{text.ARRIVE}}</button>
     <block wx:if="{{fault.status === 'PENDING_CONFIRM' && canConfirm}}">
       <button class="btn btn-ghost od-f-ghost" data-pass="false" bindtap="onConfirm">拒绝并说明</button>
       <button class="btn btn-primary od-f-main" data-pass="true" bindtap="onConfirm">{{text.CONFIRM}}</button>
     </block>
-    <button wx:if="{{fault.status === 'CLOSED' && isClient && !fault.evaluatedAt}}" class="btn btn-primary od-f-main" bindtap="onEvaluate"><text class="i i-signature"></text> 服务评价</button>
   </view>
 </view>

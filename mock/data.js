@@ -268,10 +268,10 @@ const db = {
 
   faults: [
     { id: 'ft_1', elevatorCode: 'EM-2024-002', elevatorName: '世纪大厦 2# 客梯', desc: '轿厢 3 层停梯困人 2 人，已接警', photos: [], status: 'OPEN', createdAt: today('10:15:00'), result: '', signature: '', confirmedAt: '',
-      faultType: '困人（紧急）', trappedCount: 2,
+      faultType: '困人（紧急）', trappedCount: 2, useUnitId: 'uu_1',
       priority: 'P1', source: '使用单位电话报修', floor: '3', reporter: '张伟（物业）', expectBefore: '10:45', distanceKm: 1.2 },
     { id: 'ft_2', elevatorCode: 'EM-2024-001', elevatorName: '世纪大厦 1# 客梯', desc: '门锁回路断开 · 轿厢停于 12F', photos: [DEMO_PHOTO, DEMO_PHOTO, DEMO_PHOTO], status: 'CLOSED', createdAt: today('07:58:00'), result: '门锁触点氧化导致接触不良、门锁回路断开。清洁触点并更换门锁触点 1 只，恢复运行后连续观察 3 次开关门正常。', signature: 'mock_sign_1', confirmedAt: today('08:47:00'),
-      priority: 'P1', rescue: true, trappedCount: 2, floor: '12', source: '使用单位电话报修', reporter: '张伟（物业）',
+      priority: 'P1', rescue: true, trappedCount: 2, useUnitId: 'uu_1', floor: '12', source: '使用单位电话报修', reporter: '张伟（物业）',
       reportedAt: today('07:58:00'), arrivedAt: today('08:10:00'), rescuedAt: today('08:22:00'), finishedAt: today('08:47:00'), responseMinutes: 12,
       workerName: '李振国', workerNo: 'T3101', actions: ['清洁触点', '更换配件', '调整门锁'], parts: [{ name: '门锁触点', qty: 1 }],
       clientSigner: '张伟', clientRole: 'CLIENT_SIGNER', slaReport: 12, slaArrive: 24, slaDone: 30 }
@@ -509,6 +509,7 @@ function getHomeSummary() {
     dueSoon: dueSoon,
     overdue: overdue,
     inProgress: inProgress,
+    openOrders: db.orders.filter(function (o) { return o.status !== 'DONE' }).length,
     unconfirmed: db.unitRecords.filter(function (r) {
       return r.confirmStatus === 'PENDING'
     }).length,
@@ -937,18 +938,24 @@ function createRescue(body) {
 function createFault(body) {
   if (!body.elevatorCode) throw { code: 422, message: '请选择电梯' }
   if (!body.desc) throw { code: 422, message: '请填写故障描述' }
-  // 困人人数（C-18/V62）：0-99，缺省 0=非困人急修
-  const trapped = Number(body.trappedCount) || 0
-  if (trapped < 0 || trapped > 99) throw { code: 422, message: '困人人数须在 0-99 之间' }
+  // 困人人数：困人类型必须为整数 1-99；非困人恒 0。
+  const trappedType = String(body.faultType || '一般故障').includes('困人')
+  const raw = Number(body.trappedCount) || 0
+  if (!Number.isInteger(raw) || raw < 0 || raw > 99 || (trappedType && raw < 1)) {
+    throw { code: 422, message: trappedType ? '困人急修人数须为 1-99 的整数' : '困人人数须为 0-99 的整数' }
+  }
+  const trapped = trappedType ? raw : 0
   const f = {
     id: nextId('ft'),
     elevatorCode: body.elevatorCode,
+    useUnitId: (getElevatorByCode(body.elevatorCode) || {}).useUnitId || '',
     faultNo: 'BWJX' + formatTime().replace(/[-: ]/g, '').slice(0, 12) + '001',
     faultType: body.faultType || '一般故障',
     trappedCount: trapped,
     desc: body.desc || '',
     photos: Array.isArray(body.photos) ? body.photos : [],
     status: 'OPEN',
+    createdBy: body.createdBy || '',
     result: '',
     signature: '',
     confirmedAt: '',

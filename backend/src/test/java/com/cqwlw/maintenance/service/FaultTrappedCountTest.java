@@ -75,6 +75,23 @@ class FaultTrappedCountTest {
                 "elevatorCode", "EM-1", "desc", "轿厢困人", "trappedCount", 100), "e1"));
     }
 
+    @Test
+    void createFaultNormalizesTrappedTypeAndRejectsInvalidValues() {
+        Map<String, Object> numericString = svc.createFault(Map.of(
+                "elevatorCode", "EM-1", "desc", "轿厢困人", "faultType", "困人（紧急）", "trappedCount", "2"), "e1");
+        assertEquals(2, numericString.get("trappedCount"));
+        Map<String, Object> notTrapped = svc.createFault(Map.of(
+                "elevatorCode", "EM-1", "desc", "一般异响", "faultType", "一般故障", "trappedCount", 5), "e1");
+        assertEquals(0, notTrapped.get("trappedCount"));
+
+        assertThrows(BizException.class, () -> svc.createFault(Map.of(
+                "elevatorCode", "EM-1", "desc", "轿厢困人", "faultType", "困人（紧急）", "trappedCount", 1.9), "e1"));
+        assertThrows(BizException.class, () -> svc.createFault(Map.of(
+                "elevatorCode", "EM-1", "desc", "轿厢困人", "faultType", "困人（紧急）", "trappedCount", 0), "e1"));
+        assertThrows(BizException.class, () -> svc.createFault(Map.of(
+                "elevatorCode", "EM-1", "desc", "轿厢困人", "faultType", "困人（紧急）", "trappedCount", 4294967297L), "e1"));
+    }
+
     /** 列表 trapped=1 过滤：仅困人单（trappedCount>0），普单与 0 人单排除 */
     @Test
     @SuppressWarnings("unchecked")

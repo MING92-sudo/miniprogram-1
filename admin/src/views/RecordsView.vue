@@ -213,12 +213,12 @@
 
     <!-- 发起修订 -->
     <Modal :open="amendModal" title="发起归档后修订" :sub="(amendTarget && (amendTarget.originalRecordId || amendTarget.id)) || ''" icon="edit"
-      note="record:amend · 不触发上报（P-5）" confirm-label="发起修订" @close="amendModal = false" @confirm="submitAmend">
+      note="record:amend · 不触发上报（P-5）" :confirm-label="amendSaving ? '提交中…' : '发起修订'" @close="amendModal = false" @confirm="submitAmend">
+      <FormField label="修订理由" required :error="amendErr">
+        <textarea v-model="amendReason" class="ctl" data-testid="amend-reason" placeholder="必填，说明修订内容" />
+      </FormField>
       <div v-if="amendLoading" class="dim">正在加载原记录明细…</div>
       <template v-else>
-        <FormField label="修订理由" required :error="amendErr">
-          <textarea v-model="amendReason" class="ctl" data-testid="amend-reason" placeholder="必填，说明修订内容" />
-        </FormField>
         <div v-for="(it, i) in amendItems" :key="i" class="sec mt12">
           <div class="sec-t">{{ it.name || ('检查项 ' + (i + 1)) }}</div>
           <FormField label="检查结果">
@@ -233,7 +233,13 @@
               <input v-model="it.valueUnit" class="ctl" placeholder="单位" />
             </div>
           </FormField>
-          <FormField label="异常说明">
+          <FormField v-if="it.result === 'ABNORMAL'" label="隐患判定（S0—S7）" required>
+            <select v-model="it.problemCode" class="ctl" :data-testid="i === 0 ? 'amend-item-problem' : undefined">
+              <option value="">请选择隐患码</option>
+              <option v-for="opt in problemOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
+            </select>
+          </FormField>
+          <FormField label="异常说明" :required="it.result === 'ABNORMAL'">
             <textarea v-model="it.abnormalDesc" class="ctl" :data-testid="i === 0 ? 'amend-item-abnormal' : undefined" placeholder="异常项必填，如实描述" />
           </FormField>
         </div>
@@ -269,11 +275,13 @@ import StatusTag from '../ui/StatusTag.vue'
 import PermButton from '../ui/PermButton.vue'
 import { useToast } from '../ui/stores/ui'
 import { statusLabel, refuseCodeLabel } from '../ui/labels'
+import { PROBLEM_CODES } from '../constants'
 
 const toast = useToast()
 const REPORT_LABEL = { DRAFT: '草稿', SUBMITTED: '已提交', REPORTING: '上报中', REPORTED: '已上报', RETRY_WAIT: '待重试', FAILED_MAX: '重试超限', FAILED: '上报失败', CONFIRMED: '已确认' }
 function reportLabel(s) { return REPORT_LABEL[s] || statusLabel(s) }
 function abnormalCodes(codes) { return (codes || []).filter((c) => c && c !== 'S0') }
+const problemOptions = Object.entries(PROBLEM_CODES).map(([value, text]) => ({ value, label: `${value} ${text}` }))
 
 const rows = ref([])
 const loading = ref(false)
@@ -393,13 +401,19 @@ const amendTarget = ref(null)
 const amendReason = ref('')
 const amendErr = ref('')
 const amendLoading = ref(false)
+const amendReady = ref(false)
+const amendSaving = ref(false)
+let amendRequestSeq = 0
 const amendItems = ref([])
 const amendTodo = ref('')
 const amendSafety = ref({})
 async function openAmend(row) {
+  const seq = ++amendRequestSeq
   amendTarget.value = row
   amendReason.value = ''
   amendErr.value = ''
+  amendReady.value = false
+  amendSaving.value = false
   amendItems.value = []
   amendTodo.value = row.todoDesc || ''
   amendSafety.value = { warning: false, barrier: false, powerOff: false, twoPerson: false }
@@ -407,31 +421,45 @@ async function openAmend(row) {
   amendLoading.value = true
   try {
     const d = await http.get(`/admin/records/${row.id}`)
-    if (!amendTarget.value || amendTarget.value.id !== row.id) return
-    amendItems.value = (d.items || []).map((it) => ({ ...it }))
+    if (seq !== amendRequestSeq || !amendTarget.value || amendTarget.value.id !== row.id) return
+    amendItems.value = Array.isArray(d.items) ? d.items.map((it) => ({ ...it })) : []
     amendTodo.value = d.todoDesc || ''
     amendSafety.value = { warning: false, barrier: false, powerOff: false, twoPerson: false, ...(d.safety || {}) }
+    amendReady.value = amendItems.value.length > 0
+    if (!amendReady.value) amendErr.value = '原记录没有可修订的检查项，禁止生成空清单版本'
   } catch (e) {
+    if (seq !== amendRequestSeq) return
+    amendReady.value = false
     amendErr.value = e.message || '原记录明细加载失败，请关闭后重试'
   } finally {
-    amendLoading.value = false
+    if (seq === amendRequestSeq) amendLoading.value = false
   }
 }
 async function submitAmend() {
-  if (amendLoading.value) { amendErr.value = '原记录明细尚未加载完成'; return }
+  if (amendSaving.value) return
+  if (amendLoading.value || !amendReady.value) { amendErr.value = '原记录明细尚未成功加载，禁止提交'; return }
   if (!amendReason.value.trim()) { amendErr.value = '修订理由必填'; return }
+  const invalid = amendItems.value.find((it) => it.result === 'ABNORMAL'
+    && (!String(it.abnormalDesc || '').trim() || !/^S[0-7]$/.test(String(it.problemCode || ''))))
+  if (invalid) { amendErr.value = `检查项「${invalid.name || '未命名'}」异常说明和 S0—S7 隐患码必填`; return }
   amendErr.value = ''
+  const seq = amendRequestSeq
+  const target = amendTarget.value
+  amendSaving.value = true
   try {
-    await http.post(`/records/${amendTarget.value.id}/amend`, {
+    await http.post(`/records/${target.id}/amend`, {
       reason: amendReason.value,
       items: amendItems.value,
       todoDesc: amendTodo.value,
       safety: amendSafety.value
     })
+    if (seq !== amendRequestSeq) return
     amendModal.value = false
-    toast.success('已生成修订版 · 待复核／签署（不重报）', amendTarget.value.originalRecordId)
+    toast.success('已生成修订版 · 待复核／签署（不重报）', target.originalRecordId)
     await load()
-  } catch (e) { toast.error(e.message || '修订失败') }
+  } catch (e) { toast.error(e.message || '修订失败') } finally {
+    if (seq === amendRequestSeq) amendSaving.value = false
+  }
 }
 
 // PDF 导出

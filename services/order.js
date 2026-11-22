@@ -64,9 +64,10 @@ function signOrder(orderId, data) {
 }
 
 // 签退提交（后端自动转发平台 2.6，失败不自动重试）
-function checkout(orderId, data) {
+function checkout(orderId, data, options) {
+  const idem = options && options.idempotencyKey
   return post(`/work-orders/${orderId}/checkout`, data,
-    { idempotencyKey: 'co_' + orderId })
+    { idempotencyKey: idem || 'co_' + orderId })
 }
 
 // 手动重报平台 2.6（仅 uploadStatus=FAILED 的记录，docs/04 A.7 P3 修订）

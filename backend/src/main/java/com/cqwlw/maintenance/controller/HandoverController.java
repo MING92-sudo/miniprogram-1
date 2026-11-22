@@ -103,7 +103,7 @@ public class HandoverController {
     public ApiResponse<HandoverOrder> recheckRectify(@PathVariable String id,
                                                      @RequestBody(required = false) Map<String, Object> body,
                                                      HttpServletRequest req) {
-        MultiRoleGate.requireWrite(req, PermissionMatrix.HANDOVER_REVIEW);
+        MultiRoleGate.requireWrite(req, PermissionMatrix.HANDOVER_INSPECT);
         return ApiResponse.ok(handoverService.recheckRectify(id, body));
     }
 

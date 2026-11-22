@@ -16,6 +16,8 @@ public class AppProperties {
      */
     private String wxAppid;
     private String wxAppsecret;
+    /** 云出口网关自签证书 SHA-256 白名单（逗号分隔）；默认空=严格 PKIX。 */
+    private String wxGatewayTrustedSha256;
     private boolean seedDemoData = false; // C5：默认不播种，与 yml 默认一致
     /** 作业时长下限（分钟，签到→签退）；默认 30，测试可临时调小（APP_WORK_DURATION_MINUTES） */
     private int workDurationMinutes = 30;
@@ -86,6 +88,14 @@ public class AppProperties {
 
     public void setWxAppsecret(String wxAppsecret) {
         this.wxAppsecret = wxAppsecret;
+    }
+
+    public String getWxGatewayTrustedSha256() {
+        return wxGatewayTrustedSha256;
+    }
+
+    public void setWxGatewayTrustedSha256(String wxGatewayTrustedSha256) {
+        this.wxGatewayTrustedSha256 = wxGatewayTrustedSha256;
     }
 
     /** jscode2session 是否可用（AppID + AppSecret 均已注入） */

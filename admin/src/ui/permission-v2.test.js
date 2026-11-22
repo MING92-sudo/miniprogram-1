@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { canonical, state, allowsNew, canonicalCodes, canonicalRoles, defaultScope } from './permission-v2'
+import { canonical, state, allowsNew, canonicalCodes, canonicalRoles, defaultScope, canEditElevator } from './permission-v2'
 
 describe('permission-v2 mirror', () => {
   it('has 86 canonical codes', () => {
@@ -19,6 +19,11 @@ describe('permission-v2 mirror', () => {
     expect(canonical('INST_MGR')).toBe('INST_MGR')
     expect(canonical('HACKER')).toBe(null)
     expect(canonical(null)).toBe(null)
+  })
+  it('旧 LEADER 管理端只读，MAINT_SUP 与平台管理员按矩阵可编辑定位', () => {
+    expect(canEditElevator('LEADER')).toBe(false)
+    expect(canEditElevator('MAINT_SUP')).toBe(true)
+    expect(canEditElevator('PLATFORM_ADMIN')).toBe(true)
   })
   it('tri-state samples match backend', () => {
     expect(state('INST_MGR', 'handover:review')).toBe('Y')

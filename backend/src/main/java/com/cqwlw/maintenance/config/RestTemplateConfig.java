@@ -32,10 +32,11 @@ public class RestTemplateConfig {
 
     /** 微信 jscode2session 专用：云出口网关 TLS 拦截适配（C-14 用户裁决），其余链路仍严格 PKIX。 */
     @Bean
-    public RestTemplate wxRestTemplate() {
+    public RestTemplate wxRestTemplate(AppProperties props) {
         try {
             SSLContext ctx = SSLContext.getInstance("TLS");
-            ctx.init(null, new javax.net.ssl.TrustManager[]{WxAuthService.GatewayAwareTrustManager.withDefaultTrust()},
+            ctx.init(null, new javax.net.ssl.TrustManager[]{
+                    WxAuthService.GatewayAwareTrustManager.withDefaultTrust(props.getWxGatewayTrustedSha256())},
                     new SecureRandom());
             SimpleClientHttpRequestFactory f = new SimpleClientHttpRequestFactory() {
                 @Override

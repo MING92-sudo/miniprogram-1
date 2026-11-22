@@ -4,6 +4,7 @@ import com.cqwlw.maintenance.auth.AuthInterceptor;
 import com.cqwlw.maintenance.common.ApiResponse;
 import com.cqwlw.maintenance.common.BizException;
 import com.cqwlw.maintenance.service.UnitPortalService;
+import com.cqwlw.maintenance.service.IdempotencyService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -24,6 +25,12 @@ public class UnitPortalController {
 
     private final UnitPortalService portalService;
     private final com.cqwlw.maintenance.mapper.SysUserRoleMapper userRoleMapper;
+    private IdempotencyService idempotencyService;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    public void setIdempotencyService(IdempotencyService idempotencyService) {
+        this.idempotencyService = idempotencyService;
+    }
 
     /** V56 客户门户消息（setter 注入，保持既有构造器签名） */
     private com.cqwlw.maintenance.service.ClientMessageService clientMessageService;
@@ -63,6 +70,34 @@ public class UnitPortalController {
         return ApiResponse.ok(portalService.faults(unitId(request)));
     }
 
+    @GetMapping("/unit/faults/{id}")
+    public ApiResponse<Map<String, Object>> faultDetail(@org.springframework.web.bind.annotation.PathVariable String id,
+                                                        HttpServletRequest request) {
+        return ApiResponse.ok(portalService.faultDetail(unitId(request), id));
+    }
+
+    @PostMapping("/unit/faults/{id}/confirm")
+    public ApiResponse<Map<String, Object>> confirmFault(@org.springframework.web.bind.annotation.PathVariable String id,
+                                                         @RequestBody(required = false) Map<String, Object> body,
+                                                         HttpServletRequest request,
+                                                         @org.springframework.web.bind.annotation.RequestHeader(value = "X-Idempotency-Key", required = false) String idemKey) {
+        boolean pass = body == null || !Boolean.FALSE.equals(body.get("pass"));
+        String reason = body == null || body.get("reason") == null ? "" : String.valueOf(body.get("reason"));
+        return withIdempotency(idemKey, "/unit/faults/confirm", () ->
+                portalService.confirmFault(id, com.cqwlw.maintenance.auth.MultiRoleGate.roles(request),
+                        unitId(request), pass, reason));
+    }
+
+    @PostMapping("/unit/faults/{id}/cancel")
+    public ApiResponse<Map<String, Object>> cancelFault(@org.springframework.web.bind.annotation.PathVariable String id,
+                                                        @RequestBody(required = false) Map<String, Object> body,
+                                                        HttpServletRequest request,
+                                                        @org.springframework.web.bind.annotation.RequestHeader(value = "X-Idempotency-Key", required = false) String idemKey) {
+        String reason = body == null || body.get("reason") == null ? "" : String.valueOf(body.get("reason"));
+        return withIdempotency(idemKey, "/unit/faults/cancel", () ->
+                portalService.cancelFault(id, com.cqwlw.maintenance.auth.MultiRoleGate.roles(request), unitId(request), reason));
+    }
+
     // ── 客户门户消息（V56 签字临期/超期提醒，docs/04 V2.80；数据域=本单位锚点）──
 
     /** 本单位消息列表（签字提醒等，倒序 ≤50） */
@@ -95,6 +130,20 @@ public class UnitPortalController {
     public ApiResponse<Map<String, Object>> reportFault(@RequestBody(required = false) Map<String, Object> body,
                                                         HttpServletRequest request) {
         return ApiResponse.ok(portalService.reportFault(unitId(request), body));
+    }
+
+    private ApiResponse<Map<String, Object>> withIdempotency(String key, String path,
+                                                               java.util.function.Supplier<Map<String, Object>> action) {
+        if (idempotencyService == null) {
+            return ApiResponse.ok(action.get());
+        }
+        IdempotencyService.Guard guard = idempotencyService.begin(key, path);
+        if (guard.replayed()) {
+            return ApiResponse.ok(guard.replayedResult());
+        }
+        Map<String, Object> result = action.get();
+        guard.commit(result);
+        return ApiResponse.ok(result);
     }
 
     /** 单位身份：旧门户令牌优先；员工令牌取 CLIENT 角色锚点 org_id；无锚点 fail-closed 403 */

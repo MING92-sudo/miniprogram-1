@@ -210,6 +210,19 @@ public class UnitPortalService {
         return out;
     }
 
+    public Map<String, Object> faultDetail(String useUnitId, String faultId) {
+        return directoryService.getClientFault(faultId, useUnitId);
+    }
+
+    public Map<String, Object> confirmFault(String faultId, Set<String> roles, String useUnitId,
+                                            boolean pass, String reason) {
+        return directoryService.confirmFault(faultId, roles, useUnitId, pass, reason);
+    }
+
+    public Map<String, Object> cancelFault(String faultId, Set<String> roles, String useUnitId, String reason) {
+        return directoryService.cancelFault(faultId, roles, reason, null, useUnitId);
+    }
+
     /**
      * 使用单位报修：电梯必须属本单位（越权 1403 且不落单），复用急修链路建单后派给该梯责任人。
      * 登记人记为 unit:{useUnitId}，员工端展示为“使用单位报修”（DirectoryService.enrichFaultViews）。

@@ -3,7 +3,7 @@
     <ViewHead title="电梯档案" :sub="(row.projectName || '—') + ' · ' + (row.elevatorCode || '')">
       <template #meta><PageMeta perm="elevator:view" :extra="[{ k: '内部编号', v: row.insideNumber || '—', icon: 'elevator' }]" /></template>
       <template #actions>
-        <PermButton code="elevator:edit" label="修改定位" variant="primary" icon="map-pin" @click="geoOpen = true" />
+        <PermButton v-if="canGeoEdit" code="elevator:edit" label="修改定位" variant="primary" icon="map-pin" @click="geoOpen = true" />
         <PermButton code="elevator:view" label="返回台账" variant="ghost" icon="chevron-left" @click="$router.push('/elevators')" />
       </template>
     </ViewHead>
@@ -143,6 +143,10 @@ import PermButton from '../ui/PermButton.vue'
 import StatusTag from '../ui/StatusTag.vue'
 import ElevatorGeoModal from '../ui/ElevatorGeoModal.vue'
 import { useToast } from '../ui/stores/ui'
+import { useAuthStore } from '../stores/auth'
+import { canEditElevator } from '../ui/permission-v2'
+const auth = useAuthStore()
+const canGeoEdit = computed(() => canEditElevator(auth.role))
 const toast = useToast()
 const route = useRoute()
 const id = route.params.id

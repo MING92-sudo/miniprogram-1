@@ -830,6 +830,9 @@ public class AdminArchiveService {
             String s = str(body, "lat");
             el.lat = s.isBlank() ? null : new BigDecimal(s);
         }
+        if (body.get("lng") != null || body.get("lat") != null) {
+            el.geoStatus = el.lng == null || el.lat == null ? "UNKNOWN" : "PROVIDED";
+        }
         if (body.get("elevatorAdminister") != null) {
             el.elevatorAdminister = str(body, "elevatorAdminister");
         }
@@ -991,11 +994,13 @@ public class AdminArchiveService {
                 if (code.isBlank() || lng.isBlank() || lat.isBlank()) {
                     throw new BizException(422, "code/lng/lat 均必填");
                 }
+                validateElevatorGeo(item);
                 Elevator el = elevatorMapper.selectList(new LambdaQueryWrapper<Elevator>()
                                 .eq(Elevator::getElevatorCode, code)).stream().findFirst()
                         .orElseThrow(() -> new BizException(1404, "电梯不存在：" + code));
                 el.lng = new BigDecimal(lng);
                 el.lat = new BigDecimal(lat);
+                el.geoStatus = "PROVIDED";
                 elevatorMapper.updateById(el);
                 success.add(Map.of("code", code));
             } catch (BizException e) {

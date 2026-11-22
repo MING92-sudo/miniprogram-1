@@ -1,10 +1,11 @@
 // 急修单详情（M3，屏 06）：七态流转（M0 §3）OPEN→ASSIGNED→PROCESSING→PENDING_CONFIRM→CLOSED/REFUSED/CANCELLED。
 // 接 M1 端点 grab/arrive/submit/confirm/cancel/evaluate；到场显式 GPS 打卡；维保工单绝不套此七态（§1.3）。
 const { getFaultDetail, updateFault, grabFault, arriveFault, submitFault, confirmFault, cancelFault } = require('../../../services/fault')
+const { getUnitFaultDetail, confirmUnitFault, cancelUnitFault } = require('../../../services/unit')
 const { formatTime } = require('../../../utils/util')
 const { definePage } = require('../../../utils/guard')
 const { ROUTES } = require('../../../config/routes')
-const { getRoles } = require('../../../utils/auth')
+const { getRoles, isCustomerPrincipal } = require('../../../utils/auth')
 const nav = require('../../../utils/nav')
 const { TOAST_TEXT, ORDER_TEXT, FAULT_STATUS_TEXT, FAULT_STATUS_TONE } = require('../../../constants/index')
 
@@ -22,9 +23,11 @@ definePage(ROUTES['/pages/order/detail/index'], {
   onBack() { nav.back() },
   fetchDetail() {
     this.setData({ loading: true, error: '' })
-    getFaultDetail(this.data.id).then((fault) => {
+    const client = isCustomerPrincipal()
+    const fetch = client ? getUnitFaultDetail : getFaultDetail
+    fetch(this.data.id).then((fault) => {
       const roles = getRoles()
-      const isClient = roles.some((r) => r.indexOf('CLIENT') === 0)
+      const isClient = client
       const tl = []
       const push = (label, time, tone) => { if (time) tl.push({ label, time: String(time).slice(11, 16), tone }) }
       push(ORDER_TEXT.TL_REPORT, fault.reportedAt || fault.createdAt, 'ok')
@@ -38,16 +41,21 @@ definePage(ROUTES['/pages/order/detail/index'], {
         fault, loading: false, timeline: tl, heroTitle, responseText, heroSub,
         statusText: STATUS_TEXT[fault.status] || fault.status, statusTone: STATUS_TONE[fault.status] || 'dim',
         siteDesc: fault.siteDesc || '', todoDesc: fault.todoDesc || '', handleDesc: fault.handleDesc || fault.result || '',
-        isClient, canConfirm: roles.indexOf('CLIENT_SIGNER') > -1
+        isClient, canConfirm: roles.indexOf('CLIENT_SIGNER') > -1,
+        canCancel: fault.status === 'OPEN'
+          ? (isClient && roles.indexOf('CLIENT_ADMIN') > -1)
+          : (!isClient && fault.status === 'ASSIGNED' && roles.indexOf('MAINT_SUP') > -1)
       })
     }).catch((e) => this.setData({ loading: false, error: (e && e.message) || TOAST_TEXT.LOAD_FAILED }))
   },
   onRetry() { this.fetchDetail() },
   onGrab() {
+    if (this.data.isClient) return
     grabFault(this.data.id).then(() => { wx.showToast({ title: '已接单', icon: 'success' }); this.fetchDetail() })
       .catch((e) => wx.showToast({ title: (e && e.message) || '抢单失败', icon: 'none' }))
   },
   onArrive() {
+    if (this.data.isClient) return
     wx.getLocation({
       type: 'gcj02',
       success: (loc) => arriveFault(this.data.id, loc.latitude, loc.longitude)
@@ -60,6 +68,7 @@ definePage(ROUTES['/pages/order/detail/index'], {
   onTodoInput(e) { this.setData({ todoDesc: e.detail.value }) },
   onHandleInput(e) { this.setData({ handleDesc: e.detail.value }) },
   onSaveProcess() {
+    if (this.data.isClient) return
     if (this.data.submitting) return
     this.setData({ submitting: true })
     updateFault(this.data.id, { siteDesc: this.data.siteDesc, todoDesc: this.data.todoDesc, handleDesc: this.data.handleDesc, finishedAt: formatTime() })
@@ -67,6 +76,7 @@ definePage(ROUTES['/pages/order/detail/index'], {
       .catch((e) => { this.setData({ submitting: false }); wx.showToast({ title: (e && e.message) || TOAST_TEXT.SAVE_FAILED, icon: 'none' }) })
   },
   onSubmitFault() {
+    if (this.data.isClient) return
     if (!this.data.handleDesc) return wx.showToast({ title: '请填写处理结果（措施）', icon: 'none' })
     if (!this.data.siteDesc) return wx.showToast({ title: '请填写现场情况（原因）', icon: 'none' })
     submitFault(this.data.id, { siteDesc: this.data.siteDesc, todoDesc: this.data.todoDesc, handleDesc: this.data.handleDesc })
@@ -82,12 +92,14 @@ definePage(ROUTES['/pages/order/detail/index'], {
           if (!res.confirm) return
           const reason = (res.content || '').trim()
           if (!reason) return wx.showToast({ title: '拒绝原因必填', icon: 'none' })
-          confirmFault(this.data.id, false, reason).then(() => { wx.showToast({ title: '已退回整改', icon: 'success' }); this.fetchDetail() })
+          const confirm = this.data.isClient ? confirmUnitFault : confirmFault
+          confirm(this.data.id, false, reason).then(() => { wx.showToast({ title: '已退回整改', icon: 'success' }); this.fetchDetail() })
             .catch((er) => wx.showToast({ title: (er && er.message) || '操作失败', icon: 'none' }))
         }
       })
     }
-    confirmFault(this.data.id, true, '').then(() => { wx.showToast({ title: '已确认闭环', icon: 'success' }); this.fetchDetail() })
+    const confirm = this.data.isClient ? confirmUnitFault : confirmFault
+    confirm(this.data.id, true, '').then(() => { wx.showToast({ title: '已确认闭环', icon: 'success' }); this.fetchDetail() })
       .catch((er) => wx.showToast({ title: (er && er.message) || '操作失败', icon: 'none' }))
   },
   onCancel() {
@@ -97,11 +109,11 @@ definePage(ROUTES['/pages/order/detail/index'], {
         if (!res.confirm) return
         const reason = (res.content || '').trim()
         if (!reason) return wx.showToast({ title: '取消原因必填', icon: 'none' })
-        cancelFault(this.data.id, reason).then(() => { wx.showToast({ title: '已取消', icon: 'success' }); this.fetchDetail() })
+        const cancel = this.data.isClient ? cancelUnitFault : cancelFault
+        cancel(this.data.id, reason).then(() => { wx.showToast({ title: '已取消', icon: 'success' }); this.fetchDetail() })
           .catch((er) => wx.showToast({ title: (er && er.message) || '取消失败', icon: 'none' }))
       }
     })
   },
-  onEvaluate() { nav.open('/pkg-client/pages/evaluate/index?orderId=' + this.data.id) },
   onPreviewPhoto(e) { wx.previewImage({ urls: this.data.fault.photos || [], current: e.currentTarget.dataset.url }) }
 })

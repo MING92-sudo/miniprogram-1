@@ -60,25 +60,29 @@ class WorkOrderListOpenFilterTest {
         admin.role = "ADMIN";
         when(employeeMapper.selectById(EMP_ADMIN)).thenReturn(admin);
 
+        WorkOrder future = order("wo_future", "PENDING");
+        future.planTime = java.time.LocalDateTime.now().plusDays(10);
         when(orderMapper.selectList(any())).thenReturn(List.of(
                 order("wo_p", "PENDING"),
                 order("wo_g", "PROCESSING"),
-                order("wo_d", "DONE")));
+                order("wo_d", "DONE"),
+                future));
     }
 
     /** OPEN = 未闭环：PENDING + PROCESSING 保留，DONE 排除 */
     @Test
     void openStatusExcludesDone() {
         Map<String, Object> res = service.listOrders(Map.of("status", "OPEN"), EMP_ADMIN);
-        assertEquals(2, res.get("total"));
+        assertEquals(3, res.get("total"));
     }
 
     /** 精确状态过滤语义不变 */
     @Test
     void exactStatusFilterUnchanged() {
-        assertEquals(1, service.listOrders(Map.of("status", "PENDING"), EMP_ADMIN).get("total"));
+        assertEquals(2, service.listOrders(Map.of("status", "PENDING"), EMP_ADMIN).get("total"));
         assertEquals(1, service.listOrders(Map.of("status", "DONE"), EMP_ADMIN).get("total"));
-        assertEquals(3, service.listOrders(Map.of(), EMP_ADMIN).get("total"));
+        assertEquals(4, service.listOrders(Map.of(), EMP_ADMIN).get("total"));
+        assertEquals(3, service.homeSummary(EMP_ADMIN).get("openOrders"));
     }
 
     private static WorkOrder order(String id, String status) {

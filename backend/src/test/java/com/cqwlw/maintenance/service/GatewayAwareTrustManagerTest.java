@@ -6,6 +6,7 @@ import javax.net.ssl.X509TrustManager;
 import javax.security.auth.x500.X500Principal;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
+import java.util.HexFormat;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -17,13 +18,18 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-/** C-14 出口网关 TOFU 信任：默认严格 PKIX；仅自签+固定 CN 的网关画像在默认拒绝时放行，其余一律拒绝。 */
+/** 云网关例外只信显式配置的 SHA-256 指纹；未配置时严格 PKIX。 */
 class GatewayAwareTrustManagerTest {
 
-    private static X509Certificate cert(String subject, String issuer) {
+    private static X509Certificate cert(String subject, String issuer) throws Exception {
+        return cert(subject, issuer, new byte[]{1, 2, 3});
+    }
+
+    private static X509Certificate cert(String subject, String issuer, byte[] encoded) throws Exception {
         X509Certificate c = mock(X509Certificate.class);
         when(c.getSubjectX500Principal()).thenReturn(new X500Principal(subject));
         when(c.getIssuerX500Principal()).thenReturn(new X500Principal(issuer));
+        when(c.getEncoded()).thenReturn(encoded);
         return c;
     }
 
@@ -33,42 +39,61 @@ class GatewayAwareTrustManagerTest {
         return d;
     }
 
+    private static String fingerprint(byte[] value) throws Exception {
+        return HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256").digest(value));
+    }
+
     @Test
-    void gatewaySelfSignedAcceptedWhenDefaultRejects() throws Exception {
+    void gatewaySelfSignedRejectedWithoutConfiguredFingerprint() throws Exception {
         X509Certificate leaf = cert("CN=api.weixin.qq.com", "CN=api.weixin.qq.com");
-        WxAuthService.GatewayAwareTrustManager tm =
-                new WxAuthService.GatewayAwareTrustManager(rejecting());
+        WxAuthService.GatewayAwareTrustManager tm = new WxAuthService.GatewayAwareTrustManager(rejecting(), "");
+        assertThrows(CertificateException.class, () -> tm.checkServerTrusted(new X509Certificate[]{leaf}, "RSA"));
+    }
+
+    @Test
+    void gatewaySelfSignedAcceptedOnlyWithMatchingFingerprint() throws Exception {
+        byte[] encoded = {4, 5, 6};
+        X509Certificate leaf = cert("CN=api.weixin.qq.com", "CN=api.weixin.qq.com", encoded);
+        WxAuthService.GatewayAwareTrustManager tm = new WxAuthService.GatewayAwareTrustManager(
+                rejecting(), fingerprint(encoded));
         assertDoesNotThrow(() -> tm.checkServerTrusted(new X509Certificate[]{leaf}, "RSA"));
     }
 
     @Test
-    void otherSelfSignedRejected() throws Exception {
-        X509Certificate leaf = cert("CN=evil.example.com", "CN=evil.example.com");
-        WxAuthService.GatewayAwareTrustManager tm =
-                new WxAuthService.GatewayAwareTrustManager(rejecting());
-        assertThrows(CertificateException.class,
-                () -> tm.checkServerTrusted(new X509Certificate[]{leaf}, "RSA"));
+    void gatewaySelfSignedRejectedWithDifferentFingerprint() throws Exception {
+        X509Certificate leaf = cert("CN=api.weixin.qq.com", "CN=api.weixin.qq.com", new byte[]{7, 8, 9});
+        WxAuthService.GatewayAwareTrustManager tm = new WxAuthService.GatewayAwareTrustManager(
+                rejecting(), fingerprint(new byte[]{1}));
+        assertThrows(CertificateException.class, () -> tm.checkServerTrusted(new X509Certificate[]{leaf}, "RSA"));
+    }
+
+    @Test
+    void otherSelfSignedRejectedEvenWithMatchingFingerprint() throws Exception {
+        byte[] encoded = {10};
+        X509Certificate leaf = cert("CN=evil.example.com", "CN=evil.example.com", encoded);
+        WxAuthService.GatewayAwareTrustManager tm = new WxAuthService.GatewayAwareTrustManager(
+                rejecting(), fingerprint(encoded));
+        assertThrows(CertificateException.class, () -> tm.checkServerTrusted(new X509Certificate[]{leaf}, "RSA"));
     }
 
     @Test
     void nonSelfSignedWithGatewayCnRejected() throws Exception {
         X509Certificate leaf = cert("CN=api.weixin.qq.com", "CN=Some CA");
-        WxAuthService.GatewayAwareTrustManager tm =
-                new WxAuthService.GatewayAwareTrustManager(rejecting());
-        assertThrows(CertificateException.class,
-                () -> tm.checkServerTrusted(new X509Certificate[]{leaf}, "RSA"));
+        WxAuthService.GatewayAwareTrustManager tm = new WxAuthService.GatewayAwareTrustManager(
+                rejecting(), fingerprint(new byte[]{1, 2, 3}));
+        assertThrows(CertificateException.class, () -> tm.checkServerTrusted(new X509Certificate[]{leaf}, "RSA"));
     }
 
     @Test
     void defaultTrustedChainPassesThrough() throws Exception {
         X509TrustManager d = mock(X509TrustManager.class);
-        WxAuthService.GatewayAwareTrustManager tm = new WxAuthService.GatewayAwareTrustManager(d);
+        WxAuthService.GatewayAwareTrustManager tm = new WxAuthService.GatewayAwareTrustManager(d, "");
         X509Certificate leaf = cert("CN=api.weixin.qq.com", "CN=DigiCert");
         assertDoesNotThrow(() -> tm.checkServerTrusted(new X509Certificate[]{leaf}, "RSA"));
     }
 
     @Test
-    void profilePredicate() {
+    void profilePredicate() throws Exception {
         assertTrue(WxAuthService.GatewayAwareTrustManager.isGatewayProfile(
                 cert("CN=api.weixin.qq.com", "CN=api.weixin.qq.com")));
         assertFalse(WxAuthService.GatewayAwareTrustManager.isGatewayProfile(

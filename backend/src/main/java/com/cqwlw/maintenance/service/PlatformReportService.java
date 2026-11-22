@@ -66,7 +66,7 @@ public class PlatformReportService {
         }
     }
 
-    /** 手动重报：仅 FAILED 记录允许（保守策略，防止幂等性未知下重复上报） */
+    /** 手动重报：仅链末端 FAILED 记录允许；先原子抢占，避免并发请求重复写平台。 */
     public MaintainRecord reupload(String recordId) {
         MaintainRecord r = recordMapper.selectById(recordId);
         if (r == null) {
@@ -75,25 +75,45 @@ public class PlatformReportService {
         if (!"FAILED".equals(r.reportStatus)) {
             throw new BizException(1003, "仅上报失败的记录可手动重报");
         }
-        upload(r, "REUPLOAD");
-        return r;
+        if (hasNextVersion(r)) {
+            throw new BizException(1003, "记录已有后继版本，禁止重报旧快照");
+        }
+        if (recordMapper.beginReupload(recordId) != 1) {
+            throw new BizException(1003, "该记录正在重报或状态已变化，请刷新后查看");
+        }
+        r.reportStatus = "REUPLOADING";
+        try {
+            upload(r, "REUPLOAD");
+            return r;
+        } catch (RuntimeException e) {
+            r.reportStatus = "FAILED";
+            recordMapper.completeReupload(recordId, "FAILED");
+            throw e;
+        }
     }
 
-    /** 2.8 存量推送：开关关闭时为 0；对未上报成功的历史记录经 2.8 端点逐条提交（手动触发，不做自动重试） */
+    /** 2.8 存量推送：仅链末端 SUBMITTED 首次迁移；FAILED 只能逐条人工重报，旧版本禁止同步。 */
     public int syncLegacy() {
         if (!props.isLegacyUploadEnabled() || !configured()) {
             return 0;
         }
         List<MaintainRecord> pending = recordMapper.selectList(new LambdaQueryWrapper<MaintainRecord>()
-                .ne(MaintainRecord::getReportStatus, "REPORTED")
+                .eq(MaintainRecord::getReportStatus, "SUBMITTED")
                 .isNotNull(MaintainRecord::getReportPayloadJson));
         int n = 0;
         for (MaintainRecord r : pending) {
+            if (!"SUBMITTED".equals(r.reportStatus) || hasNextVersion(r)
+                    || recordMapper.beginLegacyUpload(r.id) != 1) {
+                continue;
+            }
+            r.reportStatus = "LEGACY_UPLOADING";
             try {
                 if ("REPORTED".equals(uploadLegacy(r))) {
                     n++;
                 }
             } catch (Exception e) {
+                r.reportStatus = "SUBMITTED";
+                recordMapper.completeLegacyUpload(r.id, "SUBMITTED");
                 log.warn("2.8 存量上报失败（不自动重试）: originalRecordId={}, {}", r.originalRecordId, e.getMessage());
             }
         }
@@ -111,9 +131,16 @@ public class PlatformReportService {
         Map<String, Object> body = platformClient.uploadLegacyRecord(payload, r.workerName, name2);
         r.reportStatus = "REPORTED";
         r.retryCount = (r.retryCount == null ? 0 : r.retryCount) + 1;
-        recordMapper.updateById(r);
+        recordMapper.updateReportProgress(r.id, "REPORTED", r.retryCount);
+        recordMapper.completeLegacyUpload(r.id, "REPORTED");
         log(r, "LEGACY", "200", str(body.get("message")), "SUCCESS", digest(payload));
         return "REPORTED";
+    }
+
+    private boolean hasNextVersion(MaintainRecord r) {
+        Long next = recordMapper.selectCount(new LambdaQueryWrapper<MaintainRecord>()
+                .eq(MaintainRecord::getPrevVersionId, r.id));
+        return next != null && next > 0;
     }
 
     private String upload(MaintainRecord r, String action) {
@@ -124,7 +151,7 @@ public class PlatformReportService {
         Map<String, Object> body = platformClient.uploadMaintenanceRecord(payload);
         r.reportStatus = "REPORTED";
         r.retryCount = (r.retryCount == null ? 0 : r.retryCount) + 1;
-        recordMapper.updateById(r);
+        recordMapper.updateReportProgress(r.id, "REPORTED", r.retryCount);
         log(r, action, "200", str(body.get("message")), "SUCCESS", digest(payload));
         return "REPORTED";
     }
@@ -133,7 +160,7 @@ public class PlatformReportService {
     void markFailed(MaintainRecord r, String action, Exception e) {
         r.reportStatus = "FAILED";
         r.retryCount = (r.retryCount == null ? 0 : r.retryCount) + 1;
-        recordMapper.updateById(r);
+        recordMapper.updateReportProgress(r.id, "FAILED", r.retryCount);
         String message = e instanceof BizException ? e.getMessage() : "平台接口调用失败";
         log(r, action, null, message, "FAILED", null);
     }

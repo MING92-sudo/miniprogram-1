@@ -91,7 +91,7 @@ class LegacyFaultSecurityTest {
         assertEquals(1403, denied.getCode());
         BizException state = assertThrows(BizException.class,
                 () -> svc.closeFault("f1", Map.of("result", "修复", "signature", "sign"), "e1"));
-        assertEquals(1003, state.getCode());
+        assertEquals(1403, state.getCode());
         verify(faults, never()).updateById(any(Fault.class));
     }
 
@@ -107,11 +107,21 @@ class LegacyFaultSecurityTest {
     }
 
     @Test
-    void assignedWorkerCanCloseOnlyPendingConfirm() {
+    void legacyNullCreatorDoesNotBypassScope() {
+        fault.createdBy = null;
+        fault.status = "CLOSED";
+        fault.dispatchWorkerId = "e-other";
+        BizException ex = assertThrows(BizException.class, () -> svc.getFault("f1", "e-other2"));
+        assertEquals(1403, ex.getCode());
+    }
+
+    @Test
+    void assignedWorkerCannotCloseForClient() {
         fault.status = "PENDING_CONFIRM";
-        svc.closeFault("f1", Map.of("result", "已修复", "signature", "file-sign"), "e1");
-        assertEquals("CLOSED", fault.status);
-        assertEquals("已修复", fault.handleDesc);
-        verify(faults).updateById(fault);
+        BizException ex = assertThrows(BizException.class,
+                () -> svc.closeFault("f1", Map.of("result", "已修复", "signature", "file-sign"), "e1"));
+        assertEquals(1403, ex.getCode());
+        assertEquals("PENDING_CONFIRM", fault.status);
+        verify(faults, never()).updateById(any(Fault.class));
     }
 }

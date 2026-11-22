@@ -81,6 +81,18 @@ function getUnitFaults() {
   return get('/unit/faults')
 }
 
+function getUnitFaultDetail(id) {
+  return get(`/unit/faults/${id}`)
+}
+
+function confirmUnitFault(id, pass, reason) {
+  return post(`/unit/faults/${id}/confirm`, { pass, reason })
+}
+
+function cancelUnitFault(id, reason) {
+  return post(`/unit/faults/${id}/cancel`, { reason })
+}
+
 // 使用单位报修（2026-11-21 重开：客户主体在一键报修页走本链路，POST /unit/faults 本单位锚点收敛）
 function reportUnitFault(data) {
   return post('/unit/faults', data)
@@ -107,6 +119,9 @@ module.exports = {
   getUnitRecords,
   getUnitPendingSigns,
   getUnitFaults,
+  getUnitFaultDetail,
+  confirmUnitFault,
+  cancelUnitFault,
   reportUnitFault,
   getMaintenanceCalendar
 }

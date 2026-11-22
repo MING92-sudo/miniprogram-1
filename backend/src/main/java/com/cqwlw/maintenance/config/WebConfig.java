@@ -50,7 +50,7 @@ public class WebConfig implements WebMvcConfigurer {
                         "/unit/login", "/unit/bind-wechat", "/unit/login-by-wechat",
                         // 文件写侧（upload/sts）必须登录；GET /files/{id} 由 FileAccessTokenService 的
                         // URL 时效签名把门（AuthInterceptor 对 GET 放行，Controller 校验 s=）
-                        "/location/reverse",
+                        // 逆地址解析同样必须登录，避免匿名消耗后端 LBS 配额。
                         "/", "/index.html", "/assets/**", "/favicon.ico"
                 );
         // 顺序在鉴权之后：依赖 AuthInterceptor 写入的 role attribute

@@ -115,4 +115,37 @@ class PlatformTokenServiceTest {
         assertEquals(2001, e.getCode());
         server.verify();
     }
+
+    @Test
+    void networkExceptionLogNeverContainsCredentials() {
+        PlatformProperties props = new PlatformProperties();
+        props.setAuthLoginUrl("https://auth.example.com/login");
+        props.setUsername("reg-user");
+        props.setKey("reg-key");
+        props.setAppcode("reg-appcode");
+        props.setSecret("reg-secret");
+        RestTemplate broken = org.mockito.Mockito.mock(RestTemplate.class);
+        org.mockito.Mockito.when(broken.getForEntity(org.mockito.ArgumentMatchers.anyString(),
+                        org.mockito.ArgumentMatchers.eq(String.class)))
+                .thenThrow(new org.springframework.web.client.ResourceAccessException(
+                        "I/O error on GET request for \"https://auth.example.com/login?username=reg-user"
+                                + "&key=reg-key&appcode=reg-appcode&secret=reg-secret\": boom"));
+        PlatformTokenService insecure = new PlatformTokenService(props, broken);
+        ch.qos.logback.classic.Logger logger = (ch.qos.logback.classic.Logger)
+                org.slf4j.LoggerFactory.getLogger(PlatformTokenService.class);
+        ch.qos.logback.core.read.ListAppender<ch.qos.logback.classic.spi.ILoggingEvent> appender =
+                new ch.qos.logback.core.read.ListAppender<>();
+        appender.start();
+        logger.addAppender(appender);
+        try {
+            assertThrows(BizException.class, insecure::getToken);
+            String logs = appender.list.stream().map(e -> e.getFormattedMessage()).reduce("", (a, b) -> a + b);
+            org.junit.jupiter.api.Assertions.assertFalse(logs.contains("reg-user"), logs);
+            org.junit.jupiter.api.Assertions.assertFalse(logs.contains("reg-key"), logs);
+            org.junit.jupiter.api.Assertions.assertFalse(logs.contains("reg-appcode"), logs);
+            org.junit.jupiter.api.Assertions.assertFalse(logs.contains("reg-secret"), logs);
+        } finally {
+            logger.detachAppender(appender);
+        }
+    }
 }

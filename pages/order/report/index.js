@@ -36,7 +36,8 @@ definePage(ROUTES['/pages/order/report/index'], {
           const name = el.elevatorName || el.insideNumber || el.elevatorCode
           return name + ' · ' + el.elevatorCode + (el.projectName ? ' · ' + el.projectName : '')
         })
-        const index = elevators.findIndex((el) => el.elevatorCode === requestedCode || el.id === requestedCode)
+        const preferredCode = this.data.elevatorCode || requestedCode
+        const index = elevators.findIndex((el) => el.elevatorCode === preferredCode || el.id === preferredCode)
         const selected = index >= 0 ? elevators[index] : null
         this.setData({
           unitElevators: elevators, elevatorOptions: options, elevatorIndex: index,
@@ -65,7 +66,12 @@ definePage(ROUTES['/pages/order/report/index'], {
       .catch((e) => wx.showToast({ title: (e && e.message) || '电梯信息获取失败', icon: 'none' }))
   },
   onDescInput(e) { this.setData({ desc: e.detail.value }) },
-  onTypeChange(e) { this.setData({ faultType: FAULT_TYPES[Number(e.detail.value)] }) },
+  onTypeChange(e) {
+    const faultType = FAULT_TYPES[Number(e.detail.value)]
+    const patch = { faultType }
+    if (faultType !== this.data.trappedType) patch.trappedCount = ''
+    this.setData(patch)
+  },
   onTrappedInput(e) { this.setData({ trappedCount: e.detail.value }) },
   onAddPhoto() {
     wx.chooseMedia({

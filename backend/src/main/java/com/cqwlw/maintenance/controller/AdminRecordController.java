@@ -1,6 +1,9 @@
 package com.cqwlw.maintenance.controller;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.cqwlw.maintenance.auth.AuthInterceptor;
+import com.cqwlw.maintenance.auth.PermissionMatrix;
+import com.cqwlw.maintenance.auth.RequirePerm;
 import com.cqwlw.maintenance.common.ApiResponse;
 import com.cqwlw.maintenance.common.BizException;
 import com.cqwlw.maintenance.entity.Elevator;
@@ -10,7 +13,9 @@ import com.cqwlw.maintenance.mapper.ElevatorMapper;
 import com.cqwlw.maintenance.mapper.MaintainRecordMapper;
 import com.cqwlw.maintenance.mapper.UseUnitMapper;
 import com.cqwlw.maintenance.service.RecordPdfService;
+import com.cqwlw.maintenance.service.EmployeeScopeService;
 import com.cqwlw.maintenance.service.UnitRecordService;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -36,37 +41,35 @@ public class AdminRecordController {
     private final UseUnitMapper useUnitMapper;
     private final RecordPdfService pdfService;
     private final UnitRecordService unitRecordService;
+    private final EmployeeScopeService scopeService;
 
     public AdminRecordController(MaintainRecordMapper recordMapper, ElevatorMapper elevatorMapper,
                                  UseUnitMapper useUnitMapper, RecordPdfService pdfService,
-                                 UnitRecordService unitRecordService) {
+                                 UnitRecordService unitRecordService, EmployeeScopeService scopeService) {
         this.recordMapper = recordMapper;
         this.elevatorMapper = elevatorMapper;
         this.useUnitMapper = useUnitMapper;
         this.pdfService = pdfService;
         this.unitRecordService = unitRecordService;
+        this.scopeService = scopeService;
     }
 
     /**
      * 记录预览详情（docs/09 §6.12）：抽屉结构与 PDF 同源，含检查项明细、照片墙与三位签字图。
      * 单条懒加载而非并入列表：items_json/photos_json 为 MEDIUMTEXT，塞进分页列表会拖垮管理端。
      */
+    @RequirePerm(PermissionMatrix.RECORD_VIEW)
     @GetMapping("/admin/records/{id}")
-    public ApiResponse<Map<String, Object>> detail(@PathVariable String id) {
-        MaintainRecord r = recordMapper.selectById(id);
-        if (r == null) {
-            throw new BizException(1404, "维保记录不存在");
-        }
+    public ApiResponse<Map<String, Object>> detail(@PathVariable String id, HttpServletRequest request) {
+        MaintainRecord r = requireRecordInScope(id, request);
         return ApiResponse.ok(unitRecordService.adminPreview(r));
     }
 
 
+    @RequirePerm(PermissionMatrix.RECORD_EXPORT)
     @GetMapping("/admin/records/{id}/export-pdf")
-    public ResponseEntity<byte[]> exportPdf(@PathVariable String id) {
-        MaintainRecord r = recordMapper.selectById(id);
-        if (r == null) {
-            throw new BizException(1404, "维保记录不存在");
-        }
+    public ResponseEntity<byte[]> exportPdf(@PathVariable String id, HttpServletRequest request) {
+        MaintainRecord r = requireRecordInScope(id, request);
         Elevator el = elevatorMapper.selectOne(new LambdaQueryWrapper<Elevator>()
                 .eq(Elevator::getElevatorCode, r.elevatorCode).last("LIMIT 1"));
         UseUnit uu = el == null || el.useUnitId == null ? null : useUnitMapper.selectById(el.useUnitId);
@@ -78,5 +81,17 @@ public class AdminRecordController {
                         "attachment; filename*=UTF-8''" + filename)
                 .contentType(MediaType.APPLICATION_PDF)
                 .body(pdf);
+    }
+
+    private MaintainRecord requireRecordInScope(String id, HttpServletRequest request) {
+        MaintainRecord r = recordMapper.selectById(id);
+        if (r == null) {
+            throw new BizException(1404, "维保记录不存在");
+        }
+        Object empId = request.getAttribute(AuthInterceptor.ATTR_EMP_ID);
+        if (!scopeService.canReadRecord(scopeService.require(empId == null ? null : String.valueOf(empId)), r)) {
+            throw new BizException(1403, "仅可查看本人或本班组记录");
+        }
+        return r;
     }
 }

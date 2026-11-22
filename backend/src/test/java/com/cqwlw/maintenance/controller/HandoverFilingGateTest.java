@@ -129,6 +129,46 @@ class HandoverFilingGateTest {
     }
 
     @Test
+    void recheckUsesInspectCapabilityForBothEndpoints() {
+        HandoverService handover = mock(HandoverService.class);
+        HandoverController legacy = new HandoverController(handover);
+        when(handover.recheckRectify(any(), any())).thenReturn(new HandoverOrder());
+        assertNotNull(legacy.recheckRectify("h1", Map.of(), req("MAINT_TECH")));
+        assertNotNull(legacy.recheckRectify("h1", Map.of(), req("INSTALLER")));
+        BizException denied = assertThrows(BizException.class,
+                () -> legacy.recheckRectify("h1", Map.of(), req("INST_MGR")));
+        assertEquals(403, denied.getCode());
+        verify(handover, times(2)).recheckRectify(any(), any());
+
+        com.cqwlw.maintenance.service.HandoverChecklistService checklist =
+                mock(com.cqwlw.maintenance.service.HandoverChecklistService.class);
+        HandoverChecklistController items = new HandoverChecklistController(checklist,
+                mock(com.cqwlw.maintenance.service.HandoverPdfService.class),
+                mock(com.cqwlw.maintenance.mapper.HandoverRectificationMapper.class));
+        when(checklist.recheckItem(any(), any(), any())).thenReturn(new HandoverOrder());
+        assertNotNull(items.recheck("h1", "r1", Map.of(), req("MAINT_TECH")));
+        assertNotNull(items.recheck("h1", "r1", Map.of(), req("INSTALLER")));
+        BizException itemDenied = assertThrows(BizException.class,
+                () -> items.recheck("h1", "r1", Map.of(), req("INST_MGR")));
+        assertEquals(403, itemDenied.getCode());
+        verify(checklist, times(2)).recheckItem(any(), any(), any());
+    }
+
+    @Test
+    void naApprovalStillUsesReviewCapability() {
+        com.cqwlw.maintenance.service.HandoverChecklistService checklist =
+                mock(com.cqwlw.maintenance.service.HandoverChecklistService.class);
+        HandoverChecklistController items = new HandoverChecklistController(checklist,
+                mock(com.cqwlw.maintenance.service.HandoverPdfService.class),
+                mock(com.cqwlw.maintenance.mapper.HandoverRectificationMapper.class));
+        when(checklist.naApprove(any(), any())).thenReturn(new com.cqwlw.maintenance.entity.HandoverSign());
+        assertNotNull(items.naApprove("h1", Map.of(), req("INST_MGR")));
+        BizException denied = assertThrows(BizException.class,
+                () -> items.naApprove("h1", Map.of(), req("MAINT_TECH")));
+        assertEquals(403, denied.getCode());
+    }
+
+    @Test
     void confirmationActorComesFromAuthenticatedRequest() {
         HandoverService handover = mock(HandoverService.class);
         HandoverController handoverController = new HandoverController(handover);

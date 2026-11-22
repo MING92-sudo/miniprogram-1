@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.cqwlw.maintenance.auth.RoleCatalog;
 import com.cqwlw.maintenance.common.BizException;
 import com.cqwlw.maintenance.entity.Employee;
+import com.cqwlw.maintenance.entity.MaintainRecord;
 import com.cqwlw.maintenance.mapper.EmployeeMapper;
 import org.springframework.stereotype.Service;
 
@@ -81,6 +82,17 @@ public class EmployeeScopeService {
             ids.add(e.platformId);
         }
         return ids;
+    }
+
+    /** 管理端记录详情/PDF 与列表共用同一读谓词：主维保或配合人任一命中即可。 */
+    public boolean canReadRecord(Employee e, MaintainRecord r) {
+        Set<String> ids = visibleReadPlatformIds(e);
+        if (ids == null) {
+            return r != null;
+        }
+        return r != null
+                && ((r.workerPlatformId != null && ids.contains(r.workerPlatformId))
+                || (r.assistantPlatformId != null && ids.contains(r.assistantPlatformId)));
     }
 
     private List<Employee> employeesInRegion(String regionId) {

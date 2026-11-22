@@ -63,13 +63,18 @@ function getQueue() {
   return wx.getStorageSync(QUEUE_KEY) || []
 }
 
-// 逐条重放：成功一条移除一条；失败保留在队列等待下次补传
-async function flushQueue() {
-  const queue = getQueue()
+let flushing = null
+
+// 逐条重放：成功一条移除一条；失败保留。持久化时合并快照之后的新任务，禁止旧快照覆盖新入队数据。
+async function doFlushQueue() {
+  const queue = getQueue().slice()
+  const snapshotIds = new Set(queue.map((t) => t.id))
   let success = 0
   const failed = []
-  // 统一持久化，避免某一步只写“当前任务 + 后续任务”时丢掉本轮已经失败的前置任务。
-  const persist = (nextQueue) => wx.setStorageSync(QUEUE_KEY, nextQueue)
+  const persist = (nextQueue) => {
+    const added = getQueue().filter((t) => !snapshotIds.has(t.id))
+    wx.setStorageSync(QUEUE_KEY, nextQueue.concat(added))
+  }
   for (let idx = 0; idx < queue.length; idx++) {
     const task = queue[idx]
     try {
@@ -82,23 +87,19 @@ async function flushQueue() {
           const r = await uploadImage(task.photoPaths[fileIds.length]) // 按序续传未完成的
           fileIds.push(r.fileId)
           task.uploadedFileIds = fileIds.slice()
-          // 每成功一张即持久化断点（含本任务剩余照片 + 其后未处理任务）
           persist(failed.concat([task], queue.slice(idx + 1)))
         }
-        // 合并入队时已携带的既有 fileId（编辑既有照片项后离线补传），避免重放覆盖丢照
         task.data.photoFileIds = (task.data.photoFileIds || []).concat(fileIds)
         task.photoPaths = undefined
         task.uploadedFileIds = undefined
       }
 
-      // 签名等单文件上传字段：已上传的 fileId 持久化在 upload.fileId，断点续传时不再重传。
       const uploads = Array.isArray(task.uploads) ? task.uploads : []
       for (let uIdx = 0; uIdx < uploads.length; uIdx++) {
         const upload = uploads[uIdx]
         if (!upload.fileId) {
           const r = await uploadImage(upload.path)
           upload.fileId = r.fileId
-          // 每成功一个字段即持久化，避免应用被杀后重复上传。
           persist(failed.concat([task], queue.slice(idx + 1)))
         }
         task.data[upload.field] = upload.fileId
@@ -107,20 +108,24 @@ async function flushQueue() {
         url: task.url,
         method: task.method,
         data: task.data,
-        // 复用任务 id 作幂等键：同一任务多次重放后端不产生重复记录
-        idempotencyKey: task.id
+        // 首次任务可显式固定 key（签退 co_<orderId>）；通用任务复用任务 id。
+        idempotencyKey: task.idempotencyKey || task.id
       })
       success++
-      // 本条完成即持久化移除（避免应用被杀后整批重复重放）
       persist(failed.concat(queue.slice(idx + 1)))
     } catch (e) {
       failed.push(task)
-      // 失败任务保留：持久化"前置失败任务 + 当前任务 + 其后未处理任务"
       persist(failed.concat(queue.slice(idx)))
     }
   }
   persist(failed)
   return { success, fail: failed.length }
+}
+
+function flushQueue() {
+  if (flushing) return flushing
+  flushing = doFlushQueue().finally(() => { flushing = null })
+  return flushing
 }
 
 module.exports = {

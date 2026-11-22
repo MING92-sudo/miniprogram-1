@@ -10,9 +10,11 @@ import com.cqwlw.maintenance.mapper.MaintainRecordMapper;
 import com.cqwlw.maintenance.util.JsonUtil;
 import com.cqwlw.maintenance.util.TimeUtil;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * M4 作业域：记录归档后修订（新版本 + 明确变更集，旧版本与签名永久保留）+ 代报修。
@@ -34,13 +36,22 @@ public class WorkDomainService {
         this.recordLifecycle = recordLifecycle;
     }
 
+    @Transactional(rollbackFor = Exception.class)
     public MaintainRecord amend(String recordId, Map<String, Object> body, String actor) {
-        MaintainRecord v1 = recordMapper.selectById(recordId);
+        MaintainRecord v1 = recordMapper.selectByIdForUpdate(recordId);
         if (v1 == null) {
             throw new BizException(404, "记录不存在");
         }
         if (!"CONFIRMED".equals(v1.confirmStatus) || !"ARCHIVED".equals(v1.lifecycleStatus)) {
             throw new BizException(422, "仅已确认且已归档记录可发起修订");
+        }
+        if (v1.reportStatus != null && Set.of("REUPLOADING", "LEGACY_UPLOADING").contains(v1.reportStatus)) {
+            throw new BizException(422, "记录正在上报，完成前禁止修订，避免旧快照覆盖新版本");
+        }
+        Long children = recordMapper.selectCount(new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<MaintainRecord>()
+                .eq(MaintainRecord::getPrevVersionId, v1.id));
+        if (children != null && children > 0) {
+            throw new BizException(422, "仅最新归档版本可发起修订");
         }
         String reason = str(body, "reason");
         if (reason == null || reason.isBlank()) {
@@ -55,6 +66,9 @@ public class WorkDomainService {
         if (changeItems && !(body.get("items") instanceof List<?>)) {
             throw new BizException(422, "修订检查项必须为列表");
         }
+
+        MergedItems merged = changeItems ? mergeItems(v1.itemsJson, body.get("items"))
+                : new MergedItems(v1.itemsJson, v1.problemCodesJson);
 
         MaintainRecord v2 = new MaintainRecord();
         v2.id = Ids.next("rec");
@@ -72,14 +86,14 @@ public class WorkDomainService {
         v2.checkinTime = v1.checkinTime;
         v2.checkoutTime = v1.checkoutTime;
         v2.duration = v1.duration;
-        v2.itemsJson = changeItems ? JsonUtil.write(body.get("items")) : v1.itemsJson;
+        v2.itemsJson = merged.itemsJson();
         v2.photosJson = v1.photosJson;
         v2.safetyJson = changeSafety
                 ? (body.get("safety") == null ? null : JsonUtil.write(body.get("safety"))) : v1.safetyJson;
         v2.todoDesc = changeTodo ? str(body, "todoDesc") : v1.todoDesc;
         v2.workerSignatureUrl = v1.workerSignatureUrl;
         v2.assistantSignatureUrl = v1.assistantSignatureUrl;
-        v2.problemCodesJson = v1.problemCodesJson;
+        v2.problemCodesJson = merged.problemCodesJson();
         v2.originalRecordId = v1.originalRecordId;
         v2.workOrderId = v1.workOrderId;
         v2.nextMaintenanceDate = v1.nextMaintenanceDate;
@@ -100,6 +114,134 @@ public class WorkDomainService {
         recordMapper.insert(v2);
         audit(actor, "record:amend", v2.id, "SUCCESS", reason);
         return v2;
+    }
+
+    private record MergedItems(String itemsJson, String problemCodesJson) {
+    }
+
+    private MergedItems mergeItems(String originalJson, Object rawPatches) {
+        List<Map<String, Object>> original = JsonUtil.readList(originalJson);
+        List<?> patches = (List<?>) rawPatches;
+        if (original == null || patches.isEmpty()) {
+            throw new BizException(422, "修订检查项不能为空");
+        }
+        Map<String, Map<String, Object>> patchById = new java.util.LinkedHashMap<>();
+        for (Object raw : patches) {
+            if (!(raw instanceof Map<?, ?> rawMap)) {
+                throw new BizException(422, "修订检查项格式不正确");
+            }
+            @SuppressWarnings("unchecked")
+            Map<String, Object> patch = (Map<String, Object>) rawMap;
+            String key = itemKey(patch);
+            if (patchById.put(key, patch) != null) {
+                throw new BizException(422, "修订检查项重复：" + key);
+            }
+        }
+        int executedCount = (int) original.stream().filter(i -> !Boolean.TRUE.equals(i.get("notInThisRun"))).count();
+        if (executedCount == 0 || patchById.size() != executedCount) {
+            throw new BizException(422, "修订检查项必须完整对应原记录，禁止缺项或新增项");
+        }
+
+        List<Map<String, Object>> merged = new java.util.ArrayList<>();
+        List<String> problemCodes = new java.util.ArrayList<>();
+        for (Map<String, Object> source : original) {
+            Map<String, Object> item = new java.util.LinkedHashMap<>(source);
+            if (!Boolean.TRUE.equals(source.get("notInThisRun"))) {
+                String key = itemKey(source);
+                Map<String, Object> patch = patchById.remove(key);
+                if (patch == null) {
+                    throw new BizException(422, "修订缺少原检查项：" + key);
+                }
+                applyItemPatch(item, patch);
+                validateItemEvidence(item);
+                if ("ABNORMAL".equals(str(item, "result"))) {
+                    problemCodes.add(str(item, "problemCode"));
+                }
+            }
+            merged.add(item);
+        }
+        if (!patchById.isEmpty()) {
+            throw new BizException(422, "修订包含原记录不存在的检查项");
+        }
+        if (problemCodes.isEmpty()) {
+            problemCodes = List.of("S0");
+        }
+        return new MergedItems(JsonUtil.write(merged), JsonUtil.write(problemCodes));
+    }
+
+    private void applyItemPatch(Map<String, Object> item, Map<String, Object> patch) {
+        for (String field : List.of("result", "value", "valueUnit", "valueText", "abnormalDesc", "skipReason", "problemCode")) {
+            if (patch.containsKey(field)) {
+                item.put(field, patch.get(field));
+            }
+        }
+        String result = str(item, "result");
+        if (result == null || result.isBlank()) {
+            throw new BizException(422, "检查项结果必填：" + itemKey(item));
+        }
+        item.put("result", result.trim());
+        if ("NA".equals(result.trim()) && (str(item, "skipReason") == null || str(item, "skipReason").isBlank())) {
+            throw new BizException(422, "标记不适用必须填写跳过原因：" + itemKey(item));
+        }
+        if (patch.containsKey("value")) {
+            item.put("value", parseNumericValue(patch.get("value")));
+        }
+        if ("ABNORMAL".equals(result.trim()) && listValue(item.get("photoFileIds")).isEmpty()
+                && listValue(item.get("photos")).isEmpty()) {
+            throw new BizException(422, "异常项必须至少附 1 张照片：" + itemKey(item));
+        }
+        if ("ABNORMAL".equals(result.trim())) {
+            if (str(item, "abnormalDesc") == null || str(item, "abnormalDesc").isBlank()) {
+                throw new BizException(422, "异常项必须填写异常说明：" + itemKey(item));
+            }
+            String code = str(item, "problemCode");
+            if (code == null || !Set.of("S0", "S1", "S2", "S3", "S4", "S5", "S6", "S7").contains(code.trim())) {
+                throw new BizException(422, "异常项必须显式选择 S0—S7：" + itemKey(item));
+            }
+            item.put("problemCode", code.trim());
+        } else {
+            item.put("problemCode", "");
+            item.put("abnormalDesc", "");
+        }
+    }
+
+    private void validateItemEvidence(Map<String, Object> item) {
+        if (Boolean.TRUE.equals(item.get("isKey")) && Boolean.TRUE.equals(item.get("photoRequired"))
+                && !"NA".equals(str(item, "result"))
+                && listValue(item.get("photoFileIds")).isEmpty() && listValue(item.get("photos")).isEmpty()) {
+            throw new BizException(422, "关键项「" + str(item, "name") + "」须至少附 1 张照片");
+        }
+    }
+
+    private static Double parseNumericValue(Object value) {
+        if (value == null || String.valueOf(value).isBlank()) {
+            return null;
+        }
+        try {
+            double parsed = Double.parseDouble(String.valueOf(value).trim());
+            if (!Double.isFinite(parsed)) {
+                throw new BizException(422, "实测值必须为有限数字");
+            }
+            return parsed;
+        } catch (NumberFormatException e) {
+            throw new BizException(422, "实测值必须为数字");
+        }
+    }
+
+    private static List<?> listValue(Object value) {
+        return value instanceof List<?> list ? list : List.of();
+    }
+
+    private static String itemKey(Map<String, Object> item) {
+        String code = str(item, "itemCode");
+        if (code != null && !code.isBlank()) {
+            return code;
+        }
+        String id = str(item, "id");
+        if (id != null && !id.isBlank()) {
+            return id;
+        }
+        throw new BizException(422, "检查项缺少稳定 id/itemCode，无法安全修订");
     }
 
     public Fault proxyRepair(String faultId, Map<String, Object> body, String actor) {

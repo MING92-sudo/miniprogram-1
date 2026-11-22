@@ -25,7 +25,7 @@
           <PermButton code="elevator:view" label="电梯档案" variant="ghost" size="xs" icon="file-text" @click="openDetail(row)" />
           <PermButton code="elevator:qr" label="设备码" variant="ghost" size="xs" icon="qr" @click="openQr(row)" />
           <PermButton code="elevator:edit" label="编辑" variant="ghost" size="xs" icon="edit" @click="openEditRow(row)" />
-          <PermButton code="elevator:edit" label="定位" variant="ghost" size="xs" icon="map-pin" @click="openGeo(row)" />
+          <PermButton v-if="canGeoEdit" code="elevator:edit" label="定位" variant="ghost" size="xs" icon="map-pin" @click="openGeo(row)" />
           <PermButton v-if="row.status === 'INACTIVE'" code="elevator:edit" label="启用" variant="ghost" size="xs" icon="check" @click="toggleSuspend(row)" />
           <PermButton v-else code="elevator:edit" label="停保" variant="ghost" size="xs" icon="ban" c-tip="停保后不派单、小程序不可见" @click="toggleSuspend(row)" />
           <PermButton code="elevator:edit" label="删除电梯" variant="danger" size="xs" icon="ban" @click="askDelete(row)" />
@@ -139,7 +139,7 @@
       <template #footer>
         <PermButton code="elevator:qr" label="生成设备码" variant="ghost" icon="qr" @click="openQr(current)" />
         <PermButton code="elevator:edit" label="编辑" variant="ghost" icon="edit" @click="openEdit" />
-        <PermButton code="elevator:edit" label="修改定位" variant="ghost" icon="map-pin" @click="openGeo(current)" />
+        <PermButton v-if="canGeoEdit" code="elevator:edit" label="修改定位" variant="ghost" icon="map-pin" @click="openGeo(current)" />
         <PermButton v-if="current.status === 'INACTIVE'" code="elevator:edit" label="启用" variant="ghost" icon="check" @click="toggleSuspend(current)" />
         <PermButton v-else code="elevator:edit" label="停保" variant="ghost" icon="ban" @click="toggleSuspend(current)" />
         <PermButton code="elevator:edit" label="删除电梯" variant="danger" icon="ban" @click="showDelete = true" />
@@ -239,12 +239,16 @@ import { useToast } from '../ui/stores/ui'
 import { exportCsv } from '../ui/export-csv'
 import { DEVICE_FIELDS, deviceRules, deviceFormOf, missingRequiredOf } from '../ui/device-fields'
 import { usePerspectiveStore } from '../ui/stores/perspective'
+import { useAuthStore } from '../stores/auth'
+import { canEditElevator } from '../ui/permission-v2'
 import { elevatorActionLabel, statusLabel, scopeLabel } from '../ui/labels'
 import { listChanges, confirmChange } from '../api/ledger'
 import { createElevator, updateElevator, deleteElevator, elevatorProfile, elevatorArchive, elevatorQrPng } from '../api/archive'
 const toast = useToast()
 const router = useRouter()
 const perspective = usePerspectiveStore()
+const auth = useAuthStore()
+const canGeoEdit = computed(() => canEditElevator(auth.role))
 // 操作列「电梯档案」→ 下级页（5 Tab：基本信息/电梯参数/维保计划/维保工单/维修工单）
 function openDetail(row) { if (row && row.id) router.push('/elevator/' + row.id) }
 const rows = ref([])

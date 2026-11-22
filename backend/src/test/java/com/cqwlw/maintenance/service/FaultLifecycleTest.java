@@ -49,6 +49,8 @@ class FaultLifecycleTest {
                 mock(EmployeeScopeService.class), employees, mock(UseUnitMapper.class),
                 mock(WorkOrderMapper.class), mock(CompanyMapper.class), mock(FileStorageService.class),
                 mock(TenantSnapshotService.class));
+        when(faults.closePending(any())).thenReturn(1);
+        when(faults.refusePending(any(), any())).thenReturn(1);
     }
 
     private Fault fault(String status) {
@@ -56,6 +58,7 @@ class FaultLifecycleTest {
         f.id = "f1";
         f.status = status;
         f.elevatorCode = "DT-1";
+        f.useUnitId = "u1";
         f.dispatchWorkerId = "e1";
         when(faults.selectById("f1")).thenReturn(f);
         return f;
@@ -70,6 +73,32 @@ class FaultLifecycleTest {
     }
 
     @Test
+    void concurrentGrabAllowsOnlyOneWinner() {
+        Fault first = fault("OPEN");
+        Fault second = fault("OPEN");
+        when(faults.selectById("f1")).thenReturn(first, second);
+        Employee me = new Employee();
+        me.id = "e1";
+        me.regionId = "r1";
+        when(employees.selectById("e1")).thenReturn(me);
+        elevator("r1", "u1");
+        when(faults.claimOpen(any(), any(), any())).thenReturn(1, 0);
+
+        svc.grabFault("f1", "e1");
+        BizException loser = assertThrows(BizException.class, () -> svc.grabFault("f1", "e1"));
+
+        assertEquals(422, loser.getCode());
+    }
+
+    @Test
+    void refusedFaultCanBeCorrectedAndResubmittedByAssignedWorker() {
+        Fault f = fault("REFUSED");
+        svc.updateFault("f1", Map.of("siteDesc", "门锁故障", "handleDesc", "更换触点"), "e1");
+        svc.submitFault("f1", "e1", Map.of("faultReason", "门锁故障", "handleDesc", "更换触点"));
+        assertEquals("PENDING_CONFIRM", f.status);
+    }
+
+    @Test
     void grabWithinRegionAssigns() {
         Fault f = fault("OPEN");
         Employee me = new Employee();
@@ -77,6 +106,7 @@ class FaultLifecycleTest {
         me.regionId = "r1";
         when(employees.selectById("e1")).thenReturn(me);
         elevator("r1", "u1");
+        when(faults.claimOpen(any(), any(), any())).thenReturn(1);
         svc.grabFault("f1", "e1");
         assertEquals("ASSIGNED", f.status);
         assertEquals("e1", f.dispatchWorkerId);
@@ -135,23 +165,49 @@ class FaultLifecycleTest {
     }
 
     @Test
+    void confirmUsesAtomicPendingState() {
+        Fault first = fault("PENDING_CONFIRM");
+        Fault second = fault("PENDING_CONFIRM");
+        when(faults.selectById("f1")).thenReturn(first, second);
+        when(faults.closePending("f1")).thenReturn(1, 0);
+        when(faults.refusePending(any(), any())).thenReturn(0);
+
+        svc.confirmFault("f1", Set.of("CLIENT_SIGNER"), "u1", true, "");
+        BizException loser = assertThrows(BizException.class,
+                () -> svc.confirmFault("f1", Set.of("CLIENT_SIGNER"), "u1", false, "拒绝"));
+
+        assertEquals(422, loser.getCode());
+    }
+
+    @Test
     void confirmRequiresClientSigner() {
         fault("PENDING_CONFIRM");
         BizException ex = assertThrows(BizException.class,
-                () -> svc.confirmFault("f1", Set.of("CLIENT_ADMIN"), null, true, ""));
+                () -> svc.confirmFault("f1", Set.of("CLIENT_ADMIN"), "u1", true, ""));
         assertEquals(1403, ex.getCode());
     }
 
     @Test
     void confirmClosesAndRefuseNeedsReason() {
         Fault f = fault("PENDING_CONFIRM");
-        svc.confirmFault("f1", Set.of("CLIENT_ADMIN", "CLIENT_SIGNER"), null, true, "");
+        svc.confirmFault("f1", Set.of("CLIENT_ADMIN", "CLIENT_SIGNER"), "u1", true, "");
         assertEquals("CLOSED", f.status);
         assertNotNull(f.confirmedAt);
         Fault f2 = fault("PENDING_CONFIRM");
         BizException ex = assertThrows(BizException.class,
-                () -> svc.confirmFault("f1", Set.of("CLIENT_SIGNER"), null, false, " "));
+                () -> svc.confirmFault("f1", Set.of("CLIENT_SIGNER"), "u1", false, " "));
         assertEquals(422, ex.getCode());
+    }
+
+    @Test
+    void confirmRequiresUnitAnchorAndMatchingSnapshot() {
+        fault("PENDING_CONFIRM");
+        BizException missing = assertThrows(BizException.class,
+                () -> svc.confirmFault("f1", Set.of("CLIENT_SIGNER"), null, true, ""));
+        assertEquals(1403, missing.getCode());
+        BizException other = assertThrows(BizException.class,
+                () -> svc.confirmFault("f1", Set.of("CLIENT_SIGNER"), "u-other", true, ""));
+        assertEquals(1403, other.getCode());
     }
 
     @Test
@@ -159,7 +215,7 @@ class FaultLifecycleTest {
         fault("PENDING_CONFIRM");
         elevator("r1", "u-other");
         BizException ex = assertThrows(BizException.class,
-                () -> svc.confirmFault("f1", Set.of("CLIENT_SIGNER"), "u1", true, ""));
+                () -> svc.confirmFault("f1", Set.of("CLIENT_SIGNER"), "u-other", true, ""));
         assertEquals(1403, ex.getCode());
     }
 
@@ -167,13 +223,13 @@ class FaultLifecycleTest {
     void cancelRolesAndReason() {
         fault("OPEN");
         BizException noReason = assertThrows(BizException.class,
-                () -> svc.cancelFault("f1", Set.of("CLIENT_ADMIN"), ""));
+                () -> svc.cancelFault("f1", Set.of("CLIENT_ADMIN"), "", "e1", "u1"));
         assertEquals(422, noReason.getCode());
         BizException wrongRole = assertThrows(BizException.class,
-                () -> svc.cancelFault("f1", Set.of("MAINT_SUP"), "误报"));
+                () -> svc.cancelFault("f1", Set.of("MAINT_SUP"), "误报", "e1", "u1"));
         assertEquals(1403, wrongRole.getCode());
         Fault f = fault("OPEN");
-        svc.cancelFault("f1", Set.of("CLIENT_ADMIN"), "误报");
+        svc.cancelFault("f1", Set.of("CLIENT_ADMIN"), "误报", "e1", "u1");
         assertEquals("CANCELLED", f.status);
     }
 
@@ -181,14 +237,14 @@ class FaultLifecycleTest {
     void evaluateOnlyClosedOnce() {
         fault("PROCESSING");
         BizException notClosed = assertThrows(BizException.class,
-                () -> svc.evaluate("f1", Set.of("CLIENT_ADMIN"), null, Map.of("score", 5)));
+                () -> svc.evaluate("f1", Set.of("CLIENT_ADMIN"), "u1", Map.of("score", 5)));
         assertEquals(422, notClosed.getCode());
         Fault f = fault("CLOSED");
-        svc.evaluate("f1", Set.of("CLIENT_ADMIN"), null, Map.of("score", 5, "text", "响应快"));
+        svc.evaluate("f1", Set.of("CLIENT_ADMIN"), "u1", Map.of("score", 5, "text", "响应快"));
         assertEquals(5, f.evaluateScore);
         assertNotNull(f.evaluatedAt);
         BizException dup = assertThrows(BizException.class,
-                () -> svc.evaluate("f1", Set.of("CLIENT_ADMIN"), null, Map.of("score", 4)));
+                () -> svc.evaluate("f1", Set.of("CLIENT_ADMIN"), "u1", Map.of("score", 4)));
         assertEquals(422, dup.getCode());
     }
 
@@ -196,7 +252,7 @@ class FaultLifecycleTest {
     void evaluateScoreRange() {
         fault("CLOSED");
         BizException ex = assertThrows(BizException.class,
-                () -> svc.evaluate("f1", Set.of("CLIENT_ADMIN"), null, Map.of("score", 6)));
+                () -> svc.evaluate("f1", Set.of("CLIENT_ADMIN"), "u1", Map.of("score", 6)));
         assertEquals(422, ex.getCode());
     }
 }

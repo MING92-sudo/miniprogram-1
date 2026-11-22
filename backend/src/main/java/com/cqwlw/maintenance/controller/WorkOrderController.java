@@ -61,7 +61,7 @@ public class WorkOrderController {
         boolean pass = Boolean.TRUE.equals(body.get("pass"));
         String reason = body.get("reason") == null ? "" : String.valueOf(body.get("reason"));
         Map<String, Object> result = recordLifecycleService.review(id, pass, reason,
-                com.cqwlw.maintenance.auth.MultiRoleGate.roles(request));
+                com.cqwlw.maintenance.auth.MultiRoleGate.roles(request), empId(request));
         guard.commit(result);
         return ApiResponse.ok(result);
     }
@@ -76,15 +76,15 @@ public class WorkOrderController {
             return ApiResponse.ok(guard.replayedResult());
         }
         Map<String, Object> result = recordLifecycleService.signRequest(id,
-                com.cqwlw.maintenance.auth.MultiRoleGate.roles(request));
+                com.cqwlw.maintenance.auth.MultiRoleGate.roles(request), empId(request));
         guard.commit(result);
         return ApiResponse.ok(result);
     }
 
     /** M1：归档投影（PDF 重签 URL + SHA-256；存量 SIGNED 按需补归档） */
     @GetMapping("/work-orders/{id}/archive")
-    public ApiResponse<Map<String, Object>> archive(@PathVariable String id) {
-        return ApiResponse.ok(recordLifecycleService.archiveView(id));
+    public ApiResponse<Map<String, Object>> archive(@PathVariable String id, HttpServletRequest request) {
+        return ApiResponse.ok(recordLifecycleService.archiveView(id, empId(request)));
     }
 
     @GetMapping("/work-orders")

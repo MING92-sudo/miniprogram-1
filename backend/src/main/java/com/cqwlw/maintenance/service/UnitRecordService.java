@@ -579,8 +579,11 @@ public class UnitRecordService {
                 .filter(i -> !Boolean.TRUE.equals(i.get("notInThisRun")))
                 .map(i -> {
                     Map<String, Object> c = new LinkedHashMap<>();
+                    c.put("id", i.get("id"));
+                    c.put("itemCode", i.get("itemCode"));
                     c.put("name", i.get("name"));
                     c.put("result", i.get("result"));
+                    c.put("problemCode", i.get("problemCode"));
                     c.put("value", i.get("value"));
                     c.put("valueUnit", i.get("valueUnit"));
                     c.put("valueText", i.get("valueText"));

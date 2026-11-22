@@ -27,5 +27,6 @@ export function exportCsv(filename, columns, rows) {
 function cell(v) {
   if (v === null || v === undefined) return ''
   const s = String(v)
-  return /[",\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s
+  const safe = /^[\s]*[=+\-@]/.test(s) ? "'" + s : s
+  return /[",\r\n]/.test(safe) ? '"' + safe.replace(/"/g, '""') + '"' : safe
 }

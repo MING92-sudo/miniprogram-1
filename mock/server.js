@@ -820,7 +820,11 @@ const routes = [
   }],
 
   // ── 工单 ──
-  ['GET', '/home/summary', () => d.getHomeSummary()],
+  ['GET', '/home/summary', () => {
+    const summary = d.getHomeSummary()
+    summary.openOrders = (d.db.orders || []).filter((o) => orderVisible(o) && o.status !== 'DONE').length
+    return summary
+  }],
   // 使用单位账号电梯收敛本单位（2026-11-15 裁决；与后端 CLIENT 谓词同口径，无锚点 fail-closed）
   ['GET', '/elevators', () => {
     const anchor = clientUnitAnchor()
@@ -1200,10 +1204,8 @@ const routes = [
     return paginate(list, query)
   }],
   ['GET', '/faults/:id', ({ params }) => findOr404(d.db.faults, params.id, '故障记录')],
-  ['POST', '/faults/:id/close', ({ params, body }) => {
-    const f = d.closeFault(params.id, body)
-    if (!f) throw { code: 1404, message: '故障记录不存在' }
-    return { ok: true }
+  ['POST', '/faults/:id/close', () => {
+    throw { code: 1403, message: '急修闭环须由使用单位确认，员工不可代签关闭' }
   }],
   ['POST', '/admin/faults/:id/dispatch', ({ params, body }) =>
     d.dispatchFault(params.id, body && body.workerId)],
@@ -1655,8 +1657,37 @@ const routes = [
   // trappedCount 已随 V62 在员工侧落地（建单/列表/KPI）；客户门户投影白名单暂不含（不下发）。
   ['GET', '/unit/faults', () => {
     const unitId = requirePortalUnit()
-    const codes = ownElevatorCodes(unitId)
-    return (d.db.faults || []).filter((f) => codes.has(f.elevatorCode)).slice(0, 50)
+    return (d.db.faults || []).filter((f) => f.useUnitId === unitId).slice(0, 50)
+  }],
+  ['GET', '/unit/faults/:id', ({ params }) => {
+    const unitId = requirePortalUnit()
+    const f = findOr404(d.db.faults, params.id, '急修单')
+    if (f.useUnitId !== unitId) throw { code: 1403, message: '仅本单位急修单可查看' }
+    return f
+  }],
+  ['POST', '/unit/faults/:id/confirm', ({ params, body }) => {
+    const unitId = requirePortalUnit()
+    if (!currentRoles.includes('CLIENT_SIGNER')) throw { code: 1403, message: '需使用单位签字人角色' }
+    const f = findOr404(d.db.faults, params.id, '急修单')
+    if (f.useUnitId !== unitId) throw { code: 1403, message: '仅本单位急修单可确认' }
+    if (f.status !== 'PENDING_CONFIRM') throw { code: 422, message: '仅待使用单位确认的急修单可确认' }
+    const pass = !body || body.pass !== false
+    if (!pass && !String((body && body.reason) || '').trim()) throw { code: 422, message: '拒绝原因必填' }
+    f.status = pass ? 'CLOSED' : 'REFUSED'
+    if (pass) f.confirmedAt = formatTime()
+    else f.refuseReason = String(body.reason).trim()
+    return f
+  }],
+  ['POST', '/unit/faults/:id/cancel', ({ params, body }) => {
+    const unitId = requirePortalUnit()
+    if (!currentRoles.includes('CLIENT_ADMIN')) throw { code: 1403, message: '仅使用单位管理员可取消' }
+    const f = findOr404(d.db.faults, params.id, '急修单')
+    if (f.useUnitId !== unitId) throw { code: 1403, message: '仅本单位急修单可取消' }
+    if (f.status !== 'OPEN') throw { code: 1403, message: '接单后仅维保主管可取消' }
+    if (!String((body && body.reason) || '').trim()) throw { code: 422, message: '取消原因必填' }
+    f.status = 'CANCELLED'
+    f.cancelReason = String(body.reason).trim()
+    return f
   }],
   // 使用单位报修（后端 reportFault）：电梯必须属本单位，越权 1403 且不落单
   ['POST', '/unit/faults', ({ body }) => {
@@ -1665,7 +1696,14 @@ const routes = [
     if (!code) throw { code: 422, message: '请选择电梯' }
     if (!String((body && body.desc) || '').trim()) throw { code: 422, message: '请填写故障描述' }
     if (!ownElevatorCodes(unitId).has(code)) throw { code: 1403, message: '仅可为本单位电梯报修' }
-    return d.createFault(body)
+    const created = d.createFault(Object.assign({}, body, { createdBy: 'unit:' + unitId }))
+    const el = (d.db.elevators || []).find((x) => x.elevatorCode === code)
+    const platformId = el && (el.workerPlatformId || (el.maintenance && el.maintenance.workerPlatformId))
+    if (platformId) {
+      const worker = Object.values(d.db.employees).find((e) => e.platformId === platformId)
+      if (worker) return d.dispatchFault(created.id, worker.id)
+    }
+    return created
   }],
   // 维保日历（后端 MaintenanceCalendarService 同口径，2026-11-20 建档即排全年）：
   // 锚点=最早 HM 工单计划日 → 下次到期日 → 建档基线 lastMaintenanceAt+intervalDays；

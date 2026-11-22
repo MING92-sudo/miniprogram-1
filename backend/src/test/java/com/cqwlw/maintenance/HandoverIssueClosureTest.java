@@ -63,6 +63,7 @@ class HandoverIssueClosureTest {
     @BeforeEach
     void setUp() {
         orderMapper = mock(WorkOrderMapper.class);
+        when(orderMapper.completeCheckout(any(), any(), any(), any(), any(), any())).thenReturn(1);
         handoverMapper = mock(HandoverOrderMapper.class);
         messageMapper = mock(MessageMapper.class);
         EmployeeMapper employeeMapper = mock(EmployeeMapper.class);

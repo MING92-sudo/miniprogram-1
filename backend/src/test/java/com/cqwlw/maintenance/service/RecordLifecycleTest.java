@@ -120,6 +120,39 @@ class RecordLifecycleTest {
     }
 
     @Test
+    void platformAdminCanReviewAndRequestSignAccordingToMatrix() {
+        MaintainRecord r = record("PENDING_REVIEW");
+        svc.review("r1", true, "", Set.of("PLATFORM_ADMIN"));
+        assertEquals("PENDING_CLIENT_SIGN", r.lifecycleStatus);
+        r.workerSignatureUrl = "files/w";
+        r.assistantSignatureUrl = "files/a";
+        svc.signRequest("r1", Set.of("PLATFORM_ADMIN"));
+        assertEquals("PENDING_CLIENT_SIGNATURE", r.lifecycleStatus);
+    }
+
+    @Test
+    void reviewSignRequestAndArchiveRejectCrossGroupRecords() {
+        MaintainRecord r = record("PENDING_REVIEW");
+        r.workerPlatformId = "pid_other";
+        EmployeeScopeService scope = mock(EmployeeScopeService.class);
+        Employee me = new Employee();
+        me.id = "emp_1";
+        when(scope.require("emp_1")).thenReturn(me);
+        when(scope.visibleReadPlatformIds(me)).thenReturn(Set.of("pid_team"));
+        svc.setScopeService(scope);
+
+        BizException review = assertThrows(BizException.class,
+                () -> svc.review("r1", true, "", Set.of("MAINT_SUP"), "emp_1"));
+        BizException sign = assertThrows(BizException.class,
+                () -> svc.signRequest("r1", Set.of("MAINT_SUP"), "emp_1"));
+        BizException archive = assertThrows(BizException.class, () -> svc.archiveView("r1", "emp_1"));
+
+        assertEquals(1403, review.getCode());
+        assertEquals(1403, sign.getCode());
+        assertEquals(1403, archive.getCode());
+    }
+
+    @Test
     void reviewForbiddenForTechnician() {
         record("PENDING_REVIEW");
         BizException ex = assertThrows(BizException.class,

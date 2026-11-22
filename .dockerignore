@@ -16,6 +16,7 @@ admin/node_modules
 admin/dist
 admin/.tmp-build
 backend/target
+backend/.m2
 backend/src/main/resources/static
 
 # 本地数据、脚本临时件、文档（不参与运行）

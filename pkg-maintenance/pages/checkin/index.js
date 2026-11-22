@@ -116,6 +116,7 @@ definePage(ROUTES['/pkg-maintenance/pages/checkin/index'], {
   },
 
   stopCodeTimer() {
+    this._codeRequestSeq = (this._codeRequestSeq || 0) + 1
     if (this._codeTimer) {
       clearInterval(this._codeTimer)
       this._codeTimer = null
@@ -123,16 +124,23 @@ definePage(ROUTES['/pkg-maintenance/pages/checkin/index'], {
   },
 
   async refreshCode() {
+    const seq = this._codeRequestSeq = (this._codeRequestSeq || 0) + 1
     try {
       const r = await issueDynamicCode(this.data.orderId)
+      if (seq !== this._codeRequestSeq) return
       this.setData({ issuedCode: r.code, codeCountdown: r.stepSeconds || 5 })
     } catch (e) {
-      this.stopCodeTimer()
+      if (seq === this._codeRequestSeq) this.stopCodeTimer()
     }
   },
 
   onHide() {
     this.stopCodeTimer()
+  },
+
+  onShow() {
+    // 水印相机返回后旧码可能已过 60 秒有效期：立即刷新并恢复轮换。
+    if (this.data.orderId && this.data.role === 'PRINCIPAL' && this.data.isDual) this.startCodeTimer()
   },
 
   onUnload() {
