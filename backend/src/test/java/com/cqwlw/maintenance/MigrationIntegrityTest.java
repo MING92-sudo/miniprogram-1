@@ -3,6 +3,7 @@ package com.cqwlw.maintenance;
 import org.junit.jupiter.api.Test;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
+import org.springframework.core.io.ClassPathResource;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -48,5 +49,21 @@ class MigrationIntegrityTest {
         assertTrue(duplicates.isEmpty(),
                 "classpath 下存在重复版本的迁移脚本（多为 target/classes 残留，打包前需 mvn clean）: " + duplicates);
         assertTrue(byVersion.size() >= 22, "迁移脚本数量异常，classpath 扫描可能失效: " + byVersion.size());
+    }
+
+    @Test
+    void targetedPerformanceIndexesAreAdditiveAndSafe() throws Exception {
+        ClassPathResource migration = new ClassPathResource("db/migration/V64__targeted_performance_indexes.sql");
+        assertTrue(migration.exists(), "缺少 V64 定向性能索引迁移");
+        String sql = new String(migration.getInputStream().readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+        for (String index : List.of("idx_mr_prev_version", "idx_mr_order_version", "idx_mr_created_at",
+                "idx_mr_sign_queue", "idx_wo_plan_time", "idx_wo_elevator_status_checkout",
+                "idx_fault_created_at", "idx_fault_unit_created", "idx_fault_escalation",
+                "idx_reg_orig_created", "idx_elevator_unit")) {
+            assertTrue(sql.contains(index), "V64 缺少索引: " + index);
+        }
+        assertTrue(!sql.matches("(?is).*\\b(UNIQUE|PARTITION|UPDATE|DELETE)\\b.*"),
+                "V64 只能做性能索引，不得包含唯一约束或数据清洗");
+        assertTrue(!sql.matches("(?is).*\\bDROP\\s+TABLE\\b.*"), "V64 不得删表");
     }
 }

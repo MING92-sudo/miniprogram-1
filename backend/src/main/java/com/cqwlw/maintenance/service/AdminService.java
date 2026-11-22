@@ -163,6 +163,14 @@ public class AdminService {
                     "page", intOf(q.get("page"), 1), "size", intOf(q.get("size"), 20));
         }
         LambdaQueryWrapper<MaintainRecord> w = new LambdaQueryWrapper<>();
+        w.select(MaintainRecord::getId, MaintainRecord::getElevatorName, MaintainRecord::getElevatorCode,
+                MaintainRecord::getWorkType, MaintainRecord::getWorkTypeCode,
+                MaintainRecord::getWorkerName, MaintainRecord::getAssistantName,
+                MaintainRecord::getCheckinTime, MaintainRecord::getCheckoutTime, MaintainRecord::getDuration,
+                MaintainRecord::getProblemCodesJson, MaintainRecord::getReportStatus, MaintainRecord::getRetryCount,
+                MaintainRecord::getConfirmStatus, MaintainRecord::getLifecycleStatus,
+                MaintainRecord::getRefuseCode, MaintainRecord::getRefuseReason, MaintainRecord::getSatisfaction,
+                MaintainRecord::getOriginalRecordId, MaintainRecord::getCreatedAt);
         if (visiblePlatformIds != null) {
             w.and(x -> x.in(MaintainRecord::getWorkerPlatformId, visiblePlatformIds)
                     .or().in(MaintainRecord::getAssistantPlatformId, visiblePlatformIds));
@@ -247,15 +255,12 @@ public class AdminService {
             w.eq(RegUploadLog::getAction, q.get("action"));
         }
         w.orderByDesc(RegUploadLog::getCreatedAt);
-        List<RegUploadLog> all = logMapper.selectList(w);
-
         int page = intOf(q.get("page"), 1);
         int size = intOf(q.get("size"), 20);
-        int from = Math.min((page - 1) * size, all.size());
-        int to = Math.min(from + size, all.size());
+        Page<RegUploadLog> pageResult = logMapper.selectPage(new Page<>(page, size), w);
 
         List<Map<String, Object>> list = new ArrayList<>();
-        for (RegUploadLog g : all.subList(from, to)) {
+        for (RegUploadLog g : pageResult.getRecords()) {
             Map<String, Object> m = new LinkedHashMap<>();
             m.put("id", g.id);
             m.put("originalRecordId", nz(g.originalRecordId));
@@ -269,7 +274,7 @@ public class AdminService {
         }
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("list", list);
-        out.put("total", all.size());
+        out.put("total", (int) pageResult.getTotal());
         out.put("page", page);
         out.put("size", size);
         return out;
@@ -413,7 +418,7 @@ public class AdminService {
 
     private static int intOf(String s, int def) {
         try {
-            return s == null || s.isBlank() ? def : Integer.parseInt(s.trim());
+            return s == null || s.isBlank() ? def : Math.max(1, Integer.parseInt(s.trim()));
         } catch (NumberFormatException e) {
             return def;
         }

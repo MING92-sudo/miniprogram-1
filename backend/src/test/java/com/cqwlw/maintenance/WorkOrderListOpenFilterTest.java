@@ -41,10 +41,11 @@ class WorkOrderListOpenFilterTest {
     private static final String EMP_ADMIN = "emp_admin";
 
     private WorkOrderService service;
+    private WorkOrderMapper orderMapper;
 
     @BeforeEach
     void setUp() {
-        WorkOrderMapper orderMapper = mock(WorkOrderMapper.class);
+        orderMapper = mock(WorkOrderMapper.class);
         EmployeeMapper employeeMapper = mock(EmployeeMapper.class);
         service = new WorkOrderService(orderMapper, mock(ElevatorMapper.class), mock(UseUnitMapper.class),
                 employeeMapper, mock(CompanyMapper.class), mock(MaintainRecordMapper.class),
@@ -67,6 +68,11 @@ class WorkOrderListOpenFilterTest {
                 order("wo_g", "PROCESSING"),
                 order("wo_d", "DONE"),
                 future));
+        com.baomidou.mybatisplus.extension.plugins.pagination.Page<WorkOrder> page =
+                new com.baomidou.mybatisplus.extension.plugins.pagination.Page<>(1, 20);
+        page.setRecords(List.of(order("wo_p", "PENDING"), order("wo_g", "PROCESSING"), future));
+        page.setTotal(3);
+        when(orderMapper.selectPage(any(), any())).thenReturn(page);
     }
 
     /** OPEN = 未闭环：PENDING + PROCESSING 保留，DONE 排除 */
@@ -79,10 +85,24 @@ class WorkOrderListOpenFilterTest {
     /** 精确状态过滤语义不变 */
     @Test
     void exactStatusFilterUnchanged() {
+        when(orderMapper.selectPage(any(), any())).thenReturn(
+                pageOf(List.of(order("wo_p", "PENDING"), order("wo_future", "PENDING")), 2),
+                pageOf(List.of(order("wo_d", "DONE")), 1),
+                pageOf(List.of(order("wo_p", "PENDING"), order("wo_g", "PROCESSING"),
+                        order("wo_d", "DONE"), order("wo_future", "PENDING")), 4));
         assertEquals(2, service.listOrders(Map.of("status", "PENDING"), EMP_ADMIN).get("total"));
         assertEquals(1, service.listOrders(Map.of("status", "DONE"), EMP_ADMIN).get("total"));
         assertEquals(4, service.listOrders(Map.of(), EMP_ADMIN).get("total"));
         assertEquals(3, service.homeSummary(EMP_ADMIN).get("openOrders"));
+    }
+
+    private static com.baomidou.mybatisplus.extension.plugins.pagination.Page<WorkOrder> pageOf(
+            List<WorkOrder> rows, int total) {
+        com.baomidou.mybatisplus.extension.plugins.pagination.Page<WorkOrder> page =
+                new com.baomidou.mybatisplus.extension.plugins.pagination.Page<>(1, 20);
+        page.setRecords(rows);
+        page.setTotal(total);
+        return page;
     }
 
     private static WorkOrder order(String id, String status) {

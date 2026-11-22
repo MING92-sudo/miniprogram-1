@@ -2,6 +2,7 @@ package com.cqwlw.maintenance.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.cqwlw.maintenance.common.BizException;
 import com.cqwlw.maintenance.common.Ids;
 import com.cqwlw.maintenance.entity.Company;
@@ -273,54 +274,126 @@ public class WorkOrderService {
 
     // ── 列表 ──
     public Map<String, Object> listOrders(Map<String, String> query, String empId) {
-        List<WorkOrder> list = orderMapper.selectList(new LambdaQueryWrapper<WorkOrder>()
-                .orderByDesc(WorkOrder::getPlanTime));
-        list = scopeOrders(list, empId);
+        LambdaQueryWrapper<WorkOrder> w = new LambdaQueryWrapper<>();
+        Employee emp = scopeService.require(empId);
+        applyOrderReadScope(w, emp, scopeService.visibleReadPlatformIds(emp));
+
         String due = query.get("due");
         if (due != null && !due.isEmpty()) {
-            String today = TimeUtil.date(TimeUtil.now());
-            String soonEnd = TimeUtil.date(TimeUtil.now().plusDays(3));
-            list = list.stream().filter(o -> {
-                String day = o.planTime == null ? "" : TimeUtil.date(o.planTime);
-                if (day.isEmpty() || "DONE".equals(o.status)) {
-                    return false;
+            java.time.LocalDate today = TimeUtil.now().toLocalDate();
+            w.isNotNull(WorkOrder::getPlanTime).ne(WorkOrder::getStatus, "DONE");
+            switch (due) {
+                case "today" -> w.ge(WorkOrder::getPlanTime, today.atStartOfDay())
+                        .lt(WorkOrder::getPlanTime, today.plusDays(1).atStartOfDay());
+                case "soon" -> w.ge(WorkOrder::getPlanTime, today.plusDays(1).atStartOfDay())
+                        .lt(WorkOrder::getPlanTime, today.plusDays(4).atStartOfDay());
+                case "overdue" -> w.lt(WorkOrder::getPlanTime, today.atStartOfDay());
+                default -> {
+                    // 旧口径：未知 due 仍要求有计划日期且未完成，不再加日期窗口。
                 }
-                switch (due) {
-                    case "today":
-                        return day.equals(today);
-                    case "soon":
-                        return day.compareTo(today) > 0 && day.compareTo(soonEnd) <= 0;
-                    case "overdue":
-                        return day.compareTo(today) < 0;
-                    default:
-                        return true;
-                }
-            }).collect(Collectors.toList());
+            }
         }
         String status = query.get("status");
         if (status != null && !status.isEmpty()) {
-            // OPEN = 未闭环（工作台「待维保」KPI 下钻口径，排除已完成）
-            list = "OPEN".equals(status)
-                    ? list.stream().filter(o -> !"DONE".equals(o.status)).collect(Collectors.toList())
-                    : list.stream().filter(o -> status.equals(o.status)).collect(Collectors.toList());
+            if ("OPEN".equals(status)) {
+                w.ne(WorkOrder::getStatus, "DONE");
+            } else {
+                w.eq(WorkOrder::getStatus, status);
+            }
         }
         String keyword = query.get("keyword");
         if (keyword != null && !keyword.isEmpty()) {
-            // 一次载入电梯映射，避免逐单 selectById 的 N+1
-            Map<String, Elevator> elevatorMap = new java.util.HashMap<>();
-            for (Elevator el : elevatorMapper.selectList(null)) {
-                elevatorMap.put(el.id, el);
+            String k = escapeLikeLiteral(keyword.toLowerCase());
+            List<Elevator> matches = elevatorMapper.selectList(new LambdaQueryWrapper<Elevator>()
+                    .and(x -> x.like(Elevator::getElevatorName, k).or().like(Elevator::getElevatorCode, k)
+                            .or().like(Elevator::getDeviceCode, k).or().like(Elevator::getRegCode, k)
+                            .or().like(Elevator::getInsideNumber, k)));
+            Set<String> elevatorIds = new java.util.LinkedHashSet<>();
+            for (Elevator el : matches == null ? List.<Elevator>of() : matches) {
+                if (el != null && el.id != null) {
+                    elevatorIds.add(el.id);
+                }
             }
-            String k = keyword.toLowerCase();
-            list = list.stream().filter(o -> {
-                Elevator el = elevatorMap.get(o.elevatorId);
-                return contains(o.orderNo, k) || (el != null && (contains(el.elevatorName, k)
-                        || contains(el.elevatorCode, k) || contains(el.deviceCode, k)
-                        || contains(el.regCode, k) || contains(el.insideNumber, k)));
-            }).collect(Collectors.toList());
+            w.and(x -> {
+                if (!elevatorIds.isEmpty()) {
+                    x.in(WorkOrder::getElevatorId, elevatorIds).or().like(WorkOrder::getOrderNo, k);
+                } else {
+                    x.like(WorkOrder::getOrderNo, k);
+                }
+            });
         }
-        List<Map<String, Object>> views = list.stream().map(o -> toMap(o, false)).collect(Collectors.toList());
-        return paginate(views, query);
+
+        int page = Math.max(1, parseInt(query.get("page"), 1));
+        int size = Math.max(1, parseInt(query.get("size"), 20));
+        Page<WorkOrder> result = orderMapper.selectPage(new Page<>(page, size), w.orderByDesc(WorkOrder::getPlanTime));
+        List<WorkOrder> current = result.getRecords() == null ? List.of() : result.getRecords();
+        if (current.isEmpty()) {
+            return JsonUtil.map("list", List.of(), "total", (int) result.getTotal());
+        }
+
+        Map<String, Elevator> elevatorMap = new java.util.HashMap<>();
+        Set<String> elevatorIds = current.stream().map(o -> o.elevatorId)
+                .filter(id -> id != null && !id.isBlank()).collect(Collectors.toSet());
+        if (!elevatorIds.isEmpty()) {
+            List<Elevator> elevators = elevatorMapper.selectList(new LambdaQueryWrapper<Elevator>()
+                    .in(Elevator::getId, elevatorIds));
+            for (Elevator el : elevators == null ? List.<Elevator>of() : elevators) {
+                if (el != null) {
+                    elevatorMap.put(el.id, el);
+                }
+            }
+        }
+        Map<String, String> regionNames = new java.util.HashMap<>();
+        Set<String> regionIds = current.stream().map(o -> o.regionId)
+                .filter(id -> id != null && !id.isBlank()).collect(Collectors.toSet());
+        if (regionMapper != null && !regionIds.isEmpty()) {
+            List<com.cqwlw.maintenance.entity.Region> regionRows = regionMapper.selectList(
+                    new LambdaQueryWrapper<com.cqwlw.maintenance.entity.Region>()
+                            .in(com.cqwlw.maintenance.entity.Region::getId, regionIds));
+            for (com.cqwlw.maintenance.entity.Region region : regionRows == null
+                    ? List.<com.cqwlw.maintenance.entity.Region>of() : regionRows) {
+                regionNames.put(region.id, region.name);
+            }
+        }
+        List<Map<String, Object>> views = current.stream()
+                .map(o -> toMap(o, false, elevatorMap.get(o.elevatorId), regionNames.getOrDefault(o.regionId, "")))
+                .collect(Collectors.toList());
+        return JsonUtil.map("list", views, "total", (int) result.getTotal());
+    }
+
+    private void applyOrderReadScope(LambdaQueryWrapper<WorkOrder> w, Employee emp, Set<String> ids) {
+        if (ids == null) {
+            return;
+        }
+        boolean claimed = !ids.isEmpty();
+        boolean pool = emp.platformId != null && !emp.platformId.isBlank();
+        if (!claimed && !pool) {
+            w.apply("1 = 0");
+            return;
+        }
+        w.and(root -> {
+            if (claimed) {
+                root.in(WorkOrder::getWorkerPlatformId, ids).or().in(WorkOrder::getAssistantPlatformId, ids);
+            } else {
+                root.apply("1 = 0");
+            }
+            if (pool) {
+                root.or().and(poolScope -> {
+                    poolScope.and(worker -> worker.isNull(WorkOrder::getWorkerPlatformId)
+                            .or().eq(WorkOrder::getWorkerPlatformId, ""));
+                    poolScope.and(region -> {
+                        region.isNull(WorkOrder::getRegionId).or().eq(WorkOrder::getRegionId, "");
+                        if (emp.regionId != null && !emp.regionId.isBlank()) {
+                            region.or().eq(WorkOrder::getRegionId, emp.regionId);
+                        }
+                    });
+                });
+            }
+        });
+    }
+
+    public static String escapeLikeLiteral(String value) {
+        return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
     }
 
     private static boolean contains(String s, String k) {
@@ -1418,7 +1491,10 @@ public class WorkOrderService {
 
     // ── 视图组装 ──
     public Map<String, Object> toMap(WorkOrder o, boolean withElevator) {
-        Elevator el = elevatorMapper.selectById(o.elevatorId);
+        return toMap(o, withElevator, elevatorMapper.selectById(o.elevatorId), regionNameOf(o.regionId));
+    }
+
+    private Map<String, Object> toMap(WorkOrder o, boolean withElevator, Elevator el, String regionName) {
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("id", o.id);
         m.put("orderNo", o.orderNo);
@@ -1430,7 +1506,7 @@ public class WorkOrderService {
         // 区域抢单池快照（M4）：管理端工单池「待接单 · 区域名」与小程序池段共用；
         // 快照不回溯——电梯事后改区域不影响在池工单（M10）
         m.put("regionId", nz(o.regionId));
-        m.put("regionName", regionNameOf(o.regionId));
+        m.put("regionName", regionName);
         m.put("workerName", o.workerName);
         m.put("assistantName", o.assistantName);
         m.put("workerPlatformId", o.workerPlatformId);

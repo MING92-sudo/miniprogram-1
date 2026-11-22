@@ -17,6 +17,7 @@ import com.cqwlw.maintenance.service.PlatformTokenService;
 import com.cqwlw.maintenance.util.JsonUtil;
 import com.cqwlw.maintenance.util.TimeUtil;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -34,6 +35,13 @@ import static org.mockito.Mockito.when;
  * 上报日志分页只返回脱敏摘要字段；隐患分布按 problemCodesJson 聚合。
  */
 class AdminServiceTest {
+
+    @BeforeAll
+    static void initTableInfo() {
+        com.baomidou.mybatisplus.core.metadata.TableInfoHelper.initTableInfo(
+                new org.apache.ibatis.builder.MapperBuilderAssistant(
+                        new com.baomidou.mybatisplus.core.MybatisConfiguration(), ""), MaintainRecord.class);
+    }
 
     private WorkOrderMapper orderMapper;
     private MaintainRecordMapper recordMapper;
@@ -159,6 +167,14 @@ class AdminServiceTest {
         assertEquals("FAILED", list.get(0).get("reportStatus"));
         assertEquals(List.of("S5"), list.get(0).get("problemCodes"));
         assertFalse(String.valueOf(list.get(0).get("uploadStatus")).isEmpty());
+        org.mockito.ArgumentCaptor<com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<MaintainRecord>> captor =
+                org.mockito.ArgumentCaptor.forClass(com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper.class);
+        org.mockito.Mockito.verify(recordMapper).selectPage(any(), captor.capture());
+        String selected = captor.getValue().getSqlSelect();
+        assertTrue(selected.contains("problem_codes_json"), selected);
+        for (String large : List.of("items_json", "photos_json", "report_payload_json", "preview_context", "safety_json")) {
+            assertFalse(selected.contains(large), selected);
+        }
     }
 
     @Test
@@ -196,7 +212,10 @@ class AdminServiceTest {
         g.platformCode = "200";
         g.status = "SUCCESS";
         g.createdAt = TimeUtil.now();
-        when(logMapper.selectList(any())).thenReturn(List.of(g, g, g));
+        Page<RegUploadLog> page = new Page<>(1, 2);
+        page.setRecords(List.of(g, g));
+        page.setTotal(3);
+        when(logMapper.selectPage(any(), any())).thenReturn(page);
 
         Map<String, Object> out = service.uploadLogs(Map.of("page", "1", "size", "2"));
         assertEquals(3, out.get("total"));
@@ -209,6 +228,45 @@ class AdminServiceTest {
             for (String banned : List.of("requestBody", "responseBody", "token", "phone")) {
                 assertFalse(row.containsKey(banned), "不得出现字段: " + banned);
             }
+        }
+        org.mockito.Mockito.verify(logMapper, org.mockito.Mockito.never()).selectList(any());
+    }
+
+    @Test
+    void uploadLogsUseSqlPageForLaterAndEmptyPages() {
+        RegUploadLog log = new RegUploadLog();
+        log.id = "log_3";
+        Page<RegUploadLog> second = new Page<>(2, 2);
+        second.setRecords(List.of(log));
+        second.setTotal(3);
+        Page<RegUploadLog> empty = new Page<>(3, 2);
+        empty.setRecords(List.of());
+        empty.setTotal(3);
+        when(logMapper.selectPage(any(), any())).thenReturn(second, empty);
+
+        Map<String, Object> page2 = service.uploadLogs(Map.of("page", "2", "size", "2"));
+        Map<String, Object> page3 = service.uploadLogs(Map.of("page", "3", "size", "2"));
+
+        assertEquals(1, ((List<?>) page2.get("list")).size());
+        assertEquals(0, ((List<?>) page3.get("list")).size());
+        assertEquals(3, page3.get("total"));
+        org.mockito.Mockito.verify(logMapper, org.mockito.Mockito.times(2)).selectPage(any(), any());
+    }
+
+    @Test
+    void uploadLogsClampPageAndSizeToPositiveValues() {
+        Page<RegUploadLog> empty = new Page<>(1, 20);
+        empty.setRecords(List.of());
+        when(logMapper.selectPage(any(), any())).thenReturn(empty);
+
+        service.uploadLogs(Map.of("page", "-2", "size", "-1"));
+        service.uploadLogs(Map.of("page", "0", "size", "0"));
+
+        org.mockito.ArgumentCaptor<Page<RegUploadLog>> captor = org.mockito.ArgumentCaptor.forClass(Page.class);
+        org.mockito.Mockito.verify(logMapper, org.mockito.Mockito.times(2)).selectPage(captor.capture(), any());
+        for (Page<RegUploadLog> page : captor.getAllValues()) {
+            assertTrue(page.getCurrent() >= 1);
+            assertTrue(page.getSize() >= 1);
         }
     }
 

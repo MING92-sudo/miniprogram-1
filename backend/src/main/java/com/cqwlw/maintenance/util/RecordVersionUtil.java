@@ -49,10 +49,10 @@ public final class RecordVersionUtil {
         if (query.isEmpty()) {
             return out;
         }
-        // 不做 select 投影：LambdaQueryWrapper.select() 在构造期即解析列名（依赖 TableInfo 缓存），
-        // 与代码库既有 eq/in 惰性用法保持一致；后续版本行数有限，整行载入代价可忽略
-        List<MaintainRecord> rows = recordMapper.selectList(new LambdaQueryWrapper<MaintainRecord>()
-                .in(MaintainRecord::getPrevVersionId, query));
+        // 只需要父版本 ID，禁止把 items/photos/reportPayload 等 LONGTEXT 一并载入。
+        List<MaintainRecord> rows = recordMapper.selectList(new com.baomidou.mybatisplus.core.conditions.query.QueryWrapper<MaintainRecord>()
+                .select("prev_version_id")
+                .in("prev_version_id", query));
         for (MaintainRecord r : rows == null ? List.<MaintainRecord>of() : rows) {
             if (r != null && r.prevVersionId != null) {
                 out.add(r.prevVersionId);

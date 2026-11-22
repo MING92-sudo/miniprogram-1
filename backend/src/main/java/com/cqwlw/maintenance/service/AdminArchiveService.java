@@ -545,10 +545,36 @@ public class AdminArchiveService {
     // ── 电梯（POST /elevators、PUT /elevators/{id}；管理端富视图 GET /admin/elevators）──
 
     public List<Map<String, Object>> elevatorAdminList() {
+        List<Elevator> elevators = elevatorMapper.selectList(new LambdaQueryWrapper<Elevator>()
+                .orderByAsc(Elevator::getId));
+        if (elevators == null || elevators.isEmpty()) {
+            return List.of();
+        }
+        Set<String> unitIds = new LinkedHashSet<>();
+        Set<String> regionIds = new LinkedHashSet<>();
+        for (Elevator el : elevators) {
+            if (el.useUnitId != null && !el.useUnitId.isBlank()) unitIds.add(el.useUnitId);
+            if (el.regionId != null && !el.regionId.isBlank()) regionIds.add(el.regionId);
+        }
+        Map<String, UseUnit> units = new java.util.HashMap<>();
+        if (!unitIds.isEmpty()) {
+            List<UseUnit> rows = useUnitMapper.selectList(new LambdaQueryWrapper<UseUnit>()
+                    .in(UseUnit::getId, unitIds));
+            for (UseUnit unit : rows == null ? List.<UseUnit>of() : rows) units.put(unit.id, unit);
+        }
+        Map<String, String> regionNames = new java.util.HashMap<>();
+        if (regionMapper != null && !regionIds.isEmpty()) {
+            List<com.cqwlw.maintenance.entity.Region> rows = regionMapper.selectList(
+                    new LambdaQueryWrapper<com.cqwlw.maintenance.entity.Region>()
+                            .in(com.cqwlw.maintenance.entity.Region::getId, regionIds));
+            for (com.cqwlw.maintenance.entity.Region region : rows == null
+                    ? List.<com.cqwlw.maintenance.entity.Region>of() : rows) {
+                regionNames.put(region.id, nz(region.name));
+            }
+        }
         List<Map<String, Object>> list = new ArrayList<>();
-        for (Elevator el : elevatorMapper.selectList(new LambdaQueryWrapper<Elevator>()
-                .orderByAsc(Elevator::getId))) {
-            list.add(elevatorAdminRow(el));
+        for (Elevator el : elevators) {
+            list.add(elevatorAdminRow(el, units.get(el.useUnitId), regionNames.getOrDefault(el.regionId, "")));
         }
         return list;
     }
@@ -912,7 +938,11 @@ public class AdminArchiveService {
     }
 
     private Map<String, Object> elevatorAdminRow(Elevator el) {
-        UseUnit uu = el.useUnitId == null ? null : useUnitMapper.selectById(el.useUnitId);
+        return elevatorAdminRow(el, el.useUnitId == null ? null : useUnitMapper.selectById(el.useUnitId),
+                regionNameOf(el.regionId));
+    }
+
+    private Map<String, Object> elevatorAdminRow(Elevator el, UseUnit uu, String regionName) {
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("id", el.id);
         m.put("elevatorCode", nz(el.elevatorCode));
@@ -927,7 +957,7 @@ public class AdminArchiveService {
         m.put("deviceCode", nz(el.deviceCode));
         // 区域与建档来源（Task 14 Step 2）：区域决定维保人员可见范围，来源区分 存量/移交/外接
         m.put("regionId", nz(el.regionId));
-        m.put("regionName", regionNameOf(el.regionId));
+        m.put("regionName", regionName);
         // 上传维保记录的必传项（前 5 项）缺失清单：管理端据此显示「待补全」
         m.put("missingRequired", DeviceProfileValidator.missingRequired(el));
         m.put("archiveSource", el.archiveSource == null ? 0 : el.archiveSource);

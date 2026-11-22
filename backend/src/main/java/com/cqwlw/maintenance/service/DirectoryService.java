@@ -1,6 +1,7 @@
 package com.cqwlw.maintenance.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.cqwlw.maintenance.common.BizException;
 import com.cqwlw.maintenance.common.Ids;
 import com.cqwlw.maintenance.entity.Drill;
@@ -13,6 +14,7 @@ import com.cqwlw.maintenance.entity.InspectRecord;
 import com.cqwlw.maintenance.entity.Knowledge;
 import com.cqwlw.maintenance.entity.Message;
 import com.cqwlw.maintenance.entity.Rescue;
+import com.cqwlw.maintenance.entity.UseUnit;
 import com.cqwlw.maintenance.mapper.DrillMapper;
 import com.cqwlw.maintenance.mapper.CompanyMapper;
 import com.cqwlw.maintenance.mapper.EmployeeMapper;
@@ -422,6 +424,14 @@ public class DirectoryService {
         return f;
     }
 
+    private static int positiveInt(String raw, int fallback) {
+        try {
+            return raw == null || raw.isBlank() ? fallback : Math.max(1, Integer.parseInt(raw));
+        } catch (NumberFormatException e) {
+            return fallback;
+        }
+    }
+
     private static String trimmed(Object o) {
         return o == null ? "" : String.valueOf(o).trim();
     }
@@ -475,78 +485,111 @@ public class DirectoryService {
     }
 
     public Map<String, Object> listFaults(Map<String, String> query, String empId) {
-        List<Fault> list = faultMapper.selectList(new LambdaQueryWrapper<Fault>()
-                .orderByDesc(Fault::getCreatedAt));
         Employee me = scopeService.require(empId);
         Set<String> creatorIds = scopeService.visibleCreatorIds(me);
+        LambdaQueryWrapper<Fault> w = new LambdaQueryWrapper<>();
         if (creatorIds != null) {
-            // OPEN 仅本区域池可见；已派单允许本人或本组受派人持续可见，客户报修也不会从主管视野消失。
-            list = list.stream().filter(f -> (f.createdBy != null && creatorIds.contains(f.createdBy))
-                    || ("OPEN".equals(f.status) && poolVisible(f, me))
-                    || empId.equals(f.dispatchWorkerId)
-                    || (f.dispatchWorkerId != null && creatorIds.contains(f.dispatchWorkerId))).toList();
+            w.and(root -> {
+                if (!creatorIds.isEmpty()) {
+                    root.in(Fault::getCreatedBy, creatorIds).or().eq(Fault::getDispatchWorkerId, empId)
+                            .or().in(Fault::getDispatchWorkerId, creatorIds);
+                } else {
+                    root.eq(Fault::getDispatchWorkerId, empId);
+                }
+                root.or().and(open -> {
+                    open.eq(Fault::getStatus, "OPEN");
+                    if (me != null && me.regionId != null) {
+                        open.apply("NOT EXISTS (SELECT 1 FROM elevator pool_el "
+                                        + "WHERE pool_el.elevator_code = fault.elevator_code "
+                                        + "AND pool_el.region_id IS NOT NULL AND pool_el.region_id <> {0})", me.regionId);
+                    }
+                });
+            });
         }
         String status = query.get("status");
         if (status != null && !status.isEmpty()) {
-            list = list.stream().filter(f -> status.equals(f.status)).toList();
+            w.eq(Fault::getStatus, status);
         }
-        // 困人急修过滤（C-18/V62，工作台「急修待接」KPI 下钻口径）：trapped=1 → 仅困人单；trapped=0 → 仅非困人单
         if ("1".equals(query.get("trapped"))) {
-            list = list.stream().filter(f -> f.trappedCount != null && f.trappedCount > 0).toList();
+            w.gt(Fault::getTrappedCount, 0);
         } else if ("0".equals(query.get("trapped"))) {
-            list = list.stream().filter(f -> f.trappedCount == null || f.trappedCount <= 0).toList();
+            w.and(x -> x.isNull(Fault::getTrappedCount).or().le(Fault::getTrappedCount, 0));
         }
-        List<Map<String, Object>> views = list.stream().map(this::faultView).toList();
-        enrichFaultViews(views);
-        return workOrderService.paginate(views, query);
+        w.orderByDesc(Fault::getCreatedAt);
+        Page<Fault> result = faultMapper.selectPage(new Page<>(positiveInt(query.get("page"), 1),
+                positiveInt(query.get("size"), 20)), w);
+        List<Fault> current = result.getRecords() == null ? List.of() : result.getRecords();
+        List<Map<String, Object>> views = current.stream().map(this::faultView).toList();
+        if (!views.isEmpty()) {
+            enrichFaultViews(views);
+        }
+        return Map.of("list", views, "total", (int) result.getTotal());
     }
 
     /** 急修单视图增强：登记人姓名 + 电梯名称 + 使用单位名（一梯一档预览/PDF 用） */
     private void enrichFaultViews(List<Map<String, Object>> views) {
+        if (views == null || views.isEmpty()) {
+            return;
+        }
         Map<String, String> names = new LinkedHashMap<>();
         Map<String, String> phones = new LinkedHashMap<>();
-        for (Employee e : employeeMapper.selectList(null)) {
+        List<Employee> employeeRows = employeeMapper.selectList(null);
+        for (Employee e : employeeRows == null ? List.<Employee>of() : employeeRows) {
             names.put(e.id, e.name);
             phones.put(e.id, e.phone == null ? "" : e.phone);
         }
         Map<String, Elevator> elevators = new LinkedHashMap<>();
-        for (Elevator el : elevatorMapper.selectList(null)) {
+        List<Elevator> elevatorRows = elevatorMapper.selectList(null);
+        for (Elevator el : elevatorRows == null ? List.<Elevator>of() : elevatorRows) {
             elevators.put(el.elevatorCode, el);
         }
+        Set<String> unitIds = new java.util.LinkedHashSet<>();
         for (Map<String, Object> v : views) {
             String by = String.valueOf(v.get("createdBy"));
             if (by.startsWith(UnitPortalService.REPORTER_PREFIX)) {
-                // 使用单位门户报修（Task 10）：登记人是 use_unit，不是员工
+                unitIds.add(by.substring(UnitPortalService.REPORTER_PREFIX.length()));
+            }
+            Elevator el = elevators.get(String.valueOf(v.get("elevatorCode")));
+            if (el != null && el.useUnitId != null && !el.useUnitId.isBlank()) {
+                unitIds.add(el.useUnitId);
+            }
+        }
+        Map<String, String> unitNames = new java.util.HashMap<>();
+        if (!unitIds.isEmpty()) {
+            List<UseUnit> unitRows = useUnitMapper.selectList(new LambdaQueryWrapper<UseUnit>()
+                    .in(UseUnit::getId, unitIds));
+            for (UseUnit unit : unitRows == null ? List.<UseUnit>of() : unitRows) {
+                unitNames.put(unit.id, unit.unitName == null ? "" : unit.unitName);
+            }
+        }
+        List<Company> companyRows = companyMapper.selectList(null);
+        Company comp = companyRows == null ? null : companyRows.stream().findFirst().orElse(null);
+        for (Map<String, Object> v : views) {
+            String by = String.valueOf(v.get("createdBy"));
+            if (by.startsWith(UnitPortalService.REPORTER_PREFIX)) {
                 String unitId = by.substring(UnitPortalService.REPORTER_PREFIX.length());
-                v.put("createdByName", "使用单位报修（" + useUnitName(unitId) + "）");
+                v.put("createdByName", "使用单位报修（" + unitNames.getOrDefault(unitId, "") + "）");
                 v.put("reporterPhone", "");
             } else {
                 v.put("createdByName", by.isEmpty() ? "" : names.getOrDefault(by, by));
                 v.put("reporterPhone", by.isEmpty() ? "" : phones.getOrDefault(by, ""));
             }
-            // 派单信息（V20 派单系统）
             String dispatchId = String.valueOf(v.get("dispatchWorkerId"));
             v.put("dispatchedWorkerName", "null".equals(dispatchId) || dispatchId.isEmpty()
                     ? "" : names.getOrDefault(dispatchId, dispatchId));
-            // 维保单位：系统默认本单位（company 表首条）
-            Company comp = companyMapper.selectList(null).stream().findFirst().orElse(null);
             v.put("companyName", comp == null || comp.name == null ? "" : comp.name);
             Elevator el = elevators.get(String.valueOf(v.get("elevatorCode")));
             v.put("elevatorName", el == null || el.elevatorName == null ? "" : el.elevatorName);
-            v.put("useUnitName", el == null || el.useUnitId == null ? "" : useUnitName(el.useUnitId));
-            // PDF 电梯基本信息栏（样单：扫码自动带出，不可手改）
+            v.put("useUnitName", el == null || el.useUnitId == null ? "" : unitNames.getOrDefault(el.useUnitId, ""));
             v.put("regCode", el == null || el.regCode == null ? "" : el.regCode);
             v.put("model", el == null || el.model == null ? "" : el.model);
             v.put("location", el == null || el.location == null ? "" : el.location);
             v.put("stationsDoors", el == null || el.stationsDoors == null ? "" : el.stationsDoors);
             v.put("ratedSpec", el == null ? "" : ratedSpec(el));
-            // 急修记录单「使用单位与设备基本情况」区块（docs/13 §3.2、§4.2）：
-            // 与维保记录 PDF 同源同口径，缺档案时留空由导出层打印占位
             v.put("insideNumber", el == null || el.insideNumber == null ? "" : el.insideNumber);
             v.put("projectName", el == null || el.projectName == null ? "" : el.projectName);
             v.put("category", el == null || el.category == null ? "" : el.category);
             v.put("specialType", el == null || el.specialType == null ? "" : el.specialType);
-            // 出厂编号（V59 彻底统一，无 productNo 旧键）
             v.put("factoryNumber", el == null || el.factoryNumber == null ? "" : el.factoryNumber);
             v.put("deviceCode", el == null || el.deviceCode == null ? "" : el.deviceCode);
             v.put("manufacturer", el == null || el.manufacturer == null ? "" : el.manufacturer);

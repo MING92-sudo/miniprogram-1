@@ -186,11 +186,32 @@ class PlatformReportServiceTest {
     void legacySyncSkipsSupersededSubmittedRecord() {
         props.setLegacyUploadEnabled(true);
         when(tokenService.configured()).thenReturn(true);
-        when(recordMapper.selectList(any())).thenReturn(List.of(record("SUBMITTED")));
+        MaintainRecord parent = record("SUBMITTED");
+        MaintainRecord child = record("DRAFT");
+        child.id = "ur_2";
+        child.prevVersionId = parent.id;
+        when(recordMapper.selectList(any())).thenReturn(List.of(parent), List.of(child));
         when(recordMapper.selectCount(any())).thenReturn(1L);
 
         assertEquals(0, service.syncLegacy());
         verify(platformClient, never()).uploadLegacyRecord(any(), any(), any());
+    }
+
+    @Test
+    void legacySyncChecksSuccessorsInBatchWithoutPerRecordCount() {
+        props.setLegacyUploadEnabled(true);
+        when(tokenService.configured()).thenReturn(true);
+        MaintainRecord first = record("SUBMITTED");
+        MaintainRecord second = record("SUBMITTED");
+        second.id = "ur_2";
+        MaintainRecord third = record("SUBMITTED");
+        third.id = "ur_3";
+        when(recordMapper.selectList(any())).thenReturn(List.of(first, second, third), List.of());
+        when(platformClient.uploadLegacyRecord(any(), any(), any())).thenReturn(Map.of("code", 200));
+
+        assertEquals(3, service.syncLegacy());
+        verify(recordMapper, never()).selectCount(any());
+        verify(recordMapper, times(2)).selectList(any());
     }
 
     @Test

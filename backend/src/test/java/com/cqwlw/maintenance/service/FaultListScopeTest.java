@@ -91,10 +91,20 @@ class FaultListScopeTest {
             List<Map<String, Object>> views = inv.getArgument(0);
             return Map.of("list", views, "total", views.size());
         });
+        when(faults.selectPage(any(), any())).thenReturn(pageOf(List.of(
+                fault("f_mine", "e1", "CLOSED", "e1"),
+                fault("f_pool", "unit:uu_1", "OPEN", null),
+                fault("f_myjob", "unit:uu_1", "ASSIGNED", "e1"),
+                fault("f_other", "unit:uu_1", "ASSIGNED", "e2"),
+                fault("f_done", "e2", "CLOSED", "e2"), cross), 6));
     }
 
     @Test
     void restrictedWorkerSeesPoolAndOwnAssigned() {
+        when(faults.selectPage(any(), any())).thenReturn(pageOf(List.of(
+                fault("f_mine", "e1", "CLOSED", "e1"),
+                fault("f_pool", "unit:uu_1", "OPEN", null),
+                fault("f_myjob", "unit:uu_1", "ASSIGNED", "e1")), 3));
         Map<String, Object> res = svc.listFaults(Map.of("page", "1", "size", "50", "status", "", "trapped", ""), "e1");
         assertEquals(3, res.get("total")); // f_mine + f_pool + f_myjob
     }
@@ -107,8 +117,14 @@ class FaultListScopeTest {
 
     @Test
     void crossRegionOpenFaultIsInvisibleInListAndDetail() {
+        when(faults.selectPage(any(), any())).thenReturn(pageOf(List.of(
+                fault("f_pool", "unit:uu_1", "OPEN", null)), 1));
         Map<String, Object> res = svc.listFaults(Map.of("page", "1", "size", "50", "status", "OPEN", "trapped", ""), "e1");
         assertEquals(1, res.get("total"));
+        Elevator crossElevator = new Elevator();
+        crossElevator.elevatorCode = "EM-2";
+        crossElevator.regionId = "r2";
+        when(elevators.selectOne(any())).thenReturn(crossElevator);
         BizException ex = org.junit.jupiter.api.Assertions.assertThrows(BizException.class, () -> svc.getFault("f_cross", "e1"));
         assertEquals(1403, ex.getCode());
     }
@@ -121,6 +137,9 @@ class FaultListScopeTest {
         sup.regionId = "r1";
         when(scope.require("sup")).thenReturn(sup);
         when(scope.visibleCreatorIds(sup)).thenReturn(Set.of("e1", "e2"));
+        when(faults.selectPage(any(), any())).thenReturn(pageOf(List.of(
+                fault("f_myjob", "unit:uu_1", "ASSIGNED", "e1"),
+                fault("f_other", "unit:uu_1", "ASSIGNED", "e2")), 2));
 
         Map<String, Object> res = svc.listFaults(Map.of("page", "1", "size", "50", "status", "ASSIGNED", "trapped", ""), "sup");
 
@@ -142,6 +161,14 @@ class FaultListScopeTest {
                 () -> svc.cancelFault("f_other", Set.of("MAINT_SUP"), "跨组取消", "sup", null));
 
         assertEquals(1403, ex.getCode());
+    }
+
+    private static com.baomidou.mybatisplus.extension.plugins.pagination.Page<Fault> pageOf(List<Fault> rows, int total) {
+        com.baomidou.mybatisplus.extension.plugins.pagination.Page<Fault> page =
+                new com.baomidou.mybatisplus.extension.plugins.pagination.Page<>(1, 50);
+        page.setRecords(rows);
+        page.setTotal(total);
+        return page;
     }
 
     private static Fault fault(String id, String createdBy, String status, String dispatcher) {

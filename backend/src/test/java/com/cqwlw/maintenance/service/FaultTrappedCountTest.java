@@ -104,6 +104,10 @@ class FaultTrappedCountTest {
             List<Map<String, Object>> views = inv.getArgument(0);
             return Map.of("list", views, "total", views.size());
         });
+        when(faults.selectPage(any(), any())).thenReturn(
+                pageOf(List.of(trapped, zero, legacy), 3),
+                pageOf(List.of(trapped), 1),
+                pageOf(List.of(zero, legacy), 2));
 
         Map<String, Object> all = svc.listFaults(Map.of("page", "1", "size", "20", "status", "", "trapped", ""), "e1");
         assertEquals(3, all.get("total"));
@@ -113,6 +117,14 @@ class FaultTrappedCountTest {
         // trapped=0：仅非困人单（含历史 NULL 行），与「报修待接」KPI 口径一致
         Map<String, Object> rest = svc.listFaults(Map.of("page", "1", "size", "20", "status", "", "trapped", "0"), "e1");
         assertEquals(2, rest.get("total"));
+    }
+
+    private static com.baomidou.mybatisplus.extension.plugins.pagination.Page<Fault> pageOf(List<Fault> rows, int total) {
+        com.baomidou.mybatisplus.extension.plugins.pagination.Page<Fault> page =
+                new com.baomidou.mybatisplus.extension.plugins.pagination.Page<>(1, 20);
+        page.setRecords(rows);
+        page.setTotal(total);
+        return page;
     }
 
     private static Fault fault(String id, Integer trappedCount) {

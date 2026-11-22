@@ -109,6 +109,24 @@ class RecordVersionUtilTest {
         assertEquals(Set.of("v1", "v2"), expected); // 链末端 v3 与 solo 不被替代
     }
 
+    @Test
+    void selectsOnlyPrevVersionIdColumn() {
+        com.baomidou.mybatisplus.core.metadata.TableInfoHelper.initTableInfo(
+                new org.apache.ibatis.builder.MapperBuilderAssistant(
+                        new com.baomidou.mybatisplus.core.MybatisConfiguration(), ""), MaintainRecord.class);
+        MaintainRecordMapper mapper = mock(MaintainRecordMapper.class);
+        when(mapper.selectList(any())).thenReturn(List.of());
+
+        RecordVersionUtil.supersededIds(mapper, List.of("ur_1"));
+
+        org.mockito.ArgumentCaptor<com.baomidou.mybatisplus.core.conditions.query.QueryWrapper<MaintainRecord>> captor =
+                org.mockito.ArgumentCaptor.forClass(com.baomidou.mybatisplus.core.conditions.query.QueryWrapper.class);
+        verify(mapper).selectList(captor.capture());
+        String selected = captor.getValue().getSqlSelect();
+        assertTrue(selected != null && selected.contains("prev_version_id"), selected);
+        assertFalse(selected.contains("items_json"), selected);
+    }
+
     /** 含 null id 的混合入参：null 过滤后仍一次查询，非 null id 判定不受影响（null id 视为链末端） */
     @Test
     void nullIdsFilteredBeforeQuery() {

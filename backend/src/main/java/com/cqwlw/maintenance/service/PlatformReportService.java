@@ -97,24 +97,42 @@ public class PlatformReportService {
         if (!props.isLegacyUploadEnabled() || !configured()) {
             return 0;
         }
-        List<MaintainRecord> pending = recordMapper.selectList(new LambdaQueryWrapper<MaintainRecord>()
-                .eq(MaintainRecord::getReportStatus, "SUBMITTED")
-                .isNotNull(MaintainRecord::getReportPayloadJson));
         int n = 0;
-        for (MaintainRecord r : pending) {
-            if (!"SUBMITTED".equals(r.reportStatus) || hasNextVersion(r)
-                    || recordMapper.beginLegacyUpload(r.id) != 1) {
-                continue;
+        String afterId = null;
+        while (true) {
+            LambdaQueryWrapper<MaintainRecord> query = new LambdaQueryWrapper<MaintainRecord>()
+                    .eq(MaintainRecord::getReportStatus, "SUBMITTED")
+                    .isNotNull(MaintainRecord::getReportPayloadJson)
+                    .orderByAsc(MaintainRecord::getId)
+                    .last("LIMIT 100");
+            if (afterId != null) {
+                query.gt(MaintainRecord::getId, afterId);
             }
-            r.reportStatus = "LEGACY_UPLOADING";
-            try {
-                if ("REPORTED".equals(uploadLegacy(r))) {
-                    n++;
+            List<MaintainRecord> pending = recordMapper.selectList(query);
+            if (pending == null || pending.isEmpty()) {
+                break;
+            }
+            java.util.Set<String> superseded = com.cqwlw.maintenance.util.RecordVersionUtil.supersededIds(
+                    recordMapper, pending.stream().map(r -> r.id).toList());
+            for (MaintainRecord r : pending) {
+                if (!"SUBMITTED".equals(r.reportStatus) || superseded.contains(r.id)
+                        || recordMapper.beginLegacyUpload(r.id) != 1) {
+                    continue;
                 }
-            } catch (Exception e) {
-                r.reportStatus = "SUBMITTED";
-                recordMapper.completeLegacyUpload(r.id, "SUBMITTED");
-                log.warn("2.8 存量上报失败（不自动重试）: originalRecordId={}, {}", r.originalRecordId, e.getMessage());
+                r.reportStatus = "LEGACY_UPLOADING";
+                try {
+                    if ("REPORTED".equals(uploadLegacy(r))) {
+                        n++;
+                    }
+                } catch (Exception e) {
+                    r.reportStatus = "SUBMITTED";
+                    recordMapper.completeLegacyUpload(r.id, "SUBMITTED");
+                    log.warn("2.8 存量上报失败（不自动重试）: originalRecordId={}, {}", r.originalRecordId, e.getMessage());
+                }
+            }
+            afterId = pending.get(pending.size() - 1).id;
+            if (pending.size() < 100) {
+                break;
             }
         }
         return n;

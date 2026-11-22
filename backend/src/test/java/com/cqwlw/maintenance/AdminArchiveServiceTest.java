@@ -89,6 +89,57 @@ class AdminArchiveServiceTest {
     }
 
     @Test
+    void elevatorAdminListBatchLoadsUnitsAndRegions() {
+        Elevator first = new Elevator();
+        first.id = "el_1";
+        first.elevatorCode = "EM-1";
+        first.useUnitId = "uu_1";
+        first.regionId = "r1";
+        first.status = "INACTIVE";
+        Elevator second = new Elevator();
+        second.id = "el_2";
+        second.elevatorCode = "EM-2";
+        second.useUnitId = "uu_2";
+        second.regionId = "r2";
+        when(elevatorMapper.selectList(any())).thenReturn(List.of(first, second));
+        UseUnit one = new UseUnit(); one.id = "uu_1"; one.unitName = "单位一";
+        UseUnit two = new UseUnit(); two.id = "uu_2"; two.unitName = "单位二";
+        when(useUnitMapper.selectList(any())).thenReturn(List.of(one, two));
+        com.cqwlw.maintenance.mapper.RegionMapper regions = mock(com.cqwlw.maintenance.mapper.RegionMapper.class);
+        com.cqwlw.maintenance.entity.Region r1 = new com.cqwlw.maintenance.entity.Region(); r1.id = "r1"; r1.name = "区域一";
+        com.cqwlw.maintenance.entity.Region r2 = new com.cqwlw.maintenance.entity.Region(); r2.id = "r2"; r2.name = "区域二";
+        when(regions.selectList(any())).thenReturn(List.of(r1, r2));
+        service.setRegionMapper(regions);
+
+        List<Map<String, Object>> rows = service.elevatorAdminList();
+
+        assertEquals(List.of("el_1", "el_2"), rows.stream().map(r -> r.get("id")).toList());
+        assertEquals("单位一", rows.get(0).get("useUnitName"));
+        assertEquals("区域二", rows.get(1).get("regionName"));
+        assertEquals("INACTIVE", rows.get(0).get("status"));
+        assertFalse(((List<?>) rows.get(0).get("missingRequired")).isEmpty());
+        verify(useUnitMapper, times(1)).selectList(any());
+        verify(useUnitMapper, never()).selectById(anyString());
+        verify(regions, times(1)).selectList(any());
+        verify(regions, never()).selectById(anyString());
+    }
+
+    @Test
+    void elevatorAdminListSkipsEmptyReferenceQueries() {
+        Elevator first = new Elevator();
+        first.id = "el_1";
+        first.elevatorCode = "EM-1";
+        when(elevatorMapper.selectList(any())).thenReturn(List.of(first));
+
+        List<Map<String, Object>> rows = service.elevatorAdminList();
+
+        assertEquals("", rows.get(0).get("useUnitName"));
+        assertEquals("", rows.get(0).get("regionName"));
+        verify(useUnitMapper, never()).selectById(anyString());
+        verify(useUnitMapper, never()).selectList(any());
+    }
+
+    @Test
     void createUseUnitRejectsMutexConflictWithConflictsPayload() {
         Map<String, Object> result = null;
         BizException e = assertThrows(BizException.class, () -> service.createUseUnit(Map.of(
