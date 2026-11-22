@@ -3,10 +3,13 @@ package com.cqwlw.maintenance;
 import com.cqwlw.maintenance.common.Ids;
 import org.junit.jupiter.api.Test;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.HashSet;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class IdsTest {
@@ -21,7 +24,15 @@ class IdsTest {
         }
     }
 
-    /** 同毫秒内序号不重复：任意连续 100 个 ID 互不相同（签退为人工节拍，远低于该上限） */
+    @Test
+    void recordIdDoesNotUseProcessLocalSequence() throws Exception {
+        String source = Files.readString(Path.of(
+                "src/main/java/com/cqwlw/maintenance/common/Ids.java"));
+        assertFalse(source.contains("AtomicInteger"), "originalRecordId 不得依赖进程内序号");
+        assertFalse(source.matches("(?s).*floorMod\\s*\\([^;]*100[^;]*;.*"),
+                "originalRecordId 不得使用模 100 序号");
+    }
+
     @Test
     void consecutiveRecordIdsAreUnique() {
         Set<String> ids = new HashSet<>();
