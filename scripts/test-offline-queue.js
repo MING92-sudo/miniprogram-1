@@ -81,10 +81,12 @@ async function testReworkAttemptKeysDiffer() {
   reset()
   const first = createCheckoutPage()
   await first.fetchOrder()
+  first.stopTicker()
   await first.onSubmit()
   const firstKey = offline.getQueue()[0].idempotencyKey
   const second = createCheckoutPage()
   await second.fetchOrder()
+  second.stopTicker()
   await second.onSubmit()
   const secondKey = offline.getQueue()[0].idempotencyKey
   assert.notStrictEqual(firstKey, secondKey, '不同整改尝试复用了首次幂等键')
