@@ -712,6 +712,8 @@ const routes = [
     return { ok: true } // 后端只回 {ok:true}，openid 不出服务端（AGENTS §2.6）
   }],
   ['POST', '/auth/wx-login', ({ body }) => {
+    // 未绑定分支与后端 AuthController 同口径（422 而非 401：401 会被 request.js 清登录态）
+    if (body.code === 'UNBOUND') throw { code: 422, message: '该微信尚未绑定账号，请先用账号密码登录并绑定微信' }
     const role = d.db.employees[body.role] ? body.role : 'WORKER'
     currentClient = null
     currentRole = role
