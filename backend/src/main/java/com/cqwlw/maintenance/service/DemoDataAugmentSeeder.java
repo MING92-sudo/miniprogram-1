@@ -8,7 +8,6 @@ import com.cqwlw.maintenance.entity.BizProject;
 import com.cqwlw.maintenance.entity.ContractElevator;
 import com.cqwlw.maintenance.entity.Elevator;
 import com.cqwlw.maintenance.entity.Employee;
-import com.cqwlw.maintenance.entity.ExternalFilingOrder;
 import com.cqwlw.maintenance.entity.HandoverCheck;
 import com.cqwlw.maintenance.entity.HandoverCheckItem;
 import com.cqwlw.maintenance.entity.HandoverOrder;
@@ -23,7 +22,6 @@ import com.cqwlw.maintenance.mapper.BizProjectMapper;
 import com.cqwlw.maintenance.mapper.ContractElevatorMapper;
 import com.cqwlw.maintenance.mapper.ElevatorMapper;
 import com.cqwlw.maintenance.mapper.EmployeeMapper;
-import com.cqwlw.maintenance.mapper.ExternalFilingOrderMapper;
 import com.cqwlw.maintenance.mapper.HandoverCheckItemMapper;
 import com.cqwlw.maintenance.mapper.HandoverCheckMapper;
 import com.cqwlw.maintenance.mapper.HandoverOrderMapper;
@@ -47,7 +45,7 @@ import java.util.List;
 
 /**
  * 演示数据补全（仅 SEED_DEMO_DATA=true）：在基础种子之外，按域幂等补全管理端各页演示数据
- * （区域/项目/合同/移交含 74 项清单+整改+归档/外接建档/邀请码/限时授权/敏感导出审批）。
+ * （区域/项目/合同/移交含 74 项清单+整改+归档/邀请码/限时授权/敏感导出审批）。
  * 每域 selectCount==0 才写入，引用现有电梯/使用单位/账号，不覆盖已有数据、不清库。
  * 基础 DemoDataSeeder 先跑（@Order(0)），本补全后跑（@Order(1)）；生产置 SEED_DEMO_DATA=false。
  */
@@ -69,7 +67,6 @@ public class DemoDataAugmentSeeder implements ApplicationRunner {
     private final HandoverCheckMapper handoverCheckMapper;
     private final HandoverCheckItemMapper handoverCheckItemMapper;
     private final HandoverRectificationMapper handoverRectificationMapper;
-    private final ExternalFilingOrderMapper filingMapper;
     private final SysInviteMapper inviteMapper;
     private final SysGrantMapper grantMapper;
     private final BizExportApprovalMapper exportApprovalMapper;
@@ -81,7 +78,7 @@ public class DemoDataAugmentSeeder implements ApplicationRunner {
                                  MaintenanceContractMapper contractMapper, ContractElevatorMapper contractElevatorMapper,
                                  HandoverOrderMapper handoverOrderMapper, HandoverCheckMapper handoverCheckMapper,
                                  HandoverCheckItemMapper handoverCheckItemMapper, HandoverRectificationMapper handoverRectificationMapper,
-                                 ExternalFilingOrderMapper filingMapper, SysInviteMapper inviteMapper, SysGrantMapper grantMapper,
+                                 SysInviteMapper inviteMapper, SysGrantMapper grantMapper,
                                  BizExportApprovalMapper exportApprovalMapper, HandoverChecklistService checklistService) {
         this.props = props;
         this.elevatorMapper = elevatorMapper;
@@ -95,7 +92,6 @@ public class DemoDataAugmentSeeder implements ApplicationRunner {
         this.handoverCheckMapper = handoverCheckMapper;
         this.handoverCheckItemMapper = handoverCheckItemMapper;
         this.handoverRectificationMapper = handoverRectificationMapper;
-        this.filingMapper = filingMapper;
         this.inviteMapper = inviteMapper;
         this.grantMapper = grantMapper;
         this.exportApprovalMapper = exportApprovalMapper;
@@ -119,7 +115,6 @@ public class DemoDataAugmentSeeder implements ApplicationRunner {
         safely("区域", this::seedRegions);
         safely("项目", () -> seedProjects(uu, contractId, el));
         safely("移交", () -> seedHandover(el, admin));
-        safely("外接建档", () -> seedFiling(uu, contractId, admin));
         safely("邀请码", () -> seedInvites(admin));
         safely("限时授权", () -> seedGrants(admin));
         safely("敏感导出审批", () -> seedExportApprovals(admin));
@@ -292,27 +287,6 @@ public class DemoDataAugmentSeeder implements ApplicationRunner {
         handoverRectificationMapper.insert(rect);
 
         checklistService.archive(ho.id); // 生成一梯一档 7 条目录 + SHA-256
-    }
-
-    private void seedFiling(UseUnit uu, String contractId, Employee admin) {
-        if (!empty(filingMapper.selectCount(null))) {
-            return;
-        }
-        ExternalFilingOrder f = new ExternalFilingOrder();
-        f.id = Ids.next("ef");
-        f.filingNo = "WJ-2026-0001";
-        f.createdAt = LocalDateTime.now().minusDays(5);
-        f.status = "PENDING_CONFIRM";
-        f.contractId = contractId;
-        f.useUnitId = uu.id;
-        f.projectName = "蓝湾国际";
-        f.elevatorCode = "EM-2024-009";
-        f.elevatorName = "蓝湾国际 B 座客梯";
-        f.category = "曳引与强制驱动电梯";
-        f.location = "重庆市南岸区蓝湾国际";
-        f.initiatorId = admin.id;
-        f.initiatorName = admin.name;
-        filingMapper.insert(f);
     }
 
     private void seedInvites(Employee admin) {

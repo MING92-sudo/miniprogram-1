@@ -2,9 +2,10 @@ import { describe, it, expect } from 'vitest'
 import { canonical, state, allowsNew, canonicalCodes, canonicalRoles, defaultScope, canEditElevator } from './permission-v2'
 
 describe('permission-v2 mirror', () => {
-  it('has 86 canonical codes', () => {
-    expect(canonicalCodes().size).toBe(86)
+  it('has 84 canonical codes', () => {
+    expect(canonicalCodes().size).toBe(84)
     expect(canonicalCodes().has('handover:view')).toBe(true)
+    expect(canonicalCodes().has('contract:view')).toBe(true)
     expect(canonicalCodes().has('record:spotcheck')).toBe(true)
     expect(canonicalCodes().has('user:reset_password')).toBe(true)
   })
@@ -45,6 +46,8 @@ describe('permission-v2 mirror', () => {
     expect(state(null, 'handover:view')).toBe('DENY')
     expect(() => state('INST_MGR', 'no:such')).toThrow()
     expect(() => allowsNew('INST_MGR', null)).toThrow()
+    expect(() => state('MAINT_MGR', 'filing:view')).toThrow()
+    expect(() => state('MAINT_MGR', 'filing:write')).toThrow()
   })
   it('defaultScope mirrors sys_role_scope', () => {
     expect(defaultScope('PLATFORM_ADMIN')).toBe('ALL')
@@ -55,16 +58,10 @@ describe('permission-v2 mirror', () => {
     expect(defaultScope('CLIENT_ADMIN')).toBe('ORG_FLAT')
     expect(defaultScope('HACKER')).toBe(null)
   })
-  it('用户裁决 2026-11-15：SYS_ADMIN 全权限 / 外接建档写归维保 / 安装员条件读移交', () => {
+  it('用户裁决：SYS_ADMIN 全权限，安装员条件读移交', () => {
     canonicalCodes().forEach((code) => {
       expect(state('SYS_ADMIN', code)).toBe('Y')
     })
-    expect(state('MAINT_MGR', 'filing:write')).toBe('Y')
-    expect(state('MAINT_SUP', 'filing:write')).toBe('Y')
-    expect(state('MAINT_BIZ', 'filing:write')).toBe('Y')
-    expect(state('INST_PM', 'filing:write')).toBe('DENY')
-    expect(state('INST_CLERK', 'filing:write')).toBe('DENY')
-    expect(state('INST_PM', 'filing:view')).toBe('C')
     expect(state('INSTALLER', 'handover:view')).toBe('C')
   })
   it('P1 客户能力集：elevator_view/download/sign=Y；2026-11-21 报修重开 report=Y；evaluate/user_manage/invite=DENY，内部码收回', () => {
@@ -88,7 +85,7 @@ describe('permission-v2 mirror', () => {
       expect(state('CLIENT_ADMIN', code)).toBe('DENY')
       expect(state('CLIENT_SIGNER', code)).toBe('DENY')
     })
-    expect(canonicalCodes().size).toBe(86)
+    expect(canonicalCodes().size).toBe(84)
     expect(canonicalRoles().size).toBe(12) // 2026-11-21：SYS_ADMIN 并入 PLATFORM_ADMIN（13→12）
     expect(state('SYS_ADMIN', 'client:user_manage')).toBe('Y')
   })

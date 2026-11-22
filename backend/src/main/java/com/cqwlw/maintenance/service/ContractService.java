@@ -18,7 +18,6 @@ import java.util.Objects;
 
 /**
  * 维保合同（最小版，Task 3）：建合同 + 合同↔电梯关联 + 生效期校验。
- * 外接建档（W2，Task 7）通过 {@link #getActiveContractByElevator(String)} 做前置校验。
  * 管理端门禁在 ContractController 校验（非管理员 403，本服务不做角色判断）。
  */
 @Service
@@ -108,7 +107,6 @@ public class ContractService {
 
     /**
      * 返回该电梯关联的「生效」合同（status=ACTIVE 且 start_date ≤ 今天 ≤ end_date），无则返回 null。
-     * Task 7 外接建档前置校验入口。
      */
     public MaintenanceContract getActiveContractByElevator(String elevatorId) {
         List<ContractElevator> links = contractElevatorMapper.selectList(

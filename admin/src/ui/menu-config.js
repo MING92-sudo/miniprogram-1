@@ -1,4 +1,4 @@
-// IA 菜单常量（2026-11-21 精简，对齐 sptecloud 参考：7 组 19 项，合并页用 Tab 承载）。
+// IA 菜单常量（2026-11-22 精简，对齐 sptecloud 参考：7 组 18 项，合并页用 Tab 承载）。
 // perm=null 表示无条件可见（工作台落地页，实际访问由路由守卫/后端判）。
 // 合并口径：合同→/projects?tab=contracts；授权→/roles?tab=grants；区域/模板→/settings?tab=…；
 // 下线（演示数据/占位，路由保留可直达）：消息模板 /msg-templates、服务评价 /reviews、大屏调度 /board。
@@ -26,7 +26,6 @@ export const MENU_GROUPS = [
   { title: '数据对接', items: [
     { path: '/reports/failed', title: '上报异常清单', perm: 'report:view', icon: 'alert' },
     { path: '/reports/logs', title: '上报日志', perm: 'report:view', icon: 'file-text' },
-    { path: '/filings', title: '外接建档', perm: 'filing:view', icon: 'folder' },
     { path: '/register/workers', title: '平台登记人员', perm: 'platform:worker_view', icon: 'user-check' },
     { path: '/sync', title: '监管平台同步', perm: 'report:view', icon: 'cloud-upload' }
   ] },
@@ -41,7 +40,7 @@ export const MENU_GROUPS = [
 // 新增页面必须同步登记，否则菜单里根本不出现（回归守卫见 menu.test.js）。
 export const IMPLEMENTED_PATHS = ['/dashboard', '/elevators', '/projects', '/dispatch', '/records',
   '/handovers', '/plans', '/users', '/roles', '/use-units', '/org',
-  '/reports/failed', '/reports/logs', '/filings', '/register/workers', '/sync',
+  '/reports/failed', '/reports/logs', '/register/workers', '/sync',
   '/stats', '/audit', '/settings',
   '/contracts', '/grants', '/regions', '/templates',
   '/order', '/elevator', '/migration-issues', '/msg-templates', '/reviews', '/board']

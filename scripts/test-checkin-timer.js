@@ -18,7 +18,7 @@ Module._load = function (request, parent, isMain) {
       }
     }
     if (request === '../../../services/upload') return { uploadImage: () => Promise.resolve({}) }
-    if (request === '../../../services/location') return { reverseGeocode: () => Promise.resolve('') }
+    if (request === '../../services/location') return { reverseGeocode: () => Promise.resolve('') }
   }
   return originalLoad.call(this, request, parent, isMain)
 }

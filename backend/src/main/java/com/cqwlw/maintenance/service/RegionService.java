@@ -14,7 +14,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 区域主数据 + 电梯区域分配（Task 1，移交/外接建档/使用单位门户的可见性范围谓词）。
+ * 区域主数据 + 电梯区域分配（Task 1，移交/使用单位门户的可见性范围谓词）。
  * 管理端门禁在 RegionController 校验（非管理员 403，本服务不做角色判断）。
  * 员工所属区域不设专职方法：随 POST/PUT /employees 建档/编辑一并维护（D5，AdminArchiveService）。
  */

@@ -76,7 +76,7 @@ async function svc(fn, ...args) {
   await login(mp, '13800000011')
   const g = await globalData(mp)
   assert('TECH home=维保工作台', typeof g.home === 'string' && g.home.indexOf('maint/home') > -1, JSON.stringify(g))
-  assert('TECH QA 无 filing/plan/scan', !g.qa.includes('filing') && !g.qa.includes('plan') && !g.qa.includes('scan'), JSON.stringify(g.qa))
+  assert('TECH QA 无 plan/scan', !g.qa.includes('plan') && !g.qa.includes('scan'), JSON.stringify(g.qa))
 
   // ── B. 工单列表（UI）──
   let r = await goto(mp, '/pkg-maintenance/pages/orders/index', (d) => d.loading === false)

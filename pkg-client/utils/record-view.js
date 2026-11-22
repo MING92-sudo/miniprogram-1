@@ -1,6 +1,6 @@
 // 记录单/双人签字页纯函数投影（无 wx 依赖，scripts/verify-review-fixes.js 行为断言）：
 // 结论必须反映异常项（不得虚报合格）；签字状态随后端布尔口径 workerSigned/assistantSigned（2026-11-15 修复口径）。
-const { RECORD_TEXT } = require('../constants/index')
+const { RECORD_TEXT } = require('../../constants/index')
 
 /**
  * 记录单摘要投影（入参为已过滤 notInThisRun 的实际执行项）。

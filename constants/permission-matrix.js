@@ -33,7 +33,7 @@ const y = (code, ...roles) => g(code, 'Y', roles)
 const c = (code, ...roles) => g(code, 'C', roles)
 // §4.1 安装移交（16）
 // P1 T2（2026-11-16 裁决）：客户（CA/CS）收回全部内部码，最小集仅 §4.5 的 elevator_view/download/sign；
-// 无参 y()/c() 仅登记码（持有者由平台管理员全 Y 循环兜底），86 码计数不变。
+// 无参 y()/c() 仅登记码（持有者由平台管理员全 Y 循环兜底）。
 y('handover:view', IM, MS, MM, PA); c('handover:view', IC, IP, IW, MT)
 // 2026-11-21 裁决：handover:create 增 INST_CLERK（资料员整理建档资料属本职，小程序/管理端均可起草）
 y('handover:create', IP, IC)
@@ -114,12 +114,9 @@ y('stats:export', MM, PA); c('stats:export', IM, MS)
 y('audit:view', PA)
 y('config:manage', PA)
 y('data:export_sensitive', PA)
-// M0 §2.2 扩展（15）
+// M0 §2.2 扩展（13；外接建档两码已移除）
 y('report:view', PA, MM); c('report:view', MS, MQ)
 y('report:retry', PA, MM)
-// 用户裁决 2026-11-15：外接建档写归维保部（安装部保留条件读）
-y('filing:view', PA, MM, MS, MB); c('filing:view', MQ, IM, IP, IC)
-y('filing:write', PA, MM, MS, MB)
 y('region:view', PA)
 y('region:write', PA)
 y('template:view', PA, MM); c('template:view', MQ)

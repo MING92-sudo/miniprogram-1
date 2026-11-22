@@ -253,92 +253,6 @@ const HANDOVER_TEXT = {
   LIST_FAILED: '移交单列表暂不可用，可按 ID 打开详情'
 }
 
-// 外接建档单状态（W2，docs/04 A.10；状态机见 backend ExternalFilingService）
-const FILING_STATUS = {
-  INIT: 'INIT',
-  DOC_COLLECTING: 'DOC_COLLECTING',
-  TAKEOVER_CHECKING: 'TAKEOVER_CHECKING',
-  PENDING_CONFIRM: 'PENDING_CONFIRM',
-  ARCHIVED: 'ARCHIVED'
-}
-
-const FILING_STATUS_TEXT = {
-  INIT: '待发起',
-  DOC_COLLECTING: '资料收集中',
-  TAKEOVER_CHECKING: '接管查验',
-  PENDING_CONFIRM: '待交接确认',
-  ARCHIVED: '已归档'
-}
-
-// 流程节点（详情页进度条；INIT 仅作枚举默认值，与后端一致不进流程）
-const FILING_STEPS = [
-  { key: 'DOC_COLLECTING', label: '资料收集' },
-  { key: 'TAKEOVER_CHECKING', label: '接管查验' },
-  { key: 'PENDING_CONFIRM', label: '交接确认' },
-  { key: 'ARCHIVED', label: '已归档' }
-]
-
-// 建档资料类别（与 ExternalFilingService.DOC_TYPES 逐字一致，缺件可标 missing 待补办）
-const FILING_DOC_TYPES = [
-  { code: 'USE_REG_CERT', label: '使用登记证' },
-  { code: 'INSPECTION_REPORT', label: '检验报告' },
-  { code: 'MAINTENANCE_RECORD', label: '既有维保记录' },
-  { code: 'MAINTENANCE_MANUAL', label: '维保说明书' },
-  { code: 'ELEVATOR_DRAWING', label: '电梯图纸' },
-  { code: 'OTHER', label: '其他资料' }
-]
-
-// 接管查验不合格项责任归属（ExternalFilingService.RESPONSIBILITIES）
-const TAKEOVER_RESPONSIBILITY_TEXT = {
-  PREV_MAINT: '原维保单位',
-  USE_UNIT: '使用单位',
-  OURS_AFTER_TAKEOVER: '接管后我方'
-}
-
-const TAKEOVER_RESPONSIBILITY_OPTIONS = ['PREV_MAINT', 'USE_UNIT', 'OURS_AFTER_TAKEOVER']
-
-// 接管查验 6 项（与移交现场查验同口径，便于两端对账；判定枚举复用 HANDOVER_RESULTS）
-const TAKEOVER_CHECK_ITEMS = HANDOVER_CHECK_ITEMS.map(function (i) {
-  return { itemType: i.itemType, label: i.label }
-})
-
-// 可推进外接建档单的岗位（PermissionMatrix filing:write=PA/MM/MS/MB，SA 全权限；2026-11-15 裁决写归维保部）
-const FILING_WRITE_ROLES = [
-  ROLE.MAINT_MANAGER,
-  ROLE.LEADER,
-  ROLE.ADMIN,
-  'MAINT_MGR', 'MAINT_SUP', 'MAINT_BIZ', 'PLATFORM_ADMIN'
-]
-
-// 可读外接建档单的岗位（filing:view：写岗位 Y + MQ/IM/IP/IC 条件读；安装员无读权）
-const FILING_READ_ROLES = FILING_WRITE_ROLES.concat([
-  ROLE.MAINT_QUALITY,
-  ROLE.INSTALL_MANAGER,
-  ROLE.INSTALL_CLERK,
-  'MAINT_QUALITY', 'INST_MGR', 'INST_PM', 'INST_CLERK'
-])
-
-// 外接建档页提示与校验文案
-const FILING_TEXT = {
-  UNIT_REQUIRED: '请选择使用单位',
-  CONTRACT_REQUIRED: '请选择已生效合同',
-  LOAD_INVALID: '额定载重须为数字',
-  SPEED_INVALID: '额定速度须为数字',
-  USEUNIT_UNAVAILABLE: '当前账号无使用单位列表读取权限，请手工填写使用单位 ID',
-  CONTRACT_UNAVAILABLE: '当前账号无合同列表读取权限（合同维护仅平台层），请手工填写合同 ID',
-  DOCS_REQUIRED: '每项资料须上传文件或标记缺件',
-  DOCS_EMPTY: '至少提交一项资料',
-  ITEMS_REQUIRED: '请完成 6 项接管查验结果',
-  RESPONSIBILITY_REQUIRED: '不合格项必须选择责任归属',
-  SIGN_NAME_REQUIRED: '请填写对方签字人姓名',
-  SIGN_FILE_REQUIRED: '请上传对方手写签名',
-  CONFIRM_TITLE: '提交交接确认',
-  CONFIRM_CONTENT: '确认后本单归档：自动建电梯档案（来源=外接建档）并预建 3 日后的首保工单，且不可撤销。是否继续？',
-  DOC_TIP: '缺件可标「缺件待补办」，不阻断进入接管查验；补齐后请重新提交资料',
-  READONLY_TIP: '当前岗位对外接建档单只读；发起/推进请用维保部管理岗位（经理/班组长/商务）或平台管理员账号',
-  DETAIL_GAP_TIP: '查验明细与交接确认单在本页按最近一次提交展示；完整归档记录请在管理端「外接建档」查阅'
-}
-
 // UNIT_PORTAL_TEXT/UNIT_FAULT_TYPES/UNIT_FAULT_STATUS_TEXT/UNIT_CONFIRM_STATUS_TEXT 已删
 // （2026-11-16 审查清理：V41 门户登录链废除后零引用；状态文案见 docs/04 A.7/A.11）
 
@@ -605,16 +519,6 @@ module.exports = {
   ELEVATOR_CATEGORIES,
   HANDOVER_WRITE_ROLES,
   HANDOVER_TEXT,
-  FILING_STATUS,
-  FILING_STATUS_TEXT,
-  FILING_STEPS,
-  FILING_DOC_TYPES,
-  TAKEOVER_RESPONSIBILITY_TEXT,
-  TAKEOVER_RESPONSIBILITY_OPTIONS,
-  TAKEOVER_CHECK_ITEMS,
-  FILING_WRITE_ROLES,
-  FILING_READ_ROLES,
-  FILING_TEXT,
   CALENDAR_WINDOWS,
   CALENDAR_TEXT,
   CALENDAR_STATUS,

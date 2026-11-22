@@ -7,7 +7,7 @@ import lombok.Data;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
-/** 维保合同（最小版，Task 3：外接建档 W2 的前置——外接建档须关联已生效合同） */
+/** 维保合同（项目合同台账：使用单位、生效期、金额及电梯关联） */
 @TableName("maintenance_contract")
 @Data
 public class MaintenanceContract {

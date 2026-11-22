@@ -256,9 +256,8 @@ function partnerEligible(o, e) {
   if (e.platformId === o.workerPlatformId) return false
   return o.regionId == null || o.regionId === '' || o.regionId === e.regionId
 }
-// 移交/外接建档 mock 状态（模块级，进程重启即清空）
+// 移交 mock 状态（模块级，进程重启即清空）
 const mockHandovers = []
-const mockFilings = []
 
 // 自动排期触发点：真实后端为定时任务（docs/04 A.10.9），读接口一律不触发派单；
 // mock 无调度器，仅在模块加载时执行一次，读接口不得再调用 ensureDueOrders
@@ -663,7 +662,6 @@ const routes = [
         { key: 'handover', text: '移交验收', icon: 'file-signature', path: '/pkg-handover/pages/list/index' }
       ]
       if (has('MAINT_SUP') || has('MAINT_MGR')) quickActions.push({ key: 'plan', text: '维保计划', icon: 'calendar-check-r', path: '/pkg-maintenance/pages/plan/index' })
-      if (has('MAINT_SUP') || has('MAINT_MGR') || has('MAINT_BIZ') || has('PLATFORM_ADMIN')) quickActions.push({ key: 'filing', text: '外接建档', icon: 'folder', path: '/pkg-handover/pages/filing-init/index' })
     } else if (ws && ws.indexOf('CLIENT') === 0) {
       // 2026-11-21 裁决：与后端同口径——客户一键报修重开（client:report CA/CS 双 Y），
       // 急修进度/评价仍下线；报修项按会话 perms 门控（与 services/menu.js clientQuickActions 同口径）
@@ -1400,7 +1398,7 @@ const routes = [
 
   // ── 文件（真实上传走 wx.uploadFile，此路由兜底）──
   ['POST', '/files/upload', () => ({ fileId: 'mock_file_' + Date.now(), url: '' })],
-  // ── 移交单 / 外接建档 / 使用单位门户 / 维保日历（Task 12/13/14 最小 mock）──
+  // ── 移交单 / 使用单位门户 / 维保日历（Task 12/13/14 最小 mock）──
   ['GET', '/handovers', ({ query }) => {
     requireRead('handover:view')
     // 维保部读收敛（与后端 HandoverService.list 同口径，2026-11-20 真机反馈③）：
@@ -1559,39 +1557,6 @@ const routes = [
   ['GET', '/handovers/:id/archive', ({ params }) => {
     findOr404(mockHandovers, params.id, '移交单')
     return handoverArchiveEntries(params.id)
-  }],
-  ['GET', '/filings', ({ query }) => {
-    requireRead('filing:view') // 2026-11-21 对齐后端：Y=PA/MM/MS/MB，C=MQ/IM/IP/IC
-    return paginate(mockFilings.filter((f) => !query.status || f.status === query.status), query)
-  }],
-  ['POST', '/filings', ({ body }) => {
-    requireWrite('filing:write') // 2026-11-21 对齐后端：仅 PA/MM/MS/MB（矩阵 M0 §2.2）
-    const o = Object.assign({ id: 'ef_' + Date.now(), filingNo: 'EF' + Date.now(), status: 'DOC_COLLECTING',
-      createdAt: formatTime(new Date()), docs: [], takeoverChecks: [], confirmation: null }, body)
-    mockFilings.unshift(o)
-    return o
-  }],
-  ['GET', '/filings/:id', ({ params }) => {
-    requireRead('filing:view')
-    return findOr404(mockFilings, params.id, '外接建档单')
-  }],
-  ['POST', '/filings/:id/submit-docs', ({ params, body }) => {
-    const o = findOr404(mockFilings, params.id, '外接建档单')
-    o.docs = (body.docs || []).map((x, i) => Object.assign({ id: 'fd_' + i }, x))
-    o.status = 'TAKEOVER_CHECKING'
-    return o
-  }],
-  ['POST', '/filings/:id/takeover-check', ({ params, body }) => {
-    const o = findOr404(mockFilings, params.id, '外接建档单')
-    o.takeoverChecks = [{ id: 'tc_' + Date.now(), checkerName: body.checkerName, checkedAt: formatTime(new Date()), items: (body.items || []).map((it, i) => Object.assign({ id: 'ti_' + i }, it)) }]
-    o.status = 'PENDING_CONFIRM'
-    return o
-  }],
-  ['POST', '/filings/:id/confirm', ({ params, body }) => {
-    const o = findOr404(mockFilings, params.id, '外接建档单')
-    o.confirmation = Object.assign({ id: 'hcn_' + Date.now(), at: formatTime(new Date()) }, body)
-    o.status = 'ARCHIVED'
-    return o
   }],
   // ── 以下门户契约 V41 废弃（单账号单会话，unit_token 废除）：后端保留至生产清库（docs/12 G 组），
   //    前端已无调用者（2026-11-16 审查清理），mock 仅作契约镜像保留，勿新增入口 ──

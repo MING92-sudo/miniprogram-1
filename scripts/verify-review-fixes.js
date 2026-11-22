@@ -1,5 +1,5 @@
 // 2026-11-16 审查修复回归断言（P0/P1/P2 前端项）：node scripts/verify-review-fixes.js
-// 行为断言走 utils/record-view 纯函数；结构断言锁定导出/入口/映射不再漂移。
+// 行为断言走 pkg-maintenance/utils/record-view 纯函数；结构断言锁定导出/入口/映射不再漂移。
 const fs = require('fs')
 const path = require('path')
 const assert = require('assert')
@@ -20,8 +20,8 @@ check('P0-1 HANDOVER_DOCS 导出且结构完整', () => {
 
 // P0-4：记录单结论/统计必须反映异常项（纯函数行为断言）
 let rv
-try { rv = require(path.join(ROOT, 'utils/record-view.js')) } catch (e) { rv = null }
-check('P0-4 utils/record-view 模块存在', () => assert(rv, 'utils/record-view.js 缺失'))
+try { rv = require(path.join(ROOT, 'pkg-maintenance/utils/record-view.js')) } catch (e) { rv = null }
+check('P0-4 pkg-maintenance/utils/record-view 模块存在', () => assert(rv, 'pkg-maintenance/utils/record-view.js 缺失'))
 if (!rv) rv = { buildRecordSummary: () => assert(false, '模块缺失'), buildSignState: () => assert(false, '模块缺失') }
 check('P0-4 全合格 → 结论合格、遗留 0', () => {
   const s = rv.buildRecordSummary([{ result: 'NORMAL', name: 'A', freqLabel: '半月保' }])
@@ -92,17 +92,6 @@ check('P1-1 详情页有审核入口、列表筛选含审核态', () => {
 // P1-3/7：图标映射与菜单可达
 check('P1-7 ICONS 含 bullhorn/calendar-check-r', () => {
   assert(ICONS.bullhorn && ICONS['calendar-check-r'], 'ICONS 缺映射')
-})
-
-// P1-5：filing 写岗位与后端矩阵 filing:write=PA/MM/MS/MB(+SA) 对齐
-check('P1-5 FILING_WRITE_ROLES 不含安装部岗位', () => {
-  const bad = C.FILING_WRITE_ROLES.filter((r) => /^(INST_|INSTALLER)/.test(r))
-  assert.deepStrictEqual(bad, [], '安装部岗位不应有 filing 写权限面')
-})
-check('P1-5 filing 页门控走 hasAnyRole', () => {
-  const init = read('pkg-handover/pages/filing-init/index.js')
-  assert(init.indexOf('hasAnyRole(FILING_WRITE_ROLES)') > -1, 'filing-init 仍单角色门控')
-  assert(read('pkg-handover/pages/filing-detail/index.js').indexOf('FILING_READ_ROLES.indexOf(role)') < 0, 'filing-detail 读门控仍单角色')
 })
 
 // P1-4：资料提交恒走后端三平铺字段契约

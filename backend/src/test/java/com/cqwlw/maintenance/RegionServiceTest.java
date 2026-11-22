@@ -22,7 +22,7 @@ import static org.mockito.Mockito.when;
 
 /**
  * 区域主数据（Task 1）：region 表 CRUD + 电梯 region_id 分配。
- * 区域为移交/外接建档/使用单位门户的可见性范围谓词（后续任务消费）。
+ * 区域为移交/使用单位门户的可见性范围谓词。
  * 员工所属区域不在此服务：随 POST/PUT /employees 维护（D5，AdminArchiveService 链路测试覆盖）。
  */
 class RegionServiceTest {

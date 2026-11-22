@@ -4,7 +4,7 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * 旧 24 码 → 新 71+ 码翻译（M0 §2.1 唯一映射源）。
+ * 旧 22 码 → 新 71+ 码翻译（M0 §2.1 唯一映射源；外接建档两码已移除）。
  * 兼容期二值判定 {@link #allows} 精确复现冻结 GRANTS（RbacMatrixTest oracle）；
  * console:read 经 adminConsole 门控计算（M1-4），order/fault 语义反转（M0 §2.0，Blocker）。
  * 新码三态事实源在 PermissionMatrix.STATES；本类只做桥接，不维护第二份授权事实。
@@ -39,8 +39,6 @@ public final class LegacyCapabilityTranslator {
             Map.entry("handover:write", Set.of("handover:create", "handover:edit", "handover:submit",
                     "handover:doc_upload", "handover:doc_delete", "handover:review", "handover:receive",
                     "handover:inspect", "handover:rectify", "handover:sign_install", "handover:sign_maint", "handover:void")),
-            Map.entry("filing:read", Set.of("filing:view")),
-            Map.entry("filing:write", Set.of("filing:write")),
             Map.entry("region:write", Set.of("region:view", "region:write")),
             Map.entry("account:manage", Set.of("user:create", "user:disable", "invite:manage"))
     );
@@ -66,7 +64,7 @@ public final class LegacyCapabilityTranslator {
         if ("console:read".equals(oldCode)) {
             return consoleReadGate(role);
         }
-        // 其余 23 码：冻结授权（M1 保留旧行为，目标态差异推迟 M5）
+        // 其余 21 码：冻结授权（M1 保留旧行为，目标态差异推迟 M5）
         Set<String> holders = PermissionMatrix.holders(oldCode);
         if (holders.contains(role)) {
             return true;

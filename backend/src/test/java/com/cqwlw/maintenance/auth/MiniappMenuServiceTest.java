@@ -253,7 +253,7 @@ class MiniappMenuServiceTest {
         assertFalse(keys(out).isEmpty());
     }
 
-    /** 2026-11-15 裁决：SYS_ADMIN 平台域首页/5tabs；外接建档入口归维保工作台 */
+    /** 2026-11-15 裁决：SYS_ADMIN 平台域首页/5tabs；维保工作台仅保留现行工单与计划入口。 */
     @Test
     void sysAdminPlatformHomeAndTabs() {
         Map<String, Object> out = svc().menusOf(Set.of("SYS_ADMIN"), null, null);
@@ -264,11 +264,12 @@ class MiniappMenuServiceTest {
 
     @Test
     @SuppressWarnings("unchecked")
-    void maintQuickActionsIncludeFiling() {
+    void maintQuickActionsExcludeRemovedFiling() {
         Map<String, Object> out = svc().menusOf(Set.of("MAINT_MGR"), null, null);
         List<Map<String, Object>> qa = (List<Map<String, Object>>) out.get("quickActions");
-        assertTrue(qa.stream().anyMatch(q -> "filing".equals(q.get("key"))
-                && "/pkg-handover/pages/filing-init/index".equals(q.get("path"))));
+        assertFalse(qa.stream().anyMatch(q -> "filing".equals(q.get("key"))
+                || "/pkg-handover/pages/filing-init/index".equals(q.get("path"))));
+        assertTrue(qa.stream().anyMatch(q -> "/pkg-maintenance/pages/plan/index".equals(q.get("path"))));
         Map<String, Object> inst = svc().menusOf(Set.of("INST_PM"), null, null);
         List<Map<String, Object>> iqa = (List<Map<String, Object>>) inst.get("quickActions");
         assertFalse(iqa.stream().anyMatch(q -> "filing".equals(q.get("key"))));

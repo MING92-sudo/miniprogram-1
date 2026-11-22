@@ -83,10 +83,10 @@ async function globalData(mp) {
   assert('分组按周期非 G 码', (cd.groups || []).length > 0 && cd.groups.every(x => !/^G\d\d$/.test(x.label)), JSON.stringify(cd.groups || []))
   await mp.screenshot({ path: path.join(__dirname, 'shots', 'fix-record-detail.png') })
 
-  // 5 MAINT_SUP（陈刚）：QA 含 plan+filing
+  // 5 MAINT_SUP（陈刚）：QA 含 plan，不含已移除的 filing
   await login(mp, '13800000002')
   g = await globalData(mp)
-  assert('SUP QA plan+filing', g.qa.includes('plan') && g.qa.includes('filing'), JSON.stringify(g.qa))
+  assert('SUP QA plan 且无 filing', g.qa.includes('plan') && !g.qa.includes('filing'), JSON.stringify(g.qa))
 
   // 6 INST 角色过滤：MGR 无 create/upload；PM 两者都有
   await login(mp, '13800000099')

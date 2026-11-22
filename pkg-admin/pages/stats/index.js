@@ -1,5 +1,5 @@
 // 统计（M6 只读投影，指标口径随角色数据范围，公式见管理端）
-const admin = require('../../../services/admin')
+const admin = require('../../services/admin')
 const { definePage } = require('../../../utils/guard')
 const { ROUTES } = require('../../../config/routes')
 const nav = require('../../../utils/nav')

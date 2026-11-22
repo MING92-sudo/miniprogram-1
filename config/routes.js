@@ -1,4 +1,4 @@
-// 路由白名单 RouteMeta（M2，规格 §1.5/§3.5）：49 新路由全量登记（M0 映射 §4），
+// 路由白名单 RouteMeta（M2，规格 §1.5/§3.5）：46 条现行路由登记（外接建档 4 页已移除），
 // 蓝图 §4 明确归属的 perm 才登记（可数组 any-of，裁决 R6）；扩展路由只 roles，后端端点级强校验为准。
 // built=true 仅已建页（随批次推进）；tab=true 为 custom-tabbar 宿主。守卫 verify-miniapp-routes.js 锁定。
 const MAINT = ['MAINT_TECH', 'MAINT_SUP', 'MAINT_MGR']
@@ -6,7 +6,6 @@ const MAINT_EXT = MAINT.concat(['MAINT_QUALITY', 'MAINT_BIZ'])
 const INST = ['INST_CLERK', 'INST_PM', 'INST_MGR']
 const CLIENT = ['CLIENT_ADMIN', 'CLIENT_SIGNER']
 const PLATFORM = ['PLATFORM_ADMIN']
-const MAINT_FILING = ['MAINT_MGR', 'MAINT_SUP', 'MAINT_BIZ'].concat(PLATFORM)
 
 function R(path, name, opts) {
   return Object.assign({ path, name, auth: true, batch: 'M2', built: false }, opts || {})
@@ -37,7 +36,7 @@ const LIST = [
   R('/pages/offline/index', '离线队列', { built: true }),
   R('/pages/common/watermark-camera', '水印相机', { built: true }),
   R('/pages/common/signature', '手写签名', { built: true }),
-  // ── pkg-handover 12（蓝图 8 + 外接建档 4） ──
+  // ── pkg-handover 8（安装移交） ──
   R('/pkg-handover/pages/list/index', '移交单列表', { roles: INST.concat(['MAINT_TECH', 'MAINT_SUP', 'MAINT_MGR', 'INSTALLER']).concat(PLATFORM), perm: 'handover:view', tab: true, batch: 'M4' }),
   // 2026-11-21 裁决：handover:create 扩 INST_CLERK（docs/14 V2.8，资料员可起草）
   R('/pkg-handover/pages/create/index', '发起移交', { roles: ['INST_PM', 'INST_CLERK'], perm: 'handover:create', batch: 'M4' }),
@@ -48,10 +47,6 @@ const LIST = [
   R('/pkg-handover/pages/sign/index', '双方签字', { roles: ['INST_MGR', 'MAINT_SUP', 'MAINT_MGR'], perm: ['handover:sign_install', 'handover:sign_maint'], batch: 'M4' }),
   R('/pkg-handover/pages/upload/index', '资料上传', { roles: ['INST_CLERK', 'INST_PM'], perm: 'handover:doc_upload', batch: 'M4' }),
   R('/pkg-handover/pages/review/index', '内部审核', { roles: ['INST_MGR'], perm: 'handover:review', batch: 'M4' }),
-  R('/pkg-handover/pages/filing-init/index', '外接建档', { roles: MAINT_FILING, perm: 'filing:write', batch: 'M4' }),
-  R('/pkg-handover/pages/filing-detail/index', '外接建档详情', { roles: MAINT_FILING.concat(INST), perm: 'filing:view', batch: 'M4' }),
-  R('/pkg-handover/pages/filing-inspect/index', '外接接管查验', { roles: MAINT_FILING, perm: 'filing:write', batch: 'M4' }),
-  R('/pkg-handover/pages/filing-confirm/index', '外接建档确认', { roles: MAINT_FILING, perm: 'filing:write', batch: 'M4' }),
   // ── pkg-maintenance 7（2026-11-16 审查清理：dynamic-code 已内联 checkin、record-archive 已内联 record-detail，删不可达页） ──
   R('/pkg-maintenance/pages/orders/index', '我的维保工单', { roles: MAINT_EXT, batch: 'M3' }),
   R('/pkg-maintenance/pages/task/index', '作业执行', { roles: ['MAINT_TECH'], perm: 'task:accept', batch: 'M3' }),
@@ -86,11 +81,11 @@ const ROUTES = {}
 LIST.forEach((m) => { ROUTES[m.path] = m })
 // M3 已建：维保作业域 9 页 + 急修 3 页（随批次推进 built）
 LIST.forEach((m) => { if (m.batch === 'M3') m.built = true })
-// M4 已建：移交/外接域 12 页
+// M4 已建：安装移交域 8 页
 LIST.forEach((m) => { if (m.batch === 'M4') m.built = true })
 // M5 已建：使用单位域 4 页
 LIST.forEach((m) => { if (m.batch === 'M5') m.built = true })
-// M6 已建：管理统计域 7 页（全部 49 路由建成）
+// M6 已建：管理统计域 7 页（现行 46 条路由全部建成）
 LIST.forEach((m) => { if (m.batch === 'M6') m.built = true })
 
 // OLD_PAGES 过渡表已删（2026-11-16 审查清理：M6 旧页全删后零消费者）

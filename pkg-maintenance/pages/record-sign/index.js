@@ -3,7 +3,7 @@
 const { getOrderDetail, signOrder } = require('../../../services/order')
 const { uploadImage } = require('../../../services/upload')
 const { getUserInfo } = require('../../../utils/auth')
-const { buildSignState } = require('../../../utils/record-view')
+const { buildSignState } = require('../../utils/record-view')
 const { RECORD_TEXT } = require('../../../constants/index')
 const { definePage } = require('../../../utils/guard')
 const { ROUTES } = require('../../../config/routes')

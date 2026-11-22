@@ -19,7 +19,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 区域主数据 CRUD + 电梯区域分配（Task 1，移交/外接建档/使用单位门户可见性范围）。
+ * 区域主数据 CRUD + 电梯区域分配（Task 1，移交/使用单位门户可见性范围）。
  * 全部端点仅管理员（ADMIN/SYS_ADMIN）可用，非管理员 403、无副作用。
  * 注：/elevators/{id}/region 同时受 AdminRoleInterceptor 管理端写门禁覆盖，
  * 非管理员会先被拦截器以 403 拦截；此处 requireAdmin 为兜底（同为 403，口径一致）。

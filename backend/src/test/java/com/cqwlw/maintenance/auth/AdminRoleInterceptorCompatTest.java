@@ -111,7 +111,7 @@ class AdminRoleInterceptorCompatTest {
         }
     }
 
-    /** 移交/外接建档新路由本期不在门禁注册列表内（docs/14 §11 P3 再接入） */
+    /** 移交新路由不在旧门禁注册列表内，由控制器按细粒度能力码校验。 */
     @Test
     void handoverRoutesAreStillOutsideTheGate() {
         List<String> patterns = registeredPatterns();

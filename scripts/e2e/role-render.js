@@ -4,7 +4,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms))
 const EXPECT = {
   '13800000001': { home: '/pages/maint/home/index', tabs: ['maint-home', 'maint-orders', 'maint-elevators', 'profile'] },
   '13800000002': { home: '/pages/maint/home/index', tabs: ['maint-home', 'maint-orders', 'maint-projects', 'stats', 'profile'] },
-  '13800000015': { home: '/pages/maint/home/index', tabs: ['maint-home', 'maint-projects', 'maint-contracts', 'stats', 'profile'], qa: 'filing' },
+  '13800000015': { home: '/pages/maint/home/index', tabs: ['maint-home', 'maint-projects', 'maint-contracts', 'stats', 'profile'], noqa: 'filing' },
   '13800000013': { home: '/pages/install/home/index', tabs: ['install-home', 'handover-list', 'install-projects', 'profile'], noqa: 'filing' },
   '13800000014': { home: '/pages/install/home/index', tabs: ['install-home', 'handover-list', 'handover-docs', 'profile'] },
   '13800000099': { home: '/pages/install/home/index', tabs: ['install-home', 'handover-list', 'handover-review', 'stats', 'profile'] },

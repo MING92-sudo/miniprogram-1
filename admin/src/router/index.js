@@ -29,7 +29,6 @@ const SettingsView = () => import('../views/SettingsView.vue')
 // 监管与档案（M5 迁至自建组件）
 const FailedRecordsView = () => import('../views/FailedRecordsView.vue')
 const UploadLogsView = () => import('../views/UploadLogsView.vue')
-const FilingView = () => import('../views/FilingView.vue')
 const RegisterWorkersView = () => import('../views/RegisterWorkersView.vue')
 // 二期：监管与运营（数据来自 /admin/records、/reg/* 等真实接口）
 const SyncView = () => import('../views/SyncView.vue')
@@ -61,7 +60,6 @@ export const routes = [
     { path: 'settings', component: SettingsView, meta: { title: '系统配置', group: '系统', perm: 'config:manage', permByTab: { regions: 'region:view', templates: 'template:view' } } },
     { path: 'reports/failed', component: FailedRecordsView, meta: { title: '上报异常清单', group: '数据对接', perm: 'report:view' } },
     { path: 'reports/logs', component: UploadLogsView, meta: { title: '上报日志', group: '数据对接', perm: 'report:view' } },
-    { path: 'filings', component: FilingView, meta: { title: '外接建档', group: '数据对接', perm: 'filing:view' } },
     { path: 'regions', redirect: '/settings?tab=regions' },
     { path: 'templates', redirect: '/settings?tab=templates' },
     { path: 'register/workers', component: RegisterWorkersView, meta: { title: '平台登记人员', group: '数据对接', perm: 'platform:worker_view' } },

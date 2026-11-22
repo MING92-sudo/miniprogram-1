@@ -1,6 +1,6 @@
 'use strict'
 /**
- * 全端点 smoke：33 个 Controller、201 条路由逐条调用。
+ * 全端点 smoke：按当前 Controller 契约逐条调用。
  * 判据：不得出现 5xx / 网络错误；读接口尽量要求 code=0，写接口允许业务拒绝。
  * 破坏性操作一律作用在本脚本新建的临时实体上，收尾删除。
  */
@@ -223,16 +223,6 @@ async function runSmokeCases(ctx) {
   record('PUT /elevators/{id}/project-name', await put(`/elevators/${seed.elevators.el1}/project-name`, { projectName: '世纪大厦' }, tech), 'any')
   record('PUT /elevators/{id}/local', await put(`/elevators/${seed.elevators.el1}/local`, { location: 'E2E位置' }, tech), 'any')
   record('POST /elevators/{id}/dispatch', await post(`/elevators/${seed.elevators.el1}/dispatch`, {}, admin), 'any')
-
-  await probe(ctx, 'C10')
-  // ══════════ 10. ExternalFiling ══════════
-  suite('C10. 外部备案 /filings')
-  record('GET /filings', await get('/filings', admin), 'ok')
-  record('GET /filings/{id}', await get(`/filings/${seed.filings ? seed.filings.id : 'ef_oQyWIMI5TNKHVeMobYtpqw'}`, admin), 'any')
-  record('POST /filings', await post('/filings', { elevatorId: seed.elevators.el1 }, admin), 'any')
-  record('POST /filings/{id}/submit-docs', await post('/filings/ef_oQyWIMI5TNKHVeMobYtpqw/submit-docs', {}, admin), 'any')
-  record('POST /filings/{id}/takeover-check', await post('/filings/ef_oQyWIMI5TNKHVeMobYtpqw/takeover-check', {}, admin), 'any')
-  record('POST /filings/{id}/confirm', await post('/filings/ef_oQyWIMI5TNKHVeMobYtpqw/confirm', {}, admin), 'any')
 
   // ══════════ 11. File ══════════
   suite('C11. 文件 /files')

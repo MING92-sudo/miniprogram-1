@@ -39,10 +39,7 @@ DELETE FROM fault WHERE id LIKE 't\_%';
 DELETE FROM handover_check WHERE id LIKE 't\_%';
 DELETE FROM handover_rectification WHERE id LIKE 't\_%';
 DELETE FROM handover_archive WHERE id LIKE 't\_%';
-DELETE FROM handover_confirmation WHERE id LIKE 't\_%';
 DELETE FROM handover_order WHERE id LIKE 't\_%';
-DELETE FROM external_filing_doc WHERE id LIKE 't\_%';
-DELETE FROM external_filing_order WHERE id LIKE 't\_%';
 DELETE FROM sys_grant WHERE id LIKE 't\_%';
 DELETE FROM biz_project WHERE id LIKE 't\_%';
 DELETE FROM message WHERE id LIKE 't\_%';
@@ -245,27 +242,8 @@ INSERT INTO handover_archive (id, handover_id, file_id, category, seq, sha256, a
 ('t_ha_6', 't_ho_archived', 't_file_first', 'FIRST_ORDER', 6, @hash64, DATE_SUB(NOW(), INTERVAL 18 DAY)),
 ('t_ha_7', 't_ho_archived', 't_file_pending', 'PENDING_DOCS', 7, @hash64, DATE_SUB(NOW(), INTERVAL 18 DAY));
 
-INSERT INTO handover_confirmation (id, filing_id, key_tool_check, leftover_issue, our_sign_file_id, counterpart_sign_name, counterpart_sign_file_id, confirmed_by_id, confirmed_by_name, at, handover_id) VALUES
-('t_hcfm_1', 't_fi_archived', '钥匙 3 把、工具箱 1 套已点交', '无遗留问题', 't_file_sig_our', '陈建国', 't_file_sig_cpn', 'emp_zjl', '赵经理', DATE_SUB(NOW(), INTERVAL 18 DAY), NULL);
-
 -- ─────────────────────────────────────────────────────────────
--- 9. 外接建档单（四阶段 + 缺件待补办演示；交接确认记录挂归档单）
--- ─────────────────────────────────────────────────────────────
-INSERT INTO external_filing_order (id, filing_no, created_at, status, contract_id, use_unit_id, elevator_id, initiator_id, initiator_name, project_name, supervision_pass_date, elevator_code, elevator_name, category, location, reg_code, device_code, inside_number, model, brand, manufacturer, drive_mode, rated_load, rated_load_unit, rated_speed, rated_speed_unit, stations_doors, work_type_code) VALUES
-('t_fi_collect', 'JD-2026-T01', DATE_SUB(NOW(), INTERVAL 2 DAY), 'DOC_COLLECTING', 't_ct3', 't_uu3', NULL, 't_biz', '周商务', '江北城 D 座（外接）', '2024-05-20', 'EM-2024-102', '江北城 D 座货梯', '曳引与强制驱动电梯', '江北区江北城大街 12 号', NULL, 'DT-CQ-2024-102', 'HT-01', '日立 HGP', '日立', '日立电梯（中国）有限公司', '曳引驱动', 2000, 'kg', 1.0, 'm/s', '6/6', 'HM'),
-('t_fi_check', 'JD-2026-T02', DATE_SUB(NOW(), INTERVAL 5 DAY), 'TAKEOVER_CHECKING', 't_ct2', 'uu_2', NULL, 't_biz', '周商务', '蓝湾国际 C 座（外接）', '2024-03-12', 'EM-2024-003', '蓝湾国际 A 座货梯', '曳引与强制驱动电梯', '江北区滨江路 6 号', 'TSCQ5001120003', 'DT-CQ-2024-003', 'HT-01', '三菱 GPS-III', '三菱', '上海三菱电梯有限公司', '曳引驱动', 2000, 'kg', 1.0, 'm/s', '6/6', 'HM'),
-('t_fi_confirm', 'JD-2026-T03', DATE_SUB(NOW(), INTERVAL 9 DAY), 'PENDING_CONFIRM', 't_ct1', 'uu_1', NULL, 't_biz', '周商务', '世纪大厦 3#（外接）', '2023-11-08', 'EM-2024-002', '世纪大厦 2# 客梯', '曳引与强制驱动电梯', '渝北区龙山一路 88 号', 'TSCQ5001120002', 'DT-CQ-2024-002', 'KT-02', 'OTIS 300VF', '奥的斯', '奥的斯电梯（中国）有限公司', '曳引驱动', 1000, 'kg', 1.75, 'm/s', '18/18', 'HM'),
-('t_fi_archived', 'JD-2026-T04', DATE_SUB(NOW(), INTERVAL 15 DAY), 'ARCHIVED', 't_ct1', 'uu_1', 'el_1', 't_biz', '周商务', '世纪大厦 1#（外接）', '2023-06-30', 'EM-2024-001', '世纪大厦 1# 客梯', '曳引与强制驱动电梯', '渝北区龙山一路 88 号', 'TSCQ5001120001', 'DT-CQ-2024-001', 'KT-01', 'OTIS 300VF', '奥的斯', '奥的斯电梯（中国）有限公司', '曳引驱动', 1000, 'kg', 1.75, 'm/s', '18/18', 'HM');
-
-INSERT INTO external_filing_doc (id, filing_id, doc_type, file_id, missing_flag, remark) VALUES
-('t_fd_1', 't_fi_collect', 'USE_REG_CERT', 't_file_reg', 0, NULL),
-('t_fd_2', 't_fi_collect', 'INSPECTION_REPORT', NULL, 1, '原件在使用单位处，约定下周补齐');
-
-UPDATE external_filing_order SET confirmed_by_id = 'emp_zjl', confirmed_by_name = '赵经理', confirmed_at = DATE_SUB(NOW(), INTERVAL 14 DAY)
-  WHERE id = 't_fi_archived';
-
--- ─────────────────────────────────────────────────────────────
--- 10. 限时授权（生效中 / 已到期）+ 项目 + 消息 + 邀请码
+-- 9. 限时授权（生效中 / 已到期）+ 项目 + 消息 + 邀请码
 -- ─────────────────────────────────────────────────────────────
 INSERT INTO sys_grant (id, grantee_id, perm_code, scope, scope_ref, start_at, end_at, status, granted_by, reason, created_at) VALUES
 ('t_grant_1', 'emp_lzg', 'record:review', 'SELF', NULL, DATE_SUB(NOW(), INTERVAL 1 DAY), DATE_ADD(NOW(), INTERVAL 5 DAY), 'ACTIVE', 'emp_zjl', '本周代班复核（限时授权演示）', DATE_SUB(NOW(), INTERVAL 1 DAY)),
@@ -285,13 +263,12 @@ INSERT INTO sys_invite (id, code, type, target_org_id, created_by, valid_days, e
 COMMIT;
 
 -- ─────────────────────────────────────────────────────────────
--- 11. 结果校验输出
+-- 10. 结果校验输出
 -- ─────────────────────────────────────────────────────────────
 SELECT 'employee' t, role, COUNT(*) c FROM sys_employee GROUP BY role
 UNION ALL SELECT 'work_order', status, COUNT(*) FROM work_order GROUP BY status
 UNION ALL SELECT 'fault', status, COUNT(*) FROM fault GROUP BY status
 UNION ALL SELECT 'handover', status, COUNT(*) FROM handover_order GROUP BY status
 UNION ALL SELECT 'record', lifecycle_status, COUNT(*) FROM maintain_record GROUP BY lifecycle_status
-UNION ALL SELECT 'filing', status, COUNT(*) FROM external_filing_order GROUP BY status
 UNION ALL SELECT 'client', status, COUNT(*) FROM client_account GROUP BY status
 UNION ALL SELECT 'contract', status, COUNT(*) FROM maintenance_contract GROUP BY status;

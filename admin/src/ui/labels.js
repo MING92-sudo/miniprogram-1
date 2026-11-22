@@ -4,8 +4,6 @@
 const STATUS = {
   // 移交单
   DOC_SUBMITTING: '资料提交', INSPECTING: '查验中', RECTIFYING: '整改中', PENDING_CONFIRM: '待确认', ARCHIVED: '已归档',
-  // 外接建档
-  DOC_COLLECTING: '资料收集', TAKEOVER_CHECKING: '接管查验',
   // 工单/急修
   OPEN: '待处理', ASSIGNED: '已派单', PROCESSING: '进行中', DONE: '已完成', SUBMITTED: '已提交',
   REPORTED: '已上报', FAILED: '上报失败', CANCELLED: '已取消', CLOSED: '已关闭', OVERDUE: '已超时',
@@ -105,7 +103,6 @@ const PERM = {
   'org:create': '新建组织', 'org:edit': '编辑组织',
   'stats:view': '查看统计', 'stats:export': '导出统计', 'audit:view': '查看审计', 'config:manage': '系统配置', 'data:export_sensitive': '敏感数据导出',
   'report:view': '查看上报', 'report:retry': '人工重报',
-  'filing:view': '查看外接建档', 'filing:write': '编辑外接建档',
   'region:view': '查看区域', 'region:write': '编辑区域',
   'template:view': '查看模板', 'template:write': '编辑模板', 'template:toggle': '启停模板',
   'platform:worker_view': '查看平台人员', 'platform:worker_register': '平台人员登记', 'platform:sync': '平台同步'

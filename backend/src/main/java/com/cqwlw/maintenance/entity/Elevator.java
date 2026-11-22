@@ -19,13 +19,13 @@ public class Elevator {
     public String elevatorName;
     /** 项目名称（小区名称，与使用单位名称区分；维保人员现场可维护，docs/01 §3.4.1） */
     public String projectName;
-    /** 所属区域（region.id，可空；移交/外接建档/使用单位门户可见性范围谓词，V24 迁移） */
+    /** 所属区域（region.id，可空；移交/使用单位门户可见性范围谓词，V24 迁移） */
     public String regionId;
-    /** 建档来源：0=存量直建（默认）/1=移交/2=外接（V25 迁移） */
+    /** 建档来源：0=台账直建（默认）/1=安装移交（V25 迁移；V65 移除外接建档） */
     public Integer archiveSource;
     /** 监督检验合格日（移交路径首保基线锚点，V25 迁移） */
     public LocalDate supervisionPassDate;
-    /** 归档时间 = 维保责任起始时间（移交/外接共用，V25 迁移） */
+    /** 归档时间 = 安装移交的维保责任起始时间（V25 迁移） */
     public LocalDateTime handoverAt;
     public String location;
     public String regCode;

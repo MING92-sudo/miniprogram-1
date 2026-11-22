@@ -22,8 +22,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * 维保合同（最小版，Task 3）：create 校验——起始日 ≤ 建档日、终止日 ≥ 起始日、同梯多生效合同拦截。
- * 后续 Task 7 外接建档消费 {@link ContractService#getActiveContractByElevator(String)}。
+ * 维保合同：create 校验——起始日 ≤ 建档日、终止日 ≥ 起始日、同梯多生效合同拦截。
  */
 class ContractServiceTest {
 

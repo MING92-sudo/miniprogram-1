@@ -35,9 +35,9 @@ describe('menu-config（2026-11-21 精简 IA：7 组，合并页 Tab 承载）',
   it('has 7 groups', () => {
     expect(MENU_GROUPS.map(g => g.title)).toEqual(['概览', '电梯管理', '项目管理', '维保管理', '公司管理', '数据对接', '系统'])
   })
-  it('合并/下线的页面不在菜单（路由保留直达或重定向）', () => {
+  it('合并/下线的页面不在菜单（仍存在的页面仅可直达或重定向）', () => {
     const paths = MENU_GROUPS.flatMap(g => g.items.map(i => i.path))
-    for (const p of ['/msg-templates', '/reviews', '/board', '/contracts', '/grants', '/regions', '/templates']) {
+    for (const p of ['/msg-templates', '/reviews', '/board', '/contracts', '/grants', '/regions', '/templates', '/filings']) {
       expect(paths).not.toContain(p)
     }
   })

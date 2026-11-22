@@ -180,7 +180,7 @@ public class MiniappMenuService {
 
     /**
      * 快捷动作按工作区 + 角色集下发（2026-11-16 审查修复：权限面=渲染面，逐条对齐 config/routes.js 角色白名单）：
-     * plan 仅 MAINT_SUP/MAINT_MGR；filing 仅 MAINT_FILING 口径；create 仅 INST_PM；upload 仅 INST_CLERK/INST_PM；
+     * plan 仅 MAINT_SUP/MAINT_MGR；create 仅 INST_PM；upload 仅 INST_CLERK/INST_PM；
      * CLIENT 不得指向维保子包；扫码开工深链未实现（docs/12 C-17）暂不下发。
      */
     private List<Map<String, Object>> quickActions(String ws, Set<String> roles) {
@@ -194,10 +194,6 @@ public class MiniappMenuService {
                     qa("handover", "移交验收", "file-signature", "/pkg-handover/pages/list/index")));
             if (roles.contains("MAINT_SUP") || roles.contains("MAINT_MGR")) {
                 list.add(qa("plan", "维保计划", "calendar-check-r", "/pkg-maintenance/pages/plan/index"));
-            }
-            if (roles.contains("MAINT_SUP") || roles.contains("MAINT_MGR") || roles.contains("MAINT_BIZ")
-                    || roles.contains("PLATFORM_ADMIN") || roles.contains("SYS_ADMIN")) {
-                list.add(qa("filing", "外接建档", "folder", "/pkg-handover/pages/filing-init/index"));
             }
             return list;
         }

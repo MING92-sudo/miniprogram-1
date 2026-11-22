@@ -2,9 +2,7 @@ package com.cqwlw.maintenance.controller;
 
 import com.cqwlw.maintenance.auth.AuthInterceptor;
 import com.cqwlw.maintenance.common.BizException;
-import com.cqwlw.maintenance.entity.ExternalFilingOrder;
 import com.cqwlw.maintenance.entity.HandoverOrder;
-import com.cqwlw.maintenance.service.ExternalFilingService;
 import com.cqwlw.maintenance.service.HandoverService;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockHttpServletRequest;
@@ -24,11 +22,10 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * 移交/外接建档端点门禁（2026-11-21 对齐矩阵 §4.1 / M0 §2.2，17 账号矩阵驱动实测发现的缺口）：
- * POST /handovers 需 handover:create（仅 INST_PM）；POST /filings 需 filing:write（仅 PA/MM/MS/MB）；
- * GET /filings(/id) 需 filing:view（Y=PA/MM/MS/MB，C=MQ/IM/IP/IC）。越权一律 403 且 service 零调用。
+ * 移交端点门禁（2026-11-21 对齐矩阵 §4.1，17 账号矩阵驱动实测发现的缺口）：
+ * POST /handovers 需 handover:create；复验、NA 审批与确认均保持各自权限和登录人来源校验。
  */
-class HandoverFilingGateTest {
+class HandoverGateTest {
 
     private static MockHttpServletRequest req(String... roles) {
         MockHttpServletRequest r = new MockHttpServletRequest();
@@ -56,46 +53,6 @@ class HandoverFilingGateTest {
     }
 
     @Test
-    void filingInitGatedToFilingWrite() {
-        ExternalFilingService svc = mock(ExternalFilingService.class);
-        ExternalFilingController c = new ExternalFilingController(svc);
-        for (String role : new String[]{"MAINT_TECH", "INSTALLER", "MAINT_QUALITY",
-                "INST_MGR", "INST_PM", "INST_CLERK"}) {
-            BizException ex = assertThrows(BizException.class, () -> c.init(Map.of(), req(role)), role);
-            assertEquals(403, ex.getCode(), role);
-        }
-        verify(svc, never()).init(any());
-        when(svc.init(any())).thenReturn(new ExternalFilingOrder());
-        for (String role : new String[]{"MAINT_MGR", "MAINT_SUP", "MAINT_BIZ", "PLATFORM_ADMIN", "SYS_ADMIN"}) {
-            assertNotNull(c.init(Map.of(), req(role)), role);
-        }
-        verify(svc, times(5)).init(any());
-    }
-
-    @Test
-    void filingReadGatedToFilingView() {
-        ExternalFilingService svc = mock(ExternalFilingService.class);
-        ExternalFilingController c = new ExternalFilingController(svc);
-        for (String role : new String[]{"MAINT_TECH", "INSTALLER"}) {
-            BizException ex = assertThrows(BizException.class,
-                    () -> c.list(null, null, null, req(role)), role);
-            assertEquals(403, ex.getCode(), role);
-            ex = assertThrows(BizException.class, () -> c.get("ef_1", req(role)), role);
-            assertEquals(403, ex.getCode(), role);
-        }
-        verify(svc, never()).list(any());
-        verify(svc, never()).detail(any());
-        when(svc.list(any())).thenReturn(Map.of());
-        when(svc.detail(any())).thenReturn(Map.of());
-        // Y：PA/MM/MS/MB；C：MQ/IM/IP/IC（requireRead 放行 Y∪C）
-        for (String role : new String[]{"MAINT_MGR", "MAINT_SUP", "MAINT_BIZ", "PLATFORM_ADMIN", "SYS_ADMIN",
-                "MAINT_QUALITY", "INST_MGR", "INST_PM", "INST_CLERK"}) {
-            assertNotNull(c.list(null, null, null, req(role)), role);
-            assertNotNull(c.get("ef_1", req(role)), role);
-        }
-    }
-
-    @Test
     void everyLegacyHandoverWriteRequiresItsOwnCapability() {
         HandoverService svc = mock(HandoverService.class);
         HandoverController c = new HandoverController(svc);
@@ -106,21 +63,6 @@ class HandoverFilingGateTest {
                 () -> c.submitRectify("h1", Map.of(), req("CLIENT_ADMIN")),
                 () -> c.recheckRectify("h1", Map.of(), req("CLIENT_ADMIN")),
                 () -> c.confirm("h1", Map.of(), req("CLIENT_ADMIN")));
-        for (Runnable call : calls) {
-            BizException ex = assertThrows(BizException.class, call::run);
-            assertEquals(403, ex.getCode());
-        }
-        org.mockito.Mockito.verifyNoInteractions(svc);
-    }
-
-    @Test
-    void everyLegacyFilingWriteRequiresFilingWrite() {
-        ExternalFilingService svc = mock(ExternalFilingService.class);
-        ExternalFilingController c = new ExternalFilingController(svc);
-        List<Runnable> calls = List.of(
-                () -> c.submitDocs("f1", Map.of(), req("CLIENT_ADMIN")),
-                () -> c.takeoverCheck("f1", Map.of(), req("CLIENT_ADMIN")),
-                () -> c.confirm("f1", Map.of(), req("CLIENT_ADMIN")));
         for (Runnable call : calls) {
             BizException ex = assertThrows(BizException.class, call::run);
             assertEquals(403, ex.getCode());
@@ -177,13 +119,5 @@ class HandoverFilingGateTest {
         when(handover.confirm(any(), any(), any())).thenReturn(new HandoverOrder());
         handoverController.confirm("h1", Map.of("confirmedById", "forged"), handoverRequest);
         verify(handover).confirm("h1", Map.of("confirmedById", "forged"), "emp_manager");
-
-        ExternalFilingService filing = mock(ExternalFilingService.class);
-        ExternalFilingController filingController = new ExternalFilingController(filing);
-        MockHttpServletRequest filingRequest = req("MAINT_MGR");
-        filingRequest.setAttribute(AuthInterceptor.ATTR_EMP_ID, "emp_manager");
-        when(filing.confirm(any(), any(), any())).thenReturn(new com.cqwlw.maintenance.entity.HandoverConfirmation());
-        filingController.confirm("f1", Map.of("confirmedById", "forged"), filingRequest);
-        verify(filing).confirm("f1", Map.of("confirmedById", "forged"), "emp_manager");
     }
 }

@@ -1,5 +1,5 @@
 // 合同（M6 只读投影，后端 MultiRoleGate 强校验；写操作在管理端）
-const admin = require('../../../services/admin')
+const admin = require('../../services/admin')
 const { definePage } = require('../../../utils/guard')
 const { ROUTES } = require('../../../config/routes')
 const nav = require('../../../utils/nav')

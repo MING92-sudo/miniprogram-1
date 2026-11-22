@@ -1,0 +1,64 @@
+// 记录单/双人签字页纯函数投影（无 wx 依赖，scripts/verify-review-fixes.js 行为断言）：
+// 结论必须反映异常项（不得虚报合格）；签字状态随后端布尔口径 workerSigned/assistantSigned（2026-11-15 修复口径）。
+const { RECORD_TEXT } = require('../../constants/index')
+
+/**
+ * 记录单摘要投影（入参为已过滤 notInThisRun 的实际执行项）。
+ * fixed 恒 0：记录视图暂无逐项整改闭环字段，不得虚报「异常已整改」（采集缺口见 docs/12）。
+ * 分组按维保周期 freqLabel（半月/季度/半年/年度），不套用移交 G01—G13 项类。
+ * @param {Array<{result?: string, name?: string, abnormalDesc?: string, freqLabel?: string}>} executed 实际执行检查项
+ * @returns {{stats: {total: number, ok: number, fixed: number, left: number}, groups: Array<{label: string, total: number, ab: number}>, abnormalDesc: string, conclusion: string}} 摘要投影
+ */
+function buildRecordSummary(executed) {
+  const items = executed || []
+  const ok = items.filter((i) => i.result === 'NORMAL').length
+  const abItems = items.filter((i) => i.result === 'ABNORMAL')
+  const gmap = {}
+  const groups = []
+  items.forEach((i) => {
+    const g = i.freqLabel || '其他'
+    if (!gmap[g]) { gmap[g] = { label: g, total: 0, ab: 0 }; groups.push(gmap[g]) }
+    gmap[g].total += 1
+    if (i.result === 'ABNORMAL') gmap[g].ab += 1
+  })
+  return {
+    stats: { total: items.length, ok: ok, fixed: 0, left: abItems.length },
+    groups: groups,
+    abnormalDesc: abItems.map((i) => (i.name || '') + (i.abnormalDesc ? '（' + i.abnormalDesc + '）' : '')).join('、'),
+    conclusion: abItems.length === 0 ? RECORD_TEXT.CONCLUSION_OK : RECORD_TEXT.CONCLUSION_ABNORMAL
+  }
+}
+
+/**
+ * 双人签字页状态投影（各签各的；URL 仅存在于签退后 recordInfo，布尔为准）。
+ * @param {{workerName?: string, assistantName?: string, workerPlatformId?: string, assistantPlatformId?: string, workerSigned?: boolean, assistantSigned?: boolean, workerSignatureUrl?: string, assistantSignatureUrl?: string}} order 工单视图
+ * @param {{name?: string, platformId?: string}} me 当前登录人
+ * @returns {{isDual: boolean, isPrincipal: boolean, isAssistant: boolean, workerSigned: boolean, assistantSigned: boolean, workerSignText: string, assistantSignText: string, mySigned: boolean, bothSigned: boolean, primaryText: string, primaryDisabled: boolean, myRoleText: string}} 签字状态
+ */
+function buildSignState(order, me) {
+  const o = order || {}
+  const u = me || {}
+  const isDual = !!o.assistantName
+  const isPrincipal = !!o.workerName && (u.name === o.workerName || (!!o.workerPlatformId && u.platformId === o.workerPlatformId))
+  const isAssistant = !!o.assistantName && (u.name === o.assistantName || (!!o.assistantPlatformId && u.platformId === o.assistantPlatformId))
+  const workerSigned = !!(o.workerSigned || o.workerSignatureUrl)
+  const assistantSigned = !!(o.assistantSigned || o.assistantSignatureUrl)
+  const mySigned = (isPrincipal && workerSigned) || (isAssistant && assistantSigned)
+  const bothSigned = workerSigned && (!isDual || assistantSigned)
+  return {
+    isDual: isDual,
+    isPrincipal: isPrincipal,
+    isAssistant: isAssistant,
+    workerSigned: workerSigned,
+    assistantSigned: assistantSigned,
+    workerSignText: workerSigned ? RECORD_TEXT.SIGNED : RECORD_TEXT.UNSIGNED,
+    assistantSignText: assistantSigned ? RECORD_TEXT.SIGNED : RECORD_TEXT.UNSIGNED,
+    mySigned: mySigned,
+    bothSigned: bothSigned,
+    primaryText: mySigned && bothSigned ? RECORD_TEXT.VIEW_RECORD : RECORD_TEXT.SIGN_SELF,
+    primaryDisabled: !isPrincipal && !isAssistant,
+    myRoleText: isPrincipal ? RECORD_TEXT.ROLE_MAIN : isAssistant ? RECORD_TEXT.ROLE_ASSIST : RECORD_TEXT.ROLE_NONE
+  }
+}
+
+module.exports = { buildRecordSummary, buildSignState }

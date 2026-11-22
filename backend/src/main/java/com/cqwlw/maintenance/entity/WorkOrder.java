@@ -48,8 +48,6 @@ public class WorkOrder {
     public LocalDateTime assistantSignatureAt;
     /** 首保来源移交单（可空，V25 迁移） */
     public String sourceHandoverId;
-    /** 首保来源外接建档单（可空，V25 迁移） */
-    public String sourceFilingId;
     /** 移交遗留问题勾选（默认 false，首保签退回写来源移交单，V25 迁移） */
     public Boolean handoverIssue;
     /** M4 SLA 快照（创建时冻结） */

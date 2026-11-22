@@ -46,9 +46,6 @@ public final class PermissionMatrix {
     /** 移交单 */
     public static final String HANDOVER_READ = "handover:read";
     public static final String HANDOVER_WRITE = "handover:write";
-    /** 外接建档单 */
-    public static final String FILING_READ = "filing:read";
-    public static final String FILING_WRITE = "filing:write";
     /** 区域主数据（docs/14 §6 仅 ADMIN） */
     public static final String REGION_WRITE = "region:write";
     /** 账号启停 / 重置密码 */
@@ -65,7 +62,6 @@ public final class PermissionMatrix {
             CONTRACT_READ, CONTRACT_WRITE,
             USEUNIT_READ, USEUNIT_WRITE,
             HANDOVER_READ, HANDOVER_WRITE,
-            FILING_READ, FILING_WRITE,
             REGION_WRITE, ACCOUNT_MANAGE);
 
     private static final Map<String, Set<String>> GRANTS;
@@ -158,15 +154,6 @@ public final class PermissionMatrix {
                 RoleCatalog.ADMIN,
                 RoleCatalog.INSTALL_MANAGER, RoleCatalog.INSTALL_CLERK,
                 RoleCatalog.INSTALL_WORKER, RoleCatalog.MAINT_MANAGER);
-        // §6 外接建档与移交单同一档权限
-        grant(grants, FILING_READ,
-                RoleCatalog.ADMIN,
-                RoleCatalog.INSTALL_MANAGER, RoleCatalog.INSTALL_CLERK,
-                RoleCatalog.MAINT_MANAGER, RoleCatalog.MAINT_QUALITY);
-        grant(grants, FILING_WRITE,
-                RoleCatalog.ADMIN,
-                RoleCatalog.INSTALL_MANAGER, RoleCatalog.INSTALL_CLERK,
-                RoleCatalog.MAINT_MANAGER);
 
         grant(grants, REGION_WRITE, RoleCatalog.ADMIN);
         // §6 账号启停/重置密码：平台层全量，维保经理限本部门（部门收敛在 P3 账号模块）
@@ -225,7 +212,7 @@ public final class PermissionMatrix {
     /** 三态：Y 可操作 / C 只读或需审批 / DENY 禁止（spec 的 '-'）。 */
     public enum TriState { Y, C, DENY }
 
-    // ==== 86 新码常量（71 base + 15 extension）====
+    // ==== 84 新码常量（71 base + 13 extension）====
     public static final String HANDOVER_VIEW = "handover:view";
     public static final String HANDOVER_CREATE = "handover:create";
     public static final String HANDOVER_EDIT = "handover:edit";
@@ -297,11 +284,9 @@ public final class PermissionMatrix {
     public static final String AUDIT_VIEW = "audit:view";
     public static final String CONFIG_MANAGE = "config:manage";
     public static final String DATA_EXPORT_SENSITIVE = "data:export_sensitive";
-    // 15 扩展码（M0 §2.2）
+    // 13 扩展码（M0 §2.2；V65 移除外接建档两码）
     public static final String REPORT_VIEW = "report:view";
     public static final String REPORT_RETRY_NEW = "report:retry";
-    public static final String FILING_VIEW = "filing:view";
-    public static final String FILING_WRITE_NEW = "filing:write";
     public static final String REGION_VIEW = "region:view";
     public static final String REGION_WRITE_NEW = "region:write";
     public static final String TEMPLATE_VIEW = "template:view";
@@ -333,7 +318,7 @@ public final class PermissionMatrix {
                 MB = "MAINT_BIZ", MQ = "MAINT_QUALITY", CA = "CLIENT_ADMIN", CS = "CLIENT_SIGNER";
         // §4.1 安装移交（16）
         // P1 T2（2026-11-16 裁决）：客户（CA/CS）收回全部内部码，最小集仅 §4.5 的 elevator_view/download/sign；
-        // 无参 y()/c() 仅登记码（持有者由平台管理员全 Y 循环兜底），86 码计数不变。
+        // 无参 y()/c() 仅登记码（持有者由平台管理员全 Y 循环兜底）。
         y(HANDOVER_VIEW, IM, MS, MM, PA); c(HANDOVER_VIEW, IC, IP, IW, MT);
         // 2026-11-21 裁决：handover:create 增 INST_CLERK（资料员整理建档资料属本职）
         y(HANDOVER_CREATE, IP, IC);
@@ -415,12 +400,9 @@ public final class PermissionMatrix {
         y(AUDIT_VIEW, PA);
         y(CONFIG_MANAGE, PA);
         y(DATA_EXPORT_SENSITIVE, PA); // 审批工作流 M5；M1 只编码平台持有该能力
-        // M0 §2.2 扩展（15）
+        // M0 §2.2 扩展（13；外接建档两码已移除）
         y(REPORT_VIEW, PA, MM); c(REPORT_VIEW, MS, MQ);
         y(REPORT_RETRY_NEW, PA, MM);
-        // 用户裁决 2026-11-15：外接建档写归维保部（安装部保留条件读）
-        y(FILING_VIEW, PA, MM, MS, MB); c(FILING_VIEW, MQ, IM, IP, IC);
-        y(FILING_WRITE_NEW, PA, MM, MS, MB);
         y(REGION_VIEW, PA);
         y(REGION_WRITE_NEW, PA);
         y(TEMPLATE_VIEW, PA, MM); c(TEMPLATE_VIEW, MQ);
@@ -438,8 +420,8 @@ public final class PermissionMatrix {
             STATES.computeIfAbsent(code, k -> new java.util.HashMap<>()).put(PA, TriState.Y);
         }
 
-        // fail-closed 一致性校验：码集==常量集（86），每码至少一个持有者
-        if (CANONICAL_CAPS.size() != 86) {
+        // fail-closed 一致性校验：码集==常量集（84），每码至少一个持有者
+        if (CANONICAL_CAPS.size() != 84) {
             throw new IllegalStateException("三态矩阵码数异常: " + CANONICAL_CAPS.size());
         }
         for (String code : CANONICAL_CAPS) {
@@ -468,7 +450,7 @@ public final class PermissionMatrix {
         return state(role, code) == TriState.Y;
     }
 
-    /** 86 新码集合。 */
+    /** 84 新码集合。 */
     public static java.util.Set<String> canonicalCapabilities() {
         return java.util.Collections.unmodifiableSet(CANONICAL_CAPS);
     }

@@ -76,11 +76,7 @@
         "pages/rectify/index",
         "pages/sign/index",
         "pages/upload/index",
-        "pages/review/index",
-        "pages/filing-init/index",
-        "pages/filing-detail/index",
-        "pages/filing-inspect/index",
-        "pages/filing-confirm/index"
+        "pages/review/index"
       ]
     },
     {

@@ -4,7 +4,7 @@
 // /unit/records/{id} 为客户门户契约（后端 getAs 员工令牌 1403），本页不再调用。
 const { getOrderDetail, signRequest, getRecordArchive, getRecordDetail } = require('../../../services/order')
 const { CHECK_RESULT_TEXT, TOAST_TEXT, RECORD_TEXT, RECORD_LIFECYCLE_TEXT, RECORD_LIFECYCLE_TONE } = require('../../../constants/index')
-const { buildRecordSummary } = require('../../../utils/record-view')
+const { buildRecordSummary } = require('../../utils/record-view')
 const { definePage } = require('../../../utils/guard')
 const { ROUTES } = require('../../../config/routes')
 const nav = require('../../../utils/nav')

@@ -7,13 +7,14 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** 矩阵 v2：三态 state、allowsNew 要求 Y、86 码、fail-closed、24 旧常量仍在。 */
+/** 矩阵 v2：三态 state、allowsNew 要求 Y、84 码、fail-closed、22 个现行旧常量。 */
 class PermissionMatrixV2Test {
 
     @Test
-    void canonicalCapabilitiesAreEightySix() {
-        assertEquals(86, PermissionMatrix.canonicalCapabilities().size());
+    void canonicalCapabilitiesAreEightyFour() {
+        assertEquals(84, PermissionMatrix.canonicalCapabilities().size());
         assertTrue(PermissionMatrix.canonicalCapabilities().contains("handover:view"));
+        assertTrue(PermissionMatrix.canonicalCapabilities().contains("contract:view"));
         assertTrue(PermissionMatrix.canonicalCapabilities().contains("record:spotcheck"));
         assertTrue(PermissionMatrix.canonicalCapabilities().contains("user:reset_password"));
     }
@@ -43,18 +44,12 @@ class PermissionMatrixV2Test {
         assertFalse(PermissionMatrix.allowsNew("MAINT_TECH", "config:manage"));
     }
 
-    /** 用户裁决 2026-11-15：SYS_ADMIN 全权限；外接建档写归维保部；安装员条件读移交单。 */
+    /** 用户裁决 2026-11-15：SYS_ADMIN 全权限；安装员条件读移交单。 */
     @Test
     void userRulings20261115() {
         for (String code : PermissionMatrix.canonicalCapabilities()) {
             assertEquals(PermissionMatrix.TriState.Y, PermissionMatrix.state("SYS_ADMIN", code), code);
         }
-        assertEquals(PermissionMatrix.TriState.Y, PermissionMatrix.state("MAINT_MGR", "filing:write"));
-        assertEquals(PermissionMatrix.TriState.Y, PermissionMatrix.state("MAINT_SUP", "filing:write"));
-        assertEquals(PermissionMatrix.TriState.Y, PermissionMatrix.state("MAINT_BIZ", "filing:write"));
-        assertEquals(PermissionMatrix.TriState.DENY, PermissionMatrix.state("INST_PM", "filing:write"));
-        assertEquals(PermissionMatrix.TriState.DENY, PermissionMatrix.state("INST_CLERK", "filing:write"));
-        assertEquals(PermissionMatrix.TriState.C, PermissionMatrix.state("INST_PM", "filing:view"));
         assertEquals(PermissionMatrix.TriState.C, PermissionMatrix.state("INSTALLER", "handover:view"));
         // 维保人员现场验收需读移交单（菜单「移交验收」下发 MAINT 全工作区，权限面=渲染面）
         assertEquals(PermissionMatrix.TriState.C, PermissionMatrix.state("MAINT_TECH", "handover:view"));
@@ -96,7 +91,7 @@ class PermissionMatrixV2Test {
             assertEquals(PermissionMatrix.TriState.DENY, PermissionMatrix.state("CLIENT_ADMIN", code), code);
             assertEquals(PermissionMatrix.TriState.DENY, PermissionMatrix.state("CLIENT_SIGNER", code), code);
         }
-        assertEquals(86, PermissionMatrix.canonicalCapabilities().size()); // 码数不变
+        assertEquals(84, PermissionMatrix.canonicalCapabilities().size()); // 外接建档两码移除，其他码不变
         assertEquals(PermissionMatrix.TriState.Y, PermissionMatrix.state("SYS_ADMIN", "client:user_manage")); // SA 全 Y 保留
     }
 
@@ -106,13 +101,17 @@ class PermissionMatrixV2Test {
         assertEquals(PermissionMatrix.TriState.DENY, PermissionMatrix.state(null, "handover:view"));
         assertThrows(IllegalArgumentException.class, () -> PermissionMatrix.state("INST_MGR", "no:such_code"));
         assertThrows(IllegalArgumentException.class, () -> PermissionMatrix.allowsNew("INST_MGR", null));
+        assertThrows(IllegalArgumentException.class, () -> PermissionMatrix.state("MAINT_MGR", "filing:write"));
+        assertThrows(IllegalArgumentException.class, () -> PermissionMatrix.state("MAINT_MGR", "filing:view"));
     }
 
     @Test
     void legacyConstantsAndCapabilitiesPreserved() {
-        // RbacMatrixTest 锁定：24 旧码仍在
-        assertEquals(24, PermissionMatrix.capabilities().size());
+        // RbacMatrixTest 锁定：除外接建档两个旧码随模块移除外，其余旧码保留
+        assertEquals(22, PermissionMatrix.capabilities().size());
         assertEquals("region:write", PermissionMatrix.REGION_WRITE);
         assertEquals("console:read", PermissionMatrix.CONSOLE_READ);
+        assertThrows(IllegalArgumentException.class, () -> PermissionMatrix.requireKnownCapability("filing:read"));
+        assertThrows(IllegalArgumentException.class, () -> PermissionMatrix.requireKnownCapability("filing:write"));
     }
 }

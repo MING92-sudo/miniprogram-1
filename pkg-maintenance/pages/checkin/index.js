@@ -7,7 +7,7 @@ const { ROUTES } = require('../../../config/routes')
 // 1006/1007 为配置类拦截（docs/04 A.0.1）
 const { checkin, getOrderDetail, issueDynamicCode } = require('../../../services/order')
 const { uploadImage } = require('../../../services/upload')
-const { reverseGeocode } = require('../../../services/location')
+const { reverseGeocode } = require('../../services/location')
 const { formatTime, distanceMeters } = require('../../../utils/util')
 const { getUserInfo } = require('../../../utils/auth')
 const { POOL_TEXT } = require('../../../constants/index')

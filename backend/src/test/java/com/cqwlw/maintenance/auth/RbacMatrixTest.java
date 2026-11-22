@@ -93,23 +93,17 @@ class RbacMatrixTest {
     }
 
     @Test
-    void handoverAndFilingCapabilities() {
+    void handoverCapabilities() {
         List<String> readers = List.of(
                 ADMIN, SYS_ADMIN, RoleCatalog.INSTALL_MANAGER, RoleCatalog.INSTALL_CLERK,
                 RoleCatalog.MAINT_MANAGER, RoleCatalog.MAINT_QUALITY);
         assertGrants(PermissionMatrix.HANDOVER_READ, readers);
-        assertGrants(PermissionMatrix.FILING_READ, readers);
         // docs/14 §6：安装文员可上传资料（W，端点级在 P3 收敛到 submit-docs）；ADMIN 平台兜底可写，
         // 但节点签字仍由 HandoverService.NODE_ROLES 限角色，写权限不等于代签
         List<String> handoverWriters = List.of(
                 ADMIN, SYS_ADMIN, RoleCatalog.INSTALL_MANAGER, RoleCatalog.INSTALL_CLERK,
                 RoleCatalog.INSTALL_WORKER, RoleCatalog.MAINT_MANAGER);
         assertGrants(PermissionMatrix.HANDOVER_WRITE, handoverWriters);
-        // 外接建档不涉及安装员现场作业（无接管施工环节）
-        List<String> filingWriters = List.of(
-                ADMIN, SYS_ADMIN, RoleCatalog.INSTALL_MANAGER, RoleCatalog.INSTALL_CLERK,
-                RoleCatalog.MAINT_MANAGER);
-        assertGrants(PermissionMatrix.FILING_WRITE, filingWriters);
     }
 
     @Test

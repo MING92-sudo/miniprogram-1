@@ -19,8 +19,9 @@ import static org.mockito.Mockito.when;
 
 /**
  * P1（2026-11-16 审查）：快捷动作必须与路由白名单/权限矩阵同口径（权限面=渲染面）：
- * CLIENT 不得下发维保子包页面；MAINT_TECH 不得下发 filing/plan；
- * plan 入口下发给 MAINT_SUP/MAINT_MGR；扫码开工深链未实现前不得下发 mode=scan（docs/12 C-17）。
+ * CLIENT 不得下发维保子包页面；MAINT_TECH 不得下发 plan；
+ * plan 入口下发给 MAINT_SUP/MAINT_MGR；外接建档模块移除后任何角色都不得收到 filing 快捷动作；
+ * 扫码开工深链未实现前不得下发 mode=scan（docs/12 C-17）。
  */
 class MiniappMenuQuickActionsTest {
 
@@ -70,17 +71,22 @@ class MiniappMenuQuickActionsTest {
     }
 
     @Test
-    void maintTechExcludesFilingAndPlan() {
+    void maintTechExcludesPlan() {
         List<String> paths = qaPaths(Set.of("MAINT_TECH"));
-        assertTrue(paths.stream().noneMatch(p -> p.contains("filing-init")), "TECH 无 filing:write");
         assertTrue(paths.stream().noneMatch(p -> p.contains("/plan/index")), "TECH 无 plan:view");
     }
 
     @Test
-    void maintSupIncludesFilingAndPlan() {
-        List<String> paths = qaPaths(Set.of("MAINT_SUP"));
-        assertTrue(paths.stream().anyMatch(p -> p.contains("filing-init")));
-        assertTrue(paths.stream().anyMatch(p -> p.contains("/plan/index")));
+    void maintenanceQuickActionsExcludeRemovedFiling() {
+        for (String role : List.of("MAINT_TECH", "MAINT_SUP", "MAINT_MGR", "MAINT_BIZ", "PLATFORM_ADMIN")) {
+            List<String> paths = qaPaths(Set.of(role));
+            assertTrue(paths.stream().noneMatch(p -> p.contains("filing")), role + " 不得收到已移除的外接建档入口");
+        }
+    }
+
+    @Test
+    void maintSupIncludesPlan() {
+        assertTrue(qaPaths(Set.of("MAINT_SUP")).stream().anyMatch(p -> p.contains("/plan/index")));
     }
 
     @Test

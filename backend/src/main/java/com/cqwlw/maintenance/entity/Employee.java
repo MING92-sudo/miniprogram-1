@@ -20,7 +20,7 @@ public class Employee {
     public String roleText;
     /** 所属班组（组长按班组查看组员工单/急修单，V7） */
     public String groupName;
-    /** 所属区域（region.id，可空；移交/外接建档/使用单位门户可见性范围谓词，V24 迁移） */
+    /** 所属区域（region.id，可空；移交/使用单位门户可见性范围谓词，V24 迁移） */
     public String regionId;
     /** 部门：INSTALL/MAINT/UNIT/PLATFORM（docs/14 §4 部门域互斥，V31 迁移；为空时按 role 回退） */
     public String department;

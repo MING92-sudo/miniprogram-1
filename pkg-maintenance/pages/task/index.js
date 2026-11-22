@@ -5,7 +5,7 @@
 // 「下一项」改从当前展开项之后推进（旧逻辑恒命中当前项被 toggle 收起）；周期性条目并入默认折叠组（⑨）。
 const { getChecklist, getOrderDetail, runItemThisTime, submitChecklistItem, partnerCandidates, assignPartner } = require('../../../services/order')
 const { uploadImage } = require('../../../services/upload')
-const { reverseGeocode } = require('../../../services/location')
+const { reverseGeocode } = require('../../services/location')
 const { formatTime } = require('../../../utils/util')
 const { CHECK_RESULT_TEXT, PROBLEM_CODES, TOAST_TEXT, POOL_TEXT } = require('../../../constants/index')
 const { getUserInfo } = require('../../../utils/auth')

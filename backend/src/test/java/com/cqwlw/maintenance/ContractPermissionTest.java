@@ -15,8 +15,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
- * 合同接口权限（Task 12/14）：原来一刀切 requireAdmin 让安装部读不到合同，
- * 导致小程序外接建档选不了“已生效合同”。改为按能力码：读=contract:read、写=contract:write。
+ * 合同接口权限（Task 12/14）：项目合同台账按能力码控制：读=contract:read、写=contract:write。
  */
 class ContractPermissionTest {
 
@@ -29,7 +28,7 @@ class ContractPermissionTest {
         return req;
     }
 
-    /** 安装经理可读合同（外接建档前置），但不能建合同 */
+    /** 安装经理可读项目合同，但不能建合同 */
     @Test
     void installManagerCanReadButNotWrite() {
         when(contractService.list()).thenReturn(List.of(new MaintenanceContract()));

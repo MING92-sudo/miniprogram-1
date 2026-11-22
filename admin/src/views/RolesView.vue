@@ -146,7 +146,7 @@ function domainOf(code) {
   if (['plan', 'task', 'checklist', 'record'].includes(p)) return 'maint'
   if (p === 'order') return 'order'
   if (p === 'client') return 'client'
-  if (['report', 'filing', 'region', 'template', 'platform'].includes(p)) return 'ops'
+  if (['report', 'region', 'template', 'platform'].includes(p)) return 'ops'
   return 'org'
 }
 function rowsOf(k) { return rows.value.filter(r => domainOf(r.code) === k) }
@@ -160,7 +160,7 @@ const MINI = new Set(['handover:create', 'handover:submit', 'handover:inspect', 
 function webView(code) {
   if (MINI.has(code)) return ''
   const p = code.split(':')[0]
-  const map = { handover: '/handovers', project: '/projects', contract: '/contracts', elevator: '/elevators', plan: '/plans', record: '/records', order: '/dispatch', user: '/users', invite: '/grants', stats: '/stats', audit: '/audit', config: '/settings', filing: '/filings', region: '/regions', template: '/templates', org: '/org' }
+  const map = { handover: '/handovers', project: '/projects', contract: '/contracts', elevator: '/elevators', plan: '/plans', record: '/records', order: '/dispatch', user: '/users', invite: '/grants', stats: '/stats', audit: '/audit', config: '/settings', region: '/regions', template: '/templates', org: '/org' }
   if (map[p]) return map[p]
   if (code === 'role:assign') return '/roles'
   if (code === 'data:export_sensitive') return '/stats'

@@ -327,7 +327,7 @@ public class DispatchService {
         return java.time.temporal.ChronoUnit.DAYS.between(from, to);
     }
 
-    /** 首保预建（安装移交/外接建档归档用）：按指定计划日 09:00 预建半月保（HM）工单并发布到区域池（不带人）。
+    /** 首保预建（安装移交归档用）：按指定计划日 09:00 预建半月保（HM）工单并发布到区域池（不带人）。
      *  幂等守卫：该电梯已有未完成（ne DONE）工单时不重复建单，返回 null（调用方据此只回填来源单号），
      *  以免预建首保与定时派单/手动派单叠加出两张并行工单。 */
     public WorkOrder precreateFirstOrder(Elevator elevator, LocalDate planDate) {
