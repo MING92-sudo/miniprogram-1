@@ -6,6 +6,7 @@ import com.cqwlw.maintenance.entity.MaintainRecord;
 import com.cqwlw.maintenance.mapper.ElevatorMapper;
 import com.cqwlw.maintenance.mapper.MaintainRecordMapper;
 import com.cqwlw.maintenance.util.JsonUtil;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -32,6 +33,13 @@ class UnitRecordServiceTest {
     private ElevatorMapper elevatorMapper;
     private WorkOrderService workOrderService;
     private UnitRecordService service;
+
+    @BeforeAll
+    static void initTableInfo() {
+        com.baomidou.mybatisplus.core.metadata.TableInfoHelper.initTableInfo(
+                new org.apache.ibatis.builder.MapperBuilderAssistant(
+                        new com.baomidou.mybatisplus.core.MybatisConfiguration(), ""), MaintainRecord.class);
+    }
 
     @BeforeEach
     void setUp() {
@@ -237,6 +245,21 @@ class UnitRecordServiceTest {
         return r;
     }
 
+
+    @Test
+    void externalSignatureUrlRejectedBeforeArchive() {
+        MaintainRecord r = signable();
+        when(recordMapper.selectById("ur_1")).thenReturn(r);
+        RecordLifecycleService lifecycle = mock(RecordLifecycleService.class);
+        service.setRecordLifecycleService(lifecycle);
+
+        BizException ex = assertThrows(BizException.class, () -> service.confirmByToken("ur_1", "sg-1",
+                Map.of("signatureUrl", "http://127.0.0.1:8080/health")));
+
+        assertEquals(422, ex.getCode());
+        verify(recordMapper, never()).update(any(), any());
+        verify(lifecycle, never()).onClientSigned(any());
+    }
 
     private static MaintainRecord signable() {
         MaintainRecord r = record();

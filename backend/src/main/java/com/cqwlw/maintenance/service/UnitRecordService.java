@@ -141,6 +141,13 @@ public class UnitRecordService {
         if (signatureUrl.isEmpty() && signatureFileId.isEmpty()) {
             throw new BizException(422, "请先完成签名");
         }
+        if (!signatureUrl.isEmpty()) {
+            String fileId = FileStorageService.fileIdFromUrl(signatureUrl);
+            if (fileId == null) {
+                throw new BizException(422, "签名图片必须来自本系统文件");
+            }
+            signatureUrl = "/files/" + fileId;
+        }
         java.time.LocalDateTime signedAt = TimeUtil.now();
         LambdaUpdateWrapper<MaintainRecord> uw = new LambdaUpdateWrapper<MaintainRecord>()
                 .eq(MaintainRecord::getId, r.id)

@@ -1,5 +1,6 @@
 package com.cqwlw.maintenance.service;
 
+import com.cqwlw.maintenance.config.AppProperties;
 import com.cqwlw.maintenance.entity.MaintainRecord;
 import com.cqwlw.maintenance.entity.UseUnit;
 import com.cqwlw.maintenance.mapper.AppFileMapper;
@@ -7,6 +8,10 @@ import com.cqwlw.maintenance.util.JsonUtil;
 import com.lowagie.text.pdf.PdfReader;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.client.RestTemplate;
 
 import java.nio.charset.StandardCharsets;
@@ -16,9 +21,14 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
+import static org.mockito.Mockito.when;
 
 class RecordPdfServiceTest {
 
@@ -44,6 +54,68 @@ class RecordPdfServiceTest {
                 return url == null || url.isBlank() ? null : TINY_PNG.clone();
             }
         };
+    }
+
+    private RecordPdfService imageService(RestTemplate restTemplate) {
+        AppProperties props = new AppProperties();
+        props.setCosBucket("bucket-1250000000");
+        props.setCosRegion("ap-shanghai");
+        RecordPdfService pdf = new RecordPdfService(restTemplate, mock(AppFileMapper.class),
+                fileStorage, mock(com.cqwlw.maintenance.mapper.CompanyMapper.class));
+        ReflectionTestUtils.setField(pdf, "props", props);
+        org.mockito.Mockito.clearInvocations(restTemplate);
+        return pdf;
+    }
+
+    @Test
+    void privateAndMetadataAddressesNeverFetched() {
+        RestTemplate restTemplate = mock(RestTemplate.class);
+        RecordPdfService pdf = imageService(restTemplate);
+        List<String> urls = List.of(
+                "https://localhost/health",
+                "https://127.0.0.1:8080/health",
+                "https://10.0.0.8/internal",
+                "https://172.16.0.8/internal",
+                "https://192.168.1.8/internal",
+                "https://169.254.169.254/latest/meta-data",
+                "https://[::1]/health");
+
+        for (String url : urls) {
+            assertNull(pdf.loadImage(url), url);
+        }
+
+        verifyNoMoreInteractions(restTemplate);
+    }
+
+    @Test
+    void configuredCosImageStillLoads() {
+        RestTemplate restTemplate = mock(RestTemplate.class);
+        RecordPdfService pdf = imageService(restTemplate);
+        String cosUrl = "https://bucket-1250000000.cos.ap-shanghai.myqcloud.com/sign.png?s=secret";
+        when(restTemplate.getForEntity(cosUrl, byte[].class)).thenReturn(ResponseEntity.ok(TINY_PNG));
+
+        assertArrayEquals(TINY_PNG, pdf.loadImage(cosUrl));
+        assertNull(pdf.loadImage("https://other.cos.ap-shanghai.myqcloud.com/sign.png"));
+        assertNull(pdf.loadImage("http://bucket-1250000000.cos.ap-shanghai.myqcloud.com/sign.png"));
+
+        verify(restTemplate).getForEntity(cosUrl, byte[].class);
+        verifyNoMoreInteractions(restTemplate);
+    }
+
+    @Test
+    void redirectToPrivateAddressIsNotFollowed() {
+        RestTemplate restTemplate = mock(RestTemplate.class);
+        RecordPdfService pdf = imageService(restTemplate);
+        String cosUrl = "https://bucket-1250000000.cos.ap-shanghai.myqcloud.com/sign.png";
+        HttpHeaders headers = new HttpHeaders();
+        headers.add(HttpHeaders.LOCATION, "http://169.254.169.254/latest/meta-data");
+        when(restTemplate.getForEntity(cosUrl, byte[].class))
+                .thenReturn(ResponseEntity.status(HttpStatus.FOUND).headers(headers).build());
+
+        assertNull(pdf.loadImage(cosUrl));
+
+        verify(restTemplate).getForEntity(cosUrl, byte[].class);
+        verifyNoMoreInteractions(restTemplate);
     }
 
     private UseUnit uu(String unitName) {
