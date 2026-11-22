@@ -398,6 +398,7 @@ public class AdminArchiveService {
         }
         e.enabled = enabled;
         employeeMapper.updateById(e);
+        employeeMapper.bumpScopeVersion(id);
         return employeeRow(e);
     }
 
@@ -413,6 +414,7 @@ public class AdminArchiveService {
         String initial = random ? randomPassword() : password;
         e.passwordHash = encoder.encode(initial);
         employeeMapper.updateById(e);
+        employeeMapper.bumpScopeVersion(id);
         Map<String, Object> out = employeeRow(e);
         out.put("initialPassword", initial);
         return out;

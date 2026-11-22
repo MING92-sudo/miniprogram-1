@@ -86,6 +86,23 @@ class AdminArchiveServiceTest {
     }
 
     @Test
+    void disableAndResetInvalidateExistingSessions() {
+        Employee disabled = new Employee();
+        disabled.id = "emp_disable";
+        Employee reset = new Employee();
+        reset.id = "emp_reset";
+        when(employeeMapper.selectById("emp_disable")).thenReturn(disabled);
+        when(employeeMapper.selectById("emp_reset")).thenReturn(reset);
+
+        service.setEmployeeEnabled("emp_disable", false);
+        service.resetEmployeePassword("emp_reset", "newpass123");
+
+        org.junit.jupiter.api.Assertions.assertAll(
+                () -> verify(employeeMapper).bumpScopeVersion("emp_disable"),
+                () -> verify(employeeMapper).bumpScopeVersion("emp_reset"));
+    }
+
+    @Test
     void elevatorAdminListBatchLoadsUnitsAndRegions() {
         Elevator first = new Elevator();
         first.id = "el_1";

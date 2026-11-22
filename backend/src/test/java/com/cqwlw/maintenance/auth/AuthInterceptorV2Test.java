@@ -70,6 +70,21 @@ class AuthInterceptorV2Test {
     }
 
     @Test
+    void disabledEmployeeTokenRejected() {
+        AuthInterceptor interceptor = new AuthInterceptor(jwt, employeeMapper, userRoleMapper);
+        Claims c = claims("emp_1", "WORKER", "mp", "s1", 3);
+        Employee disabled = employee("emp_1", "WORKER", "s1", 3);
+        disabled.enabled = false;
+        when(jwt.verify(anyString())).thenReturn(c);
+        when(employeeMapper.selectById("emp_1")).thenReturn(disabled);
+
+        BizException e = assertThrows(BizException.class,
+                () -> interceptor.preHandle(request("/work-orders"), response, handler));
+
+        assertEquals(401, e.getCode());
+    }
+
+    @Test
     void legacyTokenWithoutSvMatchesDefaultZero() {
         AuthInterceptor interceptor = new AuthInterceptor(jwt, employeeMapper, userRoleMapper);
         Claims c = claims("emp_1", "WORKER", "mp", "s1", null);

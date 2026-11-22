@@ -43,6 +43,30 @@ class ClientAccountServiceTest {
     }
 
     @Test
+    void clientAccountRejectsSuppliedOpenid() {
+        ClientAccount existing = account("ca_1", "13900001111", ClientAccount.STATUS_ACTIVE);
+        when(mapper.selectById("ca_1")).thenReturn(existing);
+
+        assertAll(
+                () -> {
+                    Map<String, Object> create = new java.util.HashMap<>(
+                            body("张三", "13900001111", "CLIENT_ADMIN"));
+                    create.put("openid", "supplied-openid");
+                    BizException ex = assertThrows(BizException.class,
+                            () -> service.create("uu_1", create, "op1"));
+                    assertEquals(422, ex.getCode());
+                },
+                () -> {
+                    BizException ex = assertThrows(BizException.class,
+                            () -> service.update("ca_1", Map.of("openid", "supplied-openid"), "op1"));
+                    assertEquals(422, ex.getCode());
+                });
+
+        verify(mapper, never()).insert(any(ClientAccount.class));
+        verify(mapper, never()).updateById(any(ClientAccount.class));
+    }
+
+    @Test
     void createRequiresExistingUnit() {
         BizException ex = assertThrows(BizException.class,
                 () -> service.create("uu_missing", body("张三", "13900001111", "CLIENT_ADMIN"), "op1"));

@@ -2,13 +2,19 @@ package com.cqwlw.maintenance;
 
 import com.cqwlw.maintenance.auth.AdminRoleInterceptor;
 import com.cqwlw.maintenance.auth.AuthInterceptor;
+import com.cqwlw.maintenance.auth.PermissionMatrix;
 import com.cqwlw.maintenance.common.BizException;
+import com.cqwlw.maintenance.controller.AdminArchiveController;
+import com.cqwlw.maintenance.controller.PlatformController;
+import com.cqwlw.maintenance.controller.RegAdminController;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.web.servlet.HandlerMapping;
+import org.springframework.web.method.HandlerMethod;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -28,6 +34,14 @@ class AdminRoleInterceptorTest {
         when(req.getAttribute(HandlerMapping.BEST_MATCHING_PATTERN_ATTRIBUTE)).thenReturn(uri);
         when(req.getAttribute(AuthInterceptor.ATTR_ROLE)).thenReturn(role);
         return req;
+    }
+
+    private HandlerMethod handler(Class<?> beanType, String methodName, Class<?>... parameterTypes) {
+        try {
+            return new HandlerMethod(mock(beanType), beanType.getMethod(methodName, parameterTypes));
+        } catch (NoSuchMethodException e) {
+            throw new AssertionError(e);
+        }
     }
 
     @Test
@@ -86,6 +100,24 @@ class AdminRoleInterceptorTest {
                 request("PUT", "/admin/plans/pl_1/assign", "ADMIN"), response, handler));
         assertDoesNotThrow(() -> interceptor.preHandle(
                 request("PUT", "/admin/plans/delays/pd_1/decide", "SYS_ADMIN"), response, handler));
+    }
+
+    @Test
+    void sensitiveReadsRequireFineGrainedPermission() {
+        Object[][] endpoints = {
+                {"/employees", handler(AdminArchiveController.class, "employees"), PermissionMatrix.USER_VIEW},
+                {"/platform/workers", handler(PlatformController.class, "workers", String.class),
+                        PermissionMatrix.PLATFORM_WORKER_VIEW},
+                {"/reg/sync-status", handler(RegAdminController.class, "syncStatus"), PermissionMatrix.REPORT_VIEW}
+        };
+        org.junit.jupiter.api.Assertions.assertAll(java.util.Arrays.stream(endpoints).map(endpoint -> () -> {
+            String path = (String) endpoint[0];
+            HandlerMethod handler = (HandlerMethod) endpoint[1];
+            BizException ex = assertThrows(BizException.class, () -> interceptor.preHandle(
+                    request("GET", path, "MAINT_BIZ"), response, handler), path);
+            assertEquals(403, ex.getCode(), path);
+            assertEquals("无权限: " + endpoint[2], ex.getMessage(), path);
+        }));
     }
 
     @Test

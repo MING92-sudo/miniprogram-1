@@ -1,5 +1,7 @@
 package com.cqwlw.maintenance.controller;
 
+import com.cqwlw.maintenance.auth.PermissionMatrix;
+import com.cqwlw.maintenance.auth.RequirePerm;
 import com.cqwlw.maintenance.common.ApiResponse;
 import com.cqwlw.maintenance.service.AdminArchiveService;
 import com.cqwlw.maintenance.service.IdempotencyService;
@@ -80,6 +82,7 @@ public class AdminArchiveController {
     // ── 人员 ──
 
     @GetMapping("/employees")
+    @RequirePerm(PermissionMatrix.USER_VIEW)
     public ApiResponse<List<Map<String, Object>>> employees() {
         return ApiResponse.ok(archiveService.employeeList());
     }

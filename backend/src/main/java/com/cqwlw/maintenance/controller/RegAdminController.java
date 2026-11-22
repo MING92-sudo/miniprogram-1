@@ -1,5 +1,7 @@
 package com.cqwlw.maintenance.controller;
 
+import com.cqwlw.maintenance.auth.PermissionMatrix;
+import com.cqwlw.maintenance.auth.RequirePerm;
 import com.cqwlw.maintenance.common.ApiResponse;
 import com.cqwlw.maintenance.service.AdminService;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -34,6 +36,7 @@ public class RegAdminController {
     }
 
     @GetMapping("/reg/sync-status")
+    @RequirePerm(PermissionMatrix.REPORT_VIEW)
     public ApiResponse<Map<String, Object>> syncStatus() {
         return ApiResponse.ok(adminService.syncStatus());
     }
