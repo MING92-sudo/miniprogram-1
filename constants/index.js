@@ -1,4 +1,3 @@
-// 全局常量与枚举（详见 docs/01 需求文档、docs/04 接口文档）
 
 // 角色
 const ROLE = {
@@ -8,7 +7,6 @@ const ROLE = {
   UNIT_ADMIN: 'UNIT_ADMIN', // 使用单位安全管理员
   ADMIN: 'ADMIN', // 维保部管理员
   SYS_ADMIN: 'PLATFORM_ADMIN', // 2026-11-21：系统管理员并入平台管理员（保留键作别名兼容）
-  // docs/14 §3 角色码表：三平级部门岗位（本次仅新增码值，既有码值语义不变）
   INSTALL_MANAGER: 'INSTALL_MANAGER', // 安装项目经理
   INSTALL_CLERK: 'INSTALL_CLERK', // 安装文员
   INSTALL_WORKER: 'INSTALL_WORKER', // 安装员
@@ -17,14 +15,13 @@ const ROLE = {
   MAINT_QUALITY: 'MAINT_QUALITY' // 维保质量负责人
 }
 
-// 工单状态文案（ORDER_STATUS 枚举死导出已删，2026-11-16 审查清理；状态码见 docs/04）
 const STATUS_TEXT = {
   PENDING: '待执行',
   PROCESSING: '进行中',
   DONE: '已完成'
 }
 
-// 急修单七态文案（docs/04 V2.53 M1）：list/detail 页共用，禁止页面内重复定义
+// 急修单七态文案：list/detail 页共用，禁止页面内重复定义
 const FAULT_STATUS_TEXT = {
   OPEN: '待接单', ASSIGNED: '已接单', PROCESSING: '处置中', PENDING_CONFIRM: '待使用单位确认',
   CLOSED: '已闭环', REFUSED: '待整改', CANCELLED: '已取消'
@@ -39,11 +36,9 @@ const FAULT_STATUS_TONE = {
 // 维保记录平台上报状态文案（工单列表卡片标签）
 const REPORT_STATUS_TEXT = { REPORTED: '已上报平台', FAILED: '上报异常', PENDING: '待上报' }
 
-// 报修故障等级选项（V2.28；困人急修须填被困人数，trappedCount 随单入库 C-18/V62）
 const FAULT_TYPE_OPTIONS = ['一般故障', '困人（紧急）']
 const FAULT_TYPE_TRAPPED = '困人（紧急）'
 
-// 维保记录生命周期状态文案（M1 记录生命周期，record-detail 状态条）
 const RECORD_LIFECYCLE_TEXT = {
   PENDING_REVIEW: '待复核', PENDING_CLIENT_SIGN: '待使用单位签字', PENDING_CLIENT_SIGNATURE: '待使用单位签署',
   SIGNED: '已签署', ARCHIVED: '已归档', REFUSED_RETURNED: '拒签退回'
@@ -53,15 +48,12 @@ const RECORD_LIFECYCLE_TONE = {
   SIGNED: 'ok', ARCHIVED: 'ok', REFUSED_RETURNED: 'signal'
 }
 
-// 检查项结果枚举（docs/04 A.2：NORMAL/ABNORMAL/NA）
 const CHECK_RESULT_TEXT = {
   NORMAL: '正常',
   ABNORMAL: '异常',
   NA: '不适用'
 }
 
-// 严重事故隐患码（需求文档 §6.2 / 平台 V1.5 规范 3.2；规范原文 S3 重复且缺 S4，
-// 已按连续编码勘误实现，待平台确认 docs/06 #9）
 const PROBLEM_CODES = {
   S0: '未发现严重事故隐患',
   S1: '使用非法生产的特种设备',
@@ -73,7 +65,6 @@ const PROBLEM_CODES = {
   S7: '其它严重事故隐患'
 }
 
-// 维保类别码（平台 V1.5 规范 3.1：FM按需/HM半月/TM季度/SM半年/OY年度）
 const WORK_TYPE_CODES = {
   FM: '按需维保',
   HM: '半月维保',
@@ -82,13 +73,8 @@ const WORK_TYPE_CODES = {
   OY: '年度维保'
 }
 
-// 业务规则：签到—签退最小作业时长（分钟），前端与后端双重校验。
-// 注：需求/接口文档中的「30 分钟」原指 ①双人签到间隔上限（01 §3.7.2）
-// ②困人救援抵达时限（TSG 第五条(四)）；作业时长下限为业主 2026-09-30
-// 补充的业务规则，上线前须与平台/监管确认口径。
 const MIN_WORK_DURATION_MINUTES = 30
 
-// 业务错误码 → 文案（docs/04 A.0）
 const ERROR_CODES = {
   401: '登录已过期，请重新登录',
   1001: '签到位置超出允许范围，请提交申诉',
@@ -103,7 +89,6 @@ const ERROR_CODES = {
   2003: '监管平台上报超时'
 }
 
-// 照片压缩约定（docs/04）
 const IMAGE_LIMIT = {
   MAX_EDGE: 1200, // 压缩后长边上限 px
   MAX_SIZE: 500 * 1024 // 500KB
@@ -115,12 +100,11 @@ const TOAST_TEXT = {
   SAVE_FAILED: '保存失败',
   OPERATE_FAILED: '操作失败',
   LOGIN_FAILED: '登录失败',
-  // 区域抢单池（D8 签退恒双人门禁前置提示；服务端 422 同文案兜底）
+  // 服务端 422 同文案兜底）
   PARTNER_REQUIRED: '请选择配合人员',
   PARTNER_NOT_CHECKED_IN: '配合人员未签到'
 }
 
-// 区域抢单池（2026-11-20 区域抢单池设计 §4.6 / D2/M1）：待接单池与配合人选择文案
 const POOL_TEXT = {
   SECTION_TITLE: '待接单池',
   SECTION_SUB: '同区域工单 · 到场签到即认领',
@@ -153,7 +137,6 @@ const EMPTY_TEXT = {
 // 加载中文案
 const LOADING_TEXT = '加载中...'
 
-// 移交单状态（W1 安装移交，docs/04 A.9；状态机见 backend HandoverService）
 const HANDOVER_STATUS = {
   INIT: 'INIT',
   DOC_SUBMITTING: 'DOC_SUBMITTING',
@@ -181,7 +164,6 @@ const HANDOVER_DOCS = [
   { field: 'qualityCertificateFileId', label: '整机质量证明' }
 ]
 
-// 移交查验 13 项类标签（docs/15 附录 A 分组，G01—G13；详情/查验页共用）
 const HANDOVER_FLOW = ['发起并上传', '内部审核', '维保验收', '双方签字']
 const HANDOVER_CREATE_TEXT = {
   TITLE: '发起移交',
@@ -217,10 +199,8 @@ const HANDOVER_RESULT_TEXT = {
   NA: '不适用'
 }
 
-// 电梯品种四类（TSG T5002 第八条；与后端 ChecklistTemplateSeeder.APPENDIX_SCOPE 一致）
 const ELEVATOR_CATEGORIES = ['曳引与强制驱动电梯', '液压驱动电梯', '杂物电梯', '自动扶梯与自动人行道']
 
-// 可发起/推进移交单的岗位（docs/14 §5 handover:write）
 const HANDOVER_WRITE_ROLES = [
   ROLE.INSTALL_MANAGER,
   ROLE.INSTALL_CLERK,
@@ -235,7 +215,10 @@ const HANDOVER_TEXT = {
   PROJECT_REQUIRED: '请填写项目名称',
   LOAD_INVALID: '额定载重须为数字',
   SPEED_INVALID: '额定速度须为数字',
-  DOCS_REQUIRED: '监督检验报告、维保说明书、整机质量证明缺一不可',
+  DOCS_REQUIRED: '监督检验报告、维护使用说明书、安装质量证明文件缺一不可',
+  USE_UNIT_REQUIRED: '请选择使用单位',
+  FACTORY_REQUIRED: '请填写厂家出厂编号，供归档时查询注册信息',
+  INSIDE_NUMBER_REQUIRED: '请填写单位内编号',
   RECEIVER_REQUIRED: '请选择接收工程师',
   ITEMS_REQUIRED: '请完成 6 项查验结果',
   RECTIFY_REQUIRED: '请选择需整改项',
@@ -253,10 +236,7 @@ const HANDOVER_TEXT = {
   LIST_FAILED: '移交单列表暂不可用，可按 ID 打开详情'
 }
 
-// UNIT_PORTAL_TEXT/UNIT_FAULT_TYPES/UNIT_FAULT_STATUS_TEXT/UNIT_CONFIRM_STATUS_TEXT 已删
-// （2026-11-16 审查清理：V41 门户登录链废除后零引用；状态文案见 docs/04 A.7/A.11）
 
-// 维保日历（Task 11 GET /maintenance-calendar）：窗口月数可切 1/3/6/12（12=全年，建档即排全年口径 2026-11-20）
 const CALENDAR_WINDOWS = [
   { months: 1, label: '1 个月' },
   { months: 3, label: '3 个月' },
@@ -280,8 +260,7 @@ const CALENDAR_STATUS = {
   OVERDUE: '超期'
 }
 
-// 使用单位拒签原因分类码（V2.80；与后端 RecordLifecycleService.REFUSE_CODES 镜像同步，
-// 改动必须双侧同改）——needDetail=true 时说明文字必填
+// 与后端 RecordLifecycleService.REFUSE_CODES 镜像同步，改动必须双侧同改）——needDetail=true 时说明文字必填
 const REFUSE_REASON_OPTIONS = [
   { code: 'R1', label: '记录内容与现场不符', needDetail: false },
   { code: 'R2', label: '维保项目漏项或未按单执行', needDetail: false },
@@ -291,7 +270,7 @@ const REFUSE_REASON_OPTIONS = [
 ]
 
 
-// 品牌标识（程序名/公司名/徽标口径不变，D4/D5；页面与 nav-bar 统一引用，禁止散落硬编码）
+// 页面与 nav-bar 统一引用，禁止散落硬编码）
 const BRAND = {
   APP_NAME: '博威无纸化',
   APP_SUB: '电梯无纸化维保系统',
@@ -299,7 +278,6 @@ const BRAND = {
   VERSION_BADGE: 'V1.4 / 2026',
   LOGIN_FOOT: '该小程序为重庆博威电梯公司内部相关人员登录使用 · 账号由所属单位管理员开通 · 首次使用请联系项目负责人'
 }
-// ── 原型 V1.4 界面文案（屏 00/02/05/06/08/09/11/20/24 等）：页面一律经 data.text 绑定，禁止 WXML 硬编码 ──
 const LOGIN_TEXT = {
   EYEBROW: 'ELEVATOR MAINTENANCE OS',
   BRAND_SUB: '电梯无纸化维保系统',
@@ -453,7 +431,6 @@ const PROFILE_TEXT = {
   EMP_WORK_STAT: '作业状态',
   EMP_SYNC: '平台同步',
   EMP_SCOPE: '数据范围',
-  // 页脚署名（2026-11-21 用户裁决：版权 + 备案号 + Font Awesome 署名（CC BY 4.0 协议义务，措辞不限））
   COPYRIGHT: '版权归重庆博威电梯有限公司所有',
   ICP: '渝ICP备2026029659号-1X',
   ICON_ATTR: 'Font Awesome Free（CC BY 4.0）'

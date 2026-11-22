@@ -1,14 +1,15 @@
 import http from './client'
 
-/**
- * 移交单（W1，Task 14 管理端只读）：列表 + 详情 + 经理确认归档。
- * 状态：DOC_SUBMITTING → INSPECTING →(RECTIFYING⇄)→ PENDING_CONFIRM → ARCHIVED
- */
 export function listHandovers(params) {
   return http.get('/handovers', { params })
 }
 
-/** 移交单起草（handover:create=INST_PM/PLATFORM_ADMIN）：进入 DOC_SUBMITTING，项目名必填 */
+/** 起草选项：与小程序共用使用单位档案，handover:create 权限 */
+export function getHandoverOptions() {
+  return http.get('/handovers/options')
+}
+
+/** 移交单起草（handover:create=INST_PM/PLATFORM_ADMIN）：资料齐全进入 PENDING_INST_REVIEW */
 export function createHandover(body) {
   return http.post('/handovers', body)
 }
@@ -22,9 +23,6 @@ export function confirmHandover(id, body) {
   return http.post(`/handovers/${id}/confirm`, body)
 }
 
-// ── C-12：GB/T 10060—2023 74 项移交检查清单（docs/15、docs/04 A.9）──
-
-/** 74 项检查清单（进入查验中自动生成草稿，幂等）→ {check, items[74]} */
 export function getChecklist(id) {
   return http.get(`/handovers/${id}/checklist`)
 }

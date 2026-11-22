@@ -1,8 +1,12 @@
-// 移交单（W1：安装部 → 维保部，docs/04 A.9；状态机与 3 必传卡点见 backend HandoverService）
-// 页面只经本模块调接口：资料/整改照片统一走 services/upload.js，不在页面内发起网络请求（AGENTS §1.1）。
+// 状态机与 3 必传卡点见 backend HandoverService）页面只经本模块调接口：资料/整改照片统一走 services/upload.js，不在页面内发起网络请求（AGENTS §1.1）。
 const { get, post } = require('../utils/request')
 
-// 发起移交（项目名称必填，创建即进入 DOC_SUBMITTING）
+// 起草选项（使用单位与最终电梯台账共用，handover:create 权限）
+function getHandoverOptions() {
+  return get('/handovers/options')
+}
+
+// 发起移交（三份资料及使用单位齐全，创建即进入 PENDING_INST_REVIEW）
 function initHandover(data) {
   return post('/handovers', data)
 }
@@ -27,8 +31,6 @@ function assignHandoverReceiver(id, data) {
   return post('/handovers/' + id + '/assign-receiver', data)
 }
 
-// 提交现场查验（6 类，安全装置/制动器任一 FAIL → 后端转 RECTIFYING）
-// 契约保留：C-12 后新建单走 74 项 checklist submit，旧 6 类端点后端保留兼容
 function submitHandoverInspect(id, data) {
   return post('/handovers/' + id + '/inspect', data)
 }
@@ -48,18 +50,14 @@ function confirmHandover(id, data) {
   return post('/handovers/' + id + '/confirm', data)
 }
 
-// C-13 安装部内部审核：action=APPROVE→INSPECTING / REJECT→DOC_SUBMITTING（remark+deadline 必填）
 function reviewHandover(id, data) {
   return post('/handovers/' + id + '/review', data)
 }
 
-// C-13 作废：任意未生效态→VOIDED（reason 必填）
 function voidHandover(id, data) {
   return post('/handovers/' + id + '/void', data)
 }
 
-// 接收工程师候选：复用管理端人员目录 GET /employees（console:read 角色可读），
-// 页面无权时由调用方降级为手工填写工号 + 姓名
 function getReceiverCandidates() {
   return get('/employees').then(function (list) {
     return (list || [])
@@ -72,7 +70,6 @@ function getReceiverCandidates() {
   })
 }
 
-// ── C-12：GB/T 10060—2023 74 项移交检查清单（docs/15、docs/04 A.9）──
 
 // 74 项检查清单（进入查验中生成草稿，幂等）→ {check, items[74]}
 function getHandoverChecklist(id) {
@@ -99,8 +96,6 @@ function recheckHandoverItem(id, rectId, data) {
   return post('/handovers/' + id + '/rectifications/' + rectId + '/recheck', data)
 }
 
-// ☆项置 NA 的维保部经理审批（写 handover_sign 节点 NA_APPROVE）
-// 契约保留、小程序暂无入口：NA 审批/ PDF 导出/一梯一档在管理端移交视图
 function approveHandoverNa(id, data) {
   return post('/handovers/' + id + '/na-approve', data)
 }
@@ -116,6 +111,7 @@ function getElevatorArchive(id) {
 }
 
 module.exports = {
+  getHandoverOptions,
   initHandover,
   getHandoverDetail,
   getHandoverList,

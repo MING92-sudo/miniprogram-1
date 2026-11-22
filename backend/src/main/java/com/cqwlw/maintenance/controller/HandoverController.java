@@ -16,11 +16,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Map;
 
-/**
- * 移交单（W1，Task 4）端点。
- * /handovers/** 不在 AdminRoleInterceptor 覆盖清单，读端点走 MultiRoleGate.requireRead(HANDOVER_VIEW)；
- * 创建（init）走 requireWrite(HANDOVER_CREATE)（2026-11-21 对齐矩阵 §4.1：仅 INST_PM，越权 403 无副作用）。
- */
 @RestController
 public class HandoverController {
 
@@ -30,7 +25,14 @@ public class HandoverController {
         this.handoverService = handoverService;
     }
 
-    /** 安装部发起移交（进入 DOC_SUBMITTING）；handover:create 仅 INST_PM（矩阵 §4.1） */
+    /** 起草选项：与小程序/管理端共用使用单位档案，避免两套自由文本。 */
+    @GetMapping("/handovers/options")
+    public ApiResponse<Map<String, Object>> options(HttpServletRequest req) {
+        MultiRoleGate.requireWrite(req, PermissionMatrix.HANDOVER_CREATE);
+        return ApiResponse.ok(handoverService.options());
+    }
+
+    /** 安装部发起移交（资料齐全后进入 PENDING_INST_REVIEW） */
     @PostMapping("/handovers")
     public ApiResponse<HandoverOrder> init(@RequestBody(required = false) Map<String, Object> body,
                                            HttpServletRequest req) {
@@ -38,7 +40,6 @@ public class HandoverController {
         return ApiResponse.ok(handoverService.init(body));
     }
 
-    /** 管理端列表（Task 14）：status 过滤 + 分页；部门互斥读门禁（2026-11-15 对齐权限面） */
     @GetMapping("/handovers")
     public ApiResponse<Map<String, Object>> list(@RequestParam(required = false) String status,
                                                  @RequestParam(required = false) String page,
@@ -107,7 +108,7 @@ public class HandoverController {
         return ApiResponse.ok(handoverService.recheckRectify(id, body));
     }
 
-    /** 经理确认 → 已归档（归档副作用见 Task 5） */
+    /** 确认后归档。 */
     @PostMapping("/handovers/{id}/confirm")
     public ApiResponse<HandoverOrder> confirm(@PathVariable String id,
                                               @RequestBody(required = false) Map<String, Object> body,
@@ -116,7 +117,7 @@ public class HandoverController {
         return ApiResponse.ok(handoverService.confirm(id, body, empId(req)));
     }
 
-    /** 节点账号签字（通过=签字；非该节点授权角色 1403，Task 6） */
+    /** 仅节点授权角色可签字。 */
     @PostMapping("/handovers/{id}/sign")
     public ApiResponse<HandoverSign> sign(@PathVariable String id,
                                           @RequestBody(required = false) Map<String, Object> body,
@@ -124,7 +125,6 @@ public class HandoverController {
         return ApiResponse.ok(handoverService.signNode(id, body, empId(request)));
     }
 
-    /** C-13 安装部内部审核：通过→INSPECTING（handover:review）/退回→DOC_SUBMITTING（handover:review_return，原因+期限必填） */
     @PostMapping("/handovers/{id}/review")
     public ApiResponse<HandoverOrder> review(@PathVariable String id,
                                              @RequestBody(required = false) Map<String, Object> body,
@@ -138,7 +138,6 @@ public class HandoverController {
         return ApiResponse.ok(handoverService.review(id, body, empId(request)));
     }
 
-    /** C-13 作废：任意未生效态→VOIDED（handover:void，原因必填；安装主管/维保经理/平台） */
     @PostMapping("/handovers/{id}/void")
     public ApiResponse<HandoverOrder> voidHandover(@PathVariable String id,
                                                    @RequestBody(required = false) Map<String, Object> body,

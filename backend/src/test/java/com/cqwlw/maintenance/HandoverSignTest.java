@@ -29,10 +29,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/**
- * 移交节点账号签字（Task 6，设计文档 §7）：内部账号「节点通过即签字」，账号名自动填写；
- * 非该节点授权角色签字一律 1403 且不落痕（防伪造他人节点确认）。
- */
+/** 非该节点授权角色签字一律 1403 且不落痕（防伪造他人节点确认）。 */
 class HandoverSignTest {
 
     private static final String ORDER = "ho_1";
@@ -49,7 +46,7 @@ class HandoverSignTest {
         service = new HandoverService(orderMapper, mock(HandoverCheckMapper.class),
                 mock(HandoverCheckItemMapper.class), mock(HandoverRectificationMapper.class),
                 signMapper, mock(ElevatorMapper.class), employeeMapper, mock(WorkOrderMapper.class),
-                mock(DispatchService.class));
+                mock(DispatchService.class), mock(com.cqwlw.maintenance.service.HandoverArchiveSupport.class));
 
         HandoverOrder order = new HandoverOrder();
         order.id = ORDER;

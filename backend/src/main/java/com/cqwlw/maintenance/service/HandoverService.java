@@ -35,37 +35,25 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
-/**
- * 移交单（W1，Task 4）状态机 + 3 必传资料卡点 + 现场查验/整改/复验。
- * 6 态：INIT→DOC_SUBMITTING→INSPECTING→(RECTIFYING⇄)→PENDING_CONFIRM→ARCHIVED。
- * 归档副作用（建电梯/首保工单）在 Task 5 的 archive()，本服务只实现到 confirm 的纯状态流转。
- * 角色门禁待 Task 8（INSTALLER/USE_UNIT 角色 + 端点级门禁 + 数据范围谓词），本服务不做角色判断。
- */
 @Service
 public class HandoverService {
 
-    /** 状态枚举（String，与 handover_order.status 对应） */
     private static final String INIT = "INIT";
     private static final String DOC_SUBMITTING = "DOC_SUBMITTING";
     private static final String INSPECTING = "INSPECTING";
     private static final String RECTIFYING = "RECTIFYING";
     private static final String PENDING_CONFIRM = "PENDING_CONFIRM";
     private static final String ARCHIVED = "ARCHIVED";
-    /** C-13：待安装部审核（资料齐全提交后进入）与作废（任意未生效态） */
     private static final String PENDING_INST_REVIEW = "PENDING_INST_REVIEW";
     private static final String VOIDED = "VOIDED";
 
-    /** 现场查验 6 类 item */
     private static final List<String> ITEM_TYPES = List.of(
             "RUNNING", "SAFETY_DEVICE", "BRAKE", "EMERGENCY_OPERATION", "MACHINE_ROOM_SHAFT", "ACCESSORIES");
-    /** C-12（D-2）：任一查验项 FAIL 即强制转 RECTIFYING（GB/T 10060 7.2），不再限定安全装置/制动器两类。 */
     private static final String PASS = "PASS";
     private static final String FAIL = "FAIL";
 
-    /** 节点签字动作（Task 6）：通过=签字，驳回留痕（状态流转仍由业务端点驱动） */
     private static final String APPROVE = "APPROVE";
     private static final String REJECT = "REJECT";
-    /** 节点 → 授权角色（设计文档 §7/§10：安装部单角色、维保部经理 LEADER/ADMIN、接收工程师/查验人 WORKER） */
     private static final Map<String, Set<String>> NODE_ROLES = Map.of(
             "INSTALLER_HANDOVER", Set.of("INSTALLER"),
             "MAINTENANCE_ASSIGN", Set.of("LEADER", "ADMIN", "SYS_ADMIN"),
@@ -81,6 +69,7 @@ public class HandoverService {
     private final EmployeeMapper employeeMapper;
     private final WorkOrderMapper workOrderMapper;
     private final DispatchService dispatchService;
+    private final HandoverArchiveSupport archiveSupport;
 
     public HandoverService(HandoverOrderMapper orderMapper,
                            HandoverCheckMapper checkMapper,
@@ -90,35 +79,61 @@ public class HandoverService {
                            ElevatorMapper elevatorMapper,
                            EmployeeMapper employeeMapper,
                            WorkOrderMapper workOrderMapper,
-                           DispatchService dispatchService) {
+                           DispatchService dispatchService,
+                           HandoverArchiveSupport archiveSupport) {
         this.orderMapper = orderMapper;
         this.checkMapper = checkMapper;
         this.checkItemMapper = checkItemMapper;
         this.rectificationMapper = rectificationMapper;
-        this.signMapper = signMapper; // Task 6 signNode 用
+        this.signMapper = signMapper;
         this.elevatorMapper = elevatorMapper;
         this.employeeMapper = employeeMapper;
         this.workOrderMapper = workOrderMapper;
         this.dispatchService = dispatchService;
+        this.archiveSupport = archiveSupport;
     }
 
-    /** 安装部发起移交：创建移交单并直接进入 DOC_SUBMITTING（INIT 仅作枚举默认值，无独立「开始」动作） */
+    public Map<String, Object> options() {
+        return Map.of("useUnits", archiveSupport.useUnitOptions());
+    }
+
+    /** 安装部发起移交：三份资料与使用单位齐全后创建，直接进入 PENDING_INST_REVIEW。 */
     public HandoverOrder init(Map<String, Object> body) {
         String projectName = str(body, "projectName");
         if (blank(projectName)) {
             throw new BizException(422, "项目名称不能为空");
         }
+        String useUnitId = trimToNull(str(body, "useUnitId"));
+        if (useUnitId == null) {
+            throw new BizException(422, "请选择使用单位");
+        }
+        archiveSupport.requireUseUnit(useUnitId);
+        if (blank(str(body, "factoryNumber"))) {
+            throw new BizException(422, "厂家出厂编号为归档时 2.7 查询依据，不能为空");
+        }
+        if (blank(str(body, "insideNumber"))) {
+            throw new BizException(422, "单位内编号为设备档案必传项，不能为空");
+        }
+        String supervisionReportFileId = trimToNull(str(body, "supervisionReportFileId"));
+        String maintenanceManualFileId = trimToNull(str(body, "maintenanceManualFileId"));
+        String qualityCertificateFileId = trimToNull(str(body, "qualityCertificateFileId"));
+        if (supervisionReportFileId == null || maintenanceManualFileId == null || qualityCertificateFileId == null) {
+            throw new BizException(422, "监督检验报告、维护使用说明书、安装质量证明文件缺一不可");
+        }
         HandoverOrder o = new HandoverOrder();
         o.id = Ids.next("ho");
         o.handoverNo = Ids.next("ho");
         o.createdAt = LocalDateTime.now();
-        o.status = DOC_SUBMITTING;
+        o.status = PENDING_INST_REVIEW;
         o.projectName = projectName.trim();
-        o.elevatorId = trimToNull(str(body, "elevatorId"));
+        o.useUnitId = useUnitId;
+        o.supervisionReportFileId = supervisionReportFileId;
+        o.maintenanceManualFileId = maintenanceManualFileId;
+        o.qualityCertificateFileId = qualityCertificateFileId;
+        // elevatorId 只允许 archive() 回填，起草时传入一律忽略，禁止绕过建挡与首保排期。
         o.supervisionPassDate = dateOrNull(body == null ? null : body.get("supervisionPassDate"));
         o.initiatorId = trimToNull(str(body, "initiatorId"));
         o.initiatorName = trimToNull(str(body, "initiatorName"));
-        // 电梯信息快照（供 Task 5 archive() 归档建电梯用）
         o.elevatorCode = trimToNull(str(body, "elevatorCode"));
         o.elevatorName = trimToNull(str(body, "elevatorName"));
         o.category = trimToNull(str(body, "category"));
@@ -137,7 +152,6 @@ public class HandoverService {
         o.ratedSpeedUnit = trimToNull(str(body, "ratedSpeedUnit"));
         o.stationsDoors = trimToNull(str(body, "stationsDoors"));
         o.workTypeCode = trimToNull(str(body, "workTypeCode"));
-        // C-12：表单 §3.3 第 6—7 行表头（安装竣工日期/安装单位名称/特殊类别）
         o.installCompleteDate = trimToNull(str(body, "installCompleteDate"));
         o.installUnitName = trimToNull(str(body, "installUnitName"));
         o.specialType = trimToNull(str(body, "specialType"));
@@ -145,7 +159,7 @@ public class HandoverService {
         return o;
     }
 
-    /** 提交 3 必传资料（监督检验报告/维保说明书/整机质量证明），缺一 422；齐全则转待安装部审核（C-13） */
+    /** 三份资料齐全后转待安装部审核。 */
     public HandoverOrder submitDocs(String id, Map<String, Object> body) {
         HandoverOrder o = requireOrder(id);
         requireStatus(o, DOC_SUBMITTING, "提交资料");
@@ -163,10 +177,7 @@ public class HandoverService {
         return o;
     }
 
-    /**
-     * C-13 安装部内部审核：PENDING_INST_REVIEW → 通过 INSPECTING / 退回 DOC_SUBMITTING。
-     * 退回必填原因（remark）+ 整改期限（deadline yyyy-MM-dd）；留痕审核人/时间。角色门禁在控制器（handover:review / review_return）。
-     */
+    /** 安装部审核：通过进入现场查验，退回须填写原因和整改期限。 */
     public HandoverOrder review(String id, Map<String, Object> body, String actorEmpId) {
         HandoverOrder o = requireOrder(id);
         requireStatus(o, PENDING_INST_REVIEW, "内部审核");
@@ -197,10 +208,7 @@ public class HandoverService {
         return o;
     }
 
-    /**
-     * C-13 作废：任意未生效态（非 ARCHIVED/VOIDED）→ VOIDED，原因必填，留痕操作人/时间。
-     * 角色门禁在控制器（handover:void：安装主管/维保经理/平台）。已归档不可作废（保护归档副作用）。
-     */
+    /** 未归档移交单可作废，须填写原因。 */
     public HandoverOrder voidHandover(String id, Map<String, Object> body, String actorEmpId) {
         HandoverOrder o = requireOrder(id);
         if (ARCHIVED.equals(o.status) || VOIDED.equals(o.status)) {
@@ -228,7 +236,6 @@ public class HandoverService {
         return actor;
     }
 
-    /** 维保部经理分配接收工程师（receiver_id/receiver_name），状态不变（仍 INSPECTING） */
     public HandoverOrder assignReceiver(String id, Map<String, Object> body) {
         HandoverOrder o = requireOrder(id);
         requireStatus(o, INSPECTING, "分配接收人员");
@@ -242,7 +249,7 @@ public class HandoverService {
         return o;
     }
 
-    /** 提交现场查验结果：安全装置/制动器任一 FAIL → RECTIFYING，否则 → PENDING_CONFIRM */
+    /** 任一查验项 FAIL 进入整改，否则进入待确认。 */
     public HandoverOrder submitInspect(String id, Map<String, Object> body) {
         HandoverOrder o = requireOrder(id);
         requireStatus(o, INSPECTING, "提交查验");
@@ -273,7 +280,6 @@ public class HandoverService {
             insertItem(check.id, type, result, str(item, "remark"));
             seen.add(type);
         }
-        // 默认补齐缺失的 6 项为 NA，保证每单查验清单完整
         for (String type : ITEM_TYPES) {
             if (!seen.contains(type)) {
                 insertItem(check.id, type, "NA", null);
@@ -285,7 +291,6 @@ public class HandoverService {
         return o;
     }
 
-    /** 安装部上传整改前后照片，状态不变（仍 RECTIFYING） */
     public HandoverOrder submitRectify(String id, Map<String, Object> body) {
         HandoverOrder o = requireOrder(id);
         requireStatus(o, RECTIFYING, "上传整改");
@@ -309,7 +314,6 @@ public class HandoverService {
         return o;
     }
 
-    /** 复验：通过 → PENDING_CONFIRM；不通过 → 保持 RECTIFYING */
     public HandoverOrder recheckRectify(String id, Map<String, Object> body) {
         HandoverOrder o = requireOrder(id);
         requireStatus(o, RECTIFYING, "复验");
@@ -322,7 +326,6 @@ public class HandoverService {
         LocalDateTime now = LocalDateTime.now();
         String rectId = trimToNull(str(body, "rectId"));
         if (rectId != null) {
-            // C-12（M6）：逐条复验，全部 PASS 才回待确认
             HandoverRectification one = rectificationMapper.selectById(rectId);
             if (one == null || !o.id.equals(one.handoverId)) {
                 throw new BizException(404, "整改记录不存在");
@@ -357,8 +360,7 @@ public class HandoverService {
         return o;
     }
 
-    /** 维保部经理确认：PENDING_CONFIRM → ARCHIVED，记录确认人/时间。
-     *  确认=归档一步到位：状态流转后随即调用 archive() 执行建电梯/责任人/首保工单副作用，整体一个事务。 */
+    /** 确认后归档，并在同一事务创建电梯档案和首保工单。 */
     @Transactional(rollbackFor = Exception.class)
     public HandoverOrder confirm(String id, Map<String, Object> body, String actorEmpId) {
         HandoverOrder o = requireOrder(id);
@@ -375,17 +377,12 @@ public class HandoverService {
         return archive(o.id);
     }
 
-    /**
-     * 归档副作用（Task 5 前半）：把移交单电梯信息快照建为电梯档案（archiveSource=1）、
-     * 并预建首保（HM）工单（sourceHandoverId 回指移交单，planTime=归档日+15 自然日）。
-     * 区域抢单池（D2/M6）：归档建梯不写主维保/配合人绑定，首保工单发布到区域池认领。
-     * 幂等：已归档（elevatorId 非空）直接返回，不重复建电梯/首保工单。
-     */
+    /** 归档创建电梯档案和首保工单；elevatorId 非空时直接返回。 */
     @Transactional(rollbackFor = Exception.class)
     public HandoverOrder archive(String handoverId) {
         HandoverOrder order = requireOrder(handoverId);
         if (order.elevatorId != null) {
-            return order; // 已归档，幂等守卫
+            return order;
         }
         Elevator el = new Elevator();
         el.id = Ids.next("el");
@@ -399,7 +396,6 @@ public class HandoverService {
         el.model = order.model;
         el.brand = order.brand;
         el.manufacturer = order.manufacturer;
-        // 出厂编号（原单据 productNo，V59 统一更名 factoryNumber）
         el.factoryNumber = order.factoryNumber;
         el.driveMode = order.driveMode;
         el.ratedLoad = order.ratedLoad;
@@ -409,11 +405,20 @@ public class HandoverService {
         el.stationsDoors = order.stationsDoors;
         el.workTypeCode = order.workTypeCode;
         el.projectName = order.projectName;
+        el.useUnitId = order.useUnitId;
+        el.specialType = order.specialType;
         el.supervisionPassDate = order.supervisionPassDate;
+        el.inspectionReportFileId = order.supervisionReportFileId;
+        el.inspectionReportUploadedAt = LocalDateTime.now();
         el.archiveSource = 1;
         el.handoverAt = LocalDateTime.now();
-        // 区域抢单池（D2/M6）：归档建梯不再写 worker*/assistant* 绑定——电梯归属=所在区域，
-        // 首保预建工单池化不带人，由同区域持平台ID的维保员签到认领
+        archiveSupport.enrich(order, el);
+        if (el.elevatorName == null || el.elevatorName.isBlank()) {
+            el.elevatorName = el.insideNumber == null || el.insideNumber.isBlank()
+                    ? el.elevatorCode : el.insideNumber;
+        }
+        DeviceProfileValidator.requireForCreate(el);
+        // 首保工单进入区域池，不绑定维保人员。
         elevatorMapper.insert(el);
         order.elevatorId = el.id;
         orderMapper.updateById(order);
@@ -425,11 +430,7 @@ public class HandoverService {
         return order;
     }
 
-    /**
-     * 移交节点账号签字（Task 6，设计文档 §7）：内部账号「节点通过即签字」——actor 取登录人，
-     * 账号名自动填写；只有该节点授权角色可签，否则 1403（防伪造他人节点确认）。
-     * 只留痕不改状态机：节点动作与状态流转仍由各自业务端点驱动（submitDocs/assignReceiver/inspect/confirm）。
-     */
+    /** 仅授权角色可签对应节点；签字只留痕，不驱动状态流转。 */
     @Transactional(rollbackFor = Exception.class)
     public HandoverSign signNode(String handoverId, Map<String, Object> body, String actorEmpId) {
         HandoverOrder order = requireOrder(handoverId);
@@ -462,17 +463,11 @@ public class HandoverService {
         return sign;
     }
 
-    /** 管理端列表（Task 14）：按状态过滤，发起时间倒序；内存再过滤一次防谓词漏条件 */
     public Map<String, Object> list(Map<String, String> query) {
         return list(query, null);
     }
 
-    /**
-     * 列表（小程序/管理端共用）。维保部读收敛（2026-11-20 真机反馈③）：生效角色为纯维保部
-     * （含 MAINT_*、不含安装部/平台管理）且未显式按状态查询时，只返回维保验收阶段
-     * （INSPECTING/RECTIFYING/PENDING_CONFIRM/ARCHIVED，正向白名单——VOIDED 作废单与安装内部
-     * 阶段 INIT/DOC_SUBMITTING/PENDING_INST_REVIEW 均不下发）；显式 status 查询尊重入参。
-     */
+    /** 纯维保角色未指定状态时，仅返回验收阶段单据。 */
     public Map<String, Object> list(Map<String, String> query, java.util.Set<String> roles) {
         String status = query == null ? null : query.get("status");
         boolean maintenanceOnly = roles != null && !roles.isEmpty()
@@ -491,14 +486,10 @@ public class HandoverService {
         return Paginate.of(filtered, query == null ? Map.of() : query);
     }
 
-    /** 维保部读收敛可见的验收阶段白名单（见 list 注释） */
     private static final java.util.Set<String> MAINT_VISIBLE_STATUSES = java.util.Set.of(
             "INSPECTING", "RECTIFYING", "PENDING_CONFIRM", "ARCHIVED");
 
-    /**
-     * 详情（管理端 Task 14 / 小程序详情页共用）：单据字段保持顶层不变，另加
-     * checks（查验批次+items）、rectifications、signs 三个关联数组，避免前端再打多个接口。
-     */
+    /** 详情聚合查验、整改和签字记录。 */
     @SuppressWarnings("unchecked")
     public Map<String, Object> detail(String id) {
         HandoverOrder o = requireOrder(id);
@@ -523,7 +514,6 @@ public class HandoverService {
         return out;
     }
 
-    /** 移交单详情，不存在 1404 */
     public HandoverOrder get(String id) {
         return requireOrder(id);
     }

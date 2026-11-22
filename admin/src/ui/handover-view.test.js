@@ -3,8 +3,6 @@ import { mount, flushPromises } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import { createRouter, createWebHashHistory } from 'vue-router'
 
-// C-12 移交管理视图级测试：mock API/权限/鉴权，验证渲染与关键交互 wiring。
-// 权限三态矩阵本身由 permission-v2.test.js 覆盖，此处 state 恒 Y 以聚焦视图行为。
 vi.mock('./permission-v2', () => ({
   state: () => 'Y',
   canonical: (r) => r,
@@ -24,6 +22,8 @@ vi.mock('../api/client', () => ({
 vi.mock('../api/upload', () => ({ uploadFile: vi.fn(() => Promise.resolve({ fileId: 'file_1', url: '' })) }))
 vi.mock('../api/handover', () => ({
   listHandovers: vi.fn(),
+  getHandoverOptions: vi.fn(),
+  createHandover: vi.fn(),
   handoverDetail: vi.fn(),
   confirmHandover: vi.fn(),
   getChecklist: vi.fn(),
@@ -59,6 +59,8 @@ describe('HandoversView C-12（原型对齐版）', () => {
     setActivePinia(createPinia())
     vi.clearAllMocks()
     api.listHandovers.mockResolvedValue({ list: [order], total: 1 })
+    api.getHandoverOptions.mockResolvedValue({ useUnits: [{ id: 'uu_1', unitName: '世纪物业' }] })
+    api.createHandover.mockResolvedValue({ id: 'ho_new', status: 'PENDING_INST_REVIEW' })
     api.handoverDetail.mockResolvedValue({})
     api.getChecklist.mockResolvedValue({ check: { totalItems: 74, conclusion: null }, items: [item] })
     api.getRectifications.mockResolvedValue([])
@@ -156,5 +158,41 @@ describe('HandoversView C-12（原型对齐版）', () => {
     await flushPromises()
     expect(api.exportPdf).toHaveBeenCalledWith('ho_1', 'CHECK')
     expect(global.URL.createObjectURL).toHaveBeenCalled()
+  })
+
+  it('create requires three documents and submits unified elevator fields without elevatorId', async () => {
+    const w = mountView()
+    await flushPromises()
+    await btn(w, '移交单起草').trigger('click')
+    await flushPromises()
+
+    expect(w.text()).not.toContain('关联电梯')
+    expect(w.text()).toContain('监督检验报告')
+    expect(w.text()).toContain('安装质量证明文件')
+    expect(w.text()).toContain('维护使用说明书')
+    expect(api.getHandoverOptions).toHaveBeenCalled()
+
+    Object.assign(w.vm.createModel, {
+      projectName: '渝北项目', useUnitId: 'uu_1', factoryNumber: 'SGL-2026-001', insideNumber: 'KT-01',
+      elevatorCode: '', regCode: '', deviceCode: ''
+    })
+    await btn(w, '确认起草').trigger('click')
+    await flushPromises()
+    expect(api.createHandover).not.toHaveBeenCalled()
+
+    w.vm.createDocs[0].fileId = 'file_supervision'
+    w.vm.createDocs[1].fileId = 'file_quality'
+    w.vm.createDocs[2].fileId = 'file_manual'
+    await btn(w, '确认起草').trigger('click')
+    await flushPromises()
+
+    expect(api.createHandover).toHaveBeenCalledTimes(1)
+    const body = api.createHandover.mock.calls[0][0]
+    expect(body).toMatchObject({
+      projectName: '渝北项目', useUnitId: 'uu_1', factoryNumber: 'SGL-2026-001', insideNumber: 'KT-01',
+      supervisionReportFileId: 'file_supervision', qualityCertificateFileId: 'file_quality',
+      maintenanceManualFileId: 'file_manual'
+    })
+    expect(body).not.toHaveProperty('elevatorId')
   })
 })

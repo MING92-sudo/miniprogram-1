@@ -23,10 +23,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-/**
- * 移交单状态机（Task 4）：3 必传资料卡点、安全装置/制动器不合格强制整改、复验通过回待确认。
- * 归档副作用（建电梯/首保工单）在 Task 5 archive()，本测试只验证到 confirm 的状态流转。
- */
+/** 移交单状态机：3 必传资料卡点、安全装置/制动器不合格强制整改、复验通过回待确认。 */
 class HandoverServiceTest {
 
     private static HandoverService service(HandoverOrderMapper orderMapper,
@@ -36,29 +33,37 @@ class HandoverServiceTest {
                                            HandoverSignMapper signMapper) {
         return new HandoverService(orderMapper, checkMapper, checkItemMapper, rectificationMapper, signMapper,
                 mock(ElevatorMapper.class), mock(EmployeeMapper.class), mock(WorkOrderMapper.class),
-                mock(DispatchService.class));
+                mock(DispatchService.class), mock(com.cqwlw.maintenance.service.HandoverArchiveSupport.class));
     }
 
-    /** C-12：init 接收表单 §3.3 表头三字段（安装竣工日期/安装单位名称/特殊类别） */
+    private static Map<String, Object> draft(String projectName) {
+        Map<String, Object> body = new java.util.HashMap<>();
+        body.put("projectName", projectName);
+        body.put("useUnitId", "uu_1");
+        body.put("factoryNumber", "SGL-2026-001");
+        body.put("insideNumber", "KT-01");
+        body.put("supervisionReportFileId", "f1");
+        body.put("maintenanceManualFileId", "f2");
+        body.put("qualityCertificateFileId", "f3");
+        return body;
+    }
+
     @Test
     void initCarriesC12HeaderFields() {
         HandoverOrderMapper orderMapper = mock(HandoverOrderMapper.class);
         HandoverService svc = service(orderMapper, mock(HandoverCheckMapper.class),
                 mock(HandoverCheckItemMapper.class), mock(HandoverRectificationMapper.class),
                 mock(HandoverSignMapper.class));
-        HandoverOrder o = svc.init(Map.of("projectName", "渝北区某项目",
-                "installCompleteDate", "2026-11-01", "installUnitName", "某安装公司", "specialType", "消防员电梯"));
+        Map<String, Object> body = draft("渝北区某项目");
+        body.put("installCompleteDate", "2026-11-01");
+        body.put("installUnitName", "某安装公司");
+        body.put("specialType", "消防员电梯");
+        HandoverOrder o = svc.init(body);
         assertEquals("2026-11-01", o.installCompleteDate);
         assertEquals("某安装公司", o.installUnitName);
         assertEquals("消防员电梯", o.specialType);
     }
 
-    /**
-     * 2026-11-20 真机反馈③：纯维保部角色列表默认只返回维保验收阶段
-     * （INSPECTING/RECTIFYING/PENDING_CONFIRM/ARCHIVED），安装内部阶段
-     * （INIT/DOC_SUBMITTING/PENDING_INST_REVIEW）不下发；显式 status 查询尊重入参；
-     * 安装部/平台/混合角色不过滤。
-     */
     @Test
     void listScopesMaintenanceOnlyRolesToAcceptanceStages() {
         HandoverOrderMapper orderMapper = mock(HandoverOrderMapper.class);
@@ -111,7 +116,9 @@ class HandoverServiceTest {
                 mock(HandoverCheckItemMapper.class), mock(HandoverRectificationMapper.class),
                 mock(HandoverSignMapper.class));
 
-        HandoverOrder created = svc.init(Map.of("projectName", " 渝北区某项目 "));
+        HandoverOrder created = new HandoverOrder();
+        created.id = "ho_legacy";
+        created.status = "DOC_SUBMITTING";
         when(orderMapper.selectById(created.id)).thenReturn(created);
 
         BizException e = assertThrows(BizException.class, () -> svc.submitDocs(created.id, Map.of(
@@ -132,15 +139,10 @@ class HandoverServiceTest {
         HandoverService svc = new HandoverService(orderMapper, mock(HandoverCheckMapper.class),
                 mock(HandoverCheckItemMapper.class), mock(HandoverRectificationMapper.class),
                 mock(HandoverSignMapper.class), mock(ElevatorMapper.class), employeeMapper,
-                mock(WorkOrderMapper.class), mock(DispatchService.class));
+                mock(WorkOrderMapper.class), mock(DispatchService.class), mock(com.cqwlw.maintenance.service.HandoverArchiveSupport.class));
 
-        HandoverOrder created = svc.init(Map.of("projectName", "渝北区某项目"));
+        HandoverOrder created = svc.init(draft("渝北区某项目"));
         when(orderMapper.selectById(created.id)).thenReturn(created);
-        svc.submitDocs(created.id, Map.of(
-                "supervisionReportFileId", "f1",
-                "maintenanceManualFileId", "f2",
-                "qualityCertificateFileId", "f3"));
-        // C-13：资料齐全进入待审核，审核通过后才进入查验中
         svc.review(created.id, Map.of("action", "APPROVE"), "im");
 
         svc.submitInspect(created.id, Map.of(
@@ -161,14 +163,10 @@ class HandoverServiceTest {
         HandoverService svc = new HandoverService(orderMapper, mock(HandoverCheckMapper.class),
                 mock(HandoverCheckItemMapper.class), mock(HandoverRectificationMapper.class),
                 mock(HandoverSignMapper.class), mock(ElevatorMapper.class), employeeMapper,
-                mock(WorkOrderMapper.class), mock(DispatchService.class));
+                mock(WorkOrderMapper.class), mock(DispatchService.class), mock(com.cqwlw.maintenance.service.HandoverArchiveSupport.class));
 
-        HandoverOrder created = svc.init(Map.of("projectName", "渝北区某项目"));
+        HandoverOrder created = svc.init(draft("渝北区某项目"));
         when(orderMapper.selectById(created.id)).thenReturn(created);
-        svc.submitDocs(created.id, Map.of(
-                "supervisionReportFileId", "f1",
-                "maintenanceManualFileId", "f2",
-                "qualityCertificateFileId", "f3"));
         svc.review(created.id, Map.of("action", "APPROVE"), "im"); // C-13 审核通过
         svc.submitInspect(created.id, Map.of(
                 "checkerId", "c1", "checkerName", "王五",
@@ -185,7 +183,6 @@ class HandoverServiceTest {
         assertEquals("PENDING_CONFIRM", created.status, "复验通过应回待确认");
     }
 
-    /** 管理端列表（Task 14）：status 过滤 + 发起时间倒序 */
     @Test
     void listFiltersByStatusAndSortsByCreatedAt() {
         HandoverOrderMapper orderMapper = mock(HandoverOrderMapper.class);
@@ -213,7 +210,6 @@ class HandoverServiceTest {
         assertEquals(2, out.get("total"));
     }
 
-    /** 详情带子资源（Task 14）：单据字段仍在顶层，另出 checks/rectifications/signs */
     @Test
     void detailCarriesSubResources() {
         HandoverOrderMapper orderMapper = mock(HandoverOrderMapper.class);
@@ -242,7 +238,8 @@ class HandoverServiceTest {
                 mock(com.cqwlw.maintenance.mapper.ElevatorMapper.class),
                 mock(com.cqwlw.maintenance.mapper.EmployeeMapper.class),
                 mock(com.cqwlw.maintenance.mapper.WorkOrderMapper.class),
-                mock(com.cqwlw.maintenance.service.DispatchService.class));
+                mock(com.cqwlw.maintenance.service.DispatchService.class),
+                mock(com.cqwlw.maintenance.service.HandoverArchiveSupport.class));
 
         Map<String, Object> out = svc.detail("ho_1");
         assertEquals("ho_1", out.get("id"));

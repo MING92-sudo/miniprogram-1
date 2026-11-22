@@ -23,11 +23,6 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-/**
- * C-13：移交内部审核（PENDING_INST_REVIEW）与作废（VOIDED）。
- * 资料齐全提交进入待安装部审核；安装主管审核通过→INSPECTING、退回→DOC_SUBMITTING（原因+期限必填）；
- * 任意未生效态可作废（原因必填，ARCHIVED/VOIDED 不可作废）。审核/作废留痕操作人。
- */
 class HandoverReviewVoidTest {
 
     private final HandoverOrderMapper orderMapper = mock(HandoverOrderMapper.class);
@@ -37,7 +32,7 @@ class HandoverReviewVoidTest {
         return new HandoverService(orderMapper, mock(HandoverCheckMapper.class),
                 mock(HandoverCheckItemMapper.class), mock(HandoverRectificationMapper.class),
                 mock(HandoverSignMapper.class), mock(ElevatorMapper.class), employeeMapper,
-                mock(WorkOrderMapper.class), mock(DispatchService.class));
+                mock(WorkOrderMapper.class), mock(DispatchService.class), mock(com.cqwlw.maintenance.service.HandoverArchiveSupport.class));
     }
 
     private HandoverOrder order(String status) {
@@ -57,19 +52,20 @@ class HandoverReviewVoidTest {
     }
 
     private HandoverOrder submitted() {
-        HandoverOrder o = service().init(Map.of("projectName", "某项目"));
+        HandoverOrder o = service().init(Map.of("projectName", "某项目", "useUnitId", "uu_1", "factoryNumber", "SGL-1", "insideNumber", "KT-01",
+                "supervisionReportFileId", "f1", "maintenanceManualFileId", "f2", "qualityCertificateFileId", "f3"));
         when(orderMapper.selectById(o.id)).thenReturn(o);
-        service().submitDocs(o.id, Map.of(
-                "supervisionReportFileId", "f1",
-                "maintenanceManualFileId", "f2",
-                "qualityCertificateFileId", "f3"));
         return o;
     }
 
     /** 资料齐全提交 → 待安装部审核（不再直达 INSPECTING） */
     @Test
     void submitDocsEntersPendingInstReview() {
-        HandoverOrder o = submitted();
+        HandoverOrder o = order("DOC_SUBMITTING");
+        service().submitDocs(o.id, Map.of(
+                "supervisionReportFileId", "f1",
+                "maintenanceManualFileId", "f2",
+                "qualityCertificateFileId", "f3"));
         assertEquals("PENDING_INST_REVIEW", o.status, "资料齐全应进入待安装部审核");
     }
 

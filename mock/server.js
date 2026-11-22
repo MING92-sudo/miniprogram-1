@@ -1,5 +1,3 @@
-// Mock 拦截器：按 method + 路径模板匹配 services 层请求，返回统一响应的 data 部分
-// 路径模板支持 :id 形式参数；handler 内 return 即业务成功，throw {code,message} 即业务失败
 const d = require('./data')
 const { formatTime, parseTime, distanceMeters } = require('../utils/util')
 const config = require('../config/index')
@@ -7,7 +5,6 @@ const menus = require('../config/menus')
 
 // mock 无 JWT 解析：登录成功后记住当前演示角色，供自助改密等"当前用户"接口使用
 let currentRole = 'WORKER'
-// M2 单账号多角色：当前会话角色集（登录写入），/me/menus 投影用
 let currentRoles = ['MAINT_TECH']
 // 统一登录客户分支：当前客户账号（clientAccounts 行），员工会话为 null
 let currentClient = null
@@ -27,10 +24,6 @@ function permsOf(roles) {
   }))
   return Object.keys(set)
 }
-// ── P1 T7：客户主体（使用单位）判定 / 门禁 / 字段白名单，逐条对齐后端 ──
-// 对应后端：RoleCatalog.isCustomerPrincipal、UnitRecordService（requireClient/requireOwnUnit/
-// requireViewable/requireSignable/toClientMap）、RecordLifecycleService.refuseByToken、UnitPortalService。
-// 客户主体 = 角色集非空且全部规范码为 CUSTOMER（CLIENT_ADMIN/CLIENT_SIGNER；旧码 UNIT_ADMIN 经根 ALIAS 归一）
 function isCustomerPrincipal(roles) {
   const list = roles || []
   if (!list.length) return false
@@ -39,7 +32,6 @@ function isCustomerPrincipal(roles) {
     return c === 'CLIENT_ADMIN' || c === 'CLIENT_SIGNER'
   })
 }
-// 登录体 principalType（后端 RoleCatalog.PrincipalType，T8 小程序消费）
 function principalTypeOf(roles) {
   return isCustomerPrincipal(roles) ? 'CUSTOMER' : 'EMPLOYEE'
 }
@@ -50,7 +42,7 @@ function clientUnitAnchor() {
   const u = d.db.employees[currentRole]
   return (u && u.useUnitId) || null
 }
-// 客户可见生命周期集合（docs/14 §4.6 可见性表，后端 CLIENT_VISIBLE_LIFECYCLES）：待签可签 + 三态只读
+// 客户可见生命周期集合：待签可签 + 三态只读
 const CLIENT_VISIBLE_LIFECYCLES = ['PENDING_CLIENT_SIGNATURE', 'SIGNED', 'ARCHIVED', 'REFUSED_RETURNED']
 // 记录归属单位（后端 UnitRecordService.unitOf 同口径：按电梯当前 useUnitId）
 function recordUnitId(r) {
@@ -97,9 +89,6 @@ function requirePortalUnit() {
   if (!unitId) throw { code: 403, message: '当前账号无使用单位数据权限' }
   return unitId
 }
-// 客户字段白名单投影（后端 UnitRecordService.toClientMap 等价，docs/14 §4.7）：明确不返回
-// reportPayload/context(previewContext)/shareToken/originalRecordId/workerPlatformId/assistantPlatformId/
-// refuseReason(内部复核)/reportStatus/uploadStatus/retryCount/satisfaction；items 同为白名单四字段
 function toClientRecord(r) {
   return {
     id: r.id,
@@ -119,12 +108,9 @@ function toClientRecord(r) {
     confirmStatus: r.confirmStatus || 'PENDING',
     signatureUrl: r.signatureUrl || '',
     pdfUrl: r.archiveFileId ? 'https://mock/files/' + r.archiveFileId + '?s=mock' : '',
-    // mock 演示字段（原型「记录版本 / SHA-256 前 8 位」展示；后端 P1 无对应列，签名链接页同源）
     recordVersion: r.recordVersion || '', hashPrefix: r.hashPrefix || '', frozenAt: r.frozenAt || ''
   }
 }
-// V2.80 签字 SLA（后端 ClientSignSlaService 同口径）：起算=signRequestedAt（回退 checkoutTime/createdAt），
-// 默认 72h；待签行/签字页倒计时/超期标记共用
 const CLIENT_SIGN_SLA_HOURS = 72
 function signSlaFields(r) {
   const base = r.signRequestedAt || r.checkoutTime || r.createdAt || ''
@@ -132,7 +118,6 @@ function signSlaFields(r) {
   const deadline = formatTime(new Date(parseTime(base) + CLIENT_SIGN_SLA_HOURS * 3600000))
   return { signRequestedAt: base, signDeadline: deadline, overdue: parseTime(deadline) < Date.now() }
 }
-// V2.80 拒签原因分类码（后端 RecordLifecycleService.REFUSE_CODES 镜像同步，改动必须双侧同改）
 const REFUSE_CODES = {
   R1: '记录内容与现场不符', R2: '维保项目漏项或未按单执行',
   R3: '现场照片不清晰或与实际不符', R4: '时间或人员信息有误', R5: '其他'
@@ -147,10 +132,6 @@ function clientRecordRow(r) {
     version: r.version != null ? r.version : 1
   }, signSlaFields(r))
 }
-// P1 兼容期例外（控制器裁决 T7-C2，docs/14 §4.6 规则 8「可保留既有 shareToken 供旧链接」）：
-// 客户待办「去签字」以行内 shareToken 拼签字链接（pkg-client/pages/todo goSign），而 sign 页只有 token
-// 路径、无会话回退，去掉即断签字链路 → 仅 /unit/pending-signs 行兼容期保留 shareToken；
-// /unit/records/list、/unit/records/pending 与记录详情一律不含。后端 recordRow 同步由 T8 补齐（本轮接受暂时差异）。
 function clientPendingSignRow(r) {
   return Object.assign(clientRecordRow(r), { shareToken: r.shareToken || '' })
 }
@@ -169,8 +150,7 @@ function clientPendingSignCount() {
   const codes = ownElevatorCodes(unitId)
   return (d.db.unitRecords || []).filter((r) => codes.has(r.elevatorCode) && isSignableRow(r)).length
 }
-// 签字落库（后端 UnitRecordService.signRecord 同口径，confirmAs/confirmByToken 共用，门禁须已前置通过）：
-// 先签为准（条件更新等价判定，已签 → 422，不覆盖首签）；satisfaction 一律不接收（docs/14 §4.7 评价关闭）
+// 签字落库（后端 UnitRecordService.signRecord 同口径，confirmAs/confirmByToken 共用，门禁须已前置通过）：先签为准（条件更新等价判定，已签 → 422，不覆盖首签）；
 function signRecord(r, body) {
   const signatureUrl = String((body && body.signatureUrl) || '')
   const signatureFileId = String((body && body.signatureFileId) || '')
@@ -184,13 +164,10 @@ function signRecord(r, body) {
   r.lifecycleStatus = 'SIGNED' // 后端 onClientSigned：SIGNED → 自动归档（mock 不生成 PDF）
   return { ok: true }
 }
-// 已裁合规矩阵台账模块总开关（docs/01 §10.2，2026-11-21 对齐后端 LegacyModuleInterceptor）：
-// /rescues /drills /inspects /knowledge 共 9 条端点默认 403；恢复交付时连同后端 APP_LEGACY_MODULES_ENABLED 一起打开
 const LEGACY_MODULES_ENABLED = false
 function requireLegacyModule() {
   if (!LEGACY_MODULES_ENABLED) throw { code: 403, message: '该模块已裁剪停用（docs/01 §10.2），恢复需开启 APP_LEGACY_MODULES_ENABLED' }
 }
-// 部门互斥读门禁（与后端 MultiRoleGate.requireRead 同口径，2026-11-15 对齐）
 function requireRead(code) {
   if (!currentRoles.some((r) => permMirror.state(r, code) !== 'DENY')) {
     throw { code: 1403, message: '无权访问该资源' }
@@ -202,11 +179,7 @@ function requireWrite(code) {
     throw { code: 1403, message: '无权限: ' + code }
   }
 }
-// C-24：V7 班组读谓词镜像（后端 EmployeeScopeService.visibleReadPlatformIds，按主角色 role 旧码判定）：
-// ADMIN（平台）与 MAINT_MANAGER/MAINT_QUALITY（维保管理）→ null 不限；
-// 安装部三岗与 MAINT_BIZ（非现场岗）→ 空集（任何记录 1403）；其余 → 本人 + LEADER 本班组。
 // 与后端同缺口径：规范码主角色（如 MAINT_MGR/PLATFORM_ADMIN）不落旧码集合 → 走本人兜底（fail-closed）；
-// mock 员工无 regionId 概念，区域分支省略（mock 数据未分区，与后端"未分区按原口径"一致）。
 function visibleReadPlatformIds() {
   const emp = d.db.employees[currentRole] || {}
   const role = emp.role || ''
@@ -222,8 +195,7 @@ function visibleReadPlatformIds() {
   if (!ids.size && emp.platformId) ids.add(emp.platformId)
   return ids
 }
-// 记录归属校验（后端 RecordController 同谓词，WorkOrderService.scopeOrders 同款）：
-// null=管理角色不限；非 null 须命中主维保或配合人员 platformId，越权 1403 无副作用；空集任何记录 1403
+// 记录归属校验（后端 RecordController 同谓词，WorkOrderService.scopeOrders 同款）：null=管理角色不限；
 function requireRecordScope(r) {
   const ids = visibleReadPlatformIds()
   if (ids === null) return
@@ -235,9 +207,6 @@ function requireRecordScope(r) {
 function currentEmployee() {
   return d.db.employees[currentRole] || {}
 }
-// 区域抢单池读谓词（2026-11-20 设计 §4.2 / M9/M11，后端 WorkOrderService.scopeOrders+poolVisible 同口径）：
-// 管理角色（ids==null）不限；已认领工单按主/配合人 platformId（V7 班组集合）放行；
-// 未认领 PENDING 池工单仅对持平台ID（D4）且 工单 regionId 快照为空（不限区域）或等于员工区域 的账号可见
 function orderVisible(o) {
   const ids = visibleReadPlatformIds()
   if (ids === null) return true
@@ -248,8 +217,6 @@ function orderVisible(o) {
       (o.regionId == null || o.regionId === '' || o.regionId === me.regionId)) return true
   return false
 }
-// 配合人候选谓词（后端 WorkOrderService.partnerEligible 同口径）：
-// 同区域快照（空=不限）∧ 持平台ID ∧ 在职 ∧ 排除主维保本人
 function partnerEligible(o, e) {
   if (!e || !e.platformId) return false
   if (e.enabled === false) return false
@@ -259,11 +226,9 @@ function partnerEligible(o, e) {
 // 移交 mock 状态（模块级，进程重启即清空）
 const mockHandovers = []
 
-// 自动排期触发点：真实后端为定时任务（docs/04 A.10.9），读接口一律不触发派单；
 // mock 无调度器，仅在模块加载时执行一次，读接口不得再调用 ensureDueOrders
 d.ensureDueOrders()
 
-// 分页（page 从 1 开始，size 默认 20，与接口文档 A.0 约定一致）
 function paginate(list, query) {
   const page = Math.max(1, Number(query && query.page) || 1)
   const size = Math.max(1, Number(query && query.size) || 20)
@@ -279,19 +244,13 @@ function findOr404(list, id, name) {
   return item
 }
 
-// C-25⑧ 匿名 token 端点归一（后端 UnitRecordService/RecordLifecycleService.findOr401 同口径）：
-// sign-view/confirm-by-token/refuse-by-token 记录不存在时与错 token 一致抛 401 同文案，
-// 匿名探测者无法据 1404/401 区分记录 id 存在性；内部认证路径仍用 findOr404（1404）
 function findOr401Token(list, id) {
   const item = list.find((x) => x.id === id)
   if (!item) throw { code: 401, message: '确认链接无效或已失效' }
   return item
 }
 
-// C-12：GB/T 10060—2023 表1 ☆重要项（49 项）与试验项（57—74），与后端 HandoverChecklistTemplate 对齐
 const HANDOVER_IMPORTANT = new Set([2, 3, 5, 8, 9, 10, 12, 13, 16, 18, 20, 21, 22, 23, 24, 25, 26, 29, 30, 32, 33, 35, 36, 37, 38, 39, 42, 43, 45, 46, 47, 48, 49, 50, 51, 52, 53, 58, 62, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73])
-// 74 项模板逐字对齐后端 HandoverChecklistTemplate.items()（序号/项类/条款/名称/要求），
-// mock 与真实后端同契约（clauseNo/requirement 供查验页展示详细内容，2026-11-21 真机反馈）
 const HANDOVER_TEMPLATE = [
   [1, 'G01', '5.1.1', '通道', '通往机器空间/滑轮间通道符合 GB/T 7588.1 5.2.2；畅通、安全、有照明，无杂物积水'],
   [2, 'G01', '5.1.2', '机器空间和滑轮间的要求', '旋转部件上方净距≥0.30m；滑轮间活动区净高≥1.50m；控制柜前净深≥0.70m；工作区净高≥2.10m；地面平整防滑；悬挂点标工作负荷'],
@@ -384,7 +343,6 @@ function judgeHandover(impFail, genFail, cond) {
   if (genFail >= 1 && genFail <= 3 && conditional) return 'CONDITIONAL'
   return 'RECTIFY'
 }
-// C-12：一梯一档 7 条归档目录（按移交单 id，SHA-256 占位，与后端 archive() 同结构）
 function handoverArchiveEntries(id) {
   const cats = [['01', 'CHECKLIST'], ['02', 'RECTIFICATION'], ['03', 'DOCS'], ['04', 'PHOTOS'],
     ['05', 'CONFIRMATION'], ['06', 'FIRST_ORDER'], ['07', 'PENDING_DOCS']]
@@ -392,8 +350,6 @@ function handoverArchiveEntries(id) {
     category: c[1], seq: i + 1, sha256: 'mock_sha256_' + c[0], archivedAt: formatTime(new Date()) }))
 }
 
-// 演示移交单（屏 02/24 原型基线 YJ-2026-0117）：模块加载即存在，避免依赖会话内 POST 持久化。
-// 数据为合成演示件，结构与后端 HandoverOrder/HandoverCheckItem 同口径（docs/04 A.9 / docs/15）。
 function seedDemoHandovers() {
   const docs = [
     { docType: 'FACTORY_CERT', docName: '出厂合格证', fileId: 'mock_file_1', missing: false },
@@ -432,11 +388,8 @@ function seedDemoHandovers() {
 }
 seedDemoHandovers()
 
-// M1 统一登录响应扩展（docs/04 V2.53）：账号登录/微信免密登录共用，与后端 loginResult 口径一致
 function loginPayload(roleKey) {
   const user = d.db.employees[roleKey]
-  // 旧码归一走根别名表（constants/permission-matrix.ALIAS，与后端 RoleCatalog.ALIAS 同源）——
-  // 此前此处手写第三份别名表，与 ALIAS 重复维护易漂移（P1 T7 裁决：统一引用）
   const canon = permMirror.canonical(roleKey) || roleKey
   const roles = (user.roles && user.roles.length ? user.roles : [canon]).map((r) => permMirror.canonical(r) || r)
   currentRoles = roles
@@ -445,19 +398,15 @@ function loginPayload(roleKey) {
   const scope = roles.indexOf('PLATFORM_ADMIN') > -1 ? '全部数据'
     : isCustomerPrincipal(roles) ? '本单位全部电梯'
       : roles.some((r) => r.indexOf('INST') === 0) ? '安装部项目范围' : '本班组维保范围'
-  // 与后端 AuthController.userInfo() 同口径：会话体不含 password（2026-11-16 审查修复）
   const userInfo = Object.assign({}, user)
   delete userInfo.password
   return {
     token: 'mock-token-' + Date.now(), userInfo, role: roleKey,
     roles, perms, scope, activeWorkspace: ws, home: menus.resolveHome(roles),
-    // P1 T7：主体类型（后端 RoleCatalog.isCustomerPrincipal 口径），T8 小程序据此收敛客户入口
     principalType: principalTypeOf(roles)
   }
 }
 
-// 统一登录客户分支（client_account，与后端 ClientLoginService 同形状）：
-// 串单位直接签发；多单位返回 needSelectUnit + 候选（口令已验证才调用）。
 function clientLoginPayload(matched) {
   if (matched.length === 1) {
     const a = matched[0]
@@ -515,15 +464,12 @@ function buildElevatorOverview(el) {
   }
 }
 const routes = [
-  // ── M6 管理统计域只读投影（pkg-admin，复用管理端端点） ──
   ['GET', '/projects', () => ({ list: (d.db.projects || []).slice(0, 50), total: (d.db.projects || []).length })],
   ['GET', '/contracts', () => ({ list: (d.db.contracts || []).slice(0, 50), total: (d.db.contracts || []).length })],
   ['GET', '/users', () => ({ list: Object.keys(d.db.employees).map((k) => { const e = d.db.employees[k]; return { id: e.id, name: e.name, account: e.account, role: e.role, roleText: e.roleText, groupName: e.groupName, enabled: e.enabled !== false } }), total: Object.keys(d.db.employees).length })],
-  // 2026-11-16 审查修复：补齐 services 已调用但 mock 缺失的 4 端点（docs/04 既有契约，三处同步）
-  // GET /employees：后端 AdminArchiveController 回纯数组；接收工程师候选按旧码 WORKER/ASSISTANT 过滤
   ['GET', '/employees', () => Object.keys(d.db.employees).map((k) => { const e = d.db.employees[k]; return { id: e.id, name: e.name, role: e.role === 'MAINT_TECH' ? 'WORKER' : e.role, groupName: e.groupName, enabled: e.enabled !== false } })],
   ['GET', '/use-units', () => d.db.useUnits],
-  // 使用单位档案写路由（docs/04 A 部分 / docs/09 §4.1；三处同步）。手机号互斥 1002 对齐后端 checkUseUnit：负责人手机 ≠ 安全管理员手机。
+  // 手机号互斥 1002 对齐后端 checkUseUnit：负责人手机 ≠ 安全管理员手机。
   ['POST', '/use-units', ({ body }) => {
     if (!body.unitName || !String(body.unitName).trim()) throw { code: 422, message: '使用单位名称必填' }
     if (body.unitPrincipalPhone && body.unitPrincipalPhone === body.elevatorAdministerPhone) {
@@ -551,7 +497,6 @@ const routes = [
     return { ok: true }
   }],
 
-  // ── P3 客户账号（docs/14 §6；三处同步 mock/server.js + services/admin api + docs/04）──
   ['GET', '/use-units/:id/accounts', ({ params }) => (d.db.clientAccounts || []).filter((a) => a.useUnitId === params.id)],
   ['POST', '/use-units/:id/accounts', ({ params, body }) => {
     const unit = d.db.useUnits.find((u) => u.id === params.id)
@@ -643,16 +588,13 @@ const routes = [
   ['GET', '/audit', () => ({ list: [], total: 0 })],
   ['GET', '/settings', () => ([{ key: 'record_review_enabled', value: '0', remark: '维保记录复核开关' }, { key: 'sla_minutes', value: '30', remark: '急修 SLA 分钟' }])],
   ['PUT', '/settings/:key', ({ params, body }) => ({ ok: true, key: params.key, value: body.value })],
-  // ── M1 小程序重构后端底座（docs/04 V2.53 三处同步） ──
   ['GET', '/me/menus', ({ query }) => {
-    // M2：与后端 MiniappMenuService 同投影（require 前端镜像，漂移守卫锁定 ROLE_TABS）
     const roles = currentRoles.length ? currentRoles : ['MAINT_TECH']
     const effective = query.workspace && roles.indexOf(query.workspace) > -1 ? [query.workspace] : roles
     const ws = menus.activeWorkspace(effective)
     const actions = {}
     const BUTTON_CODES = require('../services/menu').BUTTON_CODES
     BUTTON_CODES.forEach((c) => { actions[c] = effective.some((r) => permMirror.allowsNew(r, c)) })
-    // 2026-11-16 审查修复：与后端 MiniappMenuService.quickActions 同口径（角色感知，权限面=渲染面）
     const has = (r) => effective.indexOf(r) > -1
     let quickActions = []
     if (ws && ws.indexOf('MAINT') === 0) {
@@ -663,8 +605,6 @@ const routes = [
       ]
       if (has('MAINT_SUP') || has('MAINT_MGR')) quickActions.push({ key: 'plan', text: '维保计划', icon: 'calendar-check-r', path: '/pkg-maintenance/pages/plan/index' })
     } else if (ws && ws.indexOf('CLIENT') === 0) {
-      // 2026-11-21 裁决：与后端同口径——客户一键报修重开（client:report CA/CS 双 Y），
-      // 急修进度/评价仍下线；报修项按会话 perms 门控（与 services/menu.js clientQuickActions 同口径）
       quickActions = []
       if (permsOf(effective).indexOf('client:report') > -1) {
         quickActions.push({ key: 'report', text: '一键报修', icon: 'wrench', path: '/pages/order/report/index' })
@@ -672,18 +612,13 @@ const routes = [
       quickActions.push({ key: 'elevators', text: '我的电梯', icon: 'elevator', path: '/pages/elevator/list/index' })
       quickActions.push({ key: 'todo', text: '待办签字', icon: 'file-signature', path: '/pkg-client/pages/todo/index' })
     } else if (ws && ws.indexOf('INST') === 0) {
-      // 2026-11-21 裁决：handover:create 增 INST_CLERK，快捷动作同步放开
       if (has('INST_CLERK') || has('INST_PM')) quickActions.push({ key: 'create', text: '发起移交', icon: 'file-signature', path: '/pkg-handover/pages/create/index' })
       if (has('INST_CLERK') || has('INST_PM')) quickActions.push({ key: 'upload', text: '资料上传', icon: 'folder', path: '/pkg-handover/pages/upload/index' })
     }
     const badges = { pendingOrders: 0, pendingSigns: 0 }
-    // 「工单」角标=数据域内未闭环工单（PENDING/PROCESSING，与工单列表同 orderVisible 谓词）；
-    // 旧实现错挂 fault OPEN 计数（后端 MiniappMenuService.badges 2026-11-21 同修）
     if (effective.some((r) => r.indexOf('MAINT') === 0)) {
       badges.pendingOrders = d.listOrders({}).filter(orderVisible).filter((o) => o.status !== 'DONE').length
     }
-    // P1 T5/T7：客户待签角标按本单位 + 可签集合收敛（后端 MiniappMenuService.clientPendingSigns 同口径），
-    // 无锚点 fail-closed 计 0；主体判定用 principalType（含旧码 UNIT_ADMIN），不用字面量前缀
     if (effective.some((r) => isCustomerPrincipal([r]))) badges.pendingSigns = clientPendingSignCount()
     return {
       user: { roles: effective, activeWorkspace: ws },
@@ -695,9 +630,6 @@ const routes = [
   }],
   ['POST', '/work-orders/:id/signature-refuse', () => ({ ok: true })],
   ['POST', '/work-orders/:id/review', ({ body }) => ({ ok: true, lifecycleStatus: body.pass ? 'PENDING_CLIENT_SIGN' : '' })],
-  // 发起使用单位签字（后端 RecordLifecycleService.signRequest）：角色门禁（主检/维保主管）→ 定位记录 →
-  // 推进生命周期后客户才可见/可签。后端按记录 id 定位，小程序历史上也会传工单 id，两者都兜住；
-  // 双签齐门控以后端为准（mock 不拦）。
   ['POST', '/work-orders/:id/sign-request', ({ params }) => {
     const canon = currentRoles.map((r) => permMirror.canonical(r))
     if (canon.indexOf('MAINT_TECH') < 0 && canon.indexOf('MAINT_SUP') < 0) {
@@ -709,15 +641,11 @@ const routes = [
     if (!rec) throw { code: 1404, message: '维保记录不存在' }
     if (rec.lifecycleStatus !== 'PENDING_CLIENT_SIGN') throw { code: 422, message: '记录不在待使用单位签字状态' }
     rec.lifecycleStatus = 'PENDING_CLIENT_SIGNATURE'
-    // V2.80：签字 SLA 起算打点（重新发起时重置提醒去重标记）
     rec.signRequestedAt = formatTime()
     rec.signRemindedAt = null
     return { ok: true, shareToken: rec.shareToken || '' }
   }],
   ['GET', '/work-orders/:id/archive', () => ({ url: 'https://mock/files/arch?s=mock', hash: '0'.repeat(64), archivedAt: '2026-11-15 00:00:00' })],
-  // 使用单位拒签（后端 RecordLifecycleService.refuseByToken，T4-I4）：token 401 先于状态披露 →
-  // 唯一可签状态 → confirmStatus=PENDING → 链末端最新版本 → 原因必填，任一失败 422 且无副作用；
-  // 成功走条件更新等价判定（并发先签为准），退回 REFUSED_RETURNED；不触发平台 2.6
   ['POST', '/unit/records/:id/refuse-by-token', ({ params, query, body }) => {
     const r = findOr401Token(d.db.unitRecords, params.id) // C-25⑧：不存在 → 401 同错 token 文案
     if (!query.token || query.token !== r.shareToken) {
@@ -726,7 +654,7 @@ const routes = [
     if (r.lifecycleStatus !== 'PENDING_CLIENT_SIGNATURE') throw { code: 422, message: '记录不在待使用单位签署状态' }
     if (r.confirmStatus !== 'PENDING') throw { code: 422, message: '记录已签署，不能拒签' }
     if (!isLatestVersion(r)) throw { code: 422, message: '记录已被新版本替代，请处理最新记录' }
-    // V2.80 分类码：传码校验 R1—R5（R5 必填说明）；未传码按兼容期回退「原因必填」
+    // 未传码按兼容期回退「原因必填」
     const code = String((body && body.refuseCode) || '').trim().toUpperCase()
     const reason = String((body && body.reason) || '').trim()
     if (!code) {
@@ -746,10 +674,6 @@ const routes = [
   ['POST', '/faults/:id/confirm', ({ body }) => ({ ok: true, status: body.pass === false ? 'REFUSED' : 'CLOSED' })],
   ['POST', '/faults/:id/cancel', () => ({ ok: true, status: 'CANCELLED' })],
   ['POST', '/faults/:id/evaluate', () => ({ ok: true })],
-  // ── 鉴权 ──
-  // 账号密码登录（用户需求：账号由维保单位系统分配，手机号为账号）
-  // 统一登录（唯一入口，与后端 AuthController.login 同口径）：员工目录命中即员工；
-  // 否则按 client_account 校验客户账号（多单位返回候选），前端不区分通道。
   ['POST', '/auth/login', ({ body }) => {
     const phone = String(body.phone || '').trim()
     const password = String(body.password || '')
@@ -772,7 +696,6 @@ const routes = [
     if (!matched.length) throw { code: 401, message: '账号或密码错误' }
     return clientLoginPayload(matched)
   }],
-  // 自助改密（docs/04 A.0.1；与后端 AuthController 同口径：校验原密码、新密码 ≥6 位且不同）
   ['POST', '/auth/change-password', ({ body }) => {
     const user = d.db.employees[currentRole] || d.db.employees.WORKER
     const oldPassword = String((body && body.oldPassword) || '')
@@ -794,7 +717,6 @@ const routes = [
     currentRole = role
     return loginPayload(role)
   }],
-  // 忘记密码·微信验证重置（docs/04 V2.55 三处同步；mock 以演示账号模拟已绑定微信）
   ['POST', '/auth/reset-password-by-wechat', ({ body }) => {
     if (!body.code) throw { code: 422, message: '缺少微信 code' }
     const newPassword = String(body.newPassword || '')
@@ -823,7 +745,6 @@ const routes = [
     summary.openOrders = (d.db.orders || []).filter((o) => orderVisible(o) && o.status !== 'DONE').length
     return summary
   }],
-  // 使用单位账号电梯收敛本单位（2026-11-15 裁决；与后端 CLIENT 谓词同口径，无锚点 fail-closed）
   ['GET', '/elevators', () => {
     const anchor = clientUnitAnchor()
     const list = d.listElevators()
@@ -832,7 +753,6 @@ const routes = [
     const ids = new Set(d.db.elevators.filter((el) => el.useUnitId === anchor).map((el) => el.id))
     return list.filter((row) => ids.has(row.id))
   }],
-  // 扫码回填电梯信息（急修单用，docs/04 A.0.1）
   ['GET', '/elevators/by-code', ({ query }) => {
     const el = d.getElevatorByCode(String((query && query.code) || '').trim())
     if (!el) throw { code: 1404, message: '电梯不存在，请核对编号' }
@@ -848,8 +768,6 @@ const routes = [
       category: el.category
     }
   }],
-  // 工单列表（V7 班组谓词 + 区域池谓词 orderVisible，后端 listOrders/scopeOrders 同口径；
-  // 池化工单行 workerName/workerPlatformId 为空，regionId 为派单时电梯区域快照）
   ['GET', '/work-orders', ({ query }) => paginate(d.listOrders(query).filter(orderVisible), query)],
   ['GET', '/work-orders/:id', ({ params }) => {
     const order = d.getOrder(params.id)
@@ -865,7 +783,6 @@ const routes = [
     p.overview = buildElevatorOverview(el)
     return p
   }],
-  // 维保人员现场更正项目名称（小区名称，管理端可能写错；docs/04 A.2.1）
   ['PUT', '/elevators/:id/project-name', ({ params, body }) => {
     const el = d.getElevator(params.id)
     if (!el) throw { code: 1404, message: '电梯不存在' }
@@ -875,7 +792,6 @@ const routes = [
     el.elevatorName = v // 电梯名称 = 项目名称（小区），合并
     return { ok: true }
   }],
-  // 维保人员现场维护设备本地信息（docs/04 A.2.1；不开放经纬度/使用单位负责人）
   ['PUT', '/elevators/:id/local', ({ params, body }) => {
     const el = d.getElevator(params.id)
     if (!el) throw { code: 1404, message: '电梯不存在' }
@@ -904,7 +820,6 @@ const routes = [
     if (!any) throw { code: 422, message: '无可更新的设备信息' }
     return { ok: true }
   }],
-  // Minor7：只读查询改 GET（与后端 2026-10-05 整改一致）
   ['GET', '/work-orders/resolve-by-elevator', ({ query }) => {
     const el = d.getElevatorByCode(query.elevatorCode)
     if (!el) throw { code: 1404, message: '未识别的电梯二维码' }
@@ -917,12 +832,9 @@ const routes = [
     if (o.status === 'DONE') throw { code: 1003, message: '当前状态不允许签到' }
     const assistant = body.role === 'ASSISTANT'
     const me = currentEmployee()
-    // 区域抢单池「签到即认领」（M1/D4，后端 claimOrderAsPrincipal 同口径）：
-    // 主维保签到已被他人认领的工单 → 1003 并回显认领人（原子条件更新命中 0 行的等价语义）
     if (!assistant && o.workerPlatformId && me.platformId && o.workerPlatformId !== me.platformId) {
       throw { code: 1003, message: '该工单已被 ' + (o.workerName || '其他维保人员') + ' 认领' }
     }
-    // 主维保与配合人员分别签到，各自一条留痕（docs/01 §3.7.2）
     if (assistant ? o.assistantCheckinExtra : o.checkinExtra) {
       throw { code: 1003, message: (assistant ? '配合人员' : '主维保人员') + '已签到，不可重复签到' }
     }
@@ -931,10 +843,6 @@ const routes = [
     if (!isFinite(lat) || !isFinite(lng)) {
       throw { code: 422, message: '签到必须携带定位坐标；定位失败请重试（严禁伪造坐标）' }
     }
-    // 配合人门禁（后端 WorkOrderService.requireAssignedAssistant 同口径，先于动态码消费）：
-    // ①M5 身份比对——已指定配合人时仅本人可签，错误人选 1003 不吞码；
-    // ②I2 fail-closed——池化新单（regionId 非空或 checkinExtra.claimedViaPool）未指定配合人一律 1003；
-    // 存量工单（regionId 空且无打标）维持 M8 原动态码口径，不做身份比对
     if (assistant) {
       if (o.assistantPlatformId) {
         if (!me.platformId || me.platformId !== o.assistantPlatformId) {
@@ -947,7 +855,6 @@ const routes = [
     // 配合人员须携带主维保生成、未过期且未使用的动态码（一次性消费）
     if (assistant) d.consumeDynamicCode(o, body.dynamicCode)
     // 认领写库在任何校验通过之后、签到留痕之前（与后端顺序一致：校验失败零副作用）；
-    // 无平台ID 不得认领（D4：2.6 workMan1Id/workMan2Id 必填的源头门禁）
     let claimedNow = false
     if (!assistant && !o.workerPlatformId) {
       if (!me.platformId) throw { code: 422, message: '请先在管理端完成平台人员登记' }
@@ -955,14 +862,13 @@ const routes = [
       o.workerPlatformId = me.platformId
       claimedNow = true
     }
-    // 定位校验：与后端同口径计算距离；mock 只回显不拦截，拦截口径以后端为准（docs/04 A.0.1 说明）
+    // mock 只回显不拦截，拦截口径以后端为准
     const el = d.getElevator(o.elevatorId)
     const threshold = (el && el.checkinThreshold) || 200
     const raw = (el && el.lat && el.lng) ? distanceMeters(lat, lng, el.lat, el.lng) : -1
     const distance = raw < 0 ? -1 : Math.round(raw * 10) / 10
     const geoStatus = distance < 0 ? 'UNKNOWN' : 'PROVIDED'
     d.markCheckin(o.id, body, { distance: distance, threshold: threshold, geoStatus: geoStatus })
-    // D8 池化认领打标（后端 checkinExtraJson.claimedViaPool 同口径）：签退恒双人门禁据此覆盖不限区域池单
     if (claimedNow && o.checkinExtra) o.checkinExtra.claimedViaPool = true
     return {
       checkinId: 'chk_' + Date.now(),
@@ -974,7 +880,7 @@ const routes = [
       geoBackfilled: false
     }
   }],
-  // 主维保生成双人动态码（每 5 秒刷新、60 秒有效，docs/03 §3.2 项6）
+  // 主维保生成双人动态码
   ['POST', '/work-orders/:id/dynamic-code', ({ params }) => {
     const o = findOr404(d.db.orders, params.id, '工单')
     if (o.status === 'DONE') throw { code: 1003, message: '当前状态不允许生成动态码' }
@@ -985,9 +891,7 @@ const routes = [
     d.requireDynamicCode(o, body.code)
     return { ok: true }
   }],
-  // ── 配合人候选与指派（2026-11-20 区域抢单池设计 D3/D4/D8/M5/M10，后端 WorkOrderService 同口径）──
-  // 配合人候选：仅主维保本人（1403）；候选 = 工单 regionId 快照同区域（快照空=不限区域 → 全部）
-  // ∧ 持平台ID（D4）∧ 在职 ∧ 排除主维保本人（M10：与池可见性同用 regionId 快照）
+  // ── 配合人候选与指派──配合人候选：仅主维保本人（1403）；
   ['GET', '/work-orders/:id/partner-candidates', ({ params }) => {
     const o = findOr404(d.db.orders, params.id, '工单')
     const me = currentEmployee()
@@ -999,8 +903,7 @@ const routes = [
       .map((e) => ({ id: e.id, name: e.name, platformId: e.platformId, phone: e.phone }))
     return { list }
   }],
-  // 指派/改选配合人：仅主维保本人（1403）；PENDING/PROCESSING 且配合人未签到才可改选（1003）；
-  // 候选人服务端复核与 partner-candidates 同一谓词（不信任前端列表），不符 422
+  // 指派/改选配合人：仅主维保本人（1403）；
   ['POST', '/work-orders/:id/assign-partner', ({ params, body }) => {
     const o = findOr404(d.db.orders, params.id, '工单')
     const me = currentEmployee()
@@ -1036,7 +939,6 @@ const routes = [
     const o = findOr404(d.db.orders, params.id, '工单')
     const item = o.checklist.find((i) => i.id === params.itemId)
     if (!item) throw { code: 1404, message: '检查项不存在' }
-    // 服务端校验（docs/04 A.2）
     if (body.result === 'NA' && !body.skipReason) {
       throw { code: 422, message: '「' + item.name + '」标记不适用时必须填写跳过原因（TSG 注 A-1）' }
     }
@@ -1056,9 +958,7 @@ const routes = [
         throw { code: 422, message: '「' + item.name + '」隐患码非法：' + pc + '（取值范围 S0—S7）' }
       }
     }
-    // 关键项（试验/测试/校验/检测类，TSG 注A-2）执行时须照片留证；
-    // 结果为"不适用"（NA，如该电梯无此部件）时豁免——部件不存在无从拍照（docs/08 BUG 修复）
-    // ⚠ 必须用 body.result（本次选择），item.result 是旧状态：新填项为空串，恒 !== 'NA'，导致 BUG 复现
+    // 结果为"不适用"（NA，如该电梯无此部件）时豁免——部件不存在无从拍照⚠ 必须用 body.result（本次选择），item.result 是旧状态：新填项为空串，恒 !== 'NA'，导致 BUG 复现
     if (item.isKey && item.photoRequired && body.result !== 'NA' &&
         !(body.photoFileIds || []).length && !(body.photoUrls || []).length) {
       throw { code: 422, message: '关键项「' + item.name + '」为试验/测试/校验/检测类，必须至少附 1 张照片留证（TSG 注A-2）' }
@@ -1077,7 +977,6 @@ const routes = [
     if (!updated) throw { code: 1404, message: '检查项不存在' }
     return { ok: true, itemId: params.itemId }
   }],
-  // 周期性条目"本次仍要执行"（docs/03 §6.1：灰显不阻断，允许人工点选执行）
   ['POST', '/work-orders/:id/checklist/:itemId/run-this-time', ({ params }) => {
     const o = findOr404(d.db.orders, params.id, '工单')
     const item = o.checklist.find((i) => i.id === params.itemId)
@@ -1101,9 +1000,6 @@ const routes = [
   ['POST', '/work-orders/:id/checkout', ({ params, body }) => {
     const o = findOr404(d.db.orders, params.id, '工单')
     if (o.status !== 'PROCESSING') throw { code: 1003, message: '请先完成签到' }
-    // ── D8 签退恒双人门禁（后端 WorkOrderService.checkout 同口径，平台 2.6 workMan2Id 必填）──
-    // 池化新单（regionId 快照非空 或 认领打标 claimedViaPool）：未选配合人/配合人未签到一律 422，
-    // 先于签字与检查项校验、不产生任何写副作用；存量在途工单（M8）不触发，维持旧口径
     const pooled = !!o.regionId || !!(o.checkinExtra && o.checkinExtra.claimedViaPool)
     if (pooled) {
       if (!o.assistantPlatformId) {
@@ -1113,17 +1009,14 @@ const routes = [
         throw { code: 422, message: '配合人员未签到，无法签退（双人作业须双人签到留痕）' }
       }
     }
-    // 签字已在各自手机完成（docs/01 §3.7.5）：签退前校验双签名齐全（后端同口径）
+    // 签字已在各自手机完成：签退前校验双签名齐全（后端同口径）
     if (!o.workerSignatureFileId) throw { code: 422, message: '请完成主维保签字' }
     if (o.assistantName && o.assistantName !== '无' && !o.assistantSignatureFileId) {
       throw { code: 422, message: '请完成配合人员签字（双人签字）' }
     }
-    // 周期性"本次无需执行"条目不计入未完成项（docs/03 §7 验收）
     const mustRun = o.checklist.filter((i) => !i.notInThisRun)
     const unfinished = mustRun.filter((i) => !i.result).length
     if (unfinished > 0) throw { code: 1003, message: '还有 ' + unfinished + ' 项检查未填写' }
-    // 关键项照片留证校验（TSG 注A-2）
-    // "不适用"（NA）豁免：部件不存在的关键项无须照片（docs/08 BUG 修复）
     const keyNoPhoto = mustRun.filter(
       (i) => i.isKey && i.photoRequired && i.result && i.result !== 'NA' &&
         !((i.photoFileIds || []).length || (i.photos || []).length)
@@ -1136,7 +1029,6 @@ const routes = [
     if (abnormalUncoded.length) {
       throw { code: 1003, message: '检查项「' + abnormalUncoded[0].name + '」为异常但未记录隐患判定，无法签退' }
     }
-    // 业务规则：签到—签退间隔不少于 N 分钟（config.minWorkDurationMinutes，业主补充规则）
     const minutes = (Date.now() - parseTime(o.checkinTime)) / 60000
     if (minutes < config.minWorkDurationMinutes) {
       throw {
@@ -1144,8 +1036,6 @@ const routes = [
         message: '作业时长不足 ' + config.minWorkDurationMinutes + ' 分钟（当前 ' + Math.floor(minutes) + ' 分钟），请继续作业后再签退'
       }
     }
-    // 设备信息档案门禁（用户 2026-11-19，与后端 DeviceProfileValidator 同口径）：
-    // 电梯编码/设备代码/注册代码/单位内编号/出厂编号为上传维保记录的必传项
     const el = d.getElevator(o.elevatorId)
     const deviceRequired = [
       ['elevatorCode', '电梯编码'], ['deviceCode', '设备代码'], ['registrationCode', '注册代码'],
@@ -1162,7 +1052,6 @@ const routes = [
       }
     }
     const r = d.markCheckout(o.id, body)
-    // 响应对齐 docs/04 A.2 checkout
     return {
       workOrderId: o.id,
       duration: r.duration,
@@ -1174,7 +1063,6 @@ const routes = [
     }
   }],
 
-  // ── 平台写链路（P3）：手动重报 2.6，仅 FAILED 记录（AGENTS §2.3 不自动重试）──
   ['POST', '/platform/records/:id/reupload', ({ params }) => {
     const rec = d.reuploadRecord(params.id)
     if (!rec) throw { code: 1404, message: '维保记录不存在' }
@@ -1193,7 +1081,6 @@ const routes = [
     if (query && query.status) {
       list = list.filter((f) => f.status === query.status)
     }
-    // 困人急修过滤（C-18/V62，工作台「急修待接」KPI 下钻口径，与后端 listFaults 一致）
     if (query && query.trapped === '1') {
       list = list.filter((f) => (f.trappedCount || 0) > 0)
     } else if (query && query.trapped === '0') {
@@ -1214,7 +1101,6 @@ const routes = [
   ['GET', '/inspects', () => { requireLegacyModule(); return d.listInspects() }],
   ['GET', '/inspects/template', ({ query }) => {
     requireLegacyModule()
-    // 自行检查项 = 该电梯品种对应附件的年度维保项并集；不同品种分别取 A/B/C/D（docs/01 §3.17）
     const el = query && query.elevatorId ? d.getElevator(query.elevatorId) : null
     const appendix = d.CATEGORY_APPENDIX[el && el.category] || 'A'
     const items = []
@@ -1227,8 +1113,6 @@ const routes = [
   }],
   ['POST', '/inspects', ({ body }) => { requireLegacyModule(); return d.createInspect(body) }],
 
-  // ── 消息 ──
-  // V2.80：员工消息中心只读 useUnitId 为空的行（useUnitId 非空=客户门户受众，两侧互不串扰）
   ['GET', '/messages', ({ query }) => {
     const list = d.db.messages.filter((m) => !m.useUnitId).sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1))
     return paginate(list, query)
@@ -1246,8 +1130,6 @@ const routes = [
     return { ok: true }
   }],
 
-  // ── 使用单位确认（客户门户，P1 T7 门禁 + 白名单，逐条对齐后端 UnitRecordService/UnitPortalService）──
-  // 路由顺序：精确路径 /unit/records/list 必须排在 /unit/records/:id 之前，否则 list 被当作 :id（1404）
   ['GET', '/unit/records/list', () => {
     const unitId = requirePortalUnit()
     return clientVisibleRecords(unitId).map(clientRecordRow)
@@ -1261,8 +1143,6 @@ const routes = [
       .map(toClientRecord)
     return paginate(list, query)
   }],
-  // V2.80 批量签字（后端 UnitRecordService.batchConfirmAs 同口径）：同一签名一次确认 ≤20 条，
-  // 逐条独立门禁（本单位 + 可签状态 + 先签为准），单条失败不拖累其余。
   // 路由顺序：必须排在 /unit/records/:id 之前（同段数模板先匹配先中）
   ['POST', '/unit/records/batch-confirm', ({ body }) => {
     const unitId = requireClientUnit()
@@ -1291,7 +1171,6 @@ const routes = [
   }],
   ['GET', '/unit/records/:id', ({ params }) => {
     // 门禁顺序与后端 getAs 一致：requireClient 最先——不存在的 id 也不得以 1404 泄漏存在性。
-    // C-24：员工记录详情移至内部端点 GET /records/:id，本端点还原客户专用契约（后端员工令牌 1403）。
     const unitId = requireClientUnit()
     const r = findOr404(d.db.unitRecords, params.id, '维保记录')
     // 归属（跨单位 1403 无副作用）→ 可见性（§4.6 可见性表）→ 白名单投影
@@ -1299,10 +1178,6 @@ const routes = [
     requireViewable(r)
     return toClientRecord(r)
   }],
-  // ── 员工内部读记录详情（C-24，后端 RecordController GET /records/{id} 同口径） ──
-  // record:view 门禁（Y=MAINT_SUP/MAINT_MGR/PLATFORM_ADMIN，C=MAINT_TECH）→ V7 班组读谓词 →
-  // 内部全量投影（含 lifecycleStatus/version/shareToken/context/reportPayload/items 明细，
-  // pkg-maintenance/record-detail 依赖）；只回浅拷贝，不外泄 db 共享单例引用。
   ['GET', '/records/:id', ({ params }) => {
     // 门禁最先：无 record:view 的会话（安装部/商务/客户）读任何 id（含不存在）一律 1403，不以 1404 泄漏存在性
     requireRead('record:view')
@@ -1323,8 +1198,6 @@ const routes = [
     if (!query.token || query.token !== r.shareToken) {
       throw { code: 401, message: '确认链接无效或已失效' }
     }
-    // 与后端 signView 同口径：白名单摘要 + 检查项明细（过滤本轮未执行项）+ 现场照片墙 +
-    // 使用单位/维保日期/确认状态（2026-11-20 签署核对扩项，docs/14 §4.7）；
     // 不返回 satisfaction（§4.7）、不回显 shareToken
     const items = (r.items || []).filter(function (i) { return !i.notInThisRun }).map(function (i) {
       return {
@@ -1353,12 +1226,10 @@ const routes = [
       itemTotal: items.length,
       photos: photos,
       photoCount: photos.length,
-      // mock 演示字段（原型「记录单版本号 / SHA-256 前 8 位」；后端 P1 无对应列）
       recordVersion: r.recordVersion || '',
       hashPrefix: r.hashPrefix || '',
       frozenAt: r.frozenAt || '',
       signatureUrl: r.signatureUrl || '',
-      // V2.80 签字 SLA 倒计时（sign 页；serverNow 供前端对齐时钟）
       signRequestedAt: signSlaFields(r).signRequestedAt,
       slaHours: CLIENT_SIGN_SLA_HOURS,
       signDeadline: signSlaFields(r).signDeadline,
@@ -1366,7 +1237,7 @@ const routes = [
       serverNow: formatTime()
     }
   }],
-  // 后端 confirmByToken（T4-C1）：token → 签字门禁链 → 条件更新；已签/旧版本一律 422，不再回 already 幂等体
+  // 已签/旧版本一律 422，不再回 already 幂等体
   ['POST', '/unit/records/:id/confirm-by-token', ({ params, query, body }) => {
     const r = findOr401Token(d.db.unitRecords, params.id) // C-25⑧：不存在 → 401 同错 token 文案
     if (!query.token || query.token !== r.shareToken) {
@@ -1375,7 +1246,6 @@ const routes = [
     requireSignable(r)
     return signRecord(r, body)
   }],
-  // 后端 signatureUploadByToken（V2.80 修复）：免登录 token 链签名图上传，同门禁（校验先于"写盘"）
   ['POST', '/unit/records/:id/signature-upload', ({ params, query }) => {
     const r = findOr401Token(d.db.unitRecords, params.id)
     if (!query.token || query.token !== r.shareToken) {
@@ -1398,21 +1268,30 @@ const routes = [
 
   // ── 文件（真实上传走 wx.uploadFile，此路由兜底）──
   ['POST', '/files/upload', () => ({ fileId: 'mock_file_' + Date.now(), url: '' })],
-  // ── 移交单 / 使用单位门户 / 维保日历（Task 12/13/14 最小 mock）──
   ['GET', '/handovers', ({ query }) => {
     requireRead('handover:view')
-    // 维保部读收敛（与后端 HandoverService.list 同口径，2026-11-20 真机反馈③）：
-    // 纯维保部角色默认隐藏安装内部阶段，显式 status 查询尊重入参
     const maintOnly = currentRoles.some((r) => r.indexOf('MAINT') === 0) &&
       !currentRoles.some((r) => r.indexOf('INST') === 0 || r === 'INSTALLER' || r === 'PLATFORM_ADMIN' || r === 'ADMIN')
     const VISIBLE = ['INSPECTING', 'RECTIFYING', 'PENDING_CONFIRM', 'ARCHIVED']
     const explicit = !!(query && query.status)
     return paginate(mockHandovers.filter((h) => explicit ? h.status === query.status : !(maintOnly && VISIBLE.indexOf(h.status) < 0)), query)
   }],
+  ['GET', '/handovers/options', () => {
+    requireWrite('handover:create')
+    return { useUnits: d.db.useUnits.map((u) => ({ id: u.id, unitName: u.unitName })) }
+  }],
   ['POST', '/handovers', ({ body }) => {
     requireWrite('handover:create') // 2026-11-21 对齐后端：仅 INST_PM（矩阵 §4.1）
-    const o = Object.assign({ id: 'ho_' + Date.now(), handoverNo: 'HO' + Date.now(), status: 'DOC_SUBMITTING',
-      createdAt: formatTime(new Date()), checks: [], rectifications: [], signs: [] }, body)
+    if (!body.useUnitId || !d.db.useUnits.some((u) => u.id === body.useUnitId)) throw { code: 422, message: '使用单位不存在' }
+    if (!String(body.factoryNumber || '').trim()) throw { code: 422, message: '厂家出厂编号为归档时 2.7 查询依据，不能为空' }
+    if (!String(body.insideNumber || '').trim()) throw { code: 422, message: '单位内编号为设备档案必传项，不能为空' }
+    if (!body.supervisionReportFileId || !body.maintenanceManualFileId || !body.qualityCertificateFileId) {
+      throw { code: 422, message: '监督检验报告、维护使用说明书、安装质量证明文件缺一不可' }
+    }
+    const safeBody = Object.assign({}, body)
+    delete safeBody.elevatorId
+    const o = Object.assign({ id: 'ho_' + Date.now(), handoverNo: 'HO' + Date.now(), status: 'PENDING_INST_REVIEW',
+      createdAt: formatTime(new Date()), checks: [], rectifications: [], signs: [] }, safeBody)
     mockHandovers.unshift(o)
     return o
   }],
@@ -1471,7 +1350,6 @@ const routes = [
     Object.assign(o, body, { status: 'ARCHIVED', confirmedAt: formatTime(new Date()) })
     return o
   }],
-  // ── C-12：74 项移交检查清单 / 整改清单 / 归档目录（docs/15、docs/04 A.9）──
   ['GET', '/handovers/:id/checklist', ({ params }) => {
     const o = findOr404(mockHandovers, params.id, '移交单')
     if (!o.checklist74) o.checklist74 = buildHandoverChecklist()
@@ -1558,8 +1436,6 @@ const routes = [
     findOr404(mockHandovers, params.id, '移交单')
     return handoverArchiveEntries(params.id)
   }],
-  // ── 以下门户契约 V41 废弃（单账号单会话，unit_token 废除）：后端保留至生产清库（docs/12 G 组），
-  //    前端已无调用者（2026-11-16 审查清理），mock 仅作契约镜像保留，勿新增入口 ──
   ['POST', '/unit/accounts', () => ({ account: 'U' + Date.now(), initialPassword: 'Mock12345678', inviteCode: 'MOCK2345' })],
   ['POST', '/unit/login', ({ body }) => {
     if (!body.account || !body.password) throw { code: 422, message: '请填写账号与密码' }
@@ -1576,8 +1452,6 @@ const routes = [
     if (!body.newPassword || String(body.newPassword).length < 6) throw { code: 422, message: '新口令至少 6 位' }
     return { ok: true }
   }],
-  // ── 使用单位门户数据域（live，后端 UnitPortalController/UnitPortalService）：一律会话锚点本单位，
-  //    P1 T7 起不再回退 useUnits[0]、不再全量返回；非客户/无锚点 403 fail-closed ──
   ['GET', '/unit/elevators', () => {
     const unitId = requirePortalUnit()
     return (d.db.elevators || []).filter((el) => el.useUnitId === unitId && el.status !== 'INACTIVE').map((el) => ({
@@ -1586,13 +1460,11 @@ const routes = [
       nextMaintenanceDate: el.nextMaintenanceDate || '', nextCheckDate: el.nextCheckDate || ''
     }))
   }],
-  // 待签记录（后端 pendingSigns = records 按可签集合过滤）；行投影兼容期保留 shareToken（裁决 T7-C2，
-  // docs/14 §4.6 规则 8）——客户待办「去签字」需凭此拼签字链接，sign 页无会话回退路径
+  // 行投影兼容期保留 shareToken——客户待办「去签字」需凭此拼签字链接，sign 页无会话回退路径
   ['GET', '/unit/pending-signs', () => {
     const unitId = requirePortalUnit()
     return clientVisibleRecords(unitId).filter(isSignableRow).map(clientPendingSignRow)
   }],
-  // ── 客户门户消息（V2.80 签字临期/超期提醒，后端 ClientMessageService 同口径；数据域=本单位锚点）──
   ['GET', '/unit/messages', () => {
     const unitId = requirePortalUnit()
     return (d.db.messages || []).filter((m) => m.useUnitId === unitId)
@@ -1616,10 +1488,6 @@ const routes = [
     ;(d.db.messages || []).forEach((m) => { if (m.useUnitId === unitId && !m.readFlag) { m.readFlag = true; updated++ } })
     return { ok: true, updated }
   }],
-  // 客户急修列表（C-25② 契约对齐）：后端投影白名单 id/faultNo/elevatorCode/elevatorName/faultType/desc/
-  // status/createdAt/finishedAt/result——elevatorName 按 elevatorCode 批量联电梯（一次 .in，无 N+1），
-  // 缺名回退 elevatorCode；mock 回整行（字段超集），种子行 elevatorName 口径一致。
-  // trappedCount 已随 V62 在员工侧落地（建单/列表/KPI）；客户门户投影白名单暂不含（不下发）。
   ['GET', '/unit/faults', () => {
     const unitId = requirePortalUnit()
     return (d.db.faults || []).filter((f) => f.useUnitId === unitId).slice(0, 50)
@@ -1670,9 +1538,6 @@ const routes = [
     }
     return created
   }],
-  // 维保日历（后端 MaintenanceCalendarService 同口径，2026-11-20 建档即排全年）：
-  // 锚点=最早 HM 工单计划日 → 下次到期日 → 建档基线 lastMaintenanceAt+intervalDays；
-  // 锚点起按累加式 15/90/180/365 投影窗口内应做日期，条目带执行状态。mock 不做人员范围过滤（演示全量）。
   ['GET', '/maintenance-calendar', ({ query }) => {
     const STATUS_TEXT = { PLANNED: '计划', DISPATCHED: '已派单', DONE: '已完成', OVERDUE: '超期' }
     const TYPE_TEXT = { HM: '半月维保', TM: '季度维保', SM: '半年维保', OY: '年度维保' }
@@ -1754,8 +1619,7 @@ function mockRequest(options) {
   const raw = String(options.url || '')
   const qIdx = raw.indexOf('?')
   const path = qIdx > -1 ? raw.slice(0, qIdx) : raw
-  // 修复：GET 的筛选参数在 options.data（wx.request 约定），必须与 URL 查询串合并，
-  // 否则 status/due/keyword 等永远到不了 listOrders（BUG：状态筛选不过滤）
+  // 修复：GET 的筛选参数在 options.data（wx.request 约定），必须与 URL 查询串合并，否则 status/due/keyword 等永远到不了 listOrders（BUG：状态筛选不过滤）
   const query = Object.assign(
     {},
     (options.data && typeof options.data === 'object') ? options.data : {},

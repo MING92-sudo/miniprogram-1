@@ -18,6 +18,7 @@ import com.cqwlw.maintenance.mapper.MessageMapper;
 import com.cqwlw.maintenance.mapper.WorkOrderMapper;
 import com.cqwlw.maintenance.service.ChecklistService;
 import com.cqwlw.maintenance.service.DispatchService;
+import com.cqwlw.maintenance.service.HandoverArchiveSupport;
 import com.cqwlw.maintenance.service.HandoverService;
 import com.cqwlw.maintenance.service.OrderNoIssuer;
 import com.cqwlw.maintenance.service.TenantSnapshotService;
@@ -40,10 +41,6 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/**
- * 移交归档副作用（Task 5 前半）：archive() 建电梯（archiveSource=1；区域抢单池 D2/M6 后不再写
- * 主维保/配合人绑定）+ 预建首保工单（HM + sourceHandoverId 回指移交单）+ 幂等 + 预建首保阻塞定时派单。
- */
 class HandoverArchiveTest {
 
     private HandoverOrderMapper handoverMapper;
@@ -52,6 +49,7 @@ class HandoverArchiveTest {
     private WorkOrderMapper workOrderMapper;
     private MessageMapper messageMapper;
     private DispatchService dispatch;
+    private HandoverArchiveSupport archiveSupport;
     private HandoverService service;
 
     @BeforeAll
@@ -74,9 +72,10 @@ class HandoverArchiveTest {
         checklistService.load();
         dispatch = new DispatchService(elevatorMapper, workOrderMapper, messageMapper,
                 employeeMapper, checklistService, new OrderNoIssuer(workOrderMapper), mock(TenantSnapshotService.class));
+        archiveSupport = mock(HandoverArchiveSupport.class);
         service = new HandoverService(handoverMapper, mock(HandoverCheckMapper.class),
                 mock(HandoverCheckItemMapper.class), mock(HandoverRectificationMapper.class),
-                mock(HandoverSignMapper.class), elevatorMapper, employeeMapper, workOrderMapper, dispatch);
+                mock(HandoverSignMapper.class), elevatorMapper, employeeMapper, workOrderMapper, dispatch, archiveSupport);
     }
 
     private static HandoverOrder handover(String id, boolean withReceiver) {
@@ -86,6 +85,12 @@ class HandoverArchiveTest {
         o.elevatorCode = "EM-001";
         o.elevatorName = "1号楼客梯";
         o.category = "曳引与强制驱动电梯";
+        o.regCode = "REG-001";
+        o.deviceCode = "DEV-001";
+        o.insideNumber = "KT-01";
+        o.factoryNumber = "SGL-001";
+        o.useUnitId = "uu_1";
+        o.specialType = "消防";
         o.workTypeCode = "HM";
         o.supervisionPassDate = LocalDate.of(2026, 11, 12);
         if (withReceiver) {
@@ -103,7 +108,6 @@ class HandoverArchiveTest {
         return e;
     }
 
-    /** 归档后：电梯 archiveSource=1、不写主维保/配合人绑定（区域抢单池 D2/M6）、存在 HM 首保工单且 sourceHandoverId 回指移交单 */
     @Test
     void archiveCreatesElevatorAndFirstOrder() {
         HandoverOrder order = handover("ho_1", true);
@@ -133,7 +137,6 @@ class HandoverArchiveTest {
         assertEquals("PENDING", wo.status);
         assertEquals("ho_1", wo.sourceHandoverId, "首保工单应回指来源移交单");
         assertEquals(Boolean.FALSE, wo.autoDispatched, "首保预建为非自动派单");
-        // 区域抢单池（D2）：预建首保同样不带人，发布到区域池由同区域维保员签到认领
         assertNull(wo.workerName, "首保预建工单不得写主维保");
         assertNull(wo.workerPlatformId, "首保预建工单不得写主维保平台ID");
         assertEquals("09:00:00", TimeUtil.format(wo.planTime).substring(11), "首保计划时间应为当日 09:00");
@@ -141,6 +144,59 @@ class HandoverArchiveTest {
         assertEquals(el.id, order.elevatorId, "移交单应回填电梯 id");
         verify(handoverMapper).updateById(order);
         verify(messageMapper, times(1)).insert(any(Message.class));
+    }
+
+    @Test
+    void archiveEnrichesCodesBeforeInsertAndCopiesArchiveFields() {
+        HandoverOrder order = handover("ho_1", true);
+        order.elevatorCode = null;
+        order.regCode = null;
+        order.deviceCode = null;
+        order.supervisionReportFileId = "file_supervision";
+        when(handoverMapper.selectById("ho_1")).thenReturn(order);
+        when(employeeMapper.selectById("emp_r")).thenReturn(receiver());
+        org.mockito.Mockito.doAnswer(inv -> {
+            order.elevatorCode = "130421";
+            order.regCode = "REG-2026-001";
+            order.deviceCode = "DEV-2026-001";
+            Elevator el = inv.getArgument(1);
+            el.elevatorCode = order.elevatorCode;
+            el.regCode = order.regCode;
+            el.deviceCode = order.deviceCode;
+            return null;
+        }).when(archiveSupport).enrich(org.mockito.ArgumentMatchers.eq(order),
+                org.mockito.ArgumentMatchers.any(Elevator.class));
+
+        service.archive("ho_1");
+
+        ArgumentCaptor<Elevator> elCap = ArgumentCaptor.forClass(Elevator.class);
+        verify(elevatorMapper).insert(elCap.capture());
+        Elevator el = elCap.getValue();
+        assertEquals("130421", el.elevatorCode);
+        assertEquals("REG-2026-001", el.regCode);
+        assertEquals("DEV-2026-001", el.deviceCode);
+        assertEquals("uu_1", el.useUnitId);
+        assertEquals("消防", el.specialType);
+        assertEquals("file_supervision", el.inspectionReportFileId);
+        assertEquals("130421", order.elevatorCode);
+        assertEquals("REG-2026-001", order.regCode);
+        assertEquals("DEV-2026-001", order.deviceCode);
+        verify(archiveSupport).enrich(org.mockito.ArgumentMatchers.eq(order),
+                org.mockito.ArgumentMatchers.any(Elevator.class));
+    }
+
+    @Test
+    void archiveRejectsMissingInsideNumberBeforeInsert() {
+        HandoverOrder order = handover("ho_1", true);
+        order.insideNumber = null;
+        when(handoverMapper.selectById("ho_1")).thenReturn(order);
+        when(employeeMapper.selectById("emp_r")).thenReturn(receiver());
+
+        org.junit.jupiter.api.Assertions.assertThrows(com.cqwlw.maintenance.common.BizException.class,
+                () -> service.archive("ho_1"));
+
+        verify(elevatorMapper, org.mockito.Mockito.never()).insert(any(Elevator.class));
+        verify(workOrderMapper, org.mockito.Mockito.never()).insert(any(WorkOrder.class));
     }
 
     /** 重复归档不重复建电梯/首保工单（幂等由 elevatorId 守卫保证） */

@@ -244,37 +244,44 @@
     </Drawer>
 
     <!-- 移交单起草（handover:create=INST_PM/PLATFORM_ADMIN） -->
-    <Modal :open="createOpen" title="移交单起草" sub="创建后进入「资料提交」，3 类必传资料在小程序侧补传" icon="plus"
+    <Modal :open="createOpen" title="移交单起草" sub="三份资料齐全后创建并进入内部审核" icon="plus"
       note="handover:create" confirm-label="确认起草" @close="createOpen = false" @confirm="submitCreate">
-      <div class="form-grid one">
-        <FormField label="项目名称" required :error="createErr.projectName">
-          <input v-model="createModel.projectName" class="ctl" placeholder="如：江北城三期" />
-        </FormField>
+      <div class="form-grid">
+        <FormField label="项目名称" required :error="createErr.projectName"><input v-model="createModel.projectName" class="ctl" placeholder="如：江北城三期" /></FormField>
+        <FormField label="使用单位" required><select v-model="createModel.useUnitId" class="ctl"><option value="">请选择使用单位档案</option><option v-for="u in useUnits" :key="u.id" :value="u.id">{{ u.unitName }}</option></select></FormField>
+        <FormField label="厂家出厂编号" required hint="归档时用于 2.7 查询"><input v-model="createModel.factoryNumber" class="ctl mono" /></FormField>
+        <FormField label="单位内编号" required><input v-model="createModel.insideNumber" class="ctl mono" placeholder="如：KT-01" /></FormField>
+        <FormField label="电梯编码（可空，归档回填）"><input v-model="createModel.elevatorCode" class="ctl mono" placeholder="未注册可留空" /></FormField>
+        <FormField label="注册代码（可空，归档回填）"><input v-model="createModel.regCode" class="ctl mono" placeholder="未注册可留空" /></FormField>
+        <FormField label="设备代码（可空，归档回填）"><input v-model="createModel.deviceCode" class="ctl mono" placeholder="未获取可留空" /></FormField>
+        <FormField label="电梯名称"><input v-model="createModel.elevatorName" class="ctl" placeholder="如：1# 客梯" /></FormField>
+        <FormField label="电梯品种"><input v-model="createModel.category" class="ctl" placeholder="如：曳引与强制驱动电梯" /></FormField>
+        <FormField label="安装地址"><input v-model="createModel.location" class="ctl" /></FormField>
+        <FormField label="型号"><input v-model="createModel.model" class="ctl" /></FormField>
+        <FormField label="品牌"><input v-model="createModel.brand" class="ctl" /></FormField>
+        <FormField label="制造单位"><input v-model="createModel.manufacturer" class="ctl" /></FormField>
+        <FormField label="驱动方式"><input v-model="createModel.driveMode" class="ctl" /></FormField>
+        <FormField label="额定载重"><input v-model="createModel.ratedLoad" type="number" class="ctl mono" /></FormField>
+        <FormField label="载重单位"><input v-model="createModel.ratedLoadUnit" class="ctl mono" /></FormField>
+        <FormField label="额定速度"><input v-model="createModel.ratedSpeed" type="number" step="0.01" class="ctl mono" /></FormField>
+        <FormField label="速度单位"><input v-model="createModel.ratedSpeedUnit" class="ctl mono" /></FormField>
+        <FormField label="层站/门"><input v-model="createModel.stationsDoors" class="ctl mono" placeholder="如：11/11" /></FormField>
+        <FormField label="维保类别"><select v-model="createModel.workTypeCode" class="ctl"><option value="HM">半月</option><option value="FM">按需</option><option value="TM">季度</option><option value="SM">半年</option><option value="OY">年度</option></select></FormField>
+        <FormField label="监督检验合格日"><input v-model="createModel.supervisionPassDate" type="date" class="ctl mono" /></FormField>
+        <FormField label="安装竣工日期"><input v-model="createModel.installCompleteDate" type="date" class="ctl mono" /></FormField>
+        <FormField label="安装单位名称"><input v-model="createModel.installUnitName" class="ctl" /></FormField>
+        <FormField label="特殊类别"><select v-model="createModel.specialType" class="ctl"><option value="">无</option><option value="消防">消防电梯</option><option value="防爆">防爆电梯</option></select></FormField>
       </div>
-      <div class="form-grid mt12">
-        <FormField label="关联电梯（可选，自动带出设备快照）">
-          <select v-model="createModel.elevatorId" class="ctl">
-            <option value="">暂不关联（后续补充）</option>
-            <option v-for="e in elevators" :key="e.id" :value="e.id">
-              {{ e.elevatorCode }} · {{ e.elevatorName || '—' }}（{{ e.projectName || '—' }}）
-            </option>
-          </select>
-        </FormField>
-        <FormField label="安装竣工日期">
-          <input v-model="createModel.installCompleteDate" type="date" class="ctl mono" />
-        </FormField>
-        <FormField label="安装单位名称">
-          <input v-model="createModel.installUnitName" class="ctl" placeholder="如：重庆博威安装工程有限公司" />
-        </FormField>
-        <FormField label="特殊类别">
-          <select v-model="createModel.specialType" class="ctl">
-            <option value="">无</option>
-            <option value="消防">消防电梯</option>
-            <option value="防爆">防爆电梯</option>
-          </select>
-        </FormField>
+      <div class="mt16">
+        <h3>移交资料（全部必传）</h3>
+        <div v-for="doc in createDocs" :key="doc.field" class="form-grid mt8">
+          <FormField :label="doc.label" required>
+            <input type="file" accept=".pdf,.jpg,.jpeg,.png" class="ctl" @change="uploadCreateDoc(doc.field, $event)" />
+            <div class="dim f11 mt4">{{ doc.fileId ? '已上传' : '支持 PDF / JPG / PNG' }}</div>
+          </FormField>
+        </div>
       </div>
-      <RuleNote class="mt12">发起人取当前账号（{{ auth.userName }}）。选关联电梯时将写入设备码/梯号/品种/地址/注册代码/设备代码/单位内编号快照，供归档建电梯使用。</RuleNote>
+      <RuleNote class="mt12">发起人取当前账号（{{ auth.userName }}）。三份资料全部上传成功后才能创建；电梯编码、注册代码、设备代码在归档时由 2.7 自动回填。</RuleNote>
     </Modal>
 
     <!-- 审核退回 -->
@@ -351,9 +358,6 @@
   </div>
 </template>
 <script setup>
-// 移交管理（原型 Views.handovers/openHandoverDetail 对齐 + C-12 真实功能全量保留）：
-// 列表 + 详情抽屉（状态机 Steps / 时间轴 / 资料清单 / 74 项检查清单逐项留证 / 1:1 整改逐条复验 / 一梯一档 / 签字区 paper）。
-// 判定结论由后端计算冻结，前端不改写；门控走 permission-v2 三态（后端 MultiRoleGate 唯一权威）。
 import { ref, reactive, computed, onMounted } from 'vue'
 import http from '../api/client'
 import DataTable from '../ui/DataTable.vue'
@@ -397,7 +401,6 @@ const cols = [
   { key: 'status', label: '状态', sortable: true }
 ]
 const statusFilters = [{ key: 'status', label: '状态', options: Object.keys(HO_LABEL).map((c) => ({ value: c, label: HO_LABEL[c] })) }]
-// 必传资料缺件数（3 类强制项，docs/15）
 function missingDocs(row) {
   if (!row || !row.id) return 0
   return ['supervisionReportFileId', 'maintenanceManualFileId', 'qualityCertificateFileId'].filter((k) => !row[k]).length
@@ -478,44 +481,68 @@ async function loadList() {
 async function loadEmployees() {
   try { employees.value = (await http.get('/employees')) || [] } catch { employees.value = [] }
 }
-onMounted(() => { loadList(); loadEmployees(); loadElevators() })
+onMounted(() => { loadList(); loadEmployees(); loadElevatorOptions() })
 
 // ── 移交单起草（handover:create=INST_PM/PLATFORM_ADMIN）──
+function emptyCreateModel() {
+  return {
+    projectName: '', useUnitId: '', factoryNumber: '', insideNumber: '',
+    elevatorCode: '', regCode: '', deviceCode: '', elevatorName: '', category: '', location: '',
+    model: '', brand: '', manufacturer: '', driveMode: '', ratedLoad: '', ratedLoadUnit: 'kg',
+    ratedSpeed: '', ratedSpeedUnit: 'm/s', stationsDoors: '', workTypeCode: 'HM',
+    supervisionPassDate: '', installCompleteDate: '', installUnitName: '', specialType: ''
+  }
+}
+function emptyCreateDocs() {
+  return [
+    { field: 'supervisionReportFileId', label: '电梯监督检验报告', fileId: '' },
+    { field: 'qualityCertificateFileId', label: '安装质量证明文件', fileId: '' },
+    { field: 'maintenanceManualFileId', label: '维护使用说明书', fileId: '' }
+  ]
+}
 const createOpen = ref(false)
-const createModel = ref({ projectName: '', elevatorId: '', installCompleteDate: '', installUnitName: '', specialType: '' })
+const createModel = ref(emptyCreateModel())
+const createDocs = ref(emptyCreateDocs())
 const createErr = reactive({ projectName: '' })
-const elevators = ref([])
-async function loadElevators() {
-  try { const e = await http.get('/admin/elevators'); elevators.value = Array.isArray(e) ? e : e.list || [] } catch { elevators.value = [] }
+const useUnits = ref([])
+async function loadElevatorOptions() {
+  try { useUnits.value = (await api.getHandoverOptions()).useUnits || [] } catch { useUnits.value = [] }
 }
 function openCreate() {
-  createModel.value = { projectName: '', elevatorId: '', installCompleteDate: '', installUnitName: '', specialType: '' }
+  createModel.value = emptyCreateModel()
+  createDocs.value = emptyCreateDocs()
   createErr.projectName = ''
   createOpen.value = true
+}
+async function uploadCreateDoc(field, ev) {
+  const file = ev.target.files && ev.target.files[0]
+  if (!file) return
+  try {
+    const res = await uploadFile(file)
+    const doc = createDocs.value.find((d) => d.field === field)
+    if (doc) doc.fileId = res.fileId
+    toast.success('资料已上传')
+  } catch (e) { toast.error(e.message || '资料上传失败') } finally { ev.target.value = '' }
 }
 async function submitCreate() {
   createErr.projectName = createModel.value.projectName.trim() ? '' : '项目名称必填'
   if (createErr.projectName) return
+  if (!createModel.value.useUnitId) { toast.error('请选择使用单位'); return }
+  if (!createModel.value.factoryNumber.trim()) { toast.error('请填写厂家出厂编号，供归档时查询注册信息'); return }
+  if (!createModel.value.insideNumber.trim()) { toast.error('请填写单位内编号'); return }
+  if (createDocs.value.some((d) => !d.fileId)) { toast.error('监督检验报告、维护使用说明书、安装质量证明文件缺一不可'); return }
   try {
-    const el = elevators.value.find(x => x.id === createModel.value.elevatorId)
-    const body = {
+    const body = Object.assign({}, createModel.value, {
       projectName: createModel.value.projectName.trim(),
-      installCompleteDate: createModel.value.installCompleteDate || '',
-      installUnitName: createModel.value.installUnitName || '',
-      specialType: createModel.value.specialType || '',
+      supervisionReportFileId: createDocs.value.find((d) => d.field === 'supervisionReportFileId').fileId,
+      maintenanceManualFileId: createDocs.value.find((d) => d.field === 'maintenanceManualFileId').fileId,
+      qualityCertificateFileId: createDocs.value.find((d) => d.field === 'qualityCertificateFileId').fileId,
       initiatorId: (auth.user && auth.user.id) || '',
       initiatorName: auth.userName || ''
-    }
-    if (el) {
-      Object.assign(body, {
-        elevatorId: el.id, elevatorCode: el.elevatorCode || '', elevatorName: el.elevatorName || '',
-        category: el.category || '', location: el.location || '', regCode: el.registrationCode || '',
-        deviceCode: el.deviceCode || '', insideNumber: el.insideNumber || ''
-      })
-    }
+    })
     const created = await api.createHandover(body)
     createOpen.value = false
-    toast.success('移交单已起草（资料提交）', created.handoverNo || created.id)
+    toast.success('移交单已起草（待内部审核）', created.handoverNo || created.id)
     await loadList()
     if (created && created.id) openDetail(created)
   } catch (e) { toast.error(e.message || '起草失败') }
@@ -581,7 +608,6 @@ async function submit() {
   } catch (e) { toast.error(e.message || '提交查验失败') }
 }
 
-// 内部审核（C-13：APPROVE → INSPECTING；REJECT 原因+期限必填 → DOC_SUBMITTING）
 async function approveReview() {
   try {
     const order = await http.post(`/handovers/${detail.value.id}/review`, { action: 'APPROVE' })
