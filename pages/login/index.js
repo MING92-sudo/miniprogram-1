@@ -94,8 +94,10 @@ Page({
       // 不区分通道：后端按账号自动判定员工/客户
       const data = await auth.accountLogin(account, this.data.password)
       // 微信一键登录未绑定引导过来的：登录成功后用暂存 code 自动绑定（code 一次性/5 分钟，失败不阻断）
+      // bindWeChat 是 needAuth 接口，须先落登录态再绑定，否则生产 401
       if (this._pendingBindCode && !(data && data.needSelectUnit)) {
         try {
+          auth.applyLoginResult(data)
           await auth.bindWeChat(this._pendingBindCode)
           wx.setStorageSync(WECHAT_BOUND_KEY, true)
         } catch (e) {

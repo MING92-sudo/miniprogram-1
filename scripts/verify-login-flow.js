@@ -131,8 +131,14 @@ async function check(name, fn) {
         },
         // 422 = openid 未绑定（与 code 是否过期无关）
         wxLogin: async () => { const e = new Error('该微信尚未绑定账号，请先用账号密码登录并绑定微信'); e.code = 422; throw e },
-        bindWeChat: async (code) => { calls.push(['bindWeChat', code]); if (code === 'EXPIRED') { const e = new Error('微信登录凭证已失效'); e.code = 422; throw e } return { ok: true } },
-        applyLoginResult: (d) => d
+        // bindWeChat 是 needAuth 接口：调用时 token 必须已写入（复现生产 401 的顺序回归）
+        bindWeChat: async (code) => {
+          if (!storage.em_token) throw new Error('bindWeChat 调用时 token 未写入（needAuth 接口会 401）')
+          calls.push(['bindWeChat', code])
+          if (code === 'EXPIRED') { const e = new Error('微信登录凭证已失效'); e.code = 422; throw e }
+          return { ok: true }
+        },
+        applyLoginResult: (d) => { storage.em_token = d.token; return d }
       }
     }
     const pagePath = path.join(ROOT, 'pages/login/index.js')
@@ -207,6 +213,16 @@ async function check(name, fn) {
       assert(!calls.some((c) => c[0] === 'bindWeChat'), 'needSelectUnit 分支不应触发绑定，实际 ' + JSON.stringify(calls))
       assert(wxCalls.navTo.some((u) => u.indexOf('/pages/client/select-unit/index') === 0), '应去选单位页')
     })
+  })
+
+  // ── 预览页导航栏单一（全局 custom 导航下不允许再叠原生栏）──
+  await check('预览页无双导航栏（custom nav-bar ↔ 原生栏二选一）', async () => {
+    const fs = require('fs')
+    const json = JSON.parse(fs.readFileSync(path.join(ROOT, 'pages/preview/index.json'), 'utf8'))
+    const wxml = fs.readFileSync(path.join(ROOT, 'pages/preview/index.wxml'), 'utf8')
+    if (wxml.indexOf('<nav-bar') > -1) {
+      assert(json.navigationStyle !== 'default', 'wxml 已渲染 custom nav-bar，json 又开原生导航栏 → 双导航栏')
+    }
   })
 
   const failed = results.filter((r) => !r.ok)
