@@ -390,7 +390,7 @@ public class WorkOrderService {
 
     public Map<String, Object> getOrderView(String id, String empId) {
         WorkOrder o = findOr404(id);
-        requireOrderScope(o, empId);
+        requireOrderReadScope(o, empId);
         return toMap(o, true);
     }
 
@@ -414,8 +414,17 @@ public class WorkOrderService {
     public void requireOrderScope(WorkOrder o, String empId) {
         Employee emp = scopeService.require(empId);
         Set<String> ids = scopeService.visibleWorkerPlatformIds(emp);
+        requireOrderInScope(o, emp, ids);
+    }
+
+    private void requireOrderReadScope(WorkOrder o, String empId) {
+        Employee emp = scopeService.require(empId);
+        requireOrderInScope(o, emp, scopeService.visibleReadPlatformIds(emp));
+    }
+
+    private static void requireOrderInScope(WorkOrder o, Employee emp, Set<String> ids) {
         if (ids == null || in(ids, o.workerPlatformId) || in(ids, o.assistantPlatformId)
-                || poolVisible(o, emp)) {
+                || (!ids.isEmpty() && poolVisible(o, emp))) {
             return;
         }
         throw new BizException(1403, "仅可查看或操作本人工单或本班组工单");
@@ -448,7 +457,7 @@ public class WorkOrderService {
         if (o == null) {
             throw new BizException(1404, "该电梯暂无进行中的工单");
         }
-        requireOrderScope(o, empId); // C3：与其它端点同样校验班组归属，防跨班组越权读取
+        requireOrderReadScope(o, empId); // 与其他读端点同样校验班组归属
         return toMap(o, true);
     }
 
@@ -860,7 +869,7 @@ public class WorkOrderService {
 
     public Map<String, Object> getChecklist(String orderId, String empId) {
         WorkOrder o = findOr404(orderId);
-        requireOrderScope(o, empId);
+        requireOrderReadScope(o, empId);
         // 作业页头部上下文：类别码/维保类别/电梯名/项目名称（小区），作业清单页重设计用
         Elevator el = elevatorMapper.selectById(o.elevatorId);
         return JsonUtil.map(
@@ -942,7 +951,7 @@ public class WorkOrderService {
 
     // ── 签字 ──
 
-    /** 严格各签各的：普通作业人员仅可签本人对应角色，组长/管理员可代签（{@link #requireSignRole}）； */
+    /** 普通作业人员仅可签本人对应角色；LEADER 无代签特权（{@link #requireSignRole}）； */
     public Map<String, Object> signOrder(String orderId, Map<String, Object> body, String empId) {
         WorkOrder o = findOr404(orderId);
         requireOrderScope(o, empId);
@@ -975,7 +984,7 @@ public class WorkOrderService {
     private void requireSignRole(WorkOrder o, String role, String empId) {
         Employee login = scopeService.require(empId);
         String r = login.role == null ? "" : login.role;
-        if ("ADMIN".equals(r) || "SYS_ADMIN".equals(r) || "LEADER".equals(r)) {
+        if ("ADMIN".equals(r) || "SYS_ADMIN".equals(r)) {
             return;
         }
         String pid = login.platformId;
@@ -998,7 +1007,7 @@ public class WorkOrderService {
         // 仅主维保可签退：普通作业人员只有主维保本人可签退；
         Employee login = scopeService.require(empId);
         String loginRole = login.role == null ? "" : login.role;
-        boolean privileged = "ADMIN".equals(loginRole) || "SYS_ADMIN".equals(loginRole) || "LEADER".equals(loginRole);
+        boolean privileged = "ADMIN".equals(loginRole) || "SYS_ADMIN".equals(loginRole);
         if (!privileged) {
             String pid = login.platformId;
             if (pid == null || pid.isBlank() || !pid.equals(o.workerPlatformId)) {

@@ -95,7 +95,7 @@ class AuthInterceptorV2Test {
         assertEquals("LEADER", req.getAttribute(AuthInterceptor.ATTR_ROLE)); // 主角色旧码逐字不变
         @SuppressWarnings("unchecked")
         Set<String> roles = (Set<String>) req.getAttribute(AuthInterceptor.ATTR_ROLES);
-        assertEquals(Set.of("MAINT_SUP", "MAINT_TECH"), roles);
+        assertEquals(Set.of("MAINT_SUP", "MAINT_TECH", "LEADER"), roles);
     }
 
     @Test

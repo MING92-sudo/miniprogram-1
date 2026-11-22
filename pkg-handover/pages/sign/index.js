@@ -13,7 +13,7 @@ const {
 const { ensureLogin } = require('../../../utils/guard')
 const { hasAnyRole } = require('../../../utils/auth')
 
-const CONFIRM_ROLES = [ROLE.MAINT_MANAGER, ROLE.LEADER, ROLE.ADMIN, 'MAINT_MGR', 'MAINT_SUP', 'PLATFORM_ADMIN']
+const CONFIRM_ROLES = [ROLE.MAINT_MANAGER, ROLE.ADMIN, 'MAINT_MGR', 'MAINT_SUP', 'PLATFORM_ADMIN']
 
 definePage(ROUTES['/pkg-handover/pages/sign/index'], {
   data: {

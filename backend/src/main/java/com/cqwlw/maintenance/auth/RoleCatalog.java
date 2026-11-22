@@ -71,6 +71,7 @@ public final class RoleCatalog {
         CANONICAL.put("INSTALLER", new Role("INSTALLER", "INSTALL", "安装员", false, "INST_MGR"));
         CANONICAL.put("MAINT_MGR", new Role("MAINT_MGR", "MAINT", "维保部经理", true, null));
         CANONICAL.put("MAINT_SUP", new Role("MAINT_SUP", "MAINT", "维保主管", true, "MAINT_MGR"));
+        CANONICAL.put("LEADER", new Role("LEADER", "MAINT", "维保班组长", true, "MAINT_SUP"));
         CANONICAL.put("MAINT_TECH", new Role("MAINT_TECH", "MAINT", "维保人员", false, "MAINT_SUP"));
         CANONICAL.put("MAINT_BIZ", new Role("MAINT_BIZ", "MAINT", "维保商务", true, "MAINT_MGR"));
         CANONICAL.put("MAINT_QUALITY", new Role("MAINT_QUALITY", "MAINT", "维保质量", true, "MAINT_MGR"));
@@ -83,7 +84,6 @@ public final class RoleCatalog {
         ALIAS.put("INSTALL_CLERK", "INST_CLERK");
         ALIAS.put("INSTALL_WORKER", "INSTALLER");
         ALIAS.put("MAINT_MANAGER", "MAINT_MGR");
-        ALIAS.put("LEADER", "MAINT_SUP");
         ALIAS.put("WORKER", "MAINT_TECH");
         ALIAS.put("ASSISTANT", "MAINT_TECH");
         ALIAS.put("MAINT_BIZ", "MAINT_BIZ");

@@ -19,7 +19,7 @@ public final class PermissionMatrix {
     public static final String FAULT_WRITE = "fault:write";
     public static final String RECORD_READ = "record:read";
     public static final String REPORT_RETRY = "report:retry";
-    /** 计划调度：派单/延期/转派（LEADER 为本组范围，见 AdminRoleInterceptor 例外分支） */
+    /** 计划调度：派单/延期/转派 */
     public static final String PLAN_WRITE = "plan:write";
     /** 模板管理 */
     public static final String TEMPLATE_WRITE = "template:write";
@@ -75,7 +75,7 @@ public final class PermissionMatrix {
         // §7 签到/清单/签退：本人作业；§6 管理端写由平台层与维保经理承担
         grant(grants, ORDER_WRITE,
                 RoleCatalog.ADMIN, RoleCatalog.MAINT_MANAGER,
-                RoleCatalog.LEADER, RoleCatalog.WORKER, RoleCatalog.ASSISTANT);
+                "MAINT_SUP", RoleCatalog.WORKER, RoleCatalog.ASSISTANT);
 
         grant(grants, FAULT_READ,
                 RoleCatalog.ADMIN, RoleCatalog.MAINT_MANAGER,
@@ -84,7 +84,7 @@ public final class PermissionMatrix {
         // §7 急修单登记：现场报修（安装员）、本组、本人、本梯报修（使用单位）
         grant(grants, FAULT_WRITE,
                 RoleCatalog.ADMIN, RoleCatalog.MAINT_MANAGER,
-                RoleCatalog.LEADER, RoleCatalog.WORKER, RoleCatalog.ASSISTANT,
+                "MAINT_SUP", RoleCatalog.WORKER, RoleCatalog.ASSISTANT,
                 RoleCatalog.INSTALL_WORKER, RoleCatalog.UNIT_ADMIN);
         // §4 记录读：维保部全部口径 + 使用单位本梯；§8 R4 商务不见现场作业数据
         grant(grants, RECORD_READ,
@@ -95,9 +95,9 @@ public final class PermissionMatrix {
         // §6 上报异常清单（重报）+ §8 R3：质量负责人只读，不可重报
         grant(grants, REPORT_RETRY,
                 RoleCatalog.ADMIN, RoleCatalog.MAINT_MANAGER);
-        // §6 计划调度：班组长 W（本组），范围由 DeptScopeService + 单据归属校验收敛（§5）
+        // §6 计划调度：维保主管/经理写，LEADER 仅保留查询
         grant(grants, PLAN_WRITE,
-                RoleCatalog.ADMIN, RoleCatalog.MAINT_MANAGER, RoleCatalog.LEADER);
+                RoleCatalog.ADMIN, RoleCatalog.MAINT_MANAGER, "MAINT_SUP");
         grant(grants, TEMPLATE_WRITE,
                 RoleCatalog.ADMIN, RoleCatalog.MAINT_MANAGER, RoleCatalog.MAINT_QUALITY);
 
@@ -298,9 +298,9 @@ public final class PermissionMatrix {
 
     static {
         String PA = "PLATFORM_ADMIN", IM = "INST_MGR", IP = "INST_PM", IC = "INST_CLERK",
-                IW = "INSTALLER", MM = "MAINT_MGR", MS = "MAINT_SUP", MT = "MAINT_TECH",
+                IW = "INSTALLER", MM = "MAINT_MGR", MS = "MAINT_SUP", LD = "LEADER", MT = "MAINT_TECH",
                 MB = "MAINT_BIZ", MQ = "MAINT_QUALITY", CA = "CLIENT_ADMIN", CS = "CLIENT_SIGNER";
-        y(HANDOVER_VIEW, IM, MS, MM, PA); c(HANDOVER_VIEW, IC, IP, IW, MT);
+        y(HANDOVER_VIEW, IM, MS, LD, MM, PA); c(HANDOVER_VIEW, IC, IP, IW, MT);
         y(HANDOVER_CREATE, IP, IC);
         y(HANDOVER_EDIT, IP); c(HANDOVER_EDIT, IC);
         y(HANDOVER_DOC_UPLOAD, IC, IP);
@@ -314,25 +314,25 @@ public final class PermissionMatrix {
         y(HANDOVER_SIGN_INSTALL, IM, IW);
         y(HANDOVER_SIGN_MAINT, MS, MM);
         y(HANDOVER_VOID, IM, MM, PA);
-        y(HANDOVER_EXPORT, IM, MS, MM, PA);
+        y(HANDOVER_EXPORT, IM, MS, LD, MM, PA);
         y(HANDOVER_NOTIFY_CLIENT, MS);
         // §4.2 项目合同电梯（9）
-        y(PROJECT_VIEW, MS, MM, PA); c(PROJECT_VIEW, IC, IP, IM);
+        y(PROJECT_VIEW, MS, LD, MM, PA); c(PROJECT_VIEW, IC, IP, IM);
         y(PROJECT_EDIT, MM, PA);
-        y(CONTRACT_VIEW, MM, PA, MB); c(CONTRACT_VIEW, MS);
+        y(CONTRACT_VIEW, MM, PA, MB); c(CONTRACT_VIEW, MS, LD);
         y(CONTRACT_EDIT, MM, PA, MB);
-        c(ELEVATOR_VIEW, PA, IM, IP, IC, IW, MM, MS, MT, MB, MQ);
+        c(ELEVATOR_VIEW, PA, IM, IP, IC, IW, MM, MS, LD, MT, MB, MQ);
         y(ELEVATOR_EDIT, MS, PA);
         y(ELEVATOR_QR, MT, MS);
         y(ELEVATOR_TRANSFER, MM, PA);
-        y(ELEVATOR_EXPORT, MM, PA); c(ELEVATOR_EXPORT, MS);
+        y(ELEVATOR_EXPORT, MM, PA); c(ELEVATOR_EXPORT, MS, LD);
         // §4.3 维保作业（15）
-        y(PLAN_VIEW, MS, MM); c(PLAN_VIEW, MT);
+        y(PLAN_VIEW, MS, LD, MM); c(PLAN_VIEW, MT);
         y(PLAN_GENERATE, MS, MM);
         y(TASK_ACCEPT, MT);
         y(TASK_ASSIGN_PARTNER, MS, MT);
         y(CHECKLIST_FILL, MT);
-        y(RECORD_VIEW, MS, MM, PA); c(RECORD_VIEW, MT);
+        y(RECORD_VIEW, MS, LD, MM, PA); c(RECORD_VIEW, MT);
         y(RECORD_SUBMIT, MT);
         y(RECORD_SIGN_TECH, MT);
         y(RECORD_REVIEW, MS, MM);
@@ -341,10 +341,10 @@ public final class PermissionMatrix {
         y(RECORD_REFUSE); // P1 T2：拒签能力 P3 增 client:refuse 前仅平台管理员持有（DC3）
         y(RECORD_ARCHIVE, MS);
         y(RECORD_AMEND, MM, PA);
-        y(RECORD_EXPORT, MS, MM, PA);
+        y(RECORD_EXPORT, MS, LD, MM, PA);
         y(ORDER_CREATE);
         y(ORDER_CREATE_PROXY, MS);
-        y(ORDER_VIEW_POOL, MS, MM); c(ORDER_VIEW_POOL, MT);
+        y(ORDER_VIEW_POOL, MS, LD, MM); c(ORDER_VIEW_POOL, MT);
         y(ORDER_VIEW_OWN); // P1 T2：仅平台管理员持有（客户工单读走锚点判定，不依赖本码）
         y(ORDER_GRAB, MT);
         y(ORDER_DISPATCH, MS, MM);
@@ -355,7 +355,7 @@ public final class PermissionMatrix {
         y(ORDER_CLOSE, MS);
         y(ORDER_CANCEL, MS);
         y(ORDER_ESCALATE, MM);
-        y(ORDER_EXPORT, MS, MM, PA);
+        y(ORDER_EXPORT, MS, LD, MM, PA);
         // evaluate/user_manage 默认关闭，invite 仅 MS。
         y(CLIENT_INVITE, MS);
         y(CLIENT_USER_MANAGE);
@@ -365,24 +365,24 @@ public final class PermissionMatrix {
         y(CLIENT_EVALUATE);
         y(CLIENT_DOWNLOAD, CA, CS);
         // §4.6 组织权限审计（10）
-        y(USER_VIEW, PA); c(USER_VIEW, IM, MS, MM);
+        y(USER_VIEW, PA); c(USER_VIEW, IM, MS, LD, MM);
         y(USER_CREATE, IM, MS, MM, PA);
         y(USER_DISABLE, IM, MS, MM, PA);
         y(ROLE_ASSIGN, PA);
         y(INVITE_MANAGE, IM, MS, MM, PA);
-        y(STATS_VIEW, IM, MS, MM, PA);
-        y(STATS_EXPORT, MM, PA); c(STATS_EXPORT, IM, MS);
+        y(STATS_VIEW, IM, MS, LD, MM, PA);
+        y(STATS_EXPORT, MM, PA); c(STATS_EXPORT, IM, MS, LD);
         y(AUDIT_VIEW, PA);
         y(CONFIG_MANAGE, PA);
         y(DATA_EXPORT_SENSITIVE, PA); // 审批工作流 M5；M1 只编码平台持有该能力
-        y(REPORT_VIEW, PA, MM); c(REPORT_VIEW, MS, MQ);
+        y(REPORT_VIEW, PA, MM); c(REPORT_VIEW, MS, LD, MQ);
         y(REPORT_RETRY_NEW, PA, MM);
         y(REGION_VIEW, PA);
         y(REGION_WRITE_NEW, PA);
         y(TEMPLATE_VIEW, PA, MM); c(TEMPLATE_VIEW, MQ);
         y(TEMPLATE_WRITE_NEW, PA, MM, MQ);
         y(TEMPLATE_TOGGLE, PA, MQ);
-        y(PLATFORM_WORKER_VIEW, PA); c(PLATFORM_WORKER_VIEW, IP, IC, MM, MS);
+        y(PLATFORM_WORKER_VIEW, PA); c(PLATFORM_WORKER_VIEW, IP, IC, MM, MS, LD);
         y(PLATFORM_WORKER_REGISTER, PA, MM);
         y(PLATFORM_SYNC, PA);
         y(RECORD_SPOTCHECK, MQ);

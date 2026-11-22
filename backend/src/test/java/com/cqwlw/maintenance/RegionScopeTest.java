@@ -100,15 +100,16 @@ class RegionScopeTest {
         assertTrue(svc.visibleReadPlatformIds(me).contains("wp_b"));
     }
 
-    /** region 为空的存量员工：写谓词行为不变（本人/本组） */
+    /** LEADER 独立为只读班组角色，不再获得 MAINT_SUP 写范围。 */
     @Test
-    void writeScopeUnchangedForLegacyData() {
+    void leaderHasTeamReadButNoWriteScope() {
         Employee leader = emp("emp_l", "LEADER", null, "g1", "wp_l");
         Employee member = emp("emp_m", "WORKER", null, "g1", "wp_m");
         EmployeeMapper mapper = mock(EmployeeMapper.class);
         when(mapper.selectList(any())).thenReturn(List.of(leader, member));
         EmployeeScopeService svc = new EmployeeScopeService(mapper);
-        assertEquals(Set.of("wp_l", "wp_m"), svc.visibleWorkerPlatformIds(leader));
+        assertEquals(Set.of("wp_l", "wp_m"), svc.visibleReadPlatformIds(leader));
+        assertEquals(Set.of(), svc.visibleWorkerPlatformIds(leader));
     }
 
     /** require() 对无效 empId 仍抛 401（回归） */
@@ -128,7 +129,7 @@ class RegionScopeTest {
         assertNull(svc.visibleReadPlatformIds(mgr));
     }
 
-    /** MAINT_SUP=旧码 LEADER 同口径——本班组读+写谓词，不再本人兜底 */
+    /** MAINT_SUP 保持本班组读+写谓词，不再本人兜底。 */
     @Test
     void canonicalMaintSupGetsTeamScope() {
         Employee sup = emp("emp_s", "MAINT_SUP", null, "g1", "wp_s");

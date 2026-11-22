@@ -158,6 +158,7 @@ class WorkOrderWriteScopeTest {
 
     @Test
     void groupLeaderCanReadChecklistButCannotCheckinForMember() {
+        when(orderMapper.selectById(GROUP_ORDER)).thenReturn(order(GROUP_ORDER, null, "PENDING", null));
         assertForbidden(() -> service.checkin(GROUP_ORDER,
                 Map.of("role", "PRINCIPAL", "latitude", "29.6000", "longitude", "106.5000"), EMP_CHEN));
         verify(orderMapper, never()).updateById(any(WorkOrder.class));

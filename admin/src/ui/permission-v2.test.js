@@ -10,21 +10,25 @@ describe('permission-v2 mirror', () => {
     expect(canonicalCodes().has('user:reset_password')).toBe(true)
   })
   it('has 13 canonical roles', () => {
-    expect(canonicalRoles().size).toBe(12) // 2026-11-21：SYS_ADMIN 并入 PLATFORM_ADMIN（13→12）
+    expect(canonicalRoles().size).toBe(13)
   })
   it('aliases old codes to canonical', () => {
     expect(canonical('ADMIN')).toBe('PLATFORM_ADMIN')
-    expect(canonical('LEADER')).toBe('MAINT_SUP')
+    expect(canonical('LEADER')).toBe('LEADER')
     expect(canonical('INSTALL_MANAGER')).toBe('INST_PM')
     expect(canonical('UNIT_ADMIN')).toBe('CLIENT_ADMIN')
     expect(canonical('INST_MGR')).toBe('INST_MGR')
     expect(canonical('HACKER')).toBe(null)
     expect(canonical(null)).toBe(null)
   })
-  it('旧 LEADER 管理端只读，MAINT_SUP 与平台管理员按矩阵可编辑定位', () => {
+  it('LEADER 独立只读，MAINT_SUP 与平台管理员按矩阵可编辑定位', () => {
     expect(canEditElevator('LEADER')).toBe(false)
     expect(canEditElevator('MAINT_SUP')).toBe(true)
     expect(canEditElevator('PLATFORM_ADMIN')).toBe(true)
+    ;['user:create', 'user:disable', 'order:dispatch', 'record:archive', 'record:review', 'plan:generate']
+      .forEach((code) => expect(state('LEADER', code)).toBe('DENY'))
+    ;['project:view', 'record:view', 'order:view_pool', 'stats:view']
+      .forEach((code) => expect(state('LEADER', code)).not.toBe('DENY'))
   })
   it('tri-state samples match backend', () => {
     expect(state('INST_MGR', 'handover:review')).toBe('Y')
@@ -54,6 +58,7 @@ describe('permission-v2 mirror', () => {
     expect(defaultScope('INST_MGR')).toBe('ORG')
     expect(defaultScope('INST_PM')).toBe('PROJECT')
     expect(defaultScope('MAINT_SUP')).toBe('TEAM')
+    expect(defaultScope('LEADER')).toBe('TEAM')
     expect(defaultScope('MAINT_TECH')).toBe('SELF')
     expect(defaultScope('CLIENT_ADMIN')).toBe('ORG_FLAT')
     expect(defaultScope('HACKER')).toBe(null)
@@ -84,7 +89,7 @@ describe('permission-v2 mirror', () => {
       expect(state('CLIENT_SIGNER', code)).toBe('DENY')
     })
     expect(canonicalCodes().size).toBe(84)
-    expect(canonicalRoles().size).toBe(12) // 2026-11-21：SYS_ADMIN 并入 PLATFORM_ADMIN（13→12）
+    expect(canonicalRoles().size).toBe(13)
     expect(state('SYS_ADMIN', 'client:user_manage')).toBe('Y')
   })
 })

@@ -38,12 +38,12 @@ class AdminRoleInterceptorTest {
         when(req.getAttribute(HandlerMapping.BEST_MATCHING_PATTERN_ATTRIBUTE))
                 .thenReturn("/admin/plans/{id}/delay");
         when(req.getAttribute(AuthInterceptor.ATTR_ROLE)).thenReturn("LEADER");
-        assertDoesNotThrow(() -> interceptor.preHandle(req, response, handler));
+        assertThrows(BizException.class, () -> interceptor.preHandle(req, response, handler));
     }
 
     @Test
-    void leaderCanInitiateDelay() {
-        assertDoesNotThrow(() -> interceptor.preHandle(
+    void leaderCannotInitiateDelay() {
+        assertThrows(BizException.class, () -> interceptor.preHandle(
                 request("POST", "/admin/plans/pl_1/delay", "LEADER"), response, handler));
     }
 

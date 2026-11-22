@@ -31,11 +31,9 @@ import static org.mockito.Mockito.when;
 /** 门禁改造兼容性：{@link AdminRoleInterceptor} 改走 PermissionMatrix 后，现有 5 个角色在 (HTTP 方法, 路由) 组合上的放行结果必须与改造前逐条一致。 */
 class AdminRoleInterceptorCompatTest {
 
-    /** 改造前：读=LEADER/ADMIN/SYS_ADMIN，写=ADMIN/SYS_ADMIN */
+    /** 兼容基线：LEADER 只读，写=ADMIN/SYS_ADMIN。 */
     private static final Set<String> LEGACY_READ = Set.of("LEADER", "ADMIN", "SYS_ADMIN");
     private static final Set<String> LEGACY_WRITE = Set.of("ADMIN", "SYS_ADMIN");
-    private static final Pattern LEGACY_LEADER_WRITABLE =
-            Pattern.compile("^/admin/plans/[^/]+/delay$");
     private static final Pattern LEGACY_WORKER_WRITABLE_ELEVATOR =
             Pattern.compile("^/elevators/[^/]+/(project-name|local)$");
 
@@ -74,7 +72,7 @@ class AdminRoleInterceptorCompatTest {
         return req;
     }
 
-    /** 改造前的 preHandle 判定（原样内联） */
+    /** 未标注能力码时的旧两档判定。 */
     private static boolean legacyAllows(String method, String path, String role) {
         boolean write = !"GET".equals(method);
         if (!write && path.startsWith("/elevators")) {
@@ -82,9 +80,6 @@ class AdminRoleInterceptorCompatTest {
         }
         if (write && LEGACY_WORKER_WRITABLE_ELEVATOR.matcher(path).matches()) {
             return true;
-        }
-        if (write && LEGACY_LEADER_WRITABLE.matcher(path).matches()) {
-            return LEGACY_READ.contains(role);
         }
         return write ? LEGACY_WRITE.contains(role) : LEGACY_READ.contains(role);
     }

@@ -37,7 +37,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/** ①签字严格各签各的：普通作业人员仅可签本人对应角色，组长/管理员可代签； */
+/** 签字严格各签各的：LEADER 不得代签或代签退。 */
 class WorkOrderSignatureTest {
 
     private static final String GROUP = "维保一班";
@@ -124,10 +124,10 @@ class WorkOrderSignatureTest {
     }
 
     @Test
-    void leaderCanSignAnyRole() {
-        service.signOrder(DUAL_ORDER, sign("ASSISTANT", "file_by_leader"), EMP_CHEN);
-        WorkOrder captured = captureUpdate();
-        assertEquals("file_by_leader", captured.assistantSignatureFileId);
+    void leaderCannotUseServiceSideWriteBypasses() {
+        assertCode(1403, () -> service.signOrder(DUAL_ORDER, sign("ASSISTANT", "file_by_leader"), EMP_CHEN));
+        assertCode(1403, () -> service.checkout(DUAL_ORDER, Map.of(), EMP_CHEN));
+        verify(orderMapper, never()).updateById(any(WorkOrder.class));
     }
 
     /** 签退仅主维保可操作：配合人员（李强）即使工单归属本人，也不得签退（防代签退 → 平台 2.6 虚假数据） */

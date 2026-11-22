@@ -22,8 +22,8 @@ public class EmployeeScopeService {
     private static final Set<String> NO_FIELD_ROLES = Set.of(
             "INSTALL_MANAGER", "INSTALL_CLERK", "INSTALL_WORKER", "MAINT_BIZ",
             "INST_PM", "INST_CLERK", "INSTALLER", "INST_MGR");
-    /** 班组长读域（LEADER 的规范码等价）：本班组全部员工 */
-    private static final String TEAM_LEAD = "MAINT_SUP";
+    /** 班组读域；LEADER 只读，MAINT_SUP 保留既有写范围。 */
+    private static final Set<String> TEAM_READERS = Set.of("MAINT_SUP", "LEADER");
 
     private final EmployeeMapper employeeMapper;
 
@@ -56,7 +56,7 @@ public class EmployeeScopeService {
                 }
             }
         }
-        if (TEAM_LEAD.equals(role)) {
+        if (TEAM_READERS.contains(role)) {
             for (Employee m : sameGroup(e)) {
                 if (m.platformId != null && !m.platformId.isBlank()) {
                     ids.add(m.platformId);
@@ -91,7 +91,10 @@ public class EmployeeScopeService {
         if (PRIVILEGED.contains(role)) {
             return null;
         }
-        if (TEAM_LEAD.equals(role)) {
+        if ("LEADER".equals(role)) {
+            return Set.of();
+        }
+        if (TEAM_READERS.contains(role)) {
             Set<String> ids = new HashSet<>();
             for (Employee m : sameGroup(e)) {
                 if (m.platformId != null && !m.platformId.isBlank()) {
@@ -109,7 +112,7 @@ public class EmployeeScopeService {
         if (PRIVILEGED.contains(role)) {
             return null;
         }
-        if (TEAM_LEAD.equals(role)) {
+        if (TEAM_READERS.contains(role)) {
             Set<String> ids = new HashSet<>();
             for (Employee m : sameGroup(e)) {
                 ids.add(m.id);
