@@ -26,6 +26,7 @@ import com.cqwlw.maintenance.mapper.WorkOrderMapper;
 import com.cqwlw.maintenance.util.TimeUtil;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -391,6 +392,7 @@ public class AdminArchiveService {
         return Map.of("ok", true);
     }
 
+    @Transactional
     public Map<String, Object> setEmployeeEnabled(String id, boolean enabled) {
         Employee e = employeeMapper.selectById(id);
         if (e == null) {
@@ -402,6 +404,7 @@ public class AdminArchiveService {
         return employeeRow(e);
     }
 
+    @Transactional
     public Map<String, Object> resetEmployeePassword(String id, String password) {
         Employee e = employeeMapper.selectById(id);
         if (e == null) {
