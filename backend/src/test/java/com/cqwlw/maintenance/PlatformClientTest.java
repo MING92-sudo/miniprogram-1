@@ -8,7 +8,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
+import org.springframework.test.web.client.ExpectedCount;
 import org.springframework.test.web.client.MockRestServiceServer;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.LinkedHashMap;
@@ -25,7 +27,7 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 import org.springframework.http.HttpStatus;
 
-/** HTTP 401 → 清缓存重登重试 1 次； */
+/** 查询 401 重登重试 1 次；监管写请求 401 不重放。 */
 class PlatformClientTest {
 
     private PlatformClient client;
@@ -48,7 +50,11 @@ class PlatformClientTest {
     }
 
     private void mockLogin(String token) {
-        server.expect(requestTo(org.hamcrest.Matchers.startsWith("https://auth.example.com/login")))
+        mockLogin(ExpectedCount.once(), token);
+    }
+
+    private void mockLogin(ExpectedCount count, String token) {
+        server.expect(count, requestTo(org.hamcrest.Matchers.startsWith("https://auth.example.com/login")))
                 .andRespond(withSuccess(
                         "{\"code\":200,\"message\":\"ok\",\"data\":{\"access_token\":\"" + token
                                 + "\",\"expires_in\":3599}}",
@@ -72,17 +78,62 @@ class PlatformClientTest {
     }
 
     @Test
-    void unauthorizedTriggersReloginRetryOnce() {
+    void query401RefreshesOnce() {
         mockLogin("expired");
-        server.expect(requestTo("https://api.example.com/entity/queryID"))
+        server.expect(requestTo("https://api.example.com/entity/queryWorkList"))
                 .andRespond(withStatus(HttpStatus.UNAUTHORIZED));
         mockLogin("fresh");
-        server.expect(requestTo("https://api.example.com/entity/queryID"))
+        server.expect(requestTo("https://api.example.com/entity/queryWorkList"))
                 .andExpect(header("Authorization", "Bearer fresh"))
                 .andRespond(withSuccess(
-                        "{\"code\":200,\"message\":\"ok\",\"data\":[{\"entityID\":\"42\"}]}",
+                        "{\"code\":200,\"message\":\"ok\",\"data\":[{\"platform_id\":\"worker-1\"}]}",
                         MediaType.APPLICATION_JSON));
-        assertEquals("42", client.queryEntityId("org", "unit"));
+        List<Map<String, Object>> workers = client.queryWorkList("0", null);
+        assertEquals("worker-1", workers.get(0).get("platform_id"));
+        server.verify();
+    }
+
+    @Test
+    void maintenanceUpload401IsNotRetried() {
+        mockLogin("expired");
+        server.expect(requestTo("https://api.example.com/elevator/maintenanceRecord"))
+                .andRespond(withStatus(HttpStatus.UNAUTHORIZED));
+        mockLogin(ExpectedCount.between(0, 1), "fresh");
+        server.expect(ExpectedCount.between(0, 1),
+                        requestTo("https://api.example.com/elevator/maintenanceRecord"))
+                .andRespond(withSuccess("{\"code\":200,\"message\":\"ok\"}", MediaType.APPLICATION_JSON));
+
+        BizException e = assertThrows(BizException.class,
+                () -> client.uploadMaintenanceRecord(Map.of("elevatorCode", "212520")));
+
+        assertEquals(2003, e.getCode());
+        server.verify();
+    }
+
+    @Test
+    void legacyAndWorkerWritesAreNotRetried() {
+        mockLogin("legacy-expired");
+        server.expect(requestTo("https://api.example.com/record/uploadMaintainRecord"))
+                .andRespond(withStatus(HttpStatus.UNAUTHORIZED));
+        mockLogin("worker-expired");
+
+        RestTemplate uploadRestTemplate = (RestTemplate) ReflectionTestUtils.getField(client, "uploadRestTemplate");
+        MockRestServiceServer uploadServer = MockRestServiceServer.bindTo(uploadRestTemplate).build();
+        uploadServer.expect(requestTo("https://api.example.com/entity/updateWorkState"))
+                .andExpect(method(HttpMethod.POST))
+                .andRespond(withStatus(HttpStatus.UNAUTHORIZED));
+
+        BizException legacy = assertThrows(BizException.class,
+                () -> client.uploadLegacyRecord(Map.of("originalRecordId", "1948179075784507801"),
+                        "主维保", "配合维保"));
+        assertEquals(2003, legacy.getCode());
+
+        BizException worker = assertThrows(BizException.class,
+                () -> client.registerWorkerState(Map.of("workManName", "主维保"),
+                        new byte[]{1}, "certificate.pdf"));
+
+        assertEquals(2003, worker.getCode());
+        uploadServer.verify();
         server.verify();
     }
 

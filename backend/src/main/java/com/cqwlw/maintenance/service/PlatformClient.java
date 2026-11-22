@@ -64,7 +64,7 @@ public class PlatformClient {
         if (unitName != null && !unitName.isEmpty()) {
             form.add("unitName", unitName);
         }
-        Map<String, Object> body = postForm("/entity/queryID", form);
+        Map<String, Object> body = postForm("/entity/queryID", form, true);
         Object data = body.get("data");
         if (data instanceof List<?> list && !list.isEmpty()
                 && list.get(0) instanceof Map<?, ?> first && first.get("entityID") != null) {
@@ -84,7 +84,7 @@ public class PlatformClient {
         if (form.isEmpty()) {
             throw new BizException(422, "2.7 查询至少需要一个条件");
         }
-        Map<String, Object> body = postForm("/equipment/queryElevatorInfo", form);
+        Map<String, Object> body = postForm("/equipment/queryElevatorInfo", form, true);
         Object data = body.get("data");
         if (data instanceof List<?> list) {
             return list.stream()
@@ -111,7 +111,7 @@ public class PlatformClient {
                 form.add(k, String.valueOf(v));
             }
         });
-        return postForm("/elevator/maintenanceRecord", form);
+        return postForm("/elevator/maintenanceRecord", form, false);
     }
 
     public Map<String, Object> uploadLegacyRecord(Map<String, Object> payload,
@@ -121,7 +121,7 @@ public class PlatformClient {
         legacy.remove("workMan2Id");
         legacy.put("workManName1", workManName1 == null ? "" : workManName1);
         legacy.put("workManName2", workManName2 == null ? "" : workManName2);
-        return postForm("/record/uploadMaintainRecord", toForm(legacy));
+        return postForm("/record/uploadMaintainRecord", toForm(legacy), false);
     }
 
     /** 2.5 人员列表查询（POST /entity/queryWorkList；按证书号精确匹配 platform_id） */
@@ -131,7 +131,7 @@ public class PlatformClient {
         if (workEndDate != null && !workEndDate.isEmpty()) {
             form.add("workEndDate", workEndDate);
         }
-        Map<String, Object> body = postForm("/entity/queryWorkList", form);
+        Map<String, Object> body = postForm("/entity/queryWorkList", form, true);
         Object data = body.get("data");
         if (data instanceof List<?> list) {
             return list.stream().filter(x -> x instanceof Map)
@@ -188,11 +188,7 @@ public class PlatformClient {
         try {
             return exchangeMultipart(path, fields, fileField, file, filename, token);
         } catch (TokenExpired e) {
-            String fresh = tokenService.getToken();
-            if (fresh.equals(token)) {
-                throw new BizException(2003, "监管平台认证失败");
-            }
-            return exchangeMultipart(path, fields, fileField, file, filename, fresh);
+            throw new BizException(2003, "监管平台认证失败");
         }
     }
 
@@ -232,6 +228,7 @@ public class PlatformClient {
         } catch (BizException e) {
             throw e;
         } catch (HttpClientErrorException.Unauthorized e) {
+            tokenService.invalidate();
             throw new TokenExpired();
         } catch (Exception e) {
             log.warn("平台接口调用异常: path={}, err={}", path, e.getClass().getSimpleName());
@@ -239,7 +236,7 @@ public class PlatformClient {
         }
     }
 
-    private Map<String, Object> postForm(String path, MultiValueMap<String, String> form) {
+    private Map<String, Object> postForm(String path, MultiValueMap<String, String> form, boolean retryOn401) {
         if (props.getApiBaseUrl() == null || props.getApiBaseUrl().isEmpty()) {
             throw new BizException(2001, "监管平台地址未配置（REG_API_BASE_URL）");
         }
@@ -247,6 +244,9 @@ public class PlatformClient {
         try {
             return exchange(path, form, token);
         } catch (TokenExpired e) {
+            if (!retryOn401) {
+                throw new BizException(2003, "监管平台认证失败");
+            }
             String fresh = tokenService.getToken();
             if (fresh.equals(token)) {
                 throw new BizException(2003, "监管平台认证失败");
@@ -271,8 +271,8 @@ public class PlatformClient {
             }
             return body;
         } catch (HttpClientErrorException.Unauthorized e) {
-            // HTTP 401：清缓存重登，重试 1 次
-            log.info("平台 token 失效，清缓存重登重试: path={}", path);
+            // HTTP 401：清缓存，仅查询调用方允许重登重试
+            log.info("平台 token 失效，清缓存: path={}", path);
             tokenService.invalidate();
             throw new TokenExpired();
         } catch (BizException e) {
@@ -283,7 +283,7 @@ public class PlatformClient {
         }
     }
 
-    /** 401 重试一次的内部信号 */
+    /** HTTP 401 的内部信号 */
     private static class TokenExpired extends RuntimeException {
         TokenExpired() {
             super(null, null, false, false);
