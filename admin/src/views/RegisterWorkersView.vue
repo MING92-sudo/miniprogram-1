@@ -173,7 +173,16 @@ const cols = [
 ]
 async function load() {
   loading.value = true; error.value = ''
-  try { rows.value = await http.get('/platform/workers') }
+  try {
+    const workers = await http.get('/platform/workers')
+    rows.value = workers.map((w) => ({
+      ...w,
+      name: w.workManName || '',
+      certificateNo: w.workManCertificate || '',
+      phone: w.workManPhone || '',
+      bindStatus: 'BOUND'
+    }))
+  }
   catch (e) { error.value = '平台人员查询失败：' + (e.message || '监管平台暂不可达') + '（需平台凭证有效且服务器 IP 已加白名单）' }
   finally { loading.value = false }
 }

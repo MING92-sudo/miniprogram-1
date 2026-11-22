@@ -6,8 +6,8 @@
       </template>
     </ViewHead>
     <div class="mt16">
-      <DataTable :columns="invCols" :rows="invites" :loading="loading" :search-keys="['code', 'creator']"
-        search-placeholder="搜索码值 / 创建人" :filters="invFilters" empty-hint="当前范围内没有邀请码。">
+      <DataTable :columns="invCols" :rows="inviteRows" :loading="loading" :search-keys="['code', 'creator', 'targetOrgName']"
+        search-placeholder="搜索码值 / 创建人 / 目标组织" :filters="invFilters" empty-hint="当前范围内没有邀请码。">
         <template #toolbar>
           <PermButton code="invite:manage" label="生成邀请码" variant="primary" icon="plus" @click="openInvite" />
         </template>
@@ -25,7 +25,7 @@
       </DataTable>
     </div>
     <div class="mt16">
-      <DataTable :columns="grCols" :rows="grants" :loading="loading" :search-keys="['granteeId', 'granteeName', 'permCode']"
+      <DataTable :columns="grCols" :rows="grantRows" :loading="loading" :search-keys="['granteeId', 'granteeName', 'permCode']"
         search-placeholder="搜索被授权人 / 权限点" :filters="grFilters" empty-hint="当前范围内没有限时授权。">
         <template #toolbar>
           <PermButton code="role:assign" label="发起限时授权" variant="primary" icon="key"
@@ -176,6 +176,31 @@ function dynOptions(list) {
 }
 const invFilters = computed(() => [{ key: 'status', label: '状态', options: dynOptions(invites.value) }])
 const grFilters = computed(() => [{ key: 'status', label: '状态', options: dynOptions(grants.value) }])
+const inviteRows = computed(() => invites.value.map(row => ({
+  ...row,
+  targetOrgName: row.targetOrgName || orgName(row.targetOrgId || row.targetOrg),
+  creator: row.creator || userName(row.createdBy)
+})))
+const grantRows = computed(() => grants.value.map(row => {
+  const user = userById(row.granteeId)
+  const roles = Array.isArray(user?.roles) ? user.roles : String(user?.roles || user?.role || '').split(',')
+  return {
+    ...row,
+    granteeName: row.granteeName || user?.name || row.granteeId,
+    originalRole: row.originalRole || roles.map(role => role.trim()).filter(Boolean)[0] || ''
+  }
+}))
+function findOrg(id, nodes) {
+  for (const org of nodes || []) {
+    if (String(org.id) === String(id)) return org
+    const child = findOrg(id, org.children)
+    if (child) return child
+  }
+  return null
+}
+function orgName(id) { return findOrg(id, orgs.value)?.name || id || '' }
+function userById(id) { return users.value.find(user => String(user.id) === String(id)) }
+function userName(id) { return userById(id)?.name || id || '' }
 function invActive(row) { return ['ACTIVE', 'VALID', '有效'].includes(row.status) }
 function grActive(row) { return ['ACTIVE', 'PENDING', '生效中', '待生效'].includes(row.status) }
 function permArr(row) { return row.addedPerms || (row.permCode ? [row.permCode] : []) }
@@ -188,7 +213,7 @@ async function submitInvite() {
   if (!invForm.value.validate()) return
   try {
     const body = { validDays: parseInt(invModel.value.validDays, 10), type: invModel.value.type }
-    if (invModel.value.targetOrg) body.targetOrg = invModel.value.targetOrg
+    if (invModel.value.targetOrg) body.targetOrgId = invModel.value.targetOrg
     await createInvite(body)
     toast.success('邀请码已生成'); showInvite.value = false; load()
   } catch (e) { toast.error(e.message || '生成失败') }

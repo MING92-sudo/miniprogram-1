@@ -1,6 +1,4 @@
-// 权限矩阵唯一事实源镜像（逐字镜像后端 PermissionMatrix v2，spec §4.2）。
-// 小程序 mock / Node 脚本 / admin（经 ui/permission-v2.js ESM 桥）共用，防手写漂移。
-// 前端仅体验优化，后端唯一权威；fail-closed（未知角色 DENY、未知码抛错）。
+// 前端仅体验优化，后端唯一权威；
 const ROLE = {
   PLATFORM_ADMIN: 'PLATFORM_ADMIN', INST_MGR: 'INST_MGR',
   INST_PM: 'INST_PM', INST_CLERK: 'INST_CLERK', INSTALLER: 'INSTALLER',
@@ -31,11 +29,7 @@ function g(code, st, roles) {
 }
 const y = (code, ...roles) => g(code, 'Y', roles)
 const c = (code, ...roles) => g(code, 'C', roles)
-// §4.1 安装移交（16）
-// P1 T2（2026-11-16 裁决）：客户（CA/CS）收回全部内部码，最小集仅 §4.5 的 elevator_view/download/sign；
-// 无参 y()/c() 仅登记码（持有者由平台管理员全 Y 循环兜底）。
 y('handover:view', IM, MS, MM, PA); c('handover:view', IC, IP, IW, MT)
-// 2026-11-21 裁决：handover:create 增 INST_CLERK（资料员整理建档资料属本职，小程序/管理端均可起草）
 y('handover:create', IP, IC)
 y('handover:edit', IP); c('handover:edit', IC)
 y('handover:doc_upload', IC, IP)
@@ -77,9 +71,6 @@ y('record:refuse') // P1 T2：拒签能力 P3 增 client:refuse 前仅平台管�
 y('record:archive', MS)
 y('record:amend', MM, PA)
 y('record:export', MS, MM, PA)
-// §4.4 急修报修（14）
-// 2026-11-21 裁决：客户报修重开——客户建单走 POST /unit/faults（client:report，§4.5 CA/CS 双 Y）；
-// order:create 仍是员工码（POST /faults 代报修/现场登记），客户不持有
 y('order:create')
 y('order:create_proxy', MS)
 y('order:view_pool', MS, MM); c('order:view_pool', MT)
@@ -89,13 +80,12 @@ y('order:dispatch', MS, MM)
 c('order:arrive', MT)
 c('order:process', MT)
 y('order:submit', MT)
-y('order:confirm') // P1 T2：客户确认收敛到 client:sign；仅平台管理员持有
+y('order:confirm') // 客户确认使用 client:sign
 y('order:close', MS)
 y('order:cancel', MS)
 y('order:escalate', MM)
 y('order:export', MS, MM, PA)
-// §4.5 使用单位（7）：客户能力集 = elevator_view/download/sign + report（2026-11-21 裁决：一键报修重开，CA/CS 双 Y）；
-// evaluate/user_manage 对客户仍默认关闭（仅平台管理员持有，重开由后续裁决），invite 保留 MS。
+// evaluate/user_manage 默认关闭，invite 仅 MS。
 y('client:invite', MS)
 y('client:user_manage')
 y('client:elevator_view', CA, CS)
@@ -114,7 +104,6 @@ y('stats:export', MM, PA); c('stats:export', IM, MS)
 y('audit:view', PA)
 y('config:manage', PA)
 y('data:export_sensitive', PA)
-// M0 §2.2 扩展（13；外接建档两码已移除）
 y('report:view', PA, MM); c('report:view', MS, MQ)
 y('report:retry', PA, MM)
 y('region:view', PA)
@@ -129,7 +118,6 @@ y('record:spotcheck', MQ)
 y('client:edit', PA, MB)
 y('user:reset_password', PA, MM, IM)
 
-// 2026-11-21 统一：平台管理员=唯一全权角色（SYS_ADMIN 已并为其别名）
 Object.keys(STATES).forEach((code) => { STATES[code][PA] = 'Y' })
 
 const CODES = new Set(Object.keys(STATES))

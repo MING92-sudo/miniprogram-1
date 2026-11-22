@@ -4,9 +4,8 @@
       <template #meta><PageMeta perm="template:view" :extra="[{ k: '模板数', v: rows.length, icon: 'clipboard-list', cls: 'count' }]" /></template>
     </ViewHead>
     <div class="mt16">
-      <DataTable :columns="cols" :rows="rows" :loading="loading" :search-keys="['name', 'category']"
-        search-placeholder="搜索模板名 / 品种" empty-hint="暂无检查项模板。">
-        <template #cell-itemCount="{ value }"><span class="num">{{ value }}</span></template>
+      <DataTable :columns="cols" :rows="rows" :loading="loading" :search-keys="['name', 'categoryScope', 'itemCode']"
+        search-placeholder="搜索检查项 / 品种 / 项目编号" empty-hint="暂无检查项模板。">
         <template #cell-enabled="{ value }">
           <span :class="['tag', value ? 'tag-ok' : 'tag-dim']">{{ value ? '启用' : '停用' }}</span>
         </template>
@@ -28,9 +27,10 @@ import RuleNote from '../ui/RuleNote.vue'
 const rows = ref([])
 const loading = ref(false)
 const cols = [
-  { key: 'name', label: '模板名', sortable: true },
-  { key: 'category', label: '品种' },
-  { key: 'itemCount', label: '项数', cls: 'num', sortable: true },
+  { key: 'name', label: '检查项', sortable: true },
+  { key: 'categoryScope', label: '品种' },
+  { key: 'appendix', label: '附件' },
+  { key: 'itemCode', label: '项目编号', sortable: true },
   { key: 'enabled', label: '状态' }
 ]
 onMounted(async () => { loading.value = true; try { rows.value = (await http.get('/admin/templates')).list || [] } finally { loading.value = false } })
