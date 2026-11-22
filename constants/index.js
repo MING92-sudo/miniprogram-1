@@ -298,6 +298,11 @@ const LOGIN_TEXT = {
   WECHAT: '微信一键登录',
   AGREE_PRE: '已阅读并同意',
   AGREE_MID: '与',
+  AGREEMENT: '用户协议',
+  PRIVACY: '隐私政策',
+  BROWSE: '暂不登录，先随便看看',
+  WECHAT_UNBOUND: '该微信未绑定账号。请使用账号密码登录，登录成功后将自动绑定本机微信。',
+  WECHAT_BIND_FAIL: '微信绑定未成功，可稍后在「我的」中绑定',
   POINTS: ['电子签名固化', '弱网自动续传', '作业全程留痕'],
   STATS: [
     { n: '24/7', label: '应急响应', tone: 'amber' },

@@ -18,16 +18,16 @@ function wxLoginCode() {
 Page({
   data: {
     phone: '', password: '', showPassword: false,
-    agreed: false, logging: false, remember: false, wechatBound: false,
+    agreed: false, logging: false, remember: false,
     text: LOGIN_TEXT, appName: BRAND.APP_NAME, versionBadge: BRAND.VERSION_BADGE, companyFoot: BRAND.LOGIN_FOOT
   },
 
   onLoad(query) {
     this._redirect = (query && query.redirect) || ''
+    this._pendingBindCode = ''
     this._signedIn = isLoggedIn()
     const saved = wx.getStorageSync(REMEMBER_KEY)
     if (saved && saved.phone) this.setData({ phone: saved.phone, remember: true })
-    this.setData({ wechatBound: !!wx.getStorageSync(WECHAT_BOUND_KEY) })
   },
 
   onReady() {
@@ -56,6 +56,9 @@ Page({
   openPrivacy() { wx.navigateTo({ url: '/pages/login/agreement?type=privacy' }) },
   forgotPassword() {
     nav.open('/pages/login/forgot')
+  },
+  browseAsGuest() {
+    wx.navigateTo({ url: '/pages/preview/index' })
   },
 
   /** 统一登录结果处理（员工 / 客户同一形状）：- needSelectUnit：客户手机号在多个单位开通 → 凭 selectionToken 去选单位页； */
@@ -90,6 +93,16 @@ Page({
     try {
       // 不区分通道：后端按账号自动判定员工/客户
       const data = await auth.accountLogin(account, this.data.password)
+      // 微信一键登录未绑定引导过来的：登录成功后用暂存 code 自动绑定（code 一次性/5 分钟，失败不阻断）
+      if (this._pendingBindCode && !(data && data.needSelectUnit)) {
+        try {
+          await auth.bindWeChat(this._pendingBindCode)
+          wx.setStorageSync(WECHAT_BOUND_KEY, true)
+        } catch (e) {
+          wx.showToast({ title: LOGIN_TEXT.WECHAT_BIND_FAIL, icon: 'none' })
+        }
+      }
+      this._pendingBindCode = ''
       if (this.data.remember) wx.setStorageSync(REMEMBER_KEY, { phone: account })
       else wx.removeStorageSync(REMEMBER_KEY)
       this.enterApp(data)
@@ -99,7 +112,7 @@ Page({
     this.setData({ logging: false })
   },
 
-  // 微信一键登录（仅本机已绑定后显示，R5）：openid 只信服务端换取；员工/客户同一入口
+  // 微信一键登录（恒显）：openid 只信服务端换取；员工/客户同一入口
   async onWechatLogin() {
     if (this.data.logging) return
     if (!this.data.agreed) return wx.showToast({ title: '请先勾选同意用户协议与隐私政策', icon: 'none' })
@@ -107,10 +120,17 @@ Page({
     try {
       const code = await wxLoginCode()
       if (!code) throw new Error('微信授权失败，请重试')
+      this._lastWxCode = code
       const data = await auth.wxLogin(code)
       this.enterApp(data)
     } catch (err) {
-      wx.showToast({ title: err.message || TOAST_TEXT.LOGIN_FAILED, icon: 'none' })
+      // 422 = openid 未绑定：引导账号密码登录，成功后自动绑定（request.js 对 401 清登录态，故后端用 422）
+      if (err && err.code === 422) {
+        this._pendingBindCode = this._lastWxCode || ''
+        wx.showModal({ title: '微信未绑定账号', content: LOGIN_TEXT.WECHAT_UNBOUND, showCancel: false, confirmText: '知道了' })
+      } else {
+        wx.showToast({ title: err.message || TOAST_TEXT.LOGIN_FAILED, icon: 'none' })
+      }
     }
     this.setData({ logging: false })
   }

@@ -52,12 +52,20 @@
         <text class="fs20 dim lg-forgot" bindtap="forgotPassword">{{text.FORGOT}}</text>
       </view>
       <button class="btn btn-primary lg-submit" disabled="{{logging}}" bindtap="onSubmit">{{logging ? text.SUBMITTING : text.SUBMIT}}</button>
-      <button wx:if="{{wechatBound}}" class="btn btn-ghost lg-wechat" bindtap="onWechatLogin"><text class="i i-weixin"></text> {{text.WECHAT}}</button>
-      <view class="row gap6 mt10" bindtap="toggleAgreed">
-        <view class="cb {{agreed ? 'on' : ''}}"><text wx:if="{{agreed}}" class="i i-check cb-ico"></text></view>
-        <text class="fs20 dim">{{text.AGREE_PRE}} <text class="lg-link" catchtap="openAgreement">《用户协议》</text> {{text.AGREE_MID}} <text class="lg-link" catchtap="openPrivacy">《隐私政策》</text></text>
+      <button class="btn btn-ghost lg-wechat" disabled="{{logging}}" bindtap="onWechatLogin"><text class="i i-weixin"></text> {{text.WECHAT}}</button>
+      <view class="col gap4 mt10">
+        <view class="row gap6" bindtap="toggleAgreed">
+          <view class="cb {{agreed ? 'on' : ''}}"><text wx:if="{{agreed}}" class="i i-check cb-ico"></text></view>
+          <text class="fs20 dim">{{text.AGREE_PRE}}</text>
+        </view>
+        <view class="lg-agree-links">
+          <view class="lg-agree-link" bindtap="openAgreement">《{{text.AGREEMENT}}》</view>
+          <view class="lg-agree-link" bindtap="openPrivacy">《{{text.PRIVACY}}》</view>
+        </view>
       </view>
     </view>
+
+    <view class="lg-browse" bindtap="browseAsGuest">{{text.BROWSE}}</view>
 
     <view class="lg-points">
       <view wx:for="{{text.POINTS}}" wx:key="*this"><text class="i {{index === 0 ? 'i-shield-halved' : (index === 1 ? 'i-cloud-arrow-up' : 'i-clock-rotate-left')}}"></text>{{item}}</view>
