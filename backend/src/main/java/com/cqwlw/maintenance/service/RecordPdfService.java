@@ -84,7 +84,7 @@ public class RecordPdfService {
 
     private static RestTemplate noRedirectRestTemplate(RestTemplate source) {
         if (!(source.getRequestFactory() instanceof SimpleClientHttpRequestFactory)) {
-            return source;
+            return null;
         }
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory() {
             @Override
@@ -780,7 +780,7 @@ public class RecordPdfService {
                 if (sharedId != null) {
                     return readStoredFile(sharedId);
                 }
-                if (!allowedCosUrl(url)) {
+                if (restTemplate == null || !allowedCosUrl(url)) {
                     return null;
                 }
                 ResponseEntity<byte[]> response = restTemplate.getForEntity(url, byte[].class);

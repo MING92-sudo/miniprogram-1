@@ -9,11 +9,17 @@ import com.lowagie.text.pdf.PdfReader;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.client.ClientHttpRequest;
+import org.springframework.http.client.ClientHttpRequestFactory;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.client.RestTemplate;
 
+import java.net.HttpURLConnection;
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -23,6 +29,7 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
@@ -56,14 +63,18 @@ class RecordPdfServiceTest {
         };
     }
 
-    private RecordPdfService imageService(RestTemplate restTemplate) {
+    private AppProperties cosProperties() {
         AppProperties props = new AppProperties();
         props.setCosBucket("bucket-1250000000");
         props.setCosRegion("ap-shanghai");
-        RecordPdfService pdf = new RecordPdfService(restTemplate, mock(AppFileMapper.class),
+        return props;
+    }
+
+    private RecordPdfService imageService(RestTemplate restTemplate) {
+        RecordPdfService pdf = new RecordPdfService(new RestTemplate(), mock(AppFileMapper.class),
                 fileStorage, mock(com.cqwlw.maintenance.mapper.CompanyMapper.class));
-        ReflectionTestUtils.setField(pdf, "props", props);
-        org.mockito.Mockito.clearInvocations(restTemplate);
+        ReflectionTestUtils.setField(pdf, "restTemplate", restTemplate);
+        ReflectionTestUtils.setField(pdf, "props", cosProperties());
         return pdf;
     }
 
@@ -115,6 +126,38 @@ class RecordPdfServiceTest {
         assertNull(pdf.loadImage(cosUrl));
 
         verify(restTemplate).getForEntity(cosUrl, byte[].class);
+        verifyNoMoreInteractions(restTemplate);
+    }
+
+    @Test
+    void simpleClientFactoryDisablesRedirectBeforeNetworkAccess() throws Exception {
+        RecordPdfService pdf = new RecordPdfService(new RestTemplate(), mock(AppFileMapper.class),
+                fileStorage, mock(com.cqwlw.maintenance.mapper.CompanyMapper.class));
+        RestTemplate secured = (RestTemplate) ReflectionTestUtils.getField(pdf, "restTemplate");
+        SimpleClientHttpRequestFactory factory =
+                (SimpleClientHttpRequestFactory) secured.getRequestFactory();
+
+        ClientHttpRequest request = factory.createRequest(
+                URI.create("https://bucket-1250000000.cos.ap-shanghai.myqcloud.com/sign.png"), HttpMethod.GET);
+        HttpURLConnection connection = (HttpURLConnection) ReflectionTestUtils.getField(request, "connection");
+        try {
+            assertFalse(connection.getInstanceFollowRedirects());
+        } finally {
+            connection.disconnect();
+        }
+    }
+
+    @Test
+    void unsupportedFactoryFailsClosedBeforeRemoteFetch() {
+        RestTemplate restTemplate = mock(RestTemplate.class);
+        when(restTemplate.getRequestFactory()).thenReturn(mock(ClientHttpRequestFactory.class));
+        RecordPdfService pdf = new RecordPdfService(restTemplate, mock(AppFileMapper.class),
+                fileStorage, mock(com.cqwlw.maintenance.mapper.CompanyMapper.class));
+        ReflectionTestUtils.setField(pdf, "props", cosProperties());
+        org.mockito.Mockito.clearInvocations(restTemplate);
+
+        assertNull(pdf.loadImage("https://bucket-1250000000.cos.ap-shanghai.myqcloud.com/sign.png"));
+
         verifyNoMoreInteractions(restTemplate);
     }
 
