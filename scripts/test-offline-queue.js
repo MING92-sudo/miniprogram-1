@@ -177,6 +177,27 @@ async function testLegacyTaskWithoutOwnerNeverFlushes() {
   console.log('PASS 无 ownerId 旧任务不上传、不删除且单独列出')
 }
 
+async function testAccountSwitchMidFlushStopsReplay() {
+  reset()
+  const pending = []
+  requestImpl = () => new Promise((resolve) => { pending.push(resolve) })
+  offline.enqueue({ id: 'mid-1', url: '/mid-1', method: 'POST', data: {} })
+  offline.enqueue({ id: 'mid-2', url: '/mid-2', method: 'POST', data: {} })
+  const flushing = offline.flushQueue()
+  await new Promise((resolve) => setImmediate(resolve))
+  assert.strictEqual(requests.length, 1, '第一条任务应在 flush 中')
+  loginAs('user-B')
+  pending.shift()()
+  await new Promise((resolve) => setImmediate(resolve))
+  if (pending.length) pending.shift()() // 有缺陷时让第二条请求落地，避免用例挂起
+  await flushing
+  assert.strictEqual(requests.length, 1, '换号后不得再用 B 的会话重放 A 的剩余任务')
+  const remaining = store.offline_queue.filter((t) => t.ownerId === 'user-A')
+  assert.deepStrictEqual(remaining.map((t) => t.id), ['mid-2'], 'A 的剩余任务应原样保留')
+  requestImpl = () => Promise.resolve({})
+  console.log('PASS flush 中途换号后不再重放剩余任务')
+}
+
 async function testAccountBEnqueueDoesNotOverwriteAccountATask() {
   reset()
   offline.enqueue({ url: '/same', method: 'POST', data: { who: 'A' } })
@@ -212,6 +233,7 @@ async function testOrphanTaskListedAndManuallyDeletable() {
   await testAccountBCannotReplayAccountATask()
   await testOwnerCanResumeAfterRelogin()
   await testLegacyTaskWithoutOwnerNeverFlushes()
+  await testAccountSwitchMidFlushStopsReplay()
   await testAccountBEnqueueDoesNotOverwriteAccountATask()
   await testOrphanTaskListedAndManuallyDeletable()
 })().catch((e) => { console.error(e); process.exit(1) })

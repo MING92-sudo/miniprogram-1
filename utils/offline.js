@@ -96,6 +96,12 @@ async function doFlushQueue() {
   }
   for (let idx = 0; idx < queue.length; idx++) {
     const task = queue[idx]
+    // 启动快照不代表发送时仍是同一账号：退出/换号后剩余任务必须保留待原属主补传。
+    if (getAccountId() !== task.ownerId) {
+      failed.push(task)
+      persist(failed.concat(queue.slice(idx + 1)))
+      continue
+    }
     try {
       if (Array.isArray(task.photoPaths) && task.photoPaths.length > 0) {
         const fileIds = task.uploadedFileIds || []
