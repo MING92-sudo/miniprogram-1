@@ -53,6 +53,10 @@ function readQueue() {
 function enqueue(task) {
   const queue = readQueue()
   const ownerId = getAccountId()
+  if (!ownerId) {
+    wx.showToast({ title: '请先登录后再保存离线任务', icon: 'none' })
+    return queue.length
+  }
   const taskFull = Object.assign({ id: uuid(), method: 'POST', createdAt: Date.now() }, task, { ownerId })
   // 仅替换同账号同请求，避免换号后的入队覆盖他人待补传任务。
   const idx = queue.findIndex((t) => t.ownerId === ownerId && t.url === taskFull.url && t.method === taskFull.method)
@@ -77,6 +81,12 @@ function removeOrphanTask(taskId) {
   const queue = readQueue()
   const next = queue.filter((t) => !(t.id === taskId && !t.ownerId))
   wx.setStorageSync(QUEUE_KEY, next)
+}
+
+function requireTaskOwner(task) {
+  if (getAccountId() !== task.ownerId) {
+    throw new Error('账号已切换，任务已保留')
+  }
 }
 
 let flushing = null
@@ -107,6 +117,7 @@ async function doFlushQueue() {
         const fileIds = task.uploadedFileIds || []
         while (fileIds.length < task.photoPaths.length) {
           const r = await uploadImage(task.photoPaths[fileIds.length]) // 按序续传未完成的
+          requireTaskOwner(task)
           fileIds.push(r.fileId)
           task.uploadedFileIds = fileIds.slice()
           persist(failed.concat([task], queue.slice(idx + 1)))
@@ -121,11 +132,13 @@ async function doFlushQueue() {
         const upload = uploads[uIdx]
         if (!upload.fileId) {
           const r = await uploadImage(upload.path)
+          requireTaskOwner(task)
           upload.fileId = r.fileId
           persist(failed.concat([task], queue.slice(idx + 1)))
         }
         task.data[upload.field] = upload.fileId
       }
+      requireTaskOwner(task)
       await request({
         url: task.url,
         method: task.method,
