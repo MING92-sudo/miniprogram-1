@@ -54,6 +54,19 @@ async function mountAtA(extra = {}) {
   return w
 }
 
+async function mountWithAB(bExtra = {}) {
+  setRoute('A')
+  http.get.mockImplementation((url) => {
+    if (url === '/employees') return Promise.resolve([{ id: 'w1', name: '张伟', jobNo: 'J1' }])
+    if (url === '/faults/A') return Promise.resolve(makeOrder('A'))
+    if (url === '/faults/B') return Promise.resolve(makeOrder('B', bExtra))
+    return new Promise(() => {})
+  })
+  const w = mount(OrderDetailView)
+  await flushPromises()
+  return w
+}
+
 async function openDispatch(w) {
   const btn = w.findAll('button').find((b) => b.text().trim() === '派单')
   expect(btn, 'OPEN 工单应有「派单」按钮').toBeTruthy()
@@ -96,6 +109,44 @@ describe('OrderDetailView 路由复用', () => {
     expect(http.get).toHaveBeenCalledWith('/faults/B')
     expect(w.text()).toContain('NO-B')
     expect(w.text()).not.toContain('NO-A')
+  })
+
+  it('切到 B 并加载后，派单提交请求 B 的接口', async () => {
+    const w = await mountWithAB()
+    switchTo('B')
+    await flushPromises()
+    expect(w.text()).toContain('NO-B')
+    const confirm = await openDispatch(w)
+    await confirm.trigger('click')
+    await flushPromises()
+    expect(http.post).toHaveBeenCalledWith('/admin/faults/B/dispatch', { workerId: 'w1', reason: '就近派单' })
+  })
+
+  it('切到 B 并加载后，取消提交请求 B 的接口', async () => {
+    const w = await mountWithAB()
+    switchTo('B')
+    await flushPromises()
+    expect(w.text()).toContain('NO-B')
+    await w.findAll('button').find((b) => b.text().trim() === '取消').trigger('click')
+    await flushPromises()
+    const modal = findModal(w, '取消工单')
+    await modal.find('textarea').setValue('B撤销')
+    modal.vm.$emit('confirm')
+    await flushPromises()
+    expect(http.post).toHaveBeenCalledWith('/faults/B/cancel', { reason: 'B撤销' })
+  })
+
+  it('展示工单 id 与路由 id 不一致时直接拒绝提交（String 比较分支）', async () => {
+    const w = await mountAtA()
+    await w.findAll('button').find((b) => b.text().trim() === '取消').trigger('click')
+    await flushPromises()
+    const modal = findModal(w, '取消工单')
+    await modal.find('textarea').setValue('客户撤销')
+    switchTo('B')
+    expect(w.text()).toContain('NO-A')
+    modal.vm.$emit('confirm')
+    await flushPromises()
+    expect(http.post).not.toHaveBeenCalled()
   })
 
   it('A 迟到响应不能覆盖 B', async () => {

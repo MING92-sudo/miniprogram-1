@@ -1,5 +1,17 @@
 import { describe, expect, it } from 'vitest'
 import { resolveRoute } from './guard'
+import { routes } from './index'
+
+function findRoute(path, list = routes) {
+  for (const route of list) {
+    if (route.path === path) return route
+    if (route.children) {
+      const hit = findRoute(path, route.children)
+      if (hit) return hit
+    }
+  }
+  return null
+}
 
 describe('resolveRoute', () => {
   const protectedRoute = { path: '/dashboard', meta: { title: '监控看板' }, fullPath: '/dashboard' }
@@ -93,5 +105,11 @@ describe('resolveRoute', () => {
 
   it('无 order:view_pool 的角色访问工单详情 → /403', () => {
     expect(resolveRoute(orderDetailRoute, { token: 'jwt', role: 'MAINT_QUALITY' }).path).toBe('/403')
+  })
+
+  it('实际工单详情路由配置为 order:view_pool', () => {
+    const route = findRoute('order/:id')
+    expect(route).toBeTruthy()
+    expect(route.meta.perm).toBe('order:view_pool')
   })
 })
