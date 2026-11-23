@@ -234,6 +234,7 @@ public class AdminArchiveService {
                 .eq(Employee::getCertificate, certificate));
     }
 
+    @Transactional
     public Map<String, Object> createEmployee(Map<String, Object> body) {
         String name = str(body, "name");
         String phone = str(body, "phone");
@@ -351,6 +352,7 @@ public class AdminArchiveService {
         }
     }
 
+    @Transactional
     public Map<String, Object> deleteUseUnit(String id) {
         UseUnit u = useUnitMapper.selectById(id);
         if (u == null) {
@@ -423,6 +425,7 @@ public class AdminArchiveService {
         return out;
     }
 
+    @Transactional
     public Map<String, Object> updateEmployee(String id, Map<String, Object> body, String actorId) {
         Employee e = employeeMapper.selectById(id);
         if (e == null) {
@@ -1037,6 +1040,7 @@ public class AdminArchiveService {
     }
 
 
+    @Transactional
     public Map<String, Object> batchGeo(Map<String, Object> body) {
         if (!(body.get("items") instanceof List<?> rawItems) || rawItems.isEmpty()) {
             throw new BizException(422, "items 不能为空");

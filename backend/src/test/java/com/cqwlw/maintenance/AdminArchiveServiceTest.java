@@ -37,6 +37,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -52,6 +53,9 @@ class AdminArchiveServiceTest {
     private ElevatorMapper elevatorMapper;
     private PlatformClient platformClient;
     private com.cqwlw.maintenance.mapper.SysOrgMapper sysOrgMapper;
+    private com.cqwlw.maintenance.mapper.SysUserRoleMapper userRoleMapper;
+    private com.cqwlw.maintenance.mapper.ClientAccountMapper clientAccountMapper;
+    private com.cqwlw.maintenance.mapper.MaintainRecordMapper maintainRecordMapper;
     private com.cqwlw.maintenance.service.AuditLogService auditLogService;
     private AdminArchiveService service;
 
@@ -62,6 +66,9 @@ class AdminArchiveServiceTest {
         employeeMapper = mock(EmployeeMapper.class);
         elevatorMapper = mock(ElevatorMapper.class);
         sysOrgMapper = mock(com.cqwlw.maintenance.mapper.SysOrgMapper.class);
+        userRoleMapper = mock(com.cqwlw.maintenance.mapper.SysUserRoleMapper.class);
+        clientAccountMapper = mock(com.cqwlw.maintenance.mapper.ClientAccountMapper.class);
+        maintainRecordMapper = mock(com.cqwlw.maintenance.mapper.MaintainRecordMapper.class);
         auditLogService = mock(com.cqwlw.maintenance.service.AuditLogService.class);
 
         Company c = new Company();
@@ -87,9 +94,11 @@ class AdminArchiveServiceTest {
 
         platformClient = mock(PlatformClient.class);
         service = new AdminArchiveService(companyMapper, useUnitMapper,
-                employeeMapper, mock(com.cqwlw.maintenance.mapper.SysUserRoleMapper.class), elevatorMapper,
+                employeeMapper, userRoleMapper, elevatorMapper,
                 new PhoneMutexService(companyMapper, useUnitMapper, employeeMapper),
                 mock(WorkOrderMapper.class), platformClient, sysOrgMapper, auditLogService);
+        service.setClientAccountMapper(clientAccountMapper);
+        service.setMaintainRecordMapper(maintainRecordMapper);
     }
 
     @Test
@@ -860,5 +869,195 @@ class AdminArchiveServiceTest {
         assertEquals("emp_t3", entry.target);
         assertTrue(entry.reason.contains("维保一班"), entry.reason);
         assertTrue(entry.reason.contains("维保二组"), entry.reason);
+    }
+
+    @Test
+    void createEmployeeRollsBackWhenPrimaryRoleInsertFails() {
+        when(userRoleMapper.insert(any(com.cqwlw.maintenance.entity.SysUserRole.class)))
+                .thenThrow(new IllegalStateException("role insert failed"));
+        PlatformTransactionManager transactionManager = newTransactionManager();
+        AdminArchiveService proxy = transactionalProxy(transactionManager);
+
+        assertThrows(IllegalStateException.class, () -> proxy.createEmployee(Map.of(
+                "name", "事务测试", "phone", "13900008801", "role", "WORKER")));
+
+        verify(employeeMapper).insert(any(Employee.class));
+        verifyRollback(transactionManager);
+    }
+
+    @Test
+    void updateEmployeeRollsBackWhenExplicitNullClearFails() {
+        com.baomidou.mybatisplus.core.metadata.TableInfoHelper.initTableInfo(
+                new org.apache.ibatis.builder.MapperBuilderAssistant(
+                        new com.baomidou.mybatisplus.core.MybatisConfiguration(), ""), Employee.class);
+        Employee employee = employee("emp_clear_tx", "13900008802");
+        employee.platformId = "pid_old";
+        when(employeeMapper.selectById(employee.id)).thenReturn(employee);
+        when(employeeMapper.update(isNull(), any(LambdaUpdateWrapper.class)))
+                .thenThrow(new IllegalStateException("clear failed"));
+        PlatformTransactionManager transactionManager = newTransactionManager();
+        AdminArchiveService proxy = transactionalProxy(transactionManager);
+
+        assertThrows(IllegalStateException.class,
+                () -> proxy.updateEmployee(employee.id, Map.of("platformId", ""), "emp_admin"));
+
+        verify(employeeMapper).updateById(employee);
+        verifyRollback(transactionManager);
+    }
+
+    @Test
+    void updateEmployeeRollsBackWhenPrimaryRoleInsertFails() {
+        Employee employee = employee("emp_role_tx", "13900008803");
+        when(employeeMapper.selectById(employee.id)).thenReturn(employee);
+        when(userRoleMapper.selectList(any())).thenReturn(List.of());
+        when(userRoleMapper.insert(any(com.cqwlw.maintenance.entity.SysUserRole.class)))
+                .thenThrow(new IllegalStateException("role insert failed"));
+        PlatformTransactionManager transactionManager = newTransactionManager();
+        AdminArchiveService proxy = transactionalProxy(transactionManager);
+
+        assertThrows(IllegalStateException.class,
+                () -> proxy.updateEmployee(employee.id, Map.of("role", "MAINT_SUP"), "emp_admin"));
+
+        verify(employeeMapper).updateById(employee);
+        verifyRollback(transactionManager);
+    }
+
+    @Test
+    void deleteUseUnitRollsBackWhenRecordDetachFails() {
+        prepareUnitDeletion("uu_detach_tx");
+        when(maintainRecordMapper.update(isNull(), any(LambdaUpdateWrapper.class)))
+                .thenThrow(new IllegalStateException("detach failed"));
+        PlatformTransactionManager transactionManager = newTransactionManager();
+        AdminArchiveService proxy = transactionalProxy(transactionManager);
+
+        assertThrows(IllegalStateException.class, () -> proxy.deleteUseUnit("uu_detach_tx"));
+
+        verifyRollback(transactionManager);
+    }
+
+    @Test
+    void deleteUseUnitRollsBackWhenClientAccountDeleteFails() {
+        prepareUnitDeletion("uu_account_tx");
+        when(clientAccountMapper.delete(any())).thenThrow(new IllegalStateException("account delete failed"));
+        PlatformTransactionManager transactionManager = newTransactionManager();
+        AdminArchiveService proxy = transactionalProxy(transactionManager);
+
+        assertThrows(IllegalStateException.class, () -> proxy.deleteUseUnit("uu_account_tx"));
+
+        verify(maintainRecordMapper).update(isNull(), any(LambdaUpdateWrapper.class));
+        verifyRollback(transactionManager);
+    }
+
+    @Test
+    void deleteUseUnitRollsBackWhenUnitDeleteFails() {
+        prepareUnitDeletion("uu_delete_tx");
+        when(useUnitMapper.deleteById("uu_delete_tx")).thenThrow(new IllegalStateException("unit delete failed"));
+        PlatformTransactionManager transactionManager = newTransactionManager();
+        AdminArchiveService proxy = transactionalProxy(transactionManager);
+
+        assertThrows(IllegalStateException.class, () -> proxy.deleteUseUnit("uu_delete_tx"));
+
+        verify(clientAccountMapper).delete(any());
+        verifyRollback(transactionManager);
+    }
+
+    @Test
+    void batchGeoRollsBackWhenLaterUpdateFails() {
+        Elevator first = elevatorWithCode("el_geo_tx_1", "EM-TX-1");
+        Elevator second = elevatorWithCode("el_geo_tx_2", "EM-TX-2");
+        when(elevatorMapper.selectList(any())).thenReturn(List.of(first), List.of(second));
+        when(elevatorMapper.updateById(any(Elevator.class))).thenReturn(1)
+                .thenThrow(new IllegalStateException("second geo update failed"));
+        PlatformTransactionManager transactionManager = newTransactionManager();
+        AdminArchiveService proxy = transactionalProxy(transactionManager);
+
+        assertThrows(IllegalStateException.class, () -> proxy.batchGeo(Map.of("items", List.of(
+                Map.of("code", "EM-TX-1", "lng", "106.55", "lat", "29.56"),
+                Map.of("code", "EM-TX-2", "lng", "106.56", "lat", "29.57")))));
+
+        verifyRollback(transactionManager);
+    }
+
+    @Test
+    void batchGeoBusinessFailuresKeepPartialSuccess() {
+        Elevator elevator = elevatorWithCode("el_geo_partial", "EM-PARTIAL");
+        when(elevatorMapper.selectList(any())).thenReturn(List.of(elevator));
+        PlatformTransactionManager transactionManager = newTransactionManager();
+        AdminArchiveService proxy = transactionalProxy(transactionManager);
+
+        Map<String, Object> result = proxy.batchGeo(Map.of("items", List.of(
+                Map.of("code", "EM-PARTIAL", "lng", "106.55", "lat", "29.56"),
+                Map.of("code", "EM-PARTIAL", "lng", "181", "lat", "29.56"))));
+
+        assertEquals(1, ((List<?>) result.get("success")).size());
+        assertEquals(1, ((List<?>) result.get("failed")).size());
+        verifyCommit(transactionManager);
+    }
+
+    @Test
+    void groupAuditFailureDoesNotRollbackEmployeeUpdate() {
+        com.cqwlw.maintenance.entity.SysOrg team = new com.cqwlw.maintenance.entity.SysOrg();
+        team.type = "TEAM";
+        team.name = "维保二组";
+        team.status = "ACTIVE";
+        when(sysOrgMapper.selectList(any())).thenReturn(List.of(team));
+        Employee employee = employee("emp_audit_tx", "13900008804");
+        employee.groupName = "维保一班";
+        when(employeeMapper.selectById(employee.id)).thenReturn(employee);
+        doThrow(new IllegalStateException("audit failed")).when(auditLogService)
+                .append(any(com.cqwlw.maintenance.entity.SysAuditLog.class));
+        PlatformTransactionManager transactionManager = newTransactionManager();
+        AdminArchiveService proxy = transactionalProxy(transactionManager);
+
+        Map<String, Object> result = proxy.updateEmployee(
+                employee.id, Map.of("groupName", "维保二组"), "emp_admin");
+
+        assertEquals("维保二组", result.get("groupName"));
+        verifyCommit(transactionManager);
+    }
+
+    private PlatformTransactionManager newTransactionManager() {
+        PlatformTransactionManager transactionManager = mock(PlatformTransactionManager.class);
+        when(transactionManager.getTransaction(any(TransactionDefinition.class)))
+                .thenAnswer(invocation -> new SimpleTransactionStatus());
+        return transactionManager;
+    }
+
+    private void verifyRollback(PlatformTransactionManager transactionManager) {
+        verify(transactionManager).rollback(any(TransactionStatus.class));
+        verify(transactionManager, never()).commit(any(TransactionStatus.class));
+    }
+
+    private void verifyCommit(PlatformTransactionManager transactionManager) {
+        verify(transactionManager).commit(any(TransactionStatus.class));
+        verify(transactionManager, never()).rollback(any(TransactionStatus.class));
+    }
+
+    private Employee employee(String id, String phone) {
+        Employee employee = new Employee();
+        employee.id = id;
+        employee.name = "事务测试";
+        employee.phone = phone;
+        employee.role = "WORKER";
+        return employee;
+    }
+
+    private Elevator elevatorWithCode(String id, String code) {
+        Elevator elevator = new Elevator();
+        elevator.id = id;
+        elevator.elevatorCode = code;
+        return elevator;
+    }
+
+    private void prepareUnitDeletion(String id) {
+        com.baomidou.mybatisplus.core.metadata.TableInfoHelper.initTableInfo(
+                new org.apache.ibatis.builder.MapperBuilderAssistant(
+                        new com.baomidou.mybatisplus.core.MybatisConfiguration(), ""),
+                com.cqwlw.maintenance.entity.MaintainRecord.class);
+        UseUnit unit = new UseUnit();
+        unit.id = id;
+        unit.unitName = "事务测试单位";
+        when(useUnitMapper.selectById(id)).thenReturn(unit);
+        when(elevatorMapper.selectCount(any())).thenReturn(0L);
     }
 }
