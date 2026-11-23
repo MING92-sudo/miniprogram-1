@@ -379,8 +379,9 @@ public class AdminArchiveService {
         return Map.of("ok", true, "removedClientAccounts", removedAccounts);
     }
 
+    @Transactional
     public Map<String, Object> deleteElevator(String id) {
-        Elevator el = elevatorMapper.selectById(id);
+        Elevator el = elevatorMapper.selectByIdForUpdate(id);
         if (el == null) {
             throw new BizException(1404, "电梯不存在");
         }

@@ -39,9 +39,11 @@ import java.sql.Statement;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -51,6 +53,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 
@@ -63,6 +66,7 @@ class DispatchConcurrencyIntegrationTest {
     private static String databaseName;
     private static DataSource dataSource;
     private static SqlSessionTemplate sqlSession;
+    private static DataSourceTransactionManager transactionManager;
     private static TransactionTemplate transactions;
 
     @BeforeAll
@@ -93,7 +97,8 @@ class DispatchConcurrencyIntegrationTest {
             configuration.addMapper(MessageMapper.class);
             factory.setConfiguration(configuration);
             sqlSession = new SqlSessionTemplate(factory.getObject());
-            transactions = new TransactionTemplate(new DataSourceTransactionManager(dataSource));
+            transactionManager = new DataSourceTransactionManager(dataSource);
+            transactions = new TransactionTemplate(transactionManager);
         } catch (Exception e) {
             dropDisposableDatabase();
             throw e;
@@ -201,6 +206,67 @@ class DispatchConcurrencyIntegrationTest {
                 "首次维保与年保最近维保均提交于等锁期间，不得按锁前 400 天基线误升年保");
     }
 
+    @Test
+    void deleteAfterInflightCheckCannotDeleteElevatorUnderConcurrentDispatch() throws Exception {
+        insertElevator("el_delete_race", LocalDateTime.now().minusDays(16));
+        pauseDeleteAfterInflight = true;
+        com.cqwlw.maintenance.service.AdminArchiveService deleteService = newDeleteService(
+                elevatorForDelete(), pausingOrderMapper());
+        DispatchService dispatchService = newDispatchService(dispatchElevatorMapper(),
+                sqlSession.getMapper(WorkOrderMapper.class));
+        ExecutorService pool = Executors.newFixedThreadPool(2);
+        try {
+            Future<Map<String, Object>> deletion = pool.submit(() -> deleteService.deleteElevator("el_delete_race"));
+            assertTrue(deleteInflightChecked.await(10, TimeUnit.SECONDS), "删除方未完成在途检查");
+            Future<WorkOrder> dispatch = pool.submit(() -> transactions.execute(
+                    status -> dispatchService.dispatchNow("el_delete_race")));
+            assertTrue(dispatchRead.await(10, TimeUnit.SECONDS), "派单方未读取电梯");
+            allowDelete.countDown();
+
+            assertEquals(true, deletion.get(30, TimeUnit.SECONDS).get("ok"));
+            ExecutionException rejection = assertThrows(ExecutionException.class,
+                    () -> dispatch.get(30, TimeUnit.SECONDS));
+            assertTrue(rejection.getCause() instanceof BizException);
+            assertEquals(1404, ((BizException) rejection.getCause()).getCode());
+            assertEquals(0L, countActiveOrders("el_delete_race"));
+            assertEquals(0L, countElevator("el_delete_race"));
+        } finally {
+            allowDelete.countDown();
+            pool.shutdownNow();
+        }
+    }
+
+    @Test
+    void deleteWaitsForDispatchAndRejectsInflightElevator() throws Exception {
+        insertElevator("el_dispatch_first", LocalDateTime.now().minusDays(16));
+        pauseDispatchAfterLock = true;
+        DispatchService dispatchService = newDispatchService(dispatchElevatorMapper(),
+                sqlSession.getMapper(WorkOrderMapper.class));
+        com.cqwlw.maintenance.service.AdminArchiveService deleteService = newDeleteService(
+                elevatorForDelete(), sqlSession.getMapper(WorkOrderMapper.class));
+        ExecutorService pool = Executors.newFixedThreadPool(2);
+        try {
+            Future<WorkOrder> dispatch = pool.submit(() -> transactions.execute(
+                    status -> dispatchService.dispatchNow("el_dispatch_first")));
+            assertTrue(dispatchLocked.await(10, TimeUnit.SECONDS), "派单方未持有电梯锁");
+            Future<Map<String, Object>> deletion = pool.submit(
+                    () -> deleteService.deleteElevator("el_dispatch_first"));
+            assertTrue(deleteRead.await(10, TimeUnit.SECONDS), "删除方未尝试读取电梯");
+            allowDispatch.countDown();
+
+            assertTrue(dispatch.get(30, TimeUnit.SECONDS) != null);
+            ExecutionException rejection = assertThrows(ExecutionException.class,
+                    () -> deletion.get(30, TimeUnit.SECONDS));
+            assertTrue(rejection.getCause() instanceof BizException);
+            assertEquals(422, ((BizException) rejection.getCause()).getCode());
+            assertEquals(1L, countActiveOrders("el_dispatch_first"));
+            assertEquals(1L, countElevator("el_dispatch_first"));
+        } finally {
+            allowDispatch.countDown();
+            pool.shutdownNow();
+        }
+    }
+
     private List<WorkOrder> dispatchAfterMaintenanceCommit(
             String elevatorId, String workTypeCode, LocalDateTime checkoutTime) throws Exception {
         DispatchService service = newScheduledService();
@@ -251,6 +317,14 @@ class DispatchConcurrencyIntegrationTest {
     private final CountDownLatch scheduledLockAttempted = new CountDownLatch(1);
     private final CountDownLatch allowScheduledLock = new CountDownLatch(1);
     private boolean holdScheduledLock;
+    private final CountDownLatch deleteInflightChecked = new CountDownLatch(1);
+    private final CountDownLatch allowDelete = new CountDownLatch(1);
+    private final CountDownLatch dispatchRead = new CountDownLatch(1);
+    private final CountDownLatch deleteRead = new CountDownLatch(1);
+    private final CountDownLatch dispatchLocked = new CountDownLatch(1);
+    private final CountDownLatch allowDispatch = new CountDownLatch(1);
+    private volatile boolean pauseDeleteAfterInflight;
+    private volatile boolean pauseDispatchAfterLock;
 
     private ElevatorMapper synchronizedElevatorMapper() {
         ElevatorMapper delegate = sqlSession.getMapper(ElevatorMapper.class);
@@ -374,11 +448,107 @@ class DispatchConcurrencyIntegrationTest {
         }
     }
 
+    private com.cqwlw.maintenance.service.AdminArchiveService newDeleteService(
+            ElevatorMapper elevators, WorkOrderMapper orders) {
+        com.cqwlw.maintenance.service.AdminArchiveService target =
+                new com.cqwlw.maintenance.service.AdminArchiveService(
+                        mock(com.cqwlw.maintenance.mapper.CompanyMapper.class), mock(UseUnitMapper.class),
+                        mock(EmployeeMapper.class), mock(com.cqwlw.maintenance.mapper.SysUserRoleMapper.class),
+                        elevators, mock(com.cqwlw.maintenance.service.PhoneMutexService.class), orders,
+                        mock(com.cqwlw.maintenance.service.PlatformClient.class),
+                        mock(com.cqwlw.maintenance.mapper.SysOrgMapper.class),
+                        mock(com.cqwlw.maintenance.service.AuditLogService.class));
+        org.springframework.aop.framework.ProxyFactory factory =
+                new org.springframework.aop.framework.ProxyFactory(target);
+        factory.setProxyTargetClass(true);
+        factory.addAdvice(new org.springframework.transaction.interceptor.TransactionInterceptor(
+                transactionManager, new org.springframework.transaction.annotation.AnnotationTransactionAttributeSource()));
+        return (com.cqwlw.maintenance.service.AdminArchiveService) factory.getProxy();
+    }
+
+    private DispatchService newDispatchService(ElevatorMapper elevators, WorkOrderMapper orders) throws Exception {
+        ChecklistService checklists = new ChecklistService();
+        checklists.load();
+        TenantSnapshotService snapshots = new TenantSnapshotService(mock(UseUnitMapper.class),
+                mock(BizElevatorChangeMapper.class), mock(MigrationIssueService.class));
+        return new DispatchService(elevators, orders, sqlSession.getMapper(MessageMapper.class),
+                mock(EmployeeMapper.class), checklists, new OrderNoIssuer(orders), snapshots);
+    }
+
+    private ElevatorMapper elevatorForDelete() {
+        ElevatorMapper delegate = sqlSession.getMapper(ElevatorMapper.class);
+        return (ElevatorMapper) Proxy.newProxyInstance(ElevatorMapper.class.getClassLoader(),
+                new Class<?>[]{ElevatorMapper.class}, (proxy, method, args) -> {
+                    if ("selectById".equals(method.getName()) || "selectByIdForUpdate".equals(method.getName())) {
+                        deleteRead.countDown();
+                    }
+                    return invoke(delegate, method, args);
+                });
+    }
+
+    private ElevatorMapper dispatchElevatorMapper() {
+        ElevatorMapper delegate = sqlSession.getMapper(ElevatorMapper.class);
+        return (ElevatorMapper) Proxy.newProxyInstance(ElevatorMapper.class.getClassLoader(),
+                new Class<?>[]{ElevatorMapper.class}, (proxy, method, args) -> {
+                    Object result = invoke(delegate, method, args);
+                    if ("selectById".equals(method.getName())) {
+                        dispatchRead.countDown();
+                    }
+                    if (pauseDispatchAfterLock && "selectOne".equals(method.getName())
+                            && args != null && args.length == 1 && args[0] instanceof LambdaQueryWrapper<?> query
+                            && query.getSqlSegment().toUpperCase().contains("FOR UPDATE")) {
+                        dispatchLocked.countDown();
+                        awaitLatch(allowDispatch);
+                    }
+                    return result;
+                });
+    }
+
+    private WorkOrderMapper pausingOrderMapper() {
+        WorkOrderMapper delegate = sqlSession.getMapper(WorkOrderMapper.class);
+        return (WorkOrderMapper) Proxy.newProxyInstance(WorkOrderMapper.class.getClassLoader(),
+                new Class<?>[]{WorkOrderMapper.class}, (proxy, method, args) -> {
+                    Object result = invoke(delegate, method, args);
+                    if (pauseDeleteAfterInflight && "selectCount".equals(method.getName())) {
+                        deleteInflightChecked.countDown();
+                        awaitLatch(allowDelete);
+                    }
+                    return result;
+                });
+    }
+
+    private static void awaitLatch(CountDownLatch latch) {
+        try {
+            if (!latch.await(10, TimeUnit.SECONDS)) {
+                throw new IllegalStateException("等待并发测试释放超时");
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException(e);
+        }
+    }
+
     private static long countActiveOrders() throws Exception {
+        return countActiveOrders("el_race");
+    }
+
+    private static long countActiveOrders(String elevatorId) throws Exception {
         try (Connection connection = dataSource.getConnection();
              PreparedStatement statement = connection.prepareStatement(
                      "SELECT COUNT(*) FROM work_order WHERE elevator_id = ? AND status <> 'DONE'")) {
-            statement.setString(1, "el_race");
+            statement.setString(1, elevatorId);
+            try (ResultSet result = statement.executeQuery()) {
+                result.next();
+                return result.getLong(1);
+            }
+        }
+    }
+
+    private static long countElevator(String elevatorId) throws Exception {
+        try (Connection connection = dataSource.getConnection();
+             PreparedStatement statement = connection.prepareStatement(
+                     "SELECT COUNT(*) FROM elevator WHERE id = ?")) {
+            statement.setString(1, elevatorId);
             try (ResultSet result = statement.executeQuery()) {
                 result.next();
                 return result.getLong(1);

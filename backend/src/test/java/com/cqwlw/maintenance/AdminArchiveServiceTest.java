@@ -16,6 +16,7 @@ import com.cqwlw.maintenance.service.PhoneMutexService;
 import com.cqwlw.maintenance.service.PlatformClient;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.InOrder;
 import org.mockito.ArgumentCaptor;
 import org.springframework.aop.framework.ProxyFactory;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -38,6 +39,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -56,6 +58,7 @@ class AdminArchiveServiceTest {
     private com.cqwlw.maintenance.mapper.SysUserRoleMapper userRoleMapper;
     private com.cqwlw.maintenance.mapper.ClientAccountMapper clientAccountMapper;
     private com.cqwlw.maintenance.mapper.MaintainRecordMapper maintainRecordMapper;
+    private WorkOrderMapper workOrderMapper;
     private com.cqwlw.maintenance.service.AuditLogService auditLogService;
     private AdminArchiveService service;
 
@@ -69,6 +72,7 @@ class AdminArchiveServiceTest {
         userRoleMapper = mock(com.cqwlw.maintenance.mapper.SysUserRoleMapper.class);
         clientAccountMapper = mock(com.cqwlw.maintenance.mapper.ClientAccountMapper.class);
         maintainRecordMapper = mock(com.cqwlw.maintenance.mapper.MaintainRecordMapper.class);
+        workOrderMapper = mock(WorkOrderMapper.class);
         auditLogService = mock(com.cqwlw.maintenance.service.AuditLogService.class);
 
         Company c = new Company();
@@ -96,7 +100,7 @@ class AdminArchiveServiceTest {
         service = new AdminArchiveService(companyMapper, useUnitMapper,
                 employeeMapper, userRoleMapper, elevatorMapper,
                 new PhoneMutexService(companyMapper, useUnitMapper, employeeMapper),
-                mock(WorkOrderMapper.class), platformClient, sysOrgMapper, auditLogService);
+                workOrderMapper, platformClient, sysOrgMapper, auditLogService);
         service.setClientAccountMapper(clientAccountMapper);
         service.setMaintainRecordMapper(maintainRecordMapper);
     }
@@ -356,6 +360,22 @@ class AdminArchiveServiceTest {
 
         assertNull(e.platformId);
         verify(employeeMapper).update(isNull(), any(LambdaUpdateWrapper.class));
+    }
+
+    @Test
+    void deleteElevatorLocksRowBeforeInflightCheck() {
+        Elevator elevator = new Elevator();
+        elevator.id = "el_delete_lock";
+        when(elevatorMapper.selectById(elevator.id)).thenReturn(elevator);
+        when(elevatorMapper.selectByIdForUpdate(elevator.id)).thenReturn(elevator);
+        when(workOrderMapper.selectCount(any())).thenReturn(0L);
+
+        service.deleteElevator(elevator.id);
+
+        InOrder order = inOrder(elevatorMapper, workOrderMapper);
+        order.verify(elevatorMapper).selectByIdForUpdate(elevator.id);
+        order.verify(workOrderMapper).selectCount(any());
+        order.verify(elevatorMapper).deleteById(elevator.id);
     }
 
     @Test
