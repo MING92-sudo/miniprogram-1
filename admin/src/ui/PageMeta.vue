@@ -11,7 +11,7 @@
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { usePerspectiveStore } from './stores/perspective'
-import { state } from './permission-v2'
+import { stateForRoles } from './permission-v2'
 import { roleLabel, scopeLabel } from './labels'
 const props = defineProps({
   perm: { type: String, default: '' },
@@ -20,15 +20,17 @@ const props = defineProps({
 const perspective = usePerspectiveStore()
 const route = useRoute()
 const items = computed(() => {
-  const role = perspective.activeRole
+  const roles = perspective.roleSet
+  const roleText = roles.map((role) => roleLabel(role)).join(' / ')
   const out = [
-    { k: '角色', v: roleLabel(role), icon: 'user' },
+    { k: '角色', v: roleText, icon: 'user' },
     { k: '路由', v: '#' + route.path, icon: 'link' },
     { k: '范围', v: perspective.scope + ' · ' + scopeLabel(perspective.scope), icon: 'database' }
   ]
   if (props.perm) {
-    out.push({ k: '权限', v: props.perm + ' = ' + state(role, props.perm), icon: 'key', cls: 'code' })
-    if (state(role, props.perm) === 'C') out.push({ k: '模式', v: '只读', icon: 'eye', cls: 'count' })
+    const permState = stateForRoles(roles, props.perm)
+    out.push({ k: '权限', v: props.perm + ' = ' + permState, icon: 'key', cls: 'code' })
+    if (permState === 'C') out.push({ k: '模式', v: '只读', icon: 'eye', cls: 'count' })
   }
   return out.concat(props.extra || [])
 })

@@ -106,7 +106,7 @@ import LoadingSkeleton from '../ui/states/LoadingSkeleton.vue'
 import { useToast } from '../ui/stores/ui'
 import { exportCsv } from '../ui/export-csv'
 import { roleLabel, permLabel, roleDept, deptLabel } from '../ui/labels'
-import { canonicalRoles, canonicalCodes, state, defaultScope } from '../ui/permission-v2'
+import { canonicalRoles, canonicalCodes, state, stateForRoles, defaultScope } from '../ui/permission-v2'
 import { usePerspectiveStore } from '../ui/stores/perspective'
 import { MENU_GROUPS } from '../ui/menu-config'
 import { rolesMatrix } from '../api/ledger'
@@ -114,7 +114,7 @@ const toast = useToast()
 const route = useRoute()
 const router = useRouter()
 const perspective = usePerspectiveStore()
-function allow(code) { try { const s = state(perspective.activeRole, code); return s === 'Y' || s === 'C' } catch { return false } }
+function allow(code) { try { const s = stateForRoles(perspective.roleSet, code); return s === 'Y' || s === 'C' } catch { return false } }
 const canMatrix = computed(() => allow('role:assign'))
 const canGrants = computed(() => allow('invite:manage'))
 const tab = ref((route.query.tab === 'grants') ? String(route.query.tab) : 'matrix')
