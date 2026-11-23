@@ -28,7 +28,6 @@ definePage(ROUTES['/pkg-handover/pages/upload/index'], {
           docType: def.docType,
           docName: doc.docName || def.docName,
           fileId: doc.fileId || detail[def.field] || '',
-          missing: !!doc.missing,
           required: true
         }
       })
@@ -45,24 +44,18 @@ definePage(ROUTES['/pkg-handover/pages/upload/index'], {
         uploadImage(res.tempFiles[0].tempFilePath).then((up) => {
           wx.hideLoading()
           const docs = this.data.docs.slice()
-          docs[idx] = Object.assign({}, docs[idx], { fileId: up.fileId, url: up.url, missing: false })
+          docs[idx] = Object.assign({}, docs[idx], { fileId: up.fileId, url: up.url })
           this.setData({ docs })
         }).catch((er) => { wx.hideLoading(); wx.showToast({ title: (er && er.message) || '上传失败', icon: 'none' }) })
       }
     })
-  },
-  onToggleMissing(e) {
-    const idx = Number(e.currentTarget.dataset.idx)
-    const docs = this.data.docs.slice()
-    docs[idx] = Object.assign({}, docs[idx], { missing: !docs[idx].missing })
-    this.setData({ docs })
   },
   onSubmit() {
     if (this.data.submitting) return
     const payload = {}
     DOC_DEFS.forEach((def) => {
       const d = this.data.docs.find((x) => x.docType === def.docType)
-      payload[def.field] = (d && d.fileId && !d.missing) ? d.fileId : ''
+      payload[def.field] = d && d.fileId ? d.fileId : ''
     })
     const absent = DOC_DEFS.find((def) => !payload[def.field])
     if (absent) {
