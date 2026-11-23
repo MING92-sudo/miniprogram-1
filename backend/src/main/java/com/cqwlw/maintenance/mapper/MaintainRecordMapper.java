@@ -39,4 +39,8 @@ public interface MaintainRecordMapper extends BaseMapper<MaintainRecord> {
             + "WHERE id = #{id}")
     int updateReportProgress(@Param("id") String id, @Param("reportStatus") String reportStatus,
                              @Param("retryCount") Integer retryCount);
+
+    @Update("UPDATE maintain_record SET report_status = #{outcome} WHERE id = #{id} "
+            + "AND report_status IN ('REPORTING','REUPLOADING','LEGACY_UPLOADING','UNKNOWN')")
+    int reconcileReport(@Param("id") String id, @Param("outcome") String outcome);
 }

@@ -32,6 +32,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 /** 失败不自动重试（AGENTS §2.3）； */
@@ -477,5 +478,112 @@ class PlatformReportServiceTest {
         assertTrue(digest.contains("S0"));
         assertTrue(!digest.contains("13800000001"));
         assertTrue(digest.contains("138****0001"));
+    }
+
+    @Test
+    void reconcileRejectsInvalidOutcome() {
+        BizException e = assertThrows(BizException.class,
+                () -> service.reconcile("ur_1", "FOO", "note"));
+
+        assertEquals(422, e.getCode());
+        verifyNoInteractions(recordMapper, logMapper, orderMapper, platformClient);
+    }
+
+    @Test
+    void reconcileRejectsNonStuckStatus() {
+        MaintainRecord r = record("REPORTED");
+        when(recordMapper.selectById("ur_1")).thenReturn(r);
+
+        BizException e = assertThrows(BizException.class,
+                () -> service.reconcile("ur_1", "REPORTED", "note"));
+
+        assertEquals(1003, e.getCode());
+        assertTrue(e.getMessage().contains("当前状态无需核对"));
+        verify(recordMapper, never()).reconcileReport(anyString(), anyString());
+        verifyNoInteractions(logMapper, platformClient);
+    }
+
+    @Test
+    void reconcileRejectsSupersededRecord() {
+        MaintainRecord r = record("REPORTING");
+        when(recordMapper.selectById("ur_1")).thenReturn(r);
+        when(recordMapper.selectCount(any())).thenReturn(1L);
+
+        BizException e = assertThrows(BizException.class,
+                () -> service.reconcile("ur_1", "REPORTED", "note"));
+
+        assertEquals(1003, e.getCode());
+        assertTrue(e.getMessage().contains("记录已有后继版本"));
+        verify(recordMapper, never()).reconcileReport(anyString(), anyString());
+        verifyNoInteractions(logMapper, platformClient);
+    }
+
+    @Test
+    void reconcileRejectsConcurrentChange() {
+        MaintainRecord r = record("REPORTING");
+        when(recordMapper.selectById("ur_1")).thenReturn(r);
+        when(recordMapper.selectCount(any())).thenReturn(0L);
+        when(recordMapper.reconcileReport("ur_1", "REPORTED")).thenReturn(0);
+
+        BizException e = assertThrows(BizException.class,
+                () -> service.reconcile("ur_1", "REPORTED", "note"));
+
+        assertEquals(1003, e.getCode());
+        assertTrue(e.getMessage().contains("状态已变化，请刷新后查看"));
+        verifyNoInteractions(logMapper, orderMapper, platformClient);
+    }
+
+    @Test
+    void reconcileMarksReportedWithAuditAndOrderSync() {
+        MaintainRecord r = record("REPORTING");
+        r.workOrderId = "wo_1";
+        when(recordMapper.selectById("ur_1")).thenReturn(r);
+        when(recordMapper.selectCount(any())).thenReturn(0L);
+        when(recordMapper.reconcileReport("ur_1", "REPORTED")).thenReturn(1);
+
+        MaintainRecord out = service.reconcile("ur_1", "REPORTED", "平台已核实，联系人 13800001111");
+
+        assertEquals("REPORTED", out.reportStatus);
+        ArgumentCaptor<RegUploadLog> captor = ArgumentCaptor.forClass(RegUploadLog.class);
+        verify(logMapper).insert(captor.capture());
+        assertEquals("RECONCILE", captor.getValue().action);
+        assertEquals("SUCCESS", captor.getValue().status);
+        assertTrue(captor.getValue().platformMessage.contains("平台已核实"));
+        assertTrue(!captor.getValue().platformMessage.contains("13800001111"));
+        assertTrue(captor.getValue().platformMessage.contains("138****1111"));
+        verify(orderMapper).updateReportStatus("wo_1", "REPORTED");
+        verifyNoInteractions(platformClient);
+    }
+
+    @Test
+    void reconcileMarksFailedAllowsManualReupload() {
+        MaintainRecord r = record("UNKNOWN");
+        when(recordMapper.selectById("ur_1")).thenReturn(r);
+        when(recordMapper.selectCount(any())).thenReturn(0L);
+        when(recordMapper.reconcileReport("ur_1", "FAILED")).thenReturn(1);
+
+        MaintainRecord out = service.reconcile("ur_1", "FAILED", "平台无此记录");
+
+        assertEquals("FAILED", out.reportStatus);
+        ArgumentCaptor<RegUploadLog> captor = ArgumentCaptor.forClass(RegUploadLog.class);
+        verify(logMapper).insert(captor.capture());
+        assertEquals("RECONCILE", captor.getValue().action);
+        assertEquals("MANUAL_FAILED", captor.getValue().status);
+        verifyNoInteractions(platformClient);
+    }
+
+    @Test
+    void reconcileSkipsOrderSyncWhenNoWorkOrderId() {
+        MaintainRecord r = record("REPORTING");
+        r.workOrderId = null;
+        when(recordMapper.selectById("ur_1")).thenReturn(r);
+        when(recordMapper.selectCount(any())).thenReturn(0L);
+        when(recordMapper.reconcileReport("ur_1", "REPORTED")).thenReturn(1);
+
+        MaintainRecord out = service.reconcile("ur_1", "REPORTED", "");
+
+        assertEquals("REPORTED", out.reportStatus);
+        verify(logMapper).insert(any(RegUploadLog.class));
+        verifyNoInteractions(orderMapper, platformClient);
     }
 }

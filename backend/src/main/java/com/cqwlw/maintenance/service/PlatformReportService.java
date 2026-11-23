@@ -25,6 +25,10 @@ public class PlatformReportService {
 
     private static final Logger log = LoggerFactory.getLogger(PlatformReportService.class);
 
+    private static final java.util.Set<String> RECONCILABLE_STATUSES =
+            java.util.Set.of("REPORTING", "REUPLOADING", "LEGACY_UPLOADING", "UNKNOWN");
+    private static final java.util.Set<String> RECONCILE_OUTCOMES = java.util.Set.of("REPORTED", "FAILED");
+
     private final MaintainRecordMapper recordMapper;
     private final RegUploadLogMapper logMapper;
     private final WorkOrderMapper orderMapper;
@@ -208,6 +212,31 @@ public class PlatformReportService {
                     r.originalRecordId, action, e.getClass().getSimpleName());
         }
         return "UNKNOWN";
+    }
+
+    /** 逐条人工核对：操作者已在平台控制台核实后只改本地状态，绝不调用平台（AGENTS §2.3 红线）。 */
+    public MaintainRecord reconcile(String id, String outcome, String note) {
+        if (!RECONCILE_OUTCOMES.contains(outcome)) {
+            throw new BizException(422, "核对结果仅允许 REPORTED 或 FAILED");
+        }
+        MaintainRecord r = recordMapper.selectById(id);
+        if (r == null) {
+            throw new BizException(1404, "维保记录不存在");
+        }
+        if (!RECONCILABLE_STATUSES.contains(r.reportStatus)) {
+            throw new BizException(1003, "当前状态无需核对（仅上报中/结果待核对的记录可核对）");
+        }
+        if (hasNextVersion(r)) {
+            throw new BizException(1003, "记录已有后继版本，禁止核对旧快照");
+        }
+        if (recordMapper.reconcileReport(id, outcome) != 1) {
+            throw new BizException(1003, "状态已变化，请刷新后查看");
+        }
+        r.reportStatus = outcome;
+        log(r, "RECONCILE", null, mask(note == null ? "" : note),
+                "REPORTED".equals(outcome) ? "SUCCESS" : "MANUAL_FAILED", null);
+        syncOrderReportStatus(r);
+        return r;
     }
 
     /** 记录带 workOrderId 时同步工单上报标签；失败仅告警不阻断。 */

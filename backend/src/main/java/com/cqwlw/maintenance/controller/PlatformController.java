@@ -5,14 +5,17 @@ import com.cqwlw.maintenance.auth.RequirePerm;
 import com.cqwlw.maintenance.common.ApiResponse;
 import com.cqwlw.maintenance.common.BizException;
 import com.cqwlw.maintenance.entity.MaintainRecord;
+import com.cqwlw.maintenance.service.IdempotencyService;
 import com.cqwlw.maintenance.service.PlatformClient;
 import com.cqwlw.maintenance.service.PlatformReportService;
 import com.cqwlw.maintenance.service.PlatformSyncService;
 import com.cqwlw.maintenance.service.PlatformWorkerIdService;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
@@ -30,16 +33,19 @@ public class PlatformController {
     private final PlatformClient platformClient;
     private final com.cqwlw.maintenance.service.AdminArchiveService archiveService;
     private final PlatformWorkerIdService workerIdService;
+    private final IdempotencyService idempotencyService;
 
     public PlatformController(PlatformSyncService platformSyncService,
                               PlatformReportService reportService, PlatformClient platformClient,
                               com.cqwlw.maintenance.service.AdminArchiveService archiveService,
-                              PlatformWorkerIdService workerIdService) {
+                              PlatformWorkerIdService workerIdService,
+                              IdempotencyService idempotencyService) {
         this.platformSyncService = platformSyncService;
         this.reportService = reportService;
         this.platformClient = platformClient;
         this.archiveService = archiveService;
         this.workerIdService = workerIdService;
+        this.idempotencyService = idempotencyService;
     }
 
     @PostMapping("/platform/sync")
@@ -84,8 +90,27 @@ public class PlatformController {
 
     /** 手动重报平台 2.6（仅 reportStatus=FAILED；不自动重试红线不变，AGENTS §2.3） */
     @PostMapping("/platform/records/{id}/reupload")
+    @RequirePerm(PermissionMatrix.REPORT_RETRY_NEW)
     public ApiResponse<Object> reupload(@PathVariable String id) {
         MaintainRecord r = reportService.reupload(id);
+        return ApiResponse.ok(Map.of(
+                "ok", true,
+                "id", r.id,
+                "reportStatus", r.reportStatus == null ? "" : r.reportStatus));
+    }
+
+    /** 逐条人工核对：仅改本地状态，绝不调平台（AGENTS §2.3 红线；唯一恢复入口）。 */
+    @PostMapping("/platform/records/{id}/reconcile")
+    @RequirePerm(PermissionMatrix.REPORT_RETRY_NEW)
+    public ApiResponse<Object> reconcile(@PathVariable String id,
+                                         @RequestBody(required = false) Map<String, Object> body,
+                                         @RequestHeader(value = "X-Idempotency-Key", required = false) String idemKey,
+                                         HttpServletRequest request) {
+        Map<String, Object> safeBody = body == null ? Map.of() : body;
+        String outcome = safeBody.get("outcome") == null ? "" : String.valueOf(safeBody.get("outcome"));
+        String note = safeBody.get("note") == null ? "" : String.valueOf(safeBody.get("note"));
+        MaintainRecord r = idempotencyService.executeDb(idemKey, safeBody, request,
+                () -> reportService.reconcile(id, outcome, note));
         return ApiResponse.ok(Map.of(
                 "ok", true,
                 "id", r.id,
