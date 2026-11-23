@@ -889,7 +889,7 @@ public class WorkOrderService {
             String category = el == null ? "" : el.category;
             String specialType = el == null || el.specialType == null ? "" : el.specialType;
             o.checklistJson = JsonUtil.write(checklistService.buildChecklist(o.workTypeCode, category, specialType));
-            orderMapper.updateById(o);
+            persistChecklist(o);
         }
         List<Map<String, Object>> items = JsonUtil.readList(o.checklistJson);
         // 历史/演示数据的本地临时路径（wxfile://、http://tmp/）不入回显，否则照片只在拍照设备可见、其他设备/管理端乱图
@@ -908,6 +908,12 @@ public class WorkOrderService {
             item.put("photos", urls);
         }
         return items;
+    }
+
+    private void persistChecklist(WorkOrder o) {
+        LambdaUpdateWrapper<WorkOrder> update = new LambdaUpdateWrapper<>();
+        update.eq(WorkOrder::getId, o.id).set(WorkOrder::getChecklistJson, o.checklistJson);
+        orderMapper.update(null, update);
     }
 
     public Map<String, Object> getChecklist(String orderId, String empId) {
@@ -978,7 +984,7 @@ public class WorkOrderService {
         item.put("recordedAt", recordedAt == null || recordedAt.isEmpty()
                 ? TimeUtil.format(TimeUtil.now()) : recordedAt);
         o.checklistJson = JsonUtil.write(items);
-        orderMapper.updateById(o);
+        persistChecklist(o);
         return JsonUtil.map("ok", true, "itemId", itemId);
     }
 
@@ -991,7 +997,7 @@ public class WorkOrderService {
                 .orElseThrow(() -> new BizException(1404, "检查项不存在"));
         item.put("notInThisRun", false);
         o.checklistJson = JsonUtil.write(items);
-        orderMapper.updateById(o);
+        persistChecklist(o);
         return JsonUtil.map("ok", true);
     }
 

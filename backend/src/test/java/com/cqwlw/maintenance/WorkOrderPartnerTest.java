@@ -31,6 +31,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -196,6 +197,58 @@ class WorkOrderPartnerTest {
         assertTrue(tx.committed, "改选配合人与清旧签名必须处在同一事务");
         verify(orderMapper).update(any(), any());
         verify(orderMapper).clearAssistantSignature(ORDER);
+    }
+
+    @Test
+    void staleChecklistSaveCannotRevertPartnerOrSignature() {
+        order.assistantName = "配合人A";
+        order.assistantPlatformId = "pid_a";
+        order.assistantSignatureFileId = "file_a_signature";
+        order.assistantSignatureAt = java.time.LocalDateTime.now();
+        service.assignPartner(ORDER, Map.of("employeeId", "emp_wang"), "emp_zhang");
+        assertEquals("pid_wang", order.assistantPlatformId);
+        assertNull(order.assistantSignatureFileId);
+
+        WorkOrder stale = new WorkOrder();
+        stale.id = ORDER;
+        stale.elevatorId = ELEVATOR;
+        stale.status = "PROCESSING";
+        stale.regionId = "rg_yubei";
+        stale.workerName = "张三";
+        stale.workerPlatformId = "pid_zhang";
+        stale.assistantName = "配合人A";
+        stale.assistantPlatformId = "pid_a";
+        stale.assistantSignatureFileId = "file_a_signature";
+        stale.assistantSignatureAt = java.time.LocalDateTime.now();
+        stale.checklistJson = "[{\"id\":\"it_1\",\"name\":\"曳引机\","
+                + "\"isKey\":false,\"photoRequired\":false}]";
+        when(orderMapper.selectById(ORDER)).thenReturn(stale);
+        when(orderMapper.updateById(any(WorkOrder.class))).thenAnswer(invocation -> {
+            WorkOrder saved = invocation.getArgument(0);
+            order.assistantName = saved.assistantName;
+            order.assistantPlatformId = saved.assistantPlatformId;
+            order.assistantSignatureFileId = saved.assistantSignatureFileId;
+            order.assistantSignatureAt = saved.assistantSignatureAt;
+            return 1;
+        });
+        org.mockito.Mockito.clearInvocations(orderMapper);
+
+        service.submitItem(ORDER, "it_1", Map.of("result", "NORMAL"), "emp_zhang");
+
+        assertEquals("pid_wang", order.assistantPlatformId);
+        assertNull(order.assistantSignatureFileId);
+        assertNull(order.assistantSignatureAt);
+        org.mockito.ArgumentCaptor<com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper<WorkOrder>>
+                captor = org.mockito.ArgumentCaptor.forClass(
+                        (Class) com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper.class);
+        verify(orderMapper).update(any(), captor.capture());
+        String sqlSet = captor.getValue().getSqlSet();
+        assertTrue(sqlSet.contains("checklist_json"), sqlSet);
+        assertFalse(sqlSet.contains("assistant"), sqlSet);
+        assertFalse(sqlSet.contains("worker"), sqlSet);
+        assertFalse(sqlSet.contains("checkin"), sqlSet);
+        assertFalse(sqlSet.contains("signature"), sqlSet);
+        verify(orderMapper, never()).updateById(any(WorkOrder.class));
     }
 
     @Test

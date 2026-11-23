@@ -140,9 +140,9 @@ class WorkOrderWriteScopeTest {
         ok.put("result", "NORMAL");
         ok.put("value", "12.5");
         service.submitItem(OWN_ORDER, "it_1", ok, EMP_LI);
-        org.mockito.ArgumentCaptor<WorkOrder> cap = org.mockito.ArgumentCaptor.forClass(WorkOrder.class);
-        verify(orderMapper).updateById(cap.capture());
-        assertTrue(cap.getValue().checklistJson.contains("12.5"), "字符串数值应被解析落库");
+        assertTrue(orderMapper.selectById(OWN_ORDER).checklistJson.contains("12.5"),
+                "字符串数值应被解析落库");
+        verify(orderMapper).update(any(), any());
 
         Map<String, Object> bad = new java.util.HashMap<>();
         bad.put("result", "NORMAL");
