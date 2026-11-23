@@ -205,12 +205,10 @@
       <RuleNote icon="alert">确认删除电梯 {{ current.elevatorCode }}？存在在途工单或系统管理员关联时将被拒绝。</RuleNote>
     </Modal>
 
-    <!-- 确认变更（第二段，须不同于发起人） -->
+    <!-- 确认变更（第二段，确认人取登录身份，须不同于发起人） -->
     <Modal :open="showConfirm" title="确认变更（须不同于发起人）" icon="user-check" danger require-confirm note="elevator:transfer"
       confirm-text="确认人与发起人为不同账号，已知悉变更生效" confirm-label="确认变更" @close="showConfirm = false" @confirm="submitConfirm">
-      <div class="form-grid one">
-        <FormField label="确认人编号" required><input v-model="confirmerId" class="ctl mono" placeholder="须不同于发起人" /></FormField>
-      </div>
+      <RuleNote icon="user-check">确认人以当前登录账号留痕，由后端取登录身份判定，须不同于发起人。</RuleNote>
       <RuleNote class="mt12">确认后变更生效并写审计；发起人 ≠ 确认人（biz_elevator_change 双人确认）。</RuleNote>
     </Modal>
   </div>
@@ -415,12 +413,10 @@ async function toggleSuspend(row) {
 
 // 变更确认（双人确认第二段；发起入口已由「停保/删除电梯」直操作替代，仅保留存量变更单确认）
 const showConfirm = ref(false)
-const confirmerId = ref('')
 const confirmId = ref('')
-function openConfirm(id) { confirmId.value = id; confirmerId.value = ''; showConfirm.value = true }
+function openConfirm(id) { confirmId.value = id; showConfirm.value = true }
 async function submitConfirm() {
-  if (!confirmerId.value) { toast.warn('确认人编号必填'); return }
-  try { await confirmChange(confirmId.value, { confirmerId: confirmerId.value }); toast.success('已确认 · 双人确认留痕'); showConfirm.value = false; load() }
+  try { await confirmChange(confirmId.value); toast.success('已确认 · 双人确认留痕'); showConfirm.value = false; load() }
   catch (e) { toast.error(e.message || '确认失败') }
 }
 </script>
