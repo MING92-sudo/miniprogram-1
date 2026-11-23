@@ -12,8 +12,10 @@ import com.cqwlw.maintenance.entity.Employee;
 import com.cqwlw.maintenance.entity.SysUserRole;
 import com.cqwlw.maintenance.mapper.EmployeeMapper;
 import com.cqwlw.maintenance.mapper.SysUserRoleMapper;
+import com.cqwlw.maintenance.service.UserLifecycleService;
 import com.cqwlw.maintenance.util.TimeUtil;
 import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -35,10 +37,16 @@ public class UserController {
     private final EmployeeMapper employeeMapper;
     private final SysUserRoleMapper userRoleMapper;
     private final BCryptPasswordEncoder enc = new BCryptPasswordEncoder();
+    private UserLifecycleService userLifecycleService;
 
     public UserController(EmployeeMapper employeeMapper, SysUserRoleMapper userRoleMapper) {
         this.employeeMapper = employeeMapper;
         this.userRoleMapper = userRoleMapper;
+    }
+
+    @Autowired
+    public void setUserLifecycleService(UserLifecycleService userLifecycleService) {
+        this.userLifecycleService = userLifecycleService;
     }
 
     private static String actor(HttpServletRequest req) {
@@ -117,6 +125,18 @@ public class UserController {
         employeeMapper.updateById(e);
         employeeMapper.bumpScopeVersion(id);
         return ApiResponse.ok(Map.of("ok", true));
+    }
+
+    @PostMapping("/users/{id}/resign")
+    public ApiResponse<Map<String, Object>> resign(@PathVariable String id, @RequestBody Map<String, Object> body,
+                                                   HttpServletRequest req) {
+        MultiRoleGate.requireWrite(req, PermissionMatrix.USER_DISABLE);
+        Employee e = employeeMapper.selectById(id);
+        if (e == null) {
+            throw new BizException(404, "账号不存在");
+        }
+        requireManageableTarget(req, e);
+        return ApiResponse.ok(userLifecycleService.resign(actor(req), id, str(body, "heirId")));
     }
 
     @PostMapping("/users/{id}/roles")

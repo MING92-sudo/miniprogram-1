@@ -4,9 +4,11 @@ import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.cqwlw.maintenance.entity.WorkOrder;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
+import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Mapper
 public interface WorkOrderMapper extends BaseMapper<WorkOrder> {
@@ -45,4 +47,21 @@ public interface WorkOrderMapper extends BaseMapper<WorkOrder> {
 
     @Update("UPDATE work_order SET report_status = #{reportStatus} WHERE id = #{id}")
     int updateReportStatus(@Param("id") String id, @Param("reportStatus") String reportStatus);
+
+    /** 离职转交：锁定目标人员作为主/配合人的全部未完成工单，防止并发改派。 */
+    @Select("SELECT * FROM work_order WHERE (worker_platform_id = #{platformId} "
+            + "OR assistant_platform_id = #{platformId}) AND status <> 'DONE' FOR UPDATE")
+    List<WorkOrder> selectInflightForUpdate(@Param("platformId") String platformId);
+
+    /** 主维保槽位改派：仅动主维保字段，保留配合人槽位与历史留痕。 */
+    @Update("UPDATE work_order SET worker_name = #{name}, worker_platform_id = #{platformId} "
+            + "WHERE id = #{id} AND status <> 'DONE' AND worker_platform_id = #{oldPlatformId}")
+    int reassignWorker(@Param("id") String id, @Param("name") String name,
+                       @Param("platformId") String platformId, @Param("oldPlatformId") String oldPlatformId);
+
+    /** 配合人槽位改派：仅动配合人字段，保留主维保槽位与历史留痕。 */
+    @Update("UPDATE work_order SET assistant_name = #{name}, assistant_platform_id = #{platformId} "
+            + "WHERE id = #{id} AND status <> 'DONE' AND assistant_platform_id = #{oldPlatformId}")
+    int reassignAssistant(@Param("id") String id, @Param("name") String name,
+                          @Param("platformId") String platformId, @Param("oldPlatformId") String oldPlatformId);
 }
