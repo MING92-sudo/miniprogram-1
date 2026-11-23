@@ -1,6 +1,7 @@
 // 离线缓存与补传- em_order_<id>：按工单缓存本地快照（检查项填写等），弱网时先保本地- offline_queue：待补传请求队列，网络恢复时自动逐条重放（复用任务 id 作幂等键）
 const { request } = require('./request')
 const { uuid } = require('./util')
+const { getAccountId } = require('./auth')
 const { uploadImage } = require('../services/upload')
 
 const QUEUE_KEY = 'offline_queue'
@@ -44,31 +45,53 @@ function clearOrderCache(orderId) {
 
 // ── 待补传队列 ────────────────────────────────
 
+function readQueue() {
+  return wx.getStorageSync(QUEUE_KEY) || []
+}
+
 // 重放时自动携带幂等键uploads: [{ field, path, fileId? }]，用于签名等单文件字段先补传再回填业务 data。
 function enqueue(task) {
-  const queue = wx.getStorageSync(QUEUE_KEY) || []
-  const taskFull = Object.assign({ id: uuid(), method: 'POST', createdAt: Date.now() }, task)
-  const idx = queue.findIndex((t) => t.url === taskFull.url && t.method === taskFull.method)
+  const queue = readQueue()
+  const ownerId = getAccountId()
+  const taskFull = Object.assign({ id: uuid(), method: 'POST', createdAt: Date.now() }, task, { ownerId })
+  // 仅替换同账号同请求，避免换号后的入队覆盖他人待补传任务。
+  const idx = queue.findIndex((t) => t.ownerId === ownerId && t.url === taskFull.url && t.method === taskFull.method)
   if (idx > -1) queue[idx] = taskFull
   else queue.push(taskFull)
   wx.setStorageSync(QUEUE_KEY, queue)
   return queue.length
 }
 
+// 默认只展示当前账号任务；换号后不得看到或补传上一个账号的数据。
 function getQueue() {
-  return wx.getStorageSync(QUEUE_KEY) || []
+  const ownerId = getAccountId()
+  return ownerId ? readQueue().filter((t) => t.ownerId === ownerId) : []
+}
+
+// 无属主旧任务（升级前入队）永不自动补传，仅供人工确认删除。
+function getOrphanQueue() {
+  return readQueue().filter((t) => !t.ownerId)
+}
+
+function removeOrphanTask(taskId) {
+  const queue = readQueue()
+  const next = queue.filter((t) => !(t.id === taskId && !t.ownerId))
+  wx.setStorageSync(QUEUE_KEY, next)
 }
 
 let flushing = null
 
 // 逐条重放：成功一条移除一条；失败保留。持久化时合并快照之后的新任务，禁止旧快照覆盖新入队数据。
 async function doFlushQueue() {
-  const queue = getQueue().slice()
+  const ownerId = getAccountId()
+  if (!ownerId) return { success: 0, fail: 0 }
+  const queue = readQueue().filter((t) => t.ownerId === ownerId)
   const snapshotIds = new Set(queue.map((t) => t.id))
   let success = 0
   const failed = []
   const persist = (nextQueue) => {
-    const added = getQueue().filter((t) => !snapshotIds.has(t.id))
+    // 快照外的任务含其他账号/无属主旧任务及 flush 期间新入队任务，原样合并保留。
+    const added = readQueue().filter((t) => !snapshotIds.has(t.id))
     wx.setStorageSync(QUEUE_KEY, nextQueue.concat(added))
   }
   for (let idx = 0; idx < queue.length; idx++) {
@@ -129,5 +152,7 @@ module.exports = {
   clearOrderCache,
   enqueue,
   getQueue,
+  getOrphanQueue,
+  removeOrphanTask,
   flushQueue
 }

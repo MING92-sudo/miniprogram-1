@@ -17,6 +17,11 @@ function getUserInfo() {
   return wx.getStorageSync(USER_KEY) || null
 }
 
+// 稳定账号 ID：离线队列按它绑定属主，token 换发/重新登录后仍可归位。
+function getAccountId() {
+  return (getUserInfo() || {}).id || ''
+}
+
 function getRole() {
   return wx.getStorageSync(ROLE_KEY)
 }
@@ -110,6 +115,7 @@ function isCustomerPrincipal() {
 module.exports = {
   getToken,
   getUserInfo,
+  getAccountId,
   getRole,
   getRoles,
   getPerms,

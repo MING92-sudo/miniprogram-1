@@ -6,13 +6,22 @@ const { ROUTES } = require('../../config/routes')
 const nav = require('../../utils/nav')
 
 definePage(ROUTES['/pages/offline/index'], {
-  data: { useMock: config.useMock, cacheList: [], queueCount: 0, syncing: false },
+  data: { useMock: config.useMock, cacheList: [], queueCount: 0, orphanList: [], syncing: false },
   onShow() { this.refresh() },
   onBack() { nav.back() },
   refresh() {
     const cacheList = offline.listCachedOrders().map((c) =>
       Object.assign({}, c, { cachedAtText: c.cachedAt ? formatTime(new Date(c.cachedAt)) : '' }))
-    this.setData({ cacheList, queueCount: offline.getQueue().length })
+    const orphanList = offline.getOrphanQueue().map((t) =>
+      Object.assign({}, t, { createdAtText: t.createdAt ? formatTime(new Date(t.createdAt)) : '' }))
+    this.setData({ cacheList, queueCount: offline.getQueue().length, orphanList })
+  },
+  onDeleteOrphan(e) {
+    const id = e.currentTarget.dataset.id
+    wx.showModal({
+      title: '提示', content: '确认删除这条无归属的旧补传任务？删除后无法补传。',
+      success: (res) => { if (res.confirm) { offline.removeOrphanTask(id); this.refresh() } }
+    })
   },
   onClearCache(e) {
     const key = e.currentTarget.dataset.key
