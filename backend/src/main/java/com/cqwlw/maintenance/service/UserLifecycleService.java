@@ -101,6 +101,18 @@ public class UserLifecycleService {
             }
             boolean asPrincipal = target.platformId.equals(o.workerPlatformId);
             boolean asAssistant = target.platformId.equals(o.assistantPlatformId);
+            // 改派后主/配合人撞成同一人（接手人已占另一槽位）：须整体退回池重置，绝不留下单人双角色工单。
+            String nextPrincipal = asPrincipal ? heir.platformId : o.workerPlatformId;
+            String nextAssistant = asAssistant ? heir.platformId : o.assistantPlatformId;
+            if (sameNonBlank(nextPrincipal, nextAssistant)) {
+                if (isBlank(o.regionId)) {
+                    throw new BizException(422, "工单 " + nz(o.orderNo)
+                            + " 接手人已占另一角色且缺少区域快照，无法安全退回池，离职转交已取消");
+                }
+                workOrderService.releaseToPool(o.id, actorId);
+                count++;
+                continue;
+            }
             if (asPrincipal && orderMapper.reassignWorker(
                     o.id, heir.name, heir.platformId, target.platformId) != 1) {
                 throw new BizException(422, "工单 " + nz(o.orderNo) + " 状态已变化，请刷新后重试");
@@ -143,6 +155,10 @@ public class UserLifecycleService {
                 .eq(Employee::getId, id)
                 .last("FOR UPDATE"));
         return rows == null || rows.isEmpty() ? null : rows.get(0);
+    }
+
+    private static boolean sameNonBlank(String a, String b) {
+        return !isBlank(a) && a.equals(b);
     }
 
     private static String nz(String s) {

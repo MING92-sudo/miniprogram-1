@@ -191,6 +191,59 @@ class UserLifecycleServiceTest {
         assertTrue(rollbackTx.rolledBack, "无区域快照的在途工单必须回滚整个离职转交");
     }
 
+    @Test
+    void heirAlreadyInOppositeSlotReleasesOrderToPool() {
+        WorkOrder principalCollision = order("wo_collision_p", "PENDING", TARGET_PID, HEIR_PID);
+        WorkOrder assistantCollision = order("wo_collision_a", "PENDING", HEIR_PID, TARGET_PID);
+        when(orderMapper.selectInflightForUpdate(TARGET_PID))
+                .thenReturn(List.of(principalCollision, assistantCollision));
+        when(workOrderService.releaseToPool(anyString(), anyString())).thenReturn(Map.of("ok", true));
+
+        Map<String, Object> result = service.resign(ACTOR, TARGET_ID, HEIR_ID);
+
+        verify(workOrderService).releaseToPool("wo_collision_p", ACTOR);
+        verify(workOrderService).releaseToPool("wo_collision_a", ACTOR);
+        verify(orderMapper, never()).reassignWorker(anyString(), anyString(), anyString(), anyString());
+        verify(orderMapper, never()).reassignAssistant(anyString(), anyString(), anyString(), anyString());
+        assertEquals(2, result.get("orders"), "主/配合人相撞的工单各计一次退回池");
+        assertTrue(tx.committed);
+    }
+
+    @Test
+    void oppositeSlotCollisionWithoutRegionRejectsAndRollsBack() {
+        WorkOrder collision = order("wo_collision_nr", "PENDING", TARGET_PID, HEIR_PID);
+        collision.regionId = null;
+        when(orderMapper.selectInflightForUpdate(TARGET_PID)).thenReturn(List.of(collision));
+        stubLocks();
+        TxTestSupport.CapturingTx rollbackTx = TxTestSupport.capturingTx();
+        UserLifecycleService rollbackService = new UserLifecycleService(
+                employeeMapper, orderMapper, faultMapper, workOrderService, rollbackTx.template);
+
+        BizException e = assertThrows(BizException.class,
+                () -> rollbackService.resign(ACTOR, TARGET_ID, HEIR_ID));
+
+        assertEquals(422, e.getCode());
+        verify(workOrderService, never()).releaseToPool(anyString(), anyString());
+        verify(orderMapper, never()).reassignWorker(anyString(), anyString(), anyString(), anyString());
+        verify(orderMapper, never()).reassignAssistant(anyString(), anyString(), anyString(), anyString());
+        verify(employeeMapper, never()).updateById(any(Employee.class));
+        verify(employeeMapper, never()).bumpScopeVersion(anyString());
+        assertTrue(rollbackTx.rolledBack, "无区域快照且接手人已占另一角色时必须整体回滚");
+    }
+
+    @Test
+    void oneSlotReassignmentWorksWhenHeirNotOnOrder() {
+        WorkOrder pending = order("wo_normal", "PENDING", TARGET_PID, "pid_other");
+        when(orderMapper.selectInflightForUpdate(TARGET_PID)).thenReturn(List.of(pending));
+
+        Map<String, Object> result = service.resign(ACTOR, TARGET_ID, HEIR_ID);
+
+        verify(orderMapper).reassignWorker("wo_normal", "李四", HEIR_PID, TARGET_PID);
+        verify(orderMapper, never()).reassignAssistant(anyString(), anyString(), anyString(), anyString());
+        verify(workOrderService, never()).releaseToPool(anyString(), anyString());
+        assertEquals(1, result.get("orders"));
+    }
+
     private static Employee employee(String id, String name, String platformId, String regionId) {
         Employee e = new Employee();
         e.id = id;
