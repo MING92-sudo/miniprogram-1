@@ -6,16 +6,19 @@ import com.cqwlw.maintenance.entity.MaintainRecord;
 import com.cqwlw.maintenance.entity.RegUploadLog;
 import com.cqwlw.maintenance.mapper.MaintainRecordMapper;
 import com.cqwlw.maintenance.mapper.RegUploadLogMapper;
+import com.cqwlw.maintenance.mapper.WorkOrderMapper;
 import com.cqwlw.maintenance.service.PlatformClient;
 import com.cqwlw.maintenance.service.PlatformReportService;
 import com.cqwlw.maintenance.service.PlatformTokenService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -24,6 +27,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -35,6 +39,7 @@ class PlatformReportServiceTest {
 
     private MaintainRecordMapper recordMapper;
     private RegUploadLogMapper logMapper;
+    private WorkOrderMapper orderMapper;
     private PlatformClient platformClient;
     private PlatformTokenService tokenService;
     private PlatformProperties props;
@@ -44,11 +49,13 @@ class PlatformReportServiceTest {
     void setUp() {
         recordMapper = mock(MaintainRecordMapper.class);
         logMapper = mock(RegUploadLogMapper.class);
+        orderMapper = mock(WorkOrderMapper.class);
         platformClient = mock(PlatformClient.class);
         tokenService = mock(PlatformTokenService.class);
         props = new PlatformProperties();
         service = new PlatformReportService(recordMapper, logMapper,
-                platformClient, tokenService, props);
+                platformClient, tokenService, props, orderMapper);
+        when(recordMapper.beginUpload(anyString())).thenReturn(1);
         when(recordMapper.beginLegacyUpload(anyString())).thenReturn(1);
     }
 
@@ -117,7 +124,7 @@ class PlatformReportServiceTest {
     }
 
     @Test
-    void localFailureAfterSuccessIsOutcomeUnknown() {
+    void attemptUploadReturnsUnknownWhenFallbackWriteSucceeds() {
         when(tokenService.configured()).thenReturn(true);
         when(platformClient.uploadMaintenanceRecord(any())).thenReturn(Map.of("code", 200));
         when(recordMapper.updateReportProgress(anyString(), eq("REPORTED"), anyInt()))
@@ -150,18 +157,16 @@ class PlatformReportServiceTest {
     }
 
     @Test
-    void unavailableDatabaseAfterSuccessPreservesStateAndThrowsPendingResult() {
+    void attemptUploadStaysReportingWhenBothLocalWritesFail() {
         when(tokenService.configured()).thenReturn(true);
         when(platformClient.uploadMaintenanceRecord(any())).thenReturn(Map.of("code", 200));
         when(recordMapper.updateReportProgress(anyString(), anyString(), anyInt()))
                 .thenThrow(new RuntimeException("database unavailable"));
         MaintainRecord r = record("SUBMITTED");
 
-        BizException e = assertThrows(BizException.class, () -> service.attemptUpload(r));
+        assertEquals("REPORTING", service.attemptUpload(r));
 
-        assertTrue(e.getMessage().contains("结果待核对"));
-        assertEquals("SUBMITTED", r.reportStatus);
-        assertEquals(0, r.retryCount);
+        assertEquals("REPORTING", r.reportStatus);
         verify(recordMapper, never()).updateReportProgress(anyString(), eq("FAILED"), anyInt());
     }
 
@@ -191,8 +196,10 @@ class PlatformReportServiceTest {
         when(recordMapper.updateReportProgress(anyString(), eq("REPORTED"), anyInt()))
                 .thenThrow(new RuntimeException("database unavailable"));
 
-        assertEquals(0, service.syncLegacy());
+        PlatformReportService.SyncLegacyResult result = service.syncLegacy();
 
+        assertEquals(0, result.uploaded());
+        assertEquals(1, result.stuck());
         assertEquals("UNKNOWN", r.reportStatus);
         verify(recordMapper).updateReportProgress("ur_1", "UNKNOWN", 1);
         verify(recordMapper, never()).completeLegacyUpload(anyString(), anyString());
@@ -258,7 +265,9 @@ class PlatformReportServiceTest {
     void legacySyncDoesNothingWhenSwitchOff() {
         props.setLegacyUploadEnabled(false);
         when(tokenService.configured()).thenReturn(true);
-        assertEquals(0, service.syncLegacy());
+        PlatformReportService.SyncLegacyResult result = service.syncLegacy();
+        assertEquals(0, result.uploaded());
+        assertEquals(0, result.stuck());
         verify(platformClient, never()).uploadMaintenanceRecord(any());
     }
 
@@ -272,7 +281,7 @@ class PlatformReportServiceTest {
         when(recordMapper.selectList(any())).thenReturn(List.of(done, failed, submitted));
         when(platformClient.uploadLegacyRecord(any(), any(), any())).thenReturn(Map.of("code", 200));
 
-        assertEquals(1, service.syncLegacy());
+        assertEquals(1, service.syncLegacy().uploaded());
         verify(platformClient, times(1)).uploadLegacyRecord(any(), any(), any());
     }
 
@@ -315,7 +324,9 @@ class PlatformReportServiceTest {
         when(recordMapper.selectList(any())).thenReturn(List.of(parent), List.of(child));
         when(recordMapper.selectCount(any())).thenReturn(1L);
 
-        assertEquals(0, service.syncLegacy());
+        PlatformReportService.SyncLegacyResult skipped = service.syncLegacy();
+        assertEquals(0, skipped.uploaded());
+        assertEquals(0, skipped.stuck());
         verify(platformClient, never()).uploadLegacyRecord(any(), any(), any());
     }
 
@@ -331,7 +342,7 @@ class PlatformReportServiceTest {
         when(recordMapper.selectList(any())).thenReturn(List.of(first, second, third), List.of());
         when(platformClient.uploadLegacyRecord(any(), any(), any())).thenReturn(Map.of("code", 200));
 
-        assertEquals(3, service.syncLegacy());
+        assertEquals(3, service.syncLegacy().uploaded());
         verify(recordMapper, never()).selectCount(any());
         verify(recordMapper, times(2)).selectList(any());
     }
@@ -357,7 +368,7 @@ class PlatformReportServiceTest {
         when(recordMapper.beginLegacyUpload("ur_1")).thenReturn(1, 0);
         when(platformClient.uploadLegacyRecord(any(), any(), any())).thenReturn(Map.of("code", 200));
 
-        assertEquals(1, service.syncLegacy());
+        assertEquals(1, service.syncLegacy().uploaded());
         verify(platformClient, times(1)).uploadLegacyRecord(any(), any(), any());
     }
 
@@ -369,10 +380,90 @@ class PlatformReportServiceTest {
         when(recordMapper.selectList(any())).thenReturn(List.of(r));
         when(platformClient.uploadLegacyRecord(any(), any(), any())).thenThrow(new RuntimeException("network"));
 
-        assertEquals(0, service.syncLegacy());
+        assertEquals(0, service.syncLegacy().uploaded());
         assertEquals("SUBMITTED", r.reportStatus);
         verify(recordMapper).completeLegacyUpload("ur_1", "SUBMITTED");
         verify(platformClient, times(1)).uploadLegacyRecord(any(), any(), any());
+    }
+
+    @Test
+    void attemptUploadClaimsReportingBeforePlatformCall() {
+        when(tokenService.configured()).thenReturn(true);
+        MaintainRecord r = record("SUBMITTED");
+        AtomicReference<String> statusAtPlatformCall = new AtomicReference<>();
+        when(platformClient.uploadMaintenanceRecord(any())).thenAnswer(inv -> {
+            statusAtPlatformCall.set(r.reportStatus);
+            return Map.of("code", 200);
+        });
+
+        assertEquals("REPORTED", service.attemptUpload(r));
+
+        assertEquals("REPORTING", statusAtPlatformCall.get());
+        InOrder inOrder = inOrder(recordMapper, platformClient);
+        inOrder.verify(recordMapper).beginUpload("ur_1");
+        inOrder.verify(platformClient).uploadMaintenanceRecord(any());
+    }
+
+    @Test
+    void attemptUploadRejectsWhenClaimFails() {
+        when(tokenService.configured()).thenReturn(true);
+        when(recordMapper.beginUpload("ur_1")).thenReturn(0);
+        MaintainRecord r = record("SUBMITTED");
+
+        BizException e = assertThrows(BizException.class, () -> service.attemptUpload(r));
+
+        assertEquals(1003, e.getCode());
+        assertEquals("SUBMITTED", r.reportStatus);
+        verify(platformClient, never()).uploadMaintenanceRecord(any());
+        verify(recordMapper, never()).updateReportProgress(anyString(), anyString(), anyInt());
+    }
+
+    @Test
+    void syncLegacySkipsStuckAndContinues() {
+        props.setLegacyUploadEnabled(true);
+        when(tokenService.configured()).thenReturn(true);
+        MaintainRecord stuck = record("SUBMITTED");
+        MaintainRecord ok = record("SUBMITTED");
+        ok.id = "ur_2";
+        when(recordMapper.selectList(any())).thenReturn(List.of(stuck, ok));
+        when(platformClient.uploadLegacyRecord(any(), any(), any())).thenReturn(Map.of("code", 200));
+        when(recordMapper.updateReportProgress(eq("ur_1"), anyString(), anyInt()))
+                .thenThrow(new RuntimeException("database unavailable"));
+
+        PlatformReportService.SyncLegacyResult result = service.syncLegacy();
+
+        assertEquals(1, result.uploaded());
+        assertEquals(1, result.stuck());
+        assertEquals("LEGACY_UPLOADING", stuck.reportStatus);
+        assertEquals("REPORTED", ok.reportStatus);
+        verify(platformClient, times(2)).uploadLegacyRecord(any(), any(), any());
+    }
+
+    @Test
+    void reuploadSyncsWorkOrderStatus() {
+        MaintainRecord r = record("FAILED");
+        r.workOrderId = "wo_1";
+        when(recordMapper.selectById("ur_1")).thenReturn(r);
+        when(recordMapper.beginReupload("ur_1")).thenReturn(1);
+        when(platformClient.uploadMaintenanceRecord(any())).thenReturn(Map.of("code", 200));
+
+        MaintainRecord out = service.reupload("ur_1");
+
+        assertEquals("REPORTED", out.reportStatus);
+        verify(orderMapper).updateReportStatus("wo_1", "REPORTED");
+
+        MaintainRecord stuck = record("FAILED");
+        stuck.id = "ur_2";
+        stuck.workOrderId = "wo_2";
+        when(recordMapper.selectById("ur_2")).thenReturn(stuck);
+        when(recordMapper.beginReupload("ur_2")).thenReturn(1);
+        when(recordMapper.updateReportProgress(eq("ur_2"), anyString(), anyInt()))
+                .thenThrow(new RuntimeException("database unavailable"));
+
+        MaintainRecord stuckOut = service.reupload("ur_2");
+
+        assertEquals("REUPLOADING", stuckOut.reportStatus);
+        verify(orderMapper).updateReportStatus("wo_2", "REUPLOADING");
     }
 
     @Test

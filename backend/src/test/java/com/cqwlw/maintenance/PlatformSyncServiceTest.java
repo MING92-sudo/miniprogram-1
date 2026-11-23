@@ -47,6 +47,7 @@ class PlatformSyncServiceTest {
         service = new PlatformSyncService(companyMapper, useUnitMapper, elevatorMapper,
                 platformClient, tokenService, employeeMapper, reportService);
         when(tokenService.configured()).thenReturn(true);
+        when(reportService.syncLegacy()).thenReturn(new PlatformReportService.SyncLegacyResult(0, 0));
         when(companyMapper.selectList(any())).thenReturn(List.of());
         when(useUnitMapper.selectList(any())).thenReturn(List.of());
         when(employeeMapper.selectList(any())).thenReturn(List.of());

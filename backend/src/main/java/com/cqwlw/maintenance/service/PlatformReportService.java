@@ -8,6 +8,7 @@ import com.cqwlw.maintenance.entity.MaintainRecord;
 import com.cqwlw.maintenance.entity.RegUploadLog;
 import com.cqwlw.maintenance.mapper.MaintainRecordMapper;
 import com.cqwlw.maintenance.mapper.RegUploadLogMapper;
+import com.cqwlw.maintenance.mapper.WorkOrderMapper;
 import com.cqwlw.maintenance.util.JsonUtil;
 import com.cqwlw.maintenance.util.TimeUtil;
 import org.slf4j.Logger;
@@ -26,18 +27,23 @@ public class PlatformReportService {
 
     private final MaintainRecordMapper recordMapper;
     private final RegUploadLogMapper logMapper;
+    private final WorkOrderMapper orderMapper;
     private final PlatformClient platformClient;
     private final PlatformTokenService tokenService;
     private final PlatformProperties props;
 
     public PlatformReportService(MaintainRecordMapper recordMapper, RegUploadLogMapper logMapper,
                                  PlatformClient platformClient, PlatformTokenService tokenService,
-                                 PlatformProperties props) {
+                                 PlatformProperties props, WorkOrderMapper orderMapper) {
         this.recordMapper = recordMapper;
         this.logMapper = logMapper;
         this.platformClient = platformClient;
         this.tokenService = tokenService;
         this.props = props;
+        this.orderMapper = orderMapper;
+    }
+
+    public record SyncLegacyResult(int uploaded, int stuck) {
     }
 
     public boolean configured() {
@@ -48,10 +54,12 @@ public class PlatformReportService {
         if (!configured()) {
             return "SUBMITTED";
         }
+        if (recordMapper.beginUpload(r.id) != 1) {
+            throw new BizException(1003, "该记录正在上报或状态已变化，请刷新后查看");
+        }
+        r.reportStatus = "REPORTING";
         try {
             return upload(r, "UPLOAD");
-        } catch (OutcomeUnknownException e) {
-            throw e;
         } catch (Exception e) {
             log.warn("2.6 自动上报失败（不自动重试）: originalRecordId={}, {}", r.originalRecordId, e.getMessage());
             markFailed(r, "UPLOAD", e);
@@ -77,22 +85,23 @@ public class PlatformReportService {
         r.reportStatus = "REUPLOADING";
         try {
             upload(r, "REUPLOAD");
+            syncOrderReportStatus(r);
             return r;
-        } catch (OutcomeUnknownException e) {
-            throw e;
         } catch (RuntimeException e) {
             r.reportStatus = "FAILED";
             recordMapper.completeReupload(recordId, "FAILED");
+            syncOrderReportStatus(r);
             throw e;
         }
     }
 
     /** 2.8 存量推送：仅链末端 SUBMITTED 首次迁移；FAILED 只能逐条人工重报，旧版本禁止同步。 */
-    public int syncLegacy() {
+    public SyncLegacyResult syncLegacy() {
         if (!props.isLegacyUploadEnabled() || !configured()) {
-            return 0;
+            return new SyncLegacyResult(0, 0);
         }
-        int n = 0;
+        int uploaded = 0;
+        int stuck = 0;
         String afterId = null;
         while (true) {
             LambdaQueryWrapper<MaintainRecord> query = new LambdaQueryWrapper<MaintainRecord>()
@@ -117,10 +126,11 @@ public class PlatformReportService {
                 r.reportStatus = "LEGACY_UPLOADING";
                 try {
                     if ("REPORTED".equals(uploadLegacy(r))) {
-                        n++;
+                        uploaded++;
+                    } else {
+                        // 平台成功但本地写失败：停留在途态待人工核对，跳过本条继续本批
+                        stuck++;
                     }
-                } catch (OutcomeUnknownException e) {
-                    throw e;
                 } catch (Exception e) {
                     r.reportStatus = "SUBMITTED";
                     recordMapper.completeLegacyUpload(r.id, "SUBMITTED");
@@ -132,7 +142,7 @@ public class PlatformReportService {
                 break;
             }
         }
-        return n;
+        return new SyncLegacyResult(uploaded, stuck);
     }
 
     private String uploadLegacy(MaintainRecord r) {
@@ -140,8 +150,6 @@ public class PlatformReportService {
         if (payload == null || payload.isEmpty()) {
             throw new BizException(422, "签退报文快照缺失，无法上报");
         }
-        String previousStatus = r.reportStatus;
-        Integer previousRetryCount = r.retryCount;
         String name2 = r.assistantName == null || r.assistantName.isBlank() ? r.workerName : r.assistantName;
         Map<String, Object> body = platformClient.uploadLegacyRecord(payload, r.workerName, name2);
         int retryCount = (r.retryCount == null ? 0 : r.retryCount) + 1;
@@ -153,7 +161,7 @@ public class PlatformReportService {
             log(r, "LEGACY", "200", str(body.get("message")), "SUCCESS", digest(payload));
             return "REPORTED";
         } catch (RuntimeException e) {
-            return markUnknown(r, "LEGACY", payload, previousStatus, previousRetryCount, retryCount);
+            return markUnknown(r, "LEGACY", payload, retryCount);
         }
     }
 
@@ -169,8 +177,6 @@ public class PlatformReportService {
             throw new BizException(422, "签退报文快照缺失，无法上报");
         }
         ReportPayloadValidator.requireComplete(payload);
-        String previousStatus = r.reportStatus;
-        Integer previousRetryCount = r.retryCount;
         Map<String, Object> body = platformClient.uploadMaintenanceRecord(payload);
         int retryCount = (r.retryCount == null ? 0 : r.retryCount) + 1;
         try {
@@ -180,18 +186,18 @@ public class PlatformReportService {
             log(r, action, "200", str(body.get("message")), "SUCCESS", digest(payload));
             return "REPORTED";
         } catch (RuntimeException e) {
-            return markUnknown(r, action, payload, previousStatus, previousRetryCount, retryCount);
+            return markUnknown(r, action, payload, retryCount);
         }
     }
 
-    private String markUnknown(MaintainRecord r, String action, Map<String, Object> payload,
-                               String previousStatus, Integer previousRetryCount, int retryCount) {
+    private String markUnknown(MaintainRecord r, String action, Map<String, Object> payload, int retryCount) {
         try {
             recordMapper.updateReportProgress(r.id, "UNKNOWN", retryCount);
         } catch (RuntimeException e) {
-            r.reportStatus = previousStatus;
-            r.retryCount = previousRetryCount;
-            throw new OutcomeUnknownException();
+            // 两次本地写均失败：DB 停留在途态（REPORTING/REUPLOADING/LEGACY_UPLOADING），交人工逐条核对，禁止外抛触发上层误判
+            log.warn("平台成功后本地结果写入失败（停留在途态，待人工核对）: originalRecordId={}, action={}, err={}",
+                    r.originalRecordId, action, e.getClass().getSimpleName());
+            return r.reportStatus;
         }
         r.reportStatus = "UNKNOWN";
         r.retryCount = retryCount;
@@ -204,9 +210,16 @@ public class PlatformReportService {
         return "UNKNOWN";
     }
 
-    private static class OutcomeUnknownException extends BizException {
-        OutcomeUnknownException() {
-            super(2002, "平台已返回成功，本地结果待核对，请勿重报");
+    /** 记录带 workOrderId 时同步工单上报标签；失败仅告警不阻断。 */
+    private void syncOrderReportStatus(MaintainRecord r) {
+        if (r.workOrderId == null || r.workOrderId.isBlank()) {
+            return;
+        }
+        try {
+            orderMapper.updateReportStatus(r.workOrderId, r.reportStatus);
+        } catch (RuntimeException e) {
+            log.warn("工单上报状态同步失败（不阻断）: workOrderId={}, status={}, err={}",
+                    r.workOrderId, r.reportStatus, e.getClass().getSimpleName());
         }
     }
 

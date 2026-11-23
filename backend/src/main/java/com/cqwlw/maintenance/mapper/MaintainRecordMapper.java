@@ -13,6 +13,10 @@ public interface MaintainRecordMapper extends BaseMapper<MaintainRecord> {
     @Select("SELECT * FROM maintain_record WHERE id = #{id} FOR UPDATE")
     MaintainRecord selectByIdForUpdate(@Param("id") String id);
 
+    @Update("UPDATE maintain_record SET report_status = 'REPORTING' "
+            + "WHERE id = #{id} AND report_status = 'SUBMITTED'")
+    int beginUpload(@Param("id") String id);
+
     @Update("UPDATE maintain_record parent LEFT JOIN maintain_record child ON child.prev_version_id = parent.id "
             + "SET parent.report_status = 'REUPLOADING' "
             + "WHERE parent.id = #{id} AND parent.report_status = 'FAILED' AND child.id IS NULL")

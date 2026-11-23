@@ -57,13 +57,14 @@ public class PlatformSyncService {
         List<Map<String, Object>> platformWorkers = platformClient.queryWorkList("0", TimeUtil.date(TimeUtil.now().plusYears(1)));
         int workersSynced = syncWorkers(platformWorkers);
         int workersCreated = autoCreateWorkers(platformWorkers);
-        int legacyUploaded = reportService.syncLegacy();
+        PlatformReportService.SyncLegacyResult legacy = reportService.syncLegacy();
         Map<String, Object> summary = new LinkedHashMap<>();
         summary.put("entitySynced", entitySynced);
         summary.put("elevatorSynced", elevatorsSynced);
         summary.put("workerSynced", workersSynced);
         summary.put("workerCreated", workersCreated);
-        summary.put("legacyUploaded", legacyUploaded);
+        summary.put("legacyUploaded", legacy.uploaded());
+        summary.put("legacyStuck", legacy.stuck());
         summary.put("syncedAt", TimeUtil.format(TimeUtil.now()));
         return summary;
     }
