@@ -50,6 +50,7 @@ jobs:
           node scripts/verify-templates.js
           node scripts/verify-handover-template.js
           node scripts/verify-login-flow.js
+          node scripts/verify-report-recovery.js
       - name: Root lint (mini-program)
         run: |
           npm ci --no-audit --no-fund

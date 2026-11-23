@@ -34,7 +34,9 @@ const FAULT_STATUS_TONE = {
 }
 
 // 维保记录平台上报状态文案（工单列表卡片标签）
-const REPORT_STATUS_TEXT = { REPORTED: '已上报平台', FAILED: '上报异常', PENDING: '待上报' }
+const REPORT_STATUS_TEXT = { REPORTED: '已上报平台', FAILED: '上报异常', PENDING: '待上报', UNKNOWN: '上报待核对' }
+// 签退后停留态（UNKNOWN/REPORTING/REUPLOADING/LEGACY_UPLOADING）提示，不随瞬态 REPORTING 变化
+const REPORT_UNKNOWN_HINT = '签退已完成，平台上报结果待核对，请勿重复签退；管理员核对后将更新状态'
 
 const FAULT_TYPE_OPTIONS = ['一般故障', '困人（紧急）']
 const FAULT_TYPE_TRAPPED = '困人（紧急）'
@@ -495,6 +497,7 @@ module.exports = {
   FAULT_STATUS_SHORT,
   FAULT_STATUS_TONE,
   REPORT_STATUS_TEXT,
+  REPORT_UNKNOWN_HINT,
   FAULT_TYPE_OPTIONS,
   FAULT_TYPE_TRAPPED,
   RECORD_LIFECYCLE_TEXT,

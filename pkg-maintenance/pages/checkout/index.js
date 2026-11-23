@@ -4,9 +4,12 @@ const { ROUTES } = require('../../../config/routes')
 // 提交后触发记录生成与监管平台上报（后端）
 const { getOrderDetail, getChecklist, checkout } = require('../../../services/order')
 const { formatDuration, parseTime, uuid } = require('../../../utils/util')
-const { TOAST_TEXT } = require('../../../constants/index')
+const { TOAST_TEXT, REPORT_UNKNOWN_HINT } = require('../../../constants/index')
 const config = require('../../../config/index')
 const offline = require('../../../utils/offline')
+
+// 上报停留态：签退成功后需显式确认，避免误判未提交而重复签退
+const REPORT_STUCK_STATUSES = ['UNKNOWN', 'REPORTING', 'REUPLOADING', 'LEGACY_UPLOADING']
 
 definePage(ROUTES['/pkg-maintenance/pages/checkout/index'], {
   data: {
@@ -182,11 +185,19 @@ definePage(ROUTES['/pkg-maintenance/pages/checkout/index'], {
       // 响应：{ duration, originalRecordId, reportStatus, recordId, shareToken }
       const resp = await checkout(this.data.orderId, payload, { idempotencyKey: idem })
       // 签退成功 → 进入签名确认页（安全管理员本机代签，或分享链接远程签字）
-      wx.showToast({ title: '签退成功', icon: 'success' })
-      this._leaving = true
-      setTimeout(() => {
+      const toSign = () => {
         wx.redirectTo({ url: `/pkg-client/pages/sign/index?taskId=${resp.recordId}&token=${resp.shareToken}` })
-      }, 800)
+      }
+      this._leaving = true
+      if (REPORT_STUCK_STATUSES.indexOf(resp.reportStatus) > -1) {
+        wx.showModal({
+          title: '签退成功', content: REPORT_UNKNOWN_HINT, showCancel: false, confirmText: '知道了',
+          success: () => toSign()
+        })
+      } else {
+        wx.showToast({ title: '签退成功', icon: 'success' })
+        setTimeout(toSign, 800)
+      }
     } catch (e) {
       if (e && e.code === -1) {
         offline.enqueue({

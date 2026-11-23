@@ -13,6 +13,8 @@ const TABS = [
   { key: 'DONE', label: STATUS_TEXT.DONE }
 ]
 const DUE_LABEL = { today: '今日到期', soon: '即将到期（3 天内）', overdue: '保养超期' }
+// 上报停留态：平台结果未回执，展示统一口径「上报待核对」
+const REPORT_STUCK_STATUSES = ['UNKNOWN', 'REPORTING', 'REUPLOADING', 'LEGACY_UPLOADING']
 
 // 卡片展示投影（纯函数）：到期标记/已作业时长/上报状态/人员与设备行，不新增接口字段
 function enrich(o) {
@@ -32,7 +34,9 @@ function enrich(o) {
   }
   if (o.status === 'DONE') {
     item.reportTag = o.reportStatus === 'REPORTED' ? { text: REPORT_STATUS_TEXT.REPORTED, cls: 'ok' }
-      : (o.reportStatus === 'FAILED' ? { text: REPORT_STATUS_TEXT.FAILED, cls: 'sig' } : { text: REPORT_STATUS_TEXT.PENDING, cls: '' })
+      : (o.reportStatus === 'FAILED' ? { text: REPORT_STATUS_TEXT.FAILED, cls: 'sig' }
+        : (REPORT_STUCK_STATUSES.indexOf(o.reportStatus) > -1 ? { text: REPORT_STATUS_TEXT.UNKNOWN, cls: 'sig' }
+          : { text: REPORT_STATUS_TEXT.PENDING, cls: '' }))
   }
   item.workerLine = (o.workerName || '') + (o.assistantName ? ' · 配合 ' + o.assistantName : '')
   item.metaLine = [o.projectName, o.insideNumber ? '编号 ' + o.insideNumber : '', o.model].filter(Boolean).join(' · ')
