@@ -86,7 +86,9 @@ class ElevatorInactiveTest {
         DispatchService dispatch = new DispatchService(elevatorMapper, mock(WorkOrderMapper.class),
                 mock(MessageMapper.class), mock(EmployeeMapper.class), mock(ChecklistService.class),
                 new OrderNoIssuer(mock(WorkOrderMapper.class)), mock(TenantSnapshotService.class));
-        when(elevatorMapper.selectById("el_off")).thenReturn(elevator("el_off", "INACTIVE"));
+        Elevator inactive = elevator("el_off", "INACTIVE");
+        when(elevatorMapper.selectById("el_off")).thenReturn(inactive);
+        when(elevatorMapper.selectOne(any())).thenReturn(inactive);
 
         BizException e = assertThrows(BizException.class, () -> dispatch.dispatchNow("el_off"));
         assertEquals(422, e.getCode());

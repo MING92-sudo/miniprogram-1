@@ -124,12 +124,12 @@ public class DispatchService {
 
     /** 在锁内重新判定并创建工单；不满足条件返回 null */
     private WorkOrder createOrderIfDue(Elevator el, long now) {
-        // 必须在锁内重查未完成工单：maybeDue 的判断发生在加锁之前，并发跑批时两个线程可能都判定为"可派"，随后各插一张工单（同一梯重复派单 → 两条 2.6 上报）
+        // 锁内必须用当前读，避免复用 maybeDue 的 MyBatis 一级缓存或 REPEATABLE READ 旧快照。
         if ("INACTIVE".equals(el.status)) {
             return null;
         }
         Long active = orderMapper.selectCount(new LambdaQueryWrapper<WorkOrder>()
-                .eq(WorkOrder::getElevatorId, el.id).ne(WorkOrder::getStatus, "DONE"));
+                .eq(WorkOrder::getElevatorId, el.id).ne(WorkOrder::getStatus, "DONE").last("FOR UPDATE"));
         if (active != null && active > 0) {
             return null;
         }
@@ -194,8 +194,13 @@ public class DispatchService {
         return o;
     }
 
+    @Transactional(rollbackFor = Exception.class)
     public WorkOrder dispatchNow(String elevatorId) {
         Elevator el = elevatorMapper.selectById(elevatorId);
+        if (el == null) {
+            throw new com.cqwlw.maintenance.common.BizException(1404, "电梯不存在");
+        }
+        el = lockElevator(elevatorId);
         if (el == null) {
             throw new com.cqwlw.maintenance.common.BizException(1404, "电梯不存在");
         }
@@ -206,7 +211,7 @@ public class DispatchService {
             throw new com.cqwlw.maintenance.common.BizException(422, "请先设置维保周期码");
         }
         Long active = orderMapper.selectCount(new LambdaQueryWrapper<WorkOrder>()
-                .eq(WorkOrder::getElevatorId, el.id).ne(WorkOrder::getStatus, "DONE"));
+                .eq(WorkOrder::getElevatorId, el.id).ne(WorkOrder::getStatus, "DONE").last("FOR UPDATE"));
         if (active != null && active > 0) {
             throw new com.cqwlw.maintenance.common.BizException(422, "该电梯已有进行中的工单，不可重复派单");
         }
