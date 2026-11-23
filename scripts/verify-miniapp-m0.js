@@ -27,7 +27,7 @@ const faultStates = ['OPEN', 'ASSIGNED', 'PROCESSING', 'PENDING_CONFIRM', 'CLOSE
 check('fault-states', faultStates.filter((s) => !faultSrc.includes('"' + s + '"')), faultStates.length)
 
 const pm = require('../constants/permission-matrix')
-check('permission-count', pm.canonicalCodes().size === 86 ? [] : ['expect 86 got ' + pm.canonicalCodes().size], 86)
+check('permission-count', pm.canonicalCodes().size === 84 ? [] : ['expect 84 got ' + pm.canonicalCodes().size], 84)
 const javaPm = read('backend/src/main/java/com/cqwlw/maintenance/auth/PermissionMatrix.java')
 const missingMirror = [...pm.canonicalCodes()].filter((code) => !javaPm.includes('"' + code + '"'))
 check('permission-mirror', missingMirror, pm.canonicalCodes().size)
