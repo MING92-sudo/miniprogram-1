@@ -4,6 +4,7 @@ const path = require('path')
 const { execFileSync } = require('child_process')
 
 const utilPath = path.resolve(__dirname, '../utils/util.js')
+const { parseTime } = require(utilPath)
 
 if (process.argv[2] === '--probe') {
   const { formatTime, parseTime } = require(utilPath)
@@ -18,7 +19,13 @@ if (process.argv[2] === '--probe') {
     parsedDateOnly: parseTime('2026-01-02'),
     parsedIso: parseTime('2026-01-02T03:04:05Z'),
     invalidText: formatTime('not a date'),
-    invalidParse: String(parseTime('not a date'))
+    invalidParse: String(parseTime('not a date')),
+    explicitZero: formatTime(0),
+    explicitEmpty: formatTime(''),
+    explicitNull: formatTime(null),
+    invalidCalendar: formatTime('2026-02-31'),
+    invalidCalendarParse: String(parseTime('2026-02-31')),
+    noArgument: formatTime()
   }))
   process.exit(0)
 }
@@ -47,4 +54,10 @@ assert.strictEqual(utc.parsedDateOnly, Date.UTC(2026, 0, 1, 16, 0, 0))
 assert.strictEqual(utc.parsedIso, instant)
 assert.strictEqual(utc.invalidText, '', '非法时间应返回空串而不是 NaN 文本')
 assert.strictEqual(utc.invalidParse, 'NaN')
+assert.strictEqual(utc.explicitZero, '', '显式 0 不得伪造成当前时间或 1970 时间')
+assert.strictEqual(utc.explicitEmpty, '', '显式空串不得表示当前时间')
+assert.strictEqual(utc.explicitNull, '', '显式 null 不得表示当前时间')
+assert.strictEqual(utc.invalidCalendar, '', '非法日历日期不得被静默归一')
+assert.strictEqual(utc.invalidCalendarParse, 'NaN', '非法日历日期解析必须为 NaN')
+assert(Math.abs(Date.now() - parseTime(utc.noArgument)) < 5000, '无参数仍须表示当前时间')
 console.log('PASS 固定 GMT+8：设备时区不影响格式化与解析')

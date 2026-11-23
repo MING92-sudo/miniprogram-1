@@ -15,7 +15,8 @@ const DATE_TIME_RE = /^(\d{4})-(\d{2})-(\d{2})(?: (\d{2}):(\d{2})(?::(\d{2}))?)?
 // 时间格式化 yyyy-MM-dd HH:mm:ss（固定 GMT+8，不随设备时区变化）
 function formatTime(date) {
   let ms
-  if (!date) ms = Date.now()
+  if (date === undefined) ms = Date.now()
+  else if (date === null || date === '' || date === 0) return ''
   else if (typeof date === 'string' && DATE_TIME_RE.test(date.trim())) ms = parseTime(date)
   else ms = new Date(date).getTime()
   if (!isFinite(ms)) return ''
@@ -43,7 +44,20 @@ function parseTime(str) {
   if (!str) return 0
   const m = DATE_TIME_RE.exec(String(str).trim())
   if (!m) return new Date(str).getTime()
+  if (!validCalendarTime(m)) return NaN
   return Date.UTC(+m[1], +m[2] - 1, +m[3], +(m[4] || 0) - 8, +(m[5] || 0), +(m[6] || 0))
+}
+
+function validCalendarTime(m) {
+  const year = +m[1]
+  const month = +m[2]
+  const day = +m[3]
+  const hour = +(m[4] || 0)
+  const minute = +(m[5] || 0)
+  const second = +(m[6] || 0)
+  if (month < 1 || month > 12 || day < 1 || hour > 23 || minute > 59 || second > 59) return false
+  const date = new Date(Date.UTC(year, month - 1, day, hour, minute, second))
+  return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day
 }
 
 function formatDuration(ms) {
