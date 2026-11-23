@@ -49,7 +49,7 @@ export const routes = [
     { path: 'plans', component: PlansView, meta: { title: '维保计划', group: '维保管理', perm: 'plan:view' } },
     { path: 'records', component: RecordsView, meta: { title: '记录单复核', group: '维保管理', perm: 'record:view' } },
     { path: 'dispatch', component: DispatchView, meta: { title: '工单调度', group: '维保管理', perm: 'order:view_pool' } },
-    { path: 'order/:id', component: OrderDetailView, meta: { title: '工单详情', group: '急修报修', perm: 'order:view_own' } },
+    { path: 'order/:id', component: OrderDetailView, meta: { title: '工单详情', group: '急修报修', perm: 'order:view_pool' } },
     { path: 'stats', component: StatsView, meta: { title: '统计报表', group: '系统', perm: 'stats:view' } },
     { path: 'audit', component: AuditView, meta: { title: '审计日志', group: '系统', perm: 'audit:view' } },
     { path: 'migration-issues', component: MigrationIssuesView, meta: { title: '迁移核对', group: '系统', perm: 'audit:view' } },

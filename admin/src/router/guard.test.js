@@ -77,4 +77,21 @@ describe('resolveRoute', () => {
     const to = { path: '/settings', fullPath: '/settings', meta: { title: '系统配置', perm: 'config:manage' } }
     expect(resolveRoute(to, { token: 'jwt', role: 'LEADER', roles: ['LEADER', 'MAINT_TECH'] }).path).toBe('/403')
   })
+
+  const orderDetailRoute = {
+    path: '/order/f1', fullPath: '/order/f1',
+    meta: { title: '工单详情', perm: 'order:view_pool' }
+  }
+
+  it('MAINT_MGR 可打开工单详情（order:view_pool）', () => {
+    expect(resolveRoute(orderDetailRoute, { token: 'jwt', role: 'MAINT_MGR' })).toBe(true)
+  })
+
+  it('MAINT_SUP 可打开工单详情（order:view_pool）', () => {
+    expect(resolveRoute(orderDetailRoute, { token: 'jwt', role: 'MAINT_SUP' })).toBe(true)
+  })
+
+  it('无 order:view_pool 的角色访问工单详情 → /403', () => {
+    expect(resolveRoute(orderDetailRoute, { token: 'jwt', role: 'MAINT_QUALITY' }).path).toBe('/403')
+  })
 })
