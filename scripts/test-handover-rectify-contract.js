@@ -9,6 +9,7 @@ const ROUTE = '/pkg-handover/pages/rectify/index'
 const RECTIFY_PAGE = path.join(ROOT, 'pkg-handover/pages/rectify/index.js')
 const UPLOAD_PAGE = path.join(ROOT, 'pkg-handover/pages/upload/index.js')
 const RECTIFY_WXML = fs.readFileSync(path.join(ROOT, 'pkg-handover/pages/rectify/index.wxml'), 'utf8')
+const UPLOAD_WXML = fs.readFileSync(path.join(ROOT, 'pkg-handover/pages/upload/index.wxml'), 'utf8')
 
 global.wx = { getStorageSync: () => '' }
 const { mockRequest } = require('../mock/server')
@@ -187,12 +188,9 @@ function loadUploadPage(detail) {
   await missing.page.onSubmit()
   assert.strictEqual(missing.calls.length, 0, '缺任一文件不得提交')
 
-  const marked = loadUploadPage(Object.assign({}, allDocs))
-  marked.page.setData({ id: 'ho_1' })
-  await marked.page.load()
-  marked.page.data.docs[1].missing = true
-  await marked.page.onSubmit()
-  assert.strictEqual(marked.calls.length, 0, '强制资料标记缺件也不得提交（缺件不得成功提交）')
+  assert.strictEqual(UPLOAD_WXML.includes('标记缺件'), false, '强制资料页不得保留标记缺件死入口')
+  assert.strictEqual(UPLOAD_WXML.includes('容缺受理'), false, '不得宣称后端不支持的容缺受理')
+  assert(UPLOAD_WXML.includes('三项强制资料上传齐全后才可提交'), '上传页须明确三份资料齐全后才可提交')
 
   // ── mock 与真实后端权限同步：整改/复验互斥 ──
   await login('13800000013') // INST_PM
