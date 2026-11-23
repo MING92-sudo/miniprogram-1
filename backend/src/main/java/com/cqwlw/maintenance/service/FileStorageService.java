@@ -145,6 +145,34 @@ public class FileStorageService {
                 .toAbsolutePath();
     }
 
+    /** 并发归档落败方清理自己刚存的文件：COS 对象 + 本地缓存 + file_record 行逐步 best-effort，任何一步失败仅 warn（不抛） */
+    public void deleteFile(String fileId) {
+        if (fileId == null || fileId.isBlank()) {
+            return;
+        }
+        AppFile f = fileMapper.selectById(fileId);
+        if (f == null) {
+            return;
+        }
+        if (cosClient != null) {
+            try {
+                cosClient.deleteObject(props.getCosBucket(), f.objectKey);
+            } catch (Exception e) {
+                log.warn("COS 对象删除失败: id={}, {}", f.id, e.getMessage());
+            }
+        }
+        try {
+            Files.deleteIfExists(localPath(f));
+        } catch (IOException e) {
+            log.warn("本地缓存删除失败: id={}, {}", f.id, e.getMessage());
+        }
+        try {
+            fileMapper.deleteById(fileId);
+        } catch (Exception e) {
+            log.warn("文件记录删除失败: id={}, {}", f.id, e.getMessage());
+        }
+    }
+
     private String resolveBase(String schemeHost) {
         String configured = props.getPublicBaseUrl();
         return configured != null && !configured.isEmpty() ? configured : schemeHost;

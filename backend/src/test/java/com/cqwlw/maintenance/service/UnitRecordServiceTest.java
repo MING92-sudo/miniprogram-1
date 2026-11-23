@@ -292,9 +292,12 @@ class UnitRecordServiceTest {
         when(fileStorage.storeBytes(any(), any(), any(), any())).thenReturn(archived);
         when(fileStorage.urlOf("file_archive")).thenReturn("https://x/files/file_archive?s=fresh");
 
-        assertThrows(IllegalStateException.class, () -> service.confirmByToken("ur_1", "sg-1",
-                Map.of("signatureFileId", "file_client")));
+        Map<String, Object> signOut = service.confirmByToken("ur_1", "sg-1",
+                Map.of("signatureFileId", "file_client"));
 
+        // 归档失败不拖垮签字：响应 ok + archived=false，签字状态不回滚
+        assertEquals(Boolean.TRUE, signOut.get("ok"));
+        assertEquals(Boolean.FALSE, signOut.get("archived"));
         assertEquals("CONFIRMED", stored.confirmStatus);
         assertEquals("SIGNED", stored.lifecycleStatus);
         Map<String, Object> out = lifecycle.archiveView("ur_1");

@@ -18,6 +18,8 @@ import com.cqwlw.maintenance.mapper.SysConfigMapper;
 import com.cqwlw.maintenance.mapper.UseUnitMapper;
 import com.cqwlw.maintenance.mapper.WorkOrderMapper;
 import com.cqwlw.maintenance.util.TimeUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,6 +30,8 @@ import java.util.Set;
 
 @Service
 public class RecordLifecycleService {
+
+    private static final Logger log = LoggerFactory.getLogger(RecordLifecycleService.class);
 
     public static final Map<String, String> REFUSE_CODES = Map.of(
             "R1", "记录内容与现场不符",
@@ -285,7 +289,14 @@ public class RecordLifecycleService {
         }
     }
 
-    private void archive(MaintainRecord r) {
+    /** 归档（幂等可重入）：已归档短路；ARCHIVED 必经 SIGNED（前置断言）；并发落败方只删自己刚存的文件 */
+    public void archive(MaintainRecord r) {
+        if ("ARCHIVED".equals(r.lifecycleStatus) && notBlank(r.archiveFileId)) {
+            return;
+        }
+        if (!"CONFIRMED".equals(r.confirmStatus) || !"SIGNED".equals(r.lifecycleStatus)) {
+            throw new BizException(422, "记录未签署完成，不能归档");
+        }
         Elevator el = elevatorMapper.selectOne(new LambdaQueryWrapper<Elevator>()
                 .eq(Elevator::getElevatorCode, r.elevatorCode).last("LIMIT 1"));
         UseUnit uu = el == null || el.useUnitId == null ? null : useUnitMapper.selectById(el.useUnitId);
@@ -294,12 +305,19 @@ public class RecordLifecycleService {
         AppFile f = fileStorage.storeBytes(pdf, "record-" + r.id + ".pdf", "application/pdf", null);
         java.time.LocalDateTime now = TimeUtil.now();
         String hash = sha256(pdf);
-        recordMapper.update(null, new LambdaUpdateWrapper<MaintainRecord>()
+        int affected = recordMapper.update(null, new LambdaUpdateWrapper<MaintainRecord>()
                 .eq(MaintainRecord::getId, r.id)
+                .eq(MaintainRecord::getLifecycleStatus, "SIGNED")
                 .set(MaintainRecord::getArchiveFileId, f.id)
                 .set(MaintainRecord::getArchiveHash, hash)
                 .set(MaintainRecord::getArchivedAt, now)
                 .set(MaintainRecord::getLifecycleStatus, "ARCHIVED"));
+        if (affected == 0) {
+            // 并发落败：库中 winner 的 archiveFileId 绝不可碰，只清理本次自存文件
+            fileStorage.deleteFile(f.id);
+            log.warn("并发归档落败，已清理自存文件: id={}, fileId={}", r.id, f.id);
+            return;
+        }
         r.archiveFileId = f.id;
         r.archiveHash = hash;
         r.archivedAt = now;

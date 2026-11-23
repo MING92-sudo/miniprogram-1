@@ -9,6 +9,8 @@ import com.cqwlw.maintenance.mapper.MaintainRecordMapper;
 import com.cqwlw.maintenance.util.JsonUtil;
 import com.cqwlw.maintenance.util.RecordVersionUtil;
 import com.cqwlw.maintenance.util.TimeUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.util.LinkedHashMap;
@@ -20,6 +22,8 @@ import java.util.stream.Collectors;
 /** 使用单位确认：待确认列表/详情/本机确认/分享链接视图/凭 token 签字。 */
 @Service
 public class UnitRecordService {
+
+    private static final Logger log = LoggerFactory.getLogger(UnitRecordService.class);
 
     private final MaintainRecordMapper recordMapper;
     private final WorkOrderService workOrderService;
@@ -176,11 +180,18 @@ public class UnitRecordService {
             r.clientSignerName = signerName;
             r.clientSignedAt = signedAt;
         }
+        boolean archived = false;
         if (recordLifecycleService != null) {
-            recordLifecycleService.onClientSigned(r);
+            try {
+                recordLifecycleService.onClientSigned(r);
+                archived = true;
+            } catch (Exception e) {
+                // 归档失败不拖垮签字：记录停留 SIGNED（待归档），archiveView 懒补/重归档收口
+                log.warn("签字成功但归档失败，记录留待归档: id={}, {}", r.id, e.getMessage());
+            }
         }
         appendSignAudit(r, signerAccountId, signerName);
-        return JsonUtil.map("ok", true);
+        return JsonUtil.map("ok", true, "archived", archived);
     }
 
     private void appendSignAudit(MaintainRecord r, String signerAccountId, String signerName) {

@@ -360,6 +360,7 @@ class RecordLifecycleTest {
     @Test
     void clientSignArchivesWithoutReReport() {
         MaintainRecord r = record("PENDING_CLIENT_SIGNATURE");
+        r.confirmStatus = "CONFIRMED"; // onClientSigned 仅在签字落库后调用（归档前置断言）
         when(pdf.render(any(), any(), any())).thenReturn(new byte[]{1, 2, 3});
         AppFile f = new AppFile();
         f.id = "file_arch";
@@ -375,6 +376,7 @@ class RecordLifecycleTest {
     @Test
     void archivePersistsOnlyArchiveFields() {
         MaintainRecord r = record("PENDING_CLIENT_SIGNATURE");
+        r.confirmStatus = "CONFIRMED";
         when(pdf.render(any(), any(), any())).thenAnswer(inv -> {
             MaintainRecord rec = inv.getArgument(0);
             rec.workerSignatureUrl = "https://x/files/f_sig?s=expiring"; // render 内存回填时效 URL
@@ -407,6 +409,7 @@ class RecordLifecycleTest {
     @Test
     void archiveViewLegacySignedArchivesOnDemand() {
         MaintainRecord r = record("SIGNED");
+        r.confirmStatus = "CONFIRMED"; // 归档前置断言：CONFIRMED + SIGNED
         when(pdf.render(any(), any(), any())).thenReturn(new byte[]{9});
         AppFile f = new AppFile();
         f.id = "file_late";
