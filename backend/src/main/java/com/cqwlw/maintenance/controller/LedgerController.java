@@ -157,9 +157,9 @@ public class LedgerController {
     }
 
     @PostMapping("/elevator-changes/{id}/confirm")
-    public ApiResponse<BizElevatorChange> confirmChange(@PathVariable String id, @RequestBody Map<String, Object> body, HttpServletRequest req) {
+    public ApiResponse<BizElevatorChange> confirmChange(@PathVariable String id, HttpServletRequest req) {
         MultiRoleGate.requireWrite(req, PermissionMatrix.ELEVATOR_TRANSFER);
-        return ApiResponse.ok(ledger.confirmChange(id, str(body, "confirmerId"), actor(req)));
+        return ApiResponse.ok(ledger.confirmChange(id, actor(req)));
     }
 
     @GetMapping("/roles-matrix")

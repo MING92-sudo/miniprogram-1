@@ -127,7 +127,7 @@ class LedgerServiceTest {
         c.status = "PENDING";
         c.changeType = "DISABLE";
         when(changeMapper.selectById("c1")).thenReturn(c);
-        BizException e = assertThrows(BizException.class, () -> service.confirmChange("c1", "e1", "e1"));
+        BizException e = assertThrows(BizException.class, () -> service.confirmChange("c1", "e1"));
         assertEquals(422, e.getCode());
     }
 
@@ -144,10 +144,35 @@ class LedgerServiceTest {
         el.id = "el1";
         el.status = "ACTIVE";
         when(elevatorMapper.selectById("el1")).thenReturn(el);
-        BizElevatorChange done = service.confirmChange("c1", "e2", "e2");
+        BizElevatorChange done = service.confirmChange("c1", "e2");
         assertEquals("CONFIRMED", done.status);
         assertEquals("SCRAPPED", el.status);
         verify(elevatorMapper).updateById(el);
+    }
+
+    @Test
+    void initiatorCannotConfirmWithSpoofedConfirmerId() {
+        BizElevatorChange c = new BizElevatorChange();
+        c.id = "c1";
+        c.initiatorId = "e1";
+        c.status = "PENDING";
+        c.changeType = "DISABLE";
+        when(changeMapper.selectById("c1")).thenReturn(c);
+        BizException e = assertThrows(BizException.class, () -> service.confirmChange("c1", "e1"));
+        assertEquals(422, e.getCode());
+    }
+
+    @Test
+    void confirmerComesFromAuthenticatedActor() {
+        BizElevatorChange c = new BizElevatorChange();
+        c.id = "c1";
+        c.elevatorId = "el1";
+        c.initiatorId = "e1";
+        c.status = "PENDING";
+        c.changeType = "DISABLE";
+        when(changeMapper.selectById("c1")).thenReturn(c);
+        BizElevatorChange done = service.confirmChange("c1", "e3");
+        assertEquals("e3", done.confirmerId);
     }
 
     @Test
