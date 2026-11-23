@@ -602,15 +602,16 @@ public class UnitRecordService {
                 .collect(Collectors.toList());
     }
 
-    static String uploadStatus(String reportStatus) {
+    public static String uploadStatus(String reportStatus) {
         if ("REPORTED".equals(reportStatus)) {
             return "SUCCESS";
         }
         if ("FAILED".equals(reportStatus)) {
             return "FAILED";
         }
-        // 平台已受理但本地结果待核对，不可当作待上报走重试
-        if ("UNKNOWN".equals(reportStatus)) {
+        // 在途/停留态统一待核对口径：不得落 PENDING 被当成待上报重试
+        if ("UNKNOWN".equals(reportStatus) || "REPORTING".equals(reportStatus)
+                || "REUPLOADING".equals(reportStatus) || "LEGACY_UPLOADING".equals(reportStatus)) {
             return "UNKNOWN";
         }
         return "PENDING";

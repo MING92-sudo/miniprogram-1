@@ -563,6 +563,14 @@ function listElevators() {
   })
 }
 
+// 上报展示态映射（后端 UnitRecordService.uploadStatus 镜像）：在途/停留态统一 UNKNOWN 待核对，不落 PENDING 被当成待上报重试
+function uploadStatus(reportStatus) {
+  if (reportStatus === 'REPORTED') return 'SUCCESS'
+  if (reportStatus === 'FAILED') return 'FAILED'
+  if (['REPORTING', 'REUPLOADING', 'LEGACY_UPLOADING', 'UNKNOWN'].indexOf(reportStatus) > -1) return 'UNKNOWN'
+  return 'PENDING'
+}
+
 // 工单视图：附带电梯信息
 function getOrder(id) {
   const o = db.orders.find((x) => x.id === id)
@@ -584,8 +592,7 @@ function getOrder(id) {
         workerSignatureUrl: rec.workerSignatureUrl || '',
         assistantSignatureUrl: rec.assistantSignatureUrl || '',
         confirmStatus: rec.confirmStatus || '',
-        uploadStatus: rec.reportStatus === 'REPORTED' ? 'SUCCESS'
-          : (rec.reportStatus === 'FAILED' ? 'FAILED' : 'PENDING'),
+        uploadStatus: uploadStatus(rec.reportStatus),
         satisfaction: rec.satisfaction
       }
     }
@@ -602,6 +609,22 @@ function reuploadRecord(id) {
   rec.retryCount = (rec.retryCount || 0) + 1
   const order = db.orders.find(function (o) { return o.originalRecordId === rec.originalRecordId })
   if (order) order.reportStatus = 'REPORTED'
+  return rec
+}
+
+// 逐条人工核对（后端 PlatformReportService.reconcile 镜像）：仅改本地状态，绝不调用平台
+const RECONCILABLE_STATUSES = ['REPORTING', 'REUPLOADING', 'LEGACY_UPLOADING', 'UNKNOWN']
+function reconcileRecord(id, outcome) {
+  const rec = db.unitRecords.find(function (r) { return r.id === id })
+  if (!rec) return null
+  if (RECONCILABLE_STATUSES.indexOf(rec.reportStatus) < 0) {
+    throw { code: 1003, message: '当前状态无需核对（仅上报中/结果待核对的记录可核对）' }
+  }
+  rec.reportStatus = outcome
+  const order = rec.workOrderId
+    ? db.orders.find(function (o) { return o.id === rec.workOrderId })
+    : db.orders.find(function (o) { return o.originalRecordId === rec.originalRecordId })
+  if (order) order.reportStatus = outcome
   return rec
 }
 
@@ -1079,6 +1102,8 @@ module.exports = {
   consumeDynamicCode,
   markCheckout,
   reuploadRecord,
+  reconcileRecord,
+  uploadStatus,
   buildReportPayload,
   updateChecklistItem,
   listDrills,

@@ -162,7 +162,7 @@ function signRecord(r, body) {
   r.signatureFileId = signatureFileId
   r.signatureUrl = signatureUrl
   r.lifecycleStatus = 'SIGNED' // 后端 onClientSigned：SIGNED → 自动归档（mock 不生成 PDF）
-  return { ok: true }
+  return { ok: true, archived: true } // mock 无归档失败路径：签字即归档恒成功
 }
 const LEGACY_MODULES_ENABLED = false
 function requireLegacyModule() {
@@ -1070,6 +1070,40 @@ const routes = [
     const rec = d.reuploadRecord(params.id)
     if (!rec) throw { code: 1404, message: '维保记录不存在' }
     return { ok: true, id: rec.id, reportStatus: rec.reportStatus }
+  }],
+  // 逐条人工核对（后端 PlatformReportService.reconcile 同口径：只改本地状态，绝不调用平台）
+  ['POST', '/platform/records/:id/reconcile', ({ params, body }) => {
+    const outcome = String((body && body.outcome) || '')
+    if (['REPORTED', 'FAILED'].indexOf(outcome) < 0) throw { code: 422, message: '核对结果仅允许 REPORTED 或 FAILED' }
+    const rec = d.reconcileRecord(params.id, outcome)
+    if (!rec) throw { code: 1404, message: '维保记录不存在' }
+    return { ok: true, id: rec.id, reportStatus: rec.reportStatus }
+  }],
+  // 管理端记录列表（后端 AdminService.records 镜像：reportStatus 逗号多值过滤）
+  ['GET', '/admin/records', ({ query }) => {
+    let list = (d.db.unitRecords || []).slice()
+    if (query && query.reportStatus) {
+      const statuses = String(query.reportStatus).split(',').map((s) => s.trim()).filter(Boolean)
+      if (statuses.length) list = list.filter((r) => statuses.indexOf(r.reportStatus || '') > -1)
+    }
+    return paginate(list.map((r) => ({
+      id: r.id,
+      elevatorName: r.elevatorName || '',
+      elevatorCode: r.elevatorCode || '',
+      workType: r.workType || '',
+      workTypeCode: r.workTypeCode || '',
+      workerName: r.workerName || '',
+      assistantName: r.assistantName || '',
+      checkinTime: r.checkinTime || '',
+      checkoutTime: r.checkoutTime || '',
+      duration: r.duration || '',
+      reportStatus: r.reportStatus || '',
+      uploadStatus: d.uploadStatus(r.reportStatus),
+      retryCount: r.retryCount || 0,
+      confirmStatus: r.confirmStatus || '',
+      lifecycleStatus: r.lifecycleStatus || '',
+      originalRecordId: r.originalRecordId || ''
+    })), query)
   }],
 
   // ── 救援（已裁模块，默认 403）──

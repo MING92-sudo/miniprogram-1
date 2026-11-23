@@ -81,4 +81,15 @@ class UnitRecordServiceTest {
         assertEquals("CONFIRMED", r.confirmStatus);
         assertEquals("SIGNED", r.lifecycleStatus);
     }
+
+    @Test
+    void uploadStatusMapsInflightStatesToUnknown() {
+        assertEquals("UNKNOWN", UnitRecordService.uploadStatus("REPORTING"));
+        assertEquals("UNKNOWN", UnitRecordService.uploadStatus("REUPLOADING"));
+        assertEquals("UNKNOWN", UnitRecordService.uploadStatus("LEGACY_UPLOADING"));
+        assertEquals("UNKNOWN", UnitRecordService.uploadStatus("UNKNOWN"));
+        assertEquals("SUCCESS", UnitRecordService.uploadStatus("REPORTED"));
+        assertEquals("FAILED", UnitRecordService.uploadStatus("FAILED"));
+        assertEquals("PENDING", UnitRecordService.uploadStatus("PENDING"));
+    }
 }
