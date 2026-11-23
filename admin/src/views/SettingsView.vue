@@ -143,13 +143,13 @@ import PermButton from '../ui/PermButton.vue'
 import Modal from '../ui/Modal.vue'
 import FormField from '../ui/FormField.vue'
 import { useToast } from '../ui/stores/ui'
-import { state } from '../ui/permission-v2'
+import { stateForRoles } from '../ui/permission-v2'
 import { usePerspectiveStore } from '../ui/stores/perspective'
 const toast = useToast()
 const route = useRoute()
 const router = useRouter()
 const perspective = usePerspectiveStore()
-function allow(code) { try { const s = state(perspective.activeRole, code); return s === 'Y' || s === 'C' } catch { return false } }
+function allow(code) { try { const s = stateForRoles(perspective.roleSet, code); return s === 'Y' || s === 'C' } catch { return false } }
 const canConfig = computed(() => allow('config:manage'))
 const canRegions = computed(() => allow('region:view'))
 const canTemplates = computed(() => allow('template:view'))
