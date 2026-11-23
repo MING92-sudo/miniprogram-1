@@ -697,7 +697,8 @@ const routes = [
     return clientLoginPayload(matched)
   }],
   ['POST', '/auth/change-password', ({ body }) => {
-    const user = d.db.employees[currentRole] || d.db.employees.WORKER
+    const user = currentClient || d.db.employees[currentRole]
+    if (!user) throw { code: 401, message: '登录状态无效，请重新登录' }
     const oldPassword = String((body && body.oldPassword) || '')
     const newPassword = String((body && body.newPassword) || '')
     if (!user || user.password !== oldPassword) throw { code: 401, message: '原密码不正确' }

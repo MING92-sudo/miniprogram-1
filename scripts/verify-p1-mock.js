@@ -407,7 +407,7 @@ async function check(name, fn) {
 
   // ── I. fix round 1：门禁顺序 / 员工读门禁 / sign-request 角色 / 无锚点 fail-closed ──
   const INST_PM_ACCOUNT = '13800000013' // INST_PM：无 record:view
-  const SUP_ACCOUNT = '13800000002' // LEADER → MAINT_SUP：可发起签署
+  const SUP_ACCOUNT = '13800000002' // LEADER：只读，无 record:sign_request
   await check('I1 门禁顺序：无 record:view 的会话读记录（含不存在 id）一律 1403，不以 1404 泄漏存在性', async () => {
     await login(INST_PM_ACCOUNT)
     await expectCode(1403, 'GET', '/unit/records/' + OWN_RECORD)
@@ -427,12 +427,14 @@ async function check(name, fn) {
     assert.notStrictEqual(r2.elevatorName, '被调用方改写', '浅拷贝未生效')
     assert.strictEqual(seed.confirmStatus, 'PENDING', 'db 记录被外部改写: ' + seed.confirmStatus)
   })
-  await check('I3 sign-request 角色门禁：客户/安装部 1403，MAINT_SUP 通过（后端 signRequest 同口径）', async () => {
+  await check('I3 sign-request 角色门禁：客户/安装部/只读 LEADER 1403，MAINT_TECH 过角色门禁后按记录定位 1404（后端 signRequest 同口径）', async () => {
     await login(CLIENT_ACCOUNT)
     await expectCode(1403, 'POST', '/work-orders/' + OWN_RECORD + '/sign-request', {})
     await login(INST_PM_ACCOUNT)
     await expectCode(1403, 'POST', '/work-orders/' + OWN_RECORD + '/sign-request', {})
     await login(SUP_ACCOUNT)
+    await expectCode(1403, 'POST', '/work-orders/' + OWN_RECORD + '/sign-request', {})
+    await login(TECH_ACCOUNT)
     // 角色门禁通过后才是记录定位：不存在的 id → 1404（证明未被 1403 拦）
     await expectCode(1404, 'POST', '/work-orders/不存在的id/sign-request', {})
   })
@@ -505,6 +507,35 @@ async function check(name, fn) {
     const summary = await req('GET', '/home/summary')
     const open = await req('GET', '/work-orders', { status: 'OPEN', page: 1, size: 100 })
     assert.strictEqual(summary.openOrders, open.total, 'KPI 包含了他区域/他人工单')
+  })
+  await check('K1 客户改密不修改 WORKER：客户新密码可登录、WORKER 原密码不变；员工改密回归', async () => {
+    const client = d.db.clientAccounts.find((a) => a.phone === CLIENT_ACCOUNT)
+    const worker = d.db.employees.WORKER
+    const tech = d.db.employees.MAINT_TECH
+    const CLIENT_NEW = '654321'
+    const TECH_NEW = '456789'
+    try {
+      await login(CLIENT_ACCOUNT)
+      const changed = await req('POST', '/auth/change-password', { oldPassword: '123456', newPassword: CLIENT_NEW })
+      assert.strictEqual(changed.ok, true)
+      assert.strictEqual(client.password, CLIENT_NEW, '客户密码未改')
+      assert.strictEqual(worker.password, '123456', '客户改密串改 WORKER 密码')
+      assert.strictEqual(tech.password, '123456', '客户改密串改 MAINT_TECH 密码')
+      const cp = await req('POST', '/auth/login', { phone: CLIENT_ACCOUNT, password: CLIENT_NEW })
+      assert.strictEqual(cp.principalType, 'CUSTOMER', '客户新密码无法登录')
+      await expectCode(401, 'POST', '/auth/login', { phone: CLIENT_ACCOUNT, password: '123456' })
+      await login(TECH_ACCOUNT)
+      const empChanged = await req('POST', '/auth/change-password', { oldPassword: '123456', newPassword: TECH_NEW })
+      assert.strictEqual(empChanged.ok, true)
+      assert.strictEqual(tech.password, TECH_NEW, '员工密码未改')
+      assert.strictEqual(client.password, CLIENT_NEW, '员工改密串改客户密码')
+      const ep = await req('POST', '/auth/login', { phone: TECH_ACCOUNT, password: TECH_NEW })
+      assert.strictEqual(ep.principalType, 'EMPLOYEE', '员工新密码无法登录')
+    } finally {
+      client.password = '123456'
+      tech.password = '123456'
+      await login(CLIENT_ACCOUNT)
+    }
   })
 
   const failed = results.filter((r) => !r.ok)
