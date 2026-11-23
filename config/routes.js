@@ -35,7 +35,7 @@ const LIST = [
   R('/pkg-handover/pages/create/index', '发起移交', { roles: ['INST_PM', 'INST_CLERK'], perm: 'handover:create', batch: 'M4' }),
   R('/pkg-handover/pages/detail/index', '移交单详情', { roles: INST.concat(MAINT).concat(['INSTALLER', 'LEADER']).concat(PLATFORM), perm: 'handover:view', batch: 'M4' }),
   R('/pkg-handover/pages/inspect/index', '现场验收', { roles: ['MAINT_TECH', 'INSTALLER'], perm: 'handover:inspect', batch: 'M4' }),
-  R('/pkg-handover/pages/rectify/index', '整改回复', { roles: ['INST_PM', 'INST_CLERK'], perm: 'handover:rectify', batch: 'M4' }),
+  R('/pkg-handover/pages/rectify/index', '整改回复', { roles: ['INST_PM', 'INST_CLERK', 'INSTALLER', 'MAINT_TECH'], perm: ['handover:rectify', 'handover:inspect'], batch: 'M4' }),
   R('/pkg-handover/pages/sign/index', '双方签字', { roles: ['INST_MGR', 'MAINT_SUP', 'MAINT_MGR'], perm: ['handover:sign_install', 'handover:sign_maint'], batch: 'M4' }),
   R('/pkg-handover/pages/upload/index', '资料上传', { roles: ['INST_CLERK', 'INST_PM'], perm: 'handover:doc_upload', batch: 'M4' }),
   R('/pkg-handover/pages/review/index', '内部审核', { roles: ['INST_MGR'], perm: 'handover:review', batch: 'M4' }),

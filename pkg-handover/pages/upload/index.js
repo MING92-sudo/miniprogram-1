@@ -4,8 +4,12 @@ const { definePage } = require('../../../utils/guard')
 const { ROUTES } = require('../../../config/routes')
 const nav = require('../../../utils/nav')
 
-// 3 项强制卡点 docType（与后端 HandoverService 必传口径一致）
-const REQUIRED = ['INSPECTION_REPORT', 'MAINTENANCE_MANUAL', 'QUALITY_CERT']
+// 3 项强制资料：docType → 后端平铺字段（HandoverService.submitDocs 缺一 422）
+const DOC_DEFS = [
+  { docType: 'INSPECTION_REPORT', docName: '监督检验报告', field: 'supervisionReportFileId' },
+  { docType: 'MAINTENANCE_MANUAL', docName: '维护使用说明书', field: 'maintenanceManualFileId' },
+  { docType: 'QUALITY_CERT', docName: '整机质量证明', field: 'qualityCertificateFileId' }
+]
 
 definePage(ROUTES['/pkg-handover/pages/upload/index'], {
   data: { id: '', docs: [], loading: true, error: '', submitting: false },
@@ -13,10 +17,23 @@ definePage(ROUTES['/pkg-handover/pages/upload/index'], {
   onBack() { nav.back() },
   load() {
     this.setData({ loading: true, error: '' })
-    getHandoverDetail(this.data.id).then((d) => {
-      const docs = ((d && d.docs) || []).map((doc, idx) => Object.assign({}, doc, { idx, required: REQUIRED.indexOf(doc.docType) > -1 }))
+    return getHandoverDetail(this.data.id).then((d) => {
+      const detail = d || {}
+      const incoming = {}
+      ;(detail.docs || []).forEach((doc) => { incoming[doc.docType] = doc })
+      const docs = DOC_DEFS.map((def, idx) => {
+        const doc = incoming[def.docType] || {}
+        return {
+          idx,
+          docType: def.docType,
+          docName: doc.docName || def.docName,
+          fileId: doc.fileId || detail[def.field] || '',
+          missing: !!doc.missing,
+          required: true
+        }
+      })
       this.setData({ docs, loading: false })
-    }).catch((e) => this.setData({ loading: false, error: (e && e.message) || '加载失败' }))
+    }).catch((e) => { this.setData({ loading: false, error: (e && e.message) || '加载失败' }) })
   },
   onRetry() { this.load() },
   onUpload(e) {
@@ -41,12 +58,19 @@ definePage(ROUTES['/pkg-handover/pages/upload/index'], {
     this.setData({ docs })
   },
   onSubmit() {
-    const docs = this.data.docs
-    for (const d of docs) {
-      if (d.required && !d.fileId && !d.missing) return wx.showToast({ title: '强制资料「' + (d.docName || d.docType) + '」须上传或标记缺件', icon: 'none' })
+    if (this.data.submitting) return
+    const payload = {}
+    DOC_DEFS.forEach((def) => {
+      const d = this.data.docs.find((x) => x.docType === def.docType)
+      payload[def.field] = (d && d.fileId && !d.missing) ? d.fileId : ''
+    })
+    const absent = DOC_DEFS.find((def) => !payload[def.field])
+    if (absent) {
+      const d = this.data.docs.find((x) => x.docType === absent.docType)
+      return wx.showToast({ title: '强制资料「' + ((d && d.docName) || absent.docName) + '」须上传', icon: 'none' })
     }
     this.setData({ submitting: true })
-    submitHandoverDocs(this.data.id, { docs: docs.map((d) => ({ docType: d.docType, fileId: d.fileId || '', missing: !!d.missing })) })
+    return submitHandoverDocs(this.data.id, payload)
       .then(() => { wx.showToast({ title: '资料已提交', icon: 'success' }); setTimeout(() => nav.back(), 800) })
       .catch((e) => { this.setData({ submitting: false }); wx.showToast({ title: (e && e.message) || '提交失败', icon: 'none' }) })
   }

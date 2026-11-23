@@ -1,17 +1,23 @@
 const { getHandoverRectifications, rectifyHandoverItem, recheckHandoverItem, getHandoverDetail } = require('../../../services/handover')
 const { uploadImage } = require('../../../services/upload')
-const { getUserInfo } = require('../../../utils/auth')
+const { getUserInfo, getPerms } = require('../../../utils/auth')
 const { definePage } = require('../../../utils/guard')
 const { ROUTES } = require('../../../config/routes')
 const nav = require('../../../utils/nav')
 
 definePage(ROUTES['/pkg-handover/pages/rectify/index'], {
-  data: { id: '', handover: null, rects: [], loading: true, error: '', submitting: false },
+  data: { id: '', handover: null, rects: [], loading: true, error: '', submitting: false, canRectify: false, canRecheck: false },
   onLoad(query) { this.setData({ id: (query && query.id) || '' }); this.load() },
   onShow() { if (this.data.id) this.load() },
   onBack() { nav.back() },
   load() {
-    this.setData({ loading: true, error: '' })
+    const perms = getPerms() || []
+    this.setData({
+      canRectify: perms.indexOf('handover:rectify') > -1,
+      canRecheck: perms.indexOf('handover:inspect') > -1,
+      loading: true,
+      error: ''
+    })
     getHandoverDetail(this.data.id).then((h) => this.setData({ handover: h })).catch(() => {})
     getHandoverRectifications(this.data.id).then((list) => {
       const rects = (list || []).map((r, idx) => Object.assign({}, r, { idx, rectMeasure: r.rectMeasure || '', photos: [], afterPhotoFileId: r.afterPhotoFileId || '' }))
@@ -37,21 +43,25 @@ definePage(ROUTES['/pkg-handover/pages/rectify/index'], {
     }).catch((e) => wx.showToast({ title: (e && e.message) || '上传失败', icon: 'none' }))
   },
   onRectify(e) {
+    if (!this.data.canRectify || this.data.submitting) return
     const idx = Number(e.currentTarget.dataset.idx)
     const r = this.data.rects[idx]
     if (!r.rectMeasure) return wx.showToast({ title: '请填写整改措施', icon: 'none' })
     const me = getUserInfo() || {}
-    rectifyHandoverItem(this.data.id, r.id, { rectMeasure: r.rectMeasure, afterPhotoFileId: r.afterPhotoFileId, rectifierName: me.name || '' })
-      .then(() => { wx.showToast({ title: '整改已上传', icon: 'success' }); this.load() })
-      .catch((er) => wx.showToast({ title: (er && er.message) || '提交失败', icon: 'none' }))
+    this.setData({ submitting: true })
+    return rectifyHandoverItem(this.data.id, r.id, { rectMeasure: r.rectMeasure, afterPhotoFileId: r.afterPhotoFileId, rectifierName: me.name || '' })
+      .then(() => { this.setData({ submitting: false }); wx.showToast({ title: '整改已上传', icon: 'success' }); this.load() })
+      .catch((er) => { this.setData({ submitting: false }); wx.showToast({ title: (er && er.message) || '提交失败', icon: 'none' }) })
   },
   onRecheck(e) {
+    if (!this.data.canRecheck || this.data.submitting) return
     const idx = Number(e.currentTarget.dataset.idx)
     const result = e.currentTarget.dataset.result
     const r = this.data.rects[idx]
     const me = getUserInfo() || {}
-    recheckHandoverItem(this.data.id, r.id, { result, recheckerId: me.id || '', recheckerName: me.name || '' })
-      .then(() => { wx.showToast({ title: result === 'PASS' ? '复验通过' : '复验不通过', icon: 'success' }); this.load() })
-      .catch((er) => wx.showToast({ title: (er && er.message) || '复验失败', icon: 'none' }))
+    this.setData({ submitting: true })
+    return recheckHandoverItem(this.data.id, r.id, { result, recheckerId: me.id || '', recheckerName: me.name || '' })
+      .then(() => { this.setData({ submitting: false }); wx.showToast({ title: result === 'PASS' ? '复验通过' : '复验不通过', icon: 'success' }); this.load() })
+      .catch((er) => { this.setData({ submitting: false }); wx.showToast({ title: (er && er.message) || '复验失败', icon: 'none' }) })
   }
 })
