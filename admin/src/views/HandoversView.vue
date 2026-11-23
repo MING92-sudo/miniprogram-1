@@ -709,12 +709,20 @@ async function confirmReceiver() {
 
 // 节点签字 / 确认归档
 async function signNode(nodeType) {
+  const targetId = detailId.value
+  const seq = detailSeq
+  const isCurrent = () => seq === detailSeq && targetId === detailId.value && detail.value.id === targetId
+  if (!isCurrent()) return
   try {
-    await http.post(`/handovers/${detail.value.id}/sign`, { nodeType, action: 'APPROVE' })
-    const full = await api.handoverDetail(detail.value.id)
+    await http.post(`/handovers/${targetId}/sign`, { nodeType, action: 'APPROVE' })
+    if (!isCurrent()) return
+    const full = await api.handoverDetail(targetId)
+    if (!isCurrent()) return
     signs.value = full.signs || []
     toast.success('签字已留痕',nodeType)
-  } catch (e) { toast.error(e.message || '签字失败') }
+  } catch (e) {
+    if (isCurrent()) toast.error(e.message || '签字失败')
+  }
 }
 async function confirmArchive() {
   try {

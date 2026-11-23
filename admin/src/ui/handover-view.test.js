@@ -38,6 +38,7 @@ vi.mock('../api/handover', () => ({
 }))
 
 import HandoversView from '../views/HandoversView.vue'
+import http from '../api/client'
 import * as api from '../api/handover'
 
 const router = createRouter({ history: createWebHashHistory(), routes: [
@@ -373,5 +374,39 @@ describe('HandoversView C-12（原型对齐版）', () => {
     expect(drawer).toContain('B项检查')
     expect(drawer).not.toContain('A项检查')
     expect(drawer).not.toContain('shaA')
+  })
+
+  it('signNode rejects inconsistent target before posting', async () => {
+    const w = mountView()
+    await flushPromises()
+    w.vm.detailId = 'ho_a'
+    w.vm.detail = { id: 'ho_b', status: 'PENDING_CONFIRM' }
+
+    await w.vm.signNode('INSTALLER_HANDOVER')
+
+    expect(http.post).not.toHaveBeenCalled()
+  })
+
+  it('late sign response cannot refresh another order', async () => {
+    api.listHandovers.mockResolvedValue({ list: [orderA, orderB], total: 2 })
+    const signing = deferred()
+    http.post.mockImplementation((url) => url === '/handovers/ho_a/sign'
+      ? signing.promise
+      : Promise.resolve({}))
+    const w = mountView()
+    await flushPromises()
+    await rowByNo(w, 'HOA').trigger('click')
+    await flushPromises()
+    const pending = w.vm.signNode('INSTALLER_HANDOVER')
+    await rowByNo(w, 'HOB').trigger('click')
+    await flushPromises()
+    const detailCallsBeforeLateResponse = api.handoverDetail.mock.calls.length
+
+    signing.resolve({})
+    await pending
+    await flushPromises()
+
+    expect(api.handoverDetail.mock.calls.length).toBe(detailCallsBeforeLateResponse)
+    expect(w.vm.detail.id).toBe('ho_b')
   })
 })
