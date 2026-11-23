@@ -1,6 +1,7 @@
 package com.cqwlw.maintenance.service;
 
 import com.cqwlw.maintenance.TxTestSupport;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.cqwlw.maintenance.common.BizException;
 import com.cqwlw.maintenance.entity.Employee;
 import com.cqwlw.maintenance.entity.Fault;
@@ -11,6 +12,7 @@ import com.cqwlw.maintenance.mapper.WorkOrderMapper;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.InOrder;
 
 import java.util.List;
 import java.util.Map;
@@ -23,6 +25,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.clearInvocations;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -76,7 +79,34 @@ class UserLifecycleServiceTest {
 
     /** 目标行先锁、接手人行后锁；每次调用前重设顺序桩，避免异常分支提前消费后错位。 */
     private void stubLocks() {
-        when(employeeMapper.selectList(any())).thenReturn(List.of(target), List.of(heir));
+        when(employeeMapper.selectList(any())).thenAnswer(invocation -> {
+            LambdaQueryWrapper<Employee> query = invocation.getArgument(0);
+            Object id = queryId(query);
+            return List.of(TARGET_ID.equals(id) ? target : heir);
+        });
+    }
+
+    private static Object queryId(LambdaQueryWrapper<Employee> query) {
+        if (query == null) {
+            return "";
+        }
+        query.getSqlSegment();
+        return query.getParamNameValuePairs().values().stream().findFirst().orElse("");
+    }
+
+    @Test
+    void resignLocksEmployeesInCanonicalIdOrder() {
+        service.resign(ACTOR, TARGET_ID, HEIR_ID);
+
+        InOrder order = inOrder(employeeMapper);
+        order.verify(employeeMapper, times(2)).selectList(any());
+        org.mockito.ArgumentCaptor<LambdaQueryWrapper> captor =
+                org.mockito.ArgumentCaptor.forClass(LambdaQueryWrapper.class);
+        verify(employeeMapper, times(2)).selectList(captor.capture());
+        List<Object> lockOrder = captor.getAllValues().stream()
+                .map(q -> q.getParamNameValuePairs().values().stream().findFirst().orElse(""))
+                .toList();
+        assertEquals(List.of(HEIR_ID, TARGET_ID), lockOrder);
     }
 
     @Test

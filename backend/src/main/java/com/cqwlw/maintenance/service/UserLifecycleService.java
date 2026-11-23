@@ -11,6 +11,7 @@ import com.cqwlw.maintenance.mapper.WorkOrderMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -41,17 +42,23 @@ public class UserLifecycleService {
     }
 
     private Map<String, Object> doResign(String actorId, String targetId, String heirId) {
-        Employee target = lockEmployee(targetId);
-        if (target == null) {
-            throw new BizException(404, "账号不存在");
-        }
         if (isBlank(heirId)) {
             throw new BizException(422, "请选择接手人");
         }
         if (heirId.equals(targetId)) {
             throw new BizException(422, "接手人不能为本人");
         }
-        Employee heir = lockEmployee(heirId);
+        String firstId = Comparator.nullsFirst(String::compareTo).compare(targetId, heirId) <= 0
+                ? targetId : heirId;
+        String secondId = firstId == null || !firstId.equals(targetId) ? targetId : heirId;
+        // 双向离职共用字典序锁，避免 target→heir 相反顺序造成死锁。
+        Employee first = lockEmployee(firstId);
+        Employee second = lockEmployee(secondId);
+        Employee target = Objects.equals(targetId, firstId) ? first : second;
+        Employee heir = Objects.equals(heirId, firstId) ? first : second;
+        if (target == null) {
+            throw new BizException(404, "账号不存在");
+        }
         if (heir == null) {
             throw new BizException(422, "接手人不存在");
         }
