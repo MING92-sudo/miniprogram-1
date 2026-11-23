@@ -9,13 +9,15 @@ const pagePath = path.join(root, 'pkg-maintenance/pages/checkout/index.js')
 const store = { offline_queue: [], em_user: { id: 'user-A' } }
 let requests = []
 let requestImpl = () => Promise.resolve({})
+let uploadImpl = () => Promise.resolve({ fileId: 'file_default' })
+let toasts = []
 
 global.wx = {
   getStorageSync: (key) => store[key] === undefined ? '' : store[key],
   setStorageSync: (key, value) => { store[key] = value },
   removeStorageSync: (key) => { delete store[key] },
   getStorageInfoSync: () => ({ keys: Object.keys(store) }),
-  showToast: () => {},
+  showToast: (options) => { toasts.push((options && options.title) || '') },
   reLaunch: () => {},
   redirectTo: () => {}
 }
@@ -24,6 +26,9 @@ const originalLoad = Module._load
 Module._load = function (request, parent, isMain) {
   if (parent && parent.filename === offlinePath && request === './request') {
     return { request: (options) => { requests.push(options); return requestImpl(options) } }
+  }
+  if (parent && parent.filename === offlinePath && request === '../services/upload') {
+    return { uploadImage: (path) => uploadImpl(path) }
   }
   if (parent && parent.filename === pagePath) {
     if (request === '../../../utils/guard') return { definePage: (route, page) => { global.pageDef = page } }
@@ -41,10 +46,18 @@ const offline = require(offlinePath)
 require(pagePath)
 Module._load = originalLoad
 
+function deferred() {
+  let resolve
+  const promise = new Promise((resolvePromise) => { resolve = resolvePromise })
+  return { promise, resolve }
+}
+
 function reset() {
   store.offline_queue = []
   store.em_user = { id: 'user-A' }
   requests = []
+  toasts = []
+  uploadImpl = () => Promise.resolve({ fileId: 'file_default' })
   requestImpl = () => Promise.resolve({})
 }
 
@@ -225,6 +238,54 @@ async function testOrphanTaskListedAndManuallyDeletable() {
   console.log('PASS 无属主旧任务可人工删除且不影响有属主任务')
 }
 
+async function testOfflineEnqueueRequiresLogin() {
+  reset()
+  loginAs('')
+
+  const size = offline.enqueue({ id: 'anonymous', url: '/anonymous', method: 'POST', data: {} })
+
+  assert.strictEqual(size, 0)
+  assert.deepStrictEqual(store.offline_queue, [])
+  assert.strictEqual(toasts.some((text) => text.includes('请先登录')), true, '未登录入件缺少明确提示')
+  console.log('PASS 未登录离线入队被拒绝并提示')
+}
+
+async function testAccountSwitchDuringUploadKeepsTaskWithoutRequest() {
+  reset()
+  const upload = deferred()
+  uploadImpl = () => upload.promise
+  const task = {
+    id: 'upload-owner',
+    url: '/upload-owner',
+    method: 'POST',
+    data: {},
+    uploads: [{ field: 'signatureFileId', path: '/tmp/sign.png' }]
+  }
+  offline.enqueue(task)
+  const flushing = offline.flushQueue()
+  await new Promise((resolve) => setImmediate(resolve))
+  loginAs('user-B')
+  upload.resolve({ fileId: 'file_owner_a' })
+  await flushing
+
+  assert.strictEqual(requests.length, 0, '上传期间换号后仍发送了原账号业务请求')
+  assert.strictEqual(store.offline_queue.length, 1, '换号失败时任务不得丢失')
+  assert.strictEqual(store.offline_queue[0].ownerId, 'user-A')
+  console.log('PASS 上传期间换号会保留任务且不发送业务请求')
+}
+
+async function testMixedAccountsFlushOnlyCurrentOwner() {
+  reset()
+  offline.enqueue({ id: 'task-a', url: '/a', method: 'POST', data: {} })
+  loginAs('user-B')
+  offline.enqueue({ id: 'task-b', url: '/b', method: 'POST', data: {} })
+  await offline.flushQueue()
+
+  assert.deepStrictEqual(requests.map((r) => r.url), ['/b'])
+  assert.deepStrictEqual(store.offline_queue.map((t) => t.id), ['task-a'])
+  console.log('PASS A/B 混合队列仅补传当前账号任务')
+}
+
 ;(async () => {
   await testStableCheckoutKey()
   await testReworkAttemptKeysDiffer()
@@ -236,4 +297,7 @@ async function testOrphanTaskListedAndManuallyDeletable() {
   await testAccountSwitchMidFlushStopsReplay()
   await testAccountBEnqueueDoesNotOverwriteAccountATask()
   await testOrphanTaskListedAndManuallyDeletable()
+  await testAccountSwitchDuringUploadKeepsTaskWithoutRequest()
+  await testOfflineEnqueueRequiresLogin()
+  await testMixedAccountsFlushOnlyCurrentOwner()
 })().catch((e) => { console.error(e); process.exit(1) })
