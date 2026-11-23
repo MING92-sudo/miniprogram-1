@@ -20,10 +20,13 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
+import java.util.Arrays;
 import java.util.HexFormat;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
@@ -166,7 +169,7 @@ public class IdempotencyService {
         Map<String, Object> parts = new LinkedHashMap<>();
         parts.put("method", request.getMethod());
         parts.put("uri", request.getRequestURI());
-        parts.put("query", request.getParameterMap());
+        parts.put("query", canonicalQuery(request));
         parts.put("body", body);
         parts.put("principal", principal(request));
         try {
@@ -175,6 +178,20 @@ public class IdempotencyService {
         } catch (Exception e) {
             throw new IllegalStateException("幂等请求指纹计算失败", e);
         }
+    }
+
+    private static Map<String, List<String>> canonicalQuery(HttpServletRequest request) {
+        Map<String, List<String>> canonical = new TreeMap<>();
+        request.getParameterMap().forEach((name, values) -> {
+            if (values == null) {
+                canonical.put(name, List.of());
+                return;
+            }
+            String[] sorted = values.clone();
+            Arrays.sort(sorted);
+            canonical.put(name, Arrays.asList(sorted));
+        });
+        return canonical;
     }
 
     private static String principal(HttpServletRequest request) {

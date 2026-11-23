@@ -301,7 +301,8 @@ class IdempotencyLeaseIntegrationTest {
         try (Connection connection = dataSource.getConnection();
              PreparedStatement statement = connection.prepareStatement(
                      "UPDATE idempotency_key SET heartbeat_at = ? WHERE idem_key = ?")) {
-            statement.setTimestamp(1, Timestamp.valueOf(LocalDateTime.now().minusMinutes(20)));
+            statement.setTimestamp(1, Timestamp.valueOf(
+                    com.cqwlw.maintenance.util.TimeUtil.now().minusMinutes(20)));
             statement.setString(2, key);
             statement.executeUpdate();
         }

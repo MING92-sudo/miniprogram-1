@@ -157,6 +157,21 @@ class IdempotencyServiceTest {
     }
 
     @Test
+    void multiValueQueryOrderDoesNotChangeFingerprint() {
+        AtomicInteger calls = new AtomicInteger();
+        HttpServletRequest first = request("POST", "/query-values", null, "emp_1");
+        when(first.getParameterMap()).thenReturn(Map.of("tag", new String[]{"a", "b"}));
+        IdempotencyKey stored = completeFirst("query-values", Map.of(), first, calls);
+        when(mapper.selectById("query-values")).thenReturn(stored);
+        HttpServletRequest reordered = request("POST", "/query-values", null, "emp_1");
+        when(reordered.getParameterMap()).thenReturn(Map.of("tag", new String[]{"b", "a"}));
+
+        run("query-values", Map.of(), reordered, calls);
+
+        assertEquals(1, calls.get());
+    }
+
+    @Test
     void legacyRecordFailsClosedWithoutReplayOrExecution() {
         AtomicInteger calls = new AtomicInteger();
         IdempotencyKey completed = row("{\"ok\":true}", TimeUtil.now());
