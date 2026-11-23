@@ -95,16 +95,12 @@ public class UnitRecordController {
                                        @org.springframework.web.bind.annotation.RequestHeader(
                                                value = "X-Idempotency-Key", required = false) String idemKey,
                                        jakarta.servlet.http.HttpServletRequest request) {
-        IdempotencyService.Guard guard = idempotencyService.begin(idemKey, "/unit/records/confirm");
-        if (guard.replayed()) {
-            return ApiResponse.ok(guard.replayedResult());
-        }
-        String[] signer = signerOf(request);
-        Map<String, Object> result = unitRecordService.confirmAs(id, body == null ? Map.of() : body,
-                portalRoles(request), resolveUnit(request),
-                signer == null ? null : signer[0], signer == null ? null : signer[1]);
-        guard.commit(result);
-        return ApiResponse.ok(result);
+        Map<String, Object> safeBody = body == null ? Map.of() : body;
+        return ApiResponse.ok(idempotencyService.executeExternal(idemKey, safeBody, request, () -> {
+            String[] signer = signerOf(request);
+            return unitRecordService.confirmAs(id, safeBody, portalRoles(request), resolveUnit(request),
+                    signer == null ? null : signer[0], signer == null ? null : signer[1]);
+        }));
     }
 
     /** 使用单位拒签（凭分享 token，原因必填，退回维保人员） */
@@ -113,17 +109,13 @@ public class UnitRecordController {
                                              @RequestParam(required = false) String token,
                                              @RequestBody(required = false) Map<String, Object> body,
                                              @org.springframework.web.bind.annotation.RequestHeader(
-                                                     value = "X-Idempotency-Key", required = false) String idemKey) {
-        IdempotencyService.Guard guard = idempotencyService.begin(idemKey, "/unit/records/refuse-by-token");
-        if (guard.replayed()) {
-            return ApiResponse.ok(guard.replayedResult());
-        }
+                                                     value = "X-Idempotency-Key", required = false) String idemKey,
+                                             jakarta.servlet.http.HttpServletRequest request) {
         String reason = body == null || body.get("reason") == null ? "" : String.valueOf(body.get("reason"));
-        // 旧客户端未传码时按兼容期「原因必填」回退）
         String code = body == null || body.get("refuseCode") == null ? "" : String.valueOf(body.get("refuseCode"));
-        Map<String, Object> result = recordLifecycleService.refuseByToken(id, token, code, reason);
-        guard.commit(result);
-        return ApiResponse.ok(result);
+        Map<String, Object> safeBody = body == null ? Map.of() : body;
+        return ApiResponse.ok(idempotencyService.executeDb(idemKey, safeBody, request,
+                () -> recordLifecycleService.refuseByToken(id, token, code, reason)));
     }
 
     @PostMapping("/unit/records/batch-confirm")
@@ -131,12 +123,9 @@ public class UnitRecordController {
                                             @org.springframework.web.bind.annotation.RequestHeader(
                                                     value = "X-Idempotency-Key", required = false) String idemKey,
                                             jakarta.servlet.http.HttpServletRequest request) {
-        IdempotencyService.Guard guard = idempotencyService.begin(idemKey, "/unit/records/batch-confirm");
-        if (guard.replayed()) {
-            return ApiResponse.ok(guard.replayedResult());
-        }
         java.util.List<String> ids = new java.util.ArrayList<>();
-        Object raw = body == null ? null : body.get("recordIds");
+        Map<String, Object> safeBody = body == null ? Map.of() : body;
+        Object raw = safeBody.get("recordIds");
         if (raw instanceof java.util.List<?> list) {
             for (Object v : list) {
                 if (v != null) {
@@ -144,12 +133,11 @@ public class UnitRecordController {
                 }
             }
         }
-        String[] signer = signerOf(request);
-        Map<String, Object> result = unitRecordService.batchConfirmAs(ids, body == null ? Map.of() : body,
-                portalRoles(request), resolveUnit(request),
-                signer == null ? null : signer[0], signer == null ? null : signer[1]);
-        guard.commit(result);
-        return ApiResponse.ok(result);
+        return ApiResponse.ok(idempotencyService.executeExternal(idemKey, safeBody, request, () -> {
+            String[] signer = signerOf(request);
+            return unitRecordService.batchConfirmAs(ids, safeBody, portalRoles(request), resolveUnit(request),
+                    signer == null ? null : signer[0], signer == null ? null : signer[1]);
+        }));
     }
 
     @GetMapping("/unit/records/{id}/sign-view")
@@ -163,14 +151,11 @@ public class UnitRecordController {
                                               @RequestParam(required = false) String token,
                                               @RequestBody(required = false) Map<String, Object> body,
                                               @org.springframework.web.bind.annotation.RequestHeader(
-                                                      value = "X-Idempotency-Key", required = false) String idemKey) {
-        IdempotencyService.Guard guard = idempotencyService.begin(idemKey, "/unit/records/confirm-by-token");
-        if (guard.replayed()) {
-            return ApiResponse.ok(guard.replayedResult());
-        }
-        Map<String, Object> result = unitRecordService.confirmByToken(id, token, body == null ? Map.of() : body);
-        guard.commit(result);
-        return ApiResponse.ok(result);
+                                                      value = "X-Idempotency-Key", required = false) String idemKey,
+                                              jakarta.servlet.http.HttpServletRequest request) {
+        Map<String, Object> safeBody = body == null ? Map.of() : body;
+        return ApiResponse.ok(idempotencyService.executeExternal(idemKey, safeBody, request,
+                () -> unitRecordService.confirmByToken(id, token, safeBody)));
     }
 
     @PostMapping("/unit/records/{id}/signature-upload")

@@ -61,13 +61,8 @@ public class DirectoryController {
                                          @org.springframework.web.bind.annotation.RequestHeader(
                                                  value = "X-Idempotency-Key", required = false) String idemKey,
                                          HttpServletRequest request) {
-        IdempotencyService.Guard guard = idempotencyService.begin(idemKey, "/faults/grab");
-        if (guard.replayed()) {
-            return ApiResponse.ok(guard.replayedResult());
-        }
-        Map<String, Object> result = directoryService.grabFault(id, empId(request));
-        guard.commit(result);
-        return ApiResponse.ok(result);
+        return ApiResponse.ok(idempotencyService.executeDb(idemKey, Map.of(), request,
+                () -> directoryService.grabFault(id, empId(request))));
     }
 
     @PostMapping("/faults/{id}/arrive")
@@ -75,15 +70,10 @@ public class DirectoryController {
                                            @org.springframework.web.bind.annotation.RequestHeader(
                                                    value = "X-Idempotency-Key", required = false) String idemKey,
                                            HttpServletRequest request) {
-        IdempotencyService.Guard guard = idempotencyService.begin(idemKey, "/faults/arrive");
-        if (guard.replayed()) {
-            return ApiResponse.ok(guard.replayedResult());
-        }
         Double lat = body.get("lat") instanceof Number n ? n.doubleValue() : null;
         Double lng = body.get("lng") instanceof Number n2 ? n2.doubleValue() : null;
-        Map<String, Object> result = directoryService.arriveFault(id, empId(request), lat, lng);
-        guard.commit(result);
-        return ApiResponse.ok(result);
+        return ApiResponse.ok(idempotencyService.executeDb(idemKey, body, request,
+                () -> directoryService.arriveFault(id, empId(request), lat, lng)));
     }
 
     @PostMapping("/faults/{id}/submit")
@@ -91,13 +81,8 @@ public class DirectoryController {
                                            @org.springframework.web.bind.annotation.RequestHeader(
                                                    value = "X-Idempotency-Key", required = false) String idemKey,
                                            HttpServletRequest request) {
-        IdempotencyService.Guard guard = idempotencyService.begin(idemKey, "/faults/submit");
-        if (guard.replayed()) {
-            return ApiResponse.ok(guard.replayedResult());
-        }
-        Map<String, Object> result = directoryService.submitFault(id, empId(request), body);
-        guard.commit(result);
-        return ApiResponse.ok(result);
+        return ApiResponse.ok(idempotencyService.executeDb(idemKey, body, request,
+                () -> directoryService.submitFault(id, empId(request), body)));
     }
 
     @PostMapping("/faults/{id}/confirm")
@@ -105,16 +90,11 @@ public class DirectoryController {
                                             @org.springframework.web.bind.annotation.RequestHeader(
                                                     value = "X-Idempotency-Key", required = false) String idemKey,
                                             HttpServletRequest request) {
-        IdempotencyService.Guard guard = idempotencyService.begin(idemKey, "/faults/confirm");
-        if (guard.replayed()) {
-            return ApiResponse.ok(guard.replayedResult());
-        }
         boolean pass = !Boolean.FALSE.equals(body.get("pass"));
         String reason = body.get("reason") == null ? "" : String.valueOf(body.get("reason"));
-        Map<String, Object> result = directoryService.confirmFault(id,
-                com.cqwlw.maintenance.auth.MultiRoleGate.roles(request), unitAnchor(request), pass, reason);
-        guard.commit(result);
-        return ApiResponse.ok(result);
+        return ApiResponse.ok(idempotencyService.executeDb(idemKey, body, request,
+                () -> directoryService.confirmFault(id,
+                        com.cqwlw.maintenance.auth.MultiRoleGate.roles(request), unitAnchor(request), pass, reason)));
     }
 
     @PostMapping("/faults/{id}/cancel")
@@ -122,16 +102,11 @@ public class DirectoryController {
                                            @org.springframework.web.bind.annotation.RequestHeader(
                                                    value = "X-Idempotency-Key", required = false) String idemKey,
                                            HttpServletRequest request) {
-        IdempotencyService.Guard guard = idempotencyService.begin(idemKey, "/faults/cancel");
-        if (guard.replayed()) {
-            return ApiResponse.ok(guard.replayedResult());
-        }
         String reason = body.get("reason") == null ? "" : String.valueOf(body.get("reason"));
-        Map<String, Object> result = directoryService.cancelFault(id,
-                com.cqwlw.maintenance.auth.MultiRoleGate.roles(request), reason,
-                empId(request), unitAnchor(request));
-        guard.commit(result);
-        return ApiResponse.ok(result);
+        return ApiResponse.ok(idempotencyService.executeDb(idemKey, body, request,
+                () -> directoryService.cancelFault(id,
+                        com.cqwlw.maintenance.auth.MultiRoleGate.roles(request), reason,
+                        empId(request), unitAnchor(request))));
     }
 
     /** 服务评价（仅已闭环、1-5 星、一次性） */
@@ -140,28 +115,20 @@ public class DirectoryController {
                                         @org.springframework.web.bind.annotation.RequestHeader(
                                                 value = "X-Idempotency-Key", required = false) String idemKey,
                                         HttpServletRequest request) {
-        IdempotencyService.Guard guard = idempotencyService.begin(idemKey, "/faults/evaluate");
-        if (guard.replayed()) {
-            return ApiResponse.ok(guard.replayedResult());
-        }
-        Map<String, Object> result = directoryService.evaluate(id,
-                com.cqwlw.maintenance.auth.MultiRoleGate.roles(request), unitAnchor(request), body);
-        guard.commit(result);
-        return ApiResponse.ok(result);
+        return ApiResponse.ok(idempotencyService.executeDb(idemKey, body, request,
+                () -> directoryService.evaluate(id,
+                        com.cqwlw.maintenance.auth.MultiRoleGate.roles(request), unitAnchor(request), body)));
     }
 
     @PostMapping("/rescues")
     public ApiResponse<Object> createRescue(@RequestBody Map<String, Object> body,
                                             @RequestParam(value = "_idem", required = false) String idemParam,
                                             @org.springframework.web.bind.annotation.RequestHeader(
-                                                    value = "X-Idempotency-Key", required = false) String idemKey) {
-        IdempotencyService.Guard guard = idempotencyService.begin(idemKey != null ? idemKey : idemParam, "/rescues");
-        if (guard.replayed()) {
-            return ApiResponse.ok(guard.replayedResult());
-        }
-        Map<String, Object> result = directoryService.createRescue(body);
-        guard.commit(result);
-        return ApiResponse.ok(result);
+                                                    value = "X-Idempotency-Key", required = false) String idemKey,
+                                            HttpServletRequest request) {
+        String key = idemKey != null ? idemKey : idemParam;
+        return ApiResponse.ok(idempotencyService.executeDb(key, body, request,
+                () -> directoryService.createRescue(body)));
     }
 
     @GetMapping("/rescues")
@@ -190,13 +157,8 @@ public class DirectoryController {
                                                 @org.springframework.web.bind.annotation.RequestHeader(
                                                         value = "X-Idempotency-Key", required = false) String idemKey) {
         MultiRoleGate.requireWrite(request, PermissionMatrix.ORDER_CREATE_PROXY);
-        IdempotencyService.Guard guard = idempotencyService.begin(idemKey, "/faults/proxy");
-        if (guard.replayed()) {
-            return ApiResponse.ok(guard.replayedResult());
-        }
-        Map<String, Object> result = workDomainService.createProxyFault(body, empId(request));
-        guard.commit(result);
-        return ApiResponse.ok(result);
+        return ApiResponse.ok(idempotencyService.executeDb(idemKey, body, request,
+                () -> workDomainService.createProxyFault(body, empId(request))));
     }
 
     @PostMapping("/faults")
@@ -204,13 +166,8 @@ public class DirectoryController {
                                            HttpServletRequest request,
                                            @org.springframework.web.bind.annotation.RequestHeader(
                                                    value = "X-Idempotency-Key", required = false) String idemKey) {
-        IdempotencyService.Guard guard = idempotencyService.begin(idemKey, "/faults");
-        if (guard.replayed()) {
-            return ApiResponse.ok(guard.replayedResult());
-        }
-        Map<String, Object> result = directoryService.createFault(body, empId(request));
-        guard.commit(result);
-        return ApiResponse.ok(result);
+        return ApiResponse.ok(idempotencyService.executeDb(idemKey, body, request,
+                () -> directoryService.createFault(body, empId(request))));
     }
 
     @GetMapping("/faults")
@@ -276,14 +233,10 @@ public class DirectoryController {
     @PostMapping("/drills")
     public ApiResponse<Object> createDrill(@RequestBody Map<String, Object> body,
                                            @org.springframework.web.bind.annotation.RequestHeader(
-                                                   value = "X-Idempotency-Key", required = false) String idemKey) {
-        IdempotencyService.Guard guard = idempotencyService.begin(idemKey, "/drills");
-        if (guard.replayed()) {
-            return ApiResponse.ok(guard.replayedResult());
-        }
-        Map<String, Object> result = directoryService.createDrill(body);
-        guard.commit(result);
-        return ApiResponse.ok(result);
+                                                   value = "X-Idempotency-Key", required = false) String idemKey,
+                                           HttpServletRequest request) {
+        return ApiResponse.ok(idempotencyService.executeDb(idemKey, body, request,
+                () -> directoryService.createDrill(body)));
     }
 
     @GetMapping("/inspects")
@@ -299,14 +252,10 @@ public class DirectoryController {
     @PostMapping("/inspects")
     public ApiResponse<Object> createInspect(@RequestBody Map<String, Object> body,
                                              @org.springframework.web.bind.annotation.RequestHeader(
-                                                     value = "X-Idempotency-Key", required = false) String idemKey) {
-        IdempotencyService.Guard guard = idempotencyService.begin(idemKey, "/inspects");
-        if (guard.replayed()) {
-            return ApiResponse.ok(guard.replayedResult());
-        }
-        Map<String, Object> result = directoryService.createInspect(body);
-        guard.commit(result);
-        return ApiResponse.ok(result);
+                                                     value = "X-Idempotency-Key", required = false) String idemKey,
+                                             HttpServletRequest request) {
+        return ApiResponse.ok(idempotencyService.executeDb(idemKey, body, request,
+                () -> directoryService.createInspect(body)));
     }
 
     @GetMapping("/messages")

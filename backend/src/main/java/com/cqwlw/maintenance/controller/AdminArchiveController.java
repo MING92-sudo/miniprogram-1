@@ -5,6 +5,7 @@ import com.cqwlw.maintenance.auth.RequirePerm;
 import com.cqwlw.maintenance.common.ApiResponse;
 import com.cqwlw.maintenance.service.AdminArchiveService;
 import com.cqwlw.maintenance.service.IdempotencyService;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -28,8 +29,6 @@ public class AdminArchiveController {
         this.idempotencyService = idempotencyService;
     }
 
-    // ── 维保单位 ──
-
     @GetMapping("/company")
     public ApiResponse<Map<String, Object>> company() {
         return ApiResponse.ok(archiveService.companyView());
@@ -37,17 +36,11 @@ public class AdminArchiveController {
 
     @PutMapping("/company")
     public ApiResponse<Object> updateCompany(@RequestBody Map<String, Object> body,
-                                             @RequestHeader(value = "X-Idempotency-Key", required = false) String idemKey) {
-        IdempotencyService.Guard guard = idempotencyService.begin(idemKey, "/company");
-        if (guard.replayed()) {
-            return ApiResponse.ok(guard.replayedResult());
-        }
-        Map<String, Object> result = archiveService.updateCompany(body);
-        guard.commit(result);
-        return ApiResponse.ok(result);
+                                             @RequestHeader(value = "X-Idempotency-Key", required = false) String idemKey,
+                                             HttpServletRequest request) {
+        return ApiResponse.ok(idempotencyService.executeDb(idemKey, body, request,
+                () -> archiveService.updateCompany(body)));
     }
-
-    // ── 使用单位 ──
 
     @GetMapping("/use-units")
     public ApiResponse<List<Map<String, Object>>> useUnits() {
@@ -56,30 +49,20 @@ public class AdminArchiveController {
 
     @PostMapping("/use-units")
     public ApiResponse<Object> createUseUnit(@RequestBody Map<String, Object> body,
-                                             @RequestHeader(value = "X-Idempotency-Key", required = false) String idemKey) {
-        IdempotencyService.Guard guard = idempotencyService.begin(idemKey, "/use-units");
-        if (guard.replayed()) {
-            return ApiResponse.ok(guard.replayedResult());
-        }
-        Map<String, Object> result = archiveService.createUseUnit(body);
-        guard.commit(result);
-        return ApiResponse.ok(result);
+                                             @RequestHeader(value = "X-Idempotency-Key", required = false) String idemKey,
+                                             HttpServletRequest request) {
+        return ApiResponse.ok(idempotencyService.executeDb(idemKey, body, request,
+                () -> archiveService.createUseUnit(body)));
     }
 
     @PutMapping("/use-units/{id}")
     public ApiResponse<Object> updateUseUnit(@PathVariable String id,
                                              @RequestBody Map<String, Object> body,
-                                             @RequestHeader(value = "X-Idempotency-Key", required = false) String idemKey) {
-        IdempotencyService.Guard guard = idempotencyService.begin(idemKey, "/use-units/update");
-        if (guard.replayed()) {
-            return ApiResponse.ok(guard.replayedResult());
-        }
-        Map<String, Object> result = archiveService.updateUseUnit(id, body);
-        guard.commit(result);
-        return ApiResponse.ok(result);
+                                             @RequestHeader(value = "X-Idempotency-Key", required = false) String idemKey,
+                                             HttpServletRequest request) {
+        return ApiResponse.ok(idempotencyService.executeDb(idemKey, body, request,
+                () -> archiveService.updateUseUnit(id, body)));
     }
-
-    // ── 人员 ──
 
     @GetMapping("/employees")
     @RequirePerm(PermissionMatrix.USER_VIEW)
@@ -89,14 +72,10 @@ public class AdminArchiveController {
 
     @PostMapping("/employees")
     public ApiResponse<Object> createEmployee(@RequestBody Map<String, Object> body,
-                                              @RequestHeader(value = "X-Idempotency-Key", required = false) String idemKey) {
-        IdempotencyService.Guard guard = idempotencyService.begin(idemKey, "/employees");
-        if (guard.replayed()) {
-            return ApiResponse.ok(guard.replayedResult());
-        }
-        Map<String, Object> result = archiveService.createEmployee(body);
-        guard.commit(result);
-        return ApiResponse.ok(result);
+                                              @RequestHeader(value = "X-Idempotency-Key", required = false) String idemKey,
+                                              HttpServletRequest request) {
+        return ApiResponse.ok(idempotencyService.executeDb(idemKey, body, request,
+                () -> archiveService.createEmployee(body)));
     }
 
     /** ①档案增删改查：删除（有在途工单/系统管理员/有关联电梯时 422 拒绝） */
@@ -114,23 +93,17 @@ public class AdminArchiveController {
     public ApiResponse<Object> deleteElevator(@PathVariable String id) {
         return ApiResponse.ok(archiveService.deleteElevator(id));
     }
+
     @PutMapping("/employees/{id}")
     public ApiResponse<Object> updateEmployee(@PathVariable String id,
                                               @RequestBody Map<String, Object> body,
                                               @RequestHeader(value = "X-Idempotency-Key", required = false) String idemKey,
-                                              jakarta.servlet.http.HttpServletRequest request) {
-        IdempotencyService.Guard guard = idempotencyService.begin(idemKey, "/employees/update");
-        if (guard.replayed()) {
-            return ApiResponse.ok(guard.replayedResult());
-        }
-        // 操作人（调人审计 actor）：AuthInterceptor 写入的登录员工 id
+                                              HttpServletRequest request) {
         String actorId = String.valueOf(request.getAttribute(
                 com.cqwlw.maintenance.auth.AuthInterceptor.ATTR_EMP_ID));
-        Map<String, Object> result = archiveService.updateEmployee(id, body, actorId);
-        guard.commit(result);
-        return ApiResponse.ok(result);
+        return ApiResponse.ok(idempotencyService.executeDb(idemKey, body, request,
+                () -> archiveService.updateEmployee(id, body, actorId)));
     }
-
 
     @PutMapping("/admin/employees/{id}/enabled")
     public ApiResponse<Object> setEnabled(@PathVariable String id,
@@ -142,54 +115,35 @@ public class AdminArchiveController {
     /** 重置密码 */
     @PostMapping("/employees/{id}/reset-password")
     public ApiResponse<Object> resetPasswordRandom(@PathVariable String id,
-                                                   @RequestHeader(value = "X-Idempotency-Key", required = false) String idemKey) {
-        IdempotencyService.Guard guard = idempotencyService.begin(idemKey, "/employees/reset-password");
-        if (guard.replayed()) {
-            return ApiResponse.ok(guard.replayedResult());
-        }
-        Map<String, Object> result = archiveService.resetEmployeePassword(id, "");
-        guard.commit(result);
-        return ApiResponse.ok(result);
+                                                   @RequestHeader(value = "X-Idempotency-Key", required = false) String idemKey,
+                                                   HttpServletRequest request) {
+        return ApiResponse.ok(idempotencyService.executeDb(idemKey, Map.of(), request,
+                () -> archiveService.resetEmployeePassword(id, "")));
     }
-
-    // ── 电梯 ──
 
     @PostMapping("/elevators")
     public ApiResponse<Object> createElevator(@RequestBody Map<String, Object> body,
-                                              @RequestHeader(value = "X-Idempotency-Key", required = false) String idemKey) {
-        IdempotencyService.Guard guard = idempotencyService.begin(idemKey, "/elevators");
-        if (guard.replayed()) {
-            return ApiResponse.ok(guard.replayedResult());
-        }
-        Map<String, Object> result = archiveService.createElevator(body);
-        guard.commit(result);
-        return ApiResponse.ok(result);
+                                              @RequestHeader(value = "X-Idempotency-Key", required = false) String idemKey,
+                                              HttpServletRequest request) {
+        return ApiResponse.ok(idempotencyService.executeDb(idemKey, body, request,
+                () -> archiveService.createElevator(body)));
     }
 
     @PutMapping("/elevators/{id}")
     public ApiResponse<Object> updateElevator(@PathVariable String id,
                                               @RequestBody Map<String, Object> body,
-                                              @RequestHeader(value = "X-Idempotency-Key", required = false) String idemKey) {
-        IdempotencyService.Guard guard = idempotencyService.begin(idemKey, "/elevators/update");
-        if (guard.replayed()) {
-            return ApiResponse.ok(guard.replayedResult());
-        }
-        Map<String, Object> result = archiveService.updateElevator(id, body);
-        guard.commit(result);
-        return ApiResponse.ok(result);
+                                              @RequestHeader(value = "X-Idempotency-Key", required = false) String idemKey,
+                                              HttpServletRequest request) {
+        return ApiResponse.ok(idempotencyService.executeDb(idemKey, body, request,
+                () -> archiveService.updateElevator(id, body)));
     }
-
 
     @PostMapping("/elevators/batch-geo")
     public ApiResponse<Object> batchGeo(@RequestBody Map<String, Object> body,
-                                        @RequestHeader(value = "X-Idempotency-Key", required = false) String idemKey) {
-        IdempotencyService.Guard guard = idempotencyService.begin(idemKey, "/elevators/batch-geo");
-        if (guard.replayed()) {
-            return ApiResponse.ok(guard.replayedResult());
-        }
-        Map<String, Object> result = archiveService.batchGeo(body);
-        guard.commit(result);
-        return ApiResponse.ok(result);
+                                        @RequestHeader(value = "X-Idempotency-Key", required = false) String idemKey,
+                                        HttpServletRequest request) {
+        return ApiResponse.ok(idempotencyService.executeDb(idemKey, body, request,
+                () -> archiveService.batchGeo(body)));
     }
 
     @PostMapping("/elevators/{id}/qrcode")
@@ -203,25 +157,17 @@ public class AdminArchiveController {
 
     @PostMapping("/company/sync-entity-id")
     public ApiResponse<Object> syncCompanyEntityId(
-            @RequestHeader(value = "X-Idempotency-Key", required = false) String idemKey) {
-        IdempotencyService.Guard guard = idempotencyService.begin(idemKey, "/company/sync-entity-id");
-        if (guard.replayed()) {
-            return ApiResponse.ok(guard.replayedResult());
-        }
-        Map<String, Object> result = archiveService.syncCompanyEntityId();
-        guard.commit(result);
-        return ApiResponse.ok(result);
+            @RequestHeader(value = "X-Idempotency-Key", required = false) String idemKey,
+            HttpServletRequest request) {
+        return ApiResponse.ok(idempotencyService.executeExternal(idemKey, Map.of(), request,
+                archiveService::syncCompanyEntityId));
     }
 
     @PostMapping("/use-units/{id}/sync-entity-id")
     public ApiResponse<Object> syncUseUnitEntityId(@PathVariable String id,
-                                                   @RequestHeader(value = "X-Idempotency-Key", required = false) String idemKey) {
-        IdempotencyService.Guard guard = idempotencyService.begin(idemKey, "/use-units/sync-entity-id");
-        if (guard.replayed()) {
-            return ApiResponse.ok(guard.replayedResult());
-        }
-        Map<String, Object> result = archiveService.syncUseUnitEntityId(id);
-        guard.commit(result);
-        return ApiResponse.ok(result);
+                                                   @RequestHeader(value = "X-Idempotency-Key", required = false) String idemKey,
+                                                   HttpServletRequest request) {
+        return ApiResponse.ok(idempotencyService.executeExternal(idemKey, Map.of(), request,
+                () -> archiveService.syncUseUnitEntityId(id)));
     }
 }

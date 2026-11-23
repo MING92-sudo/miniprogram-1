@@ -47,13 +47,8 @@ public class ClientAccountController {
                                       @RequestBody Map<String, Object> body,
                                       @RequestHeader(value = "X-Idempotency-Key", required = false) String idemKey,
                                       HttpServletRequest request) {
-        IdempotencyService.Guard guard = idempotencyService.begin(idemKey, "/use-units/" + useUnitId + "/accounts");
-        if (guard.replayed()) {
-            return ApiResponse.ok(guard.replayedResult());
-        }
-        Map<String, Object> result = service.create(useUnitId, body, operatorId(request));
-        guard.commit(result);
-        return ApiResponse.ok(result);
+        return ApiResponse.ok(idempotencyService.executeDb(idemKey, body, request,
+                () -> service.create(useUnitId, body, operatorId(request))));
     }
 
     @PutMapping("/use-units/{unitId}/accounts/{accountId}")

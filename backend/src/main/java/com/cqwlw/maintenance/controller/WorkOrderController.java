@@ -37,43 +37,28 @@ public class WorkOrderController {
     public ApiResponse<Object> signatureRefuse(@PathVariable String id,
                                                @RequestHeader(value = "X-Idempotency-Key", required = false) String idemKey,
                                                HttpServletRequest request) {
-        IdempotencyService.Guard guard = idempotencyService.begin(idemKey, "/work-orders/signature-refuse");
-        if (guard.replayed()) {
-            return ApiResponse.ok(guard.replayedResult());
-        }
-        Map<String, Object> result = recordLifecycleService.signatureRefuse(id, empId(request));
-        guard.commit(result);
-        return ApiResponse.ok(result);
+        return ApiResponse.ok(idempotencyService.executeDb(idemKey, Map.of(), request,
+                () -> recordLifecycleService.signatureRefuse(id, empId(request))));
     }
 
     @PostMapping("/work-orders/{id}/review")
     public ApiResponse<Object> review(@PathVariable String id, @RequestBody Map<String, Object> body,
                                       @RequestHeader(value = "X-Idempotency-Key", required = false) String idemKey,
                                       HttpServletRequest request) {
-        IdempotencyService.Guard guard = idempotencyService.begin(idemKey, "/work-orders/review");
-        if (guard.replayed()) {
-            return ApiResponse.ok(guard.replayedResult());
-        }
         boolean pass = Boolean.TRUE.equals(body.get("pass"));
         String reason = body.get("reason") == null ? "" : String.valueOf(body.get("reason"));
-        Map<String, Object> result = recordLifecycleService.review(id, pass, reason,
-                com.cqwlw.maintenance.auth.MultiRoleGate.roles(request), empId(request));
-        guard.commit(result);
-        return ApiResponse.ok(result);
+        return ApiResponse.ok(idempotencyService.executeDb(idemKey, body, request,
+                () -> recordLifecycleService.review(id, pass, reason,
+                        com.cqwlw.maintenance.auth.MultiRoleGate.roles(request), empId(request))));
     }
 
     @PostMapping("/work-orders/{id}/sign-request")
     public ApiResponse<Object> signRequest(@PathVariable String id,
                                            @RequestHeader(value = "X-Idempotency-Key", required = false) String idemKey,
                                            HttpServletRequest request) {
-        IdempotencyService.Guard guard = idempotencyService.begin(idemKey, "/work-orders/sign-request");
-        if (guard.replayed()) {
-            return ApiResponse.ok(guard.replayedResult());
-        }
-        Map<String, Object> result = recordLifecycleService.signRequest(id,
-                com.cqwlw.maintenance.auth.MultiRoleGate.roles(request), empId(request));
-        guard.commit(result);
-        return ApiResponse.ok(result);
+        return ApiResponse.ok(idempotencyService.executeDb(idemKey, Map.of(), request,
+                () -> recordLifecycleService.signRequest(id,
+                        com.cqwlw.maintenance.auth.MultiRoleGate.roles(request), empId(request))));
     }
 
     @GetMapping("/work-orders/{id}/archive")
@@ -116,13 +101,8 @@ public class WorkOrderController {
     public ApiResponse<Object> checkin(@PathVariable String id, @RequestBody Map<String, Object> body,
                                        @RequestHeader(value = "X-Idempotency-Key", required = false) String idemKey,
                                        HttpServletRequest request) {
-        IdempotencyService.Guard guard = idempotencyService.begin(idemKey, "/work-orders/checkin");
-        if (guard.replayed()) {
-            return ApiResponse.ok(guard.replayedResult());
-        }
-        Map<String, Object> result = workOrderService.checkin(id, body, empId(request));
-        guard.commit(result);
-        return ApiResponse.ok(result);
+        return ApiResponse.ok(idempotencyService.executeDb(idemKey, body, request,
+                () -> workOrderService.checkin(id, body, empId(request))));
     }
 
     /** 主维保生成双人动态码（60 秒有效、绑定工单、一次性； */
@@ -149,13 +129,8 @@ public class WorkOrderController {
     public ApiResponse<Object> assignPartner(@PathVariable String id, @RequestBody Map<String, Object> body,
                                              @RequestHeader(value = "X-Idempotency-Key", required = false) String idemKey,
                                              HttpServletRequest request) {
-        IdempotencyService.Guard guard = idempotencyService.begin(idemKey, "/work-orders/assign-partner");
-        if (guard.replayed()) {
-            return ApiResponse.ok(guard.replayedResult());
-        }
-        Map<String, Object> result = workOrderService.assignPartner(id, body, empId(request));
-        guard.commit(result);
-        return ApiResponse.ok(result);
+        return ApiResponse.ok(idempotencyService.executeDb(idemKey, body, request,
+                () -> workOrderService.assignPartner(id, body, empId(request))));
     }
 
     @GetMapping("/work-orders/{id}/checklist")
@@ -168,13 +143,8 @@ public class WorkOrderController {
                                           @RequestBody Map<String, Object> body,
                                           @RequestHeader(value = "X-Idempotency-Key", required = false) String idemKey,
                                           HttpServletRequest request) {
-        IdempotencyService.Guard guard = idempotencyService.begin(idemKey, "/work-orders/checklist-item");
-        if (guard.replayed()) {
-            return ApiResponse.ok(guard.replayedResult());
-        }
-        Map<String, Object> result = workOrderService.submitItem(id, itemId, body, empId(request));
-        guard.commit(result);
-        return ApiResponse.ok(result);
+        return ApiResponse.ok(idempotencyService.executeDb(idemKey, body, request,
+                () -> workOrderService.submitItem(id, itemId, body, empId(request))));
     }
 
     @PostMapping("/work-orders/{id}/checklist/{itemId}/run-this-time")
@@ -188,26 +158,17 @@ public class WorkOrderController {
     public ApiResponse<Object> signOrder(@PathVariable String id, @RequestBody Map<String, Object> body,
                                          @RequestHeader(value = "X-Idempotency-Key", required = false) String idemKey,
                                          HttpServletRequest request) {
-        IdempotencyService.Guard guard = idempotencyService.begin(idemKey, "/work-orders/signature");
-        if (guard.replayed()) {
-            return ApiResponse.ok(guard.replayedResult());
-        }
-        Map<String, Object> result = workOrderService.signOrder(id, body, empId(request));
-        guard.commit(result);
-        return ApiResponse.ok(result);
+        return ApiResponse.ok(idempotencyService.executeDb(idemKey, body, request,
+                () -> workOrderService.signOrder(id, body, empId(request))));
     }
 
     @PostMapping("/work-orders/{id}/checkout")
     public ApiResponse<Object> checkout(@PathVariable String id, @RequestBody(required = false) Map<String, Object> body,
                                         @RequestHeader(value = "X-Idempotency-Key", required = false) String idemKey,
                                         HttpServletRequest request) {
-        IdempotencyService.Guard guard = idempotencyService.begin(idemKey, "/work-orders/checkout");
-        if (guard.replayed()) {
-            return ApiResponse.ok(guard.replayedResult());
-        }
-        Map<String, Object> result = workOrderService.checkout(id, body == null ? Map.of() : body, empId(request));
-        guard.commit(result);
-        return ApiResponse.ok(result);
+        Map<String, Object> safeBody = body == null ? Map.of() : body;
+        return ApiResponse.ok(idempotencyService.executeExternal(idemKey, safeBody, request,
+                () -> workOrderService.checkout(id, safeBody, empId(request))));
     }
 
 }

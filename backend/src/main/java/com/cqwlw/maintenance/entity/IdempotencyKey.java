@@ -15,5 +15,8 @@ public class IdempotencyKey {
     public String idemKey;
     public String path;
     public String responseJson;
+    public String fingerprint;
+    public String ownerToken;
+    public java.time.LocalDateTime heartbeatAt;
     public LocalDateTime createdAt;
 }

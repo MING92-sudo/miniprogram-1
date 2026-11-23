@@ -77,7 +77,7 @@ public class UnitPortalController {
                                                          @org.springframework.web.bind.annotation.RequestHeader(value = "X-Idempotency-Key", required = false) String idemKey) {
         boolean pass = body == null || !Boolean.FALSE.equals(body.get("pass"));
         String reason = body == null || body.get("reason") == null ? "" : String.valueOf(body.get("reason"));
-        return withIdempotency(idemKey, "/unit/faults/confirm", () ->
+        return withIdempotency(idemKey, body, request, () ->
                 portalService.confirmFault(id, com.cqwlw.maintenance.auth.MultiRoleGate.roles(request),
                         unitId(request), pass, reason));
     }
@@ -88,7 +88,7 @@ public class UnitPortalController {
                                                         HttpServletRequest request,
                                                         @org.springframework.web.bind.annotation.RequestHeader(value = "X-Idempotency-Key", required = false) String idemKey) {
         String reason = body == null || body.get("reason") == null ? "" : String.valueOf(body.get("reason"));
-        return withIdempotency(idemKey, "/unit/faults/cancel", () ->
+        return withIdempotency(idemKey, body, request, () ->
                 portalService.cancelFault(id, com.cqwlw.maintenance.auth.MultiRoleGate.roles(request), unitId(request), reason));
     }
 
@@ -125,18 +125,12 @@ public class UnitPortalController {
         return ApiResponse.ok(portalService.reportFault(unitId(request), body));
     }
 
-    private ApiResponse<Map<String, Object>> withIdempotency(String key, String path,
+    private ApiResponse<Map<String, Object>> withIdempotency(String key, Object body, HttpServletRequest request,
                                                                java.util.function.Supplier<Map<String, Object>> action) {
         if (idempotencyService == null) {
             return ApiResponse.ok(action.get());
         }
-        IdempotencyService.Guard guard = idempotencyService.begin(key, path);
-        if (guard.replayed()) {
-            return ApiResponse.ok(guard.replayedResult());
-        }
-        Map<String, Object> result = action.get();
-        guard.commit(result);
-        return ApiResponse.ok(result);
+        return ApiResponse.ok(idempotencyService.executeDb(key, body, request, action));
     }
 
     /** 单位身份：旧门户令牌优先；员工令牌取 CLIENT 角色锚点 org_id；无锚点 fail-closed 403 */

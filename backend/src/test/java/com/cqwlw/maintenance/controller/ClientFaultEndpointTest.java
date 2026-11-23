@@ -22,9 +22,8 @@ class ClientFaultEndpointTest {
         UnitPortalService portal = mock(UnitPortalService.class);
         UnitPortalController controller = new UnitPortalController(portal, mock(SysUserRoleMapper.class));
         com.cqwlw.maintenance.service.IdempotencyService idempotency = mock(com.cqwlw.maintenance.service.IdempotencyService.class);
-        com.cqwlw.maintenance.service.IdempotencyService.Guard guard = mock(com.cqwlw.maintenance.service.IdempotencyService.Guard.class);
-        when(idempotency.begin(any(), any())).thenReturn(guard);
-        when(guard.replayed()).thenReturn(false);
+        when(idempotency.executeDb(any(), any(), any(), any())).thenAnswer(invocation ->
+                ((java.util.function.Supplier<?>) invocation.getArgument(3)).get());
         controller.setIdempotencyService(idempotency);
         MockHttpServletRequest request = new MockHttpServletRequest();
         request.setAttribute(AuthInterceptor.ATTR_UNIT_ID, "u1");
