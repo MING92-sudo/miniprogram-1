@@ -19,6 +19,7 @@ import com.cqwlw.maintenance.mapper.UseUnitMapper;
 import com.cqwlw.maintenance.mapper.WorkOrderMapper;
 import com.cqwlw.maintenance.util.TimeUtil;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.security.MessageDigest;
 import java.util.HexFormat;
@@ -87,9 +88,18 @@ public class RecordLifecycleService {
         }
         if (pass) {
             r.lifecycleStatus = "PENDING_CLIENT_SIGN";
+            recordMapper.updateById(r);
         } else {
             if (reason == null || reason.trim().isEmpty()) {
                 throw new BizException(422, "退回原因必填");
+            }
+            LambdaUpdateWrapper<MaintainRecord> returned = new LambdaUpdateWrapper<MaintainRecord>()
+                    .eq(MaintainRecord::getId, r.id)
+                    .eq(MaintainRecord::getLifecycleStatus, "PENDING_REVIEW")
+                    .set(MaintainRecord::getLifecycleStatus, null)
+                    .set(MaintainRecord::getRefuseReason, reason);
+            if (recordMapper.update(null, returned) != 1) {
+                throw new BizException(422, "记录状态已变更，请刷新后重试");
             }
             r.lifecycleStatus = null;
             r.refuseReason = reason;
@@ -101,7 +111,6 @@ public class RecordLifecycleService {
                 }
             }
         }
-        recordMapper.updateById(r);
         return Map.of("ok", true, "lifecycleStatus", r.lifecycleStatus == null ? "" : r.lifecycleStatus);
     }
 
@@ -147,17 +156,27 @@ public class RecordLifecycleService {
         if (!"PROCESSING".equals(o.status)) {
             throw new BizException(422, "工单不在作业中状态");
         }
+        LambdaUpdateWrapper<WorkOrder> clearSignature = new LambdaUpdateWrapper<>();
+        clearSignature.eq(WorkOrder::getId, orderId)
+                .eq(WorkOrder::getStatus, "PROCESSING")
+                .eq(WorkOrder::getAssistantPlatformId, o.assistantPlatformId)
+                .set(WorkOrder::getAssistantSignatureFileId, null)
+                .set(WorkOrder::getAssistantSignatureAt, null);
+        if (orderMapper.update(null, clearSignature) != 1) {
+            throw new BizException(1003, "配合人员已变更，请刷新后重试");
+        }
         o.assistantSignatureFileId = null;
         o.assistantSignatureAt = null;
-        orderMapper.updateById(o);
         return Map.of("ok", true);
     }
 
     /** 使用单位拒签（凭分享 token）：原因必填，退回维保人员重新走签字链路。 */
+    @Transactional(rollbackFor = Exception.class)
     public Map<String, Object> refuseByToken(String recordId, String token, String reason) {
         return refuseByToken(recordId, token, null, reason);
     }
 
+    @Transactional(rollbackFor = Exception.class)
     public Map<String, Object> refuseByToken(String recordId, String token, String refuseCode, String reason) {
         MaintainRecord r = findOr401(recordId); // C-25⑧：不存在 → 401 同错 token 文案（匿名端点无存在性 oracle）
         if (token == null || token.isEmpty() || !token.equals(r.shareToken)) {
@@ -202,10 +221,37 @@ public class RecordLifecycleService {
         if (affected == 0) {
             throw new BizException(422, "记录状态已变更（可能已被签署），拒签未生效");
         }
+        reopenForRework(r);
         r.lifecycleStatus = "REFUSED_RETURNED";
         r.refuseReason = composed;
         r.refuseCode = code.isEmpty() ? null : code;
         return Map.of("ok", true);
+    }
+
+    private void reopenForRework(MaintainRecord r) {
+        if (r.workOrderId == null || r.workOrderId.isBlank()) {
+            return;
+        }
+        WorkOrder o = orderMapper.selectById(r.workOrderId);
+        if (o == null) {
+            throw new BizException(1404, "来源工单不存在，无法退回整改");
+        }
+        LambdaUpdateWrapper<WorkOrder> reopen = new LambdaUpdateWrapper<WorkOrder>()
+                .eq(WorkOrder::getId, o.id)
+                .eq(WorkOrder::getStatus, "DONE")
+                .set(WorkOrder::getStatus, "PROCESSING")
+                .set(WorkOrder::getWorkerSignatureFileId, null)
+                .set(WorkOrder::getWorkerSignatureAt, null)
+                .set(WorkOrder::getAssistantSignatureFileId, null)
+                .set(WorkOrder::getAssistantSignatureAt, null);
+        if (orderMapper.update(null, reopen) != 1) {
+            throw new BizException(1003, "工单状态已变更，无法退回整改");
+        }
+        o.status = "PROCESSING";
+        o.workerSignatureFileId = null;
+        o.workerSignatureAt = null;
+        o.assistantSignatureFileId = null;
+        o.assistantSignatureAt = null;
     }
 
     /** 使用单位签署完成 → SIGNED → 自动归档（PDF + SHA-256）；不触发平台调用 */

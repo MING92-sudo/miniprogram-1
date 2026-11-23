@@ -63,7 +63,11 @@ class WorkOrderWriteScopeTest {
 
     @BeforeEach
     void setUp() {
+        com.baomidou.mybatisplus.core.metadata.TableInfoHelper.initTableInfo(
+                new org.apache.ibatis.builder.MapperBuilderAssistant(
+                        new com.baomidou.mybatisplus.core.MybatisConfiguration(), ""), WorkOrder.class);
         orderMapper = mock(WorkOrderMapper.class);
+        when(orderMapper.update(any(), any())).thenReturn(1);
         recordMapper = mock(MaintainRecordMapper.class);
         reportService = mock(PlatformReportService.class);
         EmployeeMapper employeeMapper = mock(EmployeeMapper.class);
@@ -136,9 +140,9 @@ class WorkOrderWriteScopeTest {
         ok.put("result", "NORMAL");
         ok.put("value", "12.5");
         service.submitItem(OWN_ORDER, "it_1", ok, EMP_LI);
-        org.mockito.ArgumentCaptor<WorkOrder> cap = org.mockito.ArgumentCaptor.forClass(WorkOrder.class);
-        verify(orderMapper).updateById(cap.capture());
-        assertTrue(cap.getValue().checklistJson.contains("12.5"), "字符串数值应被解析落库");
+        assertTrue(orderMapper.selectById(OWN_ORDER).checklistJson.contains("12.5"),
+                "字符串数值应被解析落库");
+        verify(orderMapper).update(any(), any());
 
         Map<String, Object> bad = new java.util.HashMap<>();
         bad.put("result", "NORMAL");
@@ -158,6 +162,7 @@ class WorkOrderWriteScopeTest {
 
     @Test
     void groupLeaderCanReadChecklistButCannotCheckinForMember() {
+        when(orderMapper.selectById(GROUP_ORDER)).thenReturn(order(GROUP_ORDER, null, "PENDING", null));
         assertForbidden(() -> service.checkin(GROUP_ORDER,
                 Map.of("role", "PRINCIPAL", "latitude", "29.6000", "longitude", "106.5000"), EMP_CHEN));
         verify(orderMapper, never()).updateById(any(WorkOrder.class));

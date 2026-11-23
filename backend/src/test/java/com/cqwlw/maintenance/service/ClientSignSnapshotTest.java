@@ -58,7 +58,7 @@ class ClientSignSnapshotTest {
     }
 
     private Map<String, Object> body() {
-        return Map.of("signatureUrl", "https://x/sign.png");
+        return Map.of("signatureUrl", "/files/file_sign_1");
     }
 
     @Test

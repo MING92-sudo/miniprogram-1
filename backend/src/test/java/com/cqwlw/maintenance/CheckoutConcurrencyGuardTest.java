@@ -174,6 +174,7 @@ class CheckoutConcurrencyGuardTest {
         o.assistantName = "王五";
         o.assistantPlatformId = "pid_2";
         o.checkinTime = TimeUtil.now().minusMinutes(40);
+        o.checkinExtraJson = "{\"role\":\"PRINCIPAL\"}";
         o.originalRecordId = originalRecordId;
         o.checklistJson = "[{\"id\":\"ci_A-1-1\",\"itemCode\":\"A-1-1\",\"name\":\"曳引机\","
                 + "\"isKey\":false,\"photoRequired\":false,\"result\":\"NORMAL\"}]";

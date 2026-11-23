@@ -156,7 +156,7 @@
   </div>
 </template>
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import http from '../api/client'
 import ViewHead from '../ui/ViewHead.vue'
@@ -243,27 +243,47 @@ const timeline = computed(() => {
   items.push({ cls: 'active', title: '当前 · ' + faultStatusLabel(o.status), time: '', text: o.refuseReason || '' })
   return items
 })
+let loadSeq = 0
 async function load() {
+  const targetId = id.value
+  const seq = ++loadSeq
   loadError.value = ''
-  try { order.value = await http.get(`/faults/${id.value}`) } catch (e) { order.value = null; loadError.value = e.message || '工单不存在或超出数据范围' }
+  try {
+    const data = await http.get(`/faults/${targetId}`)
+    if (seq !== loadSeq || id.value !== targetId) return
+    order.value = data
+  } catch (e) {
+    if (seq !== loadSeq || id.value !== targetId) return
+    order.value = null
+    loadError.value = e.message || '工单不存在或超出数据范围'
+  }
 }
 onMounted(async () => {
   load()
   try { workers.value = await http.get('/employees') } catch { workers.value = [] }
 })
+function ensureCurrentOrder(targetId) {
+  if (!order.value || String(order.value.id) !== String(targetId)) {
+    toast.error('工单已切换，请重新操作')
+    return false
+  }
+  return true
+}
 
 // ── 派单 / 改派 ──
 const dispatchOpen = ref(false)
 const dispatchForm = ref({ workerId: '', reason: '' })
 const dispatchErr = ref({ worker: '', reason: '' })
 async function submitDispatch() {
+  const targetId = id.value
   const err = { worker: '', reason: '' }
   if (!dispatchForm.value.workerId) err.worker = '请选择维保人员'
   if (!dispatchForm.value.reason.trim()) err.reason = '原因必填'
   dispatchErr.value = err
   if (err.worker || err.reason) return
+  if (!ensureCurrentOrder(targetId)) return
   try {
-    await http.post(`/admin/faults/${id.value}/dispatch`, { workerId: dispatchForm.value.workerId, reason: dispatchForm.value.reason })
+    await http.post(`/admin/faults/${targetId}/dispatch`, { workerId: dispatchForm.value.workerId, reason: dispatchForm.value.reason })
     toast.success('已派单 · 状态已接单')
     dispatchOpen.value = false
     load()
@@ -276,13 +296,15 @@ const closeOpen = ref(false)
 const closeForm = ref({ result: '', signature: '' })
 const closeErr = ref({ result: '', signature: '' })
 async function submitClose() {
+  const targetId = id.value
   const err = { result: '', signature: '' }
   if (!closeForm.value.result.trim()) err.result = '处理结果必填'
   if (!closeForm.value.signature.trim()) err.signature = '请先由使用单位安全管理员签字确认'
   closeErr.value = err
   if (err.result || err.signature) return
+  if (!ensureCurrentOrder(targetId)) return
   try {
-    await http.post(`/faults/${id.value}/close`, { result: closeForm.value.result, signature: closeForm.value.signature })
+    await http.post(`/faults/${targetId}/close`, { result: closeForm.value.result, signature: closeForm.value.signature })
     toast.success('工单已闭环')
     closeOpen.value = false
     load()
@@ -293,10 +315,12 @@ const cancelOpen = ref(false)
 const cancelReason = ref('')
 const cancelErr = ref('')
 async function submitCancel() {
+  const targetId = id.value
   if (!cancelReason.value.trim()) { cancelErr.value = '取消原因必填'; return }
   cancelErr.value = ''
+  if (!ensureCurrentOrder(targetId)) return
   try {
-    await http.post(`/faults/${id.value}/cancel`, { reason: cancelReason.value })
+    await http.post(`/faults/${targetId}/cancel`, { reason: cancelReason.value })
     toast.success('工单已取消')
     cancelOpen.value = false
     load()
@@ -307,13 +331,32 @@ const proxyOpen = ref(false)
 const proxyForm = ref({ proxySource: 'PHONE', recordingNo: '' })
 const proxyErr = ref('')
 async function submitProxy() {
+  const targetId = id.value
   if (!/^REC-\d{4,6}$/.test(proxyForm.value.recordingNo)) { proxyErr.value = '录音编号格式 REC-####'; return }
   proxyErr.value = ''
+  if (!ensureCurrentOrder(targetId)) return
   try {
-    await http.post(`/faults/${id.value}/proxy`, proxyForm.value)
+    await http.post(`/faults/${targetId}/proxy`, proxyForm.value)
     toast.success('代报修已登记')
     proxyOpen.value = false
     load()
   } catch (e) { toast.error(e.message || '登记失败') }
 }
+
+function resetActions() {
+  dispatchOpen.value = false
+  closeOpen.value = false
+  cancelOpen.value = false
+  proxyOpen.value = false
+  dispatchErr.value = { worker: '', reason: '' }
+  closeErr.value = { result: '', signature: '' }
+  cancelErr.value = ''
+  proxyErr.value = ''
+}
+watch(id, () => {
+  order.value = null
+  loadError.value = ''
+  resetActions()
+  load()
+})
 </script>

@@ -1,6 +1,7 @@
 package com.cqwlw.maintenance.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.cqwlw.maintenance.auth.PermissionMatrix;
 import com.cqwlw.maintenance.common.BizException;
 import com.cqwlw.maintenance.common.Ids;
 import com.cqwlw.maintenance.common.Paginate;
@@ -20,6 +21,7 @@ import com.cqwlw.maintenance.mapper.HandoverOrderMapper;
 import com.cqwlw.maintenance.mapper.HandoverRectificationMapper;
 import com.cqwlw.maintenance.mapper.HandoverSignMapper;
 import com.cqwlw.maintenance.mapper.WorkOrderMapper;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,12 +30,10 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 
 @Service
 public class HandoverService {
@@ -47,18 +47,16 @@ public class HandoverService {
     private static final String PENDING_INST_REVIEW = "PENDING_INST_REVIEW";
     private static final String VOIDED = "VOIDED";
 
-    private static final List<String> ITEM_TYPES = List.of(
-            "RUNNING", "SAFETY_DEVICE", "BRAKE", "EMERGENCY_OPERATION", "MACHINE_ROOM_SHAFT", "ACCESSORIES");
     private static final String PASS = "PASS";
     private static final String FAIL = "FAIL";
 
     private static final String APPROVE = "APPROVE";
     private static final String REJECT = "REJECT";
-    private static final Map<String, Set<String>> NODE_ROLES = Map.of(
-            "INSTALLER_HANDOVER", Set.of("INSTALLER"),
-            "MAINTENANCE_ASSIGN", Set.of("LEADER", "ADMIN", "SYS_ADMIN"),
-            "MAINTENANCE_CONFIRM", Set.of("LEADER", "ADMIN", "SYS_ADMIN"),
-            "SITE_INSPECT", Set.of("WORKER", "LEADER", "ADMIN", "SYS_ADMIN"));
+    private static final Map<String, String> NODE_CAPABILITIES = Map.of(
+            "INSTALLER_HANDOVER", PermissionMatrix.HANDOVER_SIGN_INSTALL,
+            "MAINTENANCE_ASSIGN", PermissionMatrix.HANDOVER_SIGN_MAINT,
+            "MAINTENANCE_CONFIRM", PermissionMatrix.HANDOVER_SIGN_MAINT,
+            "SITE_INSPECT", PermissionMatrix.HANDOVER_INSPECT);
 
     private final HandoverOrderMapper orderMapper;
     private final HandoverCheckMapper checkMapper;
@@ -70,6 +68,32 @@ public class HandoverService {
     private final WorkOrderMapper workOrderMapper;
     private final DispatchService dispatchService;
     private final HandoverArchiveSupport archiveSupport;
+    private final HandoverChecklistService checklistService;
+
+    @Autowired
+    public HandoverService(HandoverOrderMapper orderMapper,
+                           HandoverCheckMapper checkMapper,
+                           HandoverCheckItemMapper checkItemMapper,
+                           HandoverRectificationMapper rectificationMapper,
+                           HandoverSignMapper signMapper,
+                           ElevatorMapper elevatorMapper,
+                           EmployeeMapper employeeMapper,
+                           WorkOrderMapper workOrderMapper,
+                           DispatchService dispatchService,
+                           HandoverArchiveSupport archiveSupport,
+                           HandoverChecklistService checklistService) {
+        this.orderMapper = orderMapper;
+        this.checkMapper = checkMapper;
+        this.checkItemMapper = checkItemMapper;
+        this.rectificationMapper = rectificationMapper;
+        this.signMapper = signMapper;
+        this.elevatorMapper = elevatorMapper;
+        this.employeeMapper = employeeMapper;
+        this.workOrderMapper = workOrderMapper;
+        this.dispatchService = dispatchService;
+        this.archiveSupport = archiveSupport;
+        this.checklistService = checklistService;
+    }
 
     public HandoverService(HandoverOrderMapper orderMapper,
                            HandoverCheckMapper checkMapper,
@@ -81,16 +105,10 @@ public class HandoverService {
                            WorkOrderMapper workOrderMapper,
                            DispatchService dispatchService,
                            HandoverArchiveSupport archiveSupport) {
-        this.orderMapper = orderMapper;
-        this.checkMapper = checkMapper;
-        this.checkItemMapper = checkItemMapper;
-        this.rectificationMapper = rectificationMapper;
-        this.signMapper = signMapper;
-        this.elevatorMapper = elevatorMapper;
-        this.employeeMapper = employeeMapper;
-        this.workOrderMapper = workOrderMapper;
-        this.dispatchService = dispatchService;
-        this.archiveSupport = archiveSupport;
+        this(orderMapper, checkMapper, checkItemMapper, rectificationMapper, signMapper, elevatorMapper,
+                employeeMapper, workOrderMapper, dispatchService, archiveSupport,
+                new HandoverChecklistService(orderMapper, checkMapper, checkItemMapper, rectificationMapper,
+                        signMapper, null));
     }
 
     public Map<String, Object> options() {
@@ -249,46 +267,13 @@ public class HandoverService {
         return o;
     }
 
-    /** 任一查验项 FAIL 进入整改，否则进入待确认。 */
+    /** 旧入口仅保留路由兼容，查验结果统一走 74 项清单校验。 */
+    @Transactional(rollbackFor = Exception.class)
+    @SuppressWarnings("unchecked")
     public HandoverOrder submitInspect(String id, Map<String, Object> body) {
-        HandoverOrder o = requireOrder(id);
-        requireStatus(o, INSPECTING, "提交查验");
-
-        HandoverCheck check = new HandoverCheck();
-        check.id = Ids.next("hc");
-        check.handoverId = o.id;
-        check.checkerId = trimToNull(str(body, "checkerId"));
-        check.checkerName = trimToNull(str(body, "checkerName"));
-        check.remark = trimToNull(str(body, "remark"));
-        check.checkedAt = LocalDateTime.now();
-        checkMapper.insert(check);
-
-        boolean forceRectify = false;
-        Set<String> seen = new HashSet<>();
-        for (Map<String, Object> item : listOfMaps(body == null ? null : body.get("items"))) {
-            String type = trimToNull(str(item, "itemType"));
-            if (type == null) {
-                continue;
-            }
-            String result = trimToNull(str(item, "result"));
-            if (result == null) {
-                result = "NA";
-            }
-            if (FAIL.equals(result)) {
-                forceRectify = true;
-            }
-            insertItem(check.id, type, result, str(item, "remark"));
-            seen.add(type);
-        }
-        for (String type : ITEM_TYPES) {
-            if (!seen.contains(type)) {
-                insertItem(check.id, type, "NA", null);
-            }
-        }
-
-        o.status = forceRectify ? RECTIFYING : PENDING_CONFIRM;
-        orderMapper.updateById(o);
-        return o;
+        Object conditional = body == null ? null : body.get("conditional");
+        Map<String, Object> cond = conditional instanceof Map<?, ?> ? (Map<String, Object>) conditional : null;
+        return checklistService.submitChecklist(id, listOfMaps(body == null ? null : body.get("items")), cond);
     }
 
     public HandoverOrder submitRectify(String id, Map<String, Object> body) {
@@ -369,6 +354,7 @@ public class HandoverService {
         if (actor == null) {
             throw new BizException(1403, "确认人登录身份无效");
         }
+        checklistService.assertArchivable(id);
         o.confirmedById = actor.id;
         o.confirmedByName = actor.name;
         o.confirmedAt = LocalDateTime.now();
@@ -435,8 +421,8 @@ public class HandoverService {
     public HandoverSign signNode(String handoverId, Map<String, Object> body, String actorEmpId) {
         HandoverOrder order = requireOrder(handoverId);
         String nodeType = str(body, "nodeType") == null ? "" : str(body, "nodeType").trim();
-        Set<String> allowedRoles = NODE_ROLES.get(nodeType);
-        if (allowedRoles == null) {
+        String capability = NODE_CAPABILITIES.get(nodeType);
+        if (capability == null) {
             throw new BizException(422, "未知签字节点：" + nodeType);
         }
         String action = str(body, "action") == null ? "" : str(body, "action").trim().toUpperCase();
@@ -448,7 +434,7 @@ public class HandoverService {
         if (actor == null) {
             throw new BizException(401, "登录已过期，请重新登录");
         }
-        if (!allowedRoles.contains(actor.role)) {
+        if (PermissionMatrix.state(actor.role, capability) != PermissionMatrix.TriState.Y) {
             throw new BizException(1403, "仅授权岗位可签「" + nodeType + "」节点");
         }
         HandoverSign sign = new HandoverSign();
@@ -530,16 +516,6 @@ public class HandoverService {
         if (!expected.equals(o.status)) {
             throw new BizException(422, "当前状态不允许" + action);
         }
-    }
-
-    private void insertItem(String checkId, String itemType, String result, String remark) {
-        HandoverCheckItem it = new HandoverCheckItem();
-        it.id = Ids.next("hi");
-        it.checkId = checkId;
-        it.itemType = itemType;
-        it.result = result;
-        it.remark = trimToNull(remark);
-        checkItemMapper.insert(it);
     }
 
     private static String str(Map<String, Object> body, String key) {

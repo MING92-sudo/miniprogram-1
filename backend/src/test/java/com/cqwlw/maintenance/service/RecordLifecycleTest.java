@@ -44,6 +44,7 @@ class RecordLifecycleTest {
     void setUp() {
         records = mock(MaintainRecordMapper.class);
         orders = mock(WorkOrderMapper.class);
+        when(orders.update(any(), any())).thenReturn(1);
         employees = mock(EmployeeMapper.class);
         files = mock(FileStorageService.class);
         pdf = mock(RecordPdfService.class);
@@ -57,6 +58,9 @@ class RecordLifecycleTest {
         com.baomidou.mybatisplus.core.metadata.TableInfoHelper.initTableInfo(
                 new org.apache.ibatis.builder.MapperBuilderAssistant(
                         new com.baomidou.mybatisplus.core.MybatisConfiguration(), ""), MaintainRecord.class);
+        com.baomidou.mybatisplus.core.metadata.TableInfoHelper.initTableInfo(
+                new org.apache.ibatis.builder.MapperBuilderAssistant(
+                        new com.baomidou.mybatisplus.core.MybatisConfiguration(), ""), WorkOrder.class);
     }
 
     private MaintainRecord record(String lifecycle) {
@@ -112,6 +116,22 @@ class RecordLifecycleTest {
         svc.review("r1", false, "复核不通过", Set.of("MAINT_MGR"));
         assertNull(r.lifecycleStatus);
         assertEquals("PROCESSING", o.status);
+    }
+
+    @Test
+    void reviewReturnClearsLifecycleInSql() {
+        MaintainRecord r = record("PENDING_REVIEW");
+        r.workOrderId = null;
+
+        svc.review("r1", false, "复核不通过", Set.of("MAINT_MGR"));
+
+        org.mockito.ArgumentCaptor<com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper<MaintainRecord>>
+                captor = org.mockito.ArgumentCaptor.forClass(
+                        (Class) com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper.class);
+        verify(records).update(any(), captor.capture());
+        assertTrue(captor.getValue().getSqlSet().contains("lifecycle_status"));
+        assertTrue(captor.getValue().getParamNameValuePairs().containsValue(null));
+        verify(records, never()).updateById(any(MaintainRecord.class));
     }
 
     @Test
@@ -208,6 +228,54 @@ class RecordLifecycleTest {
     }
 
     @Test
+    void signatureRefuseClearsDatabaseColumns() {
+        WorkOrder o = new WorkOrder();
+        o.id = "o1";
+        o.status = "PROCESSING";
+        o.assistantPlatformId = "P-Assist";
+        o.assistantSignatureFileId = "file-a";
+        o.assistantSignatureAt = com.cqwlw.maintenance.util.TimeUtil.now();
+        when(orders.selectById("o1")).thenReturn(o);
+        Employee me = new Employee();
+        me.id = "e1";
+        me.platformId = "P-Assist";
+        when(employees.selectById("e1")).thenReturn(me);
+
+        svc.signatureRefuse("o1", "e1");
+
+        assertNull(o.assistantSignatureFileId);
+        assertNull(o.assistantSignatureAt);
+        org.mockito.ArgumentCaptor<com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper<WorkOrder>>
+                captor = org.mockito.ArgumentCaptor.forClass(
+                        (Class) com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper.class);
+        verify(orders).update(any(), captor.capture());
+        assertTrue(captor.getValue().getSqlSet().contains("assistant_signature_file_id"));
+        assertTrue(captor.getValue().getSqlSet().contains("assistant_signature_at"));
+        verify(orders, never()).updateById(any(WorkOrder.class));
+    }
+
+    @Test
+    void signatureRefuseRejectsConcurrentReassignment() {
+        WorkOrder o = new WorkOrder();
+        o.id = "o1";
+        o.status = "PROCESSING";
+        o.assistantPlatformId = "P-Assist";
+        o.assistantSignatureFileId = "file-a";
+        when(orders.selectById("o1")).thenReturn(o);
+        Employee me = new Employee();
+        me.id = "e1";
+        me.platformId = "P-Assist";
+        when(employees.selectById("e1")).thenReturn(me);
+        when(orders.update(any(), any())).thenReturn(0);
+
+        BizException e = assertThrows(BizException.class, () -> svc.signatureRefuse("o1", "e1"));
+
+        assertEquals(1003, e.getCode());
+        assertEquals("file-a", o.assistantSignatureFileId);
+        verify(orders, never()).clearAssistantSignature(any());
+    }
+
+    @Test
     void refuseByTokenRequiresReason() {
         record("PENDING_CLIENT_SIGNATURE");
         BizException ex = assertThrows(BizException.class,
@@ -218,6 +286,7 @@ class RecordLifecycleTest {
     @Test
     void refuseByTokenTransitions() {
         MaintainRecord r = record("PENDING_CLIENT_SIGNATURE");
+        r.workOrderId = null;
         svc.refuseByToken("r1", "sg-token", "照片不清晰");
         assertEquals("REFUSED_RETURNED", r.lifecycleStatus);
         assertEquals("照片不清晰", r.refuseReason);

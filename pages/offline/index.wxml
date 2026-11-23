@@ -14,6 +14,17 @@
       <button class="btn btn-ghost btn-xs" bindtap="onDemoEnqueue">模拟写入</button>
     </view>
 
+    <block wx:if="{{orphanList.length}}">
+      <view class="panel-title">无归属旧任务（不会自动补传）</view>
+      <view wx:for="{{orphanList}}" wx:key="id" class="card row between">
+        <view class="grow">
+          <view class="fs22 w6">{{item.desc || item.url || item.id}}</view>
+          <view class="fs20 dim mt2">{{item.createdAtText || '升级前入队'}}</view>
+        </view>
+        <button class="btn btn-ghost btn-xs" data-id="{{item.id}}" bindtap="onDeleteOrphan">删除</button>
+      </view>
+    </block>
+
     <view class="panel-title">本地缓存工单</view>
     <block wx:if="{{cacheList.length}}">
       <view wx:for="{{cacheList}}" wx:key="id" class="card row between">

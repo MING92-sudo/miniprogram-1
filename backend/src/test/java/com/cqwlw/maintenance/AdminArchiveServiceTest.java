@@ -17,6 +17,13 @@ import com.cqwlw.maintenance.service.PlatformClient;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.springframework.aop.framework.ProxyFactory;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.TransactionStatus;
+import org.springframework.transaction.annotation.AnnotationTransactionAttributeSource;
+import org.springframework.transaction.interceptor.TransactionInterceptor;
+import org.springframework.transaction.support.SimpleTransactionStatus;
 
 import java.util.List;
 import java.util.Map;
@@ -83,6 +90,58 @@ class AdminArchiveServiceTest {
                 employeeMapper, mock(com.cqwlw.maintenance.mapper.SysUserRoleMapper.class), elevatorMapper,
                 new PhoneMutexService(companyMapper, useUnitMapper, employeeMapper),
                 mock(WorkOrderMapper.class), platformClient, sysOrgMapper, auditLogService);
+    }
+
+    @Test
+    void disableAndResetInvalidateExistingSessions() {
+        Employee disabled = new Employee();
+        disabled.id = "emp_disable";
+        Employee reset = new Employee();
+        reset.id = "emp_reset";
+        when(employeeMapper.selectById("emp_disable")).thenReturn(disabled);
+        when(employeeMapper.selectById("emp_reset")).thenReturn(reset);
+
+        service.setEmployeeEnabled("emp_disable", false);
+        service.resetEmployeePassword("emp_reset", "newpass123");
+
+        org.junit.jupiter.api.Assertions.assertAll(
+                () -> verify(employeeMapper).bumpScopeVersion("emp_disable"),
+                () -> verify(employeeMapper).bumpScopeVersion("emp_reset"));
+    }
+
+    private AdminArchiveService transactionalProxy(PlatformTransactionManager transactionManager) {
+        ProxyFactory factory = new ProxyFactory(service);
+        factory.setProxyTargetClass(true);
+        factory.addAdvice(new TransactionInterceptor(
+                transactionManager, new AnnotationTransactionAttributeSource()));
+        return (AdminArchiveService) factory.getProxy();
+    }
+
+    @Test
+    void employeeUpdatesRollbackWhenScopeVersionBumpFails() {
+        Employee disabled = new Employee();
+        disabled.id = "emp_disable_tx";
+        Employee reset = new Employee();
+        reset.id = "emp_reset_tx";
+        when(employeeMapper.selectById("emp_disable_tx")).thenReturn(disabled);
+        when(employeeMapper.selectById("emp_reset_tx")).thenReturn(reset);
+        when(employeeMapper.bumpScopeVersion(anyString()))
+                .thenThrow(new IllegalStateException("scope write failed"));
+        PlatformTransactionManager transactionManager = mock(PlatformTransactionManager.class);
+        when(transactionManager.getTransaction(any(TransactionDefinition.class)))
+                .thenAnswer(invocation -> new SimpleTransactionStatus());
+        AdminArchiveService proxy = transactionalProxy(transactionManager);
+
+        org.junit.jupiter.api.Assertions.assertAll(
+                () -> assertThrows(IllegalStateException.class,
+                        () -> proxy.setEmployeeEnabled("emp_disable_tx", false)),
+                () -> assertThrows(IllegalStateException.class,
+                        () -> proxy.resetEmployeePassword("emp_reset_tx", "newpass123")));
+
+        verify(employeeMapper).updateById(disabled);
+        verify(employeeMapper).updateById(reset);
+        verify(transactionManager, times(2)).rollback(any(TransactionStatus.class));
+        verify(transactionManager, never()).commit(any(TransactionStatus.class));
     }
 
     @Test

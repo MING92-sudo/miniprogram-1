@@ -6,6 +6,7 @@ import com.cqwlw.maintenance.entity.MaintainRecord;
 import com.cqwlw.maintenance.mapper.ElevatorMapper;
 import com.cqwlw.maintenance.mapper.MaintainRecordMapper;
 import com.cqwlw.maintenance.util.JsonUtil;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -32,6 +33,13 @@ class UnitRecordServiceTest {
     private ElevatorMapper elevatorMapper;
     private WorkOrderService workOrderService;
     private UnitRecordService service;
+
+    @BeforeAll
+    static void initTableInfo() {
+        com.baomidou.mybatisplus.core.metadata.TableInfoHelper.initTableInfo(
+                new org.apache.ibatis.builder.MapperBuilderAssistant(
+                        new com.baomidou.mybatisplus.core.MybatisConfiguration(), ""), MaintainRecord.class);
+    }
 
     @BeforeEach
     void setUp() {
@@ -237,6 +245,76 @@ class UnitRecordServiceTest {
         return r;
     }
 
+
+    @Test
+    void externalSignatureUrlRejectedBeforeArchive() {
+        MaintainRecord r = signable();
+        when(recordMapper.selectById("ur_1")).thenReturn(r);
+        RecordLifecycleService lifecycle = mock(RecordLifecycleService.class);
+        service.setRecordLifecycleService(lifecycle);
+
+        BizException ex = assertThrows(BizException.class, () -> service.confirmByToken("ur_1", "sg-1",
+                Map.of("signatureUrl", "http://127.0.0.1:8080/health")));
+
+        assertEquals(422, ex.getCode());
+        verify(recordMapper, never()).update(any(), any());
+        verify(lifecycle, never()).onClientSigned(any());
+    }
+
+    @Test
+    void archiveFailureLeavesRetryableSignedState() {
+        MaintainRecord stored = signable();
+        RecordPdfService pdf = mock(RecordPdfService.class);
+        RecordLifecycleService lifecycle = new RecordLifecycleService(recordMapper, mock(com.cqwlw.maintenance.mapper.WorkOrderMapper.class),
+                mock(com.cqwlw.maintenance.mapper.EmployeeMapper.class), elevatorMapper,
+                mock(com.cqwlw.maintenance.mapper.UseUnitMapper.class), pdf, fileStorage,
+                mock(com.cqwlw.maintenance.mapper.SysConfigMapper.class));
+        service.setRecordLifecycleService(lifecycle);
+        when(recordMapper.selectById("ur_1")).thenAnswer(inv -> copyRecord(stored));
+        when(recordMapper.selectCount(any())).thenReturn(0L);
+        when(recordMapper.update(any(), any())).thenAnswer(inv -> {
+            com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper<MaintainRecord> update =
+                    inv.getArgument(1);
+            String sqlSet = update.getSqlSet();
+            if (sqlSet.contains("confirm_status")) {
+                stored.confirmStatus = "CONFIRMED";
+            }
+            if (sqlSet.contains("lifecycle_status")) {
+                stored.lifecycleStatus = sqlSet.contains("archive_file_id") ? "ARCHIVED" : "SIGNED";
+            }
+            return 1;
+        });
+        when(pdf.render(any(), any(), any()))
+                .thenThrow(new IllegalStateException("PDF 生成失败"))
+                .thenReturn(new byte[]{1});
+        com.cqwlw.maintenance.entity.AppFile archived = new com.cqwlw.maintenance.entity.AppFile();
+        archived.id = "file_archive";
+        when(fileStorage.storeBytes(any(), any(), any(), any())).thenReturn(archived);
+        when(fileStorage.urlOf("file_archive")).thenReturn("https://x/files/file_archive?s=fresh");
+
+        assertThrows(IllegalStateException.class, () -> service.confirmByToken("ur_1", "sg-1",
+                Map.of("signatureFileId", "file_client")));
+
+        assertEquals("CONFIRMED", stored.confirmStatus);
+        assertEquals("SIGNED", stored.lifecycleStatus);
+        Map<String, Object> out = lifecycle.archiveView("ur_1");
+        assertEquals("ARCHIVED", stored.lifecycleStatus);
+        assertEquals("https://x/files/file_archive?s=fresh", out.get("url"));
+    }
+
+    private static MaintainRecord copyRecord(MaintainRecord source) {
+        MaintainRecord copy = new MaintainRecord();
+        copy.id = source.id;
+        copy.shareToken = source.shareToken;
+        copy.confirmStatus = source.confirmStatus;
+        copy.lifecycleStatus = source.lifecycleStatus;
+        copy.signatureFileId = source.signatureFileId;
+        copy.signatureUrl = source.signatureUrl;
+        copy.archiveFileId = source.archiveFileId;
+        copy.archiveHash = source.archiveHash;
+        copy.archivedAt = source.archivedAt;
+        return copy;
+    }
 
     private static MaintainRecord signable() {
         MaintainRecord r = record();

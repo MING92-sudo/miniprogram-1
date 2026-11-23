@@ -1,7 +1,12 @@
 package com.cqwlw.maintenance;
 
 import com.cqwlw.maintenance.common.BizException;
+import com.cqwlw.maintenance.entity.Employee;
+import com.cqwlw.maintenance.entity.HandoverCheck;
+import com.cqwlw.maintenance.entity.HandoverCheckItem;
 import com.cqwlw.maintenance.entity.HandoverOrder;
+import com.cqwlw.maintenance.entity.HandoverSign;
+import com.cqwlw.maintenance.entity.WorkOrder;
 import com.cqwlw.maintenance.mapper.ElevatorMapper;
 import com.cqwlw.maintenance.mapper.EmployeeMapper;
 import com.cqwlw.maintenance.mapper.HandoverCheckItemMapper;
@@ -11,16 +16,21 @@ import com.cqwlw.maintenance.mapper.HandoverRectificationMapper;
 import com.cqwlw.maintenance.mapper.HandoverSignMapper;
 import com.cqwlw.maintenance.mapper.WorkOrderMapper;
 import com.cqwlw.maintenance.service.DispatchService;
+import com.cqwlw.maintenance.service.HandoverChecklistTemplate;
 import com.cqwlw.maintenance.service.HandoverService;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /** 移交单状态机：3 必传资料卡点、安全装置/制动器不合格强制整改、复验通过回待确认。 */
@@ -128,28 +138,94 @@ class HandoverServiceTest {
         assertEquals("DOC_SUBMITTING", created.status, "资料不全不得进入查验中");
     }
 
-    /** 安全装置不合格 → 强制转 RECTIFYING */
     @Test
-    void inspectForceRectifyOnSafetyFail() {
+    void confirmRequiresCompleteChecklistAndApprovedSigns() {
+        assertConfirmRejected(confirmFixture(false, List.of()));
+        assertConfirmRejected(confirmFixture(true, List.of()));
+        List<HandoverSign> rejected = new ArrayList<>(approvedSigns());
+        rejected.add(sign("SITE_INSPECT", "REJECT"));
+        assertConfirmRejected(confirmFixture(true, rejected));
+
+        ConfirmFixture valid = confirmFixture(true, approvedSigns());
+        HandoverOrder archived = valid.service.confirm(valid.order.id, Map.of(), "emp_mgr");
+        assertEquals("ARCHIVED", archived.status);
+        assertEquals("emp_mgr", archived.confirmedById);
+        verify(valid.elevatorMapper).insert(any(com.cqwlw.maintenance.entity.Elevator.class));
+    }
+
+    private static void assertConfirmRejected(ConfirmFixture fixture) {
+        BizException error = assertThrows(BizException.class,
+                () -> fixture.service.confirm(fixture.order.id, Map.of(), "emp_mgr"));
+        assertEquals(422, error.getCode());
+        assertEquals("PENDING_CONFIRM", fixture.order.status);
+        assertNull(fixture.order.confirmedById);
+        verify(fixture.orderMapper, never()).updateById(any(HandoverOrder.class));
+        verify(fixture.elevatorMapper, never()).insert(any(com.cqwlw.maintenance.entity.Elevator.class));
+        verify(fixture.workOrderMapper, never()).insert(any(WorkOrder.class));
+    }
+
+    private static ConfirmFixture confirmFixture(boolean completeChecklist, List<HandoverSign> signs) {
         HandoverOrderMapper orderMapper = mock(HandoverOrderMapper.class);
+        HandoverCheckMapper checkMapper = mock(HandoverCheckMapper.class);
+        HandoverCheckItemMapper itemMapper = mock(HandoverCheckItemMapper.class);
+        HandoverRectificationMapper rectMapper = mock(HandoverRectificationMapper.class);
+        HandoverSignMapper signMapper = mock(HandoverSignMapper.class);
+        ElevatorMapper elevatorMapper = mock(ElevatorMapper.class);
         EmployeeMapper employeeMapper = mock(EmployeeMapper.class);
-        com.cqwlw.maintenance.entity.Employee reviewer = new com.cqwlw.maintenance.entity.Employee();
-        reviewer.id = "im"; reviewer.name = "安装主管"; reviewer.role = "INST_MGR";
-        when(employeeMapper.selectById("im")).thenReturn(reviewer);
-        HandoverService svc = new HandoverService(orderMapper, mock(HandoverCheckMapper.class),
-                mock(HandoverCheckItemMapper.class), mock(HandoverRectificationMapper.class),
-                mock(HandoverSignMapper.class), mock(ElevatorMapper.class), employeeMapper,
-                mock(WorkOrderMapper.class), mock(DispatchService.class), mock(com.cqwlw.maintenance.service.HandoverArchiveSupport.class));
+        WorkOrderMapper workOrderMapper = mock(WorkOrderMapper.class);
+        HandoverOrder order = new HandoverOrder();
+        order.id = "ho_confirm";
+        order.status = "PENDING_CONFIRM";
+        order.projectName = "渝北区某项目";
+        order.elevatorCode = "130421";
+        order.regCode = "REG-2026-001";
+        order.deviceCode = "DEV-2026-001";
+        order.insideNumber = "KT-01";
+        order.factoryNumber = "SGL-2026-001";
+        when(orderMapper.selectById(order.id)).thenReturn(order);
+        Employee manager = new Employee();
+        manager.id = "emp_mgr";
+        manager.name = "王经理";
+        when(employeeMapper.selectById(manager.id)).thenReturn(manager);
+        if (completeChecklist) {
+            HandoverCheck check = new HandoverCheck();
+            check.id = "hc_complete";
+            check.handoverId = order.id;
+            check.snapshotJson = "{\"conclusion\":\"QUALIFIED\"}";
+            when(checkMapper.selectList(any())).thenReturn(List.of(check));
+            List<HandoverCheckItem> items = new ArrayList<>();
+            for (HandoverChecklistTemplate.Item template : HandoverChecklistTemplate.items()) {
+                HandoverCheckItem item = new HandoverCheckItem();
+                item.id = "hi_" + template.no();
+                item.checkId = check.id;
+                item.itemNo = template.no();
+                item.itemGroup = template.group();
+                item.result = "PASS";
+                items.add(item);
+            }
+            when(itemMapper.selectList(any())).thenReturn(items);
+        }
+        when(signMapper.selectList(any())).thenReturn(signs);
+        HandoverService service = new HandoverService(orderMapper, checkMapper, itemMapper, rectMapper, signMapper,
+                elevatorMapper, employeeMapper, workOrderMapper, mock(DispatchService.class),
+                mock(com.cqwlw.maintenance.service.HandoverArchiveSupport.class));
+        return new ConfirmFixture(service, order, orderMapper, elevatorMapper, workOrderMapper);
+    }
 
-        HandoverOrder created = svc.init(draft("渝北区某项目"));
-        when(orderMapper.selectById(created.id)).thenReturn(created);
-        svc.review(created.id, Map.of("action", "APPROVE"), "im");
+    private static List<HandoverSign> approvedSigns() {
+        return List.of(sign("INSTALLER_HANDOVER", "APPROVE"), sign("MAINTENANCE_ASSIGN", "APPROVE"),
+                sign("SITE_INSPECT", "APPROVE"), sign("MAINTENANCE_CONFIRM", "APPROVE"));
+    }
 
-        svc.submitInspect(created.id, Map.of(
-                "checkerId", "c1", "checkerName", "王五",
-                "items", List.of(Map.of("itemType", "SAFETY_DEVICE", "result", "FAIL"))));
+    private static HandoverSign sign(String node, String action) {
+        HandoverSign sign = new HandoverSign();
+        sign.nodeType = node;
+        sign.action = action;
+        return sign;
+    }
 
-        assertEquals("RECTIFYING", created.status, "安全装置不合格应强制整改");
+    private record ConfirmFixture(HandoverService service, HandoverOrder order, HandoverOrderMapper orderMapper,
+                                  ElevatorMapper elevatorMapper, WorkOrderMapper workOrderMapper) {
     }
 
     /** 整改 → 复验通过 → 回 PENDING_CONFIRM */
@@ -165,13 +241,10 @@ class HandoverServiceTest {
                 mock(HandoverSignMapper.class), mock(ElevatorMapper.class), employeeMapper,
                 mock(WorkOrderMapper.class), mock(DispatchService.class), mock(com.cqwlw.maintenance.service.HandoverArchiveSupport.class));
 
-        HandoverOrder created = svc.init(draft("渝北区某项目"));
+        HandoverOrder created = new HandoverOrder();
+        created.id = "ho_recheck";
+        created.status = "RECTIFYING";
         when(orderMapper.selectById(created.id)).thenReturn(created);
-        svc.review(created.id, Map.of("action", "APPROVE"), "im"); // C-13 审核通过
-        svc.submitInspect(created.id, Map.of(
-                "checkerId", "c1", "checkerName", "王五",
-                "items", List.of(Map.of("itemType", "SAFETY_DEVICE", "result", "FAIL"))));
-        assertEquals("RECTIFYING", created.status);
 
         svc.submitRectify(created.id, Map.of("rectifications", List.of(Map.of(
                 "itemType", "SAFETY_DEVICE",

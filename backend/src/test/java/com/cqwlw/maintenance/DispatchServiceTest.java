@@ -25,14 +25,19 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -224,6 +229,7 @@ class DispatchServiceTest {
         el.workerPlatformId = null;
         el.regionId = "rg_9";
         when(elevatorMapper.selectById("el_manual")).thenReturn(el);
+        when(elevatorMapper.selectOne(any())).thenReturn(el);
 
         WorkOrder o = service.dispatchNow("el_manual");
         assertEquals("PENDING", o.status);
@@ -235,6 +241,34 @@ class DispatchServiceTest {
         assertEquals(Boolean.FALSE, o.autoDispatched);
         assertEquals(Boolean.TRUE, o.duoRequired, "所有派单入口创建的新单都必须双人");
         verify(orderMapper, times(1)).insert(any(WorkOrder.class));
+    }
+
+    @Test
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    void dispatchNowLocksElevatorBeforeActiveCheck() throws Exception {
+        Elevator initial = dueElevator("el_manual_lock");
+        Elevator locked = dueElevator("el_manual_lock");
+        locked.regionId = "rg_locked";
+        when(elevatorMapper.selectById("el_manual_lock")).thenReturn(initial);
+        when(elevatorMapper.selectOne(any())).thenReturn(locked);
+
+        WorkOrder created = service.dispatchNow("el_manual_lock");
+
+        InOrder inOrder = inOrder(elevatorMapper, orderMapper);
+        inOrder.verify(elevatorMapper).selectById("el_manual_lock");
+        ArgumentCaptor<LambdaQueryWrapper> lockQuery = ArgumentCaptor.forClass(LambdaQueryWrapper.class);
+        inOrder.verify(elevatorMapper).selectOne(lockQuery.capture());
+        assertTrue(lockQuery.getValue().getSqlSegment().toUpperCase().contains("FOR UPDATE"));
+        ArgumentCaptor<LambdaQueryWrapper> countQueries = ArgumentCaptor.forClass(LambdaQueryWrapper.class);
+        inOrder.verify(orderMapper, times(2)).selectCount(countQueries.capture());
+        assertTrue(countQueries.getAllValues().get(0).getSqlSegment().toUpperCase().contains("FOR UPDATE"),
+                "锁内在途检查必须执行当前读，不能复用锁前快照");
+        inOrder.verify(orderMapper).insert(any(WorkOrder.class));
+        assertEquals("rg_locked", created.regionId, "手动派单必须使用行锁内重读的电梯快照");
+        Transactional transactional = DispatchService.class
+                .getMethod("dispatchNow", String.class).getAnnotation(Transactional.class);
+        assertNotNull(transactional, "dispatchNow 必须经 Spring 事务代理持有行锁至提交");
+        assertEquals(Exception.class, transactional.rollbackFor()[0]);
     }
 
     @Test
@@ -307,5 +341,17 @@ class DispatchServiceTest {
         verify(elevatorMapper).selectOne(captor.capture());
         assertTrue(captor.getValue().getSqlSegment().toUpperCase().contains("FOR UPDATE"),
                 "派单创建前必须对电梯行加锁，否则并发跑批会为同一台电梯重复派单");
+        ArgumentCaptor<LambdaQueryWrapper> countQueries = ArgumentCaptor.forClass(LambdaQueryWrapper.class);
+        verify(orderMapper, times(3)).selectCount(countQueries.capture());
+        assertTrue(countQueries.getAllValues().get(1).getSqlSegment().toUpperCase().contains("FOR UPDATE"),
+                "锁内复查不得命中 maybeDue 的 MyBatis 一级缓存");
+        ArgumentCaptor<LambdaQueryWrapper> maintenanceQueries = ArgumentCaptor.forClass(LambdaQueryWrapper.class);
+        verify(orderMapper, times(6)).selectList(maintenanceQueries.capture());
+        assertFalse(maintenanceQueries.getAllValues().get(0).getSqlSegment().toUpperCase().contains("FOR UPDATE"),
+                "锁前快速周期判断保持普通一致性读");
+        for (int i = 1; i < maintenanceQueries.getAllValues().size(); i++) {
+            assertTrue(maintenanceQueries.getAllValues().get(i).getSqlSegment().toUpperCase().contains("FOR UPDATE"),
+                    "锁内最近/首次/分周期维保基线都必须使用当前读");
+        }
     }
 }

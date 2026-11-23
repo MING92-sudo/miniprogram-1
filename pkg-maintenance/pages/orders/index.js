@@ -84,21 +84,33 @@ definePage(ROUTES['/pkg-maintenance/pages/orders/index'], {
   onPullDownRefresh() { this.fetchList(true).then(() => wx.stopPullDownRefresh()) },
   onReachBottom() { if (this.data.list.length < this.data.total) this.fetchList(false) },
   fetchList(reset) {
-    const page = reset ? 1 : this.data.page + 1
+    this._requestSeq = (this._requestSeq || 0) + 1
+    const seq = this._requestSeq
+    const query = {
+      page: reset ? 1 : this.data.page + 1,
+      size: this.data.size,
+      keyword: this.data.keyword,
+      status: this.data.status,
+      due: this._due || ''
+    }
     this.setData({ loading: reset, error: '' })
-    return getOrderList({ page, size: this.data.size, keyword: this.data.keyword, status: this.data.status, due: this._due || '' })
+    return getOrderList(query)
       .then((data) => {
+        if (seq !== this._requestSeq) return
         const list = ((data && data.list) || []).map(enrich)
         const merged = reset ? list : this.data.list.concat(list)
         this.setData({
           list: merged,
           poolList: merged.filter(isPoolOrder),
           mineList: merged.filter((o) => !isPoolOrder(o)),
-          total: (data && data.total) || 0, page, loading: false,
-          emptyMode: this.data.keyword || this.data.status || this._due ? 'filtered' : 'empty'
+          total: (data && data.total) || 0, page: query.page, loading: false,
+          emptyMode: query.keyword || query.status || query.due ? 'filtered' : 'empty'
         })
       })
-      .catch((e) => this.setData({ loading: false, error: (e && e.message) || TOAST_TEXT.LOAD_FAILED }))
+      .catch((e) => {
+        if (seq !== this._requestSeq) return
+        this.setData({ loading: false, error: (e && e.message) || TOAST_TEXT.LOAD_FAILED })
+      })
   },
   onRetry() { this.fetchList(true) },
   onTabChange(e) {

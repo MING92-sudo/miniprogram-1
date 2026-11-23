@@ -90,6 +90,9 @@ public class AuthInterceptor implements HandlerInterceptor {
         if (user == null) {
             throw new BizException(401, "登录已过期，请重新登录");
         }
+        if (Boolean.FALSE.equals(user.enabled)) {
+            throw new BizException(401, "账号已停用，请重新登录");
+        }
         String current = "admin".equals(client) ? user.sessionAdmin : user.sessionId;
         if (sid == null || !sid.equals(current)) {
             throw new BizException(401, "账号已在其他设备登录，请重新登录");

@@ -1,5 +1,6 @@
 package com.cqwlw.maintenance.service;
 
+import com.cqwlw.maintenance.config.AppProperties;
 import com.cqwlw.maintenance.entity.AppFile;
 import com.cqwlw.maintenance.entity.Company;
 import com.cqwlw.maintenance.entity.Elevator;
@@ -30,14 +31,21 @@ import com.lowagie.text.pdf.PdfWriter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.net.HttpURLConnection;
+import java.net.InetAddress;
+import java.net.URI;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 @Service
@@ -59,16 +67,37 @@ public class RecordPdfService {
     private final FileStorageService fileStorage;
     private final CompanyMapper companyMapper;
 
+    @Autowired
+    private AppProperties props;
+
     /** 可选依赖：签字回退按来源工单解析（record.work_order_id 为空的旧数据自动跳过） */
     @Autowired(required = false)
     private WorkOrderMapper workOrderMapper;
 
     public RecordPdfService(RestTemplate restTemplate, AppFileMapper fileMapper,
                             FileStorageService fileStorage, CompanyMapper companyMapper) {
-        this.restTemplate = restTemplate;
+        this.restTemplate = noRedirectRestTemplate(restTemplate);
         this.fileMapper = fileMapper;
         this.fileStorage = fileStorage;
         this.companyMapper = companyMapper;
+    }
+
+    private static RestTemplate noRedirectRestTemplate(RestTemplate source) {
+        if (!(source.getRequestFactory() instanceof SimpleClientHttpRequestFactory)) {
+            return null;
+        }
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory() {
+            @Override
+            protected void prepareConnection(HttpURLConnection connection, String httpMethod) throws IOException {
+                super.prepareConnection(connection, httpMethod);
+                connection.setInstanceFollowRedirects(false);
+            }
+        };
+        factory.setConnectTimeout(3000);
+        factory.setReadTimeout(30000);
+        RestTemplate client = new RestTemplate(factory);
+        client.setErrorHandler(source.getErrorHandler());
+        return client;
     }
 
     // ─────────────────────────── 表单 1：维保记录 ───────────────────────────
@@ -739,7 +768,7 @@ public class RecordPdfService {
         return resolved;
     }
 
-    /** 照片/签字按 URL 拉取；本机 /files/{id} 回退查 AppFile 本地路径；失败返回 null（占位文字） */
+    /** 照片/签字仅读本系统文件或配置 COS；其他地址与重定向均按加载失败处理。 */
     protected byte[] loadImage(String url) {
         if (url == null || url.isBlank()) {
             return null;
@@ -751,7 +780,14 @@ public class RecordPdfService {
                 if (sharedId != null) {
                     return readStoredFile(sharedId);
                 }
-                byte[] remote = restTemplate.getForObject(url, byte[].class);
+                if (restTemplate == null || !allowedCosUrl(url)) {
+                    return null;
+                }
+                ResponseEntity<byte[]> response = restTemplate.getForEntity(url, byte[].class);
+                if (!response.getStatusCode().is2xxSuccessful()) {
+                    return null;
+                }
+                byte[] remote = response.getBody();
                 if (remote != null) {
                     return remote;
                 }
@@ -767,9 +803,42 @@ public class RecordPdfService {
                 return readStoredFile(relativeId);
             }
         } catch (Exception e) {
-            log.warn("PDF 图片拉取失败（占位处理）: url={}, {}", mask(url), e.getMessage());
+            log.warn("PDF 图片拉取失败（占位处理）: url={}, {}", mask(url), e.getClass().getSimpleName());
         }
         return null;
+    }
+
+    private boolean allowedCosUrl(String url) {
+        if (props == null || !props.cosConfigured()) {
+            return false;
+        }
+        try {
+            URI uri = URI.create(url);
+            String host = uri.getHost();
+            if (!"https".equals(uri.getScheme()) || host == null || uri.getUserInfo() != null
+                    || (uri.getPort() != -1 && uri.getPort() != 443)) {
+                return false;
+            }
+            String cosHost = (props.getCosBucket() + ".cos." + props.getCosRegion() + ".myqcloud.com")
+                    .toLowerCase(Locale.ROOT);
+            return cosHost.equals(host.toLowerCase(Locale.ROOT)) && publicIpLiteral(host);
+        } catch (IllegalArgumentException e) {
+            return false;
+        }
+    }
+
+    private static boolean publicIpLiteral(String host) {
+        if (!host.matches("[0-9.]+") && !host.contains(":")) {
+            return true;
+        }
+        try {
+            InetAddress address = InetAddress.getByName(host);
+            return !address.isAnyLocalAddress() && !address.isLoopbackAddress()
+                    && !address.isLinkLocalAddress() && !address.isSiteLocalAddress()
+                    && !address.isMulticastAddress();
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     private byte[] readStoredFile(String fileId) {

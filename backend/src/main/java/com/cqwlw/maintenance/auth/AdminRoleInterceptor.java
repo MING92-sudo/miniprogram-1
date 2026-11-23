@@ -12,9 +12,6 @@ import org.springframework.web.servlet.HandlerInterceptor;
 @Component
 public class AdminRoleInterceptor implements HandlerInterceptor {
 
-    private static final java.util.regex.Pattern LEADER_WRITABLE =
-            java.util.regex.Pattern.compile("^/admin/plans/[^/]+/delay$");
-
     /** 维保人员现场可写的电梯端点（归属校验在 ElevatorService，仅本人负责的电梯，越权 1403） */
     private static final java.util.regex.Pattern WORKER_WRITABLE_ELEVATOR =
             java.util.regex.Pattern.compile("^/elevators/[^/]+/(project-name|local)$");
@@ -43,8 +40,6 @@ public class AdminRoleInterceptor implements HandlerInterceptor {
                 return true;
             }
             allowed = PermissionMatrix.allows(role, required); // docs/14 §9.3：端点按能力码授权
-        } else if (write && LEADER_WRITABLE.matcher(path).matches()) {
-            allowed = PermissionMatrix.allows(role, PermissionMatrix.PLAN_WRITE); // 班组长及以上（本组范围由 DeptScopeService 收敛）
         } else if (write) {
             allowed = PermissionMatrix.allows(role, PermissionMatrix.CONSOLE_WRITE);
         } else {

@@ -155,8 +155,8 @@ const orgMap = ref({})
 const cols = [
   { key: 'projectNo', label: '项目编号', sortable: true },
   { key: 'name', label: '项目名', sortable: true },
-  { key: 'useUnit', label: '使用单位' },
-  { key: 'maint', label: '维保项目部' },
+  { key: 'useUnit', label: '使用单位', value: (r) => r.useUnitName || '—' },
+  { key: 'maint', label: '维保项目部', value: (r) => r.maintOrgName || '—' },
   { key: 'count', label: '台量', cls: 'num', sortable: true },
   { key: 'contract', label: '合同号' },
   { key: 'status', label: '状态', sortable: true },

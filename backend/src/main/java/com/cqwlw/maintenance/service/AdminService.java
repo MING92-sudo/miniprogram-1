@@ -171,7 +171,18 @@ public class AdminService {
                     .or().in(MaintainRecord::getAssistantPlatformId, visiblePlatformIds));
         }
         if (notBlank(q.get("reportStatus"))) {
-            w.eq(MaintainRecord::getReportStatus, q.get("reportStatus"));
+            List<String> statuses = new ArrayList<>();
+            for (String part : q.get("reportStatus").split(",")) {
+                String s = part.trim();
+                if (!s.isEmpty() && !statuses.contains(s)) {
+                    statuses.add(s);
+                }
+            }
+            if (statuses.size() == 1) {
+                w.eq(MaintainRecord::getReportStatus, statuses.get(0));
+            } else if (!statuses.isEmpty()) {
+                w.in(MaintainRecord::getReportStatus, statuses);
+            }
         }
         if (notBlank(q.get("confirmStatus"))) {
             w.eq(MaintainRecord::getConfirmStatus, q.get("confirmStatus"));

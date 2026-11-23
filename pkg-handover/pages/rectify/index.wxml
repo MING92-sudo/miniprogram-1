@@ -26,19 +26,21 @@
           <view class="fs18 dim mt4">维保现场验收发现 · {{item.itemType}}{{item.failDesc ? ' · ' + item.failDesc : ''}}</view>
         </view>
 
-        <view class="hr-sec-head"><text class="panel-title mono">REPLY / 整改说明</text><text class="fs18 dim">必填</text></view>
-        <textarea class="hr-textarea" value="{{item.rectMeasure}}" data-idx="{{item.idx}}" bindinput="onMeasure" placeholder="填写整改措施与复测结果" placeholder-class="hr-ph"></textarea>
+        <block wx:if="{{canRectify && !item.afterPhotoFileId}}">
+          <view class="hr-sec-head"><text class="panel-title mono">REPLY / 整改说明</text><text class="fs18 dim">必填</text></view>
+          <textarea class="hr-textarea" value="{{item.rectMeasure}}" data-idx="{{item.idx}}" bindinput="onMeasure" placeholder="填写整改措施与复测结果" placeholder-class="hr-ph"></textarea>
 
-        <view class="hr-sec-head"><text class="panel-title mono">PHOTO / 整改照片</text><text class="fs18 dim">必填 · 复测留证</text></view>
-        <view class="photo-row">
-          <image wx:for="{{item.photos}}" wx:for-item="p" wx:key="*this" class="thumb" src="{{p}}" mode="aspectFill"></image>
-          <view class="thumb hr-photo-add" data-idx="{{item.idx}}" bindtap="choosePhoto" aria-role="button"><text class="i i-camera"></text></view>
-        </view>
+          <view class="hr-sec-head"><text class="panel-title mono">PHOTO / 整改照片</text><text class="fs18 dim">必填 · 复测留证</text></view>
+          <view class="photo-row">
+            <image wx:for="{{item.photos}}" wx:for-item="p" wx:key="*this" class="thumb" src="{{p}}" mode="aspectFill"></image>
+            <view class="thumb hr-photo-add" data-idx="{{item.idx}}" bindtap="choosePhoto" aria-role="button"><text class="i i-camera"></text></view>
+          </view>
 
-        <button wx:if="{{!item.afterPhotoFileId}}" class="btn btn-primary" data-idx="{{item.idx}}" bindtap="onRectify"><text class="i i-file-circle-check"></text> 提交整改 · 申请复验</button>
-        <view wx:else class="row gap8">
-          <button class="btn btn-ghost btn-sm grow" data-idx="{{item.idx}}" data-result="FAIL" bindtap="onRecheck">复验不通过</button>
-          <button class="btn btn-primary btn-sm grow" data-idx="{{item.idx}}" data-result="PASS" bindtap="onRecheck">复验通过</button>
+          <button class="btn btn-primary" disabled="{{submitting}}" data-idx="{{item.idx}}" bindtap="onRectify"><text class="i i-file-circle-check"></text> 提交整改 · 申请复验</button>
+        </block>
+        <view wx:elif="{{canRecheck && item.afterPhotoFileId}}" class="row gap8">
+          <button class="btn btn-ghost btn-sm grow" disabled="{{submitting}}" data-idx="{{item.idx}}" data-result="FAIL" bindtap="onRecheck">复验不通过</button>
+          <button class="btn btn-primary btn-sm grow" disabled="{{submitting}}" data-idx="{{item.idx}}" data-result="PASS" bindtap="onRecheck">复验通过</button>
         </view>
         <view class="fs18 dim hr-foot-note"><text class="i i-circle-check"></text> 提交后回到「验收中」，待维保主管复验通过后进入双方签字（屏 02）。</view>
       </block>

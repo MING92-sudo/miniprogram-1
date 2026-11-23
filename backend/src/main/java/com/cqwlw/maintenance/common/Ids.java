@@ -1,14 +1,14 @@
 package com.cqwlw.maintenance.common;
 
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.UUID;
 import java.nio.ByteBuffer;
+import java.security.SecureRandom;
 import java.util.Base64;
+import java.util.Locale;
+import java.util.UUID;
 
 public final class Ids {
 
-    /** originalRecordId 同毫秒内序号（保证任意连续 100 个 ID 互不相同） */
-    private static final AtomicInteger RECORD_SEQ = new AtomicInteger();
+    private static final SecureRandom RANDOM = new SecureRandom();
 
     private Ids() {
     }
@@ -23,7 +23,7 @@ public final class Ids {
     }
 
     public static String nextRecordId() {
-        int seq = Math.floorMod(RECORD_SEQ.getAndIncrement(), 100);
-        return "1948" + System.currentTimeMillis() + String.format("%02d", seq);
+        long random = RANDOM.nextLong(1_000_000_000_000_000L);
+        return "1948" + String.format(Locale.ROOT, "%015d", random);
     }
 }

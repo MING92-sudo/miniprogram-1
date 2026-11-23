@@ -85,6 +85,19 @@ class PermissionMatrixV2Test {
     }
 
     @Test
+    void leaderHasNoWriteCapability() {
+        assertEquals("LEADER", RoleCatalog.canonical("LEADER"));
+        assertEquals("MAINT", RoleCatalog.canonicalRole("LEADER").department());
+        for (String code : new String[]{"user:create", "user:disable", "order:dispatch",
+                "record:archive", "record:review", "plan:generate"}) {
+            assertEquals(PermissionMatrix.TriState.DENY, PermissionMatrix.state("LEADER", code), code);
+        }
+        for (String code : new String[]{"project:view", "record:view", "order:view_pool", "stats:view"}) {
+            assertTrue(PermissionMatrix.state("LEADER", code) != PermissionMatrix.TriState.DENY, code);
+        }
+    }
+
+    @Test
     void unknownRoleDeniedUnknownCodeFailsLoudly() {
         assertEquals(PermissionMatrix.TriState.DENY, PermissionMatrix.state("HACKER", "handover:view"));
         assertEquals(PermissionMatrix.TriState.DENY, PermissionMatrix.state(null, "handover:view"));

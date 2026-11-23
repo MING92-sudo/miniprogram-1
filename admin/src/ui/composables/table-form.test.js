@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest'
-import { ref } from 'vue'
+import { ref, nextTick } from 'vue'
 import { useTable } from './useTable'
 import { useForm } from './useForm'
+import { usePagination } from './usePagination'
 
 const rows = ref([
   { id: 1, name: 'alpha', status: 'ACTIVE' },
@@ -36,6 +37,32 @@ describe('useTable', () => {
     expect(t.allSelected.value).toBe(true)
     t.toggleAll()
     expect(t.selected.value.size).toBe(0)
+  })
+  it('pageCount 收缩时 page 收敛到最后一页', async () => {
+    const nine = ref(Array.from({ length: 9 }, (_, i) => ({ id: i + 1, name: 'r' + i, status: 'ACTIVE' })))
+    const t = useTable(nine, { searchKeys: ['name'] })
+    t.pagination.setPage(2)
+    expect(t.pagination.page.value).toBe(2)
+    expect(t.visibleRows.value.length).toBe(1)
+    nine.value = nine.value.slice(0, 8)
+    await nextTick()
+    expect(t.pagination.pageCount.value).toBe(1)
+    expect(t.pagination.page.value).toBe(1)
+    expect(t.visibleRows.value.length).toBe(8)
+  })
+})
+
+describe('usePagination', () => {
+  it('页码不越界，且 pageCount 减小时收敛', async () => {
+    const total = ref(9)
+    const p = usePagination(total, 8)
+    p.setPage(2)
+    expect(p.page.value).toBe(2)
+    total.value = 8
+    await nextTick()
+    expect(p.pageCount.value).toBe(1)
+    expect(p.page.value).toBe(1)
+    expect(p.slice(Array.from({ length: 8 }, (_, i) => i)).length).toBe(8)
   })
 })
 

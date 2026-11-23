@@ -9,31 +9,41 @@ function uuid() {
   })
 }
 
-// 时间格式化 yyyy-MM-dd HH:mm:ss（GMT+8，24小时制）
+const GMT8_OFFSET_MS = 8 * 3600 * 1000
+const DATE_TIME_RE = /^(\d{4})-(\d{2})-(\d{2})(?: (\d{2}):(\d{2})(?::(\d{2}))?)?$/
+
+// 时间格式化 yyyy-MM-dd HH:mm:ss（固定 GMT+8，不随设备时区变化）
 function formatTime(date) {
-  const d = date ? new Date(date) : new Date()
+  let ms
+  if (!date) ms = Date.now()
+  else if (typeof date === 'string' && DATE_TIME_RE.test(date.trim())) ms = parseTime(date)
+  else ms = new Date(date).getTime()
+  if (!isFinite(ms)) return ''
+  const d = new Date(ms + GMT8_OFFSET_MS)
   const pad = function (n) {
     return (n < 10 ? '0' : '') + n
   }
   return (
-    d.getFullYear() +
+    d.getUTCFullYear() +
     '-' +
-    pad(d.getMonth() + 1) +
+    pad(d.getUTCMonth() + 1) +
     '-' +
-    pad(d.getDate()) +
+    pad(d.getUTCDate()) +
     ' ' +
-    pad(d.getHours()) +
+    pad(d.getUTCHours()) +
     ':' +
-    pad(d.getMinutes()) +
+    pad(d.getUTCMinutes()) +
     ':' +
-    pad(d.getSeconds())
+    pad(d.getUTCSeconds())
   )
 }
 
-// 解析 yyyy-MM-dd HH:mm:ss 为时间戳；iOS 不认 '-' 分隔的日期串，统一替换为 '/'
+// 解析 yyyy-MM-dd[ HH:mm[:ss]] 为 GMT+8 时间戳；其他格式（如带偏移的 ISO）交给 Date
 function parseTime(str) {
   if (!str) return 0
-  return new Date(String(str).replace(/-/g, '/')).getTime()
+  const m = DATE_TIME_RE.exec(String(str).trim())
+  if (!m) return new Date(str).getTime()
+  return Date.UTC(+m[1], +m[2] - 1, +m[3], +(m[4] || 0) - 8, +(m[5] || 0), +(m[6] || 0))
 }
 
 function formatDuration(ms) {

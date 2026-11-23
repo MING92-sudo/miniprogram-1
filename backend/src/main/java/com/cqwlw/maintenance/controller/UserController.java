@@ -12,8 +12,10 @@ import com.cqwlw.maintenance.entity.Employee;
 import com.cqwlw.maintenance.entity.SysUserRole;
 import com.cqwlw.maintenance.mapper.EmployeeMapper;
 import com.cqwlw.maintenance.mapper.SysUserRoleMapper;
+import com.cqwlw.maintenance.service.UserLifecycleService;
 import com.cqwlw.maintenance.util.TimeUtil;
 import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -35,10 +37,16 @@ public class UserController {
     private final EmployeeMapper employeeMapper;
     private final SysUserRoleMapper userRoleMapper;
     private final BCryptPasswordEncoder enc = new BCryptPasswordEncoder();
+    private UserLifecycleService userLifecycleService;
 
     public UserController(EmployeeMapper employeeMapper, SysUserRoleMapper userRoleMapper) {
         this.employeeMapper = employeeMapper;
         this.userRoleMapper = userRoleMapper;
+    }
+
+    @Autowired
+    public void setUserLifecycleService(UserLifecycleService userLifecycleService) {
+        this.userLifecycleService = userLifecycleService;
     }
 
     private static String actor(HttpServletRequest req) {
@@ -81,6 +89,7 @@ public class UserController {
         }
         validateSameDepartment(roles);
         requireInternalRoles(roles);
+        requireAssignableRoles(req, roles);
         Employee e = new Employee();
         e.id = Ids.next("emp");
         e.name = name;
@@ -111,10 +120,23 @@ public class UserController {
         if (e == null) {
             throw new BizException(404, "账号不存在");
         }
+        requireManageableTarget(req, e);
         e.enabled = false;
         employeeMapper.updateById(e);
         employeeMapper.bumpScopeVersion(id);
         return ApiResponse.ok(Map.of("ok", true));
+    }
+
+    @PostMapping("/users/{id}/resign")
+    public ApiResponse<Map<String, Object>> resign(@PathVariable String id, @RequestBody Map<String, Object> body,
+                                                   HttpServletRequest req) {
+        MultiRoleGate.requireWrite(req, PermissionMatrix.USER_DISABLE);
+        Employee e = employeeMapper.selectById(id);
+        if (e == null) {
+            throw new BizException(404, "账号不存在");
+        }
+        requireManageableTarget(req, e);
+        return ApiResponse.ok(userLifecycleService.resign(actor(req), id, str(body, "heirId")));
     }
 
     @PostMapping("/users/{id}/roles")
@@ -126,6 +148,7 @@ public class UserController {
         }
         validateSameDepartment(roles);
         requireInternalRoles(roles);
+        requireAssignableRoles(req, roles);
         Employee e = employeeMapper.selectById(id);
         if (e == null) {
             throw new BizException(404, "账号不存在");
@@ -140,6 +163,75 @@ public class UserController {
         employeeMapper.updateById(e);
         employeeMapper.bumpScopeVersion(id);
         return ApiResponse.ok(Map.of("ok", true));
+    }
+
+    private void requireAssignableRoles(HttpServletRequest req, List<String> roles) {
+        Set<String> actorRoles = new LinkedHashSet<>();
+        for (String role : MultiRoleGate.roles(req)) {
+            String canonical = RoleCatalog.canonical(role);
+            if (canonical != null) {
+                actorRoles.add(canonical);
+            }
+        }
+        if (actorRoles.contains("PLATFORM_ADMIN")) {
+            return;
+        }
+        for (String code : roles) {
+            RoleCatalog.Role target = RoleCatalog.canonicalRole(code);
+            boolean allowed = target != null && !"PLATFORM_ADMIN".equals(target.code())
+                    && actorRoles.stream().anyMatch(actor -> canAssign(actor, target));
+            if (!allowed) {
+                throw new BizException(1403, "只能授予本部门且不超出既有授权层级的角色");
+            }
+        }
+    }
+
+    private static boolean canAssign(String actorCode, RoleCatalog.Role target) {
+        RoleCatalog.Role actor = RoleCatalog.canonicalRole(actorCode);
+        if (actor == null || !java.util.Objects.equals(actor.department(), target.department())) {
+            return false;
+        }
+        if (actor.code().equals(target.code())) {
+            return true;
+        }
+        Set<String> visited = new LinkedHashSet<>();
+        String parent = target.parentRole();
+        while (parent != null && visited.add(parent)) {
+            if (actor.code().equals(parent)) {
+                return true;
+            }
+            RoleCatalog.Role parentRole = RoleCatalog.canonicalRole(parent);
+            parent = parentRole == null ? null : parentRole.parentRole();
+        }
+        return false;
+    }
+
+    private void requireManageableTarget(HttpServletRequest req, Employee target) {
+        if (target.id.equals(actor(req))) {
+            throw new BizException(422, "不能停用本人账号");
+        }
+        Set<String> actorRoles = new LinkedHashSet<>();
+        for (String role : MultiRoleGate.roles(req)) {
+            String canonical = RoleCatalog.canonical(role);
+            if (canonical != null) {
+                actorRoles.add(canonical);
+            }
+        }
+        if (actorRoles.contains("PLATFORM_ADMIN")) {
+            return;
+        }
+        Set<String> targetRoles = new LinkedHashSet<>(rolesOf(target.id));
+        targetRoles.add(target.role);
+        boolean platformTarget = targetRoles.stream().anyMatch(RoleCatalog::isPlatformRole);
+        String targetDepartment = target.department == null || target.department.isBlank()
+                ? RoleCatalog.departmentOf(target.role) : target.department;
+        boolean sameDepartment = actorRoles.stream()
+                .map(RoleCatalog::canonicalRole)
+                .filter(java.util.Objects::nonNull)
+                .anyMatch(role -> java.util.Objects.equals(role.department(), targetDepartment));
+        if (platformTarget || !sameDepartment) {
+            throw new BizException(1403, "不能停用平台管理员或跨部门账号");
+        }
     }
 
     private List<String> rolesOf(String userId) {

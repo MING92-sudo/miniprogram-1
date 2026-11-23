@@ -21,7 +21,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -112,6 +114,100 @@ class PlatformReportServiceTest {
         verify(logMapper).insert(captor.capture());
         assertEquals("FAILED", captor.getValue().status);
         assertEquals("UPLOAD", captor.getValue().action);
+    }
+
+    @Test
+    void localFailureAfterSuccessIsOutcomeUnknown() {
+        when(tokenService.configured()).thenReturn(true);
+        when(platformClient.uploadMaintenanceRecord(any())).thenReturn(Map.of("code", 200));
+        when(recordMapper.updateReportProgress(anyString(), eq("REPORTED"), anyInt()))
+                .thenThrow(new RuntimeException("database unavailable"));
+        MaintainRecord r = record("SUBMITTED");
+
+        assertEquals("UNKNOWN", service.attemptUpload(r));
+
+        assertEquals("UNKNOWN", r.reportStatus);
+        verify(recordMapper).updateReportProgress("ur_1", "UNKNOWN", 1);
+        verify(recordMapper, never()).updateReportProgress(anyString(), eq("FAILED"), anyInt());
+        ArgumentCaptor<RegUploadLog> captor = ArgumentCaptor.forClass(RegUploadLog.class);
+        verify(logMapper).insert(captor.capture());
+        assertEquals("UNKNOWN", captor.getValue().status);
+        assertEquals("UPLOAD", captor.getValue().action);
+    }
+
+    @Test
+    void localAuditFailureAfterSuccessIsOutcomeUnknown() {
+        when(tokenService.configured()).thenReturn(true);
+        when(platformClient.uploadMaintenanceRecord(any())).thenReturn(Map.of("code", 200));
+        when(logMapper.insert(any(RegUploadLog.class))).thenThrow(new RuntimeException("log unavailable"));
+        MaintainRecord r = record("SUBMITTED");
+
+        assertEquals("UNKNOWN", service.attemptUpload(r));
+
+        assertEquals("UNKNOWN", r.reportStatus);
+        verify(recordMapper).updateReportProgress("ur_1", "UNKNOWN", 1);
+        verify(recordMapper, never()).updateReportProgress(anyString(), eq("FAILED"), anyInt());
+    }
+
+    @Test
+    void unavailableDatabaseAfterSuccessPreservesStateAndThrowsPendingResult() {
+        when(tokenService.configured()).thenReturn(true);
+        when(platformClient.uploadMaintenanceRecord(any())).thenReturn(Map.of("code", 200));
+        when(recordMapper.updateReportProgress(anyString(), anyString(), anyInt()))
+                .thenThrow(new RuntimeException("database unavailable"));
+        MaintainRecord r = record("SUBMITTED");
+
+        BizException e = assertThrows(BizException.class, () -> service.attemptUpload(r));
+
+        assertTrue(e.getMessage().contains("结果待核对"));
+        assertEquals("SUBMITTED", r.reportStatus);
+        assertEquals(0, r.retryCount);
+        verify(recordMapper, never()).updateReportProgress(anyString(), eq("FAILED"), anyInt());
+    }
+
+    @Test
+    void reuploadLocalFailureAfterSuccessIsOutcomeUnknown() {
+        MaintainRecord r = record("FAILED");
+        when(recordMapper.selectById("ur_1")).thenReturn(r);
+        when(recordMapper.beginReupload("ur_1")).thenReturn(1);
+        when(platformClient.uploadMaintenanceRecord(any())).thenReturn(Map.of("code", 200));
+        when(recordMapper.updateReportProgress(anyString(), eq("REPORTED"), anyInt()))
+                .thenThrow(new RuntimeException("database unavailable"));
+
+        MaintainRecord out = service.reupload("ur_1");
+
+        assertEquals("UNKNOWN", out.reportStatus);
+        verify(recordMapper).updateReportProgress("ur_1", "UNKNOWN", 1);
+        verify(recordMapper, never()).completeReupload(anyString(), anyString());
+    }
+
+    @Test
+    void legacyLocalFailureAfterSuccessIsOutcomeUnknown() {
+        props.setLegacyUploadEnabled(true);
+        when(tokenService.configured()).thenReturn(true);
+        MaintainRecord r = record("SUBMITTED");
+        when(recordMapper.selectList(any())).thenReturn(List.of(r));
+        when(platformClient.uploadLegacyRecord(any(), any(), any())).thenReturn(Map.of("code", 200));
+        when(recordMapper.updateReportProgress(anyString(), eq("REPORTED"), anyInt()))
+                .thenThrow(new RuntimeException("database unavailable"));
+
+        assertEquals(0, service.syncLegacy());
+
+        assertEquals("UNKNOWN", r.reportStatus);
+        verify(recordMapper).updateReportProgress("ur_1", "UNKNOWN", 1);
+        verify(recordMapper, never()).completeLegacyUpload(anyString(), anyString());
+    }
+
+    @Test
+    void unknownOutcomeCannotBeReuploaded() {
+        MaintainRecord unknown = record("UNKNOWN");
+        when(recordMapper.selectById("ur_1")).thenReturn(unknown);
+
+        BizException e = assertThrows(BizException.class, () -> service.reupload("ur_1"));
+
+        assertEquals(1003, e.getCode());
+        verify(recordMapper, never()).beginReupload(anyString());
+        verify(platformClient, never()).uploadMaintenanceRecord(any());
     }
 
     @Test

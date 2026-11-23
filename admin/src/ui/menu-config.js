@@ -1,4 +1,4 @@
-import { state } from './permission-v2'
+import { stateForRoles } from './permission-v2'
 export const MENU_GROUPS = [
   { title: '概览', items: [{ path: '/dashboard', title: '概览工作台', perm: null, icon: 'gauge' }] },
   { title: '电梯管理', items: [
@@ -39,10 +39,11 @@ export const IMPLEMENTED_PATHS = ['/dashboard', '/elevators', '/projects', '/dis
   '/contracts', '/grants', '/regions', '/templates',
   '/order', '/elevator', '/migration-issues', '/msg-templates', '/reviews', '/board']
 
-function visible(i, role) { return i.perm == null || state(role, i.perm) !== 'DENY' }
-export function visibleMenus(role, implementedPaths) {
+function visible(i, roles) { return i.perm == null || stateForRoles(roles, i.perm) !== 'DENY' }
+export function visibleMenus(roleOrRoles, implementedPaths) {
+  const roles = Array.isArray(roleOrRoles) ? roleOrRoles : [roleOrRoles]
   const impl = new Set(implementedPaths)
   return MENU_GROUPS.map(g => ({
-    ...g, items: g.items.filter(i => impl.has(i.path) && visible(i, role))
+    ...g, items: g.items.filter(i => impl.has(i.path) && visible(i, roles))
   })).filter(g => g.items.length)
 }

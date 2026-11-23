@@ -1,4 +1,4 @@
-const { getToken, getUserInfo, getRole, getRoles, getPerms, getWorkspace, getHome, getScope, clearAuth } = require('./utils/auth')
+const { getToken, getUserInfo, getAccountId, getRole, getRoles, getPerms, getWorkspace, getHome, getScope, clearAuth } = require('./utils/auth')
 
 App({
   globalData: {
@@ -53,6 +53,8 @@ App({
     wx.onNetworkStatusChange((res) => {
       if (!res.isConnected) return
       if (!this.globalData.token) return
+      // 队列按稳定账号归属补传，仅凭 token 无法判断任务属主。
+      if (!getAccountId()) return
       const { flushQueue } = require('./utils/offline')
       flushQueue().then((r) => {
         if (r.success > 0) wx.showToast({ title: `已自动补传 ${r.success} 条离线数据`, icon: 'none' })

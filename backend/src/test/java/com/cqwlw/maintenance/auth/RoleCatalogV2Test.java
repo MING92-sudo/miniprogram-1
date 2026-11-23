@@ -19,7 +19,7 @@ class RoleCatalogV2Test {
         assertEquals("INST_CLERK", RoleCatalog.canonical("INSTALL_CLERK"));
         assertEquals("INSTALLER", RoleCatalog.canonical("INSTALL_WORKER"));
         assertEquals("MAINT_MGR", RoleCatalog.canonical("MAINT_MANAGER"));
-        assertEquals("MAINT_SUP", RoleCatalog.canonical("LEADER"));
+        assertEquals("LEADER", RoleCatalog.canonical("LEADER"));
         assertEquals("MAINT_TECH", RoleCatalog.canonical("WORKER"));
         assertEquals("MAINT_TECH", RoleCatalog.canonical("ASSISTANT"));
         assertEquals("CLIENT_ADMIN", RoleCatalog.canonical("UNIT_ADMIN"));
@@ -54,9 +54,9 @@ class RoleCatalogV2Test {
     }
 
     @Test
-    void canonicalCodesAreTwelve() {
+    void canonicalCodesAreThirteen() {
         assertEquals(Set.of("PLATFORM_ADMIN", "INST_MGR", "INST_PM", "INST_CLERK", "INSTALLER",
-                "MAINT_MGR", "MAINT_SUP", "MAINT_TECH", "MAINT_BIZ", "MAINT_QUALITY",
+                "MAINT_MGR", "MAINT_SUP", "LEADER", "MAINT_TECH", "MAINT_BIZ", "MAINT_QUALITY",
                 "CLIENT_ADMIN", "CLIENT_SIGNER"), RoleCatalog.canonicalCodes());
     }
 

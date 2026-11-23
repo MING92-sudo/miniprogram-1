@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import PermButton from './PermButton.vue'
+import { useAuthStore } from '../stores/auth'
 
 describe('PermButton（原型 actBtn 三态：Y 可用 / C 置灰+tooltip / DENY 隐藏）', () => {
   beforeEach(() => setActivePinia(createPinia()))
@@ -24,6 +25,21 @@ describe('PermButton（原型 actBtn 三态：Y 可用 / C 置灰+tooltip / DENY
     expect(w.find('.perm-wrap').attributes('data-tip')).toContain('handover:view')
     await b.trigger('click')
     expect(w.emitted('click')).toBeFalsy()
+  })
+  it('未传 role 时按 auth store 多角色并集：第二角色 Y → 可用', () => {
+    const auth = useAuthStore()
+    auth.role = 'LEADER'
+    auth.roles = ['LEADER', 'MAINT_MGR']
+    const w = mount(PermButton, { props: { code: 'project:edit', label: '编辑' } })
+    expect(w.find('button').exists()).toBe(true)
+    expect(w.find('button').attributes('disabled')).toBeUndefined()
+  })
+  it('未传 role 时多角色均 DENY → 不渲染', () => {
+    const auth = useAuthStore()
+    auth.role = 'LEADER'
+    auth.roles = ['LEADER', 'MAINT_TECH']
+    const w = mount(PermButton, { props: { code: 'config:manage', label: '配置' } })
+    expect(w.find('button').exists()).toBe(false)
   })
   it('variant and size map to prototype btn classes', () => {
     const w = mount(PermButton, { props: { code: 'handover:review', role: 'INST_MGR', label: '审核', variant: 'danger', size: 'xs', icon: 'ban' } })

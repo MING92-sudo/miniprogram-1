@@ -24,7 +24,6 @@ import com.cqwlw.maintenance.service.WorkOrderService;
 import com.cqwlw.maintenance.util.TimeUtil;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.ArgumentCaptor;
 
 import java.util.List;
 import java.util.Map;
@@ -37,7 +36,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/** ①签字严格各签各的：普通作业人员仅可签本人对应角色，组长/管理员可代签； */
+/** 签字严格各签各的：LEADER 不得代签或代签退。 */
 class WorkOrderSignatureTest {
 
     private static final String GROUP = "维保一班";
@@ -57,7 +56,11 @@ class WorkOrderSignatureTest {
 
     @BeforeEach
     void setUp() {
+        com.baomidou.mybatisplus.core.metadata.TableInfoHelper.initTableInfo(
+                new org.apache.ibatis.builder.MapperBuilderAssistant(
+                        new com.baomidou.mybatisplus.core.MybatisConfiguration(), ""), WorkOrder.class);
         orderMapper = mock(WorkOrderMapper.class);
+        when(orderMapper.update(any(), any())).thenReturn(1);
         employeeMapper = mock(EmployeeMapper.class);
         ElevatorMapper elevatorMapper = mock(ElevatorMapper.class);
         service = new WorkOrderService(orderMapper, elevatorMapper, mock(UseUnitMapper.class),
@@ -105,15 +108,15 @@ class WorkOrderSignatureTest {
     @Test
     void principalCanSignOwnRole() {
         service.signOrder(DUAL_ORDER, sign("PRINCIPAL", "file_worker"), EMP_ZHANG);
-        WorkOrder captured = captureUpdate();
-        assertEquals("file_worker", captured.workerSignatureFileId);
+        assertEquals("file_worker", orderMapper.selectById(DUAL_ORDER).workerSignatureFileId);
+        verify(orderMapper).update(any(), any());
     }
 
     @Test
     void assistantCanSignOwnRole() {
         service.signOrder(DUAL_ORDER, sign("ASSISTANT", "file_assistant"), EMP_LI);
-        WorkOrder captured = captureUpdate();
-        assertEquals("file_assistant", captured.assistantSignatureFileId);
+        assertEquals("file_assistant", orderMapper.selectById(DUAL_ORDER).assistantSignatureFileId);
+        verify(orderMapper).update(any(), any());
     }
 
     /** 严格各签各的：普通工人（主维保）不得签配合人员签字 */
@@ -124,10 +127,10 @@ class WorkOrderSignatureTest {
     }
 
     @Test
-    void leaderCanSignAnyRole() {
-        service.signOrder(DUAL_ORDER, sign("ASSISTANT", "file_by_leader"), EMP_CHEN);
-        WorkOrder captured = captureUpdate();
-        assertEquals("file_by_leader", captured.assistantSignatureFileId);
+    void leaderCannotUseServiceSideWriteBypasses() {
+        assertCode(1403, () -> service.signOrder(DUAL_ORDER, sign("ASSISTANT", "file_by_leader"), EMP_CHEN));
+        assertCode(1403, () -> service.checkout(DUAL_ORDER, Map.of(), EMP_CHEN));
+        verify(orderMapper, never()).updateById(any(WorkOrder.class));
     }
 
     /** 签退仅主维保可操作：配合人员（李强）即使工单归属本人，也不得签退（防代签退 → 平台 2.6 虚假数据） */
@@ -137,10 +140,25 @@ class WorkOrderSignatureTest {
         verify(orderMapper, never()).updateById(any(WorkOrder.class));
     }
 
-    private WorkOrder captureUpdate() {
-        ArgumentCaptor<WorkOrder> cap = ArgumentCaptor.forClass(WorkOrder.class);
-        verify(orderMapper).updateById(cap.capture());
-        return cap.getValue();
+    @Test
+    void signRequiresOwnCheckin() {
+        WorkOrder o = dualOrder(DUAL_ORDER, PID_ZHANG, PID_LI, "PROCESSING");
+        o.checkinExtraJson = null;
+        o.assistantCheckinExtraJson = null;
+        when(orderMapper.selectById(DUAL_ORDER)).thenReturn(o);
+
+        assertCode(422, () -> service.signOrder(DUAL_ORDER, sign("PRINCIPAL", "file_worker"), EMP_ZHANG));
+        o.checkinExtraJson = "{\"role\":\"PRINCIPAL\"}";
+        assertCode(422, () -> service.signOrder(DUAL_ORDER, sign("ASSISTANT", "file_assistant"), EMP_LI));
+        verify(orderMapper, never()).updateById(any(WorkOrder.class));
+    }
+
+    @Test
+    void assistantSignRejectsConcurrentReassignment() {
+        when(orderMapper.update(any(), any())).thenReturn(0);
+
+        assertCode(1003, () -> service.signOrder(DUAL_ORDER, sign("ASSISTANT", "file_assistant"), EMP_LI));
+        verify(orderMapper, never()).updateById(any(WorkOrder.class));
     }
 
     private static Map<String, Object> sign(String role, String fileId) {
@@ -165,6 +183,8 @@ class WorkOrderSignatureTest {
         o.assistantName = "李强";
         o.assistantPlatformId = assistantPid;
         o.checkinTime = TimeUtil.now().minusHours(2);
+        o.checkinExtraJson = "{\"role\":\"PRINCIPAL\"}";
+        o.assistantCheckinExtraJson = "{\"role\":\"ASSISTANT\"}";
         o.checklistJson = "[{\"id\":\"it_1\",\"name\":\"曳引机\",\"isKey\":false,\"photoRequired\":false}]";
         return o;
     }

@@ -1,3 +1,11 @@
+// 选中导出：ids 为空（工具栏全量）时返回全部行，否则按 id 交集
+export function selectExportRows(rows, ids) {
+  const list = rows || []
+  if (!Array.isArray(ids) || ids.length === 0) return list
+  const want = new Set(ids)
+  return list.filter((r) => want.has(r.id))
+}
+
 export function exportCsv(filename, columns, rows) {
   const list = rows || []
   const head = columns.map((c) => cell(c.label)).join(',')

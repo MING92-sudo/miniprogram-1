@@ -334,7 +334,7 @@ public class LedgerService {
         return c;
     }
 
-    public BizElevatorChange confirmChange(String id, String confirmer, String actor) {
+    public BizElevatorChange confirmChange(String id, String actor) {
         BizElevatorChange c = changeMapper.selectById(id);
         if (c == null) {
             throw new BizException(404, "变更单不存在");
@@ -342,10 +342,11 @@ public class LedgerService {
         if (!"PENDING".equals(c.status)) {
             throw new BizException(422, "仅待确认可操作");
         }
-        if (confirmer == null || confirmer.equals(c.initiatorId)) {
+        // 确认人只取登录身份，禁止请求体伪造
+        if (actor == null || actor.isBlank() || actor.equals(c.initiatorId)) {
             throw new BizException(422, "确认人必须不同于发起人");
         }
-        c.confirmerId = confirmer;
+        c.confirmerId = actor;
         c.status = "CONFIRMED";
         c.confirmedAt = TimeUtil.now();
         changeMapper.updateById(c);

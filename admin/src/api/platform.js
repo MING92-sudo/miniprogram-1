@@ -23,10 +23,12 @@ export function backfillWorkers() {
   return http.post('/platform/workers/backfill', {}, { timeout: 60000 })
 }
 
-export function registerWorker(form) {
+export function registerWorker(form, { idempotencyKey } = {}) {
   const fd = new FormData()
   Object.entries(form).forEach(([k, v]) => {
     if (v !== undefined && v !== null && v !== '') fd.append(k, v)
   })
-  return http.post('/platform/register/worker', fd, { timeout: 60000 })
+  const options = { timeout: 60000 }
+  if (idempotencyKey) options.headers = { 'X-Idempotency-Key': idempotencyKey }
+  return http.post('/platform/register/worker', fd, options)
 }

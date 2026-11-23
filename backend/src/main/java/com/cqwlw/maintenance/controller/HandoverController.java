@@ -81,7 +81,7 @@ public class HandoverController {
         return ApiResponse.ok(handoverService.assignReceiver(id, body));
     }
 
-    /** 现场查验（安全装置/制动器不合格 → 整改中） */
+    /** 兼容入口：与 checklist/submit 共用 74 项查验校验。 */
     @PostMapping("/handovers/{id}/inspect")
     public ApiResponse<HandoverOrder> submitInspect(@PathVariable String id,
                                                     @RequestBody(required = false) Map<String, Object> body,

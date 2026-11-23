@@ -30,7 +30,7 @@
         </template>
       </DataTable>
     </div>
-    <RuleNote class="mt12" icon="lock">手机号按 §6 脱敏随角色变化（使用单位管理员掩码、平台明文）；关闭系统配置脱敏开关后出明文。停用即吊销 token 并转交未完成工单。</RuleNote>
+    <RuleNote class="mt12" icon="lock">手机号按 §6 脱敏随角色变化（使用单位管理员掩码、平台明文）；关闭系统配置脱敏开关后出明文。停用即吊销 token；离职转交将未完成工单迁移给同区域接手人。</RuleNote>
 
     <!-- 账号详情抽屉 -->
     <Drawer :open="!!detail" :title="detail ? detail.name + ' · ' + (detail.empNo || detail.jobNo || detail.id) : ''"
@@ -59,7 +59,7 @@
         <div class="sec">
           <div class="sec-t"><svg class="ic" aria-hidden="true"><use href="#i-alert" /></svg>停用 / 离职影响</div>
           <div class="spec-list">
-            <div>停用后立即吊销 token，未完成工单（{{ detail.openOrders ?? 0 }} 个）转交主管。</div>
+            <div>停用后立即吊销 token；未完成工单（{{ detail.openOrders ?? 0 }} 个）保留原负责人，如需迁移请使用「离职转交」。</div>
             <div>历史签名与记录永久保留，审计不可删除。</div>
           </div>
         </div>
@@ -135,7 +135,7 @@
       @close="disableTarget = null" @confirm="submitDisable">
       <div class="rule-note">
         <svg class="ic" aria-hidden="true"><use href="#i-alert" /></svg>
-        <span>停用后立即吊销 token，未完成工单（{{ disableTarget ? (disableTarget.openOrders ?? 0) : 0 }} 个）转交主管。历史签名与审计保留。</span>
+        <span>停用后立即吊销 token；未完成工单（{{ disableTarget ? (disableTarget.openOrders ?? 0) : 0 }} 个）保留原负责人，如需迁移请使用「离职转交」。历史签名与审计保留。</span>
       </div>
     </Modal>
 
@@ -144,7 +144,7 @@
       :meta="{ scope: perspective.scope }" note="user:disable" @close="resignTarget = null">
       <div class="rule-note mb12">
         <svg class="ic" aria-hidden="true"><use href="#i-alert" /></svg>
-        <span>账号状态 → 离职；未闭环工单 {{ resignTarget ? (resignTarget.openOrders ?? 0) : 0 }} 个迁移给接手人；token 立即失效；保留审计与电子签名证据。</span>
+        <span>账号状态 → 停用；未闭环工单与急修单迁移给接手人（当前工单 {{ resignTarget ? (resignTarget.openOrders ?? 0) : 0 }} 个）；token 立即失效；保留审计与电子签名证据。</span>
       </div>
       <Form ref="resignForm" :rules="resignRules" v-model="resignModel" v-slot="{ errors }">
         <div class="form-grid one">
@@ -212,7 +212,7 @@ import { useToast } from '../ui/stores/ui'
 import { usePerspectiveStore } from '../ui/stores/perspective'
 import { roleLabel, deptLabel, roleDept } from '../ui/labels'
 import { canonicalRoles, defaultScope } from '../ui/permission-v2'
-import { listUsers, disableUser, assignRoles } from '../api/ledger'
+import { listUsers, disableUser, resignUser, assignRoles } from '../api/ledger'
 import { employees, createEmployee, updateEmployee, resetEmployeePassword } from '../api/archive'
 import http from '../api/client'
 import MoreMenu from '../ui/MoreMenu.vue'
@@ -339,8 +339,10 @@ function openResign(row) { if (row) { resignModel.value = { heir: '' }; resignTa
 async function submitResign() {
   if (!resignForm.value.validate()) return
   try {
-    await disableUser(resignTarget.value.id)
-    toast.success('账号已停用 · 工单转交接手人（转交明细以后端离职转交接口为准）', resignTarget.value.id)
+    const res = await resignUser(resignTarget.value.id, resignModel.value.heir)
+    const orders = res?.orders ?? 0
+    const faults = res?.faults ?? 0
+    toast.success(`离职转交完成 · 迁移工单 ${orders} 张、急修单 ${faults} 条`, resignTarget.value.id)
     resignTarget.value = null; detail.value = null; load()
   } catch (e) { toast.error(e.message || '离职转交失败') }
 }

@@ -12,7 +12,7 @@
 <script setup>
 // 权限按钮（原型 actBtn 三态）：Y 可用 / C 置灰+tooltip / DENY 隐藏；后端强校验兜底
 import { computed } from 'vue'
-import { state } from './permission-v2'
+import { stateForRoles } from './permission-v2'
 import { icon as svgIcon } from './icons'
 import { useAuthStore } from '../stores/auth'
 const props = defineProps({
@@ -27,7 +27,8 @@ const props = defineProps({
 defineEmits(['click', 'blocked'])
 const auth = useAuthStore()
 const gate = computed(() => {
-  const s = state(props.role || auth.role, props.code)
+  const roles = props.role ? [props.role] : (Array.isArray(auth.roles) && auth.roles.length ? auth.roles : [auth.role])
+  const s = stateForRoles(roles, props.code)
   return s === 'Y' ? 'allow' : s === 'C' ? 'conditional' : 'deny'
 })
 const tip = computed(() => props.cTip || ('需权限 ' + props.code + '：当前角色为只读 / 需审批 / 仅限非管理角色'))

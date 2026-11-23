@@ -112,5 +112,18 @@ function fillValidForm(page) {
     'mock 缺 factoryNumber 必须与真实后端一致返回 422'
   )
 
+  const submitted = await mockRequest({ method: 'POST', url: '/handovers/ho_demo_1/submit-docs', data: {
+    supervisionReportFileId: 'f1', maintenanceManualFileId: 'f2', qualityCertificateFileId: 'f3'
+  } })
+  assert.strictEqual(submitted.supervisionReportFileId, 'f1', 'mock 三平铺资料应提交成功')
+  assert.strictEqual(submitted.maintenanceManualFileId, 'f2')
+  assert.strictEqual(submitted.qualityCertificateFileId, 'f3')
+
+  await assert.rejects(
+    mockRequest({ method: 'POST', url: '/handovers/ho_demo_1/submit-docs', data: { supervisionReportFileId: 'f1' } }),
+    (e) => e && e.code === 422,
+    'mock 缺任一必传资料须与真实后端一致返回 422'
+  )
+
   console.log('PASS 移交起草：单位选项、三资料必传、缺件/上传失败不创建')
 })().catch((e) => { console.error(e); process.exit(1) })

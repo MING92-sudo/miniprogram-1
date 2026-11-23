@@ -15,6 +15,7 @@ vi.mock('../api/client', () => ({
 import http from '../api/client'
 import { useAuthStore } from '../stores/auth'
 import DispatchView from '../views/DispatchView.vue'
+import Modal from '../ui/Modal.vue'
 
 const router = createRouter({ history: createWebHashHistory(), routes: [
   { path: '/', component: { template: '<div/>' } },
@@ -119,5 +120,70 @@ describe('DispatchView 维保工单池页签（D2/D10）', () => {
     const doneRow = w.findAll('tr').find(tr => tr.text().includes('WB20261120003'))
     expect(doneRow, '列表应含 DONE 工单行').toBeTruthy()
     expect(doneRow.text()).not.toContain('退回池')
+  })
+})
+
+describe('DispatchView 代报修原子提交（Task 20）', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    useAuthStore().role = 'MAINT_SUP' // order:create_proxy Y
+    http.get.mockReset()
+    http.get.mockImplementation((url) => {
+      if (url === '/faults') return Promise.resolve([])
+      if (url === '/employees') return Promise.resolve([])
+      if (url === '/elevators') return Promise.resolve({ list: [{ elevatorCode: 'EM-1', elevatorName: '1# 梯' }] })
+      if (url === '/settings') return Promise.resolve({})
+      return Promise.resolve([])
+    })
+    http.post.mockReset()
+    http.post.mockResolvedValue({ id: 'ft_1', faultNo: 'BWJX20261123001' })
+  })
+
+  async function openProxyModal() {
+    const w = await mountDispatch()
+    const open = w.findAll('button').find(b => b.text().includes('代报修'))
+    expect(open, '工单调度应有「代报修」入口').toBeTruthy()
+    await open.trigger('click')
+    await flushPromises()
+    const modal = w.findAllComponents(Modal).find(m => m.props('title') === '代报修录入')
+    expect(modal, '应弹出代报修录入').toBeTruthy()
+    await modal.find('input[placeholder="必填"]').setValue('王芳')
+    await modal.find('input[placeholder="11 位手机号"]').setValue('13800000001')
+    await modal.findAll('select')[0].setValue('EM-1')
+    await modal.find('input[placeholder="REC-20261"]').setValue('REC-1234')
+    await modal.find('textarea').setValue('厅门异响明显')
+    return { w, modal }
+  }
+
+  it('只调用组合端点 POST /faults/proxy，不再拆成建单 + proxy 两步', async () => {
+    const { modal } = await openProxyModal()
+
+    modal.vm.$emit('confirm')
+    await flushPromises()
+
+    expect(http.post).toHaveBeenCalledTimes(1)
+    expect(http.post.mock.calls[0][0]).toBe('/faults/proxy')
+    expect(http.post.mock.calls[0][1]).toMatchObject({
+      elevatorCode: 'EM-1',
+      desc: '厅门异响明显',
+      proxySource: 'PHONE',
+      recordingNo: 'REC-1234'
+    })
+    expect(http.post.mock.calls.some(([url]) => url === '/faults' || /\/faults\/[^/]+\/proxy$/.test(url))).toBe(false)
+  })
+
+  it('双击提交只发送一次请求', async () => {
+    const pending = {}
+    http.post.mockImplementation(() => new Promise((resolve) => { pending.resolve = resolve }))
+    const { modal } = await openProxyModal()
+
+    modal.vm.$emit('confirm')
+    modal.vm.$emit('confirm')
+    await flushPromises()
+
+    expect(http.post).toHaveBeenCalledTimes(1)
+    pending.resolve({ id: 'ft_1' })
+    await flushPromises()
+    expect(http.post).toHaveBeenCalledTimes(1)
   })
 })

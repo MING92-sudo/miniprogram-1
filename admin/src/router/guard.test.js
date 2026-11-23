@@ -1,5 +1,17 @@
 import { describe, expect, it } from 'vitest'
 import { resolveRoute } from './guard'
+import { routes } from './index'
+
+function findRoute(path, list = routes) {
+  for (const route of list) {
+    if (route.path === path) return route
+    if (route.children) {
+      const hit = findRoute(path, route.children)
+      if (hit) return hit
+    }
+  }
+  return null
+}
 
 describe('resolveRoute', () => {
   const protectedRoute = { path: '/dashboard', meta: { title: '监控看板' }, fullPath: '/dashboard' }
@@ -61,5 +73,43 @@ describe('resolveRoute', () => {
   it('平台管理员全权限照常放行', () => {
     const to = { ...rolesRoute, query: { tab: 'grants' }, fullPath: '/roles?tab=grants' }
     expect(resolveRoute(to, { token: 'jwt', role: 'PLATFORM_ADMIN' })).toBe(true)
+  })
+
+  it('多角色并集：第二角色的 project:edit 放行（LEADER 主角色）', () => {
+    const to = { path: '/projects', fullPath: '/projects', meta: { title: '项目台账', perm: 'project:edit' } }
+    expect(resolveRoute(to, { token: 'jwt', role: 'LEADER', roles: ['LEADER', 'MAINT_MGR'] })).toBe(true)
+  })
+
+  it('多角色并集：第二角色的 platform:worker_register 放行（LEADER 主角色）', () => {
+    const to = { path: '/register/workers', fullPath: '/register/workers', meta: { title: '平台登记人员', perm: 'platform:worker_register' } }
+    expect(resolveRoute(to, { token: 'jwt', role: 'LEADER', roles: ['LEADER', 'MAINT_MGR'] })).toBe(true)
+  })
+
+  it('多角色均 DENY 同一页面仍 /403', () => {
+    const to = { path: '/settings', fullPath: '/settings', meta: { title: '系统配置', perm: 'config:manage' } }
+    expect(resolveRoute(to, { token: 'jwt', role: 'LEADER', roles: ['LEADER', 'MAINT_TECH'] }).path).toBe('/403')
+  })
+
+  const orderDetailRoute = {
+    path: '/order/f1', fullPath: '/order/f1',
+    meta: { title: '工单详情', perm: 'order:view_pool' }
+  }
+
+  it('MAINT_MGR 可打开工单详情（order:view_pool）', () => {
+    expect(resolveRoute(orderDetailRoute, { token: 'jwt', role: 'MAINT_MGR' })).toBe(true)
+  })
+
+  it('MAINT_SUP 可打开工单详情（order:view_pool）', () => {
+    expect(resolveRoute(orderDetailRoute, { token: 'jwt', role: 'MAINT_SUP' })).toBe(true)
+  })
+
+  it('无 order:view_pool 的角色访问工单详情 → /403', () => {
+    expect(resolveRoute(orderDetailRoute, { token: 'jwt', role: 'MAINT_QUALITY' }).path).toBe('/403')
+  })
+
+  it('实际工单详情路由配置为 order:view_pool', () => {
+    const route = findRoute('order/:id')
+    expect(route).toBeTruthy()
+    expect(route.meta.perm).toBe('order:view_pool')
   })
 })

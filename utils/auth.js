@@ -17,6 +17,11 @@ function getUserInfo() {
   return wx.getStorageSync(USER_KEY) || null
 }
 
+// 稳定账号 ID：离线队列按它绑定属主，token 换发/重新登录后仍可归位。
+function getAccountId() {
+  return (getUserInfo() || {}).id || ''
+}
+
 function getRole() {
   return wx.getStorageSync(ROLE_KEY)
 }
@@ -75,7 +80,7 @@ function clearAuth() {
 
 
 const ROLE_ALIAS = {
-  WORKER: 'MAINT_TECH', ASSISTANT: 'MAINT_TECH', LEADER: 'MAINT_SUP',
+  WORKER: 'MAINT_TECH', ASSISTANT: 'MAINT_TECH',
   UNIT_ADMIN: 'CLIENT_ADMIN', ADMIN: 'PLATFORM_ADMIN',
   INSTALL_MANAGER: 'INST_PM', INSTALL_CLERK: 'INST_CLERK', INSTALL_WORKER: 'INSTALLER',
   MAINT_MANAGER: 'MAINT_MGR'
@@ -110,6 +115,7 @@ function isCustomerPrincipal() {
 module.exports = {
   getToken,
   getUserInfo,
+  getAccountId,
   getRole,
   getRoles,
   getPerms,

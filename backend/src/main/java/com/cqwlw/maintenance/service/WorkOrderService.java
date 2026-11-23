@@ -390,7 +390,7 @@ public class WorkOrderService {
 
     public Map<String, Object> getOrderView(String id, String empId) {
         WorkOrder o = findOr404(id);
-        requireOrderScope(o, empId);
+        requireOrderReadScope(o, empId);
         return toMap(o, true);
     }
 
@@ -414,8 +414,17 @@ public class WorkOrderService {
     public void requireOrderScope(WorkOrder o, String empId) {
         Employee emp = scopeService.require(empId);
         Set<String> ids = scopeService.visibleWorkerPlatformIds(emp);
+        requireOrderInScope(o, emp, ids);
+    }
+
+    private void requireOrderReadScope(WorkOrder o, String empId) {
+        Employee emp = scopeService.require(empId);
+        requireOrderInScope(o, emp, scopeService.visibleReadPlatformIds(emp));
+    }
+
+    private static void requireOrderInScope(WorkOrder o, Employee emp, Set<String> ids) {
         if (ids == null || in(ids, o.workerPlatformId) || in(ids, o.assistantPlatformId)
-                || poolVisible(o, emp)) {
+                || (!ids.isEmpty() && poolVisible(o, emp))) {
             return;
         }
         throw new BizException(1403, "仅可查看或操作本人工单或本班组工单");
@@ -448,7 +457,7 @@ public class WorkOrderService {
         if (o == null) {
             throw new BizException(1404, "该电梯暂无进行中的工单");
         }
-        requireOrderScope(o, empId); // C3：与其它端点同样校验班组归属，防跨班组越权读取
+        requireOrderReadScope(o, empId); // 与其他读端点同样校验班组归属
         return toMap(o, true);
     }
 
@@ -523,16 +532,34 @@ public class WorkOrderService {
         extra.put("threshold", distance < 0 ? "" : String.valueOf(threshold));
         extra.put("geoStatus", geoStatus);
         extra.put("checkedAt", TimeUtil.format(checkinTime));
+        String checkinJson = JsonUtil.write(extra);
+        LambdaUpdateWrapper<WorkOrder> checkinUpdate = new LambdaUpdateWrapper<>();
+        checkinUpdate.eq(WorkOrder::getId, o.id)
+                .in(WorkOrder::getStatus, "PENDING", "PROCESSING")
+                .set(WorkOrder::getStatus, "PROCESSING");
         if (assistant) {
-            o.assistantCheckinExtraJson = JsonUtil.write(extra);
+            checkinUpdate.and(w -> w.isNull(WorkOrder::getAssistantCheckinExtraJson)
+                            .or().eq(WorkOrder::getAssistantCheckinExtraJson, ""))
+                    .set(WorkOrder::getAssistantCheckinExtraJson, checkinJson);
+            matchAssistant(checkinUpdate, o.assistantPlatformId);
         } else {
-            o.checkinExtraJson = JsonUtil.write(extra);
+            checkinUpdate.and(w -> w.isNull(WorkOrder::getCheckinExtraJson)
+                            .or().eq(WorkOrder::getCheckinExtraJson, ""))
+                    .eq(WorkOrder::getWorkerPlatformId, o.workerPlatformId)
+                    .set(WorkOrder::getCheckinExtraJson, checkinJson)
+                    .set(WorkOrder::getCheckinTime, checkinTime);
         }
-        if (o.checkinTime == null) {
+        if (orderMapper.update(null, checkinUpdate) != 1) {
+            throw new BizException(1003, assistant ? "配合人员已变更或已签到，请刷新后重试"
+                    : "主维保签到状态已变更，请刷新后重试");
+        }
+        if (assistant) {
+            o.assistantCheckinExtraJson = checkinJson;
+        } else {
+            o.checkinExtraJson = checkinJson;
             o.checkinTime = checkinTime;
         }
         o.status = "PROCESSING";
-        orderMapper.updateById(o);
         boolean geoBackfilled = false;
         if (!assistant && el != null && (el.lng == null || el.lat == null)) {
             java.math.BigDecimal backfillLng = java.math.BigDecimal.valueOf(lng);
@@ -622,9 +649,25 @@ public class WorkOrderService {
         if (cand == null || !partnerEligible(o, cand)) {
             throw new BizException(422, "该员工不在配合人候选范围（需与本工单同区域且已完成平台人员登记）");
         }
+        LambdaUpdateWrapper<WorkOrder> assignment = new LambdaUpdateWrapper<>();
+        assignment.eq(WorkOrder::getId, o.id)
+                .in(WorkOrder::getStatus, "PENDING", "PROCESSING")
+                .and(w -> w.isNull(WorkOrder::getAssistantCheckinExtraJson)
+                        .or().eq(WorkOrder::getAssistantCheckinExtraJson, ""))
+                .set(WorkOrder::getAssistantName, cand.name)
+                .set(WorkOrder::getAssistantPlatformId, cand.platformId);
+        matchAssistant(assignment, o.assistantPlatformId);
+        transactionTemplate.executeWithoutResult(tx -> {
+            int updated = orderMapper.update(null, assignment);
+            if (updated != 1) {
+                throw new BizException(1003, "配合人员已变更或已签到，请刷新后重新指定");
+            }
+            orderMapper.clearAssistantSignature(o.id);
+        });
         o.assistantName = cand.name;
         o.assistantPlatformId = cand.platformId;
-        orderMapper.updateById(o);
+        o.assistantSignatureFileId = null;
+        o.assistantSignatureAt = null;
         return JsonUtil.map("ok", true, "assistantName", nz(cand.name), "assistantPlatformId", cand.platformId);
     }
 
@@ -632,6 +675,15 @@ public class WorkOrderService {
     private void requirePrincipal(WorkOrder o, Employee login) {
         if (login == null || isBlank(login.platformId) || !login.platformId.equals(o.workerPlatformId)) {
             throw new BizException(1403, "仅主维保本人可执行此操作");
+        }
+    }
+
+    private static void matchAssistant(LambdaUpdateWrapper<WorkOrder> update, String expectedPlatformId) {
+        if (isBlank(expectedPlatformId)) {
+            update.and(w -> w.isNull(WorkOrder::getAssistantPlatformId)
+                    .or().eq(WorkOrder::getAssistantPlatformId, ""));
+        } else {
+            update.eq(WorkOrder::getAssistantPlatformId, expectedPlatformId);
         }
     }
 
@@ -837,7 +889,7 @@ public class WorkOrderService {
             String category = el == null ? "" : el.category;
             String specialType = el == null || el.specialType == null ? "" : el.specialType;
             o.checklistJson = JsonUtil.write(checklistService.buildChecklist(o.workTypeCode, category, specialType));
-            orderMapper.updateById(o);
+            persistChecklist(o);
         }
         List<Map<String, Object>> items = JsonUtil.readList(o.checklistJson);
         // 历史/演示数据的本地临时路径（wxfile://、http://tmp/）不入回显，否则照片只在拍照设备可见、其他设备/管理端乱图
@@ -858,9 +910,15 @@ public class WorkOrderService {
         return items;
     }
 
+    private void persistChecklist(WorkOrder o) {
+        LambdaUpdateWrapper<WorkOrder> update = new LambdaUpdateWrapper<>();
+        update.eq(WorkOrder::getId, o.id).set(WorkOrder::getChecklistJson, o.checklistJson);
+        orderMapper.update(null, update);
+    }
+
     public Map<String, Object> getChecklist(String orderId, String empId) {
         WorkOrder o = findOr404(orderId);
-        requireOrderScope(o, empId);
+        requireOrderReadScope(o, empId);
         // 作业页头部上下文：类别码/维保类别/电梯名/项目名称（小区），作业清单页重设计用
         Elevator el = elevatorMapper.selectById(o.elevatorId);
         return JsonUtil.map(
@@ -876,11 +934,14 @@ public class WorkOrderService {
     public Map<String, Object> submitItem(String orderId, String itemId, Map<String, Object> body, String empId) {
         WorkOrder o = findOr404(orderId);
         requireOrderScope(o, empId);
+        String result = str(body.get("result"));
+        if (!"NORMAL".equals(result) && !"ABNORMAL".equals(result) && !"NA".equals(result)) {
+            throw new BizException(422, "检查结果非法：须为 NORMAL、ABNORMAL 或 NA");
+        }
         List<Map<String, Object>> items = items(o);
         Map<String, Object> item = items.stream()
                 .filter(i -> itemId.equals(i.get("id"))).findFirst()
                 .orElseThrow(() -> new BizException(1404, "检查项不存在"));
-        String result = str(body.get("result"));
         String name = String.valueOf(item.get("name"));
         if ("NA".equals(result) && isBlank(str(body.get("skipReason")))) {
             throw new BizException(422, "「" + name + "」标记不适用时必须填写跳过原因（TSG 注 A-1）");
@@ -923,7 +984,7 @@ public class WorkOrderService {
         item.put("recordedAt", recordedAt == null || recordedAt.isEmpty()
                 ? TimeUtil.format(TimeUtil.now()) : recordedAt);
         o.checklistJson = JsonUtil.write(items);
-        orderMapper.updateById(o);
+        persistChecklist(o);
         return JsonUtil.map("ok", true, "itemId", itemId);
     }
 
@@ -936,13 +997,13 @@ public class WorkOrderService {
                 .orElseThrow(() -> new BizException(1404, "检查项不存在"));
         item.put("notInThisRun", false);
         o.checklistJson = JsonUtil.write(items);
-        orderMapper.updateById(o);
+        persistChecklist(o);
         return JsonUtil.map("ok", true);
     }
 
     // ── 签字 ──
 
-    /** 严格各签各的：普通作业人员仅可签本人对应角色，组长/管理员可代签（{@link #requireSignRole}）； */
+    /** 普通作业人员仅可签本人对应角色；LEADER 无代签特权（{@link #requireSignRole}）； */
     public Map<String, Object> signOrder(String orderId, Map<String, Object> body, String empId) {
         WorkOrder o = findOr404(orderId);
         requireOrderScope(o, empId);
@@ -955,11 +1016,34 @@ public class WorkOrderService {
             throw new BizException(422, "签字角色非法：须为 PRINCIPAL 或 ASSISTANT");
         }
         requireSignRole(o, role, empId);
+        boolean checkedIn = assistant ? hasCheckin(o.assistantCheckinExtraJson) : hasCheckin(o.checkinExtraJson);
+        if (!checkedIn) {
+            throw new BizException(422, assistant ? "配合人员未签到，不能签字" : "主维保未签到，不能签字");
+        }
         String fileId = str(body.get("signatureFileId")).trim();
         if (fileId.isEmpty()) {
             throw new BizException(422, "签字图未上传，请重试");
         }
         LocalDateTime now = TimeUtil.now();
+        LambdaUpdateWrapper<WorkOrder> signatureUpdate = new LambdaUpdateWrapper<>();
+        signatureUpdate.eq(WorkOrder::getId, o.id).eq(WorkOrder::getStatus, "PROCESSING");
+        if (assistant) {
+            signatureUpdate.and(w -> w.isNotNull(WorkOrder::getAssistantCheckinExtraJson)
+                            .ne(WorkOrder::getAssistantCheckinExtraJson, ""))
+                    .set(WorkOrder::getAssistantSignatureFileId, fileId)
+                    .set(WorkOrder::getAssistantSignatureAt, now);
+            matchAssistant(signatureUpdate, o.assistantPlatformId);
+        } else {
+            signatureUpdate.and(w -> w.isNotNull(WorkOrder::getCheckinExtraJson)
+                            .ne(WorkOrder::getCheckinExtraJson, ""))
+                    .eq(WorkOrder::getWorkerPlatformId, o.workerPlatformId)
+                    .set(WorkOrder::getWorkerSignatureFileId, fileId)
+                    .set(WorkOrder::getWorkerSignatureAt, now);
+        }
+        if (orderMapper.update(null, signatureUpdate) != 1) {
+            throw new BizException(1003, assistant ? "配合人员已变更，请刷新后重新签字"
+                    : "主维保签字状态已变更，请刷新后重试");
+        }
         if (assistant) {
             o.assistantSignatureFileId = fileId;
             o.assistantSignatureAt = now;
@@ -967,7 +1051,6 @@ public class WorkOrderService {
             o.workerSignatureFileId = fileId;
             o.workerSignatureAt = now;
         }
-        orderMapper.updateById(o);
         return JsonUtil.map("ok", true, "role", assistant ? "ASSISTANT" : "PRINCIPAL");
     }
 
@@ -975,7 +1058,7 @@ public class WorkOrderService {
     private void requireSignRole(WorkOrder o, String role, String empId) {
         Employee login = scopeService.require(empId);
         String r = login.role == null ? "" : login.role;
-        if ("ADMIN".equals(r) || "SYS_ADMIN".equals(r) || "LEADER".equals(r)) {
+        if ("ADMIN".equals(r) || "SYS_ADMIN".equals(r)) {
             return;
         }
         String pid = login.platformId;
@@ -998,7 +1081,7 @@ public class WorkOrderService {
         // 仅主维保可签退：普通作业人员只有主维保本人可签退；
         Employee login = scopeService.require(empId);
         String loginRole = login.role == null ? "" : login.role;
-        boolean privileged = "ADMIN".equals(loginRole) || "SYS_ADMIN".equals(loginRole) || "LEADER".equals(loginRole);
+        boolean privileged = "ADMIN".equals(loginRole) || "SYS_ADMIN".equals(loginRole);
         if (!privileged) {
             String pid = login.platformId;
             if (pid == null || pid.isBlank() || !pid.equals(o.workerPlatformId)) {
@@ -1007,6 +1090,9 @@ public class WorkOrderService {
         }
         if (!"PROCESSING".equals(o.status)) {
             throw new BizException(1003, "请先完成签到");
+        }
+        if (!hasCheckin(o.checkinExtraJson) || o.checkinTime == null) {
+            throw new BizException(422, "主维保未签到，无法签退");
         }
         // 门禁③（双签）在下方签名校验处恒触发。
         boolean pooledOrder = Boolean.TRUE.equals(o.duoRequired) || (o.regionId != null && !o.regionId.isBlank())

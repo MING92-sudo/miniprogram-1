@@ -65,6 +65,9 @@ public class ClientAccountService {
 
     @Transactional
     public Map<String, Object> create(String useUnitId, Map<String, Object> body, String operatorId) {
+        if (body.containsKey("openid")) {
+            throw new BizException(422, "openid 只能通过微信绑定接口写入");
+        }
         UseUnit unit = useUnitMapper.selectById(useUnitId);
         if (unit == null) {
             throw new BizException(1404, "使用单位档案不存在");
@@ -99,7 +102,6 @@ public class ClientAccountService {
         c.name = name;
         c.phone = phone;
         c.passwordHash = encoder.encode(rawPwd);
-        c.openid = blankToNull(str(body.get("openid")));
         c.roleCode = role;
         c.status = ClientAccount.STATUS_ACTIVE;
         c.enabled = 1;
@@ -118,6 +120,9 @@ public class ClientAccountService {
 
     @Transactional
     public Map<String, Object> update(String id, Map<String, Object> body, String operatorId) {
+        if (body.containsKey("openid")) {
+            throw new BizException(422, "openid 只能通过微信绑定接口写入");
+        }
         ClientAccount c = findOr404(id);
         if (body.containsKey("name")) {
             String name = str(body.get("name"));

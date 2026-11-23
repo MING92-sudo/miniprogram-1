@@ -27,6 +27,7 @@ export const rolesMatrix = () => http.get('/roles-matrix')
 export const listUsers = () => http.get('/users')
 export const createUser = (b) => http.post('/users', b)
 export const disableUser = (id) => http.post(`/users/${id}/disable`, {})
+export const resignUser = (id, heirId) => http.post(`/users/${id}/resign`, { heirId })
 export const assignRoles = (id, b) => http.post(`/users/${id}/roles`, b)
 export const listUseUnits = () => http.get('/use-units')
 

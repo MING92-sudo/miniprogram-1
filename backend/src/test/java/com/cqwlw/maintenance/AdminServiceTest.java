@@ -310,4 +310,64 @@ class AdminServiceTest {
         assertEquals("张伟", byWorker.get(0).get("name"));
         assertEquals(2, byWorker.get(0).get("count"));
     }
+
+    @Test
+    void recordsStatusFilterUsesInForCombinedValues() {
+        stubEmptyRecordPage();
+
+        service.records(Map.of("reportStatus", "FAILED, PENDING"));
+
+        org.mockito.ArgumentCaptor<com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<MaintainRecord>> captor =
+                org.mockito.ArgumentCaptor.forClass(com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper.class);
+        org.mockito.Mockito.verify(recordMapper).selectPage(any(), captor.capture());
+        com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<MaintainRecord> wrapper = captor.getValue();
+        String sql = wrapper.getSqlSegment().toUpperCase();
+        assertTrue(sql.contains(" IN "), sql);
+        java.util.Collection<Object> params = wrapper.getParamNameValuePairs().values();
+        assertTrue(params.contains("FAILED"), params.toString());
+        assertTrue(params.contains("PENDING"), params.toString());
+    }
+
+    @Test
+    void recordsStatusFilterKeepsEqForSingleValue() {
+        stubEmptyRecordPage();
+
+        service.records(Map.of("reportStatus", "FAILED"));
+
+        org.mockito.ArgumentCaptor<com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<MaintainRecord>> captor =
+                org.mockito.ArgumentCaptor.forClass(com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper.class);
+        org.mockito.Mockito.verify(recordMapper).selectPage(any(), captor.capture());
+        com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<MaintainRecord> wrapper = captor.getValue();
+        String sql = wrapper.getSqlSegment().toUpperCase();
+        assertFalse(sql.contains(" IN "), sql);
+        assertTrue(sql.contains("="), sql);
+        java.util.Collection<Object> params = wrapper.getParamNameValuePairs().values();
+        assertEquals(1, params.size());
+        assertTrue(params.contains("FAILED"), params.toString());
+    }
+
+    @Test
+    void recordRowKeepsUnknownUploadStatus() {
+        MaintainRecord unknown = new MaintainRecord();
+        unknown.id = "ur_unknown";
+        unknown.reportStatus = "UNKNOWN";
+        unknown.createdAt = TimeUtil.now();
+        Page<MaintainRecord> mp = new Page<>(1, 20);
+        mp.setRecords(List.of(unknown));
+        mp.setTotal(1);
+        when(recordMapper.selectPage(any(), any())).thenReturn(mp);
+
+        Map<String, Object> out = service.records(Map.of("reportStatus", "UNKNOWN"));
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> list = (List<Map<String, Object>>) out.get("list");
+        assertEquals("UNKNOWN", list.get(0).get("reportStatus"));
+        assertEquals("UNKNOWN", list.get(0).get("uploadStatus"));
+    }
+
+    private void stubEmptyRecordPage() {
+        Page<MaintainRecord> mp = new Page<>(1, 20);
+        mp.setRecords(List.of());
+        mp.setTotal(0);
+        when(recordMapper.selectPage(any(), any())).thenReturn(mp);
+    }
 }

@@ -76,7 +76,7 @@ import { useUiStore } from './stores/ui'
 import { usePerspectiveStore } from './stores/perspective'
 import { useAuthStore } from '../stores/auth'
 import { visibleMenus, IMPLEMENTED_PATHS } from './menu-config'
-import { state } from './permission-v2'
+import { stateForRoles } from './permission-v2'
 import { roleLabel, scopeLabel } from './labels'
 import ScopePill from './ScopePill.vue'
 import Toast from './Toast.vue'
@@ -88,9 +88,9 @@ const auth = useAuthStore()
 const route = useRoute()
 const isDev = import.meta.env.DEV
 const IMPLEMENTED = IMPLEMENTED_PATHS
-const menus = computed(() => visibleMenus(perspective.activeRole, IMPLEMENTED))
+const menus = computed(() => visibleMenus(perspective.roleSet, IMPLEMENTED))
 const curName = computed(() => route.meta.title || '概览工作台')
-function isReadonly(it) { return it.perm ? state(perspective.activeRole, it.perm) === 'C' : false }
+function isReadonly(it) { return it.perm ? stateForRoles(perspective.roleSet, it.perm) === 'C' : false }
 function isActive(it) {
   return route.path === it.path || (it.path === '/dispatch' && route.path.startsWith('/order'))
 }

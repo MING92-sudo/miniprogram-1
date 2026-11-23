@@ -9,8 +9,11 @@ export const usePerspectiveStore = defineStore('perspective', {
       const auth = useAuthStore()
       return canonical(auth.role) || auth.role || ''
     },
-    /** 当前账号持有角色集：真实系统一人一角色，恒为单选 */
+    /** 当前账号持有角色集：取后端下发 roles 归一，为空时回退主角色 */
     roleSet() {
+      const auth = useAuthStore()
+      const roles = (Array.isArray(auth.roles) ? auth.roles : []).map((r) => canonical(r)).filter(Boolean)
+      if (roles.length) return roles
       const r = this.activeRole
       return r ? [r] : []
     },

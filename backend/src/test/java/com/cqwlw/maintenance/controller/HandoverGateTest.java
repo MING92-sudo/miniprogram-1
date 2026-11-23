@@ -2,11 +2,21 @@ package com.cqwlw.maintenance.controller;
 
 import com.cqwlw.maintenance.auth.AuthInterceptor;
 import com.cqwlw.maintenance.common.BizException;
+import com.cqwlw.maintenance.entity.HandoverCheck;
+import com.cqwlw.maintenance.entity.HandoverCheckItem;
 import com.cqwlw.maintenance.entity.HandoverOrder;
+import com.cqwlw.maintenance.entity.HandoverRectification;
+import com.cqwlw.maintenance.mapper.HandoverCheckItemMapper;
+import com.cqwlw.maintenance.mapper.HandoverCheckMapper;
+import com.cqwlw.maintenance.mapper.HandoverOrderMapper;
+import com.cqwlw.maintenance.mapper.HandoverRectificationMapper;
+import com.cqwlw.maintenance.mapper.HandoverSignMapper;
+import com.cqwlw.maintenance.service.HandoverChecklistTemplate;
 import com.cqwlw.maintenance.service.HandoverService;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockHttpServletRequest;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -102,6 +112,58 @@ class HandoverGateTest {
         BizException denied = assertThrows(BizException.class,
                 () -> items.naApprove("h1", Map.of(), req("MAINT_TECH")));
         assertEquals(403, denied.getCode());
+    }
+
+    @Test
+    void legacyInspectCannotBypass74Items() {
+        HandoverOrderMapper orderMapper = mock(HandoverOrderMapper.class);
+        HandoverCheckMapper checkMapper = mock(HandoverCheckMapper.class);
+        HandoverCheckItemMapper itemMapper = mock(HandoverCheckItemMapper.class);
+        HandoverRectificationMapper rectMapper = mock(HandoverRectificationMapper.class);
+        HandoverSignMapper signMapper = mock(HandoverSignMapper.class);
+        HandoverOrder order = new HandoverOrder();
+        order.id = "h1";
+        order.status = "INSPECTING";
+        when(orderMapper.selectById("h1")).thenReturn(order);
+        HandoverCheck check = new HandoverCheck();
+        check.id = "hc1";
+        check.handoverId = "h1";
+        when(checkMapper.selectList(any())).thenReturn(List.of(check));
+        when(itemMapper.selectCount(any())).thenReturn(74L);
+        List<HandoverCheckItem> items = new ArrayList<>();
+        for (HandoverChecklistTemplate.Item template : HandoverChecklistTemplate.items()) {
+            HandoverCheckItem item = new HandoverCheckItem();
+            item.id = "hi_" + template.no();
+            item.checkId = check.id;
+            item.itemNo = template.no();
+            item.itemGroup = template.group();
+            item.important = template.important();
+            items.add(item);
+        }
+        when(itemMapper.selectList(any())).thenReturn(items);
+        HandoverService service = new HandoverService(orderMapper, checkMapper, itemMapper, rectMapper, signMapper,
+                mock(com.cqwlw.maintenance.mapper.ElevatorMapper.class),
+                mock(com.cqwlw.maintenance.mapper.EmployeeMapper.class),
+                mock(com.cqwlw.maintenance.mapper.WorkOrderMapper.class),
+                mock(com.cqwlw.maintenance.service.DispatchService.class),
+                mock(com.cqwlw.maintenance.service.HandoverArchiveSupport.class));
+        HandoverController controller = new HandoverController(service);
+
+        BizException empty = assertThrows(BizException.class,
+                () -> controller.submitInspect("h1", Map.of("items", List.of()), req("MAINT_TECH")));
+        BizException unknown = assertThrows(BizException.class,
+                () -> controller.submitInspect("h1", Map.of("items",
+                        List.of(Map.of("itemNo", 1, "result", "UNKNOWN"))), req("MAINT_TECH")));
+
+        assertEquals(422, empty.getCode());
+        assertEquals(422, unknown.getCode());
+        assertEquals("INSPECTING", order.status);
+        verify(orderMapper, never()).updateById(any(HandoverOrder.class));
+        verify(checkMapper, never()).insert(any(HandoverCheck.class));
+        verify(checkMapper, never()).updateById(any(HandoverCheck.class));
+        verify(itemMapper, never()).insert(any(HandoverCheckItem.class));
+        verify(itemMapper, never()).updateById(any(HandoverCheckItem.class));
+        verify(rectMapper, never()).insert(any(HandoverRectification.class));
     }
 
     @Test

@@ -1,5 +1,7 @@
 package com.cqwlw.maintenance.controller;
 
+import com.cqwlw.maintenance.auth.PermissionMatrix;
+import com.cqwlw.maintenance.auth.RequirePerm;
 import com.cqwlw.maintenance.common.ApiResponse;
 import com.cqwlw.maintenance.common.BizException;
 import com.cqwlw.maintenance.entity.MaintainRecord;
@@ -53,6 +55,7 @@ public class PlatformController {
 
     /** 2.5 单位维保人员查询（原始列表，管理端"平台人员"视图用；只读） */
     @GetMapping("/platform/workers")
+    @RequirePerm(PermissionMatrix.PLATFORM_WORKER_VIEW)
     public ApiResponse<List<Map<String, Object>>> workers(@RequestParam(defaultValue = "0") String changState) {
         return ApiResponse.ok(platformClient.queryWorkList(changState, null));
     }

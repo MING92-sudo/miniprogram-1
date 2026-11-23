@@ -141,12 +141,20 @@ public class UnitRecordService {
         if (signatureUrl.isEmpty() && signatureFileId.isEmpty()) {
             throw new BizException(422, "请先完成签名");
         }
+        if (!signatureUrl.isEmpty()) {
+            String fileId = FileStorageService.fileIdFromUrl(signatureUrl);
+            if (fileId == null) {
+                throw new BizException(422, "签名图片必须来自本系统文件");
+            }
+            signatureUrl = "/files/" + fileId;
+        }
         java.time.LocalDateTime signedAt = TimeUtil.now();
         LambdaUpdateWrapper<MaintainRecord> uw = new LambdaUpdateWrapper<MaintainRecord>()
                 .eq(MaintainRecord::getId, r.id)
                 .eq(MaintainRecord::getConfirmStatus, "PENDING")
                 .eq(MaintainRecord::getLifecycleStatus, "PENDING_CLIENT_SIGNATURE")
                 .set(MaintainRecord::getConfirmStatus, "CONFIRMED")
+                .set(MaintainRecord::getLifecycleStatus, "SIGNED")
                 .set(MaintainRecord::getSignatureFileId, signatureFileId)
                 .set(MaintainRecord::getSignatureUrl, signatureUrl);
         if (signerAccountId != null && !signerAccountId.isBlank()) {
@@ -160,6 +168,7 @@ public class UnitRecordService {
         }
         // 落库成功后才回写内存态，供 onClientSigned 归档投影（PDF 需最新签字字段）
         r.confirmStatus = "CONFIRMED";
+        r.lifecycleStatus = "SIGNED";
         r.signatureFileId = signatureFileId;
         r.signatureUrl = signatureUrl;
         if (signerAccountId != null && !signerAccountId.isBlank()) {
@@ -588,6 +597,10 @@ public class UnitRecordService {
         }
         if ("FAILED".equals(reportStatus)) {
             return "FAILED";
+        }
+        // 平台已受理但本地结果待核对，不可当作待上报走重试
+        if ("UNKNOWN".equals(reportStatus)) {
+            return "UNKNOWN";
         }
         return "PENDING";
     }

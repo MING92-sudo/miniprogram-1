@@ -697,7 +697,8 @@ const routes = [
     return clientLoginPayload(matched)
   }],
   ['POST', '/auth/change-password', ({ body }) => {
-    const user = d.db.employees[currentRole] || d.db.employees.WORKER
+    const user = currentClient || d.db.employees[currentRole]
+    if (!user) throw { code: 401, message: '登录状态无效，请重新登录' }
     const oldPassword = String((body && body.oldPassword) || '')
     const newPassword = String((body && body.newPassword) || '')
     if (!user || user.password !== oldPassword) throw { code: 401, message: '原密码不正确' }
@@ -1078,6 +1079,8 @@ const routes = [
 
   // ── 故障 ──
   ['POST', '/faults', ({ body }) => d.createFault(body)],
+  // 管理端代报修：建单 + 来源/录音一次落库（真实后端同事务）
+  ['POST', '/faults/proxy', ({ body }) => d.createProxyFault(body)],
   ['GET', '/faults', ({ query }) => {
     let list = d.db.faults
     if (query && query.status) {
@@ -1302,6 +1305,7 @@ const routes = [
     return findOr404(mockHandovers, params.id, '移交单')
   }],
   ['POST', '/handovers/:id/submit-docs', ({ params, body }) => {
+    requireWrite('handover:doc_upload')
     const o = findOr404(mockHandovers, params.id, '移交单')
     // 与后端 HandoverService.submitDocs 同口径：3 平铺必传字段缺一 422，提交后进入内部审核
     const sr = body.supervisionReportFileId; const mm = body.maintenanceManualFileId; const qc = body.qualityCertificateFileId
@@ -1329,6 +1333,7 @@ const routes = [
     return o
   }],
   ['POST', '/handovers/:id/inspect', ({ params, body }) => {
+    requireWrite('handover:inspect')
     const o = findOr404(mockHandovers, params.id, '移交单')
     const items = (body.items || []).map((it, i) => Object.assign({ id: 'hi_' + i }, it))
     o.checks = [{ id: 'hc_' + Date.now(), checkerName: body.checkerName, checkedAt: formatTime(new Date()), items }].concat(o.checks || [])
@@ -1337,11 +1342,13 @@ const routes = [
     return o
   }],
   ['POST', '/handovers/:id/rectify', ({ params, body }) => {
+    requireWrite('handover:rectify')
     const o = findOr404(mockHandovers, params.id, '移交单')
     o.rectifications = (o.rectifications || []).concat((body.rectifications || []).map((r, i) => Object.assign({ id: 'hr_' + Date.now() + i }, r)))
     return o
   }],
   ['POST', '/handovers/:id/recheck-rectify', ({ params, body }) => {
+    requireWrite('handover:inspect')
     const o = findOr404(mockHandovers, params.id, '移交单')
     o.rectifications = (o.rectifications || []).map((r) => Object.assign({}, r, { recheckResult: body.result }))
     o.status = body.result === 'PASS' ? 'PENDING_CONFIRM' : 'RECTIFYING'
@@ -1360,6 +1367,7 @@ const routes = [
       naCount: (o.checkCounts && o.checkCounts.na) || 0, importantFailCount: (o.checkCounts && o.checkCounts.impFail) || 0 }, items: o.checklist74 }
   }],
   ['POST', '/handovers/:id/checklist/submit', ({ params, body }) => {
+    requireWrite('handover:inspect')
     const o = findOr404(mockHandovers, params.id, '移交单')
     if (!o.checklist74) o.checklist74 = buildHandoverChecklist()
     const sub = {}
@@ -1400,10 +1408,12 @@ const routes = [
     return o
   }],
   ['GET', '/handovers/:id/rectifications', ({ params }) => {
+    requireRead('handover:view')
     const o = findOr404(mockHandovers, params.id, '移交单')
     return (o.rectifications || []).slice().sort((a, b) => (a.itemNo || 0) - (b.itemNo || 0))
   }],
   ['POST', '/handovers/:id/rectifications/:rectId/rectify', ({ params, body }) => {
+    requireWrite('handover:rectify')
     const o = findOr404(mockHandovers, params.id, '移交单')
     const r = (o.rectifications || []).find((x) => x.id === params.rectId)
     if (!r) throw { code: 1404, message: '整改记录不存在' }
@@ -1412,6 +1422,7 @@ const routes = [
     return r
   }],
   ['POST', '/handovers/:id/rectifications/:rectId/recheck', ({ params, body }) => {
+    requireWrite('handover:inspect')
     const o = findOr404(mockHandovers, params.id, '移交单')
     const r = (o.rectifications || []).find((x) => x.id === params.rectId)
     if (!r) throw { code: 1404, message: '整改记录不存在' }

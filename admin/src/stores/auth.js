@@ -1,21 +1,23 @@
 import { defineStore } from 'pinia'
 import * as authApi from '../api/auth'
 import { onUnauthorized } from '../api/client'
-import { state } from '../ui/permission-v2'
+import { stateForRoles } from '../ui/permission-v2'
 import router from '../router'
 
 export const ADMIN_READ_ROLES = ['LEADER', 'ADMIN']
 export const ADMIN_WRITE_ROLES = ['ADMIN']
 
-function persist(token, user, role) {
+function persist(token, user, role, roles) {
   if (token) {
     localStorage.setItem('admin_token', token)
     localStorage.setItem('admin_user', JSON.stringify(user))
     localStorage.setItem('admin_role', role)
+    localStorage.setItem('admin_roles', JSON.stringify(roles || []))
   } else {
     localStorage.removeItem('admin_token')
     localStorage.removeItem('admin_user')
     localStorage.removeItem('admin_role')
+    localStorage.removeItem('admin_roles')
   }
 }
 
@@ -23,7 +25,8 @@ export const useAuthStore = defineStore('auth', {
   state: () => ({
     token: localStorage.getItem('admin_token') || '',
     user: JSON.parse(localStorage.getItem('admin_user') || 'null'),
-    role: localStorage.getItem('admin_role') || ''
+    role: localStorage.getItem('admin_role') || '',
+    roles: JSON.parse(localStorage.getItem('admin_roles') || '[]')
   }),
   getters: {
     isLogin: (s) => Boolean(s.token),
@@ -32,7 +35,7 @@ export const useAuthStore = defineStore('auth', {
     canRead: (s) => ADMIN_READ_ROLES.includes(s.role),
     can: (s) => (capability) => {
       try {
-        const st = state(s.role, capability)
+        const st = stateForRoles(Array.isArray(s.roles) && s.roles.length ? s.roles : [s.role], capability)
         return st === 'Y' || st === 'C'
       } catch {
         return false
@@ -47,14 +50,16 @@ export const useAuthStore = defineStore('auth', {
       this.token = data.token
       this.user = data.userInfo
       this.role = data.role
-      persist(data.token, data.userInfo, data.role)
+      this.roles = Array.isArray(data.roles) ? data.roles : []
+      persist(data.token, data.userInfo, data.role, this.roles)
       return data
     },
     logout() {
       this.token = ''
       this.user = null
       this.role = ''
-      persist('', null, '')
+      this.roles = []
+      persist('', null, '', [])
       authApi.logout().catch(() => {})
       router.push('/login')
     },
@@ -62,7 +67,8 @@ export const useAuthStore = defineStore('auth', {
       this.token = ''
       this.user = null
       this.role = ''
-      persist('', null, '')
+      this.roles = []
+      persist('', null, '', [])
     }
   }
 })

@@ -123,7 +123,7 @@ const db = {
   employees: {
     WORKER: { id: 'emp_1', name: '张伟', phone: '13800000001', account: '13800000001', password: '123456', role: 'WORKER', roleText: '维保人员', groupName: '维保一班', platformId: '6901282369105174537', regionId: 'rg_yubei',
       certificate: 'CQ3601030001', workStartDate: '2024-03-01', workEndDate: addDays(400), workStat: 'normal', syncStatus: 'ACTIVE' },
-    LEADER: { id: 'emp_2', name: '陈刚', phone: '13800000002', account: '13800000002', password: '123456', role: 'LEADER', roles: ['MAINT_SUP'], roleText: '班组长', groupName: '维保一班', platformId: '990002', regionId: 'rg_yubei',
+    LEADER: { id: 'emp_2', name: '陈刚', phone: '13800000002', account: '13800000002', password: '123456', role: 'LEADER', roles: ['LEADER'], roleText: '班组长', groupName: '维保一班', platformId: '990002', regionId: 'rg_yubei',
       certificate: 'CQ3601030002', workStartDate: '2023-06-01', workEndDate: addDays(250), workStat: 'normal', syncStatus: 'ACTIVE' },
     WORKER2: { id: 'emp_3', name: '李强', phone: '13800000004', account: '13800000004', password: '123456', role: 'WORKER', roleText: '维保人员', groupName: '维保一班', platformId: '6901284774286860288', regionId: 'rg_jiangbei',
       certificate: 'CQ3601030003', workStartDate: '2024-08-01', workEndDate: addDays(500), workStat: 'normal', syncStatus: 'ACTIVE' },
@@ -345,7 +345,7 @@ const db = {
       id: 'kb_4',
       title: 'V1.5 平台上报字段对照表',
       tag: '平台对接',
-      content: '一、维保记录（2.4）：originalRecordId 为平台侧记录唯一标识，幂等性未确认前失败不自动重试（REG_RETRY_AUTO=false）。\n\n二、人员同步（2.2）：维保人员需先同步获取 platform_id 才可上报（错误码 1004）。\n\n三、存量记录（2.8）：临时接口，平台关闭后停止推送。\n\n四、签到定位（2.4）：坐标系为 WGS84，位置超阈由后端判定（错误码 1001）。\n\n五、上报重试：平台侧自动重试保持关闭，失败转人工处理。'
+      content: '一、维保记录（2.4）：originalRecordId 为平台侧记录唯一标识，幂等性未经平台书面确认前失败不自动重试，仅 FAILED 可逐条人工重报。\n\n二、人员同步（2.2）：维保人员需先同步获取 platform_id 才可上报（错误码 1004）。\n\n三、存量记录（2.8）：临时接口，平台关闭后停止推送。\n\n四、签到定位（2.4）：坐标系为 WGS84，位置超阈由后端判定（错误码 1001）。\n\n五、上报重试：平台侧自动重试保持关闭，失败转人工处理。'
     }
   ]
 }
@@ -914,6 +914,20 @@ function createFault(body) {
   return f
 }
 
+function createProxyFault(body) {
+  if (!['PHONE', 'WECHAT', 'ONSITE'].includes(body.proxySource)) {
+    throw { code: 422, message: '代报修来源须 PHONE/WECHAT/ONSITE' }
+  }
+  if (!body.recordingNo || !/^REC-\d{4,6}$/.test(body.recordingNo)) {
+    throw { code: 422, message: '录音编号须 REC-\\d{4,6}' }
+  }
+  const f = createFault(body)
+  f.proxySource = body.proxySource
+  f.recordingNo = body.recordingNo
+  f.proxyBy = body.createdBy || ''
+  return f
+}
+
 function dispatchFault(id, workerId) {
   const f = db.faults.find((x) => x.id === id)
   if (!f) throw { code: 1404, message: '急修单不存在' }
@@ -1073,6 +1087,7 @@ module.exports = {
   createInspect,
   createRescue,
   createFault,
+  createProxyFault,
   dispatchFault,
   closeFault
 }

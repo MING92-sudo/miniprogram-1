@@ -50,6 +50,8 @@ public class PlatformReportService {
         }
         try {
             return upload(r, "UPLOAD");
+        } catch (OutcomeUnknownException e) {
+            throw e;
         } catch (Exception e) {
             log.warn("2.6 自动上报失败（不自动重试）: originalRecordId={}, {}", r.originalRecordId, e.getMessage());
             markFailed(r, "UPLOAD", e);
@@ -76,6 +78,8 @@ public class PlatformReportService {
         try {
             upload(r, "REUPLOAD");
             return r;
+        } catch (OutcomeUnknownException e) {
+            throw e;
         } catch (RuntimeException e) {
             r.reportStatus = "FAILED";
             recordMapper.completeReupload(recordId, "FAILED");
@@ -115,6 +119,8 @@ public class PlatformReportService {
                     if ("REPORTED".equals(uploadLegacy(r))) {
                         n++;
                     }
+                } catch (OutcomeUnknownException e) {
+                    throw e;
                 } catch (Exception e) {
                     r.reportStatus = "SUBMITTED";
                     recordMapper.completeLegacyUpload(r.id, "SUBMITTED");
@@ -134,14 +140,21 @@ public class PlatformReportService {
         if (payload == null || payload.isEmpty()) {
             throw new BizException(422, "签退报文快照缺失，无法上报");
         }
+        String previousStatus = r.reportStatus;
+        Integer previousRetryCount = r.retryCount;
         String name2 = r.assistantName == null || r.assistantName.isBlank() ? r.workerName : r.assistantName;
         Map<String, Object> body = platformClient.uploadLegacyRecord(payload, r.workerName, name2);
-        r.reportStatus = "REPORTED";
-        r.retryCount = (r.retryCount == null ? 0 : r.retryCount) + 1;
-        recordMapper.updateReportProgress(r.id, "REPORTED", r.retryCount);
-        recordMapper.completeLegacyUpload(r.id, "REPORTED");
-        log(r, "LEGACY", "200", str(body.get("message")), "SUCCESS", digest(payload));
-        return "REPORTED";
+        int retryCount = (r.retryCount == null ? 0 : r.retryCount) + 1;
+        try {
+            recordMapper.updateReportProgress(r.id, "REPORTED", retryCount);
+            r.reportStatus = "REPORTED";
+            r.retryCount = retryCount;
+            recordMapper.completeLegacyUpload(r.id, "REPORTED");
+            log(r, "LEGACY", "200", str(body.get("message")), "SUCCESS", digest(payload));
+            return "REPORTED";
+        } catch (RuntimeException e) {
+            return markUnknown(r, "LEGACY", payload, previousStatus, previousRetryCount, retryCount);
+        }
     }
 
     private boolean hasNextVersion(MaintainRecord r) {
@@ -156,12 +169,45 @@ public class PlatformReportService {
             throw new BizException(422, "签退报文快照缺失，无法上报");
         }
         ReportPayloadValidator.requireComplete(payload);
+        String previousStatus = r.reportStatus;
+        Integer previousRetryCount = r.retryCount;
         Map<String, Object> body = platformClient.uploadMaintenanceRecord(payload);
-        r.reportStatus = "REPORTED";
-        r.retryCount = (r.retryCount == null ? 0 : r.retryCount) + 1;
-        recordMapper.updateReportProgress(r.id, "REPORTED", r.retryCount);
-        log(r, action, "200", str(body.get("message")), "SUCCESS", digest(payload));
-        return "REPORTED";
+        int retryCount = (r.retryCount == null ? 0 : r.retryCount) + 1;
+        try {
+            recordMapper.updateReportProgress(r.id, "REPORTED", retryCount);
+            r.reportStatus = "REPORTED";
+            r.retryCount = retryCount;
+            log(r, action, "200", str(body.get("message")), "SUCCESS", digest(payload));
+            return "REPORTED";
+        } catch (RuntimeException e) {
+            return markUnknown(r, action, payload, previousStatus, previousRetryCount, retryCount);
+        }
+    }
+
+    private String markUnknown(MaintainRecord r, String action, Map<String, Object> payload,
+                               String previousStatus, Integer previousRetryCount, int retryCount) {
+        try {
+            recordMapper.updateReportProgress(r.id, "UNKNOWN", retryCount);
+        } catch (RuntimeException e) {
+            r.reportStatus = previousStatus;
+            r.retryCount = previousRetryCount;
+            throw new OutcomeUnknownException();
+        }
+        r.reportStatus = "UNKNOWN";
+        r.retryCount = retryCount;
+        try {
+            log(r, action, "200", "平台返回成功，本地结果待核对", "UNKNOWN", digest(payload));
+        } catch (RuntimeException e) {
+            log.warn("平台成功后审计写入失败（结果待核对）: originalRecordId={}, action={}, err={}",
+                    r.originalRecordId, action, e.getClass().getSimpleName());
+        }
+        return "UNKNOWN";
+    }
+
+    private static class OutcomeUnknownException extends BizException {
+        OutcomeUnknownException() {
+            super(2002, "平台已返回成功，本地结果待核对，请勿重报");
+        }
     }
 
     /** 失败路径由 attemptUpload 捕获调用：记录 FAILED 日志并更新记录状态 */

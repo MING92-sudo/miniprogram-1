@@ -15,9 +15,8 @@ describe('perspective store', () => {
     expect(p.activeRole).toBe('MAINT_MGR')
     expect(p.scope).toBe('ALL')
 
-    // 后端 LEADER 经 ALIAS 归一为 MAINT_SUP
     auth.role = 'LEADER'
-    expect(p.activeRole).toBe('MAINT_SUP')
+    expect(p.activeRole).toBe('LEADER')
     expect(p.scope).toBe('TEAM')
   })
   it('cannot switch role from the front end', () => {

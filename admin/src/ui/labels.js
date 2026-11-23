@@ -13,7 +13,7 @@ const STATUS = {
   // 通用
   ACTIVE: '启用', DISABLED: '停用', INACTIVE: '停保', NORMAL: '正常', PENDING: '待处理', IN_PROGRESS: '进行中',
   APPROVED: '已批准', EXPIRED: '已过期', REVOKED: '已回收', VOID: '已作废', SCRAPPED: '已报废', TRANSFER: '已移交',
-  SUCCESS: '成功', BLOCKED: '已拦截',
+  SUCCESS: '成功', BLOCKED: '已拦截', UNKNOWN: '结果待核对',
   // 检查项结果 / 判定结论 / 复验
   PASS: '合格', FAIL: '不合格', NA: '不适用',
   QUALIFIED: '合格', RECTIFY: '整改', DISQUALIFIED: '不合格', CONDITIONAL: '有条件移交'
@@ -29,7 +29,7 @@ const ROLE = {
   MAINT_MGR: '维保部经理', MAINT_SUP: '维保主管', MAINT_TECH: '维保技术员', MAINT_BIZ: '维保商务', MAINT_QUALITY: '维保质量负责人',
   CLIENT_ADMIN: '使用单位管理员', CLIENT_SIGNER: '使用单位签字人',
   // 旧码别名
-  ADMIN: '平台管理员', LEADER: '维保主管', WORKER: '维保技术员', ASSISTANT: '维保技术员',
+  ADMIN: '平台管理员', LEADER: '维保班组长', WORKER: '维保技术员', ASSISTANT: '维保技术员',
   INSTALL_MANAGER: '安装项目经理', INSTALL_CLERK: '安装文员', INSTALL_WORKER: '安装技师',
   MAINT_MANAGER: '维保部经理', UNIT_ADMIN: '使用单位管理员'
 }
@@ -45,7 +45,7 @@ Object.keys(ROLE).forEach((code) => {
 })
 // 别名归一：优先规范码
 const CANONICAL = {
-  ADMIN: 'PLATFORM_ADMIN', LEADER: 'MAINT_SUP', WORKER: 'MAINT_TECH', ASSISTANT: 'MAINT_TECH',
+  ADMIN: 'PLATFORM_ADMIN', WORKER: 'MAINT_TECH', ASSISTANT: 'MAINT_TECH',
   INSTALL_MANAGER: 'INST_PM', INSTALL_CLERK: 'INST_CLERK', INSTALL_WORKER: 'INSTALLER',
   MAINT_MANAGER: 'MAINT_MGR', UNIT_ADMIN: 'CLIENT_ADMIN'
 }
@@ -72,7 +72,7 @@ export function roleDept(v) {
   if (!r) return ''
   if (r.startsWith('CLIENT') || r.startsWith('UNIT')) return ''
   if (r.startsWith('INST') || r === 'INSTALLER') return 'INSTALL'
-  if (r.startsWith('MAINT')) return 'MAINT'
+  if (r.startsWith('MAINT') || r === 'LEADER') return 'MAINT'
   return 'PLATFORM'
 }
 
