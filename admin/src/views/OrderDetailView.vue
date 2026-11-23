@@ -352,6 +352,10 @@ function resetActions() {
   closeErr.value = { result: '', signature: '' }
   cancelErr.value = ''
   proxyErr.value = ''
+  dispatchForm.value = { workerId: '', reason: '' }
+  closeForm.value = { result: '', signature: '' }
+  cancelReason.value = ''
+  proxyForm.value = { proxySource: 'PHONE', recordingNo: '' }
 }
 watch(id, () => {
   order.value = null
