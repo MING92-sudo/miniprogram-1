@@ -397,6 +397,28 @@ class AdminArchiveServiceTest {
     }
 
     @Test
+    void updateElevatorRollsBackWhenExplicitClearFails() {
+        com.baomidou.mybatisplus.core.metadata.TableInfoHelper.initTableInfo(
+                new org.apache.ibatis.builder.MapperBuilderAssistant(
+                        new com.baomidou.mybatisplus.core.MybatisConfiguration(), ""), Elevator.class);
+        Elevator elevator = new Elevator();
+        elevator.id = "el_clear_tx";
+        elevator.elevatorCode = "EM-CLEAR-TX";
+        elevator.elevatorName = "原名称";
+        when(elevatorMapper.selectById(elevator.id)).thenReturn(elevator);
+        when(elevatorMapper.update(isNull(), any(LambdaUpdateWrapper.class)))
+                .thenThrow(new IllegalStateException("clear failed"));
+        PlatformTransactionManager transactionManager = newTransactionManager();
+        AdminArchiveService proxy = transactionalProxy(transactionManager);
+
+        assertThrows(IllegalStateException.class, () -> proxy.updateElevator(elevator.id,
+                Map.of("elevatorName", "新名称", "lng", "", "lat", "")));
+
+        verify(elevatorMapper).updateById(elevator);
+        verifyRollback(transactionManager);
+    }
+
+    @Test
     void batchGeoUsesManualSourceAndRangeValidation() {
         Elevator el = new Elevator();
         el.id = "el_9";

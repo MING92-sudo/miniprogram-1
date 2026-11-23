@@ -211,6 +211,26 @@ class AdminArchiveTransactionIntegrationTest {
         assertEquals("29.560000", scalar("SELECT lat FROM elevator WHERE id = ?", "el_it_partial").toString());
     }
 
+    @Test
+    void updateElevatorClearFailureRestoresOriginalRow() throws Exception {
+        insertElevator("el_it_update_clear", "EM-IT-UPDATE-CLEAR");
+        AdminArchiveService service = transactionalService(service(
+                sqlSession.getMapper(SysUserRoleMapper.class),
+                sqlSession.getMapper(ClientAccountMapper.class),
+                sqlSession.getMapper(MaintainRecordMapper.class),
+                failingMapper(ElevatorMapper.class, "update", 1)));
+
+        assertThrows(IllegalStateException.class, () -> service.updateElevator("el_it_update_clear",
+                Map.of("elevatorName", "不应部分更新", "lng", "", "lat", "")));
+
+        assertEquals("事务电梯", scalar(
+                "SELECT elevator_name FROM elevator WHERE id = ?", "el_it_update_clear"));
+        assertEquals("100.000001", scalar(
+                "SELECT lng FROM elevator WHERE id = ?", "el_it_update_clear").toString());
+        assertEquals("20.000001", scalar(
+                "SELECT lat FROM elevator WHERE id = ?", "el_it_update_clear").toString());
+    }
+
     private static AdminArchiveService service(SysUserRoleMapper roles, ClientAccountMapper accounts,
                                                MaintainRecordMapper records, ElevatorMapper elevators) {
         CompanyMapper companies = sqlSession.getMapper(CompanyMapper.class);

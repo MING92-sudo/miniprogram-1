@@ -606,6 +606,7 @@ public class AdminArchiveService {
         return elevatorAdminRow(el);
     }
 
+    @Transactional
     public Map<String, Object> updateElevator(String id, Map<String, Object> body) {
         Elevator el = elevatorMapper.selectById(id);
         if (el == null) {
