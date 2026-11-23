@@ -138,7 +138,12 @@ public class PlatformController {
         return ApiResponse.ok(idempotencyService.executeExternal(idemKey, fields, request, () -> {
             Map<String, Object> resp = platformClient.registerServiceState(fields,
                     bytes(contractFile), filename(contractFile));
-            return resp.get("data") == null ? Map.of("ok", true) : resp.get("data");
+            Object data = resp.get("data");
+            if (data == null) {
+                return Map.of("ok", true);
+            }
+            // 归一化为 Map：重放经 readMap 反序列化，非对象 data 会让已完成键永久 500
+            return data instanceof Map<?, ?> ? data : Map.of("ok", true, "data", data);
         }));
     }
 

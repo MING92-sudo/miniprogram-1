@@ -101,6 +101,25 @@ class PlatformControllerIdempotencyTest {
     }
 
     @Test
+    void registerServiceNormalizesNonMapDataForReplaySafety() throws Exception {
+        // 平台 data 为非对象（标量/数组）时也必须归一化为 Map，否则首调成功但该键重放永久 500
+        Map<String, Object> replay = Map.of("ok", true, "data", "SCALAR");
+        stubReplay(replay);
+        when(platformClient.registerServiceState(any(), any(), any()))
+                .thenReturn(Map.of("data", "SCALAR"));
+        HttpServletRequest req = mock(HttpServletRequest.class);
+
+        ApiResponse<Object> first = controller.registerService("渝达物业", "ENT-1", "0", "2026-01-01",
+                "2027-12-31", pdf(), "key-s2", req);
+        ApiResponse<Object> second = controller.registerService("渝达物业", "ENT-1", "0", "2026-01-01",
+                "2027-12-31", pdf(), "key-s2", req);
+
+        assertEquals(Map.of("ok", true, "data", "SCALAR"), first.getData());
+        assertEquals(replay, second.getData());
+        verify(platformClient, times(1)).registerServiceState(any(), any(), any());
+    }
+
+    @Test
     void registerWorkerWithoutKeyExecutesDirectlyEachTime() throws Exception {
         when(idempotencyService.executeExternal(isNull(), any(), any(), any())).thenAnswer(inv -> {
             @SuppressWarnings("unchecked")
