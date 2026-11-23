@@ -26,6 +26,11 @@ export function reupload(id) {
   return http.post(`/platform/records/${id}/reupload`, {})
 }
 
+/** 逐条人工核对停留态记录：只改本地状态，绝不调平台（唯一恢复入口） */
+export function reconcile(id, outcome, note) {
+  return http.post(`/platform/records/${id}/reconcile`, { outcome, note })
+}
+
 export function exportPdf(id) {
   return http.get(`/admin/records/${id}/export-pdf`, { responseType: 'blob', timeout: 120000 })
 }

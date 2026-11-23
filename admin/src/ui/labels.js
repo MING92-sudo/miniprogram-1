@@ -6,6 +6,7 @@ const STATUS = {
   // 工单/急修
   OPEN: '待处理', ASSIGNED: '已派单', PROCESSING: '进行中', DONE: '已完成', SUBMITTED: '已提交',
   REPORTED: '已上报', FAILED: '上报失败', CANCELLED: '已取消', CLOSED: '已关闭', OVERDUE: '已超时',
+  REPORTING: '上报中', REUPLOADING: '重报中', LEGACY_UPLOADING: '同步中',
   URGENT: '紧急', TRAPPED: '困人', FAULT: '故障',
   // 记录单
   REVIEWING: '待复核', SIGNING: '待签字', SIGNED: '已签字', CONFIRMED: '已确认', AMENDING: '修订中', REJECTED: '已驳回',
@@ -13,7 +14,7 @@ const STATUS = {
   // 通用
   ACTIVE: '启用', DISABLED: '停用', INACTIVE: '停保', NORMAL: '正常', PENDING: '待处理', IN_PROGRESS: '进行中',
   APPROVED: '已批准', EXPIRED: '已过期', REVOKED: '已回收', VOID: '已作废', SCRAPPED: '已报废', TRANSFER: '已移交',
-  SUCCESS: '成功', BLOCKED: '已拦截', UNKNOWN: '结果待核对',
+  SUCCESS: '成功', BLOCKED: '已拦截', UNKNOWN: '上报待核对',
   // 检查项结果 / 判定结论 / 复验
   PASS: '合格', FAIL: '不合格', NA: '不适用',
   QUALIFIED: '合格', RECTIFY: '整改', DISQUALIFIED: '不合格', CONDITIONAL: '有条件移交'

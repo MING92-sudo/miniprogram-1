@@ -42,18 +42,18 @@ describe('SyncView 上报状态（后端码）展示', () => {
     expect(kpi('上报成功').find('.kpi-n').text()).toBe('1')
     expect(kpi('上报失败').find('.kpi-n').text()).toBe('1')
     expect(kpi('待上报').find('.kpi-n').text()).toBe('1')
-    expect(kpi('结果待核对').find('.kpi-n').text()).toBe('1')
+    expect(kpi('上报待核对').find('.kpi-n').text()).toBe('1')
     expect(kpi('记录总数').find('.kpi-n').text()).toBe('4')
   })
 
-  it('列表展示中文状态标签，UNKNOWN 显示「结果待核对」而非裸码', async () => {
+  it('列表展示中文状态标签，UNKNOWN 显示「上报待核对」而非裸码', async () => {
     const w = mountView()
     await flushPromises()
     const tbody = w.find('tbody').text()
     expect(tbody).toContain('成功')
     expect(tbody).toContain('上报失败')
     expect(tbody).toContain('待处理')
-    expect(tbody).toContain('结果待核对')
+    expect(tbody).toContain('上报待核对')
     expect(tbody).not.toContain('UNKNOWN')
     expect(tbody).not.toContain('SUCCESS')
   })
@@ -78,7 +78,7 @@ describe('SyncView 上报状态（后端码）展示', () => {
       { value: 'SUCCESS', label: '成功' },
       { value: 'FAILED', label: '上报失败' },
       { value: 'PENDING', label: '待处理' },
-      { value: 'UNKNOWN', label: '结果待核对' }
+      { value: 'UNKNOWN', label: '上报待核对' }
     ])
   })
 
@@ -91,7 +91,7 @@ describe('SyncView 上报状态（后端码）展示', () => {
     expect(actionText).toContain('详情')
     await unknownRow.find('button').trigger('click')
     await flushPromises()
-    expect(w.text()).toContain('结果待核对')
+    expect(w.text()).toContain('上报待核对')
     expect(w.text()).toContain('UNKNOWN')
   })
 })

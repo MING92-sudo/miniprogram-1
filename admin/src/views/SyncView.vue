@@ -150,13 +150,16 @@ async function load() {
 onMounted(load)
 
 const statusOptions = ['SUCCESS', 'FAILED', 'PENDING', 'UNKNOWN'].map((value) => ({ value, label: statusLabel(value) }))
+// 停留态与后端 PlatformReportService.RECONCILABLE_STATUSES 同口径：唯一恢复入口在上报异常清单
+const STUCK = ['UNKNOWN', 'REPORTING', 'REUPLOADING', 'LEGACY_UPLOADING']
 const summary = computed(() => {
   const count = (s) => rows.value.filter((r) => r.uploadStatus === s).length
+  const stuck = rows.value.filter((r) => STUCK.includes(r.reportStatus)).length
   return [
     { key: 'ok', label: '上报成功', value: count('SUCCESS'), sub: '已同步监管平台', icon: 'check' },
     { key: 'fail', label: '上报失败', value: count('FAILED'), sub: '需排查后逐条重报', icon: 'alert' },
     { key: 'pending', label: '待上报', value: count('PENDING'), sub: '等待归档或上报', icon: 'clock' },
-    { key: 'unknown', label: statusLabel('UNKNOWN'), value: count('UNKNOWN'), sub: '平台已受理，本地结果待核对', icon: 'info' },
+    { key: 'stuck', label: statusLabel('UNKNOWN'), value: stuck, sub: stuck > 0 ? '请到上报异常清单逐条核对' : '平台已受理，本地结果待核对', icon: 'info' },
     { key: 'total', label: '记录总数', value: total.value, sub: '当前页统计口径', icon: 'file-text' }
   ]
 })
