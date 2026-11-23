@@ -406,8 +406,11 @@ function missingDocs(row) {
   return ['supervisionReportFileId', 'maintenanceManualFileId', 'qualityCertificateFileId'].filter((k) => !row[k]).length
 }
 
+let detailSeq = 0
 const detailOpen = ref(false)
 const detail = ref({})
+const detailId = ref('')
+const loaded = ref(false)
 const signs = ref([])
 const checks = ref([])
 const tab = ref('checklist')
@@ -549,40 +552,71 @@ async function submitCreate() {
 }
 
 async function openDetail(row) {
-  detail.value = row
+  const seq = ++detailSeq
+  const targetId = row.id
+  detail.value = { ...row }
   detailOpen.value = true
   tab.value = 'checklist'
-  archive.value = []
   signs.value = []
   checks.value = []
-  try {
-    const full = await api.handoverDetail(row.id)
-    detail.value = { ...row, ...full }
-    signs.value = full.signs || []
-    checks.value = full.checks || []
-  } catch { /* 详情补全失败时退回列表行字段 */ }
-  await Promise.all([loadChecklist(), loadRects()])
+  check.value = {}
+  items.value = []
+  rects.value = []
+  archive.value = []
+  conditional.siteLimited = false
+  conditional.tripartiteAgreed = false
+  conditional.controlMeasures = ''
+  detailId.value = targetId
+  loaded.value = false
+  const loadDetail = (async () => {
+    try {
+      const full = await api.handoverDetail(targetId)
+      if (seq !== detailSeq) return
+      detail.value = { ...row, ...full }
+      signs.value = full.signs || []
+      checks.value = full.checks || []
+    } catch { /* 详情补全失败时退回列表行字段 */ }
+  })()
+  await Promise.all([loadDetail, loadChecklist(targetId, seq), loadRects(targetId, seq)])
+  if (seq !== detailSeq) return
+  loaded.value = true
 }
 function switchTab(key) {
   tab.value = key
   if (key === 'archive' && !archive.value.length) loadArchive()
 }
-async function loadChecklist() {
+async function loadChecklist(handoverId = detailId.value, seq = detailSeq) {
   try {
-    const data = await api.getChecklist(detail.value.id)
+    const data = await api.getChecklist(handoverId)
+    if (seq !== detailSeq || handoverId !== detailId.value) return
     check.value = data.check || {}
     items.value = (data.items || []).map((it) => ({ ...it }))
   } catch (e) {
+    if (seq !== detailSeq || handoverId !== detailId.value) return
     // 422=未到查验中（清单在进入查验中时生成）：静默置空并显示引导文案，不报错误
     if (e.code === 422) { check.value = {}; items.value = [] }
     else toast.error(e.message || '加载检查清单失败')
   }
 }
-async function loadRects() {
-  try { rects.value = await api.getRectifications(detail.value.id) } catch { rects.value = [] }
+async function loadRects(handoverId = detailId.value, seq = detailSeq) {
+  try {
+    const data = await api.getRectifications(handoverId)
+    if (seq !== detailSeq || handoverId !== detailId.value) return
+    rects.value = data
+  } catch {
+    if (seq !== detailSeq || handoverId !== detailId.value) return
+    rects.value = []
+  }
 }
-async function loadArchive() {
-  try { archive.value = await api.getArchive(detail.value.id) } catch (e) { toast.error(e.message || '加载归档目录失败') }
+async function loadArchive(handoverId = detailId.value, seq = detailSeq) {
+  try {
+    const data = await api.getArchive(handoverId)
+    if (seq !== detailSeq || handoverId !== detailId.value) return
+    archive.value = data
+  } catch (e) {
+    if (seq !== detailSeq || handoverId !== detailId.value) return
+    toast.error(e.message || '加载归档目录失败')
+  }
 }
 
 async function uploadPhoto(it, ev) {
@@ -596,15 +630,22 @@ async function uploadPhoto(it, ev) {
 }
 
 async function submit() {
+  const id = detailId.value
+  const seq = detailSeq
+  if (!loaded.value || !id || detail.value.id !== id) {
+    toast.error('移交单加载未完成，请稍候重试')
+    return
+  }
   const payload = items.value.map((it) => ({
     itemNo: it.itemNo, result: it.result || null, measuredValue: it.measuredValue || null,
     failDesc: it.failDesc || null, naReason: it.naReason || null, naNote: it.naNote || null, photoFileIds: it.photoFileIds || null
   }))
   try {
-    const order = await api.submitChecklist(detail.value.id, { items: payload, conditional: { ...conditional } })
+    const order = await api.submitChecklist(id, { items: payload, conditional: { ...conditional } })
+    if (seq !== detailSeq) return
     detail.value = { ...detail.value, status: order.status }
     toast.success('查验已提交：' + conclusionLabel(check.value.conclusion))
-    await Promise.all([loadChecklist(), loadRects(), loadList()])
+    await Promise.all([loadChecklist(id, seq), loadRects(id, seq), loadList()])
   } catch (e) { toast.error(e.message || '提交查验失败') }
 }
 
