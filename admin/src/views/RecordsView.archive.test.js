@@ -20,10 +20,14 @@ const router = createRouter({
   routes: [{ path: '/', component: { template: '<div/>' } }]
 })
 
+// 行形状镜像后端 AdminService.recordRow / mock /admin/records 投影（含 archiveFileId）
 const base = {
-  elevatorCode: 'EM-1', elevatorName: '1# 客梯', workType: '半月维保',
-  workerName: '张伟', assistantName: '李强', problemCodes: ['S0'],
-  confirmStatus: 'CONFIRMED', reportStatus: 'SUBMITTED', createdAt: '2026-11-19 10:00:00', refuseCode: ''
+  elevatorName: '1# 客梯', elevatorCode: 'EM-1', workType: '半月维保', workTypeCode: 'HM',
+  workerName: '张伟', assistantName: '李强',
+  checkinTime: '2026-11-19 08:00:00', checkoutTime: '2026-11-19 10:00:00', duration: '2小时',
+  problemCodes: ['S0'], reportStatus: 'SUBMITTED', uploadStatus: 'PENDING', retryCount: 0,
+  confirmStatus: 'CONFIRMED', refuseCode: '', refuseReason: '', satisfaction: 0,
+  createdAt: '2026-11-19 10:00:00'
 }
 const pendingArchiveRow = { ...base, id: 'ur_p1', originalRecordId: 'REC-0101', lifecycleStatus: 'SIGNED', archiveFileId: '' }
 const signedArchivedRow = { ...base, id: 'ur_p2', originalRecordId: 'REC-0102', lifecycleStatus: 'SIGNED', archiveFileId: 'file_1' }

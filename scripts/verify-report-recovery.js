@@ -134,6 +134,19 @@ function injectRecord(id, reportStatus, extra) {
         '缺 REPORT_STATUS_TEXT.UNKNOWN')
       assert(typeof C.REPORT_UNKNOWN_HINT === 'string' && C.REPORT_UNKNOWN_HINT.length > 0, '缺 REPORT_UNKNOWN_HINT')
     })
+    await check('9 /admin/records 行投影含 archiveFileId 键（待归档标签契约）', async () => {
+      injectRecord('ur_rc_archive_key', 'REPORTED', { archiveFileId: 'file_mock_1' })
+      injectRecord('ur_rc_archive_empty', 'FAILED', {})
+      const res = await req('GET', '/admin/records', { reportStatus: 'REPORTED,FAILED', size: 100 })
+      const byId = {}
+      ;(res.list || []).forEach((r) => { byId[r.id] = r })
+      ;['ur_rc_archive_key', 'ur_rc_archive_empty'].forEach((id) => {
+        assert(byId[id], '过滤结果缺记录: ' + id)
+        assert(Object.prototype.hasOwnProperty.call(byId[id], 'archiveFileId'), id + ' 行投影缺 archiveFileId 键')
+      })
+      assert.strictEqual(byId.ur_rc_archive_key.archiveFileId, 'file_mock_1')
+      assert.strictEqual(byId.ur_rc_archive_empty.archiveFileId, '')
+    })
   } finally {
     d.db.unitRecords = d.db.unitRecords.filter((r) => INJECTED_IDS.indexOf(r.id) < 0)
   }

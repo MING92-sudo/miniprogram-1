@@ -1102,7 +1102,8 @@ const routes = [
       retryCount: r.retryCount || 0,
       confirmStatus: r.confirmStatus || '',
       lifecycleStatus: r.lifecycleStatus || '',
-      originalRecordId: r.originalRecordId || ''
+      originalRecordId: r.originalRecordId || '',
+      archiveFileId: r.archiveFileId || ''
     })), query)
   }],
 

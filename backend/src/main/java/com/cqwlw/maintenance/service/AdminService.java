@@ -165,7 +165,7 @@ public class AdminService {
                 MaintainRecord::getProblemCodesJson, MaintainRecord::getReportStatus, MaintainRecord::getRetryCount,
                 MaintainRecord::getConfirmStatus, MaintainRecord::getLifecycleStatus,
                 MaintainRecord::getRefuseCode, MaintainRecord::getRefuseReason, MaintainRecord::getSatisfaction,
-                MaintainRecord::getOriginalRecordId, MaintainRecord::getCreatedAt);
+                MaintainRecord::getOriginalRecordId, MaintainRecord::getArchiveFileId, MaintainRecord::getCreatedAt);
         if (visiblePlatformIds != null) {
             w.and(x -> x.in(MaintainRecord::getWorkerPlatformId, visiblePlatformIds)
                     .or().in(MaintainRecord::getAssistantPlatformId, visiblePlatformIds));
@@ -242,6 +242,7 @@ public class AdminService {
         m.put("refuseReason", nz(r.refuseReason));
         m.put("satisfaction", r.satisfaction == null ? 0 : r.satisfaction);
         m.put("originalRecordId", nz(r.originalRecordId));
+        m.put("archiveFileId", nz(r.archiveFileId));
         m.put("createdAt", TimeUtil.format(r.createdAt));
         return m;
     }

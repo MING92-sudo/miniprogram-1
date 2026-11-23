@@ -199,8 +199,31 @@ class AdminServiceTest {
     }
 
     @Test
-    void uploadLogsPaginateAndExposeDigestOnly() {
-        RegUploadLog g = new RegUploadLog();
+    void recordsRowsExposeArchiveFileId() {
+        MaintainRecord signed = new MaintainRecord();
+        signed.id = "ur_s1";
+        signed.lifecycleStatus = "SIGNED";
+        signed.archiveFileId = "file_1";
+        signed.createdAt = TimeUtil.now();
+        Page<MaintainRecord> mp = new Page<>(1, 20);
+        mp.setRecords(List.of(signed));
+        mp.setTotal(1);
+        when(recordMapper.selectPage(any(), any())).thenReturn(mp);
+
+        Map<String, Object> out = service.records(Map.of());
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> list = (List<Map<String, Object>>) out.get("list");
+        assertEquals(1, list.size());
+        assertEquals("file_1", list.get(0).get("archiveFileId"));
+
+        org.mockito.ArgumentCaptor<com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<MaintainRecord>> captor =
+                org.mockito.ArgumentCaptor.forClass(com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper.class);
+        org.mockito.Mockito.verify(recordMapper).selectPage(any(), captor.capture());
+        assertTrue(captor.getValue().getSqlSelect().contains("archive_file_id"), captor.getValue().getSqlSelect());
+    }
+
+    @Test
+    void uploadLogsPaginateAndExposeDigestOnly() {        RegUploadLog g = new RegUploadLog();
         g.id = "log_1";
         g.originalRecordId = "1948";
         g.action = "REUPLOAD";
