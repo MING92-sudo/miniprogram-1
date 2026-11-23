@@ -92,7 +92,7 @@ class RbacMatrixTest {
                 ADMIN, SYS_ADMIN, RoleCatalog.INSTALL_MANAGER, RoleCatalog.INSTALL_CLERK,
                 RoleCatalog.MAINT_MANAGER, RoleCatalog.MAINT_QUALITY);
         assertGrants(PermissionMatrix.HANDOVER_READ, readers);
-        // ADMIN 平台兜底可写，但节点签字仍由 HandoverService.NODE_ROLES 限角色，写权限不等于代签
+        // ADMIN 平台兜底可写，但节点签字由 PermissionMatrix 的 handover:sign_* 能力另行限制，写权限不等于代签
         List<String> handoverWriters = List.of(
                 ADMIN, SYS_ADMIN, RoleCatalog.INSTALL_MANAGER, RoleCatalog.INSTALL_CLERK,
                 RoleCatalog.INSTALL_WORKER, RoleCatalog.MAINT_MANAGER);

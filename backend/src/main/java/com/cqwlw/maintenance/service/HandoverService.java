@@ -1,6 +1,7 @@
 package com.cqwlw.maintenance.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.cqwlw.maintenance.auth.PermissionMatrix;
 import com.cqwlw.maintenance.common.BizException;
 import com.cqwlw.maintenance.common.Ids;
 import com.cqwlw.maintenance.common.Paginate;
@@ -33,7 +34,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 
 @Service
 public class HandoverService {
@@ -52,11 +52,11 @@ public class HandoverService {
 
     private static final String APPROVE = "APPROVE";
     private static final String REJECT = "REJECT";
-    private static final Map<String, Set<String>> NODE_ROLES = Map.of(
-            "INSTALLER_HANDOVER", Set.of("INSTALLER"),
-            "MAINTENANCE_ASSIGN", Set.of("LEADER", "ADMIN", "SYS_ADMIN"),
-            "MAINTENANCE_CONFIRM", Set.of("LEADER", "ADMIN", "SYS_ADMIN"),
-            "SITE_INSPECT", Set.of("WORKER", "LEADER", "ADMIN", "SYS_ADMIN"));
+    private static final Map<String, String> NODE_CAPABILITIES = Map.of(
+            "INSTALLER_HANDOVER", PermissionMatrix.HANDOVER_SIGN_INSTALL,
+            "MAINTENANCE_ASSIGN", PermissionMatrix.HANDOVER_SIGN_MAINT,
+            "MAINTENANCE_CONFIRM", PermissionMatrix.HANDOVER_SIGN_MAINT,
+            "SITE_INSPECT", PermissionMatrix.HANDOVER_INSPECT);
 
     private final HandoverOrderMapper orderMapper;
     private final HandoverCheckMapper checkMapper;
@@ -421,8 +421,8 @@ public class HandoverService {
     public HandoverSign signNode(String handoverId, Map<String, Object> body, String actorEmpId) {
         HandoverOrder order = requireOrder(handoverId);
         String nodeType = str(body, "nodeType") == null ? "" : str(body, "nodeType").trim();
-        Set<String> allowedRoles = NODE_ROLES.get(nodeType);
-        if (allowedRoles == null) {
+        String capability = NODE_CAPABILITIES.get(nodeType);
+        if (capability == null) {
             throw new BizException(422, "未知签字节点：" + nodeType);
         }
         String action = str(body, "action") == null ? "" : str(body, "action").trim().toUpperCase();
@@ -434,7 +434,7 @@ public class HandoverService {
         if (actor == null) {
             throw new BizException(401, "登录已过期，请重新登录");
         }
-        if (!allowedRoles.contains(actor.role)) {
+        if (PermissionMatrix.state(actor.role, capability) != PermissionMatrix.TriState.Y) {
             throw new BizException(1403, "仅授权岗位可签「" + nodeType + "」节点");
         }
         HandoverSign sign = new HandoverSign();
