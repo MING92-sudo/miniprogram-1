@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { canonical, state, allowsNew, canonicalCodes, canonicalRoles, defaultScope, canEditElevator } from './permission-v2'
+import { canonical, state, stateForRoles, allowsNew, canonicalCodes, canonicalRoles, defaultScope, canEditElevator } from './permission-v2'
 
 describe('permission-v2 mirror', () => {
   it('has 84 canonical codes', () => {
@@ -52,6 +52,21 @@ describe('permission-v2 mirror', () => {
     expect(() => allowsNew('INST_MGR', null)).toThrow()
     expect(() => state('MAINT_MGR', 'filing:view')).toThrow()
     expect(() => state('MAINT_MGR', 'filing:write')).toThrow()
+  })
+  it('stateForRoles 并集：任一 Y→Y，否则任一 C→C，否则 DENY', () => {
+    // handover:view: INST_MGR=Y, INST_CLERK=C
+    expect(stateForRoles(['INST_CLERK', 'INST_MGR'], 'handover:view')).toBe('Y')
+    // 仅 C
+    expect(stateForRoles(['INST_CLERK'], 'handover:view')).toBe('C')
+    // 全部 DENY
+    expect(stateForRoles(['LEADER', 'MAINT_TECH'], 'config:manage')).toBe('DENY')
+    // 空 / 非数组 → DENY
+    expect(stateForRoles([], 'handover:view')).toBe('DENY')
+    expect(stateForRoles(null, 'handover:view')).toBe('DENY')
+    expect(stateForRoles(undefined, 'handover:view')).toBe('DENY')
+    // 未知 code 仍 fail-closed 抛错（含空角色集）
+    expect(() => stateForRoles(['INST_MGR'], 'no:such')).toThrow()
+    expect(() => stateForRoles([], 'no:such')).toThrow()
   })
   it('defaultScope mirrors sys_role_scope', () => {
     expect(defaultScope('PLATFORM_ADMIN')).toBe('ALL')

@@ -62,4 +62,19 @@ describe('resolveRoute', () => {
     const to = { ...rolesRoute, query: { tab: 'grants' }, fullPath: '/roles?tab=grants' }
     expect(resolveRoute(to, { token: 'jwt', role: 'PLATFORM_ADMIN' })).toBe(true)
   })
+
+  it('多角色并集：第二角色的 project:edit 放行（LEADER 主角色）', () => {
+    const to = { path: '/projects', fullPath: '/projects', meta: { title: '项目台账', perm: 'project:edit' } }
+    expect(resolveRoute(to, { token: 'jwt', role: 'LEADER', roles: ['LEADER', 'MAINT_MGR'] })).toBe(true)
+  })
+
+  it('多角色并集：第二角色的 platform:worker_register 放行（LEADER 主角色）', () => {
+    const to = { path: '/register/workers', fullPath: '/register/workers', meta: { title: '平台登记人员', perm: 'platform:worker_register' } }
+    expect(resolveRoute(to, { token: 'jwt', role: 'LEADER', roles: ['LEADER', 'MAINT_MGR'] })).toBe(true)
+  })
+
+  it('多角色均 DENY 同一页面仍 /403', () => {
+    const to = { path: '/settings', fullPath: '/settings', meta: { title: '系统配置', perm: 'config:manage' } }
+    expect(resolveRoute(to, { token: 'jwt', role: 'LEADER', roles: ['LEADER', 'MAINT_TECH'] }).path).toBe('/403')
+  })
 })

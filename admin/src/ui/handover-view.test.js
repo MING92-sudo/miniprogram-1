@@ -5,6 +5,7 @@ import { createRouter, createWebHashHistory } from 'vue-router'
 
 vi.mock('./permission-v2', () => ({
   state: () => 'Y',
+  stateForRoles: () => 'Y',
   canonical: (r) => r,
   defaultScope: () => 'ALL'
 }))

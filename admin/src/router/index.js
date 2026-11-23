@@ -77,7 +77,7 @@ if (import.meta.env.DEV) {
 const router = createRouter({ history: createWebHashHistory(), routes })
 router.beforeEach((to) => {
   const auth = useAuthStore()
-  return resolveRoute(to, { token: auth.token, role: auth.role })
+  return resolveRoute(to, { token: auth.token, role: auth.role, roles: auth.roles })
 })
 router.afterEach((to) => {
   document.title = to.meta && to.meta.title ? `${to.meta.title} · 博威无纸化管理端` : '博威无纸化管理端'
