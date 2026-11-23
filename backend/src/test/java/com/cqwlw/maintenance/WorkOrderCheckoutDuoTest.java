@@ -55,6 +55,8 @@ class WorkOrderCheckoutDuoTest {
 
     private WorkOrderMapper orderMapper;
     private MaintainRecordMapper recordMapper;
+    private PlatformReportService reportService;
+    private FileStorageService fileStorage;
     private WorkOrderService service;
 
     @BeforeEach
@@ -75,13 +77,14 @@ class WorkOrderCheckoutDuoTest {
         when(useUnitMapper.selectById(any())).thenReturn(uu);
         AppProperties props = new AppProperties();
         props.setWorkDurationMinutes(30);
-        FileStorageService fileStorage = mock(FileStorageService.class);
+        fileStorage = mock(FileStorageService.class);
         when(fileStorage.urlOf(any())).thenReturn("");
+        reportService = mock(PlatformReportService.class);
         service = new WorkOrderService(orderMapper, elevatorMapper, useUnitMapper,
                 employeeMapper, companyMapper, recordMapper,
                 mock(FaultMapper.class), mock(InspectRecordMapper.class),
                 mock(HandoverOrderMapper.class), mock(MessageMapper.class), mock(ChecklistService.class),
-                mock(PlatformReportService.class), new EmployeeScopeService(employeeMapper),
+                reportService, new EmployeeScopeService(employeeMapper),
                 new CheckinThresholdService(mock(SysParamMapper.class), props),
                 fileStorage, TxTestSupport.noopTx(), props);
 
@@ -180,6 +183,28 @@ class WorkOrderCheckoutDuoTest {
     }
 
     @Test
+    void checkoutRejectsMissingPrincipalCheckin() {
+        WorkOrder o = pooledOrder();
+        o.checkinTime = null;
+        o.checkinExtraJson = null;
+        o.assistantName = "王五";
+        o.assistantPlatformId = PID_WANG;
+        o.assistantCheckinExtraJson = ASSISTANT_CHECKIN;
+        when(orderMapper.selectById(POOLED_ORDER)).thenReturn(o);
+
+        BizException e = assertThrows(BizException.class,
+                () -> service.checkout(POOLED_ORDER, Map.of("signatureUrl", "https://x/sign.png"), EMP_LI));
+
+        assertEquals(422, e.getCode());
+        assertTrue(e.getMessage().contains("主维保"), e.getMessage());
+        assertTrue(e.getMessage().contains("未签到"), e.getMessage());
+        verify(orderMapper, never()).updateById(any(WorkOrder.class));
+        verify(orderMapper, never()).completeCheckout(any(), any(), any(), any(), any(), any());
+        verify(recordMapper, never()).insert(any(MaintainRecord.class));
+        verify(reportService, never()).attemptUpload(any());
+    }
+
+    @Test
     void noRegionPoolOrderSoloCheckoutRejected() {
         WorkOrder o = legacyOrder(); // regionId 空（不限区域电梯的池化新单）
         o.assistantName = null;
@@ -242,6 +267,25 @@ class WorkOrderCheckoutDuoTest {
         verify(recordMapper, never()).insert(any(MaintainRecord.class));
     }
 
+    @Test
+    void submitItemRejectsUnknownResult() {
+        WorkOrder o = legacyOrder();
+        when(orderMapper.selectById(LEGACY_ORDER)).thenReturn(o);
+
+        for (String result : new String[]{"BOGUS", ""}) {
+            Map<String, Object> body = Map.of(
+                    "result", result,
+                    "value", Map.of("not", "numeric"),
+                    "photoFileIds", List.of("file-1"));
+            BizException e = assertThrows(BizException.class,
+                    () -> service.submitItem(LEGACY_ORDER, "it_1", body, EMP_LI));
+            assertEquals(422, e.getCode());
+            assertTrue(e.getMessage().contains("检查结果非法"), e.getMessage());
+        }
+        verify(fileStorage, never()).urlOf(any());
+        verify(orderMapper, never()).updateById(any(WorkOrder.class));
+    }
+
     private static WorkOrder pooledOrder() {
         WorkOrder o = base(POOLED_ORDER);
         o.regionId = "region_yubei";
@@ -264,6 +308,7 @@ class WorkOrderCheckoutDuoTest {
         o.workerName = "李强";
         o.workerPlatformId = PID_LI;
         o.checkinTime = TimeUtil.now().minusMinutes(40);
+        o.checkinExtraJson = "{\"role\":\"PRINCIPAL\"}";
         o.checklistJson = CHECKLIST;
         return o;
     }

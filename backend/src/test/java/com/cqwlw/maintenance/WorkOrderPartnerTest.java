@@ -50,6 +50,7 @@ class WorkOrderPartnerTest {
     private WorkOrderMapper orderMapper;
     private ElevatorMapper elevatorMapper;
     private EmployeeMapper employeeMapper;
+    private TxTestSupport.CapturingTx tx;
     private WorkOrderService service;
     private WorkOrder order;
     private Elevator elevator;
@@ -61,13 +62,14 @@ class WorkOrderPartnerTest {
         employeeMapper = mock(EmployeeMapper.class);
         AppProperties props = new AppProperties();
         props.setJwtSecret("unit-test-secret-key-0123456789-abcdefghijk");
+        tx = TxTestSupport.capturingTx();
         service = new WorkOrderService(orderMapper, elevatorMapper, mock(UseUnitMapper.class),
                 employeeMapper, mock(CompanyMapper.class), mock(MaintainRecordMapper.class),
                 mock(FaultMapper.class), mock(InspectRecordMapper.class), mock(HandoverOrderMapper.class),
                 mock(MessageMapper.class), mock(ChecklistService.class), mock(PlatformReportService.class),
                 new EmployeeScopeService(employeeMapper),
                 new CheckinThresholdService(mock(SysParamMapper.class), props),
-                mock(FileStorageService.class), TxTestSupport.noopTx(), props);
+                mock(FileStorageService.class), tx.template, props);
 
         // 已认领工单：张三主维保、区域快照 rg_yubei、未指派配合人
         order = new WorkOrder();
@@ -173,6 +175,23 @@ class WorkOrderPartnerTest {
         assertEquals("王五", order.assistantName);
         assertEquals("pid_wang", order.assistantPlatformId);
         verify(orderMapper).updateById(order);
+    }
+
+    @Test
+    void reassignPartnerClearsPreviousSignature() {
+        order.assistantName = "旧配合人";
+        order.assistantPlatformId = "pid_old";
+        order.assistantSignatureFileId = "file_old_signature";
+        order.assistantSignatureAt = java.time.LocalDateTime.now();
+
+        service.assignPartner(ORDER, Map.of("employeeId", "emp_wang"), "emp_zhang");
+
+        assertEquals("王五", order.assistantName);
+        assertNull(order.assistantSignatureFileId);
+        assertNull(order.assistantSignatureAt);
+        assertTrue(tx.committed, "改选配合人与清旧签名必须处在同一事务");
+        verify(orderMapper).updateById(order);
+        verify(orderMapper).clearAssistantSignature(ORDER);
     }
 
     @Test

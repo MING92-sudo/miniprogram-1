@@ -137,6 +137,19 @@ class WorkOrderSignatureTest {
         verify(orderMapper, never()).updateById(any(WorkOrder.class));
     }
 
+    @Test
+    void signRequiresOwnCheckin() {
+        WorkOrder o = dualOrder(DUAL_ORDER, PID_ZHANG, PID_LI, "PROCESSING");
+        o.checkinExtraJson = null;
+        o.assistantCheckinExtraJson = null;
+        when(orderMapper.selectById(DUAL_ORDER)).thenReturn(o);
+
+        assertCode(422, () -> service.signOrder(DUAL_ORDER, sign("PRINCIPAL", "file_worker"), EMP_ZHANG));
+        o.checkinExtraJson = "{\"role\":\"PRINCIPAL\"}";
+        assertCode(422, () -> service.signOrder(DUAL_ORDER, sign("ASSISTANT", "file_assistant"), EMP_LI));
+        verify(orderMapper, never()).updateById(any(WorkOrder.class));
+    }
+
     private WorkOrder captureUpdate() {
         ArgumentCaptor<WorkOrder> cap = ArgumentCaptor.forClass(WorkOrder.class);
         verify(orderMapper).updateById(cap.capture());
@@ -165,6 +178,8 @@ class WorkOrderSignatureTest {
         o.assistantName = "李强";
         o.assistantPlatformId = assistantPid;
         o.checkinTime = TimeUtil.now().minusHours(2);
+        o.checkinExtraJson = "{\"role\":\"PRINCIPAL\"}";
+        o.assistantCheckinExtraJson = "{\"role\":\"ASSISTANT\"}";
         o.checklistJson = "[{\"id\":\"it_1\",\"name\":\"曳引机\",\"isKey\":false,\"photoRequired\":false}]";
         return o;
     }

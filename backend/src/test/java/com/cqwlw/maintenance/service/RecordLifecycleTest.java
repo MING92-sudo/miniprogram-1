@@ -208,6 +208,28 @@ class RecordLifecycleTest {
     }
 
     @Test
+    void signatureRefuseClearsDatabaseColumns() {
+        WorkOrder o = new WorkOrder();
+        o.id = "o1";
+        o.status = "PROCESSING";
+        o.assistantPlatformId = "P-Assist";
+        o.assistantSignatureFileId = "file-a";
+        o.assistantSignatureAt = com.cqwlw.maintenance.util.TimeUtil.now();
+        when(orders.selectById("o1")).thenReturn(o);
+        Employee me = new Employee();
+        me.id = "e1";
+        me.platformId = "P-Assist";
+        when(employees.selectById("e1")).thenReturn(me);
+
+        svc.signatureRefuse("o1", "e1");
+
+        assertNull(o.assistantSignatureFileId);
+        assertNull(o.assistantSignatureAt);
+        verify(orders).clearAssistantSignature("o1");
+        verify(orders, never()).updateById(any(WorkOrder.class));
+    }
+
+    @Test
     void refuseByTokenRequiresReason() {
         record("PENDING_CLIENT_SIGNATURE");
         BizException ex = assertThrows(BizException.class,

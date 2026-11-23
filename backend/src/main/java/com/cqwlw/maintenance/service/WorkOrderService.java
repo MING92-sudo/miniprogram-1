@@ -633,7 +633,12 @@ public class WorkOrderService {
         }
         o.assistantName = cand.name;
         o.assistantPlatformId = cand.platformId;
-        orderMapper.updateById(o);
+        o.assistantSignatureFileId = null;
+        o.assistantSignatureAt = null;
+        transactionTemplate.executeWithoutResult(tx -> {
+            orderMapper.updateById(o);
+            orderMapper.clearAssistantSignature(o.id);
+        });
         return JsonUtil.map("ok", true, "assistantName", nz(cand.name), "assistantPlatformId", cand.platformId);
     }
 
@@ -885,11 +890,14 @@ public class WorkOrderService {
     public Map<String, Object> submitItem(String orderId, String itemId, Map<String, Object> body, String empId) {
         WorkOrder o = findOr404(orderId);
         requireOrderScope(o, empId);
+        String result = str(body.get("result"));
+        if (!"NORMAL".equals(result) && !"ABNORMAL".equals(result) && !"NA".equals(result)) {
+            throw new BizException(422, "检查结果非法：须为 NORMAL、ABNORMAL 或 NA");
+        }
         List<Map<String, Object>> items = items(o);
         Map<String, Object> item = items.stream()
                 .filter(i -> itemId.equals(i.get("id"))).findFirst()
                 .orElseThrow(() -> new BizException(1404, "检查项不存在"));
-        String result = str(body.get("result"));
         String name = String.valueOf(item.get("name"));
         if ("NA".equals(result) && isBlank(str(body.get("skipReason")))) {
             throw new BizException(422, "「" + name + "」标记不适用时必须填写跳过原因（TSG 注 A-1）");
@@ -964,6 +972,10 @@ public class WorkOrderService {
             throw new BizException(422, "签字角色非法：须为 PRINCIPAL 或 ASSISTANT");
         }
         requireSignRole(o, role, empId);
+        boolean checkedIn = assistant ? hasCheckin(o.assistantCheckinExtraJson) : hasCheckin(o.checkinExtraJson);
+        if (!checkedIn) {
+            throw new BizException(422, assistant ? "配合人员未签到，不能签字" : "主维保未签到，不能签字");
+        }
         String fileId = str(body.get("signatureFileId")).trim();
         if (fileId.isEmpty()) {
             throw new BizException(422, "签字图未上传，请重试");
@@ -1016,6 +1028,9 @@ public class WorkOrderService {
         }
         if (!"PROCESSING".equals(o.status)) {
             throw new BizException(1003, "请先完成签到");
+        }
+        if (o.checkinTime == null) {
+            throw new BizException(422, "主维保未签到，无法签退");
         }
         // 门禁③（双签）在下方签名校验处恒触发。
         boolean pooledOrder = Boolean.TRUE.equals(o.duoRequired) || (o.regionId != null && !o.regionId.isBlank())

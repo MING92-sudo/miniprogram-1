@@ -39,6 +39,10 @@ public interface WorkOrderMapper extends BaseMapper<WorkOrder> {
                          @Param("duration") String duration,
                          @Param("expectedOriginalRecordId") String expectedOriginalRecordId);
 
+    @Update("UPDATE work_order SET assistant_signature_file_id = NULL, assistant_signature_at = NULL "
+            + "WHERE id = #{id}")
+    int clearAssistantSignature(@Param("id") String id);
+
     @Update("UPDATE work_order SET report_status = #{reportStatus} WHERE id = #{id}")
     int updateReportStatus(@Param("id") String id, @Param("reportStatus") String reportStatus);
 }

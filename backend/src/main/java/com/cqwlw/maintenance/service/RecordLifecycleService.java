@@ -149,7 +149,7 @@ public class RecordLifecycleService {
         }
         o.assistantSignatureFileId = null;
         o.assistantSignatureAt = null;
-        orderMapper.updateById(o);
+        orderMapper.clearAssistantSignature(orderId);
         return Map.of("ok", true);
     }
 
