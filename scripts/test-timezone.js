@@ -30,6 +30,12 @@ if (process.argv[2] === '--probe') {
   process.exit(0)
 }
 
+function stableProbe(value) {
+  const copy = Object.assign({}, value)
+  delete copy.noArgument
+  return copy
+}
+
 function probe(tz) {
   return JSON.parse(execFileSync(process.execPath, [__filename, '--probe'], {
     env: Object.assign({}, process.env, { TZ: tz }),
@@ -40,7 +46,7 @@ function probe(tz) {
 const utc = probe('UTC')
 const shanghai = probe('Asia/Shanghai')
 
-assert.deepStrictEqual(utc, shanghai, '同一时刻在 UTC 与 Asia/Shanghai 下输出或解析不一致')
+assert.deepStrictEqual(stableProbe(utc), stableProbe(shanghai), '同一时刻在 UTC 与 Asia/Shanghai 下输出或解析不一致')
 
 const expected = '2026-01-02 11:04:05'
 const instant = Date.UTC(2026, 0, 2, 3, 4, 5)
@@ -60,4 +66,9 @@ assert.strictEqual(utc.explicitNull, '', '显式 null 不得表示当前时间')
 assert.strictEqual(utc.invalidCalendar, '', '非法日历日期不得被静默归一')
 assert.strictEqual(utc.invalidCalendarParse, 'NaN', '非法日历日期解析必须为 NaN')
 assert(Math.abs(Date.now() - parseTime(utc.noArgument)) < 5000, '无参数仍须表示当前时间')
+assert.deepStrictEqual(
+  stableProbe({ noArgument: '2026-01-02 11:04:05', fromText: 'stable' }),
+  stableProbe({ noArgument: '2026-01-02 11:04:06', fromText: 'stable' }),
+  '仅当前时间字段跨秒时探针比较不得波动'
+)
 console.log('PASS 固定 GMT+8：设备时区不影响格式化与解析')
