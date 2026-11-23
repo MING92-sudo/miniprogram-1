@@ -24,7 +24,6 @@ import com.cqwlw.maintenance.service.WorkOrderService;
 import com.cqwlw.maintenance.util.TimeUtil;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.ArgumentCaptor;
 
 import java.util.List;
 import java.util.Map;
@@ -57,7 +56,11 @@ class WorkOrderSignatureTest {
 
     @BeforeEach
     void setUp() {
+        com.baomidou.mybatisplus.core.metadata.TableInfoHelper.initTableInfo(
+                new org.apache.ibatis.builder.MapperBuilderAssistant(
+                        new com.baomidou.mybatisplus.core.MybatisConfiguration(), ""), WorkOrder.class);
         orderMapper = mock(WorkOrderMapper.class);
+        when(orderMapper.update(any(), any())).thenReturn(1);
         employeeMapper = mock(EmployeeMapper.class);
         ElevatorMapper elevatorMapper = mock(ElevatorMapper.class);
         service = new WorkOrderService(orderMapper, elevatorMapper, mock(UseUnitMapper.class),
@@ -105,15 +108,15 @@ class WorkOrderSignatureTest {
     @Test
     void principalCanSignOwnRole() {
         service.signOrder(DUAL_ORDER, sign("PRINCIPAL", "file_worker"), EMP_ZHANG);
-        WorkOrder captured = captureUpdate();
-        assertEquals("file_worker", captured.workerSignatureFileId);
+        assertEquals("file_worker", orderMapper.selectById(DUAL_ORDER).workerSignatureFileId);
+        verify(orderMapper).update(any(), any());
     }
 
     @Test
     void assistantCanSignOwnRole() {
         service.signOrder(DUAL_ORDER, sign("ASSISTANT", "file_assistant"), EMP_LI);
-        WorkOrder captured = captureUpdate();
-        assertEquals("file_assistant", captured.assistantSignatureFileId);
+        assertEquals("file_assistant", orderMapper.selectById(DUAL_ORDER).assistantSignatureFileId);
+        verify(orderMapper).update(any(), any());
     }
 
     /** 严格各签各的：普通工人（主维保）不得签配合人员签字 */
@@ -150,10 +153,12 @@ class WorkOrderSignatureTest {
         verify(orderMapper, never()).updateById(any(WorkOrder.class));
     }
 
-    private WorkOrder captureUpdate() {
-        ArgumentCaptor<WorkOrder> cap = ArgumentCaptor.forClass(WorkOrder.class);
-        verify(orderMapper).updateById(cap.capture());
-        return cap.getValue();
+    @Test
+    void assistantSignRejectsConcurrentReassignment() {
+        when(orderMapper.update(any(), any())).thenReturn(0);
+
+        assertCode(1003, () -> service.signOrder(DUAL_ORDER, sign("ASSISTANT", "file_assistant"), EMP_LI));
+        verify(orderMapper, never()).updateById(any(WorkOrder.class));
     }
 
     private static Map<String, Object> sign(String role, String fileId) {

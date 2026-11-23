@@ -532,16 +532,34 @@ public class WorkOrderService {
         extra.put("threshold", distance < 0 ? "" : String.valueOf(threshold));
         extra.put("geoStatus", geoStatus);
         extra.put("checkedAt", TimeUtil.format(checkinTime));
+        String checkinJson = JsonUtil.write(extra);
+        LambdaUpdateWrapper<WorkOrder> checkinUpdate = new LambdaUpdateWrapper<>();
+        checkinUpdate.eq(WorkOrder::getId, o.id)
+                .in(WorkOrder::getStatus, "PENDING", "PROCESSING")
+                .set(WorkOrder::getStatus, "PROCESSING");
         if (assistant) {
-            o.assistantCheckinExtraJson = JsonUtil.write(extra);
+            checkinUpdate.and(w -> w.isNull(WorkOrder::getAssistantCheckinExtraJson)
+                            .or().eq(WorkOrder::getAssistantCheckinExtraJson, ""))
+                    .set(WorkOrder::getAssistantCheckinExtraJson, checkinJson);
+            matchAssistant(checkinUpdate, o.assistantPlatformId);
         } else {
-            o.checkinExtraJson = JsonUtil.write(extra);
+            checkinUpdate.and(w -> w.isNull(WorkOrder::getCheckinExtraJson)
+                            .or().eq(WorkOrder::getCheckinExtraJson, ""))
+                    .eq(WorkOrder::getWorkerPlatformId, o.workerPlatformId)
+                    .set(WorkOrder::getCheckinExtraJson, checkinJson)
+                    .set(WorkOrder::getCheckinTime, checkinTime);
         }
-        if (o.checkinTime == null) {
+        if (orderMapper.update(null, checkinUpdate) != 1) {
+            throw new BizException(1003, assistant ? "配合人员已变更或已签到，请刷新后重试"
+                    : "主维保签到状态已变更，请刷新后重试");
+        }
+        if (assistant) {
+            o.assistantCheckinExtraJson = checkinJson;
+        } else {
+            o.checkinExtraJson = checkinJson;
             o.checkinTime = checkinTime;
         }
         o.status = "PROCESSING";
-        orderMapper.updateById(o);
         boolean geoBackfilled = false;
         if (!assistant && el != null && (el.lng == null || el.lat == null)) {
             java.math.BigDecimal backfillLng = java.math.BigDecimal.valueOf(lng);
@@ -631,14 +649,25 @@ public class WorkOrderService {
         if (cand == null || !partnerEligible(o, cand)) {
             throw new BizException(422, "该员工不在配合人候选范围（需与本工单同区域且已完成平台人员登记）");
         }
+        LambdaUpdateWrapper<WorkOrder> assignment = new LambdaUpdateWrapper<>();
+        assignment.eq(WorkOrder::getId, o.id)
+                .in(WorkOrder::getStatus, "PENDING", "PROCESSING")
+                .and(w -> w.isNull(WorkOrder::getAssistantCheckinExtraJson)
+                        .or().eq(WorkOrder::getAssistantCheckinExtraJson, ""))
+                .set(WorkOrder::getAssistantName, cand.name)
+                .set(WorkOrder::getAssistantPlatformId, cand.platformId);
+        matchAssistant(assignment, o.assistantPlatformId);
+        transactionTemplate.executeWithoutResult(tx -> {
+            int updated = orderMapper.update(null, assignment);
+            if (updated != 1) {
+                throw new BizException(1003, "配合人员已变更或已签到，请刷新后重新指定");
+            }
+            orderMapper.clearAssistantSignature(o.id);
+        });
         o.assistantName = cand.name;
         o.assistantPlatformId = cand.platformId;
         o.assistantSignatureFileId = null;
         o.assistantSignatureAt = null;
-        transactionTemplate.executeWithoutResult(tx -> {
-            orderMapper.updateById(o);
-            orderMapper.clearAssistantSignature(o.id);
-        });
         return JsonUtil.map("ok", true, "assistantName", nz(cand.name), "assistantPlatformId", cand.platformId);
     }
 
@@ -646,6 +675,15 @@ public class WorkOrderService {
     private void requirePrincipal(WorkOrder o, Employee login) {
         if (login == null || isBlank(login.platformId) || !login.platformId.equals(o.workerPlatformId)) {
             throw new BizException(1403, "仅主维保本人可执行此操作");
+        }
+    }
+
+    private static void matchAssistant(LambdaUpdateWrapper<WorkOrder> update, String expectedPlatformId) {
+        if (isBlank(expectedPlatformId)) {
+            update.and(w -> w.isNull(WorkOrder::getAssistantPlatformId)
+                    .or().eq(WorkOrder::getAssistantPlatformId, ""));
+        } else {
+            update.eq(WorkOrder::getAssistantPlatformId, expectedPlatformId);
         }
     }
 
@@ -981,6 +1019,25 @@ public class WorkOrderService {
             throw new BizException(422, "签字图未上传，请重试");
         }
         LocalDateTime now = TimeUtil.now();
+        LambdaUpdateWrapper<WorkOrder> signatureUpdate = new LambdaUpdateWrapper<>();
+        signatureUpdate.eq(WorkOrder::getId, o.id).eq(WorkOrder::getStatus, "PROCESSING");
+        if (assistant) {
+            signatureUpdate.and(w -> w.isNotNull(WorkOrder::getAssistantCheckinExtraJson)
+                            .ne(WorkOrder::getAssistantCheckinExtraJson, ""))
+                    .set(WorkOrder::getAssistantSignatureFileId, fileId)
+                    .set(WorkOrder::getAssistantSignatureAt, now);
+            matchAssistant(signatureUpdate, o.assistantPlatformId);
+        } else {
+            signatureUpdate.and(w -> w.isNotNull(WorkOrder::getCheckinExtraJson)
+                            .ne(WorkOrder::getCheckinExtraJson, ""))
+                    .eq(WorkOrder::getWorkerPlatformId, o.workerPlatformId)
+                    .set(WorkOrder::getWorkerSignatureFileId, fileId)
+                    .set(WorkOrder::getWorkerSignatureAt, now);
+        }
+        if (orderMapper.update(null, signatureUpdate) != 1) {
+            throw new BizException(1003, assistant ? "配合人员已变更，请刷新后重新签字"
+                    : "主维保签字状态已变更，请刷新后重试");
+        }
         if (assistant) {
             o.assistantSignatureFileId = fileId;
             o.assistantSignatureAt = now;
@@ -988,7 +1045,6 @@ public class WorkOrderService {
             o.workerSignatureFileId = fileId;
             o.workerSignatureAt = now;
         }
-        orderMapper.updateById(o);
         return JsonUtil.map("ok", true, "role", assistant ? "ASSISTANT" : "PRINCIPAL");
     }
 
@@ -1029,7 +1085,7 @@ public class WorkOrderService {
         if (!"PROCESSING".equals(o.status)) {
             throw new BizException(1003, "请先完成签到");
         }
-        if (o.checkinTime == null) {
+        if (!hasCheckin(o.checkinExtraJson) || o.checkinTime == null) {
             throw new BizException(422, "主维保未签到，无法签退");
         }
         // 门禁③（双签）在下方签名校验处恒触发。

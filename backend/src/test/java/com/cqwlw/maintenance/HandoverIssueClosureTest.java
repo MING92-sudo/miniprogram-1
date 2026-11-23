@@ -170,6 +170,7 @@ class HandoverIssueClosureTest {
         o.assistantName = "王五";
         o.assistantPlatformId = "pid_wang";
         o.checkinTime = TimeUtil.now().minusMinutes(40);
+        o.checkinExtraJson = "{\"role\":\"PRINCIPAL\"}";
         o.checklistJson = CHECKLIST;
         o.sourceHandoverId = HANDOVER;
         o.handoverIssue = handoverIssue;

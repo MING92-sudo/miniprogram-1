@@ -57,6 +57,9 @@ class WorkOrderPartnerTest {
 
     @BeforeEach
     void setUp() {
+        com.baomidou.mybatisplus.core.metadata.TableInfoHelper.initTableInfo(
+                new org.apache.ibatis.builder.MapperBuilderAssistant(
+                        new com.baomidou.mybatisplus.core.MybatisConfiguration(), ""), WorkOrder.class);
         orderMapper = mock(WorkOrderMapper.class);
         elevatorMapper = mock(ElevatorMapper.class);
         employeeMapper = mock(EmployeeMapper.class);
@@ -82,6 +85,7 @@ class WorkOrderPartnerTest {
         when(orderMapper.selectById(ORDER)).thenReturn(order);
         // 动态码原子消费默认成功（1 行命中）；具体用例可覆写
         when(orderMapper.consumeDynamicCodeIfUnused(any(), any(), any())).thenReturn(1);
+        when(orderMapper.update(any(), any())).thenReturn(1);
 
         // 无坐标电梯：默认不触发围栏，测试聚焦配合人链路；距离用例自行补坐标
         elevator = new Elevator();
@@ -174,7 +178,7 @@ class WorkOrderPartnerTest {
         assertEquals(Boolean.TRUE, r.get("ok"));
         assertEquals("王五", order.assistantName);
         assertEquals("pid_wang", order.assistantPlatformId);
-        verify(orderMapper).updateById(order);
+        verify(orderMapper).update(any(), any());
     }
 
     @Test
@@ -190,8 +194,41 @@ class WorkOrderPartnerTest {
         assertNull(order.assistantSignatureFileId);
         assertNull(order.assistantSignatureAt);
         assertTrue(tx.committed, "改选配合人与清旧签名必须处在同一事务");
-        verify(orderMapper).updateById(order);
+        verify(orderMapper).update(any(), any());
         verify(orderMapper).clearAssistantSignature(ORDER);
+    }
+
+    @Test
+    void assignPartnerRollsBackWhenAssistantChecksInConcurrently() {
+        order.assistantName = "旧配合人";
+        order.assistantPlatformId = "pid_old";
+        order.assistantSignatureFileId = "file_old_signature";
+        when(orderMapper.update(any(), any())).thenReturn(0);
+
+        BizException e = assertThrows(BizException.class,
+                () -> service.assignPartner(ORDER, Map.of("employeeId", "emp_wang"), "emp_zhang"));
+
+        assertEquals(1003, e.getCode());
+        assertTrue(tx.rolledBack, "条件更新输给并发签到后必须回滚事务");
+        assertEquals("pid_old", order.assistantPlatformId);
+        assertEquals("file_old_signature", order.assistantSignatureFileId);
+        verify(orderMapper, never()).clearAssistantSignature(any());
+        verify(orderMapper, never()).updateById(any(WorkOrder.class));
+    }
+
+    @Test
+    void assistantCheckinRejectsGuardLoser() {
+        order.assistantName = "王五";
+        order.assistantPlatformId = "pid_wang";
+        when(orderMapper.update(any(), any())).thenReturn(0);
+        String code = String.valueOf(service.issueDynamicCode(ORDER, "emp_zhang").get("code"));
+
+        BizException e = assertThrows(BizException.class,
+                () -> service.checkin(ORDER, assistantBody(code, 29.61, 106.51), "emp_wang"));
+
+        assertEquals(1003, e.getCode());
+        assertNull(order.assistantCheckinExtraJson);
+        verify(orderMapper, never()).updateById(any(WorkOrder.class));
     }
 
     @Test

@@ -63,7 +63,11 @@ class WorkOrderWriteScopeTest {
 
     @BeforeEach
     void setUp() {
+        com.baomidou.mybatisplus.core.metadata.TableInfoHelper.initTableInfo(
+                new org.apache.ibatis.builder.MapperBuilderAssistant(
+                        new com.baomidou.mybatisplus.core.MybatisConfiguration(), ""), WorkOrder.class);
         orderMapper = mock(WorkOrderMapper.class);
+        when(orderMapper.update(any(), any())).thenReturn(1);
         recordMapper = mock(MaintainRecordMapper.class);
         reportService = mock(PlatformReportService.class);
         EmployeeMapper employeeMapper = mock(EmployeeMapper.class);

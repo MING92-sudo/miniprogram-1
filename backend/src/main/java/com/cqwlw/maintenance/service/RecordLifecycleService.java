@@ -147,9 +147,17 @@ public class RecordLifecycleService {
         if (!"PROCESSING".equals(o.status)) {
             throw new BizException(422, "工单不在作业中状态");
         }
+        LambdaUpdateWrapper<WorkOrder> clearSignature = new LambdaUpdateWrapper<>();
+        clearSignature.eq(WorkOrder::getId, orderId)
+                .eq(WorkOrder::getStatus, "PROCESSING")
+                .eq(WorkOrder::getAssistantPlatformId, o.assistantPlatformId)
+                .set(WorkOrder::getAssistantSignatureFileId, null)
+                .set(WorkOrder::getAssistantSignatureAt, null);
+        if (orderMapper.update(null, clearSignature) != 1) {
+            throw new BizException(1003, "配合人员已变更，请刷新后重试");
+        }
         o.assistantSignatureFileId = null;
         o.assistantSignatureAt = null;
-        orderMapper.clearAssistantSignature(orderId);
         return Map.of("ok", true);
     }
 

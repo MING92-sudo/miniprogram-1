@@ -191,6 +191,7 @@ class ReportPayloadGuardTest {
         o.workerPlatformId = PID_LI;
         o.assistantPlatformId = "";
         o.checkinTime = TimeUtil.now().minusMinutes(40);
+        o.checkinExtraJson = "{\"role\":\"PRINCIPAL\"}";
         o.checklistJson = "[{\"id\":\"it_1\",\"name\":\"曳引机\",\"isKey\":false,\"photoRequired\":false,\"result\":\"NORMAL\",\"notInThisRun\":false}]";
         when(orderMapper.selectById("wo_1")).thenReturn(o);
         when(elevatorMapper.selectById("el_1")).thenReturn(completeElevator());
@@ -215,6 +216,7 @@ class ReportPayloadGuardTest {
         o.workerPlatformId = PID_LI;
         o.assistantPlatformId = "";
         o.checkinTime = TimeUtil.now().minusMinutes(40);
+        o.checkinExtraJson = "{\"role\":\"PRINCIPAL\"}";
         o.checklistJson = "[{\"id\":\"it_1\",\"name\":\"曳引机\",\"isKey\":false,\"photoRequired\":false,\"result\":\"NORMAL\",\"notInThisRun\":false}]";
         when(orderMapper.selectById("wo_1")).thenReturn(o);
         Elevator el = completeElevator();
@@ -246,6 +248,7 @@ class ReportPayloadGuardTest {
         o.assistantName = "王五";
         o.assistantPlatformId = "pid_assistant";
         o.checkinTime = TimeUtil.now().minusMinutes(40);
+        o.checkinExtraJson = "{\"role\":\"PRINCIPAL\"}";
         o.checklistJson = "[{\"id\":\"it_1\",\"name\":\"曳引机\",\"isKey\":false,\"photoRequired\":false,\"result\":\"NORMAL\",\"notInThisRun\":false}]";
         when(orderMapper.selectById("wo_1")).thenReturn(o);
         when(elevatorMapper.selectById("el_1")).thenReturn(completeElevator());

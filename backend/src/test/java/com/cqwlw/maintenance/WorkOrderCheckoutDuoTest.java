@@ -28,12 +28,15 @@ import com.cqwlw.maintenance.service.WorkOrderService;
 import com.cqwlw.maintenance.util.TimeUtil;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
 import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -57,12 +60,18 @@ class WorkOrderCheckoutDuoTest {
     private MaintainRecordMapper recordMapper;
     private PlatformReportService reportService;
     private FileStorageService fileStorage;
+    private AppProperties props;
     private WorkOrderService service;
 
     @BeforeEach
     void setUp() {
+        com.baomidou.mybatisplus.core.metadata.TableInfoHelper.initTableInfo(
+                new org.apache.ibatis.builder.MapperBuilderAssistant(
+                        new com.baomidou.mybatisplus.core.MybatisConfiguration(), ""), WorkOrder.class);
         orderMapper = mock(WorkOrderMapper.class);
         when(orderMapper.completeCheckout(any(), any(), any(), any(), any(), any())).thenReturn(1);
+        when(orderMapper.consumeDynamicCodeIfUnused(any(), any(), any())).thenReturn(1);
+        when(orderMapper.update(any(), any())).thenReturn(1);
         recordMapper = mock(MaintainRecordMapper.class);
         EmployeeMapper employeeMapper = mock(EmployeeMapper.class);
         ElevatorMapper elevatorMapper = mock(ElevatorMapper.class);
@@ -75,8 +84,9 @@ class WorkOrderCheckoutDuoTest {
         uu.elevatorAdministerPhone = "13800000003";
         uu.emergencyPhone = "023-12345678";
         when(useUnitMapper.selectById(any())).thenReturn(uu);
-        AppProperties props = new AppProperties();
+        props = new AppProperties();
         props.setWorkDurationMinutes(30);
+        props.setJwtSecret("unit-test-secret-key-0123456789-abcdefghijk");
         fileStorage = mock(FileStorageService.class);
         when(fileStorage.urlOf(any())).thenReturn("");
         reportService = mock(PlatformReportService.class);
@@ -95,6 +105,13 @@ class WorkOrderCheckoutDuoTest {
         li.platformId = PID_LI;
         li.phone = "13800000000";
         when(employeeMapper.selectById(EMP_LI)).thenReturn(li);
+        Employee wang = new Employee();
+        wang.id = "emp_wang";
+        wang.name = "王五";
+        wang.role = "WORKER";
+        wang.platformId = PID_WANG;
+        wang.phone = "13800000001";
+        when(employeeMapper.selectById("emp_wang")).thenReturn(wang);
         when(employeeMapper.selectList(any())).thenReturn(List.of(li));
         Company company = new Company();
         company.workMenegerName = "维保经理";
@@ -185,7 +202,6 @@ class WorkOrderCheckoutDuoTest {
     @Test
     void checkoutRejectsMissingPrincipalCheckin() {
         WorkOrder o = pooledOrder();
-        o.checkinTime = null;
         o.checkinExtraJson = null;
         o.assistantName = "王五";
         o.assistantPlatformId = PID_WANG;
@@ -202,6 +218,59 @@ class WorkOrderCheckoutDuoTest {
         verify(orderMapper, never()).completeCheckout(any(), any(), any(), any(), any(), any());
         verify(recordMapper, never()).insert(any(MaintainRecord.class));
         verify(reportService, never()).attemptUpload(any());
+    }
+
+    @Test
+    void checkoutRejectsTimestampOnlyLegacyData() {
+        WorkOrder o = legacyOrder();
+        o.checkinExtraJson = null;
+        o.assistantName = "王五";
+        o.assistantPlatformId = PID_WANG;
+        when(orderMapper.selectById(LEGACY_ORDER)).thenReturn(o);
+
+        BizException e = assertThrows(BizException.class, () -> service.checkout(LEGACY_ORDER,
+                Map.of("signatureUrl", "https://x/sign.png",
+                        "assistantSignatureUrl", "https://x/sign2.png"), EMP_LI));
+
+        assertEquals(422, e.getCode());
+        assertTrue(e.getMessage().contains("主维保未签到"), e.getMessage());
+        verify(orderMapper, never()).completeCheckout(any(), any(), any(), any(), any(), any());
+        verify(recordMapper, never()).insert(any(MaintainRecord.class));
+        verify(reportService, never()).attemptUpload(any());
+    }
+
+    @Test
+    void assistantFirstThenPrincipalCheckoutUsesPrincipalStart() {
+        props.setWorkDurationMinutes(0);
+        WorkOrder o = pooledOrder();
+        o.checkinTime = null;
+        o.checkinExtraJson = null;
+        o.assistantName = "王五";
+        o.assistantPlatformId = PID_WANG;
+        when(orderMapper.selectById(POOLED_ORDER)).thenReturn(o);
+        String code = String.valueOf(service.issueDynamicCode(POOLED_ORDER, EMP_LI).get("code"));
+
+        service.checkin(POOLED_ORDER, Map.of("role", "ASSISTANT", "latitude", "29.61",
+                "longitude", "106.51", "dynamicCode", code), "emp_wang");
+        assertNull(o.checkinTime, "配合人先签到不得初始化主维保作业开始时间");
+        assertNotNull(o.assistantCheckinExtraJson);
+
+        service.checkin(POOLED_ORDER, Map.of("role", "PRINCIPAL", "latitude", "29.61",
+                "longitude", "106.51"), EMP_LI);
+        o.checkinTime = TimeUtil.now().minusSeconds(2);
+        java.time.LocalDateTime principalStart = o.checkinTime;
+        assertNotNull(principalStart);
+        assertDoesNotThrow(() -> service.checkout(POOLED_ORDER,
+                Map.of("signatureUrl", "https://x/sign.png",
+                        "assistantSignatureUrl", "https://x/sign2.png"), EMP_LI));
+
+        ArgumentCaptor<MaintainRecord> captor = ArgumentCaptor.forClass(MaintainRecord.class);
+        verify(recordMapper).insert(captor.capture());
+        MaintainRecord record = captor.getValue();
+        assertEquals(principalStart, record.checkinTime);
+        String expectedDuration = TimeUtil.formatDuration(
+                TimeUtil.toMillis(record.checkoutTime) - TimeUtil.toMillis(principalStart));
+        assertEquals(expectedDuration, record.duration);
     }
 
     @Test
