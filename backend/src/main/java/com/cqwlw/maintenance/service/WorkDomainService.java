@@ -11,6 +11,7 @@ import com.cqwlw.maintenance.util.JsonUtil;
 import com.cqwlw.maintenance.util.TimeUtil;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.util.List;
 import java.util.Map;
@@ -23,13 +24,18 @@ public class WorkDomainService {
     private final FaultMapper faultMapper;
     private final AuditLogService audit;
     private final RecordLifecycleService recordLifecycle;
+    private final DirectoryService directoryService;
+    private final TransactionTemplate transactionTemplate;
 
     public WorkDomainService(MaintainRecordMapper recordMapper, FaultMapper faultMapper,
-                             AuditLogService audit, RecordLifecycleService recordLifecycle) {
+                             AuditLogService audit, RecordLifecycleService recordLifecycle,
+                             DirectoryService directoryService, TransactionTemplate transactionTemplate) {
         this.recordMapper = recordMapper;
         this.faultMapper = faultMapper;
         this.audit = audit;
         this.recordLifecycle = recordLifecycle;
+        this.directoryService = directoryService;
+        this.transactionTemplate = transactionTemplate;
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -240,25 +246,54 @@ public class WorkDomainService {
         throw new BizException(422, "检查项缺少稳定 id/itemCode，无法安全修订");
     }
 
+    /** 组合代报修：先校验全部参数，再在同一事务内建单并落来源/录音与审计，失败不留半成品。 */
+    public Map<String, Object> createProxyFault(Map<String, Object> body, String actor) {
+        return transactionTemplate.execute(status -> doCreateProxyFault(body, actor));
+    }
+
+    private Map<String, Object> doCreateProxyFault(Map<String, Object> body, String actor) {
+        String source = proxySource(body);
+        String recordingNo = recordingNo(body);
+        Map<String, Object> view = directoryService.createFault(body, actor);
+        String faultId = String.valueOf(view.get("id"));
+        Fault f = faultMapper.selectById(faultId);
+        f.proxySource = source;
+        f.recordingNo = recordingNo;
+        f.proxyBy = actor;
+        faultMapper.updateById(f);
+        audit(actor, "order:create_proxy", faultId, "SUCCESS", source);
+        return view;
+    }
+
     public Fault proxyRepair(String faultId, Map<String, Object> body, String actor) {
         Fault f = faultMapper.selectById(faultId);
         if (f == null) {
             throw new BizException(404, "急修单不存在");
         }
-        String source = str(body, "proxySource");
-        String recordingNo = str(body, "recordingNo");
-        if (source == null || !(source.equals("PHONE") || source.equals("WECHAT") || source.equals("ONSITE"))) {
-            throw new BizException(422, "代报修来源须 PHONE/WECHAT/ONSITE");
-        }
-        if (recordingNo == null || !recordingNo.matches("^REC-\\d{4,6}$")) {
-            throw new BizException(422, "录音编号须 REC-\\d{4,6}");
-        }
+        String source = proxySource(body);
+        String recordingNo = recordingNo(body);
         f.proxySource = source;
         f.recordingNo = recordingNo;
         f.proxyBy = actor;
         faultMapper.updateById(f);
         audit(actor, "order:create_proxy", faultId, "SUCCESS", source);
         return f;
+    }
+
+    private static String proxySource(Map<String, Object> body) {
+        String source = str(body, "proxySource");
+        if (source == null || !(source.equals("PHONE") || source.equals("WECHAT") || source.equals("ONSITE"))) {
+            throw new BizException(422, "代报修来源须 PHONE/WECHAT/ONSITE");
+        }
+        return source;
+    }
+
+    private static String recordingNo(Map<String, Object> body) {
+        String recordingNo = str(body, "recordingNo");
+        if (recordingNo == null || !recordingNo.matches("^REC-\\d{4,6}$")) {
+            throw new BizException(422, "录音编号须 REC-\\d{4,6}");
+        }
+        return recordingNo;
     }
 
     private void audit(String actor, String action, String target, String result, String reason) {

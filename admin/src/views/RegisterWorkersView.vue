@@ -47,7 +47,8 @@
 
     <!-- 维保人员建档（平台 2.4 /entity/updateWorkState，multipart + certificateFile） -->
     <Modal :open="showRegister" title="维保人员建档" sub="平台 2.4 登记 · 确认后自动调 2.5 全量回填人员ID"
-      icon="user-check" note="platform:worker_register" :confirm-label="registering ? '提交中…' : '确认建档'"
+      icon="user-check" note="platform:worker_register" :loading="registering"
+      :confirm-label="registering ? '提交中…' : '确认建档'"
       @close="closeRegister" @confirm="submitRegister">
       <Form ref="registerFormRef" :rules="registerRules" v-model="registerModel" v-slot="{ errors }">
         <div class="form-grid">
@@ -87,7 +88,7 @@
 <script setup>
 // 平台登记人员：GET /platform/workers（平台 2.5 实时查询，platform:worker_view）
 import { ref, onMounted } from 'vue'
-import http from '../api/client'
+import http, { idempotencyKey } from '../api/client'
 import { backfillWorkers, registerWorker } from '../api/platform'
 import DataTable from '../ui/DataTable.vue'
 import ViewHead from '../ui/ViewHead.vue'
@@ -110,6 +111,7 @@ const showRegister = ref(false)
 const registering = ref(false)
 const registerFormRef = ref(null)
 const registerResult = ref(null)
+const registerIdemKey = ref('')
 const emptyRegister = () => ({ workManName: '', workManCertificate: '', workStartDate: '', workEndDate: '', workManPhone: '', changState: '0', certificateFile: null, certificateFileName: '' })
 const registerModel = ref(emptyRegister())
 const registerRules = {
@@ -123,6 +125,7 @@ const registerRules = {
 function openCreate() {
   registerModel.value = emptyRegister()
   registerResult.value = null
+  registerIdemKey.value = idempotencyKey()
   showRegister.value = true
 }
 function closeRegister() { if (!registering.value) showRegister.value = false }
@@ -132,6 +135,7 @@ function onCertificateChange(ev) {
   registerModel.value.certificateFileName = file ? file.name : ''
 }
 async function submitRegister() {
+  if (registering.value) return
   if (!registerFormRef.value.validate()) return
   const m = registerModel.value
   if (m.workStartDate > m.workEndDate) { toast.error('合同生效日期不能晚于截止日期'); return }
@@ -145,7 +149,9 @@ async function submitRegister() {
       workManPhone: m.workManPhone.trim(),
       changState: String(m.changState),
       certificateFile: m.certificateFile
-    })
+    }, { idempotencyKey: registerIdemKey.value })
+    // 成功后才轮换：失败重试必须复用同一幂等键，避免平台 2.4 重复建档。
+    registerIdemKey.value = idempotencyKey()
     registerResult.value = res || { account: m.workManPhone.trim() }
     showRegister.value = false
     toast.success(m.changState === '1' ? '平台 2.4 已终止绑定' : '建档成功，已自动回填平台人员ID')

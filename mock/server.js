@@ -1077,6 +1077,8 @@ const routes = [
 
   // ── 故障 ──
   ['POST', '/faults', ({ body }) => d.createFault(body)],
+  // 管理端代报修：建单 + 来源/录音一次落库（真实后端同事务）
+  ['POST', '/faults/proxy', ({ body }) => d.createProxyFault(body)],
   ['GET', '/faults', ({ query }) => {
     let list = d.db.faults
     if (query && query.status) {

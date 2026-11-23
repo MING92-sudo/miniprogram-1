@@ -2,9 +2,12 @@ package com.cqwlw.maintenance.controller;
 
 import com.cqwlw.maintenance.common.ApiResponse;
 import com.cqwlw.maintenance.auth.AuthInterceptor;
+import com.cqwlw.maintenance.auth.MultiRoleGate;
+import com.cqwlw.maintenance.auth.PermissionMatrix;
 import com.cqwlw.maintenance.service.DirectoryService;
 import com.cqwlw.maintenance.service.RecordPdfService;
 import com.cqwlw.maintenance.service.IdempotencyService;
+import com.cqwlw.maintenance.service.WorkDomainService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -29,13 +32,15 @@ public class DirectoryController {
     private final DirectoryService directoryService;
     private final IdempotencyService idempotencyService;
     private final RecordPdfService pdfService;
+    private final WorkDomainService workDomainService;
 
     public DirectoryController(DirectoryService directoryService, IdempotencyService idempotencyService,
-                               RecordPdfService pdfService,
+                               RecordPdfService pdfService, WorkDomainService workDomainService,
                                com.cqwlw.maintenance.mapper.SysUserRoleMapper userRoleMapper) {
         this.directoryService = directoryService;
         this.idempotencyService = idempotencyService;
         this.pdfService = pdfService;
+        this.workDomainService = workDomainService;
         this.userRoleMapper = userRoleMapper;
     }
 
@@ -176,6 +181,22 @@ public class DirectoryController {
     @GetMapping("/rescues/{id}")
     public ApiResponse<Map<String, Object>> getRescue(@PathVariable String id) {
         return ApiResponse.ok(directoryService.getRescue(id));
+    }
+
+    /** 管理端代报修：一次请求原子完成建单 + 来源/录音登记 + 审计。 */
+    @PostMapping("/faults/proxy")
+    public ApiResponse<Object> createProxyFault(@RequestBody Map<String, Object> body,
+                                                HttpServletRequest request,
+                                                @org.springframework.web.bind.annotation.RequestHeader(
+                                                        value = "X-Idempotency-Key", required = false) String idemKey) {
+        MultiRoleGate.requireWrite(request, PermissionMatrix.ORDER_CREATE_PROXY);
+        IdempotencyService.Guard guard = idempotencyService.begin(idemKey, "/faults/proxy");
+        if (guard.replayed()) {
+            return ApiResponse.ok(guard.replayedResult());
+        }
+        Map<String, Object> result = workDomainService.createProxyFault(body, empId(request));
+        guard.commit(result);
+        return ApiResponse.ok(result);
     }
 
     @PostMapping("/faults")

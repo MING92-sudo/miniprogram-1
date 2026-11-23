@@ -914,6 +914,20 @@ function createFault(body) {
   return f
 }
 
+function createProxyFault(body) {
+  if (!['PHONE', 'WECHAT', 'ONSITE'].includes(body.proxySource)) {
+    throw { code: 422, message: '代报修来源须 PHONE/WECHAT/ONSITE' }
+  }
+  if (!body.recordingNo || !/^REC-\d{4,6}$/.test(body.recordingNo)) {
+    throw { code: 422, message: '录音编号须 REC-\\d{4,6}' }
+  }
+  const f = createFault(body)
+  f.proxySource = body.proxySource
+  f.recordingNo = body.recordingNo
+  f.proxyBy = body.createdBy || ''
+  return f
+}
+
 function dispatchFault(id, workerId) {
   const f = db.faults.find((x) => x.id === id)
   if (!f) throw { code: 1404, message: '急修单不存在' }
@@ -1073,6 +1087,7 @@ module.exports = {
   createInspect,
   createRescue,
   createFault,
+  createProxyFault,
   dispatchFault,
   closeFault
 }

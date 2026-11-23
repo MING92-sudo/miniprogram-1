@@ -22,7 +22,7 @@
         <span v-if="note" class="mf-note">{{ note }}</span>
         <button class="btn btn-ghost" type="button" @click="$emit('close')">取消</button>
         <button :class="['btn', danger ? 'btn-solid-sig' : 'btn-primary']" type="button"
-          :disabled="requireConfirm && !checked" @click="onConfirm">{{ confirmLabel }}</button>
+          :disabled="loading || (requireConfirm && !checked)" @click="onConfirm">{{ confirmLabel }}</button>
       </div>
     </div>
   </div>
@@ -34,10 +34,14 @@ const props = defineProps({
   open: Boolean, title: { type: String, default: '' }, sub: { type: String, default: '' },
   icon: { type: String, default: '' }, danger: Boolean, note: { type: String, default: '' },
   requireConfirm: Boolean, confirmText: { type: String, default: '' },
-  confirmLabel: { type: String, default: '确认' }
+  confirmLabel: { type: String, default: '确认' }, loading: Boolean
 })
 const emit = defineEmits(['close', 'confirm'])
 const checked = ref(false)
 watch(() => props.open, (o) => { if (o) checked.value = false })
-function onConfirm() { if (props.requireConfirm && !checked.value) return; emit('confirm') }
+function onConfirm() {
+  if (props.loading) return
+  if (props.requireConfirm && !checked.value) return
+  emit('confirm')
+}
 </script>

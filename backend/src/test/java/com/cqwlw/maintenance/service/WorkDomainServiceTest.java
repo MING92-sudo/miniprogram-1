@@ -1,5 +1,6 @@
 package com.cqwlw.maintenance.service;
 
+import com.cqwlw.maintenance.TxTestSupport;
 import com.cqwlw.maintenance.common.BizException;
 import com.cqwlw.maintenance.entity.Fault;
 import com.cqwlw.maintenance.entity.MaintainRecord;
@@ -29,7 +30,8 @@ class WorkDomainServiceTest {
     private final FaultMapper faultMapper = mock(FaultMapper.class);
     private final AuditLogService audit = mock(AuditLogService.class);
     private final RecordLifecycleService lifecycle = mock(RecordLifecycleService.class);
-    private final WorkDomainService service = new WorkDomainService(recordMapper, faultMapper, audit, lifecycle);
+    private final WorkDomainService service = new WorkDomainService(recordMapper, faultMapper, audit, lifecycle,
+            mock(DirectoryService.class), TxTestSupport.noopTx());
 
     private MaintainRecord archived() {
         MaintainRecord r = new MaintainRecord();

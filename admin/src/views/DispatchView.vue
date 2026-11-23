@@ -104,9 +104,9 @@
       </template>
     </Drawer>
 
-    <!-- 代报修录入（原型 openProxyForm Modal；真实链路 POST /faults + /faults/{id}/proxy） -->
+    <!-- 代报修录入（原型 openProxyForm Modal；真实链路 POST /faults/proxy 原子建单） -->
     <Modal :open="proxyOpen" title="代报修录入" sub="维保主管代使用单位报修 → 新工单进入报修池" icon="phone" note="order:create_proxy"
-      confirm-label="提交报修" @close="proxyOpen = false" @confirm="submitProxy">
+      :loading="proxySubmitting" confirm-label="提交报修" @close="proxyOpen = false" @confirm="submitProxy">
       <div class="form-grid">
         <FormField label="报修人姓名" required :error="proxyErr.reporter">
           <input v-model="proxyForm.reporter" class="ctl" placeholder="必填" />
@@ -269,16 +269,19 @@ async function submitDispatch() {
   } catch (e) { toast.error(e.message || '派单失败') } finally { dispatching.value = false }
 }
 
-// ── 代报修（原型表单 → 真实两步：建单 + 登记代报修来源/录音编号） ──
+// ── 代报修（一次请求原子完成建单 + 来源/录音登记） ──
 const proxyOpen = ref(false)
+const proxySubmitting = ref(false)
 const proxyForm = ref({ reporter: '', phone: '', device: '', source: 'PHONE', recNo: '', fault: '' })
 const proxyErr = ref({ reporter: '', phone: '', device: '', recNo: '', fault: '' })
 function openProxy() {
   proxyForm.value = { reporter: '', phone: '', device: '', source: 'PHONE', recNo: '', fault: '' }
   proxyErr.value = { reporter: '', phone: '', device: '', recNo: '', fault: '' }
+  proxySubmitting.value = false
   proxyOpen.value = true
 }
 async function submitProxy() {
+  if (proxySubmitting.value) return
   const f = proxyForm.value
   const err = { reporter: '', phone: '', device: '', recNo: '', fault: '' }
   if (!f.reporter.trim()) err.reporter = '报修人姓名必填'
@@ -288,14 +291,17 @@ async function submitProxy() {
   if (f.fault.trim().length < 5) err.fault = '故障描述至少 5 字'
   proxyErr.value = err
   if (Object.values(err).some(Boolean)) { toast.warn('请修正表单错误后再提交'); return }
+  proxySubmitting.value = true
   try {
-    const created = await http.post('/faults', { elevatorCode: f.device, desc: f.fault, faultType: '一般故障', reporter: f.reporter, reporterPhone: f.phone })
-    const newId = created && (created.id || created.faultId)
-    if (newId) await http.post(`/faults/${newId}/proxy`, { proxySource: f.source, recordingNo: f.recNo })
+    const created = await http.post('/faults/proxy', {
+      elevatorCode: f.device, desc: f.fault, faultType: '一般故障',
+      reporter: f.reporter, reporterPhone: f.phone,
+      proxySource: f.source, recordingNo: f.recNo
+    })
     toast.success('代报修已提交 · 进入报修池', (created && created.faultNo) || '')
     proxyOpen.value = false
     load()
-  } catch (e) { toast.error(e.message || '代报修提交失败') }
+  } catch (e) { toast.error(e.message || '代报修提交失败') } finally { proxySubmitting.value = false }
 }
 
 const tab = ref('faults')
