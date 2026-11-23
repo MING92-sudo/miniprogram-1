@@ -230,7 +230,7 @@ import ScopePill from '../ui/ScopePill.vue'
 import RuleNote from '../ui/RuleNote.vue'
 import ElevatorGeoModal from '../ui/ElevatorGeoModal.vue'
 import { useToast } from '../ui/stores/ui'
-import { exportCsv } from '../ui/export-csv'
+import { exportCsv, selectExportRows } from '../ui/export-csv'
 import { DEVICE_FIELDS, deviceRules, deviceFormOf, missingRequiredOf } from '../ui/device-fields'
 import { usePerspectiveStore } from '../ui/stores/perspective'
 import { useAuthStore } from '../stores/auth'
@@ -280,8 +280,9 @@ async function loadRegions() {
   } catch { regions.value = [] }
 }
 onMounted(() => { load(); loadRegions() })
-function exportElev() {
-  const n = exportCsv('电梯台账', cols, rows.value)
+function exportElev(payload) {
+  const ids = payload && Array.isArray(payload.ids) ? payload.ids : []
+  const n = exportCsv('电梯台账', cols, selectExportRows(rows.value, ids))
   toast.success('已导出 ' + n + ' 台电梯', 'CSV · 按导出人权限脱敏')
 }
 

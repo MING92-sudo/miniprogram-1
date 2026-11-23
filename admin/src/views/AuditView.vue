@@ -48,14 +48,14 @@ const toast = useToast()
 const rows = ref([])
 const loading = ref(false)
 const cols = [
-  { key: 'createdAt', label: '时间', sortable: true },
-  { key: 'actorId', label: '操作人 / 角色', sortable: true },
-  { key: 'action', label: '动作', sortable: true },
-  { key: 'target', label: '对象' },
-  { key: 'scope', label: '范围快照' },
-  { key: 'ip', label: 'IP' },
-  { key: 'result', label: '结果', sortable: true },
-  { key: 'hashRef', label: '哈希前 8 位' }
+  { key: 'createdAt', label: '时间', sortable: true, value: (r) => fmtTime(r.createdAt) },
+  { key: 'actorId', label: '操作人 / 角色', sortable: true, value: (r) => [r.actorId || '—', roleLabel(r.actorRole)].filter(Boolean).join(' / ') },
+  { key: 'action', label: '动作', sortable: true, value: (r) => permLabel(r.action) },
+  { key: 'target', label: '对象', value: (r) => r.target || '—' },
+  { key: 'scope', label: '范围快照', value: (r) => r.projectId || r.orgId || '—' },
+  { key: 'ip', label: 'IP', value: (r) => r.ip || '—' },
+  { key: 'result', label: '结果', sortable: true, value: (r) => resultLabel(r.result) },
+  { key: 'hashRef', label: '哈希前 8 位', value: (r) => String(r.hashRef || '').slice(0, 8) || '—' }
 ]
 // 动作筛选按真实日志动态去重（后端 action 存能力码）；结果固定三态
 const filters = computed(() => [

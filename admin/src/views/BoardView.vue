@@ -124,7 +124,10 @@ async function load() {
 }
 onMounted(load)
 
-const todayStr = () => new Date().toISOString().slice(0, 10)
+// 今日闭环按 GMT+8 本地日统计；checkoutTime 已是 GMT+8 文本
+const todayStr = () => new Intl.DateTimeFormat('en-CA', {
+  timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit'
+}).format(new Date())
 const pending = computed(() => orders.value.filter((o) => o.status === 'PENDING'))
 const handling = computed(() => orders.value.filter((o) => o.status === 'PROCESSING'))
 const active = computed(() => orders.value.filter((o) => o.status !== 'DONE' && o.status !== 'CANCELLED'))

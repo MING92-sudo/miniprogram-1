@@ -173,15 +173,15 @@ const filters = [
   { key: 'levelLabel', label: '等级', options: ['P1', 'P2', 'P3'] }
 ]
 const cols = [
-  { key: 'faultNo', label: '工单号', sortable: true },
-  { key: 'type', label: '类型 / 等级' },
+  { key: 'faultNo', label: '工单号', sortable: true, value: (r) => r.faultNo || r.id },
+  { key: 'type', label: '类型 / 等级', value: (r) => [r.typeLabel, r.levelLabel].filter(Boolean).join(' ') },
   { key: 'elevatorCode', label: '设备码', sortable: true },
-  { key: 'project', label: '项目' },
-  { key: 'reporter', label: '报修人 / 电话' },
-  { key: 'status', label: '状态', sortable: true },
-  { key: 'sla', label: 'SLA / 剩余', sortable: true },
-  { key: 'owner', label: '责任人' },
-  { key: 'source', label: '来源' }
+  { key: 'project', label: '项目', value: (r) => r.useUnitName || r.elevatorName || '—' },
+  { key: 'reporter', label: '报修人 / 电话', value: (r) => (r.createdByName || '—') + ' / ' + (r.reporterPhone || '—') },
+  { key: 'status', label: '状态', sortable: true, value: (r) => faultStatusLabel(r.status) },
+  { key: 'sla', label: 'SLA / 剩余', sortable: true, value: (r) => (r.slaMinutes ? r.slaMinutes + '′' : '—') + ' / ' + slaText(r) },
+  { key: 'owner', label: '责任人', value: (r) => r.dispatchedWorkerName || '待派' },
+  { key: 'source', label: '来源', value: (r) => r.sourceLabel || '—' }
 ]
 function exportOrders() {
   const n = exportCsv('工单台账', cols, rows.value)
