@@ -119,6 +119,22 @@ class RecordLifecycleTest {
     }
 
     @Test
+    void reviewReturnClearsLifecycleInSql() {
+        MaintainRecord r = record("PENDING_REVIEW");
+        r.workOrderId = null;
+
+        svc.review("r1", false, "复核不通过", Set.of("MAINT_MGR"));
+
+        org.mockito.ArgumentCaptor<com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper<MaintainRecord>>
+                captor = org.mockito.ArgumentCaptor.forClass(
+                        (Class) com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper.class);
+        verify(records).update(any(), captor.capture());
+        assertTrue(captor.getValue().getSqlSet().contains("lifecycle_status"));
+        assertTrue(captor.getValue().getParamNameValuePairs().containsValue(null));
+        verify(records, never()).updateById(any(MaintainRecord.class));
+    }
+
+    @Test
     void platformAdminCanReviewAndRequestSignAccordingToMatrix() {
         MaintainRecord r = record("PENDING_REVIEW");
         svc.review("r1", true, "", Set.of("PLATFORM_ADMIN"));
@@ -270,6 +286,7 @@ class RecordLifecycleTest {
     @Test
     void refuseByTokenTransitions() {
         MaintainRecord r = record("PENDING_CLIENT_SIGNATURE");
+        r.workOrderId = null;
         svc.refuseByToken("r1", "sg-token", "照片不清晰");
         assertEquals("REFUSED_RETURNED", r.lifecycleStatus);
         assertEquals("照片不清晰", r.refuseReason);

@@ -154,6 +154,7 @@ public class UnitRecordService {
                 .eq(MaintainRecord::getConfirmStatus, "PENDING")
                 .eq(MaintainRecord::getLifecycleStatus, "PENDING_CLIENT_SIGNATURE")
                 .set(MaintainRecord::getConfirmStatus, "CONFIRMED")
+                .set(MaintainRecord::getLifecycleStatus, "SIGNED")
                 .set(MaintainRecord::getSignatureFileId, signatureFileId)
                 .set(MaintainRecord::getSignatureUrl, signatureUrl);
         if (signerAccountId != null && !signerAccountId.isBlank()) {
@@ -167,6 +168,7 @@ public class UnitRecordService {
         }
         // 落库成功后才回写内存态，供 onClientSigned 归档投影（PDF 需最新签字字段）
         r.confirmStatus = "CONFIRMED";
+        r.lifecycleStatus = "SIGNED";
         r.signatureFileId = signatureFileId;
         r.signatureUrl = signatureUrl;
         if (signerAccountId != null && !signerAccountId.isBlank()) {
