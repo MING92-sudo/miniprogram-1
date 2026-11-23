@@ -32,6 +32,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -344,5 +345,13 @@ class DispatchServiceTest {
         verify(orderMapper, times(3)).selectCount(countQueries.capture());
         assertTrue(countQueries.getAllValues().get(1).getSqlSegment().toUpperCase().contains("FOR UPDATE"),
                 "锁内复查不得命中 maybeDue 的 MyBatis 一级缓存");
+        ArgumentCaptor<LambdaQueryWrapper> maintenanceQueries = ArgumentCaptor.forClass(LambdaQueryWrapper.class);
+        verify(orderMapper, times(6)).selectList(maintenanceQueries.capture());
+        assertFalse(maintenanceQueries.getAllValues().get(0).getSqlSegment().toUpperCase().contains("FOR UPDATE"),
+                "锁前快速周期判断保持普通一致性读");
+        for (int i = 1; i < maintenanceQueries.getAllValues().size(); i++) {
+            assertTrue(maintenanceQueries.getAllValues().get(i).getSqlSegment().toUpperCase().contains("FOR UPDATE"),
+                    "锁内最近/首次/分周期维保基线都必须使用当前读");
+        }
     }
 }

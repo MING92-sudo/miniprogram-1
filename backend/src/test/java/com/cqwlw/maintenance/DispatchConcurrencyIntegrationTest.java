@@ -19,6 +19,7 @@ import com.cqwlw.maintenance.service.TenantSnapshotService;
 import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import org.mybatis.spring.SqlSessionTemplate;
@@ -73,7 +74,7 @@ class DispatchConcurrencyIntegrationTest {
         if (!serverPath.endsWith("/")) {
             throw new IllegalArgumentException("DISPATCH_IT_MYSQL_SERVER_URL 只能指向服务器，不得包含既有数据库名");
         }
-        databaseName = "dispatch_it_" + UUID.randomUUID().toString().replace("-", "");
+        databaseName = "dispatch_it_" + UUID.randomUUID().toString().replace("-", "").substring(0, 16);
         try (Connection connection = DriverManager.getConnection(serverUrl, username, password);
              Statement statement = connection.createStatement()) {
             statement.executeUpdate("CREATE DATABASE `" + databaseName
@@ -96,6 +97,15 @@ class DispatchConcurrencyIntegrationTest {
         } catch (Exception e) {
             dropDisposableDatabase();
             throw e;
+        }
+    }
+
+    @BeforeEach
+    void cleanDomainRows() throws Exception {
+        try (Connection connection = dataSource.getConnection(); Statement statement = connection.createStatement()) {
+            statement.executeUpdate("DELETE FROM message");
+            statement.executeUpdate("DELETE FROM work_order");
+            statement.executeUpdate("DELETE FROM elevator");
         }
     }
 
@@ -123,7 +133,7 @@ class DispatchConcurrencyIntegrationTest {
         DispatchService service = new DispatchService(elevators, orders,
                 sqlSession.getMapper(MessageMapper.class), mock(EmployeeMapper.class),
                 checklists, new OrderNoIssuer(orders), snapshots);
-        insertDueElevator();
+        insertElevator("el_race", LocalDateTime.now().minusDays(16));
 
         ExecutorService pool = Executors.newFixedThreadPool(2);
         try {
@@ -169,17 +179,91 @@ class DispatchConcurrencyIntegrationTest {
         }
     }
 
-    private static final ThreadLocal<String> path = new ThreadLocal<>();
-    private static final ConcurrentLinkedQueue<String> events = new ConcurrentLinkedQueue<>();
-    private static final AtomicBoolean manualLocked = new AtomicBoolean();
-    private static final AtomicInteger scheduledActiveChecks = new AtomicInteger();
-    private static final CountDownLatch manualActiveChecked = new CountDownLatch(1);
-    private static final CountDownLatch scheduledLockedActiveCheck = new CountDownLatch(1);
+    @Test
+    void scheduledDispatchReadsMaintenanceCommittedBeforeLockAcquisition() throws Exception {
+        insertElevator("el_stale_due", LocalDateTime.now().minusDays(16));
+
+        List<WorkOrder> created = dispatchAfterMaintenanceCommit(
+                "el_stale_due", "HM", LocalDateTime.now());
+
+        assertTrue(created.isEmpty(), "锁内必须读取等待期间提交的最近维保，不得按锁前旧到期日派单");
+    }
+
+    @Test
+    void scheduledDispatchReadsPeriodBaselinesCommittedBeforeLockAcquisition() throws Exception {
+        insertElevator("el_stale_type", LocalDateTime.now().minusDays(400));
+
+        List<WorkOrder> created = dispatchAfterMaintenanceCommit(
+                "el_stale_type", "OY", LocalDateTime.now().minusDays(16));
+
+        assertEquals(1, created.size());
+        assertEquals("HM", created.get(0).workTypeCode,
+                "首次维保与年保最近维保均提交于等锁期间，不得按锁前 400 天基线误升年保");
+    }
+
+    private List<WorkOrder> dispatchAfterMaintenanceCommit(
+            String elevatorId, String workTypeCode, LocalDateTime checkoutTime) throws Exception {
+        DispatchService service = newScheduledService();
+        holdScheduledLock = true;
+        try (Connection blocker = dataSource.getConnection()) {
+            blocker.setAutoCommit(false);
+            lockElevator(blocker, elevatorId);
+            ExecutorService pool = Executors.newSingleThreadExecutor();
+            try {
+                Future<List<WorkOrder>> scheduled = pool.submit(() -> {
+                    path.set("scheduled");
+                    return transactions.execute(status -> service.ensureDueOrders());
+                });
+                assertTrue(preLockMaintenanceChecked.await(10, TimeUnit.SECONDS),
+                        "定时派单未完成锁前周期快速判断");
+                assertTrue(scheduledLockAttempted.await(10, TimeUnit.SECONDS),
+                        "定时派单未尝试获取电梯行锁");
+                insertDoneMaintenance(blocker, elevatorId, workTypeCode, checkoutTime);
+                blocker.commit();
+                allowScheduledLock.countDown();
+                return scheduled.get(30, TimeUnit.SECONDS);
+            } finally {
+                allowScheduledLock.countDown();
+                pool.shutdownNow();
+                blocker.rollback();
+            }
+        }
+    }
+
+    private DispatchService newScheduledService() throws Exception {
+        WorkOrderMapper orders = synchronizedOrderMapper();
+        ChecklistService checklists = new ChecklistService();
+        checklists.load();
+        TenantSnapshotService snapshots = new TenantSnapshotService(mock(UseUnitMapper.class),
+                mock(BizElevatorChangeMapper.class), mock(MigrationIssueService.class));
+        return new DispatchService(synchronizedElevatorMapper(), orders,
+                sqlSession.getMapper(MessageMapper.class), mock(EmployeeMapper.class),
+                checklists, new OrderNoIssuer(orders), snapshots);
+    }
+
+    private final ThreadLocal<String> path = new ThreadLocal<>();
+    private final ConcurrentLinkedQueue<String> events = new ConcurrentLinkedQueue<>();
+    private final AtomicBoolean manualLocked = new AtomicBoolean();
+    private final AtomicInteger scheduledActiveChecks = new AtomicInteger();
+    private final CountDownLatch manualActiveChecked = new CountDownLatch(1);
+    private final CountDownLatch scheduledLockedActiveCheck = new CountDownLatch(1);
+    private final CountDownLatch preLockMaintenanceChecked = new CountDownLatch(1);
+    private final CountDownLatch scheduledLockAttempted = new CountDownLatch(1);
+    private final CountDownLatch allowScheduledLock = new CountDownLatch(1);
+    private boolean holdScheduledLock;
 
     private ElevatorMapper synchronizedElevatorMapper() {
         ElevatorMapper delegate = sqlSession.getMapper(ElevatorMapper.class);
         return (ElevatorMapper) Proxy.newProxyInstance(ElevatorMapper.class.getClassLoader(),
                 new Class<?>[]{ElevatorMapper.class}, (proxy, method, args) -> {
+                    if (holdScheduledLock && "scheduled".equals(path.get()) && "selectOne".equals(method.getName())
+                            && args != null && args.length == 1 && args[0] instanceof LambdaQueryWrapper<?> query
+                            && query.getSqlSegment().toUpperCase().contains("FOR UPDATE")) {
+                        scheduledLockAttempted.countDown();
+                        if (!allowScheduledLock.await(10, TimeUnit.SECONDS)) {
+                            throw new IllegalStateException("定时派单未获准继续获取电梯锁");
+                        }
+                    }
                     Object result = invoke(delegate, method, args);
                     if ("selectById".equals(method.getName()) || "selectOne".equals(method.getName())) {
                         events.add(path.get() + " " + method.getName());
@@ -200,6 +284,10 @@ class DispatchConcurrencyIntegrationTest {
                     Object result = invoke(delegate, method, args);
                     if ("insert".equals(method.getName())) {
                         events.add(path.get() + " insert");
+                    }
+                    if ("scheduled".equals(path.get()) && "selectList".equals(method.getName())
+                            && isGeneralMaintenanceRead(args)) {
+                        preLockMaintenanceChecked.countDown();
                     }
                     if (!"selectCount".equals(method.getName()) || !isActiveCheck(args)) {
                         return result;
@@ -234,21 +322,54 @@ class DispatchConcurrencyIntegrationTest {
         return sql.contains("elevator_id") && sql.contains("status");
     }
 
-    private static void insertDueElevator() throws Exception {
+    private static boolean isGeneralMaintenanceRead(Object[] args) {
+        if (args == null || args.length != 1 || !(args[0] instanceof LambdaQueryWrapper<?> query)) {
+            return false;
+        }
+        String sql = query.getSqlSegment();
+        return sql.contains("elevator_id") && sql.contains("status") && sql.contains("checkout_time")
+                && !sql.contains("work_type_code") && !sql.toUpperCase().contains("FOR UPDATE");
+    }
+
+    private static void lockElevator(Connection connection, String elevatorId) throws Exception {
+        try (PreparedStatement statement = connection.prepareStatement(
+                "SELECT id FROM elevator WHERE id = ? FOR UPDATE")) {
+            statement.setString(1, elevatorId);
+            statement.executeQuery();
+        }
+    }
+
+    private static void insertDoneMaintenance(Connection connection, String elevatorId,
+                                              String workTypeCode, LocalDateTime checkoutTime) throws Exception {
+        try (PreparedStatement statement = connection.prepareStatement(
+                "INSERT INTO work_order (id, order_no, elevator_id, work_type, work_type_code, "
+                        + "plan_time, status, checkout_time) VALUES (?, ?, ?, ?, ?, ?, 'DONE', ?)")) {
+            statement.setString(1, "done_" + elevatorId);
+            statement.setString(2, "DONE-" + elevatorId);
+            statement.setString(3, elevatorId);
+            statement.setString(4, workTypeCode);
+            statement.setString(5, workTypeCode);
+            statement.setTimestamp(6, Timestamp.valueOf(checkoutTime));
+            statement.setTimestamp(7, Timestamp.valueOf(checkoutTime));
+            statement.executeUpdate();
+        }
+    }
+
+    private static void insertElevator(String elevatorId, LocalDateTime lastMaintenanceAt) throws Exception {
         try (Connection connection = dataSource.getConnection();
              PreparedStatement statement = connection.prepareStatement(
                      "INSERT INTO elevator (id, elevator_code, elevator_name, category, region_id, "
                              + "work_type_code, interval_days, status, last_maintenance_at) "
                              + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)")) {
-            statement.setString(1, "el_race");
-            statement.setString(2, "EM-RACE");
+            statement.setString(1, elevatorId);
+            statement.setString(2, "EM-" + elevatorId);
             statement.setString(3, "并发测试电梯");
             statement.setString(4, "曳引与强制驱动电梯");
             statement.setString(5, "rg_race");
             statement.setString(6, "HM");
             statement.setInt(7, 15);
             statement.setString(8, "ACTIVE");
-            statement.setTimestamp(9, Timestamp.valueOf(LocalDateTime.now().minusDays(16)));
+            statement.setTimestamp(9, Timestamp.valueOf(lastMaintenanceAt));
             statement.executeUpdate();
         }
     }
