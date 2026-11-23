@@ -124,7 +124,9 @@ public class PlatformController {
             @RequestParam(defaultValue = "0") String changState,
             @RequestParam String serviceStartDate,
             @RequestParam String serviceEndDate,
-            @RequestPart(value = "contractFile", required = false) MultipartFile contractFile) {
+            @RequestPart(value = "contractFile", required = false) MultipartFile contractFile,
+            @RequestHeader(value = "X-Idempotency-Key", required = false) String idemKey,
+            HttpServletRequest request) {
         requireFile(contractFile, "contractFile");
         Map<String, String> fields = new java.util.LinkedHashMap<>();
         fields.put("useUnitName", useUnitName);
@@ -132,9 +134,12 @@ public class PlatformController {
         fields.put("changState", changState);
         fields.put("serviceStartDate", serviceStartDate);
         fields.put("serviceEndDate", serviceEndDate);
-        Map<String, Object> resp = platformClient.registerServiceState(fields,
-                bytes(contractFile), filename(contractFile));
-        return ApiResponse.ok(resp.get("data") == null ? Map.of("ok", true) : resp.get("data"));
+        // 2.3 平台写：同键重试重放已存响应，丢失响应不产生重复登记
+        return ApiResponse.ok(idempotencyService.executeExternal(idemKey, fields, request, () -> {
+            Map<String, Object> resp = platformClient.registerServiceState(fields,
+                    bytes(contractFile), filename(contractFile));
+            return resp.get("data") == null ? Map.of("ok", true) : resp.get("data");
+        }));
     }
 
     @PostMapping("/platform/register/worker")
@@ -145,7 +150,9 @@ public class PlatformController {
             @RequestParam String workEndDate,
             @RequestParam String workManPhone,
             @RequestParam(defaultValue = "0") String changState,
-            @RequestPart(value = "certificateFile", required = false) MultipartFile certificateFile) {
+            @RequestPart(value = "certificateFile", required = false) MultipartFile certificateFile,
+            @RequestHeader(value = "X-Idempotency-Key", required = false) String idemKey,
+            HttpServletRequest request) {
         requireFile(certificateFile, "certificateFile");
         Map<String, String> fields = new java.util.LinkedHashMap<>();
         fields.put("workManName", workManName);
@@ -154,57 +161,60 @@ public class PlatformController {
         fields.put("workEndDate", workEndDate);
         fields.put("workManPhone", workManPhone);
         fields.put("changState", changState);
-        Map<String, Object> resp = platformClient.registerWorkerState(fields,
-                bytes(certificateFile), filename(certificateFile));
-        // 2.4 建立(changState=0)/中止(changState=1) → 回写本地绑定状态（档案删除门禁与状态展示用）
-        archiveService.updateBindStatusByCertificate(workManCertificate,
-                "1".equals(changState) ? 1 : 0);
-        // 用户需求①：2.4 平台登记成功 → 本地人员档案自动建档（按证书号去重；随机初始密码走账号流程）
-        String employeeId = "";
-        String account = workManPhone;
-        String initialPassword = "";
-        try {
-            Long dup = archiveService.employeeCertificateExists(workManCertificate);
-            if (dup == null || dup == 0) {
-                Map<String, Object> created = archiveService.createEmployee(java.util.Map.of(
-                        "name", workManName,
-                        "phone", workManPhone,
-                        "role", "WORKER",
-                        "certificate", workManCertificate,
-                        "workStartDate", workStartDate,
-                        "workEndDate", workEndDate));
-                employeeId = String.valueOf(created.get("id"));
-                account = String.valueOf(created.get("account"));
-                initialPassword = String.valueOf(created.get("initialPassword"));
-            }
-        } catch (Exception ignored) {
-            // 建档失败不影响登记结果（可用同步兜底）
-        }
-        // 2.4 本身不返回人员ID，必须靠 2.5 查询获得。
-        Map<String, Object> platformBackfill = Map.of("status", "SKIPPED");
-        if (!"1".equals(changState)) {
+        // 2.4 平台写：同键重试重放已存响应（initialPassword 经脱敏不随重放返回，一次性展示契约不变）
+        return ApiResponse.ok(idempotencyService.executeExternal(idemKey, fields, request, () -> {
+            Map<String, Object> resp = platformClient.registerWorkerState(fields,
+                    bytes(certificateFile), filename(certificateFile));
+            // 2.4 建立(changState=0)/中止(changState=1) → 回写本地绑定状态（档案删除门禁与状态展示用）
+            archiveService.updateBindStatusByCertificate(workManCertificate,
+                    "1".equals(changState) ? 1 : 0);
+            // 用户需求①：2.4 平台登记成功 → 本地人员档案自动建档（按证书号去重；随机初始密码走账号流程）
+            String employeeId = "";
+            String account = workManPhone;
+            String initialPassword = "";
             try {
-                platformBackfill = workerIdService.backfillWithRetry(workManCertificate);
-            } catch (Exception e) {
-                platformBackfill = Map.of("status", "ERROR");
-                org.slf4j.LoggerFactory.getLogger(PlatformController.class)
-                        .warn("2.4 建档后触发平台ID全量回填失败: certificate={}, {}", workManCertificate, e.getMessage());
+                Long dup = archiveService.employeeCertificateExists(workManCertificate);
+                if (dup == null || dup == 0) {
+                    Map<String, Object> created = archiveService.createEmployee(java.util.Map.of(
+                            "name", workManName,
+                            "phone", workManPhone,
+                            "role", "WORKER",
+                            "certificate", workManCertificate,
+                            "workStartDate", workStartDate,
+                            "workEndDate", workEndDate));
+                    employeeId = String.valueOf(created.get("id"));
+                    account = String.valueOf(created.get("account"));
+                    initialPassword = String.valueOf(created.get("initialPassword"));
+                }
+            } catch (Exception ignored) {
+                // 建档失败不影响登记结果（可用同步兜底）
             }
-        }
-        Map<String, Object> out = new java.util.LinkedHashMap<>();
-        out.put("ok", true);
-        out.put("employeeId", employeeId);
-        out.put("account", account);
-        out.put("platformBackfill", platformBackfill);
-        if (!initialPassword.isEmpty()) {
-            out.put("initialPassword", initialPassword);
-        }
-        // 平台原始 data 合并进 out（本地生成的账号/回填统计优先），避免前端丢失建档结果
-        Object platformData = resp.get("data");
-        if (platformData instanceof Map<?, ?> data) {
-            data.forEach((k, v) -> out.putIfAbsent(String.valueOf(k), v));
-        }
-        return ApiResponse.ok(out);
+            // 2.4 本身不返回人员ID，必须靠 2.5 查询获得。
+            Map<String, Object> platformBackfill = Map.of("status", "SKIPPED");
+            if (!"1".equals(changState)) {
+                try {
+                    platformBackfill = workerIdService.backfillWithRetry(workManCertificate);
+                } catch (Exception e) {
+                    platformBackfill = Map.of("status", "ERROR");
+                    org.slf4j.LoggerFactory.getLogger(PlatformController.class)
+                            .warn("2.4 建档后触发平台ID全量回填失败: certificate={}, {}", workManCertificate, e.getMessage());
+                }
+            }
+            Map<String, Object> out = new java.util.LinkedHashMap<>();
+            out.put("ok", true);
+            out.put("employeeId", employeeId);
+            out.put("account", account);
+            out.put("platformBackfill", platformBackfill);
+            if (!initialPassword.isEmpty()) {
+                out.put("initialPassword", initialPassword);
+            }
+            // 平台原始 data 合并进 out（本地生成的账号/回填统计优先），避免前端丢失建档结果
+            Object platformData = resp.get("data");
+            if (platformData instanceof Map<?, ?> data) {
+                data.forEach((k, v) -> out.putIfAbsent(String.valueOf(k), v));
+            }
+            return out;
+        }));
     }
 
     private static void requireFile(MultipartFile file, String name) {
