@@ -52,7 +52,7 @@ import StatusTag from '../ui/StatusTag.vue'
 import Drawer from '../ui/Drawer.vue'
 import { useToast } from '../ui/stores/ui'
 import { workTypeLabel } from '../ui/labels'
-import { listRecords, reupload, exportPdf } from '../api/report'
+import { listAllRecords, reupload, exportPdf } from '../api/report'
 const toast = useToast()
 const rows = ref([])
 const loading = ref(false)
@@ -65,7 +65,10 @@ const cols = [
 ]
 async function load() {
   loading.value = true
-  try { const all = (await listRecords()).list || []; rows.value = all.filter(r => r.reportStatus === 'FAILED' || r.reportStatus === 'PENDING') }
+  try {
+    const all = (await listAllRecords({ reportStatus: 'FAILED,PENDING' })).list || []
+    rows.value = all.filter(r => r.reportStatus === 'FAILED' || r.reportStatus === 'PENDING')
+  }
   catch (e) { toast.error(e.message || '加载失败') } finally { loading.value = false }
 }
 function openDetail(r) { detail.value = r }

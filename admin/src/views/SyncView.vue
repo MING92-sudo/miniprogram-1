@@ -22,7 +22,7 @@
           <div class="cell-2">{{ row.elevatorName || '—' }}</div>
         </template>
         <template #cell-syncAt="{ value }"><span class="mono f12">{{ value || '—' }}</span></template>
-        <template #cell-uploadStatus="{ value }"><span :class="['tag', 'tag-' + statusTone(value)]">{{ value }}</span></template>
+        <template #cell-uploadStatus="{ value }"><span :class="['tag', 'tag-' + statusTone(value)]">{{ statusLabel(value) }}</span></template>
         <template #cell-retry="{ value }"><span class="num">{{ value }}</span></template>
         <template #row-actions="{ row }">
           <button class="btn btn-ghost btn-xs" type="button" @click.stop="openDetail(row)">
@@ -59,7 +59,7 @@
             <div class="kv"><span class="k">维保类别</span><span class="v">{{ detail.workType || '—' }}</span></div>
             <div class="kv"><span class="k">主检</span><span class="v">{{ detail.workerName || '—' }}</span></div>
             <div class="kv"><span class="k">配合人</span><span class="v">{{ detail.assistantName || '—' }}</span></div>
-            <div class="kv"><span class="k">上报状态</span><span class="v">{{ detail.uploadStatus }}</span></div>
+            <div class="kv"><span class="k">上报状态</span><span class="v">{{ statusLabel(detail.uploadStatus) }}</span></div>
             <div class="kv"><span class="k">后端状态码</span><span class="v mono">{{ detail.reportStatus || '—' }}</span></div>
             <div class="kv"><span class="k">重试次数</span><span class="v">{{ detail.retryCount }}</span></div>
             <div class="kv"><span class="k">客户签署</span><span class="v">{{ detail.confirmStatus === 'CONFIRMED' ? '已签署' : '待签署' }}</span></div>
@@ -81,6 +81,7 @@ import Drawer from '../ui/Drawer.vue'
 import ViewHead from '../ui/ViewHead.vue'
 import PageMeta from '../ui/PageMeta.vue'
 import RuleNote from '../ui/RuleNote.vue'
+import { statusLabel } from '../ui/labels'
 const loading = ref(false)
 const rows = ref([])
 const total = ref(0)
@@ -123,7 +124,7 @@ function toRow(r) {
     assistantName: r.assistantName || '',
     checkoutTime: r.checkoutTime || '',
     syncAt: r.checkoutTime || r.createdAt || '',
-    uploadStatus: r.uploadStatus || r.reportStatus || '待上报',
+    uploadStatus: r.uploadStatus || r.reportStatus || 'PENDING',
     reportStatus: r.reportStatus || '',
     retryCount: r.retryCount || 0,
     retry: r.retryCount || 0,
@@ -148,16 +149,17 @@ async function load() {
 }
 onMounted(load)
 
-const statusOptions = ['待上报', '上报中', '成功', '失败']
+const statusOptions = ['SUCCESS', 'FAILED', 'PENDING', 'UNKNOWN'].map((value) => ({ value, label: statusLabel(value) }))
 const summary = computed(() => {
   const count = (s) => rows.value.filter((r) => r.uploadStatus === s).length
   return [
-    { key: 'ok', label: '上报成功', value: count('成功'), sub: '已同步监管平台', icon: 'check' },
-    { key: 'fail', label: '上报失败', value: count('失败'), sub: '需排查后重试', icon: 'alert' },
-    { key: 'pending', label: '待上报 / 上报中', value: count('待上报') + count('上报中'), sub: '等待归档或重试', icon: 'clock' },
+    { key: 'ok', label: '上报成功', value: count('SUCCESS'), sub: '已同步监管平台', icon: 'check' },
+    { key: 'fail', label: '上报失败', value: count('FAILED'), sub: '需排查后逐条重报', icon: 'alert' },
+    { key: 'pending', label: '待上报', value: count('PENDING'), sub: '等待归档或上报', icon: 'clock' },
+    { key: 'unknown', label: statusLabel('UNKNOWN'), value: count('UNKNOWN'), sub: '平台已受理，本地结果待核对', icon: 'info' },
     { key: 'total', label: '记录总数', value: total.value, sub: '当前页统计口径', icon: 'file-text' }
   ]
 })
-function statusTone(s) { return { 待上报: 'dim', 上报中: 'amber', 成功: 'ok', 失败: 'signal' }[s] || 'ghost' }
+function statusTone(s) { return { SUCCESS: 'ok', FAILED: 'signal', PENDING: 'amber', UNKNOWN: 'ghost' }[s] || 'ghost' }
 function openDetail(r) { detail.value = r }
 </script>

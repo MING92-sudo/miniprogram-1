@@ -13,7 +13,7 @@ const STATUS = {
   // 通用
   ACTIVE: '启用', DISABLED: '停用', INACTIVE: '停保', NORMAL: '正常', PENDING: '待处理', IN_PROGRESS: '进行中',
   APPROVED: '已批准', EXPIRED: '已过期', REVOKED: '已回收', VOID: '已作废', SCRAPPED: '已报废', TRANSFER: '已移交',
-  SUCCESS: '成功', BLOCKED: '已拦截',
+  SUCCESS: '成功', BLOCKED: '已拦截', UNKNOWN: '结果待核对',
   // 检查项结果 / 判定结论 / 复验
   PASS: '合格', FAIL: '不合格', NA: '不适用',
   QUALIFIED: '合格', RECTIFY: '整改', DISQUALIFIED: '不合格', CONDITIONAL: '有条件移交'

@@ -598,6 +598,10 @@ public class UnitRecordService {
         if ("FAILED".equals(reportStatus)) {
             return "FAILED";
         }
+        // 平台已受理但本地结果待核对，不可当作待上报走重试
+        if ("UNKNOWN".equals(reportStatus)) {
+            return "UNKNOWN";
+        }
         return "PENDING";
     }
 }
