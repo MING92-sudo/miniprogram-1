@@ -5,15 +5,20 @@ import com.cqwlw.maintenance.entity.IdempotencyKey;
 import com.cqwlw.maintenance.mapper.IdempotencyKeyMapper;
 import com.cqwlw.maintenance.util.JsonUtil;
 import com.cqwlw.maintenance.util.TimeUtil;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 
 import java.util.Map;
+import java.util.Set;
 import java.time.temporal.ChronoUnit;
 
 /** 写接口幂等：所有写接口携带 X-Idempotency-Key（AGENTS §3）。 */
 @Service
 public class IdempotencyService {
+
+    private static final Set<String> SECRET_RESPONSE_FIELDS = Set.of("initialPassword", "password");
 
     private final IdempotencyKeyMapper mapper;
 
@@ -51,6 +56,21 @@ public class IdempotencyService {
         return new Guard(key, null);
     }
 
+    private static String sanitizedResponseJson(Object result) {
+        JsonNode tree = JsonUtil.MAPPER.valueToTree(result);
+        redactSecrets(tree);
+        return JsonUtil.write(tree);
+    }
+
+    private static void redactSecrets(JsonNode node) {
+        if (node instanceof ObjectNode object) {
+            object.remove(SECRET_RESPONSE_FIELDS);
+            object.forEach(IdempotencyService::redactSecrets);
+        } else if (node != null && node.isArray()) {
+            node.forEach(IdempotencyService::redactSecrets);
+        }
+    }
+
     public class Guard {
         private final String key;
         private final String replayJson;
@@ -74,7 +94,7 @@ public class IdempotencyService {
             }
             IdempotencyKey row = new IdempotencyKey();
             row.idemKey = key;
-            row.responseJson = JsonUtil.write(result);
+            row.responseJson = sanitizedResponseJson(result);
             try {
                 mapper.updateById(row);
             } catch (Exception ignored) {
