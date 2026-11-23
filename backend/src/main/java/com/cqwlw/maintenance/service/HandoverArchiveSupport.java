@@ -44,7 +44,7 @@ public class HandoverArchiveSupport {
                 }).toList();
     }
 
-    /** 归档前补齐平台身份；任何不确定、冲突或重复都在电梯 insert 与首保排期前失败。 */
+    /** 归档前核验平台身份；任何不确定、冲突或重复都在电梯 insert 与首保排期前失败。 */
     public void enrich(HandoverOrder order, Elevator elevator) {
         if (text(order.factoryNumber).isEmpty()) {
             throw new BizException(422, "出厂编号为 2.7 查询及设备档案必传项，不能归档");
@@ -52,44 +52,42 @@ public class HandoverArchiveSupport {
         if (!text(order.useUnitId).isEmpty()) {
             requireUseUnit(order.useUnitId);
         }
-        if (text(order.elevatorCode).isEmpty() || text(order.regCode).isEmpty() || text(order.deviceCode).isEmpty()) {
-            Map<String, String> conditions = new LinkedHashMap<>();
-            conditions.put("factoryNumber", text(order.factoryNumber));
-            conditions.put("registrationCode", text(order.regCode));
-            conditions.put("deviceCode", text(order.deviceCode));
-            List<Map<String, Object>> raw = platformClient.queryElevatorInfo(conditions);
-            if (raw.size() != 1) {
-                throw new BizException(422, "2.7 返回记录数不是 1（实际 " + raw.size()
-                        + " 条），请确认注册登记完成后重试");
-            }
-            Map<String, Object> platform = raw.get(0);
-            if (!matches(conditions, platform)) {
-                throw new BizException(422, "2.7 返回记录与本电梯标识不一致，禁止回填");
-            }
-            requirePlatformValue(platform, "elevatorCode");
-            requirePlatformValue(platform, "registrationCode");
-            requirePlatformValue(platform, "deviceCode");
-            requireCompatible(order.elevatorCode, platform.get("elevatorCode"), "电梯编码");
-            requireCompatible(order.regCode, platform.get("registrationCode"), "注册代码");
-            requireCompatible(order.deviceCode, platform.get("deviceCode"), "设备代码");
-            order.elevatorCode = text(platform.get("elevatorCode"));
-            order.regCode = text(platform.get("registrationCode"));
-            order.deviceCode = text(platform.get("deviceCode"));
-            elevator.elevatorCode = order.elevatorCode;
-            elevator.regCode = order.regCode;
-            elevator.deviceCode = order.deviceCode;
-            if (hasRealValue(platform.get("useUnitEntityId"))) {
-                elevator.useUnitEntityId = text(platform.get("useUnitEntityId"));
-            }
-            if (hasRealValue(platform.get("elevatorAdminister"))) {
-                elevator.elevatorAdminister = text(platform.get("elevatorAdminister"));
-            }
-            if (hasRealValue(platform.get("elevatorAdministerPhone"))) {
-                elevator.elevatorAdministerPhone = text(platform.get("elevatorAdministerPhone"));
-            }
-            if (hasRealValue(platform.get("emergencyPhone"))) {
-                elevator.emergencyPhone = text(platform.get("emergencyPhone"));
-            }
+        Map<String, String> conditions = new LinkedHashMap<>();
+        conditions.put("factoryNumber", text(order.factoryNumber));
+        conditions.put("registrationCode", text(order.regCode));
+        conditions.put("deviceCode", text(order.deviceCode));
+        List<Map<String, Object>> raw = platformClient.queryElevatorInfo(conditions);
+        if (raw.size() != 1) {
+            throw new BizException(422, "2.7 返回记录数不是 1（实际 " + raw.size()
+                    + " 条），请确认注册登记完成后重试");
+        }
+        Map<String, Object> platform = raw.get(0);
+        if (!matches(conditions, platform)) {
+            throw new BizException(422, "2.7 返回记录与本电梯标识不一致，禁止回填");
+        }
+        requirePlatformValue(platform, "elevatorCode");
+        requirePlatformValue(platform, "registrationCode");
+        requirePlatformValue(platform, "deviceCode");
+        requireCompatible(order.elevatorCode, platform.get("elevatorCode"), "电梯编码");
+        requireCompatible(order.regCode, platform.get("registrationCode"), "注册代码");
+        requireCompatible(order.deviceCode, platform.get("deviceCode"), "设备代码");
+        order.elevatorCode = text(platform.get("elevatorCode"));
+        order.regCode = text(platform.get("registrationCode"));
+        order.deviceCode = text(platform.get("deviceCode"));
+        elevator.elevatorCode = order.elevatorCode;
+        elevator.regCode = order.regCode;
+        elevator.deviceCode = order.deviceCode;
+        if (hasRealValue(platform.get("useUnitEntityId"))) {
+            elevator.useUnitEntityId = text(platform.get("useUnitEntityId"));
+        }
+        if (hasRealValue(platform.get("elevatorAdminister"))) {
+            elevator.elevatorAdminister = text(platform.get("elevatorAdminister"));
+        }
+        if (hasRealValue(platform.get("elevatorAdministerPhone"))) {
+            elevator.elevatorAdministerPhone = text(platform.get("elevatorAdministerPhone"));
+        }
+        if (hasRealValue(platform.get("emergencyPhone"))) {
+            elevator.emergencyPhone = text(platform.get("emergencyPhone"));
         }
         Long duplicates = elevatorMapper.selectCount(new LambdaQueryWrapper<Elevator>()
                 .eq(Elevator::getElevatorCode, order.elevatorCode));

@@ -16,10 +16,12 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -41,6 +43,14 @@ class HandoverArchiveSupportTest {
     private static HandoverOrder order() {
         HandoverOrder o = new HandoverOrder();
         o.factoryNumber = "SGL-2026-001";
+        return o;
+    }
+
+    private static HandoverOrder completeOrder() {
+        HandoverOrder o = order();
+        o.elevatorCode = "130421";
+        o.regCode = "REG-2026-001";
+        o.deviceCode = "DEV-2026-001";
         return o;
     }
 
@@ -79,14 +89,20 @@ class HandoverArchiveSupportTest {
 
     @Test
     void rejectsZeroOrMultipleMatchingRecords() {
-        HandoverOrder o = order();
+        HandoverOrder missing = order();
         when(platformClient.queryElevatorInfo(any())).thenReturn(List.of());
-        assertThrows(BizException.class, () -> support.enrich(o, new Elevator()));
+        assertThrows(BizException.class, () -> support.enrich(missing, new Elevator()));
 
+        HandoverOrder complete = completeOrder();
+        Elevator elevator = new Elevator();
         Map<String, Object> other = platformRecord();
         other.put("elevatorCode", "130422");
         when(platformClient.queryElevatorInfo(any())).thenReturn(List.of(platformRecord(), other));
-        assertThrows(BizException.class, () -> support.enrich(o, new Elevator()));
+        assertThrows(BizException.class, () -> support.enrich(complete, elevator));
+        verify(platformClient, times(2)).queryElevatorInfo(any());
+        assertEquals("130421", complete.elevatorCode);
+        assertNull(elevator.elevatorCode);
+        assertNull(elevator.useUnitEntityId);
     }
 
     @Test
@@ -102,34 +118,34 @@ class HandoverArchiveSupportTest {
 
     @Test
     void factoryMismatchCannotBeOverriddenByRegistrationMatch() {
-        HandoverOrder o = order();
-        o.regCode = "REG-2026-001";
+        HandoverOrder o = completeOrder();
+        Elevator elevator = new Elevator();
         Map<String, Object> p = platformRecord();
         p.put("factoryNumber", "OTHER-FACTORY");
         when(platformClient.queryElevatorInfo(any())).thenReturn(List.of(p));
-        assertThrows(BizException.class, () -> support.enrich(o, new Elevator()));
+        assertThrows(BizException.class, () -> support.enrich(o, elevator));
+        verify(platformClient, times(1)).queryElevatorInfo(any());
+        assertEquals("130421", o.elevatorCode);
+        assertNull(elevator.elevatorCode);
+        assertNull(elevator.useUnitEntityId);
     }
 
     @Test
     void duplicateRegistrationCodeRejectsArchive() {
-        HandoverOrder o = order();
-        o.elevatorCode = "130421";
-        o.regCode = "REG-2026-001";
-        o.deviceCode = "DEV-2026-001";
+        HandoverOrder o = completeOrder();
+        when(platformClient.queryElevatorInfo(any())).thenReturn(List.of(platformRecord()));
         when(elevatorMapper.selectCount(any())).thenReturn(0L, 1L);
         assertThrows(BizException.class, () -> support.enrich(o, new Elevator()));
-        verify(platformClient, never()).queryElevatorInfo(any());
+        verify(platformClient, times(1)).queryElevatorInfo(any());
     }
 
     @Test
     void duplicateDeviceCodeRejectsArchive() {
-        HandoverOrder o = order();
-        o.elevatorCode = "130421";
-        o.regCode = "REG-2026-001";
-        o.deviceCode = "DEV-2026-001";
+        HandoverOrder o = completeOrder();
+        when(platformClient.queryElevatorInfo(any())).thenReturn(List.of(platformRecord()));
         when(elevatorMapper.selectCount(any())).thenReturn(0L, 0L, 1L);
         assertThrows(BizException.class, () -> support.enrich(o, new Elevator()));
-        verify(platformClient, never()).queryElevatorInfo(any());
+        verify(platformClient, times(1)).queryElevatorInfo(any());
     }
 
     @Test
@@ -148,35 +164,44 @@ class HandoverArchiveSupportTest {
 
     @Test
     void rejectsConflictBetweenHandoverAndPlatform() {
-        HandoverOrder o = order();
+        HandoverOrder o = completeOrder();
         o.elevatorCode = "DIFFERENT-CODE";
+        Elevator elevator = new Elevator();
         when(platformClient.queryElevatorInfo(any())).thenReturn(List.of(platformRecord()));
-        assertThrows(BizException.class, () -> support.enrich(o, new Elevator()));
+        assertThrows(BizException.class, () -> support.enrich(o, elevator));
+        verify(platformClient, times(1)).queryElevatorInfo(any());
+        assertEquals("DIFFERENT-CODE", o.elevatorCode);
+        assertEquals("REG-2026-001", o.regCode);
+        assertNull(elevator.elevatorCode);
+        assertNull(elevator.regCode);
+        assertNull(elevator.useUnitEntityId);
     }
 
     @Test
-    void completeCodesSkipQueryButRejectDuplicateLocalCode() {
-        HandoverOrder o = order();
-        o.elevatorCode = "130421";
-        o.regCode = "REG-2026-001";
-        o.deviceCode = "DEV-2026-001";
+    void completeCodesQueryPlatformBeforeRejectingDuplicateLocalCode() {
+        HandoverOrder o = completeOrder();
+        when(platformClient.queryElevatorInfo(any())).thenReturn(List.of(platformRecord()));
         when(elevatorMapper.selectCount(any())).thenReturn(1L);
 
         assertThrows(BizException.class, () -> support.enrich(o, new Elevator()));
-        verify(platformClient, never()).queryElevatorInfo(any());
+        verify(platformClient, times(1)).queryElevatorInfo(any());
     }
 
     @Test
-    void completeCodesSkipQueryAndAcceptUniqueLocalCode() {
-        HandoverOrder o = order();
-        o.elevatorCode = "130421";
-        o.regCode = "REG-2026-001";
-        o.deviceCode = "DEV-2026-001";
+    void completeCodesStillQueryPlatform() {
+        HandoverOrder o = completeOrder();
+        Elevator elevator = new Elevator();
+        when(platformClient.queryElevatorInfo(any())).thenReturn(List.of(platformRecord()));
         when(elevatorMapper.selectCount(any())).thenReturn(0L);
 
-        support.enrich(o, new Elevator());
+        support.enrich(o, elevator);
 
-        verify(platformClient, never()).queryElevatorInfo(any());
+        verify(platformClient, times(1)).queryElevatorInfo(Map.of(
+                "factoryNumber", "SGL-2026-001",
+                "registrationCode", "REG-2026-001",
+                "deviceCode", "DEV-2026-001"));
+        assertEquals("entity-1", elevator.useUnitEntityId);
+        assertEquals("13800000001", elevator.elevatorAdministerPhone);
     }
 
     @Test

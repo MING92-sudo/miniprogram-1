@@ -32,7 +32,7 @@ function assignHandoverReceiver(id, data) {
 }
 
 function submitHandoverInspect(id, data) {
-  return post('/handovers/' + id + '/inspect', data)
+  return post('/handovers/' + id + '/checklist/submit', data)
 }
 
 // 上传整改前后照片（安装部，状态仍 RECTIFYING）

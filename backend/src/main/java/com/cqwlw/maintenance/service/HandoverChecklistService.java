@@ -24,8 +24,10 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 @Service
 public class HandoverChecklistService {
@@ -40,6 +42,8 @@ public class HandoverChecklistService {
     private static final String PASS = "PASS";
     private static final String FAIL = "FAIL";
     private static final String NA = "NA";
+    private static final List<String> REQUIRED_SIGN_NODES = List.of(
+            "INSTALLER_HANDOVER", "MAINTENANCE_ASSIGN", "SITE_INSPECT", "MAINTENANCE_CONFIRM");
 
     private final HandoverOrderMapper orderMapper;
     private final HandoverCheckMapper checkMapper;
@@ -271,6 +275,45 @@ public class HandoverChecklistService {
                 .eq(HandoverSign::getHandoverId, handoverId).eq(HandoverSign::getNodeType, "NA_APPROVE")
                 .eq(HandoverSign::getAction, "APPROVE"));
         return n != null && n > 0;
+    }
+
+    public void assertArchivable(String handoverId) {
+        HandoverCheck check = latestCheck(handoverId);
+        if (check == null || blank(check.snapshotJson)) {
+            throw new BizException(422, "归档前须完成并提交 74 项查验清单");
+        }
+        List<HandoverCheckItem> items = itemMapper.selectList(
+                new LambdaQueryWrapper<HandoverCheckItem>().eq(HandoverCheckItem::getCheckId, check.id));
+        Set<Integer> remaining = new HashSet<>();
+        for (HandoverChecklistTemplate.Item item : HandoverChecklistTemplate.items()) {
+            remaining.add(item.no());
+        }
+        for (HandoverCheckItem item : items) {
+            boolean validResult = PASS.equals(item.result) || FAIL.equals(item.result) || NA.equals(item.result);
+            if (item.itemNo == null || !remaining.remove(item.itemNo) || !validResult) {
+                throw new BizException(422, "查验清单项号或结果不完整，禁止归档");
+            }
+        }
+        if (items.size() != HandoverChecklistTemplate.items().size() || !remaining.isEmpty()) {
+            throw new BizException(422, "归档前须完成全部 74 项查验");
+        }
+        List<HandoverSign> signs = signMapper.selectList(new LambdaQueryWrapper<HandoverSign>()
+                .eq(HandoverSign::getHandoverId, handoverId));
+        if (signs.isEmpty()) {
+            throw new BizException(422, "归档前须完成各节点签字");
+        }
+        Set<String> approved = new HashSet<>();
+        for (HandoverSign sign : signs) {
+            if ("REJECT".equals(sign.action)) {
+                throw new BizException(422, "存在拒签记录，禁止归档");
+            }
+            if ("APPROVE".equals(sign.action)) {
+                approved.add(sign.nodeType);
+            }
+        }
+        if (!approved.containsAll(REQUIRED_SIGN_NODES)) {
+            throw new BizException(422, "安装移交、维保指派、现场查验及维保确认签字须全部通过");
+        }
     }
 
     /** 归档目录 + SHA-256（幂等）。 */
