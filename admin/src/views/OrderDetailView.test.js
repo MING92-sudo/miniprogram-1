@@ -277,4 +277,20 @@ describe('OrderDetailView 路由复用', () => {
     await flushPromises()
     expect(http.post).toHaveBeenCalledWith('/faults/A/proxy', { proxySource: 'PHONE', recordingNo: 'REC-1234' })
   })
+
+  it('切换工单后四类弹窗表单均恢复默认值', async () => {
+    const w = await mountWithAB()
+    w.vm.dispatchForm = { workerId: 'w1', reason: 'A 的派单原因' }
+    w.vm.closeForm = { result: 'A 的处理结果', signature: 'A 的签字' }
+    w.vm.cancelReason = 'A 的取消原因'
+    w.vm.proxyForm = { proxySource: 'RECORD', recordingNo: 'REC-9999' }
+
+    switchTo('B')
+    await flushPromises()
+
+    expect(w.vm.dispatchForm).toEqual({ workerId: '', reason: '' })
+    expect(w.vm.closeForm).toEqual({ result: '', signature: '' })
+    expect(w.vm.cancelReason).toBe('')
+    expect(w.vm.proxyForm).toEqual({ proxySource: 'PHONE', recordingNo: '' })
+  })
 })
