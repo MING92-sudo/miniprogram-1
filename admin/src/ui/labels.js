@@ -127,6 +127,12 @@ export function refuseCodeLabel(v) {
   return REFUSE_CODE[String(v).toUpperCase()] || String(v)
 }
 
+// 待归档：已签字但归档文件缺失（归档失败/待补，读归档投影时懒补自愈）
+export function archiveStateTag(row) {
+  if (!row) return ''
+  return String(row.lifecycleStatus || '').toUpperCase() === 'SIGNED' && !row.archiveFileId ? '待归档' : ''
+}
+
 export function enabledLabel(v) {
   if (v === true || v === 'true' || v === 1 || v === '1') return '启用'
   if (v === false || v === 'false' || v === 0 || v === '0') return '停用'

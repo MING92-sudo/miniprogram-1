@@ -29,6 +29,9 @@
           <div v-if="row.lifecycleStatus === 'REFUSED_RETURNED'" class="cell-2">
             <span class="tag tag-signal">拒签{{ row.refuseCode ? ' ' + row.refuseCode : '' }}</span>
           </div>
+          <div v-if="archiveStateTag(row)" class="cell-2">
+            <span class="tag tag-ghost">{{ archiveStateTag(row) }}</span>
+          </div>
           <div class="cell-2"><span :class="['tag', row.reportStatus === 'FAILED' ? 'tag-signal' : row.reportStatus === 'REPORTED' ? 'tag-ok' : 'tag-dim']">{{ reportLabel(row.reportStatus) }}</span></div>
         </template>
         <template #cell-createdAt="{ value }"><span class="mono f12">{{ value }}</span></template>
@@ -271,7 +274,7 @@ import RuleNote from '../ui/RuleNote.vue'
 import StatusTag from '../ui/StatusTag.vue'
 import PermButton from '../ui/PermButton.vue'
 import { useToast } from '../ui/stores/ui'
-import { statusLabel, refuseCodeLabel } from '../ui/labels'
+import { statusLabel, refuseCodeLabel, archiveStateTag } from '../ui/labels'
 import { PROBLEM_CODES } from '../constants'
 
 const toast = useToast()

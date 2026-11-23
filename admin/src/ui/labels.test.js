@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   statusLabel, roleLabel, roleCodeFromName, scopeLabel, permLabel,
   workTypeLabel, orgTypeLabel, channelLabel, enabledLabel, inviteTypeLabel,
-  triStateSymbol, formatCell, refuseCodeLabel
+  triStateSymbol, formatCell, refuseCodeLabel, archiveStateTag
 } from './labels'
 
 describe('中文标签层', () => {
@@ -54,6 +54,14 @@ describe('中文标签层', () => {
   })
   it('拒签退回生命周期状态中文', () => {
     expect(statusLabel('REFUSED_RETURNED')).toBe('已拒签退回')
+  })
+  it('待归档标签：仅已签字且归档文件缺失时显示', () => {
+    expect(archiveStateTag({ lifecycleStatus: 'SIGNED', archiveFileId: '' })).toBe('待归档')
+    expect(archiveStateTag({ lifecycleStatus: 'SIGNED' })).toBe('待归档')
+    expect(archiveStateTag({ lifecycleStatus: 'SIGNED', archiveFileId: 'f1' })).toBe('')
+    expect(archiveStateTag({ lifecycleStatus: 'ARCHIVED', archiveFileId: 'f1' })).toBe('')
+    expect(archiveStateTag({ lifecycleStatus: 'ARCHIVED' })).toBe('')
+    expect(archiveStateTag(null)).toBe('')
   })
   it('formatCell 自动中文化常见枚举列', () => {
     expect(formatCell({ key: 'status' }, 'RECTIFYING')).toBe('整改中')
