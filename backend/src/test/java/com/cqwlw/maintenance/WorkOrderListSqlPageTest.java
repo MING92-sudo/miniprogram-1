@@ -1,6 +1,10 @@
 package com.cqwlw.maintenance;
 
+import com.baomidou.mybatisplus.core.MybatisConfiguration;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import org.apache.ibatis.builder.MapperBuilderAssistant;
 import com.cqwlw.maintenance.config.AppProperties;
 import com.cqwlw.maintenance.entity.Elevator;
 import com.cqwlw.maintenance.entity.Employee;
@@ -29,6 +33,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -44,14 +49,16 @@ class WorkOrderListSqlPageTest {
     private WorkOrderMapper orders;
     private ElevatorMapper elevators;
     private RegionMapper regions;
+    private EmployeeMapper employees;
     private WorkOrderService service;
 
     @BeforeEach
     void setUp() {
+        TableInfoHelper.initTableInfo(new MapperBuilderAssistant(new MybatisConfiguration(), ""), WorkOrder.class);
         orders = mock(WorkOrderMapper.class);
         elevators = mock(ElevatorMapper.class);
         regions = mock(RegionMapper.class);
-        EmployeeMapper employees = mock(EmployeeMapper.class);
+        employees = mock(EmployeeMapper.class);
         Employee admin = new Employee();
         admin.id = "admin";
         admin.role = "ADMIN";
@@ -120,6 +127,29 @@ class WorkOrderListSqlPageTest {
         assertEquals(1, out.get("total"));
         verify(orders).selectPage(any(), any());
         verify(elevators, times(2)).selectList(any());
+    }
+
+    @Test
+    void workerListScopeIncludesPoolOrderWithNullWorkerAndRegion() {
+        Employee worker = new Employee();
+        worker.id = "worker";
+        worker.role = "WORKER";
+        worker.platformId = "pid_worker";
+        when(employees.selectById("worker")).thenReturn(worker);
+        when(employees.selectList(any())).thenReturn(List.of());
+        AtomicReference<String> sql = new AtomicReference<>();
+        when(orders.selectPage(any(), any())).thenAnswer(invocation -> {
+            LambdaQueryWrapper<WorkOrder> wrapper = invocation.getArgument(1);
+            sql.set(wrapper.getSqlSegment());
+            Page<WorkOrder> page = new Page<>(1, 20);
+            page.setRecords(List.of());
+            return page;
+        });
+
+        service.listOrders(Map.of(), "worker");
+
+        assertTrue(sql.get().contains("}) OR ((worker_platform_id IS NULL"), sql.get());
+        assertTrue(sql.get().contains("region_id IS NULL"), sql.get());
     }
 
     @Test

@@ -341,7 +341,7 @@ public class WorkOrderService {
                 root.apply("1 = 0");
             }
             if (pool) {
-                root.or().and(poolScope -> {
+                root.or(poolScope -> {
                     poolScope.and(worker -> worker.isNull(WorkOrder::getWorkerPlatformId)
                             .or().eq(WorkOrder::getWorkerPlatformId, ""));
                     poolScope.and(region -> {
