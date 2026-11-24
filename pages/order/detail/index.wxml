@@ -6,7 +6,7 @@
     <block wx:else>
       <view class="{{fault.rescue ? 'sos' : 'plate'}} col gap6">
         <view class="row between">
-          <text class="tag {{fault.rescue ? 'tag-signal' : 'tag-amber'}}">{{fault.priority}} · {{fault.rescue ? '困人急修' : '急修'}} · {{statusText}}</text>
+          <text class="tag {{fault.rescue ? 'tag-signal' : 'tag-amber'}}">{{fault.rescue ? 'P1 · 困人急修' : 'P2 · 急修'}} · {{statusText}}</text>
           <text class="mono fs18 dim">{{fault.id}}</text>
         </view>
         <view class="row between">
@@ -31,18 +31,12 @@
         <view class="sec-head"><text class="panel-title mono">{{text.FAULT}}</text><text wx:if="{{fault.status === 'CLOSED'}}" class="tag tag-ok">已恢复运行</text></view>
         <view class="kv-row"><text class="dim">{{text.FAULT_PHEN}}</text><text>{{fault.desc || '—'}}</text></view>
         <view wx:if="{{fault.trappedCount}}" class="kv-row"><text class="dim">{{text.FAULT_TRAPPED}}</text><text>{{fault.trappedCount}} {{text.TRAPPED_UNIT}}{{fault.rescuedAt ? ' · 安全救出' : ''}}</text></view>
-        <view class="kv-row"><text class="dim">{{text.FAULT_SOURCE}}</text><text>{{fault.source || '—'}}</text></view>
+        <view class="kv-row"><text class="dim">{{text.FAULT_SOURCE}}</text><text>{{sourceText}}</text></view>
       </view>
 
       <view wx:if="{{fault.handleDesc || fault.result}}" class="card col gap6">
         <view class="panel-title mono">{{text.REPAIR}}</view>
         <view class="fs22">{{fault.handleDesc || fault.result}}</view>
-        <view wx:if="{{fault.actions.length}}" class="chips">
-          <text wx:for="{{fault.actions}}" wx:key="*this" class="chip {{index < 2 ? 'on' : ''}}">{{item}}</text>
-        </view>
-        <view wx:for="{{fault.parts}}" wx:key="name" class="alert-strip">
-          <text class="i i-gear amber"></text><text class="grow">{{text.PARTS}}：{{item.name}} × {{item.qty}}</text><text class="fs18 dim">{{text.STOCK}}</text>
-        </view>
       </view>
 
       <view wx:if="{{fault.photos.length}}" class="photo-row">
@@ -51,11 +45,11 @@
 
       <view wx:if="{{fault.status === 'CLOSED'}}" class="sync-note">
         <text class="i i-file-signature"></text>
-        <view class="grow"><view class="fs22 w6">{{text.CONFIRMED}}</view><view class="fs18 dim">{{fault.clientSigner}}（{{fault.clientRole}}）· {{fault.confirmedAt}} {{text.SIGNED}}</view></view>
+        <view class="grow"><view class="fs22 w6">{{text.CONFIRMED}}</view><view class="fs18 dim">{{fault.confirmedAt}} {{text.SIGNED}}</view></view>
         <text class="tag tag-ok">已闭环</text>
       </view>
       <view wx:if="{{fault.signature}}" class="paper">
-        <view class="row between"><text class="fs20">{{text.SIGN_CLIENT}} · {{fault.clientSigner}}</text><text class="fs18">{{text.SIGNED}} {{fault.confirmedAt}}</text></view>
+        <view class="row between"><text class="fs20">{{text.SIGN_CLIENT}}</text><text class="fs18">{{text.SIGNED}} {{fault.confirmedAt}}</text></view>
         <image class="od-sign" src="{{fault.signature}}" mode="aspectFit"></image>
         <view class="row between fs18 dim"><text>{{fault.id}} · {{text.SIGN_NOTE}}</text><text>{{text.SIGN_GPS}}</text></view>
       </view>

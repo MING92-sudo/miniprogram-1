@@ -1,7 +1,6 @@
 // 维保工单绝不套此七态（§1.3）。
 const { getFaultDetail, updateFault, grabFault, arriveFault, submitFault, confirmFault, cancelFault } = require('../../../services/fault')
 const { getUnitFaultDetail, confirmUnitFault, cancelUnitFault } = require('../../../services/unit')
-const { formatTime } = require('../../../utils/util')
 const { definePage } = require('../../../utils/guard')
 const { ROUTES } = require('../../../config/routes')
 const { getRoles, isCustomerPrincipal } = require('../../../utils/auth')
@@ -35,9 +34,11 @@ definePage(ROUTES['/pages/order/detail/index'], {
       push(ORDER_TEXT.TL_DONE, fault.finishedAt || fault.confirmedAt, fault.status === 'CLOSED' ? 'amber' : 'dim')
       const heroTitle = (fault.rescue && fault.status === 'CLOSED') ? ORDER_TEXT.RESCUE_DONE : (fault.desc || '')
       const responseText = fault.responseMinutes != null ? fault.responseMinutes + "'00\"" : ''
+      const sourceText = fault.proxySource ? '电话代报修'
+        : (String(fault.createdBy || '').indexOf('unit:') === 0 ? '使用单位报修' : '小程序报修')
       const heroSub = [fault.elevatorName, fault.floor ? fault.floor + 'F' : '', fault.trappedCount ? '被困 ' + fault.trappedCount + ' ' + ORDER_TEXT.TRAPPED_UNIT : '', fault.confirmedAt ? ORDER_TEXT.CONFIRMED_SHORT : ''].filter(Boolean).join(' · ')
       this.setData({
-        fault, loading: false, timeline: tl, heroTitle, responseText, heroSub,
+        fault, loading: false, timeline: tl, heroTitle, responseText, heroSub, sourceText,
         statusText: STATUS_TEXT[fault.status] || fault.status, statusTone: STATUS_TONE[fault.status] || 'dim',
         siteDesc: fault.siteDesc || '', todoDesc: fault.todoDesc || '', handleDesc: fault.handleDesc || fault.result || '',
         isClient, canConfirm: roles.indexOf('CLIENT_SIGNER') > -1,
@@ -70,7 +71,7 @@ definePage(ROUTES['/pages/order/detail/index'], {
     if (this.data.isClient) return
     if (this.data.submitting) return
     this.setData({ submitting: true })
-    updateFault(this.data.id, { siteDesc: this.data.siteDesc, todoDesc: this.data.todoDesc, handleDesc: this.data.handleDesc, finishedAt: formatTime() })
+    updateFault(this.data.id, { siteDesc: this.data.siteDesc, todoDesc: this.data.todoDesc, handleDesc: this.data.handleDesc })
       .then(() => { wx.showToast({ title: '维修过程已保存', icon: 'success' }); this.setData({ submitting: false }) })
       .catch((e) => { this.setData({ submitting: false }); wx.showToast({ title: (e && e.message) || TOAST_TEXT.SAVE_FAILED, icon: 'none' }) })
   },

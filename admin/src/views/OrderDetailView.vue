@@ -154,6 +154,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import http from '../api/client'
+import { minutesBetween } from '../ui/datetime'
 import ViewHead from '../ui/ViewHead.vue'
 import PageMeta from '../ui/PageMeta.vue'
 import RuleNote from '../ui/RuleNote.vue'
@@ -180,7 +181,6 @@ function faultStatusLabel(s) { return FAULT_STATUS[s] || s }
 function fmtTime(t) { return String(t || '').replace('T', ' ').slice(0, 16) }
 const isRescue = computed(() => Boolean(order.value && ((order.value.trappedCount > 0) || String(order.value.faultType || '').includes('困人'))))
 const levelLabel = computed(() => (isRescue.value ? 'P1' : 'P2'))
-function minutesBetween(a, b) { return Math.round((new Date(b) - new Date(a)) / 60000) }
 const elapsed = computed(() => {
   const o = order.value
   if (!o || !o.createdAt) return 0

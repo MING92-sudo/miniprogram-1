@@ -107,6 +107,8 @@ public class UserController {
             row.put("id", e.id);
             row.put("name", e.name);
             row.put("phone", e.phone);
+            row.put("account", e.account);
+            row.put("roleText", e.roleText);
             row.put("department", e.department);
             row.put("groupName", e.groupName);
             row.put("regionName", e.regionId == null ? "" : regionNames.getOrDefault(e.regionId, ""));

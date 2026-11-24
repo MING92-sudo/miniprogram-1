@@ -2,6 +2,7 @@ package com.cqwlw.maintenance.service;
 
 import com.cqwlw.maintenance.entity.ChecklistTemplate;
 import com.cqwlw.maintenance.mapper.ChecklistTemplateMapper;
+import com.cqwlw.maintenance.util.TimeUtil;
 import com.fasterxml.jackson.core.type.TypeReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -82,8 +83,8 @@ public class ChecklistTemplateSeeder implements ApplicationRunner {
                     row.photoRequired = Boolean.TRUE.equals(item.get("photoRequired"));
                     row.enabled = true;
                     row.payload = MAPPER.writeValueAsString(item);
-                    row.createdAt = LocalDateTime.now();
-                    row.updatedAt = LocalDateTime.now();
+                    row.createdAt = TimeUtil.now();
+                    row.updatedAt = TimeUtil.now();
                     rows.add(row);
                 }
             }

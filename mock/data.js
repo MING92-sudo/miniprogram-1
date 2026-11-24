@@ -156,7 +156,7 @@ const db = {
       factoryNumber: 'SGL20131212-1', useUnitEntityId: '5633318206815862786',
       elevatorAdminister: '王芳', elevatorAdministerPhone: '13800000003', emergencyPhone: '023-67612345',
       platformSyncedAt: '2026-09-29 14:20:00',
-      // ── 本地维护字段（平台不提供：地址/经纬度/型号品牌/制造单位/下次检验）──
+      // ── 本地维护字段（平台不提供：地址/经纬度/型号品牌/制造单位/下次年检日期）──
       lng: 106.633520, lat: 29.719210,
       brand: '奥的斯', manufacturer: '奥的斯电梯（中国）有限公司',
       driveMode: '曳引驱动', ratedLoad: 1000, ratedLoadUnit: 'kg', ratedSpeed: 1.75, ratedSpeedUnit: 'm/s', stationsDoors: '11/11',
@@ -506,6 +506,7 @@ function getElevatorProfile(id) {
   const el = getElevator(id)
   if (!el) return null
   const unit = getUseUnit(el.useUnitId) || {}
+  const REGION_NAMES = { rg_yubei: '渝北区', rg_jiangbei: '江北区' }
   return {
     elevatorId: el.id,
     elevatorName: el.elevatorName,
@@ -521,13 +522,15 @@ function getElevatorProfile(id) {
       factoryNumber: el.factoryNumber || '',
       useUnitEntityId: el.useUnitEntityId || '',
       elevatorAdminister: el.elevatorAdminister || '',
-      elevatorAdministerPhone: el.elevatorAdministerPhone || '',
-      emergencyPhone: el.emergencyPhone || ''
+      // 梯级为空时退到使用单位档案同名联系人（与后端 profileView 同口径）
+      elevatorAdministerPhone: el.elevatorAdministerPhone || unit.elevatorAdministerPhone || '',
+      emergencyPhone: el.emergencyPhone || unit.emergencyPhone || ''
     },
-    // 本地维护（平台 2.7 不返回：使用单位名称/安装地址/经纬度/型号品牌/制造单位/下次检验日期）
+    // 本地维护（平台 2.7 不返回：使用单位名称/安装地址/经纬度/型号品牌/制造单位/下次年检日期）
     local: {
       projectName: el.projectName || '',
       unitPrincipal: unit.unitPrincipal || '',
+      regionName: REGION_NAMES[el.regionId] || '',
       address: el.location || '',
       lng: el.lng != null ? String(el.lng) : '',
       lat: el.lat != null ? String(el.lat) : '',
@@ -680,9 +683,10 @@ function markCheckin(orderId, body, geo) {
   if (!o) return null
   const assistant = (body && body.role) === 'ASSISTANT'
   o.status = 'PROCESSING'
-  // 离线补传场景保留本地原始采集时间；首人签到时间作为作业起点（双人不互相覆盖）
-  const checkedAt = (body && body.collectedAt) || formatTime()
-  if (!o.checkinTime) o.checkinTime = checkedAt
+  // 作业时长只信服务器时钟；客户端采集时间仅留痕（与后端 WorkOrderService.checkin 同口径）
+  const serverAt = formatTime()
+  if (!o.checkinTime) o.checkinTime = serverAt
+  const checkedAt = (body && body.collectedAt) || serverAt
   const extra = {
     latitude: body && body.latitude,
     longitude: body && body.longitude,
@@ -797,7 +801,8 @@ function markCheckout(orderId, body) {
     originalRecordId: o.originalRecordId,
     reportStatus: o.reportStatus,
     retryCount: 0,
-    nextMaintenanceDate: addDays(WORK_TYPE_INTERVAL_DAYS[o.workTypeCode] || 15),
+    // 电梯自定义周期优先，缺省回退类型默认天数（与后端 WorkOrderService 签退同口径）
+    nextMaintenanceDate: addDays((el.maintenance && el.maintenance.intervalDays) || WORK_TYPE_INTERVAL_DAYS[o.workTypeCode] || 15),
     confirmStatus: 'PENDING',
     satisfaction: null,
     signatureFileId: '',
@@ -1015,17 +1020,15 @@ function createDrill(body) {
 }
 
 function listInspects() {
-  const now = Date.now()
   return db.elevators.map(function (el) {
     const record = db.inspects.find(function (i) {
       return i.elevatorId === el.id
     })
-    const nextCheck = parseTime(el.nextCheckDate)
     let status = '未检'
     if (record) {
       status = '已完成'
-    } else if (nextCheck && nextCheck - now < 30 * 86400000) {
-      // 法定要求：须在下次定期检验之前完成，临近/超过即逾期预警
+    } else if (el.nextCheckDate && String(el.nextCheckDate).slice(0, 10) <= addDays(29)) {
+      // 法定要求：须在下次定期检验之前完成；30 天预警与后端同为天级（nextCheckDate < 今天+30）
       status = '逾期未检'
     }
     return {

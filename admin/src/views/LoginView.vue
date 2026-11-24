@@ -12,7 +12,7 @@
       <p class="login-sub">一个手机号 = 一个账号，登录页不选角色；后台下发 roles + permissions + dataScope，前端据此渲染。前端只隐藏、后端必校验。</p>
       <div class="login-chains">
         <div class="chain"><span class="ch-k">安装移交</span><span class="ch-v">项目负责人发起<i>→</i>资料员上传<i>→</i>安装主管审核<i>→</i>维保主管接收<i>→</i>维保员验收<i>→</i>双方签字</span></div>
-        <div class="chain"><span class="ch-k">维保双签</span><span class="ch-v">主检先签<i>→</i>配合人后签（不同账号）<i>→</i>使用单位签署<i>→</i>自动归档</span></div>
+        <div class="chain"><span class="ch-k">维保双签</span><span class="ch-v">主检人先签<i>→</i>配合人后签（不同账号）<i>→</i>使用单位签署<i>→</i>自动归档</span></div>
         <div class="chain"><span class="ch-k">数据范围</span><span class="ch-v">SELF<i>·</i>TEAM<i>·</i>PROJECT<i>·</i>ORG<i>·</i>ORG_FLAT<i>·</i>ALL</span></div>
       </div>
     </div>

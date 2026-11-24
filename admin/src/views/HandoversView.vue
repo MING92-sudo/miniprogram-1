@@ -382,11 +382,11 @@ const auth = useAuthStore()
 const toast = useToast()
 
 const HO_LABEL = {
-  INIT: '草稿', PENDING_INST_REVIEW: '待安装部审核', DOC_SUBMITTING: '资料提交',
-  INSPECTING: '查验中', RECTIFYING: '整改复验中', PENDING_CONFIRM: '待确认归档', ARCHIVED: '已归档', VOIDED: '已作废'
+  INIT: '待发起', PENDING_INST_REVIEW: '内部审核中', DOC_SUBMITTING: '资料移交中',
+  INSPECTING: '现场查验', RECTIFYING: '整改复验中', PENDING_CONFIRM: '待确认归档', ARCHIVED: '已归档', VOIDED: '已作废'
 }
 function hoStatusLabel(s) { return HO_LABEL[s] || statusLabel(s) }
-const hoSteps = ['草稿', '待安装部审核', '资料提交', '查验中', '整改复验中', '待确认归档', '已归档']
+const hoSteps = ['待发起', '内部审核中', '资料移交中', '现场查验', '整改复验中', '待确认归档', '已归档']
 function fmtTime(t) { return t ? String(t).replace('T', ' ').slice(0, 16) : '—' }
 
 const rows = ref([])

@@ -107,7 +107,7 @@
         <div class="p-row mt8"><span>设备码</span><b>DT-CB-0318</b></div>
         <div class="p-row"><span>作业日期</span><b>2026-11-13</b></div>
         <div class="grid2 mt8">
-          <div class="sign-box todo">主检签字</div>
+          <div class="sign-box todo">主检人签字</div>
           <div class="sign-box todo">配合人签字</div>
         </div>
         <div class="hash-line">

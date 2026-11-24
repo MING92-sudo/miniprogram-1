@@ -629,6 +629,10 @@ public class AdminArchiveService {
         if (isBlank(el.elevatorName)) {
             el.elevatorName = isBlank(el.insideNumber) ? el.elevatorCode : el.insideNumber;
         }
+        // 建档即排期（docs/00 §3.6）：workTypeCode 是定时派单与维保日历的门禁，缺省按半月保纳入排期
+        if (isBlank(el.workTypeCode)) {
+            el.workTypeCode = "HM";
+        }
         if (el.lastMaintenanceAt == null) {
             el.lastMaintenanceAt = TimeUtil.now();
         }

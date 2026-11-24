@@ -147,6 +147,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import http from '../api/client'
+import { minutesBetween } from '../ui/datetime'
 import { workOrders, releaseToPool } from '../api/orders'
 import DataTable from '../ui/DataTable.vue'
 import ViewHead from '../ui/ViewHead.vue'
@@ -187,7 +188,7 @@ function exportOrders() {
   const n = exportCsv('工单台账', cols, rows.value)
   toast.success('已导出 ' + n + ' 条工单', 'CSV · 按导出人权限脱敏')
 }
-function minutesBetween(a, b) { return Math.round((new Date(b) - new Date(a)) / 60000) }function decorate(f) {
+function decorate(f) {
   const isRescue = Boolean((f.trappedCount > 0) || String(f.faultType || '').includes('困人'))
   const now = new Date()
   let remaining = null
@@ -308,7 +309,7 @@ const tab = ref('faults')
 const poolRows = ref([])
 const poolLoading = ref(false)
 const poolLoaded = ref(false)
-const POOL_STATUS = { PENDING: '待接单', PROCESSING: '进行中', DONE: '已完成', CANCELLED: '已取消' }
+const POOL_STATUS = { PENDING: '待执行', PROCESSING: '进行中', DONE: '已完成', CANCELLED: '已取消' }
 function poolStatusLabel(s) { return POOL_STATUS[s] || s || '—' }
 const poolCols = [
   { key: 'orderNo', label: '工单号', sortable: true },

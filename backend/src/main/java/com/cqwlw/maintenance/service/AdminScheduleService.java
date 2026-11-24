@@ -184,7 +184,7 @@ public class AdminScheduleService {
             throw new BizException(422, "当前状态 " + p.status + " 不可指派");
         }
         LocalDate date = TimeUtil.parseDate(planDate) != null ? TimeUtil.parseDate(planDate) : p.planDate;
-        Employee principal = assignable(principalId, "主维保");
+        Employee principal = assignable(principalId, "主检人");
         Employee assistant = assistantId == null || assistantId.isBlank()
                 ? null : assignable(assistantId, "配合人员");
 
@@ -367,7 +367,7 @@ public class AdminScheduleService {
         if (principal != null && assistant != null
                 && notBlank(principal.phone) && principal.phone.equals(assistant.phone)) {
             conflicts.add(Map.of("type", "PHONE_MUTEX", "code", 1007,
-                    "message", "主维保与配合人员手机号相同（docs/01 §3.2.4 ④）"));
+                    "message", "主检人与配合人员手机号相同（docs/01 §3.2.4 ④）"));
         }
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("conflicts", conflicts);
@@ -436,14 +436,14 @@ public class AdminScheduleService {
 
     private void checkDispatchMutex(Employee principal, Employee assistant) {
         if (assistant != null && notBlank(principal.phone) && principal.phone.equals(assistant.phone)) {
-            throw new BizException(1007, "配置冲突：主维保（" + principal.name + "）与配合人员（"
+            throw new BizException(1007, "配置冲突：主检人（" + principal.name + "）与配合人员（"
                     + assistant.name + "）手机号相同，请改派");
         }
         var company = companyMapper.selectList(null).stream().findFirst().orElse(null);
         String managerPhone = company == null ? null : company.workMenegerPhone;
         if (managerPhone != null && !managerPhone.isBlank()) {
             if (managerPhone.equals(principal.phone)) {
-                throw new BizException(1007, "配置冲突：主维保（" + principal.name
+                throw new BizException(1007, "配置冲突：主检人（" + principal.name
                         + "）手机号与维保经理相同，请改派");
             }
             if (assistant != null && managerPhone.equals(assistant.phone)) {

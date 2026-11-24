@@ -585,7 +585,7 @@ class AdminArchiveServiceTest {
         verify(elevatorMapper, never()).insert(any(Elevator.class));
     }
 
-    /** 5 项齐备时允许创建；选填字段（项目名称/所在区域/年检日期）可为空 */
+    /** 5 项齐备时允许创建；选填字段（项目名称/所在区域/下次年检日期）可为空 */
     @Test
     void createElevatorAcceptsRequiredOnly() {
         Map<String, Object> body = new java.util.HashMap<>();
@@ -638,6 +638,27 @@ class AdminArchiveServiceTest {
         assertEquals(saved.lastMaintenanceAt.toLocalDate().plusDays(15), saved.nextMaintenanceDate);
         assertFalse(String.valueOf(row.get("lastMaintenanceAt")).isEmpty());
         assertFalse(String.valueOf(row.get("nextMaintenanceDate")).isEmpty());
+    }
+
+    /** 建档即排期门禁：未传维保类型时缺省 HM（半月保），显式传入保留 */
+    @Test
+    void createElevatorDefaultsWorkTypeCodeToHm() {
+        Map<String, Object> body = new java.util.HashMap<>();
+        body.put("elevatorCode", "EM-9");
+        body.put("deviceCode", "DT-9");
+        body.put("registrationCode", "REG-9");
+        body.put("insideNumber", "KT-9");
+        body.put("factoryNumber", "FN-9");
+        service.createElevator(body);
+        ArgumentCaptor<Elevator> captor = ArgumentCaptor.forClass(Elevator.class);
+        verify(elevatorMapper).insert(captor.capture());
+        assertEquals("HM", captor.getValue().workTypeCode);
+
+        body.put("workTypeCode", "TM");
+        service.createElevator(body);
+        ArgumentCaptor<Elevator> captor2 = ArgumentCaptor.forClass(Elevator.class);
+        verify(elevatorMapper, times(2)).insert(captor2.capture());
+        assertEquals("TM", captor2.getAllValues().get(1).workTypeCode);
     }
 
     /** 存量建档传真实上次维保日期（yyyy-MM-dd）→ 下次到期=该日+15；非法格式 422（基线错则年表全错，不静默吞） */

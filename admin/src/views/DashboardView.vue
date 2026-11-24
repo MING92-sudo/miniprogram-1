@@ -26,7 +26,7 @@
       <div class="col gap8 mt16">
         <AlertStrip v-if="d.orders.overdue" tone="as-sig" icon="bolt" title="SLA 超时"
           :text="d.orders.overdue + ' 个工单已超出计划时限，需升级或改派'" to="/dispatch" />
-        <AlertStrip v-if="d.reports.failed" tone="as-sig" icon="alert" title="上报失败"
+        <AlertStrip v-if="d.reports.failed" tone="as-sig" icon="alert" title="上报异常"
           :text="d.reports.failed + ' 条记录上报监管平台失败，可逐条重报'" to="/reports/failed" />
         <AlertStrip v-if="d.reports.unconfirmed" icon="signature" title="待客户签字"
           :text="d.reports.unconfirmed + ' 条记录等待使用单位签署'" to="/records" />
@@ -62,8 +62,8 @@
           </div>
           <div class="card-body">
             <div class="kv-grid">
-              <div class="kv"><span class="k">上报失败</span><span class="v num">{{ d.reports.failed }}</span></div>
-              <div class="kv"><span class="k">已上报</span><span class="v num">{{ d.reports.reported }}</span></div>
+              <div class="kv"><span class="k">上报异常</span><span class="v num">{{ d.reports.failed }}</span></div>
+              <div class="kv"><span class="k">已上报平台</span><span class="v num">{{ d.reports.reported }}</span></div>
               <div class="kv"><span class="k">待客户签</span><span class="v num">{{ d.reports.unconfirmed }}</span></div>
               <div class="kv"><span class="k">未闭环故障</span><span class="v num">{{ d.reports.openFaults }}</span></div>
             </div>
@@ -160,7 +160,7 @@ const kpis = computed(() => {
     { key: 'dueToday', label: '今日应做', value: o.dueToday, icon: 'calendar', unit: '单', sub: '按计划工时', view: '/plans' },
     { key: 'overdue', label: 'SLA 超时', value: o.overdue, icon: 'bolt', unit: '单', sub: '需升级 / 改派', cls: o.overdue ? 'k-sig' : 'k-ok', view: '/dispatch' },
     { key: 'inProgress', label: '处置中', value: o.inProgress, icon: 'wrench', unit: '单', sub: '工单执行中', view: '/dispatch' },
-    { key: 'failed', label: '上报失败', value: r.failed, icon: 'alert', unit: '条', sub: '需逐条重报', cls: r.failed ? 'k-sig' : 'k-ok', view: '/reports/failed' },
+    { key: 'failed', label: '上报异常', value: r.failed, icon: 'alert', unit: '条', sub: '需逐条重报', cls: r.failed ? 'k-sig' : 'k-ok', view: '/reports/failed' },
     { key: 'unconfirmed', label: '待客户签', value: r.unconfirmed, icon: 'signature', unit: '条', sub: '等待单位签署', view: '/records' },
     { key: 'openFaults', label: '未闭环故障', value: r.openFaults, icon: 'alert', unit: '个', sub: '处理中', cls: r.openFaults ? '' : 'k-ok', view: '/dispatch' }
   ]

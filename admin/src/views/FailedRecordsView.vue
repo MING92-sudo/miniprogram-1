@@ -6,7 +6,7 @@
     <div class="mt16">
       <DataTable :columns="cols" :rows="rows" :loading="loading" :search-keys="['elevatorCode', 'originalRecordId']"
         search-placeholder="搜索设备码 / 平台记录ID" empty-hint="暂无上报异常记录。" clickable @row-click="openDetail">
-        <template #cell-reportStatus="{ value }"><StatusTag :status="value" /></template>
+        <template #cell-reportStatus="{ value }"><StatusTag :status="value" :label="reportStatusLabel(value)" /></template>
         <template #cell-workTypeCode="{ value }"><span class="tag tag-ghost">{{ workTypeLabel(value) }}</span></template>
         <template #cell-originalRecordId="{ value }"><span class="mono f12">{{ value || '—' }}</span></template>
         <template #row-actions="{ row }">
@@ -28,7 +28,7 @@
           <div class="kv-grid">
             <div class="kv"><span class="k">设备码</span><span class="v mono">{{ detail.elevatorCode }}</span></div>
             <div class="kv"><span class="k">维保类别</span><span class="v">{{ workTypeLabel(detail.workTypeCode) }}</span></div>
-            <div class="kv"><span class="k">上报状态</span><span class="v"><StatusTag :status="detail.reportStatus" /></span></div>
+            <div class="kv"><span class="k">上报状态</span><span class="v"><StatusTag :status="detail.reportStatus" :label="reportStatusLabel(detail.reportStatus)" /></span></div>
             <div class="kv"><span class="k">平台记录ID</span><span class="v mono">{{ detail.originalRecordId || '—' }}</span></div>
             <div class="kv"><span class="k">重试次数</span><span class="v num">{{ detail.retryCount || 0 }}</span></div>
           </div>
@@ -86,7 +86,7 @@ import Drawer from '../ui/Drawer.vue'
 import Modal from '../ui/Modal.vue'
 import FormField from '../ui/FormField.vue'
 import { useToast } from '../ui/stores/ui'
-import { workTypeLabel } from '../ui/labels'
+import { workTypeLabel, reportStatusLabel } from '../ui/labels'
 import { listAllRecords, reupload, reconcile, exportPdf } from '../api/report'
 import { uploadLogs } from '../api/platform'
 const STUCK_STATUSES = ['UNKNOWN', 'REPORTING', 'REUPLOADING', 'LEGACY_UPLOADING']

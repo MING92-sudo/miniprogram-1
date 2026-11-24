@@ -54,7 +54,7 @@ describe('Workbench（数据来自 GET /admin/dashboard）', () => {
     await flushPromises()
     const elevKpi = w.findAll('.kpi')[0]
     expect(elevKpi.find('.kpi-n').text()).toContain('12')
-    expect(w.text()).toContain('上报失败')
+    expect(w.text()).toContain('上报异常')
   })
 
   it('shows alert strips when numbers are non-zero', async () => {

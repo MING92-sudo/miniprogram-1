@@ -2,12 +2,21 @@ const { getMaintenanceCalendar } = require('../../../services/unit')
 const { CALENDAR_WINDOWS, CALENDAR_TEXT, CALENDAR_STATUS, WORK_TYPE_CODES, TOAST_TEXT } = require('../../../constants/index')
 const { definePage } = require('../../../utils/guard')
 const { ROUTES } = require('../../../config/routes')
+const { formatTime } = require('../../../utils/util')
 const nav = require('../../../utils/nav')
 
 const WEEK = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
 function pad(n) { return (n < 10 ? '0' : '') + n }
-function dateText(d) { return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) }
-function addMonths(d, n) { const x = new Date(d.getTime()); x.setMonth(x.getMonth() + n); return x }
+// 日历窗口按 GMT+8「今日」起算，月加法做末日钳位（10-31 + 1 月 → 11-30）
+function addMonthsText(dateStr, n) {
+  const p = dateStr.split('-').map(Number)
+  let y = p[0]
+  let m = p[1] + n
+  y += Math.floor((m - 1) / 12)
+  m = ((m - 1) % 12) + 1
+  const dim = new Date(Date.UTC(y, m, 0)).getUTCDate()
+  return y + '-' + pad(m) + '-' + pad(Math.min(p[2], dim))
+}
 function monthLabel(month) { const p = String(month).split('-'); return p[0] + ' 年 ' + p[1] + ' 月' }
 
 function groupByMonth(entries) {
@@ -38,13 +47,13 @@ definePage(ROUTES['/pkg-maintenance/pages/plan/index'], {
   onLoad() { this.fetch() },
   onBack() { nav.back() },
   fetch() {
-    const start = new Date()
-    const end = addMonths(start, this.data.months)
+    const from = formatTime().slice(0, 10)
+    const to = addMonthsText(from, this.data.months)
     this.setData({ loading: true, error: '' })
-    return getMaintenanceCalendar({ from: dateText(start), to: dateText(end) })
+    return getMaintenanceCalendar({ from: from, to: to })
       .then((res) => {
         const entries = (res && res.entries) || []
-        this.setData({ groups: groupByMonth(entries), total: entries.length, from: (res && res.from) || dateText(start), to: (res && res.to) || dateText(end), loading: false })
+        this.setData({ groups: groupByMonth(entries), total: entries.length, from: (res && res.from) || from, to: (res && res.to) || to, loading: false })
       })
       .catch((e) => this.setData({ loading: false, error: (e && e.message) || TOAST_TEXT.LOAD_FAILED, groups: [], total: 0 }))
   },

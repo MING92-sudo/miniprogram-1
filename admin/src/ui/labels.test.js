@@ -1,25 +1,36 @@
 import { describe, it, expect } from 'vitest'
 import {
-  statusLabel, roleLabel, roleCodeFromName, scopeLabel, permLabel,
+  statusLabel, faultStatusLabel, reportStatusLabel, roleLabel, roleCodeFromName, scopeLabel, permLabel,
   workTypeLabel, orgTypeLabel, channelLabel, enabledLabel, inviteTypeLabel,
   triStateSymbol, formatCell, refuseCodeLabel, archiveStateTag
 } from './labels'
 
 describe('中文标签层', () => {
   it('状态码中文化，未知值原样返回', () => {
-    expect(statusLabel('INSPECTING')).toBe('查验中')
+    expect(statusLabel('INSPECTING')).toBe('现场查验')
     expect(statusLabel('ARCHIVED')).toBe('已归档')
     expect(statusLabel('PASS')).toBe('合格')
     expect(statusLabel('已是中文')).toBe('已是中文')
     expect(statusLabel('')).toBe('')
   })
+  it('急修七态与上报状态走专用映射（与小程序 constants 一致）', () => {
+    expect(faultStatusLabel('OPEN')).toBe('待接单')
+    expect(faultStatusLabel('PROCESSING')).toBe('处置中')
+    expect(faultStatusLabel('PENDING_CONFIRM')).toBe('待使用单位确认')
+    expect(faultStatusLabel('REFUSED')).toBe('待整改')
+    expect(reportStatusLabel('REPORTED')).toBe('已上报平台')
+    expect(reportStatusLabel('FAILED')).toBe('上报异常')
+    expect(reportStatusLabel('PENDING')).toBe('待上报')
+  })
   it('角色码与旧码别名中文化', () => {
-    expect(roleLabel('MAINT_TECH')).toBe('维保技术员')
-    expect(roleLabel('WORKER')).toBe('维保技术员')
+    expect(roleLabel('MAINT_TECH')).toBe('维保人员')
+    expect(roleLabel('WORKER')).toBe('维保人员')
+    expect(roleLabel('ASSISTANT')).toBe('配合维保人员')
+    expect(roleLabel('ADMIN')).toBe('维保部管理员')
     expect(roleLabel('PLATFORM_ADMIN')).toBe('平台管理员')
   })
   it('中文角色名反查规范码（兼容直接填码）', () => {
-    expect(roleCodeFromName('维保技术员')).toBe('MAINT_TECH')
+    expect(roleCodeFromName('维保人员')).toBe('MAINT_TECH')
     expect(roleCodeFromName('维保主管')).toBe('MAINT_SUP')
     expect(roleCodeFromName('MAINT_TECH')).toBe('MAINT_TECH')
     expect(roleCodeFromName('WORKER')).toBe('MAINT_TECH')
@@ -53,7 +64,7 @@ describe('中文标签层', () => {
     expect(refuseCodeLabel('R9')).toBe('R9')
   })
   it('拒签退回生命周期状态中文', () => {
-    expect(statusLabel('REFUSED_RETURNED')).toBe('已拒签退回')
+    expect(statusLabel('REFUSED_RETURNED')).toBe('拒签退回')
   })
   it('待归档标签：仅已签字且归档文件缺失时显示', () => {
     expect(archiveStateTag({ lifecycleStatus: 'SIGNED', archiveFileId: '' })).toBe('待归档')
@@ -64,12 +75,12 @@ describe('中文标签层', () => {
     expect(archiveStateTag(null)).toBe('')
   })
   it('formatCell 自动中文化常见枚举列', () => {
-    expect(formatCell({ key: 'status' }, 'RECTIFYING')).toBe('整改中')
-    expect(formatCell({ key: 'reportStatus' }, 'FAILED')).toBe('上报失败')
+    expect(formatCell({ key: 'status' }, 'RECTIFYING')).toBe('整改复验中')
+    expect(formatCell({ key: 'reportStatus' }, 'FAILED')).toBe('上报异常')
     expect(formatCell({ key: 'workTypeCode' }, 'TM')).toBe('季度维保')
     expect(formatCell({ key: 'permCode' }, 'order:dispatch')).toBe('派单')
     expect(formatCell({ key: 'enabled' }, true)).toBe('启用')
-    expect(formatCell({ key: 'roles' }, 'MAINT_TECH,MAINT_SUP')).toBe('维保技术员、维保主管')
+    expect(formatCell({ key: 'roles' }, 'MAINT_TECH,MAINT_SUP')).toBe('维保人员、维保主管')
     expect(formatCell({ key: 'roles' }, ['MAINT_MGR'])).toBe('维保部经理')
     expect(formatCell({ key: 'name' }, '张三')).toBe('张三')
     expect(formatCell({ key: 'type', format: orgTypeLabel }, 'UNIT')).toBe('使用单位')

@@ -40,7 +40,7 @@ describe('SyncView 上报状态（后端码）展示', () => {
     await flushPromises()
     const kpi = (label) => w.findAll('.kpi').find((k) => k.find('.kpi-k').text().includes(label))
     expect(kpi('上报成功').find('.kpi-n').text()).toBe('1')
-    expect(kpi('上报失败').find('.kpi-n').text()).toBe('1')
+    expect(kpi('上报异常').find('.kpi-n').text()).toBe('1')
     expect(kpi('待上报').find('.kpi-n').text()).toBe('1')
     expect(kpi('上报待核对').find('.kpi-n').text()).toBe('1')
     expect(kpi('记录总数').find('.kpi-n').text()).toBe('4')
@@ -50,9 +50,9 @@ describe('SyncView 上报状态（后端码）展示', () => {
     const w = mountView()
     await flushPromises()
     const tbody = w.find('tbody').text()
-    expect(tbody).toContain('成功')
-    expect(tbody).toContain('上报失败')
-    expect(tbody).toContain('待处理')
+    expect(tbody).toContain('上报成功')
+    expect(tbody).toContain('上报异常')
+    expect(tbody).toContain('待上报')
     expect(tbody).toContain('上报待核对')
     expect(tbody).not.toContain('UNKNOWN')
     expect(tbody).not.toContain('SUCCESS')
@@ -75,11 +75,20 @@ describe('SyncView 上报状态（后端码）展示', () => {
     const options = statusSelect.findAll('option').map((o) => ({ value: o.element.value, label: o.text() }))
     expect(options).toEqual([
       { value: '', label: '全部' },
-      { value: 'SUCCESS', label: '成功' },
-      { value: 'FAILED', label: '上报失败' },
-      { value: 'PENDING', label: '待处理' },
+      { value: 'SUCCESS', label: '上报成功' },
+      { value: 'FAILED', label: '上报异常' },
+      { value: 'PENDING', label: '待上报' },
       { value: 'UNKNOWN', label: '上报待核对' }
     ])
+  })
+
+  it('详情抽屉与列表使用同一上报状态文案', async () => {
+    const w = mountView()
+    await flushPromises()
+    await rowByCode(w, 'REC-P').find('button').trigger('click')
+    await flushPromises()
+    expect(w.text()).toContain('待上报')
+    expect(w.text()).not.toContain('待执行')
   })
 
   it('UNKNOWN 行只读，无人工重报入口，抽屉同时显示中文标签与后端码', async () => {

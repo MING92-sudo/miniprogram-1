@@ -33,6 +33,11 @@ definePage(ROUTES['/pkg-maintenance/pages/record-detail/index'], {
       const all = r.items || []
       const executed = all.filter((i) => i.notInThisRun !== true)
       const ctx = r.context || {}
+      // 快照外的兜底：姓名为记录顶层字段；维保单位名快照键为 companyName；作业日期退签到/签退日
+      ctx.workerName = ctx.workerName || r.workerName || ''
+      ctx.assistantName = ctx.assistantName || r.assistantName || ''
+      ctx.maintUnitName = ctx.companyName || ''
+      ctx.workDate = ctx.workDate || String(r.checkoutTime || r.checkinTime || '').slice(0, 10)
       const photoList = []
       executed.forEach((i) => (i.photos || []).forEach((url) => photoList.push({ url, abnormal: i.result === 'ABNORMAL', itemName: i.name })))
       const lc = r.lifecycleStatus || ''

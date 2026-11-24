@@ -7,6 +7,7 @@ import com.cqwlw.maintenance.entity.ContractElevator;
 import com.cqwlw.maintenance.entity.MaintenanceContract;
 import com.cqwlw.maintenance.mapper.ContractElevatorMapper;
 import com.cqwlw.maintenance.mapper.MaintenanceContractMapper;
+import com.cqwlw.maintenance.util.TimeUtil;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -21,6 +22,13 @@ public class ContractService {
 
     private final MaintenanceContractMapper contractMapper;
     private final ContractElevatorMapper contractElevatorMapper;
+    /** 列表页使用单位名称解析（setter 注入保持既有构造器签名；缺失时留空） */
+    private com.cqwlw.maintenance.mapper.UseUnitMapper useUnitMapper;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    public void setUseUnitMapper(com.cqwlw.maintenance.mapper.UseUnitMapper useUnitMapper) {
+        this.useUnitMapper = useUnitMapper;
+    }
 
     public ContractService(MaintenanceContractMapper contractMapper,
                            ContractElevatorMapper contractElevatorMapper) {
@@ -31,6 +39,31 @@ public class ContractService {
     public List<MaintenanceContract> list() {
         return contractMapper.selectList(new LambdaQueryWrapper<MaintenanceContract>()
                 .orderByDesc(MaintenanceContract::getStartDate).orderByDesc(MaintenanceContract::getId));
+    }
+
+    /** 小程序合同台账行：实体字段 + useUnitName 解析（一次批量取，避免逐行查询） */
+    public List<Map<String, Object>> listView() {
+        List<MaintenanceContract> contracts = list();
+        Map<String, String> unitNames = new java.util.HashMap<>();
+        if (useUnitMapper != null) {
+            for (com.cqwlw.maintenance.entity.UseUnit u : useUnitMapper.selectList(null)) {
+                unitNames.put(u.id, u.unitName == null ? "" : u.unitName);
+            }
+        }
+        List<Map<String, Object>> out = new java.util.ArrayList<>();
+        for (MaintenanceContract c : contracts) {
+            Map<String, Object> row = new java.util.LinkedHashMap<>();
+            row.put("id", c.id);
+            row.put("contractNo", c.contractNo);
+            row.put("useUnitId", c.useUnitId);
+            row.put("useUnitName", c.useUnitId == null ? "" : unitNames.getOrDefault(c.useUnitId, ""));
+            row.put("startDate", String.valueOf(c.startDate));
+            row.put("endDate", String.valueOf(c.endDate));
+            row.put("status", c.status);
+            row.put("amount", c.amount);
+            out.add(row);
+        }
+        return out;
     }
 
     public MaintenanceContract get(String id) {
@@ -52,7 +85,7 @@ public class ContractService {
         }
         LocalDate startDate = date(body, "startDate", "合同起始日不能为空");
         LocalDate endDate = date(body, "endDate", "合同终止日不能为空");
-        if (startDate.isAfter(LocalDate.now())) {
+        if (startDate.isAfter(LocalDate.now(TimeUtil.ZONE))) {
             throw new BizException(422, "合同起始日不能晚于建档日");
         }
         if (endDate.isBefore(startDate)) {
@@ -72,7 +105,7 @@ public class ContractService {
                         new LambdaQueryWrapper<MaintenanceContract>()
                                 .in(MaintenanceContract::getId, contractIds)
                                 .eq(MaintenanceContract::getStatus, "ACTIVE")
-                                .ge(MaintenanceContract::getEndDate, LocalDate.now()));
+                                .ge(MaintenanceContract::getEndDate, LocalDate.now(TimeUtil.ZONE)));
                 if (active != null && active > 0) {
                     throw new BizException(422, "电梯已有生效合同");
                 }
@@ -108,7 +141,7 @@ public class ContractService {
             return null;
         }
         List<String> contractIds = links.stream().map(l -> l.contractId).distinct().toList();
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(TimeUtil.ZONE);
         List<MaintenanceContract> contracts = contractMapper.selectList(
                 new LambdaQueryWrapper<MaintenanceContract>()
                         .in(MaintenanceContract::getId, contractIds)

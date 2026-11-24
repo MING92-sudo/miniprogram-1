@@ -21,6 +21,7 @@ import com.cqwlw.maintenance.mapper.HandoverOrderMapper;
 import com.cqwlw.maintenance.mapper.HandoverRectificationMapper;
 import com.cqwlw.maintenance.mapper.HandoverSignMapper;
 import com.cqwlw.maintenance.mapper.WorkOrderMapper;
+import com.cqwlw.maintenance.util.TimeUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -69,6 +70,20 @@ public class HandoverService {
     private final DispatchService dispatchService;
     private final HandoverArchiveSupport archiveSupport;
     private final HandoverChecklistService checklistService;
+
+    /** 详情页单位名解析（setter 注入保持既有构造器签名；缺失时名称留空） */
+    private com.cqwlw.maintenance.mapper.UseUnitMapper useUnitMapper;
+    private com.cqwlw.maintenance.mapper.CompanyMapper companyMapper;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    public void setUseUnitMapper(com.cqwlw.maintenance.mapper.UseUnitMapper useUnitMapper) {
+        this.useUnitMapper = useUnitMapper;
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    public void setCompanyMapper(com.cqwlw.maintenance.mapper.CompanyMapper companyMapper) {
+        this.companyMapper = companyMapper;
+    }
 
     @Autowired
     public HandoverService(HandoverOrderMapper orderMapper,
@@ -141,7 +156,7 @@ public class HandoverService {
         HandoverOrder o = new HandoverOrder();
         o.id = Ids.next("ho");
         o.handoverNo = Ids.next("ho");
-        o.createdAt = LocalDateTime.now();
+        o.createdAt = TimeUtil.now();
         o.status = PENDING_INST_REVIEW;
         o.projectName = projectName.trim();
         o.useUnitId = useUnitId;
@@ -221,7 +236,7 @@ public class HandoverService {
         }
         o.reviewById = actor.id;
         o.reviewByName = actor.name;
-        o.reviewedAt = LocalDateTime.now();
+        o.reviewedAt = TimeUtil.now();
         orderMapper.updateById(o);
         return o;
     }
@@ -240,7 +255,7 @@ public class HandoverService {
         o.voidReason = reason;
         o.voidById = actor.id;
         o.voidByName = actor.name;
-        o.voidedAt = LocalDateTime.now();
+        o.voidedAt = TimeUtil.now();
         o.status = VOIDED;
         orderMapper.updateById(o);
         return o;
@@ -308,7 +323,7 @@ public class HandoverService {
         }
         String recheckerId = trimToNull(str(body, "recheckerId"));
         String recheckerName = trimToNull(str(body, "recheckerName"));
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = TimeUtil.now();
         String rectId = trimToNull(str(body, "rectId"));
         if (rectId != null) {
             HandoverRectification one = rectificationMapper.selectById(rectId);
@@ -357,7 +372,7 @@ public class HandoverService {
         checklistService.assertArchivable(id);
         o.confirmedById = actor.id;
         o.confirmedByName = actor.name;
-        o.confirmedAt = LocalDateTime.now();
+        o.confirmedAt = TimeUtil.now();
         o.status = ARCHIVED;
         orderMapper.updateById(o);
         return archive(o.id);
@@ -395,9 +410,9 @@ public class HandoverService {
         el.specialType = order.specialType;
         el.supervisionPassDate = order.supervisionPassDate;
         el.inspectionReportFileId = order.supervisionReportFileId;
-        el.inspectionReportUploadedAt = LocalDateTime.now();
+        el.inspectionReportUploadedAt = TimeUtil.now();
         el.archiveSource = 1;
-        el.handoverAt = LocalDateTime.now();
+        el.handoverAt = TimeUtil.now();
         archiveSupport.enrich(order, el);
         if (el.elevatorName == null || el.elevatorName.isBlank()) {
             el.elevatorName = el.insideNumber == null || el.insideNumber.isBlank()
@@ -408,7 +423,7 @@ public class HandoverService {
         elevatorMapper.insert(el);
         order.elevatorId = el.id;
         orderMapper.updateById(order);
-        WorkOrder first = dispatchService.precreateFirstOrder(el, LocalDate.now().plusDays(15));
+        WorkOrder first = dispatchService.precreateFirstOrder(el, LocalDate.now(TimeUtil.ZONE).plusDays(15));
         if (first != null) {
             first.sourceHandoverId = order.id;
             workOrderMapper.updateById(first);
@@ -444,7 +459,7 @@ public class HandoverService {
         sign.actorId = actor.id;
         sign.actorName = actor.name;
         sign.action = action;
-        sign.at = LocalDateTime.now();
+        sign.at = TimeUtil.now();
         signMapper.insert(sign);
         return sign;
     }
@@ -480,6 +495,19 @@ public class HandoverService {
     public Map<String, Object> detail(String id) {
         HandoverOrder o = requireOrder(id);
         Map<String, Object> out = com.cqwlw.maintenance.util.JsonUtil.MAPPER.convertValue(o, Map.class);
+        // 实体只有 useUnitId/无维保单位字段：详情页展示用名称在此解析补齐
+        if (useUnitMapper != null && o.useUnitId != null && !o.useUnitId.isBlank()) {
+            com.cqwlw.maintenance.entity.UseUnit uu = useUnitMapper.selectById(o.useUnitId);
+            out.put("useUnitName", uu == null || uu.unitName == null ? "" : uu.unitName);
+        } else {
+            out.put("useUnitName", "");
+        }
+        String maintUnitName = "";
+        if (companyMapper != null) {
+            maintUnitName = companyMapper.selectList(null).stream().findFirst()
+                    .map(c -> c.name == null ? "" : c.name).orElse("");
+        }
+        out.put("maintUnitName", maintUnitName);
         List<HandoverCheck> checks = checkMapper.selectList(new LambdaQueryWrapper<HandoverCheck>()
                 .eq(HandoverCheck::getHandoverId, id).orderByDesc(HandoverCheck::getCheckedAt));
         List<Map<String, Object>> checkViews = new ArrayList<>();

@@ -155,6 +155,10 @@ class AdminServiceTest {
         mp.setRecords(List.of(failed));
         mp.setTotal(2);
         when(recordMapper.selectPage(any(), any())).thenReturn(mp);
+        MaintainRecord failedDetails = new MaintainRecord();
+        failedDetails.id = failed.id;
+        failedDetails.itemsJson = "[{\"result\":\"ABNORMAL\",\"problemCode\":\"S5\"}]";
+        when(recordMapper.selectList(any())).thenReturn(List.of(failedDetails));
 
         Map<String, Object> page1 = service.records(Map.of("reportStatus", "FAILED", "page", "1", "size", "1"));
         assertEquals(2, page1.get("total"));
@@ -163,6 +167,7 @@ class AdminServiceTest {
         assertEquals(1, list.size());
         assertEquals("FAILED", list.get(0).get("reportStatus"));
         assertEquals(List.of("S5"), list.get(0).get("problemCodes"));
+        assertEquals(1, list.get(0).get("checkAbnormal"));
         assertFalse(String.valueOf(list.get(0).get("uploadStatus")).isEmpty());
         org.mockito.ArgumentCaptor<com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<MaintainRecord>> captor =
                 org.mockito.ArgumentCaptor.forClass(com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper.class);
@@ -172,6 +177,68 @@ class AdminServiceTest {
         for (String large : List.of("items_json", "photos_json", "report_payload_json", "preview_context", "safety_json")) {
             assertFalse(selected.contains(large), selected);
         }
+    }
+
+    @Test
+    void recordsSelectIncludesSmallFieldsUsedByRows() {
+        Page<MaintainRecord> mp = new Page<>(1, 20);
+        mp.setRecords(List.of());
+        when(recordMapper.selectPage(any(), any())).thenReturn(mp);
+
+        service.records(Map.of());
+
+        org.mockito.ArgumentCaptor<com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<MaintainRecord>> captor =
+                org.mockito.ArgumentCaptor.forClass(com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper.class);
+        org.mockito.Mockito.verify(recordMapper).selectPage(any(), captor.capture());
+        String selected = captor.getValue().getSqlSelect();
+        for (String column : List.of("elevator_id", "worker_signature_url", "assistant_signature_url")) {
+            assertTrue(selected.contains(column), selected);
+        }
+        assertFalse(selected.contains("items_json"), selected);
+    }
+
+    @Test
+    void recordsRowsExposeSignaturesAndNoAbnormalFromS0() {
+        MaintainRecord signed = new MaintainRecord();
+        signed.id = "ur_dual";
+        signed.problemCodesJson = "[\"S0\"]";
+        signed.workerSignatureUrl = "https://files/worker";
+        signed.assistantSignatureUrl = "https://files/assistant";
+        signed.createdAt = TimeUtil.now();
+        Page<MaintainRecord> mp = new Page<>(1, 20);
+        mp.setRecords(List.of(signed));
+        mp.setTotal(1);
+        when(recordMapper.selectPage(any(), any())).thenReturn(mp);
+        MaintainRecord signedDetails = new MaintainRecord();
+        signedDetails.id = signed.id;
+        signedDetails.itemsJson = "[]";
+        when(recordMapper.selectList(any())).thenReturn(List.of(signedDetails));
+
+        Map<String, Object> out = service.records(Map.of());
+        @SuppressWarnings("unchecked")
+        Map<String, Object> row = ((List<Map<String, Object>>) out.get("list")).get(0);
+        assertEquals(true, row.get("workerSigned"));
+        assertEquals(true, row.get("assistantSigned"));
+        assertEquals(0, row.get("checkAbnormal"));
+    }
+
+    @Test
+    void recordsCheckAbnormalCountsS0AbnormalItems() {
+        MaintainRecord record = new MaintainRecord();
+        record.id = "ur_s0_abnormal";
+        record.problemCodesJson = "[\"S0\"]";
+        record.itemsJson = "[{\"result\":\"ABNORMAL\",\"problemCode\":\"S0\"}]";
+        record.createdAt = TimeUtil.now();
+        Page<MaintainRecord> mp = new Page<>(1, 20);
+        mp.setRecords(List.of(record));
+        mp.setTotal(1);
+        when(recordMapper.selectPage(any(), any())).thenReturn(mp);
+        when(recordMapper.selectList(any())).thenReturn(List.of(record));
+
+        Map<String, Object> out = service.records(Map.of());
+        @SuppressWarnings("unchecked")
+        Map<String, Object> row = ((List<Map<String, Object>>) out.get("list")).get(0);
+        assertEquals(1, row.get("checkAbnormal"));
     }
 
     @Test

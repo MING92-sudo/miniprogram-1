@@ -113,9 +113,9 @@ const POOL_TEXT = {
   MINE_TITLE: '我的工单',
   EMPTY: '暂无待接单',
   CLAIM_BTN: '签到接单',
-  CLAIM_IDENTITY: '主维保人（本单到场签到即认领）',
+  CLAIM_IDENTITY: '主检人（本单到场签到即认领）',
   CLAIMED_GUIDE_TITLE: '认领成功',
-  CLAIMED_GUIDE: '你已成为本单主维保。双人作业：请先选择配合人员，配合人凭你签到页的动态码到场签到。',
+  CLAIMED_GUIDE: '你已成为本单主检人。双人作业：请先选择配合人员，配合人凭你签到页的动态码到场签到。',
   CLAIMED_GUIDE_CONFIRM: '去选择配合人',
   PARTNER_TITLE: '选择配合人员',
   PARTNER_TIP: '候选为本区域已完成平台人员登记的维保员；配合人未签到前可改选',
@@ -268,7 +268,7 @@ const REFUSE_REASON_OPTIONS = [
   { code: 'R2', label: '维保项目漏项或未按单执行', needDetail: false },
   { code: 'R3', label: '现场照片不清晰或与实际不符', needDetail: false },
   { code: 'R4', label: '时间或人员信息有误', needDetail: false },
-  { code: 'R5', label: '其他（需填写说明）', needDetail: true }
+  { code: 'R5', label: '其他', needDetail: true }
 ]
 
 

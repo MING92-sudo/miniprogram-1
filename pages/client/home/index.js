@@ -1,5 +1,6 @@
 const { definePage } = require('../../../utils/guard')
 const { ROUTES } = require('../../../config/routes')
+const { gmt8Calendar } = require('../../../utils/util')
 const home = require('../../../services/home')
 const nav = require('../../../utils/nav')
 
@@ -10,12 +11,12 @@ definePage(ROUTES['/pages/client/home/index'], {
   onShow() {
     const app = getApp()
     const u = (app.globalData && app.globalData.userInfo) || {}
-    const d = new Date()
+    const d = gmt8Calendar()
     const roles = (app.globalData && app.globalData.roles) || []
     this.setData({
       greeting: {
-        date: d.getFullYear() + '.' + String(d.getMonth() + 1).padStart(2, '0') + '.' + String(d.getDate()).padStart(2, '0'),
-        weekday: WEEKDAYS[d.getDay()], name: u.name || '',
+        date: d.year + '.' + String(d.month).padStart(2, '0') + '.' + String(d.day).padStart(2, '0'),
+        weekday: WEEKDAYS[d.weekday], name: u.name || '',
         org: u.unitName || '', jobTitle: u.jobTitle || '',
         dual: roles.indexOf('CLIENT_ADMIN') > -1 && roles.indexOf('CLIENT_SIGNER') > -1
       },

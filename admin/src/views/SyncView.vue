@@ -22,7 +22,7 @@
           <div class="cell-2">{{ row.elevatorName || '—' }}</div>
         </template>
         <template #cell-syncAt="{ value }"><span class="mono f12">{{ value || '—' }}</span></template>
-        <template #cell-uploadStatus="{ value }"><span :class="['tag', 'tag-' + statusTone(value)]">{{ statusLabel(value) }}</span></template>
+        <template #cell-uploadStatus="{ value }"><span :class="['tag', 'tag-' + statusTone(value)]">{{ reportStatusLabel(value) }}</span></template>
         <template #cell-retry="{ value }"><span class="num">{{ value }}</span></template>
         <template #row-actions="{ row }">
           <button class="btn btn-ghost btn-xs" type="button" @click.stop="openDetail(row)">
@@ -57,9 +57,9 @@
             <div class="kv"><span class="k">电梯编码</span><span class="v mono">{{ detail.elevatorCode || '—' }}</span></div>
             <div class="kv"><span class="k">设备</span><span class="v">{{ detail.elevatorName || '—' }}</span></div>
             <div class="kv"><span class="k">维保类别</span><span class="v">{{ detail.workType || '—' }}</span></div>
-            <div class="kv"><span class="k">主检</span><span class="v">{{ detail.workerName || '—' }}</span></div>
+            <div class="kv"><span class="k">主检人</span><span class="v">{{ detail.workerName || '—' }}</span></div>
             <div class="kv"><span class="k">配合人</span><span class="v">{{ detail.assistantName || '—' }}</span></div>
-            <div class="kv"><span class="k">上报状态</span><span class="v">{{ statusLabel(detail.uploadStatus) }}</span></div>
+            <div class="kv"><span class="k">上报状态</span><span class="v">{{ reportStatusLabel(detail.uploadStatus) }}</span></div>
             <div class="kv"><span class="k">后端状态码</span><span class="v mono">{{ detail.reportStatus || '—' }}</span></div>
             <div class="kv"><span class="k">重试次数</span><span class="v">{{ detail.retryCount }}</span></div>
             <div class="kv"><span class="k">客户签署</span><span class="v">{{ detail.confirmStatus === 'CONFIRMED' ? '已签署' : '待签署' }}</span></div>
@@ -81,7 +81,7 @@ import Drawer from '../ui/Drawer.vue'
 import ViewHead from '../ui/ViewHead.vue'
 import PageMeta from '../ui/PageMeta.vue'
 import RuleNote from '../ui/RuleNote.vue'
-import { statusLabel } from '../ui/labels'
+import { reportStatusLabel } from '../ui/labels'
 const loading = ref(false)
 const rows = ref([])
 const total = ref(0)
@@ -90,7 +90,7 @@ const cols = [
   { key: 'recordNo', label: '记录单号', sortable: true },
   { key: 'elev', label: '电梯编码 / 设备' },
   { key: 'workType', label: '维保类别' },
-  { key: 'workerName', label: '主检' },
+  { key: 'workerName', label: '主检人' },
   { key: 'syncAt', label: '完成时间', sortable: true },
   { key: 'uploadStatus', label: '上报状态', sortable: true },
   { key: 'retry', label: '重试', cls: 'num', sortable: true }
@@ -103,10 +103,10 @@ const fieldMap = [
   ['emergencyPhone', '紧急联系电话', '使用单位档案'],
   ['insideNumber', '单位内编号', '电梯梯号'],
   ['workMenegerName / Phone', '维保经理', 'MAINT_MGR 账号'],
-  ['workMan1Id / workMan2Id', '维保人员 1 / 2', '主检 / 配合人'],
+  ['workMan1Id / workMan2Id', '维保人员 1 / 2', '主检人 / 配合人'],
   ['startTime / endTime', '维保起止时间', '记录单作业起止'],
   ['workType', '维保类别代码', '半月保→HM · 季度保→TM'],
-  ['recorder / recorderPhone', '记录填写人', '记录单主检'],
+  ['recorder / recorderPhone', '记录填写人', '记录单主检人'],
   ['originalRecordId', '原始记录 ID', '本地记录单号'],
   ['problemCode', '严重事故隐患码', '未发现→S0'],
   ['nextMaintenanceDate', '下次维保日期', '电梯 nextMaintDue']
@@ -149,7 +149,7 @@ async function load() {
 }
 onMounted(load)
 
-const statusOptions = ['SUCCESS', 'FAILED', 'PENDING', 'UNKNOWN'].map((value) => ({ value, label: statusLabel(value) }))
+const statusOptions = ['SUCCESS', 'FAILED', 'PENDING', 'UNKNOWN'].map((value) => ({ value, label: reportStatusLabel(value) }))
 // 停留态与后端 PlatformReportService.RECONCILABLE_STATUSES 同口径：唯一恢复入口在上报异常清单
 const STUCK = ['UNKNOWN', 'REPORTING', 'REUPLOADING', 'LEGACY_UPLOADING']
 const summary = computed(() => {
@@ -157,9 +157,9 @@ const summary = computed(() => {
   const stuck = rows.value.filter((r) => STUCK.includes(r.reportStatus)).length
   return [
     { key: 'ok', label: '上报成功', value: count('SUCCESS'), sub: '已同步监管平台', icon: 'check' },
-    { key: 'fail', label: '上报失败', value: count('FAILED'), sub: '需排查后逐条重报', icon: 'alert' },
+    { key: 'fail', label: '上报异常', value: count('FAILED'), sub: '需排查后逐条重报', icon: 'alert' },
     { key: 'pending', label: '待上报', value: count('PENDING'), sub: '等待归档或上报', icon: 'clock' },
-    { key: 'stuck', label: statusLabel('UNKNOWN'), value: stuck, sub: stuck > 0 ? '请到上报异常清单逐条核对' : '平台已受理，本地结果待核对', icon: 'info' },
+    { key: 'stuck', label: reportStatusLabel('UNKNOWN'), value: stuck, sub: stuck > 0 ? '请到上报异常清单逐条核对' : '平台已受理，本地结果待核对', icon: 'info' },
     { key: 'total', label: '记录总数', value: total.value, sub: '当前页统计口径', icon: 'file-text' }
   ]
 })

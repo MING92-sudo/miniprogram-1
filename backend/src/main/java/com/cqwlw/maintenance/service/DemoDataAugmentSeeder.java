@@ -31,6 +31,7 @@ import com.cqwlw.maintenance.mapper.RegionMapper;
 import com.cqwlw.maintenance.mapper.SysGrantMapper;
 import com.cqwlw.maintenance.mapper.SysInviteMapper;
 import com.cqwlw.maintenance.mapper.UseUnitMapper;
+import com.cqwlw.maintenance.util.TimeUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.ApplicationArguments;
@@ -166,8 +167,8 @@ public class DemoDataAugmentSeeder implements ApplicationRunner {
         c.id = Ids.next("ct");
         c.contractNo = "HT-2026-0001";
         c.useUnitId = uu.id;
-        c.startDate = LocalDate.now().minusMonths(6);
-        c.endDate = LocalDate.now().plusMonths(6);
+        c.startDate = LocalDate.now(TimeUtil.ZONE).minusMonths(6);
+        c.endDate = LocalDate.now(TimeUtil.ZONE).plusMonths(6);
         c.status = "ACTIVE";
         c.amount = new BigDecimal("36000.00");
         contractMapper.insert(c);
@@ -190,10 +191,10 @@ public class DemoDataAugmentSeeder implements ApplicationRunner {
         p.useUnitId = uu.id;
         p.elevatorCount = 1;
         p.contractId = contractId;
-        p.contractEndDate = LocalDate.now().plusMonths(6).toString();
+        p.contractEndDate = LocalDate.now(TimeUtil.ZONE).plusMonths(6).toString();
         p.status = "ACTIVE";
-        p.lastWorkDate = LocalDate.now().minusDays(3).toString();
-        p.createdAt = LocalDateTime.now().minusMonths(6);
+        p.lastWorkDate = LocalDate.now(TimeUtil.ZONE).minusDays(3).toString();
+        p.createdAt = TimeUtil.now().minusMonths(6);
         projectMapper.insert(p);
     }
 
@@ -212,14 +213,14 @@ public class DemoDataAugmentSeeder implements ApplicationRunner {
         HandoverOrder ho = new HandoverOrder();
         ho.id = Ids.next("ho");
         ho.handoverNo = "YJ-2026-0001";
-        ho.createdAt = LocalDateTime.now().minusDays(10);
+        ho.createdAt = TimeUtil.now().minusDays(10);
         ho.status = "RECTIFYING";
         ho.projectName = el.projectName != null ? el.projectName : "演示项目";
         ho.elevatorCode = el.elevatorCode;
         ho.elevatorName = el.elevatorName != null ? el.elevatorName : "演示电梯";
         ho.category = el.category != null ? el.category : "曳引与强制驱动电梯";
         ho.location = el.location;
-        ho.installCompleteDate = LocalDate.now().minusDays(20).toString();
+        ho.installCompleteDate = LocalDate.now(TimeUtil.ZONE).minusDays(20).toString();
         ho.installUnitName = "重庆博威电梯有限公司";
         ho.initiatorId = admin.id;
         ho.initiatorName = admin.name;
@@ -232,7 +233,7 @@ public class DemoDataAugmentSeeder implements ApplicationRunner {
         check.handoverId = ho.id;
         check.checkerId = admin.id;
         check.checkerName = admin.name;
-        check.checkedAt = LocalDateTime.now().minusDays(9);
+        check.checkedAt = TimeUtil.now().minusDays(9);
         check.totalItems = 74;
         check.passCount = 73;
         check.failCount = 1;
@@ -273,12 +274,12 @@ public class DemoDataAugmentSeeder implements ApplicationRunner {
         rect.itemNo = 1;
         rect.itemType = "G01";
         rect.respParty = "安装单位";
-        rect.dueDate = LocalDate.now().plusDays(7).toString();
+        rect.dueDate = LocalDate.now(TimeUtil.ZONE).plusDays(7).toString();
         rect.source = "INSPECT";
         rect.voided = false;
         rect.rectMeasure = "演示：已增设机房照明";
         rect.rectifierName = admin.name;
-        rect.rectifiedAt = LocalDateTime.now().minusDays(2);
+        rect.rectifiedAt = TimeUtil.now().minusDays(2);
         handoverRectificationMapper.insert(rect);
 
         checklistService.archive(ho.id); // 生成一梯一档 7 条目录 + SHA-256
@@ -294,10 +295,10 @@ public class DemoDataAugmentSeeder implements ApplicationRunner {
         inv.type = "INVITE";
         inv.createdBy = admin.id;
         inv.validDays = 30;
-        inv.expiresAt = LocalDateTime.now().plusDays(30);
+        inv.expiresAt = TimeUtil.now().plusDays(30);
         inv.status = "ACTIVE";
         inv.joinedCount = 0;
-        inv.createdAt = LocalDateTime.now().minusDays(1);
+        inv.createdAt = TimeUtil.now().minusDays(1);
         inviteMapper.insert(inv);
     }
 
@@ -310,12 +311,12 @@ public class DemoDataAugmentSeeder implements ApplicationRunner {
         g.granteeId = admin.id;
         g.permCode = "handover:export";
         g.scope = "ALL";
-        g.startAt = LocalDateTime.now().minusDays(1);
-        g.endAt = LocalDateTime.now().plusDays(30);
+        g.startAt = TimeUtil.now().minusDays(1);
+        g.endAt = TimeUtil.now().plusDays(30);
         g.status = "ACTIVE";
         g.grantedBy = admin.id;
         g.reason = "演示：限时移交导出授权";
-        g.createdAt = LocalDateTime.now().minusDays(1);
+        g.createdAt = TimeUtil.now().minusDays(1);
         grantMapper.insert(g);
     }
 
@@ -329,7 +330,7 @@ public class DemoDataAugmentSeeder implements ApplicationRunner {
         a.purpose = "演示：年度维保台账归档导出（含敏感字段）";
         a.scope = "ALL";
         a.status = "PENDING";
-        a.createdAt = LocalDateTime.now().minusHours(6);
+        a.createdAt = TimeUtil.now().minusHours(6);
         exportApprovalMapper.insert(a);
     }
 }

@@ -90,6 +90,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import http from '../api/client'
 import { usePerspectiveStore } from '../ui/stores/perspective'
 import { scopeLabel } from '../ui/labels'
+import { todayGmt8 } from '../ui/datetime'
 import ScopePill from '../ui/ScopePill.vue'
 import ErrorState from '../ui/states/ErrorState.vue'
 const perspective = usePerspectiveStore()
@@ -135,10 +136,11 @@ const overtime = computed(() => active.value.filter(isOverdue))
 const closedToday = computed(() => orders.value.filter((o) => o.status === 'DONE'
   && String(o.checkoutTime || '').slice(0, 10) === todayStr()))
 
+// 超期判定与后端 dashboard / 小程序同为天级：计划日早于 GMT+8 今天才算超期
 function isOverdue(o) {
   if (!o.planTime) return false
   if (o.status === 'DONE' || o.status === 'CANCELLED') return false
-  return new Date(o.planTime) < new Date()
+  return String(o.planTime).slice(0, 10) < todayGmt8()
 }
 function shortTime(t) { return t ? String(t).replace('T', ' ').slice(5, 16) : '—' }
 function elevLabel(id) {

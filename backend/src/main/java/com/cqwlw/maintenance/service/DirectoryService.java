@@ -179,6 +179,7 @@ public class DirectoryService {
         f.trappedCount = parseTrappedCount(body.get("trappedCount"), trappedFault);
         f.descr = strOrEmpty(body.get("desc"));
         f.siteDesc = strOrEmpty(body.get("siteDesc"));
+        f.floor = strOrEmpty(body.get("floor"));
         f.photos = JsonUtil.write(body.get("photos") == null ? List.of() : body.get("photos"));
         f.status = "OPEN";
         f.handleDesc = "";
@@ -226,7 +227,7 @@ public class DirectoryService {
             throw new BizException(1404, "急修单不存在");
         }
         if (!"OPEN".equals(f.status)) {
-            throw new BizException(422, "仅待派单的急修单可派单");
+            throw new BizException(422, "仅待接单的急修单可派单");
         }
         Employee worker = employeeMapper.selectById(workerId);
         if (worker == null) {
@@ -290,9 +291,18 @@ public class DirectoryService {
             throw new BizException(1403, "仅被指派维保人员可提交");
         }
         String reason = trimmed(body.get("faultReason"));
+        if (reason.isEmpty()) {
+            reason = trimmed(body.get("siteDesc"));
+        }
         String handle = trimmed(body.get("handleDesc"));
         if (reason.isEmpty() || handle.isEmpty()) {
             throw new BizException(422, "故障原因与处理措施必填");
+        }
+        if (body.get("siteDesc") != null) {
+            f.siteDesc = trimmed(body.get("siteDesc"));
+        }
+        if (body.get("todoDesc") != null) {
+            f.todoDesc = trimmed(body.get("todoDesc"));
         }
         f.faultReason = reason;
         f.handleDesc = handle;
@@ -454,11 +464,13 @@ public class DirectoryService {
         m.put("elevatorCode", f.elevatorCode);
         m.put("faultType", f.faultType);
         m.put("trappedCount", f.trappedCount == null ? 0 : f.trappedCount);
+        m.put("floor", f.floor == null ? "" : f.floor);
         m.put("desc", f.descr);
         m.put("siteDesc", f.siteDesc == null ? "" : f.siteDesc);
         m.put("arrivedAt", TimeUtil.format(f.arrivedAt));
         m.put("dispatchedAt", TimeUtil.format(f.dispatchedAt));
         m.put("finishedAt", TimeUtil.format(f.finishedAt));
+        m.put("rescuedAt", TimeUtil.format(f.rescuedAt));
         m.put("todoDesc", f.todoDesc == null ? "" : f.todoDesc);
         m.put("photos", JsonUtil.readStringList(f.photos).stream()
                 .map(fileStorageService::resolveStoredUrl).collect(Collectors.toList()));
@@ -476,6 +488,11 @@ public class DirectoryService {
         m.put("escalatedAt", TimeUtil.format(f.escalatedAt));
         m.put("cancelReason", f.cancelReason == null ? "" : f.cancelReason);
         m.put("refuseReason", f.refuseReason == null ? "" : f.refuseReason);
+        // 困人救援判定与响应时长（报修→到场分钟数）为派生字段，员工/客户/管理端共用同一口径
+        m.put("rescue", (f.trappedCount != null && f.trappedCount > 0)
+                || (f.faultType != null && f.faultType.contains("困人")));
+        m.put("responseMinutes", f.arrivedAt != null && f.createdAt != null
+                ? java.time.Duration.between(f.createdAt, f.arrivedAt).toMinutes() : null);
         return m;
     }
 
@@ -661,7 +678,7 @@ public class DirectoryService {
         return view;
     }
 
-    /** 维修过程字段（小程序急修单详情页）：现场情况/待办事项/处理结果/维修结束时间 */
+    /** 维修过程字段（小程序急修单详情页）：现场情况/待办事项/处理结果/维修结束时间/安全解救时刻 */
     public Map<String, Object> updateFault(String id, Map<String, Object> body, String empId) {
         Fault f = faultOr404(id);
         requireFaultOperator(f, empId);
@@ -679,6 +696,9 @@ public class DirectoryService {
         }
         if (body.get("finishedAt") != null) {
             f.finishedAt = TimeUtil.parse(strOrEmpty(body.get("finishedAt")));
+        }
+        if (body.get("rescuedAt") != null) {
+            f.rescuedAt = TimeUtil.parse(strOrEmpty(body.get("rescuedAt")));
         }
         faultMapper.updateById(f);
         Map<String, Object> view = faultView(f);

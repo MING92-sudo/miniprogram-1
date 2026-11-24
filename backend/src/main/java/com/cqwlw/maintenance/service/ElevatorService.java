@@ -69,6 +69,42 @@ public class ElevatorService {
         return el.regionId.equals(e.regionId);
     }
 
+    /** 档案「所在区域」展示：setter 注入保持既有构造器签名（单测不传时返回空串） */
+    private com.cqwlw.maintenance.mapper.RegionMapper regionMapper;
+    /** overview 聚合（合同/急修统计）所需的可选依赖：缺失时对应区块留空，不拖垮档案 */
+    private com.cqwlw.maintenance.mapper.FaultMapper faultMapper;
+    private com.cqwlw.maintenance.mapper.ContractElevatorMapper contractElevatorMapper;
+    private com.cqwlw.maintenance.mapper.MaintenanceContractMapper contractMapper;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    public void setRegionMapper(com.cqwlw.maintenance.mapper.RegionMapper regionMapper) {
+        this.regionMapper = regionMapper;
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    public void setFaultMapper(com.cqwlw.maintenance.mapper.FaultMapper faultMapper) {
+        this.faultMapper = faultMapper;
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    public void setContractElevatorMapper(
+            com.cqwlw.maintenance.mapper.ContractElevatorMapper contractElevatorMapper) {
+        this.contractElevatorMapper = contractElevatorMapper;
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    public void setContractMapper(com.cqwlw.maintenance.mapper.MaintenanceContractMapper contractMapper) {
+        this.contractMapper = contractMapper;
+    }
+
+    private String regionNameOf(String regionId) {
+        if (regionId == null || regionId.isBlank() || regionMapper == null) {
+            return "";
+        }
+        com.cqwlw.maintenance.entity.Region r = regionMapper.selectById(regionId);
+        return r == null || r.name == null ? "" : r.name;
+    }
+
     /** 写谓词（AGENTS §3.1 写绝不扩区域）：认领制下「本人负责」= 本人作为主维保/配合人持有该梯在途工单（status≠DONE，已签退 DONE 工单不再构成维护授权）。 */
     private boolean assignedToOpenOrder(String elevatorId, String platformId) {
         if (platformId == null || platformId.isBlank()) {
@@ -131,6 +167,7 @@ public class ElevatorService {
         m.put("id", el.id);
         m.put("elevatorCode", el.elevatorCode);
         m.put("elevatorName", el.elevatorName);
+        m.put("projectName", nz(el.projectName));
         m.put("location", nz(el.location));
         m.put("regCode", nz(el.regCode));
         m.put("deviceCode", nz(el.deviceCode));
@@ -179,12 +216,16 @@ public class ElevatorService {
         platform.put("factoryNumber", nz(el.factoryNumber));
         platform.put("useUnitEntityId", nz(el.useUnitEntityId));
         platform.put("elevatorAdminister", nz(el.elevatorAdminister));
-        platform.put("elevatorAdministerPhone", nz(el.elevatorAdministerPhone));
-        platform.put("emergencyPhone", nz(el.emergencyPhone));
+        // 梯级电话为空（未同步/平台脱敏未回填）时退到使用单位档案的同名联系人，避免档案页恒空
+        platform.put("elevatorAdministerPhone", !nz(el.elevatorAdministerPhone).isEmpty()
+                ? el.elevatorAdministerPhone : (uu == null ? "" : nz(uu.elevatorAdministerPhone)));
+        platform.put("emergencyPhone", !nz(el.emergencyPhone).isEmpty()
+                ? el.emergencyPhone : (uu == null ? "" : nz(uu.emergencyPhone)));
 
         Map<String, Object> local = new LinkedHashMap<>();
         local.put("projectName", nz(el.projectName));
         local.put("unitPrincipal", uu == null ? "" : nz(uu.unitPrincipal));
+        local.put("regionName", regionNameOf(el.regionId));
         local.put("address", nz(el.location));
         local.put("lng", el.lng != null ? String.valueOf(el.lng) : "");
         local.put("lat", el.lat != null ? String.valueOf(el.lat) : "");
@@ -206,7 +247,110 @@ public class ElevatorService {
         out.put("model", nz(el.model));
         out.put("platform", platform);
         out.put("local", local);
+        out.put("overview", buildOverview(el, uu));
         return out;
+    }
+
+    /** 档案概览（小程序概览四格/服务记录/统计/联系人卡片）：可选依赖缺失时对应区块留空。 */
+    private Map<String, Object> buildOverview(Elevator el, UseUnit uu) {
+        List<WorkOrder> orders = workOrderMapper.selectList(new LambdaQueryWrapper<WorkOrder>()
+                .eq(WorkOrder::getElevatorId, el.id)
+                .orderByDesc(WorkOrder::getPlanTime).last("LIMIT 20"));
+        List<com.cqwlw.maintenance.entity.Fault> faults = faultMapper == null
+                ? List.<com.cqwlw.maintenance.entity.Fault>of()
+                : faultMapper.selectList(new LambdaQueryWrapper<com.cqwlw.maintenance.entity.Fault>()
+                        .eq(com.cqwlw.maintenance.entity.Fault::getElevatorCode, el.elevatorCode)
+                        .orderByDesc(com.cqwlw.maintenance.entity.Fault::getCreatedAt).last("LIMIT 50"));
+
+        List<Map<String, Object>> log = new java.util.ArrayList<>();
+        orders.stream().limit(4).forEach(o -> {
+            Map<String, Object> item = new LinkedHashMap<>();
+            item.put("tone", "DONE".equals(o.status) ? "ok" : "amber");
+            item.put("title", nz(o.workType) + " · " + nz(o.orderNo));
+            item.put("sub", joinNonBlank(" · ", o.workerName,
+                    "DONE".equals(o.status) ? "已完成" : "进行中"));
+            item.put("date", o.checkoutTime != null ? TimeUtil.date(o.checkoutTime)
+                    : (o.planTime == null ? "" : TimeUtil.date(o.planTime)));
+            log.add(item);
+        });
+        faults.stream().limit(2).forEach(f -> {
+            boolean rescue = (f.trappedCount != null && f.trappedCount > 0)
+                    || (f.faultType != null && f.faultType.contains("困人"));
+            Map<String, Object> item = new LinkedHashMap<>();
+            item.put("tone", rescue ? "signal" : "amber");
+            item.put("title", rescue ? "急修 · 困人救援" : "急修");
+            item.put("sub", joinNonBlank(" · ", f.faultNo,
+                    "CLOSED".equals(f.status) ? "已闭环" : "处置中"));
+            item.put("date", f.createdAt == null ? "" : TimeUtil.date(f.createdAt));
+            log.add(item);
+        });
+
+        java.time.LocalDateTime since30 = TimeUtil.now().minusDays(30);
+        long fault30 = faults.stream()
+                .filter(f -> f.createdAt != null && f.createdAt.isAfter(since30)).count();
+        long avgResp = Math.round(faults.stream()
+                .filter(f -> f.arrivedAt != null && f.createdAt != null)
+                .mapToLong(f -> java.time.Duration.between(f.createdAt, f.arrivedAt).toMinutes())
+                .average().orElse(0));
+        long daysToCheck = el.nextCheckDate == null ? 0
+                : Math.max(0, java.time.temporal.ChronoUnit.DAYS.between(
+                        TimeUtil.now().toLocalDate(), el.nextCheckDate));
+
+        // 合同：contract_elevator 关联（可选依赖缺失时留空）
+        String contractNo = "";
+        String contractPeriod = "";
+        if (contractElevatorMapper != null && contractMapper != null) {
+            com.cqwlw.maintenance.entity.ContractElevator ce = contractElevatorMapper.selectOne(
+                    new LambdaQueryWrapper<com.cqwlw.maintenance.entity.ContractElevator>()
+                            .eq(com.cqwlw.maintenance.entity.ContractElevator::getElevatorId, el.id)
+                            .last("LIMIT 1"));
+            if (ce != null) {
+                com.cqwlw.maintenance.entity.MaintenanceContract ct = contractMapper.selectById(ce.contractId);
+                if (ct != null) {
+                    contractNo = nz(ct.contractNo);
+                    contractPeriod = ct.startDate + " ~ " + ct.endDate;
+                }
+            }
+        }
+
+        // 主/配合联系人取最近一次工单（认领制下电梯无固定绑定人）
+        WorkOrder latest = orders.isEmpty() ? null : orders.get(0);
+        Map<String, Object> contact = new LinkedHashMap<>();
+        contact.put("unit", uu == null ? "" : nz(uu.unitPrincipal));
+        contact.put("unitPhone", uu == null ? "" : nz(uu.unitPrincipalPhone));
+        contact.put("main", latest == null ? "" : nz(latest.workerName));
+        contact.put("assist", latest == null ? "" : nz(latest.assistantName));
+        contact.put("addr", nz(el.location));
+        contact.put("contractNo", contractNo);
+
+        Map<String, Object> stats = new LinkedHashMap<>();
+        stats.put("fault30", fault30);
+        stats.put("avgResp", avgResp);
+        stats.put("daysToCheck", daysToCheck);
+
+        Map<String, Object> overview = new LinkedHashMap<>();
+        overview.put("useUnitName", uu == null ? "" : nz(uu.unitName));
+        overview.put("contractNo", contractNo);
+        overview.put("contractPeriod", contractPeriod);
+        overview.put("nextService", TimeUtil.formatDate(el.nextMaintenanceDate));
+        overview.put("inspection", TimeUtil.formatDate(el.nextCheckDate));
+        overview.put("serviceLog", log);
+        overview.put("stats", stats);
+        overview.put("contact", contact);
+        return overview;
+    }
+
+    private static String joinNonBlank(String sep, String... parts) {
+        StringBuilder sb = new StringBuilder();
+        for (String p : parts) {
+            if (p != null && !p.isBlank()) {
+                if (sb.length() > 0) {
+                    sb.append(sep);
+                }
+                sb.append(p);
+            }
+        }
+        return sb.toString();
     }
 
     /** 越权 1403。 */
@@ -218,7 +362,7 @@ public class ElevatorService {
         Employee e = scopeService.require(empId);
         Set<String> ids = scopeService.visibleWorkerPlatformIds(e);
         if (ids != null && !assignedToOpenOrder(id, e.platformId)) {
-            throw new BizException(1403, "仅可维护本人负责的电梯");
+            throw new BizException(1403, "仅可维护本人负责的电梯（需先在工单池认领该梯在途工单）");
         }
         String v = projectName == null ? "" : projectName.trim();
         if (v.isEmpty()) {
@@ -239,7 +383,7 @@ public class ElevatorService {
         Employee e = scopeService.require(empId);
         Set<String> ids = scopeService.visibleWorkerPlatformIds(e);
         if (ids != null && !assignedToOpenOrder(id, e.platformId)) {
-            throw new BizException(1403, "仅可维护本人负责的电梯");
+            throw new BizException(1403, "仅可维护本人负责的电梯（需先在工单池认领该梯在途工单）");
         }
 
         LambdaUpdateWrapper<Elevator> uw = new LambdaUpdateWrapper<Elevator>().eq(Elevator::getId, id);

@@ -82,9 +82,16 @@ function distanceMeters(lat1, lng1, lat2, lng2) {
   return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)))
 }
 
-// 问候语按小时分档（工作台问候不再恒显「早安」）
+// 当前 GMT+8 的日历成分（「今日」判断与问候语统一口径，不随设备时区漂移）
+function gmt8Calendar(date) {
+  const ms = date ? date.getTime() : Date.now()
+  const d = new Date(ms + GMT8_OFFSET_MS)
+  return { year: d.getUTCFullYear(), month: d.getUTCMonth() + 1, day: d.getUTCDate(), hour: d.getUTCHours(), weekday: d.getUTCDay() }
+}
+
+// 问候语按小时分档（GMT+8，工作台问候不再恒显「早安」）
 function greetPeriod(d) {
-  const h = (d || new Date()).getHours()
+  const h = gmt8Calendar(d).hour
   if (h < 5) return '夜深了'
   if (h < 11) return '早上好'
   if (h < 14) return '中午好'
@@ -98,5 +105,6 @@ module.exports = {
   parseTime,
   formatDuration,
   distanceMeters,
+  gmt8Calendar,
   greetPeriod
 }

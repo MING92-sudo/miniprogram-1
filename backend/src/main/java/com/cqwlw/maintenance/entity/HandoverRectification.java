@@ -28,4 +28,6 @@ public class HandoverRectification {
     public String rectifierName;
     public String source;
     public Boolean voided;
+    /** 查验不合格描述（生成整改行时自 check_item.fail_desc 带入） */
+    public String failDesc;
 }

@@ -16,7 +16,7 @@
         <template #cell-org="{ row }">{{ row.targetOrgName || row.targetOrg || '—' }}</template>
         <template #cell-validDays="{ row }"><span class="num">{{ row.validDays }} 天</span></template>
         <template #cell-joined="{ row }"><span class="num">{{ row.joinedCount ?? row.joined ?? 0 }}</span></template>
-        <template #cell-status="{ row }"><StatusTag :status="row.status" /></template>
+        <template #cell-status="{ row }"><StatusTag :status="row.status" :label="grantStatusLabel(row.status)" /></template>
         <template #cell-createdAt="{ row }"><span class="mono f12">{{ row.createdAt || '—' }}</span></template>
         <template #row-actions="{ row }">
           <PermButton v-if="invActive(row)" code="invite:manage" label="撤回" variant="ghost" size="xs" icon="ban" @click="revokeInvite(row)" />
@@ -39,7 +39,7 @@
         <template #cell-scope="{ row }"><span class="scope-pill">{{ row.scope || '—' }}</span></template>
         <template #cell-start="{ row }"><span class="mono f12">{{ row.startAt || '—' }}</span></template>
         <template #cell-end="{ row }"><span class="mono f12">{{ row.endAt || '—' }}</span></template>
-        <template #cell-status="{ row }"><StatusTag :status="row.status" /></template>
+        <template #cell-status="{ row }"><StatusTag :status="row.status" :label="grantStatusLabel(row.status)" /></template>
         <template #row-actions="{ row }">
           <PermButton v-if="grActive(row)" code="role:assign" label="回收" variant="ghost" size="xs" icon="refresh" @click="reclaimGrant(row)" />
           <span v-else class="dim f11">—</span>
@@ -123,6 +123,8 @@ import PermButton from '../ui/PermButton.vue'
 import StatusTag from '../ui/StatusTag.vue'
 import { useToast } from '../ui/stores/ui'
 import { inviteTypeLabel, permLabel, roleLabel, statusLabel } from '../ui/labels'
+const GRANT_STATUS = { ACTIVE: '生效中', PENDING: '待生效' }
+function grantStatusLabel(v) { return GRANT_STATUS[String(v || '').toUpperCase()] || statusLabel(v) }
 import { canonicalCodes } from '../ui/permission-v2'
 import { listInvites, createInvite, withdrawInvite, listGrants, createGrant, withdrawGrant, listOrg, listUsers } from '../api/ledger'
 const toast = useToast()

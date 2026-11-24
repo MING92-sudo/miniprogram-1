@@ -69,7 +69,7 @@ describe('GrantsView 邀请与授权字段映射', () => {
     expect(wrapper.text()).toContain('维保一部')
     expect(wrapper.text()).toContain('王管理员')
     expect(wrapper.text()).toContain('刘技师')
-    expect(wrapper.text()).toContain('维保技术员')
+    expect(wrapper.text()).toContain('维保人员')
   })
 
   it('生成邀请码时按后端契约提交 targetOrgId', async () => {

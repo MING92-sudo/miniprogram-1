@@ -27,7 +27,7 @@ public final class DeviceProfileValidator {
             new Field("factoryNumber", "出厂编号"),
             new Field("projectName", "项目名称（小区名称）"),
             new Field("regionId", "所在区域"),
-            new Field("nextCheckDate", "年检日期"));
+            new Field("nextCheckDate", "下次年检日期"));
 
     /** 必传项（上传维保记录的 5 项），顺序固定 */
     public static final List<Field> REQUIRED = FIELDS.subList(0, 5);

@@ -28,7 +28,7 @@ class ContractPermissionTest {
     /** 安装经理可读项目合同，但不能建合同 */
     @Test
     void installManagerCanReadButNotWrite() {
-        when(contractService.list()).thenReturn(List.of(new MaintenanceContract()));
+        when(contractService.listView()).thenReturn(List.of(java.util.Map.of("id", "ct_1")));
         assertEquals(1, controller.list(request("INSTALL_MANAGER")).getData().size());
 
         BizException ex = assertThrows(BizException.class,
@@ -47,7 +47,7 @@ class ContractPermissionTest {
     void workerCannotReadButUnitAdminCan() {
         assertEquals(403, assertThrows(BizException.class,
                 () -> controller.list(request("WORKER"))).getCode());
-        when(contractService.list()).thenReturn(List.of(new MaintenanceContract()));
+        when(contractService.listView()).thenReturn(List.of(java.util.Map.of("id", "ct_1")));
         assertEquals(0, controller.list(request("UNIT_ADMIN")).getCode());
     }
 }

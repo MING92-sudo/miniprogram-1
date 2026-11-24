@@ -150,7 +150,7 @@ public class DemoDataSeeder implements ApplicationRunner {
         employee("emp_3", "李强", "13800000004", "WORKER", "维保人员", DEMO_GROUP,
                 PID_LIQIANG, "CQ3601030003", "2024-08-01", 500, enc);
 
-        employee("emp_admin", "郑浩", "13800000009", "ADMIN", "平台管理员", "",
+        employee("emp_admin", "郑浩", "13800000009", "ADMIN", "维保部管理员", "",
                 "", "", "", 0, enc);
 
         employee("emp_lzg", "李振国", "13800000011", "MAINT_TECH", "维保人员", "维保一组",

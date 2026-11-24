@@ -13,4 +13,10 @@ describe('变更确认绑定登录身份', () => {
   it('提交确认不带请求体', () => {
     expect(src).toContain('confirmChange(confirmId.value)')
   })
+
+  it('不把维保类别码暴露为排期周期选择器', () => {
+    expect(src).not.toContain('v-model="formModel.workTypeCode"')
+    expect(src).not.toContain("workTypeCode: 'HM'")
+    expect(src).not.toContain('workTypeCode: current.value.workTypeCode')
+  })
 })

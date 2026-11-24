@@ -23,6 +23,7 @@ import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -162,6 +163,19 @@ class FaultLifecycleTest {
     }
 
     @Test
+    void submitAcceptsMiniappPayloadAndPersistsProcessFields() {
+        Fault f = fault("PROCESSING");
+        svc.submitFault("f1", "e1", Map.of(
+                "siteDesc", "门锁故障", "todoDesc", "复查门触点", "handleDesc", "更换触点"));
+
+        assertEquals("PENDING_CONFIRM", f.status);
+        assertEquals("门锁故障", f.faultReason);
+        assertEquals("门锁故障", f.siteDesc);
+        assertEquals("复查门触点", f.todoDesc);
+        assertNotNull(f.finishedAt);
+    }
+
+    @Test
     void confirmUsesAtomicPendingState() {
         Fault first = fault("PENDING_CONFIRM");
         Fault second = fault("PENDING_CONFIRM");
@@ -251,6 +265,26 @@ class FaultLifecycleTest {
         BizException ex = assertThrows(BizException.class,
                 () -> svc.evaluate("f1", Set.of("CLIENT_ADMIN"), "u1", Map.of("score", 6)));
         assertEquals(422, ex.getCode());
+    }
+
+    /** 急修投影派生字段：rescue = 困人（被困人数>0 或类型含困人）；responseMinutes = 报修→到场分钟数 */
+    @Test
+    void faultViewDerivesRescueAndResponseMinutes() {
+        Fault f = new Fault();
+        f.id = "fa_rescue";
+        f.trappedCount = 2;
+        f.createdAt = java.time.LocalDateTime.of(2026, 11, 24, 10, 0);
+        f.arrivedAt = java.time.LocalDateTime.of(2026, 11, 24, 10, 25);
+        Map<String, Object> v = svc.faultView(f);
+        assertEquals(true, v.get("rescue"));
+        assertEquals(25L, v.get("responseMinutes"));
+
+        Fault plain = new Fault();
+        plain.id = "fa_plain";
+        plain.faultType = "异响抖动";
+        Map<String, Object> v2 = svc.faultView(plain);
+        assertEquals(false, v2.get("rescue"));
+        assertNull(v2.get("responseMinutes"), "未到场不得给出响应时长");
     }
 
     /** 急修投影补齐管理端展示字段：SLA/期限/代报修来源/录音编号/升级/取消/拒签原因/被指派人 */

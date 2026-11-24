@@ -15,6 +15,7 @@ import com.cqwlw.maintenance.mapper.HandoverCheckMapper;
 import com.cqwlw.maintenance.mapper.HandoverOrderMapper;
 import com.cqwlw.maintenance.mapper.HandoverRectificationMapper;
 import com.cqwlw.maintenance.mapper.HandoverSignMapper;
+import com.cqwlw.maintenance.util.TimeUtil;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -86,7 +87,7 @@ public class HandoverChecklistService {
         HandoverCheck check = new HandoverCheck();
         check.id = Ids.next("hc");
         check.handoverId = handoverId;
-        check.checkedAt = LocalDateTime.now();
+        check.checkedAt = TimeUtil.now();
         check.totalItems = 74;
         checkMapper.insert(check);
         for (HandoverChecklistTemplate.Item t : HandoverChecklistTemplate.items()) {
@@ -195,10 +196,11 @@ public class HandoverChecklistService {
                 r.itemNo = f.itemNo;
                 r.itemType = f.itemGroup;
                 r.respParty = "安装单位";
-                r.dueDate = LocalDate.now().plusDays(7).toString();
+                r.dueDate = LocalDate.now(TimeUtil.ZONE).plusDays(7).toString();
                 r.source = "INSPECT";
                 r.voided = false;
                 r.beforePhotoFileId = f.photoFileIds;
+                r.failDesc = f.failDesc;
                 rectMapper.insert(r);
             }
             o.status = RECTIFYING;
@@ -229,7 +231,7 @@ public class HandoverChecklistService {
         r.rectMeasure = str(body, "rectMeasure");
         r.afterPhotoFileId = str(body, "afterPhotoFileId");
         r.rectifierName = str(body, "rectifierName");
-        r.rectifiedAt = LocalDateTime.now();
+        r.rectifiedAt = TimeUtil.now();
         rectMapper.updateById(r);
         return r;
     }
@@ -244,7 +246,7 @@ public class HandoverChecklistService {
         r.recheckResult = result;
         r.recheckerId = str(body, "recheckerId");
         r.recheckerName = str(body, "recheckerName");
-        r.recheckedAt = LocalDateTime.now();
+        r.recheckedAt = TimeUtil.now();
         rectMapper.updateById(r);
         List<HandoverRectification> all = rectMapper.selectList(
                 new LambdaQueryWrapper<HandoverRectification>().eq(HandoverRectification::getHandoverId, handoverId)
@@ -265,7 +267,7 @@ public class HandoverChecklistService {
         s.actorId = str(body, "approverId");
         s.actorName = str(body, "approverName");
         s.action = "APPROVE";
-        s.at = LocalDateTime.now();
+        s.at = TimeUtil.now();
         signMapper.insert(s);
         return s;
     }
@@ -341,7 +343,7 @@ public class HandoverChecklistService {
             a.category = e[1];
             a.seq = seq++;
             a.sha256 = sha256(handoverId + "/" + e[0] + "/" + (check == null ? "" : check.snapshotJson));
-            a.archivedAt = LocalDateTime.now();
+            a.archivedAt = TimeUtil.now();
             archiveMapper.insert(a);
             out.add(a);
         }

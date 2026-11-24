@@ -30,7 +30,6 @@ definePage(ROUTES['/pages/profile/employee'], {
       { label: t.EMP_JOB, value: u.roleText || u.jobTitle || '-' },
       { label: t.EMP_DEPT, value: DEPT_TEXT[u.department] || u.department || '-' },
       { label: t.EMP_GROUP, value: u.groupName || '-' },
-      { label: t.EMP_JOB_NO, value: u.jobNo || '-' },
       { label: t.EMP_PLATFORM_ID, value: u.platformId || '-' },
       { label: t.EMP_CERT, value: u.certificate || '-' },
       { label: t.EMP_CONTRACT, value: contract || '-' },

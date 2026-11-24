@@ -36,7 +36,7 @@ describe('four states（原型 §7 对齐）', () => {
     const w = mount(ForbiddenState, { props: { code: 'contract:view', allowedRoles: ['MAINT_MGR'], currentRole: 'INST_MGR' } }, routerMock)
     expect(w.text()).toContain('contract:view')
     expect(w.text()).toContain('维保部经理')
-    expect(w.text()).toContain('安装部经理')
+    expect(w.text()).toContain('安装部主管')
     expect(w.find('.code-big').text()).toBe('403')
   })
   it('ForbiddenState unknown renders 404', () => {

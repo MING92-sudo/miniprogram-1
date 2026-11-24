@@ -18,9 +18,9 @@ describe('StatusTag（原型 .tag 语义色）', () => {
     const w = mount(StatusTag, { props: { status: '待复核' } })
     expect(w.find('.tag.tag-amber').exists()).toBe(true)
   })
-  it('REFUSED_RETURNED renders signal tone with 已拒签退回', () => {
+  it('REFUSED_RETURNED renders signal tone with 拒签退回', () => {
     const w = mount(StatusTag, { props: { status: 'REFUSED_RETURNED' } })
-    expect(w.text()).toContain('已拒签退回')
+    expect(w.text()).toContain('拒签退回')
     expect(w.find('.tag.tag-signal').exists()).toBe(true)
   })
 })
@@ -31,7 +31,7 @@ describe('Timeline（原型 tlItem 对齐）', () => {
       { actor: '李振国', role: 'MAINT_TECH', time: '2026-11-13 09:00', text: '签到' }
     ] } })
     expect(w.text()).toContain('李振国')
-    expect(w.text()).toContain('维保技术员')
+    expect(w.text()).toContain('维保人员')
     expect(w.text()).toContain('签到')
     expect(w.findAll('.tl-item').length).toBe(1)
   })

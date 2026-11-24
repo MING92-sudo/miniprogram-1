@@ -1,18 +1,18 @@
 // 仅用于「显示」，内部码值（与后端契约一致）保持不变；
 
 const STATUS = {
-  // 移交单
-  DOC_SUBMITTING: '资料提交', INSPECTING: '查验中', RECTIFYING: '整改中', PENDING_CONFIRM: '待确认', ARCHIVED: '已归档',
-  // 工单/急修
-  OPEN: '待处理', ASSIGNED: '已派单', PROCESSING: '进行中', DONE: '已完成', SUBMITTED: '已提交',
-  REPORTED: '已上报', FAILED: '上报失败', CANCELLED: '已取消', CLOSED: '已关闭', OVERDUE: '已超时',
+  // 移交单（PENDING_CONFIRM 与急修撞码，移交各态以 HandoversView HO_LABEL 为准）
+  INIT: '待发起', DOC_SUBMITTING: '资料移交中', INSPECTING: '现场查验', RECTIFYING: '整改复验中', ARCHIVED: '已归档',
+  // 工单/急修（急修 PROCESSING 为「处置中」，走 faultStatusLabel，勿用本表）
+  OPEN: '待接单', ASSIGNED: '已接单', PROCESSING: '进行中', DONE: '已完成', SUBMITTED: '已提交',
+  REPORTED: '已上报平台', FAILED: '上报异常', CANCELLED: '已取消', CLOSED: '已闭环', OVERDUE: '超期',
   REPORTING: '上报中', REUPLOADING: '重报中', LEGACY_UPLOADING: '同步中',
   URGENT: '紧急', TRAPPED: '困人', FAULT: '故障',
   // 记录单
-  REVIEWING: '待复核', SIGNING: '待签字', SIGNED: '已签字', CONFIRMED: '已确认', AMENDING: '修订中', REJECTED: '已驳回',
-  REFUSED_RETURNED: '已拒签退回',
+  REVIEWING: '待复核', SIGNING: '待签字', SIGNED: '已签署', CONFIRMED: '已确认', AMENDING: '修订中', REJECTED: '已驳回',
+  REFUSED_RETURNED: '拒签退回',
   // 通用
-  ACTIVE: '启用', DISABLED: '停用', INACTIVE: '停保', NORMAL: '正常', PENDING: '待处理', IN_PROGRESS: '进行中',
+  ACTIVE: '启用', DISABLED: '停用', INACTIVE: '停用', NORMAL: '正常', PENDING: '待执行', IN_PROGRESS: '进行中',
   APPROVED: '已批准', EXPIRED: '已过期', REVOKED: '已回收', VOID: '已作废', SCRAPPED: '已报废', TRANSFER: '已移交',
   SUCCESS: '成功', BLOCKED: '已拦截', UNKNOWN: '上报待核对',
   // 检查项结果 / 判定结论 / 复验
@@ -24,15 +24,41 @@ export function statusLabel(v) {
   return STATUS[String(v).toUpperCase()] || String(v)
 }
 
+// 急修七态（与小程序 FAULT_STATUS_TEXT 一致）：PENDING_CONFIRM/PROCESSING 与工单、移交撞码，急修列必须走这里
+const FAULT_STATUS = {
+  OPEN: '待接单', ASSIGNED: '已接单', PROCESSING: '处置中', PENDING_CONFIRM: '待使用单位确认',
+  CLOSED: '已闭环', REFUSED: '待整改', CANCELLED: '已取消'
+}
+export function faultStatusLabel(v) {
+  if (v == null || v === '') return ''
+  return FAULT_STATUS[String(v).toUpperCase()] || String(v)
+}
+
+// 平台上报状态（与小程序 REPORT_STATUS_TEXT 一致）：PENDING 与工单撞码，上报列必须走这里
+const REPORT_STATUS = {
+  REPORTED: '已上报平台', FAILED: '上报异常', PENDING: '待上报', UNKNOWN: '上报待核对',
+  REPORTING: '上报中', REUPLOADING: '重报中', LEGACY_UPLOADING: '同步中', SUCCESS: '上报成功'
+}
+export function reportStatusLabel(v) {
+  if (v == null || v === '') return ''
+  return REPORT_STATUS[String(v).toUpperCase()] || String(v)
+}
+
+const CONFIRM_STATUS = { PENDING: '待确认', CONFIRMED: '已确认' }
+export function confirmStatusLabel(v) {
+  if (v == null || v === '') return ''
+  return CONFIRM_STATUS[String(v).toUpperCase()] || String(v)
+}
+
 const ROLE = {
   PLATFORM_ADMIN: '平台管理员',
-  INST_MGR: '安装部经理', INST_PM: '安装项目经理', INST_CLERK: '安装文员', INSTALLER: '安装技师',
-  MAINT_MGR: '维保部经理', MAINT_SUP: '维保主管', MAINT_TECH: '维保技术员', MAINT_BIZ: '维保商务', MAINT_QUALITY: '维保质量负责人',
+  INST_MGR: '安装部主管', INST_PM: '安装部项目负责人', INST_CLERK: '安装部资料员', INSTALLER: '安装员',
+  MAINT_MGR: '维保部经理', MAINT_SUP: '维保主管', MAINT_TECH: '维保人员', MAINT_BIZ: '维保商务', MAINT_QUALITY: '维保质量负责人',
   CLIENT_ADMIN: '使用单位管理员', CLIENT_SIGNER: '使用单位签字人',
   // 旧码别名
-  ADMIN: '平台管理员', LEADER: '维保班组长', WORKER: '维保技术员', ASSISTANT: '维保技术员',
-  INSTALL_MANAGER: '安装项目经理', INSTALL_CLERK: '安装文员', INSTALL_WORKER: '安装技师',
-  MAINT_MANAGER: '维保部经理', UNIT_ADMIN: '使用单位管理员'
+  ADMIN: '维保部管理员', LEADER: '维保班组长', WORKER: '维保人员', ASSISTANT: '配合维保人员',
+  INSTALL_MANAGER: '安装部项目负责人', INSTALL_CLERK: '安装部资料员', INSTALL_WORKER: '安装员',
+  MAINT_MANAGER: '维保部经理', UNIT_ADMIN: '使用单位安全管理员'
 }
 export function roleLabel(v) {
   if (v == null || v === '') return ''
@@ -61,8 +87,8 @@ export function roleCodeFromName(input) {
 const SCOPE = { ALL: '全部', ORG: '本部门', PROJECT: '本项目', SELF: '本人', TEAM: '本班组', ORG_FLAT: '本单位' }
 export function scopeLabel(v) { return SCOPE[String(v || '').toUpperCase()] || String(v || '') }
 
-// 员工 department 码 → 中文（使用单位是外部客户主体，不进内部组织树，故单独标注）
-const DEPT = { PLATFORM: '平台', INSTALL: '安装部', MAINT: '维保部', UNIT: '使用单位（客户）' }
+// 员工 department 码 → 中文（使用单位是外部客户主体，不进内部组织树）
+const DEPT = { PLATFORM: '平台', INSTALL: '安装部', MAINT: '维保部', UNIT: '使用单位' }
 export function deptLabel(v) {
   if (v == null || v === '') return ''
   return DEPT[String(v).toUpperCase()] || String(v)
@@ -142,7 +168,7 @@ export function enabledLabel(v) {
 const INVITE_TYPE = { INVITE: '邀请码', EMPLOYEE: '员工', UNIT: '使用单位', ROLE: '角色' }
 export function inviteTypeLabel(v) { return INVITE_TYPE[String(v || '').toUpperCase()] || String(v || '') }
 
-const ELEVATOR_ACTION = { TRANSFER: '移装', DISABLE: '停保', SCRAP: '报废' }
+const ELEVATOR_ACTION = { TRANSFER: '移装', DISABLE: '停用', SCRAP: '报废' }
 export function elevatorActionLabel(v) { return ELEVATOR_ACTION[String(v || '').toUpperCase()] || String(v || '') }
 
 // 权限三态：文字与紧凑符号（矩阵用符号，避免拉丁字母）
@@ -155,7 +181,8 @@ export function triStateSymbol(v) { return TRI_SYMBOL[String(v || '')] || String
 export function formatCell(col, value) {
   if (typeof col.format === 'function') return col.format(value)
   const key = col.key
-  if (key === 'status' || key === 'reportStatus' || key === 'confirmStatus' || key === 'result' || key === 'faultType') return statusLabel(value)
+  if (key === 'reportStatus') return reportStatusLabel(value)
+  if (key === 'status' || key === 'confirmStatus' || key === 'result' || key === 'faultType') return statusLabel(value)
   if (key === 'role') return roleLabel(value)
   if (key === 'roles') {
     const arr = Array.isArray(value) ? value : String(value || '').split(',')

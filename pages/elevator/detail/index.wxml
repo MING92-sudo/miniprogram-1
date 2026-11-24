@@ -12,6 +12,7 @@
         <view class="disp fs40 mt6">{{profile.elevatorName}}</view>
         <view class="fs20 muted mt2">{{profile.category}}{{profile.local.ratedLoad ? ' · ' + profile.local.ratedLoad : ''}}{{profile.local.ratedSpeed ? ' · ' + profile.local.ratedSpeed : ''}}{{profile.local.stationsDoors ? ' · ' + profile.local.stationsDoors : ''}}</view>
         <view class="fs18 dim mt2">注册代码 {{profile.platform.registrationCode || '—'}}</view>
+        <view class="fs18 dim mt2">所在区域 {{profile.local.regionName || '重庆市（全市）'}}</view>
         <view class="ed-qr"><text class="i i-qrcode ed-qr-ico"></text></view>
       </view>
 

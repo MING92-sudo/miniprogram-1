@@ -29,6 +29,10 @@ public class Fault {
     public java.time.LocalDateTime arrivedAt;
     /** 维修结束时间 */
     public java.time.LocalDateTime finishedAt;
+    /** 安全解救时刻（困人急修） */
+    public java.time.LocalDateTime rescuedAt;
+    /** 事发楼层 */
+    public String floor;
     public String todoDesc;
     public String photos;
     public String signature;

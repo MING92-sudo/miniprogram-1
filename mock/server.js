@@ -367,8 +367,8 @@ function seedDemoHandovers() {
   })
   const base = {
     elevatorId: 'el_2', elevatorCode: 'EM-2024-002', elevatorName: '世纪大厦 2# 客梯', projectName: '世纪大厦',
-    location: '渝北区龙山一路 88 号', category: '曳引与强制驱动电梯', deviceCode: 'DT-CB-0231', useUnit: '启元物业',
-    installUnit: '中建安装', maintUnit: '博威电梯', initiatorName: '王强 · 中建安装', uploaderName: '刘倩 · 安装部资料员',
+    location: '渝北区龙山一路 88 号', category: '曳引与强制驱动电梯', deviceCode: 'DT-CB-0231', useUnitName: '启元物业',
+    installUnitName: '中建安装', maintUnitName: '博威电梯', initiatorName: '王强 · 中建安装', uploaderName: '刘倩 · 安装部资料员',
     ratedLoad: 1050, ratedLoadUnit: 'kg', ratedSpeed: 1.75, ratedSpeedUnit: 'm/s', stationsDoors: '18 / 18',
     workTypeCode: 'HM', supervisionPassDate: '2026-11-01', receiverId: 'emp_lzg', receiverName: '李振国',
     supervisionReportFileId: 'mock_file_a', maintenanceManualFileId: 'mock_file_b', qualityCertificateFileId: 'mock_file_c',
@@ -447,8 +447,8 @@ function buildElevatorOverview(el) {
   const orders = (d.db.orders || []).filter((o) => o.elevatorId === el.id)
   const faults = (d.db.faults || []).filter((f) => f.elevatorCode === el.elevatorCode)
   const log = []
-  orders.slice(0, 4).forEach((o) => log.push({ tone: o.status === 'DONE' ? 'ok' : 'amber', title: (o.workType || '维保') + ' · ' + (o.orderNo || ''), sub: [o.workerName, o.status === 'DONE' ? '已签退归档' : '进行中'].filter(Boolean).join(' · '), date: (o.checkoutTime || o.planTime || '').slice(0, 10) }))
-  faults.slice(0, 2).forEach((f) => log.push({ tone: f.rescue ? 'signal' : 'amber', title: (f.rescue ? '急修 · 困人救援' : '急修') , sub: [f.id, f.workerName, f.status === 'CLOSED' ? '已闭环' : '处理中'].filter(Boolean).join(' · '), date: (f.createdAt || '').slice(0, 10) }))
+  orders.slice(0, 4).forEach((o) => log.push({ tone: o.status === 'DONE' ? 'ok' : 'amber', title: (o.workType || '维保') + ' · ' + (o.orderNo || ''), sub: [o.workerName, o.status === 'DONE' ? '已完成' : '进行中'].filter(Boolean).join(' · '), date: (o.checkoutTime || o.planTime || '').slice(0, 10) }))
+  faults.slice(0, 2).forEach((f) => log.push({ tone: f.rescue ? 'signal' : 'amber', title: (f.rescue ? '急修 · 困人救援' : '急修') , sub: [f.id, f.workerName, f.status === 'CLOSED' ? '已闭环' : '处置中'].filter(Boolean).join(' · '), date: (f.createdAt || '').slice(0, 10) }))
   const done = orders.filter((o) => o.status === 'DONE').length
   const resp = faults.filter((f) => f.responseMinutes != null)
   const avgResp = resp.length ? Math.round(resp.reduce((s, f) => s + f.responseMinutes, 0) / resp.length) : 0
@@ -467,7 +467,7 @@ const routes = [
   ['GET', '/projects', () => ({ list: (d.db.projects || []).slice(0, 50), total: (d.db.projects || []).length })],
   ['GET', '/contracts', () => ({ list: (d.db.contracts || []).slice(0, 50), total: (d.db.contracts || []).length })],
   ['GET', '/users', () => ({ list: Object.keys(d.db.employees).map((k) => { const e = d.db.employees[k]; return { id: e.id, name: e.name, account: e.account, role: e.role, roleText: e.roleText, groupName: e.groupName, enabled: e.enabled !== false } }), total: Object.keys(d.db.employees).length })],
-  ['GET', '/employees', () => Object.keys(d.db.employees).map((k) => { const e = d.db.employees[k]; return { id: e.id, name: e.name, role: e.role === 'MAINT_TECH' ? 'WORKER' : e.role, groupName: e.groupName, enabled: e.enabled !== false } })],
+  ['GET', '/employees', () => Object.keys(d.db.employees).map((k) => { const e = d.db.employees[k]; return { id: e.id, name: e.name, role: e.role, roleText: e.roleText || '', groupName: e.groupName, enabled: e.enabled !== false } })],
   ['GET', '/use-units', () => d.db.useUnits],
   // 手机号互斥 1002 对齐后端 checkUseUnit：负责人手机 ≠ 安全管理员手机。
   ['POST', '/use-units', ({ body }) => {
@@ -579,11 +579,19 @@ const routes = [
   }],
   ['PUT', '/faults/:id', ({ params, body }) => {
     const f = findOr404(d.db.faults, params.id, '急修单')
-    // 与后端 DirectoryService.updateFault 同口径：仅维修过程四字段
-    ;['siteDesc', 'todoDesc', 'handleDesc', 'finishedAt'].forEach((k) => { if (body[k] != null) f[k] = body[k] })
+    // 与后端 DirectoryService.updateFault 同口径：维修过程五字段
+    ;['siteDesc', 'todoDesc', 'handleDesc', 'finishedAt', 'rescuedAt'].forEach((k) => { if (body[k] != null) f[k] = body[k] })
     return f
   }],
-  ['GET', '/roles-matrix', () => ({ roles: menus.ROLE_PRIORITY, matrix: {} })],
+  ['GET', '/roles-matrix', () => [...permMirror.canonicalCodes()].map((code) => {
+    // 与后端 LedgerController.rolesMatrix 同构：[{code, states:{ROLE:'Y'|'C'|'-'}}]
+    const states = {}
+    ;[...permMirror.canonicalRoles()].forEach((r) => {
+      const s = permMirror.state(r, code)
+      states[r] = s === 'Y' ? 'Y' : (s === 'C' ? 'C' : '-')
+    })
+    return { code, states }
+  })],
   ['GET', '/stats', () => ({ managed: d.db.elevators.length, done: d.db.orders.filter((o) => o.status === 'DONE').length, openFaults: d.db.faults.filter((f) => f.status === 'OPEN').length, pendingSigns: d.db.unitRecords.filter((r) => r.confirmStatus === 'PENDING').length })],
   ['GET', '/audit', () => ({ list: [], total: 0 })],
   ['GET', '/settings', () => ([{ key: 'record_review_enabled', value: '0', remark: '维保记录复核开关' }, { key: 'sla_minutes', value: '30', remark: '急修 SLA 分钟' }])],
@@ -670,7 +678,21 @@ const routes = [
   }],
   ['POST', '/faults/:id/grab', () => ({ ok: true, status: 'ASSIGNED' })],
   ['POST', '/faults/:id/arrive', () => ({ ok: true, status: 'PROCESSING' })],
-  ['POST', '/faults/:id/submit', () => ({ ok: true, status: 'PENDING_CONFIRM' })],
+  ['POST', '/faults/:id/submit', ({ params, body }) => {
+    const f = findOr404(d.db.faults, params.id, '急修单')
+    if (['PROCESSING', 'REFUSED'].indexOf(f.status) < 0) throw { code: 422, message: '仅处置中或已退回的急修单可提交' }
+    const reason = String(body.faultReason || '').trim() || String(body.siteDesc || '').trim()
+    const handle = String(body.handleDesc || '').trim()
+    if (!reason || !handle) throw { code: 422, message: '故障原因与处理措施必填' }
+    if (body.siteDesc != null) f.siteDesc = String(body.siteDesc).trim()
+    if (body.todoDesc != null) f.todoDesc = String(body.todoDesc).trim()
+    f.faultReason = reason
+    f.handleDesc = handle
+    f.result = handle
+    f.finishedAt = formatTime()
+    f.status = 'PENDING_CONFIRM'
+    return { ok: true, status: f.status }
+  }],
   ['POST', '/faults/:id/confirm', ({ body }) => ({ ok: true, status: body.pass === false ? 'REFUSED' : 'CLOSED' })],
   ['POST', '/faults/:id/cancel', () => ({ ok: true, status: 'CANCELLED' })],
   ['POST', '/faults/:id/evaluate', () => ({ ok: true })],
@@ -771,7 +793,11 @@ const routes = [
       category: el.category
     }
   }],
-  ['GET', '/work-orders', ({ query }) => paginate(d.listOrders(query).filter(orderVisible), query)],
+  ['GET', '/work-orders', ({ query }) => {
+    const r = paginate(d.listOrders(query).filter(orderVisible), query)
+    r.serverNow = formatTime()
+    return r
+  }],
   ['GET', '/work-orders/:id', ({ params }) => {
     const order = d.getOrder(params.id)
     if (!order) throw { code: 1404, message: '工单不存在' }
@@ -1103,7 +1129,10 @@ const routes = [
       confirmStatus: r.confirmStatus || '',
       lifecycleStatus: r.lifecycleStatus || '',
       originalRecordId: r.originalRecordId || '',
-      archiveFileId: r.archiveFileId || ''
+      archiveFileId: r.archiveFileId || '',
+      workerSigned: !!r.workerSignatureUrl,
+      assistantSigned: !!r.assistantSignatureUrl,
+      checkAbnormal: (r.items || []).filter((i) => i.result === 'ABNORMAL').length
     })), query)
   }],
 

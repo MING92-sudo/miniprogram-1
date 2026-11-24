@@ -47,7 +47,7 @@ public class AdminRoleInterceptor implements HandlerInterceptor {
         }
         if (!allowed) {
             throw new BizException(403, write
-                    ? "该操作需要维保部管理员权限（ADMIN/SYS_ADMIN）"
+                    ? "该操作需要管理端写权限（维保部管理员 ADMIN / 平台管理员 PLATFORM_ADMIN）"
                     : "该账号无管理端权限，请使用小程序");
         }
         return true;

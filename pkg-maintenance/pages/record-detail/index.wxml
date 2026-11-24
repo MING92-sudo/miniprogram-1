@@ -78,7 +78,7 @@
         <view class="kv-row"><text class="dim">SHA-256</text><text class="mono rd-hash">{{archive.hash}}</text></view>
       </view>
 
-      <perm-button perm="record:sign_request" capability="发起使用单位签字" allowRoles="主检、维保主管" type="primary" text="发起使用单位签字" bind:tap="onSignRequest"></perm-button>
+      <perm-button perm="record:sign_request" capability="发起使用单位签字" allowRoles="主检人、维保主管" type="primary" text="发起使用单位签字" bind:tap="onSignRequest"></perm-button>
       <perm-button perm="record:export" capability="查看归档" allowRoles="维保主管、维保经理、平台" type="ghost" text="查看归档 / 哈希" bind:tap="onArchive"></perm-button>
       <button wx:if="{{record.shareToken}}" class="btn btn-ghost" bindtap="copySignLink">复制签署链接</button>
     </block>

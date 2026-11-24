@@ -159,14 +159,15 @@ public class AdminService {
                     "page", intOf(q.get("page"), 1), "size", intOf(q.get("size"), 20));
         }
         LambdaQueryWrapper<MaintainRecord> w = new LambdaQueryWrapper<>();
-        w.select(MaintainRecord::getId, MaintainRecord::getElevatorName, MaintainRecord::getElevatorCode,
+        w.select(MaintainRecord::getId, MaintainRecord::getElevatorId, MaintainRecord::getElevatorName, MaintainRecord::getElevatorCode,
                 MaintainRecord::getWorkType, MaintainRecord::getWorkTypeCode,
                 MaintainRecord::getWorkerName, MaintainRecord::getAssistantName,
                 MaintainRecord::getCheckinTime, MaintainRecord::getCheckoutTime, MaintainRecord::getDuration,
                 MaintainRecord::getProblemCodesJson, MaintainRecord::getReportStatus, MaintainRecord::getRetryCount,
                 MaintainRecord::getConfirmStatus, MaintainRecord::getLifecycleStatus,
                 MaintainRecord::getRefuseCode, MaintainRecord::getRefuseReason, MaintainRecord::getSatisfaction,
-                MaintainRecord::getOriginalRecordId, MaintainRecord::getArchiveFileId, MaintainRecord::getCreatedAt);
+                MaintainRecord::getOriginalRecordId, MaintainRecord::getArchiveFileId,
+                MaintainRecord::getWorkerSignatureUrl, MaintainRecord::getAssistantSignatureUrl, MaintainRecord::getCreatedAt);
         if (visiblePlatformIds != null) {
             w.and(x -> x.in(MaintainRecord::getWorkerPlatformId, visiblePlatformIds)
                     .or().in(MaintainRecord::getAssistantPlatformId, visiblePlatformIds));
@@ -220,8 +221,9 @@ public class AdminService {
             }
         }
         List<Map<String, Object>> list = new ArrayList<>();
+        Map<String, Integer> abnormalByRecordId = abnormalCounts(p.getRecords());
         for (MaintainRecord r : p.getRecords()) {
-            list.add(recordRow(r, projectByElevatorId));
+            list.add(recordRow(r, projectByElevatorId, abnormalByRecordId.getOrDefault(r.id, 0)));
         }
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("list", list);
@@ -231,7 +233,27 @@ public class AdminService {
         return out;
     }
 
-    private Map<String, Object> recordRow(MaintainRecord r, Map<String, String> projectByElevatorId) {
+    private Map<String, Integer> abnormalCounts(List<MaintainRecord> records) {
+        if (records == null || records.isEmpty()) {
+            return Map.of();
+        }
+        List<String> ids = records.stream().map(r -> r.id).filter(Objects::nonNull).distinct().toList();
+        if (ids.isEmpty()) {
+            return Map.of();
+        }
+        List<MaintainRecord> details = recordMapper.selectList(new LambdaQueryWrapper<MaintainRecord>()
+                .select(MaintainRecord::getId, MaintainRecord::getItemsJson)
+                .in(MaintainRecord::getId, ids));
+        Map<String, Integer> counts = new java.util.HashMap<>();
+        for (MaintainRecord detail : details == null ? List.<MaintainRecord>of() : details) {
+            List<Map<String, Object>> items = JsonUtil.readList(detail.itemsJson);
+            counts.put(detail.id, items == null ? 0 : (int) items.stream()
+                    .filter(i -> "ABNORMAL".equals(i.get("result"))).count());
+        }
+        return counts;
+    }
+
+    private Map<String, Object> recordRow(MaintainRecord r, Map<String, String> projectByElevatorId, int checkAbnormal) {
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("id", r.id);
         m.put("elevatorName", nz(r.elevatorName));
@@ -257,6 +279,9 @@ public class AdminService {
         m.put("satisfaction", r.satisfaction == null ? 0 : r.satisfaction);
         m.put("originalRecordId", nz(r.originalRecordId));
         m.put("archiveFileId", nz(r.archiveFileId));
+        m.put("workerSigned", r.workerSignatureUrl != null && !r.workerSignatureUrl.isBlank());
+        m.put("assistantSigned", r.assistantSignatureUrl != null && !r.assistantSignatureUrl.isBlank());
+        m.put("checkAbnormal", checkAbnormal);
         m.put("createdAt", TimeUtil.format(r.createdAt));
         return m;
     }

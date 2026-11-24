@@ -16,7 +16,7 @@ const LOCAL_FIELDS = {
   ratedLoad: { label: '额定载重', placeholder: '请输入额定载重（kg）', numeric: true },
   ratedSpeed: { label: '额定速度', placeholder: '请输入额定速度（m/s）', numeric: true },
   stationsDoors: { label: '层站/门', placeholder: '请输入层站/门' },
-  nextCheckDate: { label: '下次检验日期', placeholder: 'yyyy-MM-dd' },
+  nextCheckDate: { label: '下次年检日期', placeholder: 'yyyy-MM-dd' },
   nextMaintenanceDate: { label: '下次维保日期', placeholder: 'yyyy-MM-dd' }
 }
 

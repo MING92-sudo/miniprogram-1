@@ -5,7 +5,7 @@
     <error-retry wx:elif="{{error}}" message="{{error}}" bind:retry="onRetry"></error-retry>
     <block wx:else>
       <view wx:for="{{list}}" wx:key="index" class="card col gap4">
-        <view class="kv"><span>项目名称</span><b>{{item.projectName || '—'}}</b></view>
+        <view class="kv"><span>项目名称</span><b>{{item.name || '—'}}</b></view>
         <view class="kv"><span>电梯台数</span><b>{{item.elevatorCount || '—'}}</b></view>
         <view class="kv"><span>状态</span><b>{{item.status || '—'}}</b></view>
       </view>

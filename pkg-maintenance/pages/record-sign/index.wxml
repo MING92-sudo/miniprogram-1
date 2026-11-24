@@ -30,7 +30,7 @@
           <image wx:if="{{order.assistantSignatureUrl}}" class="rs-sig" src="{{order.assistantSignatureUrl}}" mode="aspectFit"></image>
           <status-tag text="{{assistantSigned ? '已签' : '未签'}}" tone="{{assistantSigned ? 'ok' : 'dim'}}"></status-tag>
         </view>
-        <view class="rule-note"><text class="i i-circle-info"></text><text>主检与配合须为不同账号，各自在本机签字；双签齐后方可发起使用单位签字。</text></view>
+        <view class="rule-note"><text class="i i-circle-info"></text><text>主检人与配合人须为不同账号，各自在本机签字；双签齐后方可发起使用单位签字。</text></view>
       </view>
 
       <view wx:if="{{order.recordInfo}}" class="card col gap6">

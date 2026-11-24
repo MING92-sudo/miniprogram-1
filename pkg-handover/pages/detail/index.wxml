@@ -11,10 +11,10 @@
         <text class="tag {{statusTag}}">{{statusText}}</text>
       </view>
       <view class="disp fs40 mt6">{{handover.elevatorName || handover.projectName}}</view>
-      <view class="fs18 muted mt2">{{handover.installUnit || '安装部'}} → {{handover.maintUnit || '维保部'}} · 安装部移交维保部</view>
+      <view class="fs18 muted mt2">{{handover.installUnitName || '安装部'}} → {{handover.maintUnitName || '维保部'}} · 安装部移交维保部</view>
       <view class="hero-grid mt10">
         <view><text class="hg-label">DEVICE CODE</text><text class="hg-val mono">{{handover.deviceCode || '-'}}</text></view>
-        <view><text class="hg-label">USE UNIT</text><text class="hg-val">{{handover.useUnit || '-'}}</text></view>
+        <view><text class="hg-label">USE UNIT</text><text class="hg-val">{{handover.useUnitName || '-'}}</text></view>
         <view><text class="hg-label">INITIATOR</text><text class="hg-val">{{handover.initiatorName || '-'}}</text></view>
         <view><text class="hg-label">UPLOADED BY</text><text class="hg-val">{{uploaderText}}</text></view>
         <view><text class="hg-label">CAPACITY</text><text class="hg-val mono">{{capacityText}}</text></view>

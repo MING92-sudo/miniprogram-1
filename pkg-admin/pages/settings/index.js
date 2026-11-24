@@ -9,8 +9,13 @@ definePage(ROUTES['/pkg-admin/pages/settings/index'], {
   onBack() { nav.back() },
   load() {
     this.setData({ loading: true, error: '' })
-    admin.getSettings().then((res) => this.setData({ items: Array.isArray(res) ? res : ((res && res.list) || []), loading: false }))
-      .catch((e) => this.setData({ loading: false, error: (e && e.message) || '加载失败' }))
+    // /settings 返回扁平 Map<key, value>：适配为列表行（无 remark 列，标题即配置键）
+    admin.getSettings().then((res) => {
+      const items = Array.isArray(res) ? res
+        : (res && res.list) || (res && typeof res === 'object'
+            ? Object.keys(res).map((key) => ({ key, remark: key, value: res[key] })) : [])
+      this.setData({ items, loading: false })
+    }).catch((e) => this.setData({ loading: false, error: (e && e.message) || '加载失败' }))
   },
   onRetry() { this.load() },
   onEdit(e) {

@@ -8,6 +8,7 @@ import com.cqwlw.maintenance.entity.WorkOrder;
 import com.cqwlw.maintenance.mapper.ElevatorMapper;
 import com.cqwlw.maintenance.mapper.EmployeeMapper;
 import com.cqwlw.maintenance.mapper.WorkOrderMapper;
+import com.cqwlw.maintenance.util.TimeUtil;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -51,7 +52,7 @@ public class MaintenanceCalendarService {
         if (emp == null) {
             throw new BizException(401, "登录已过期，请重新登录");
         }
-        LocalDate start = from == null ? LocalDate.now() : from;
+        LocalDate start = from == null ? LocalDate.now(TimeUtil.ZONE) : from;
         LocalDate end = to == null ? start.plusMonths(DEFAULT_MONTHS) : to;
         if (end.isBefore(start)) {
             throw new BizException(422, "结束日期不能早于开始日期");
@@ -80,7 +81,7 @@ public class MaintenanceCalendarService {
                 }
             }
         }
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(TimeUtil.ZONE);
         // 纯单测未初始化 TableInfo，不能使用 Lambda 列裁剪。
         Map<String, List<WorkOrder>> doneHistory = new LinkedHashMap<>();
         if (!elevators.isEmpty()) {

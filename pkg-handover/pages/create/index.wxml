@@ -5,7 +5,7 @@
     <view class="plate">
       <view class="row between">
         <text class="mono fs18 amber ls12">HANDOVER / {{form.projectName || '—'}}</text>
-        <text class="tag tag-amber">草稿</text>
+        <text class="tag tag-amber">待发起</text>
       </view>
       <view class="disp fs40 mt6">{{form.elevatorName || form.projectName || '—'}}</view>
       <view class="fs18 muted mt2">{{ct.PREVIEW_SUB}}</view>

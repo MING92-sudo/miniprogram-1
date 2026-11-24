@@ -291,7 +291,8 @@ public class WorkOrderService {
         Page<WorkOrder> result = orderMapper.selectPage(new Page<>(page, size), w.orderByDesc(WorkOrder::getPlanTime));
         List<WorkOrder> current = result.getRecords() == null ? List.of() : result.getRecords();
         if (current.isEmpty()) {
-            return JsonUtil.map("list", List.of(), "total", (int) result.getTotal());
+            return JsonUtil.map("list", List.of(), "total", (int) result.getTotal(),
+                    "serverNow", TimeUtil.format(TimeUtil.now()));
         }
 
         Map<String, Elevator> elevatorMap = new java.util.HashMap<>();
@@ -321,7 +322,8 @@ public class WorkOrderService {
         List<Map<String, Object>> views = current.stream()
                 .map(o -> toMap(o, false, elevatorMap.get(o.elevatorId), regionNames.getOrDefault(o.regionId, "")))
                 .collect(Collectors.toList());
-        return JsonUtil.map("list", views, "total", (int) result.getTotal());
+        return JsonUtil.map("list", views, "total", (int) result.getTotal(),
+                "serverNow", TimeUtil.format(TimeUtil.now()));
     }
 
     private void applyOrderReadScope(LambdaQueryWrapper<WorkOrder> w, Employee emp, Set<String> ids) {
@@ -472,7 +474,7 @@ public class WorkOrderService {
         }
         boolean assistant = "ASSISTANT".equals(body.get("role"));
         if (hasCheckin(assistant ? o.assistantCheckinExtraJson : o.checkinExtraJson)) {
-            throw new BizException(1003, (assistant ? "配合人员" : "主维保人员") + "已签到，不可重复签到");
+            throw new BizException(1003, (assistant ? "配合人员" : "主检人") + "已签到，不可重复签到");
         }
         Double lat = dbl(body.get("latitude"));
         Double lng = dbl(body.get("longitude"));
@@ -812,7 +814,7 @@ public class WorkOrderService {
             throw new BizException(422, "配合人员签到必须携带双人动态码");
         }
         if (code.equals(o.dynamicCode)) {
-            throw new BizException(1003, "动态码已使用，请主维保人员刷新后重新取码");
+            throw new BizException(1003, "动态码已使用，请主检人刷新后重新取码");
         }
         long step = currentStep();
         for (long s = step; s > step - DYNAMIC_CODE_TTL_SECONDS / DYNAMIC_CODE_STEP_SECONDS; s--) {
@@ -821,7 +823,7 @@ public class WorkOrderService {
             }
         }
         throw new BizException(1003, "动态码不正确或已过期（有效期 " + DYNAMIC_CODE_TTL_SECONDS
-                + " 秒），请主维保人员刷新后重试");
+                + " 秒），请主检人刷新后重试");
     }
 
     /** 先校验动态码，再以原子条件更新保证一次性消费。 */
@@ -830,7 +832,7 @@ public class WorkOrderService {
         LocalDateTime expiresAt = TimeUtil.now().plusSeconds(DYNAMIC_CODE_TTL_SECONDS);
         int updated = orderMapper.consumeDynamicCodeIfUnused(o.id, code, expiresAt);
         if (updated == 0) {
-            throw new BizException(1003, "动态码已使用，请主维保人员刷新后重新取码");
+            throw new BizException(1003, "动态码已使用，请主检人刷新后重新取码");
         }
         o.dynamicCode = code;
         o.dynamicCodeExpiresAt = expiresAt;
@@ -1140,7 +1142,7 @@ public class WorkOrderService {
         boolean hasAssistant = o.assistantName != null && !o.assistantName.isBlank()
                 && !"无".equals(o.assistantName.trim());
         if (workerSignature.isEmpty()) {
-            throw new BizException(422, "请完成主维保人员签名");
+            throw new BizException(422, "请完成主检人签名");
         }
         if ((pooledOrder || hasAssistant) && assistantSignature.isEmpty()) {
             throw new BizException(422, "请完成配合人员签名（双人签字）");
@@ -1326,6 +1328,10 @@ public class WorkOrderService {
         ctx.put("address", el == null ? "" : nz(el.location));
         ctx.put("useUnitName", uu == null ? "" : nz(uu.unitName));
         ctx.put("companyName", nz(c.name));
+        ctx.put("workerName", nz(o.workerName));
+        ctx.put("assistantName", nz(o.assistantName));
+        ctx.put("deviceCode", el == null ? "" : nz(el.deviceCode));
+        ctx.put("workDate", o.checkoutTime == null ? "" : TimeUtil.date(o.checkoutTime));
         ctx.put("workerPhone", phoneByName(o.workerName, el == null ? "" : nz(el.workerPhone)));
         ctx.put("assistantPhone", phoneByName(o.assistantName, ""));
         ctx.put("workerPlatformId", nz(o.workerPlatformId));
@@ -1434,6 +1440,9 @@ public class WorkOrderService {
         m.put("assistantCheckedIn", hasCheckin(o.assistantCheckinExtraJson));
         m.put("workerSigned", o.workerSignatureFileId != null && !o.workerSignatureFileId.isBlank());
         m.put("assistantSigned", o.assistantSignatureFileId != null && !o.assistantSignatureFileId.isBlank());
+        // 签署页缩略图：签名图按 fileId 走 urlOf 重签（AGENTS §7 文件签名门禁）
+        m.put("workerSignatureUrl", o.workerSignatureFileId == null ? "" : fileStorage.urlOf(o.workerSignatureFileId));
+        m.put("assistantSignatureUrl", o.assistantSignatureFileId == null ? "" : fileStorage.urlOf(o.assistantSignatureFileId));
         m.put("checkoutTime", TimeUtil.format(o.checkoutTime));
         m.put("duration", o.duration == null ? "" : o.duration);
         m.put("originalRecordId", o.originalRecordId == null ? "" : o.originalRecordId);
@@ -1458,6 +1467,9 @@ public class WorkOrderService {
                     info.put("confirmStatus", nz(rec.confirmStatus));
                     info.put("uploadStatus", UnitRecordService.uploadStatus(rec.reportStatus));
                     info.put("satisfaction", rec.satisfaction);
+                    info.put("version", rec.version == null ? 1 : rec.version);
+                    info.put("hash", rec.archiveHash == null ? ""
+                            : rec.archiveHash.substring(0, Math.min(8, rec.archiveHash.length())));
                     m.put("recordInfo", info);
                 }
             }

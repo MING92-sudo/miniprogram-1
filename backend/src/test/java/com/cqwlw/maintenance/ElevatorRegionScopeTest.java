@@ -9,6 +9,7 @@ import com.cqwlw.maintenance.entity.Employee;
 import com.cqwlw.maintenance.entity.WorkOrder;
 import com.cqwlw.maintenance.mapper.ElevatorMapper;
 import com.cqwlw.maintenance.mapper.UseUnitMapper;
+import com.cqwlw.maintenance.entity.UseUnit;
 import com.cqwlw.maintenance.mapper.WorkOrderMapper;
 import com.cqwlw.maintenance.service.ElevatorService;
 import com.cqwlw.maintenance.service.EmployeeScopeService;
@@ -105,6 +106,51 @@ class ElevatorRegionScopeTest {
         when(elevatorMapper.selectList(any())).thenReturn(List.of(pooledElevator("el_open", null)));
 
         assertEquals(1, service.listView("emp_1").size(), "不限区域（regionId 空）电梯对任意区域可见");
+    }
+
+    /** 档案投影：local.regionName 经 RegionMapper 解析；梯级电话为空时回退使用单位档案，梯级有值优先 */
+    @Test
+    @SuppressWarnings("unchecked")
+    void profileExposesRegionNameAndUnitPhoneFallback() {
+        setUp(worker("rg_1", "pid_zhang"));
+        stubNonManagementRead();
+        UseUnitMapper useUnits = mock(UseUnitMapper.class);
+        UseUnit uu = new UseUnit();
+        uu.id = "uu_1";
+        uu.unitName = "某物业";
+        uu.elevatorAdministerPhone = "13900001111";
+        uu.emergencyPhone = "023-12345678";
+        when(useUnits.selectById("uu_1")).thenReturn(uu);
+        com.cqwlw.maintenance.mapper.RegionMapper regions =
+                mock(com.cqwlw.maintenance.mapper.RegionMapper.class);
+        com.cqwlw.maintenance.entity.Region region = new com.cqwlw.maintenance.entity.Region();
+        region.id = "rg_1";
+        region.name = "渝北区";
+        when(regions.selectById("rg_1")).thenReturn(region);
+        ElevatorService svc = new ElevatorService(elevatorMapper, useUnits, scopeService, workOrderMapper,
+                mock(com.cqwlw.maintenance.mapper.CompanyMapper.class));
+        svc.setRegionMapper(regions);
+        Elevator el = pooledElevator("el_p", "rg_1");
+        el.useUnitId = "uu_1";
+        when(elevatorMapper.selectById("el_p")).thenReturn(el);
+
+        Map<String, Object> p = svc.profile("el_p", "emp_1");
+
+        assertEquals("渝北区", ((Map<String, Object>) p.get("local")).get("regionName"));
+        assertEquals("13900001111", ((Map<String, Object>) p.get("platform")).get("elevatorAdministerPhone"));
+        assertEquals("023-12345678", ((Map<String, Object>) p.get("platform")).get("emergencyPhone"));
+
+        el.emergencyPhone = "400-111";
+        Map<String, Object> p2 = svc.profile("el_p", "emp_1");
+        assertEquals("400-111", ((Map<String, Object>) p2.get("platform")).get("emergencyPhone"), "梯级已有值不得被单位档案覆盖");
+
+        // overview 概览：四格/统计/联系人/服务记录区块常驻（可选依赖缺失时对应区块留空）
+        Map<String, Object> overview = (Map<String, Object>) p.get("overview");
+        org.junit.jupiter.api.Assertions.assertNotNull(overview, "档案投影必须带 overview 区块");
+        assertEquals("某物业", overview.get("useUnitName"));
+        org.junit.jupiter.api.Assertions.assertNotNull(overview.get("stats"));
+        org.junit.jupiter.api.Assertions.assertNotNull(overview.get("contact"));
+        assertEquals(List.of(), overview.get("serviceLog"));
     }
 
     @Test

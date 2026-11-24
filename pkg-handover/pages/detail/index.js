@@ -13,6 +13,7 @@ const {
   HANDOVER_STATUS,
   HANDOVER_STATUS_TEXT,
   HANDOVER_DOCS,
+  HANDOVER_FLOW,
   HANDOVER_GROUP_LABEL,
   WORK_TYPE_CODES,
   HANDOVER_TEXT,
@@ -31,8 +32,7 @@ const ACTION_ROLES = {
   review: [ROLE.INSTALL_MANAGER, ROLE.ADMIN, 'INST_MGR', 'PLATFORM_ADMIN']
 }
 
-// 原型四节点（安装部提交/内部审核/维保验收/双方签字）；RECTIFYING 落位维保验收
-const STEPS4 = ['安装部提交', '内部审核', '维保验收', '双方签字']
+// 四节点流程与发起页共用 HANDOVER_FLOW；RECTIFYING 落位维保验收
 function buildSteps4(status) {
   let active = 0
   if (status === HANDOVER_STATUS.DOC_SUBMITTING) active = 0
@@ -40,7 +40,7 @@ function buildSteps4(status) {
   else if (status === HANDOVER_STATUS.INSPECTING || status === HANDOVER_STATUS.RECTIFYING) active = 2
   else if (status === HANDOVER_STATUS.PENDING_CONFIRM) active = 3
   else if (status === HANDOVER_STATUS.ARCHIVED) active = 4
-  return STEPS4.map(function (label, i) {
+  return HANDOVER_FLOW.map(function (label, i) {
     return { label: label, state: i < active ? 'done' : (i === active ? 'active' : '') }
   })
 }

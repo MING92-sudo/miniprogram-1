@@ -27,7 +27,7 @@
           <PermButton code="elevator:edit" label="编辑" variant="ghost" size="xs" icon="edit" @click="openEditRow(row)" />
           <PermButton v-if="canGeoEdit" code="elevator:edit" label="定位" variant="ghost" size="xs" icon="map-pin" @click="openGeo(row)" />
           <PermButton v-if="row.status === 'INACTIVE'" code="elevator:edit" label="启用" variant="ghost" size="xs" icon="check" @click="toggleSuspend(row)" />
-          <PermButton v-else code="elevator:edit" label="停保" variant="ghost" size="xs" icon="ban" c-tip="停保后不派单、小程序不可见" @click="toggleSuspend(row)" />
+          <PermButton v-else code="elevator:edit" label="停用" variant="ghost" size="xs" icon="ban" c-tip="停用后不派单、小程序不可见" @click="toggleSuspend(row)" />
           <PermButton code="elevator:edit" label="删除电梯" variant="danger" size="xs" icon="ban" @click="askDelete(row)" />
         </template>
       </DataTable>
@@ -140,7 +140,7 @@
         <PermButton code="elevator:edit" label="编辑" variant="ghost" icon="edit" @click="openEdit" />
         <PermButton v-if="canGeoEdit" code="elevator:edit" label="修改定位" variant="ghost" icon="map-pin" @click="openGeo(current)" />
         <PermButton v-if="current.status === 'INACTIVE'" code="elevator:edit" label="启用" variant="ghost" icon="check" @click="toggleSuspend(current)" />
-        <PermButton v-else code="elevator:edit" label="停保" variant="ghost" icon="ban" @click="toggleSuspend(current)" />
+        <PermButton v-else code="elevator:edit" label="停用" variant="ghost" icon="ban" @click="toggleSuspend(current)" />
         <PermButton code="elevator:edit" label="删除电梯" variant="danger" icon="ban" @click="showDelete = true" />
       </template>
     </Drawer>
@@ -202,7 +202,7 @@
         <RuleNote v-if="formMode === 'create'" class="mt8" icon="calendar">留空则以建档日期为基线：首保 = 基线 + 15 天，此后按半月 / 季 / 半年 / 年累加排满一年并进入维保日历，到期前一日自动派单；存量电梯请填实际上次维保日期。建档后基线由签退自动滚动，不可手改。</RuleNote>
         <RuleNote class="mt8" icon="alert">派单已改为区域抢单池（2026-11-20 D2）：不再需要绑定维保人员；电梯归属 = 「所在区域」，留空 = 不限区域（全员可见）。</RuleNote>
       </Form>
-      <RuleNote class="mt12">前 5 项（电梯编码 / 设备代码 / 注册代码 / 单位内编号 / 出厂编号）为上传维保记录的必传项，缺任一项签退即被拦截；项目名称（小区名称）、所在区域、年检日期可留空后补。</RuleNote>
+      <RuleNote class="mt12">前 5 项（电梯编码 / 设备代码 / 注册代码 / 单位内编号 / 出厂编号）为上传维保记录的必传项，缺任一项签退即被拦截；项目名称（小区名称）、所在区域、下次年检日期可留空后补。</RuleNote>
     </Modal>
 
     <!-- 删除确认 -->
@@ -434,7 +434,7 @@ async function toggleSuspend(row) {
   const suspend = row.status !== 'INACTIVE'
   try {
     await updateElevator(row.id, { status: suspend ? 'INACTIVE' : 'ACTIVE' })
-    toast.success((row.elevatorCode || '电梯') + (suspend ? ' 已停保' : ' 已恢复启用'))
+    toast.success((row.elevatorCode || '电梯') + (suspend ? ' 已停用' : ' 已恢复启用'))
     await load()
     if (archiveOpen.value && current.value.id === row.id) {
       openArchive(rows.value.find(r => r.id === row.id) || row)
@@ -442,7 +442,7 @@ async function toggleSuspend(row) {
   } catch (e) { toast.error(e.message || '操作失败') }
 }
 
-// 变更确认（双人确认第二段；发起入口已由「停保/删除电梯」直操作替代，仅保留存量变更单确认）
+// 变更确认（双人确认第二段；发起入口已由「停用/删除电梯」直操作替代，仅保留存量变更单确认）
 const showConfirm = ref(false)
 const confirmId = ref('')
 function openConfirm(id) { confirmId.value = id; showConfirm.value = true }

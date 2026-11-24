@@ -64,6 +64,19 @@ describe('RecordsView 拒签分类展示（V56）', () => {
     expect(normal.text()).not.toContain('拒签')
   })
 
+  it('待使用单位确认不显示成工单待执行', async () => {
+    const w = mountView()
+    await flushPromises()
+    const row = w.findAll('tbody tr').find((tr) => tr.text().includes('REC-0001'))
+    expect(row.text()).toContain('待确认')
+    expect(row.text()).not.toContain('待执行')
+
+    await row.trigger('click')
+    await flushPromises()
+    expect(w.text()).toContain('确认状态')
+    expect(w.text()).not.toContain('待执行')
+  })
+
   it('详情抽屉展示拒签分类与拒签原因', async () => {
     const w = mountView()
     await flushPromises()

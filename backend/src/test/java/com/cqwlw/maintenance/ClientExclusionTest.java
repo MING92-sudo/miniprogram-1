@@ -145,6 +145,11 @@ class ClientExclusionTest {
         assertTrue(out.stream().noneMatch(m -> ((List<?>) m.get("roles")).stream()
                 .anyMatch(r -> String.valueOf(r).startsWith("CLIENT"))), "账号视图不得出现 CLIENT 角色行");
         assertEquals(List.of("emp_1"), out.stream().map(m -> m.get("id")).toList());
+        // 小程序人员台账列：账号/角色文案/所属区域/未闭环工单必须下发（缺 key 恒 '—'）
+        assertTrue(out.get(0).containsKey("account"));
+        assertTrue(out.get(0).containsKey("roleText"));
+        assertTrue(out.get(0).containsKey("regionName"));
+        assertTrue(out.get(0).containsKey("openOrders"));
     }
 
     // ── ② 组织树不渲染 UNIT 节点 ──

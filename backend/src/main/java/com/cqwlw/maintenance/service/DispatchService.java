@@ -222,7 +222,7 @@ public class DispatchService {
     /** 到期日按最近一次 DONE 签退和保养周期计算。 */
     public List<Map<String, Object>> dueProjection() {
         long now = TimeUtil.toMillis(TimeUtil.now());
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(TimeUtil.ZONE);
         // 区域人员覆盖一次算出（避免逐电梯 N+1）：在职（enabled 非 false）+ 持平台ID
         Set<String> staffedRegions = new HashSet<>();
         boolean anyStaffed = false;

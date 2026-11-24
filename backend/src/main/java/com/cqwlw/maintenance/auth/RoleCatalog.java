@@ -39,7 +39,7 @@ public final class RoleCatalog {
     static {
         Map<String, Role> roles = new LinkedHashMap<>();
         for (Role role : List.of(
-                new Role(ADMIN, PLATFORM, "平台管理员", true, null),
+                new Role(ADMIN, PLATFORM, "维保部管理员", true, null),
                 // 安装部
                 new Role(INSTALL_MANAGER, INSTALL, "安装项目经理", true, ADMIN),
                 new Role(INSTALL_CLERK, INSTALL, "安装文员", true, INSTALL_MANAGER),
@@ -74,7 +74,7 @@ public final class RoleCatalog {
         CANONICAL.put("LEADER", new Role("LEADER", "MAINT", "维保班组长", true, "MAINT_SUP"));
         CANONICAL.put("MAINT_TECH", new Role("MAINT_TECH", "MAINT", "维保人员", false, "MAINT_SUP"));
         CANONICAL.put("MAINT_BIZ", new Role("MAINT_BIZ", "MAINT", "维保商务", true, "MAINT_MGR"));
-        CANONICAL.put("MAINT_QUALITY", new Role("MAINT_QUALITY", "MAINT", "维保质量", true, "MAINT_MGR"));
+        CANONICAL.put("MAINT_QUALITY", new Role("MAINT_QUALITY", "MAINT", "维保质量负责人", true, "MAINT_MGR"));
         CANONICAL.put("CLIENT_ADMIN", new Role("CLIENT_ADMIN", null, "使用单位管理员", false, null));
         CANONICAL.put("CLIENT_SIGNER", new Role("CLIENT_SIGNER", null, "使用单位签字人", false, null));
 

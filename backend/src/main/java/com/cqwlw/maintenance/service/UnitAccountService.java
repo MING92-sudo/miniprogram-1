@@ -5,6 +5,7 @@ import com.cqwlw.maintenance.auth.JwtService;
 import com.cqwlw.maintenance.common.BizException;
 import com.cqwlw.maintenance.entity.UseUnit;
 import com.cqwlw.maintenance.mapper.UseUnitMapper;
+import com.cqwlw.maintenance.util.TimeUtil;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -150,7 +151,7 @@ public class UnitAccountService {
         }
         String openid = wxAuthService.openidFromCode(wxCode);
         unit.openid = openid;
-        unit.boundAt = LocalDateTime.now();
+        unit.boundAt = TimeUtil.now();
         useUnitMapper.updateById(unit);
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("useUnitId", unit.id);

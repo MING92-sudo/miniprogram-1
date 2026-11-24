@@ -4,8 +4,10 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.cqwlw.maintenance.common.BizException;
 import com.cqwlw.maintenance.common.Ids;
 import com.cqwlw.maintenance.entity.BizExportApproval;
+import com.cqwlw.maintenance.entity.MaintainRecord;
 import com.cqwlw.maintenance.entity.SysAuditLog;
 import com.cqwlw.maintenance.entity.SysConfig;
+import com.cqwlw.maintenance.entity.WorkOrder;
 import com.cqwlw.maintenance.mapper.BizExportApprovalMapper;
 import com.cqwlw.maintenance.mapper.ElevatorMapper;
 import com.cqwlw.maintenance.mapper.MaintainRecordMapper;
@@ -29,6 +31,13 @@ public class DataDomainService {
     private final WorkOrderMapper workOrderMapper;
     private final MaintainRecordMapper recordMapper;
     private final AuditLogService audit;
+    /** 待接急修统计（setter 注入保持既有构造器签名；缺失时该指标为 0） */
+    private com.cqwlw.maintenance.mapper.FaultMapper faultMapper;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    public void setFaultMapper(com.cqwlw.maintenance.mapper.FaultMapper faultMapper) {
+        this.faultMapper = faultMapper;
+    }
 
     public DataDomainService(SysConfigMapper configMapper, BizExportApprovalMapper approvalMapper,
                              SysAuditLogMapper auditMapper, ElevatorMapper elevatorMapper,
@@ -124,6 +133,15 @@ public class DataDomainService {
         out.put("elevators", elevatorMapper.selectCount(null));
         out.put("workOrders", workOrderMapper.selectCount(null));
         out.put("records", recordMapper.selectCount(null));
+        // 小程序统计页四格：在管台量=电梯数；已完成维保=DONE 工单；待接急修=未闭环急修；待签署=等客户签字记录
+        out.put("managed", elevatorMapper.selectCount(null));
+        out.put("done", workOrderMapper.selectCount(new LambdaQueryWrapper<WorkOrder>()
+                .eq(WorkOrder::getStatus, "DONE")));
+        out.put("openFaults", faultMapper == null ? 0 : faultMapper.selectCount(
+                new LambdaQueryWrapper<com.cqwlw.maintenance.entity.Fault>()
+                        .notIn(com.cqwlw.maintenance.entity.Fault::getStatus, "CLOSED", "CANCELLED")));
+        out.put("pendingSigns", recordMapper.selectCount(new LambdaQueryWrapper<MaintainRecord>()
+                .eq(MaintainRecord::getLifecycleStatus, "PENDING_CLIENT_SIGNATURE")));
         return out;
     }
 

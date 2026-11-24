@@ -26,9 +26,9 @@ public class ContractController {
     }
 
     @GetMapping("/contracts")
-    public ApiResponse<List<MaintenanceContract>> list(HttpServletRequest request) {
+    public ApiResponse<List<Map<String, Object>>> list(HttpServletRequest request) {
         requirePerm(request, PermissionMatrix.CONTRACT_READ, "仅可查看合同");
-        return ApiResponse.ok(contractService.list());
+        return ApiResponse.ok(contractService.listView());
     }
 
     @PostMapping("/contracts")

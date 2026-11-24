@@ -5,10 +5,12 @@ const fault = require('./fault')
 const handover = require('./handover')
 const unit = require('./unit')
 const { STATUS_TEXT } = require('../constants/index')
+const { formatTime } = require('../utils/util')
 
 function arr(x) { return Array.isArray(x) ? x : ((x && x.list) || []) }
 function pad(n) { return String(n || 0).padStart(2, '0') }
-function today() { const d = new Date(); return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) }
+// 「今日」按 GMT+8 口径，与后端天级比较对齐（设备时区漂移不影响）
+function today() { return formatTime().slice(0, 10) }
 function hm(t) { return String(t || '').slice(11, 16) }
 function orderTone(s) { return s === 'DONE' ? 'ok' : 'amber' }
 

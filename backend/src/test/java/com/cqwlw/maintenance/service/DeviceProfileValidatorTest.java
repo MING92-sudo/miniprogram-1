@@ -30,7 +30,7 @@ class DeviceProfileValidatorTest {
     @Test
     void eightFieldsInFixedOrder() {
         assertEquals(List.of("电梯编码", "设备代码", "注册代码", "单位内编号", "出厂编号",
-                        "项目名称（小区名称）", "所在区域", "年检日期"),
+                        "项目名称（小区名称）", "所在区域", "下次年检日期"),
                 DeviceProfileValidator.FIELDS.stream().map(DeviceProfileValidator.Field::label).toList());
         assertEquals(List.of("elevatorCode", "deviceCode", "registrationCode", "insideNumber", "factoryNumber",
                         "projectName", "regionId", "nextCheckDate"),

@@ -27,7 +27,7 @@ const TREE = [
   { id: 'org_team_2', name: '维保二组', type: 'TEAM', parentId: 'org_dept', status: 'NORMAL' }
 ]
 const MEMBERS = [
-  { id: 'emp_1', name: '张三', phone: '13800000001', role: 'MAINT_TECH', roleText: '维保技术员', groupName: '维保一组', regionId: null, regionName: null, enabled: true }
+  { id: 'emp_1', name: '张三', phone: '13800000001', role: 'MAINT_TECH', roleText: '维保人员', groupName: '维保一组', regionId: null, regionName: null, enabled: true }
 ]
 
 async function mountOrg() {

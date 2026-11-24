@@ -27,7 +27,7 @@
           <div class="kv"><span class="k">使用单位</span><span class="v">{{ row.useUnitName || '—' }}</span></div>
           <div class="kv"><span class="k">所在区域</span><span class="v">{{ row.regionName || '重庆市（全市）' }}</span></div>
           <div class="kv"><span class="k">单位内编号</span><span class="v mono">{{ row.insideNumber || '—' }}</span></div>
-          <div class="kv"><span class="k">下次检验日期</span><span class="v mono">{{ row.nextCheckDate || '—' }}</span></div>
+          <div class="kv"><span class="k">下次年检日期</span><span class="v mono">{{ row.nextCheckDate || '—' }}</span></div>
           <div class="kv"><span class="k">应急救援电话</span><span class="v mono">{{ row.emergencyPhone || '—' }}</span></div>
           <div class="kv"><span class="k">详细地址</span><span class="v">{{ row.location || '—' }}</span></div>
           <div class="kv"><span class="k">经度（GCJ-02）</span><span class="v mono">{{ row.lng || '—' }}</span></div>
@@ -58,7 +58,7 @@
           <i class="cal-dot" :style="{ background: t.color }"></i>{{ t.label }}
         </span>
         <span class="cal-lg-sep"></span>
-        <span class="f12 dim">✓ 已完成 · 派 已派单 · 逾期标红框</span>
+        <span class="f12 dim">✓ 已完成 · 派 已派单 · 超期标红框</span>
       </div>
       <div v-if="plansLoading" class="dim f12 mt16">日历加载中…</div>
       <div v-else-if="!entryCount" class="dim f12 mt16">该电梯未来 12 个月暂无维保计划（建档即排期，若为空请检查排期基线）。</div>
@@ -89,8 +89,8 @@
           <PermButton v-if="records.length" code="record:export" label="批量下载PDF" variant="ghost" icon="download" @click="batchRecords" />
         </template>
         <template #cell-checkoutTime="{ value }"><span class="mono f12">{{ value || '—' }}</span></template>
-        <template #cell-confirmStatus="{ value }"><StatusTag :status="value" /></template>
-        <template #cell-reportStatus="{ value }"><StatusTag :status="value" /></template>
+        <template #cell-confirmStatus="{ value }"><StatusTag :status="value" :label="confirmStatusLabel(value)" /></template>
+        <template #cell-reportStatus="{ value }"><StatusTag :status="value" :label="reportStatusLabel(value)" /></template>
         <template #cell-duration="{ value }"><span class="mono f12">{{ value || '—' }}</span></template>
         <template #row-actions="{ row }">
           <PermButton code="record:export" label="预览" variant="ghost" size="xs" icon="eye" @click="previewRecord(row)" />
@@ -109,7 +109,7 @@
         </template>
         <template #cell-faultNo="{ value }"><span class="mono">{{ value || '—' }}</span></template>
         <template #cell-createdAt="{ value }"><span class="mono f12">{{ value || '—' }}</span></template>
-        <template #cell-status="{ value }"><StatusTag :status="value" /></template>
+        <template #cell-status="{ value }"><StatusTag :status="value" :label="faultStatusLabel(value)" /></template>
         <template #cell-desc="{ value }"><span class="f12">{{ value || '—' }}</span></template>
         <template #row-actions="{ row }">
           <PermButton code="record:export" label="预览" variant="ghost" size="xs" icon="eye" @click="previewFault(row)" />
@@ -131,6 +131,9 @@ import PageMeta from '../ui/PageMeta.vue'
 import PermButton from '../ui/PermButton.vue'
 import StatusTag from '../ui/StatusTag.vue'
 import ElevatorGeoModal from '../ui/ElevatorGeoModal.vue'
+import { faultStatusLabel, reportStatusLabel } from '../ui/labels'
+const CONFIRM_LABEL = { PENDING: '待确认', CONFIRMED: '已确认' }
+function confirmStatusLabel(v) { return CONFIRM_LABEL[String(v || '').toUpperCase()] || String(v || '') }
 import { useToast } from '../ui/stores/ui'
 import { useAuthStore } from '../stores/auth'
 import { canEditElevator } from '../ui/permission-v2'

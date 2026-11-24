@@ -17,10 +17,12 @@ const DUE_LABEL = { today: '今日到期', soon: '即将到期（3 天内）', o
 const REPORT_STUCK_STATUSES = ['UNKNOWN', 'REPORTING', 'REUPLOADING', 'LEGACY_UPLOADING']
 
 // 卡片展示投影（纯函数）：到期标记/已作业时长/上报状态/人员与设备行，不新增接口字段
-function enrich(o) {
+// nowMs 由调用方按列表响应 serverNow 校正（设备时钟不准时已作业时长仍以服务器为准）
+function enrich(o, nowMs) {
+  const now = nowMs || Date.now()
   const item = Object.assign({}, o, { statusText: STATUS_TEXT[o.status] || o.status })
-  const today = formatTime().slice(0, 10)
-  const soonEnd = formatTime(new Date(Date.now() + 3 * 86400000)).slice(0, 10)
+  const today = formatTime(now).slice(0, 10)
+  const soonEnd = formatTime(new Date(now + 3 * 86400000)).slice(0, 10)
   const day = (o.planTime || '').slice(0, 10)
   if (o.status !== 'DONE' && day) {
     item.dueTag = day < today ? { text: '已超期', cls: 'sig' }
@@ -29,7 +31,7 @@ function enrich(o) {
   }
   const t0 = parseTime(o.checkinTime)
   if (o.status === 'PROCESSING' && t0) {
-    const mins = Math.max(0, Math.floor((Date.now() - t0) / 60000))
+    const mins = Math.max(0, Math.floor((now - t0) / 60000))
     item.elapsedText = '已作业 ' + (mins >= 60 ? Math.floor(mins / 60) + ' 小时 ' + (mins % 60) + ' 分' : mins + ' 分钟')
   }
   if (o.status === 'DONE') {
@@ -101,7 +103,8 @@ definePage(ROUTES['/pkg-maintenance/pages/orders/index'], {
     return getOrderList(query)
       .then((data) => {
         if (seq !== this._requestSeq) return
-        const list = ((data && data.list) || []).map(enrich)
+        const serverNow = parseTime((data && data.serverNow) || '') || Date.now()
+        const list = ((data && data.list) || []).map(function (o) { return enrich(o, serverNow) })
         const merged = reset ? list : this.data.list.concat(list)
         this.setData({
           list: merged,

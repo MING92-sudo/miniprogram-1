@@ -188,7 +188,7 @@ class RbacMatrixTest {
         assertEquals("PLATFORM", RoleCatalog.departmentOf(RoleCatalog.SYS_ADMIN));
 
         assertEquals("维保班组长", RoleCatalog.nameOf(RoleCatalog.LEADER));
-        assertEquals("平台管理员", RoleCatalog.nameOf(RoleCatalog.ADMIN));
+        assertEquals("维保部管理员", RoleCatalog.nameOf(RoleCatalog.ADMIN));
         assertEquals(RoleCatalog.MAINT_MANAGER, RoleCatalog.role(RoleCatalog.LEADER).parentRole());
         assertEquals(RoleCatalog.LEADER, RoleCatalog.role(RoleCatalog.WORKER).parentRole());
 

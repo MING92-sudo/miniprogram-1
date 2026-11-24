@@ -91,16 +91,17 @@ import { useToast } from '../ui/stores/ui'
 import { exportCsv } from '../ui/export-csv'
 import { usePerspectiveStore } from '../ui/stores/perspective'
 import { scopeLabel } from '../ui/labels'
+import { minutesBetween, daysBetween, todayGmt8 } from '../ui/datetime'
 const toast = useToast()
 const perspective = usePerspectiveStore()
 const scopeText = computed(() => scopeLabel(perspective.scope) + ' · ' + perspective.scope)
 const stats = ref({})
 const faults = ref([])
 const records = ref([])
+const recordTotal = ref(0)
 const contracts = ref([])
 const elevators = ref([])
 const approvals = ref([])
-function minutesBetween(a, b) { return Math.round((new Date(b) - new Date(a)) / 60000) }
 function faultOvertime(f) {
   if (f.status === 'CLOSED' || f.status === 'CANCELLED') return false
   if (f.deadline) return minutesBetween(new Date(), f.deadline) < 0
@@ -111,15 +112,16 @@ const totalElevators = computed(() => stats.value.elevators ?? elevators.value.l
 const metrics = computed(() => {
   const overtime = faults.value.filter(faultOvertime).length
   const slaRate = faults.value.length ? Math.round(faults.value.filter(f => !faultOvertime(f)).length / faults.value.length * 100) : null
-  const hasAbnormal = records.value.some(r => r.checkAbnormal != null)
+  const recordsPartial = recordTotal.value > records.value.length
+  const hasAbnormal = !recordsPartial && records.value.some(r => r.checkAbnormal != null)
   const passRate = hasAbnormal && records.value.length ? Math.round(records.value.filter(r => Number(r.checkAbnormal) === 0).length / records.value.length * 100) : null
-  const hasDual = records.value.some(r => (r.workerSigned != null || r.primarySignAt != null))
+  const hasDual = !recordsPartial && records.value.some(r => (r.workerSigned != null || r.primarySignAt != null))
   const dualRate = hasDual && records.value.length
     ? Math.round(records.value.filter(r => (r.workerSigned && r.assistantSigned) || (r.primarySignAt && r.partnerSignAt)).length / records.value.length * 100)
     : null
-  const pendingReview = records.value.some(r => r.status != null) ? records.value.filter(r => r.status === 'REVIEWING').length : null
+  const pendingReview = !recordsPartial && records.value.some(r => r.lifecycleStatus != null) ? records.value.filter(r => r.lifecycleStatus === 'PENDING_REVIEW').length : null
   const expiring = contracts.value.filter(c => {
-    const days = c.daysLeft != null ? c.daysLeft : (c.endDate ? Math.round((new Date(c.endDate) - new Date()) / 86400000) : null)
+    const days = c.daysLeft != null ? c.daysLeft : (c.endDate ? daysBetween(todayGmt8(), c.endDate) : null)
     return days != null && days > 0 && days <= 90
   }).length
   return [
@@ -127,7 +129,7 @@ const metrics = computed(() => {
     { icon: 'check', label: '一次合格率', value: passRate == null ? '—' : passRate, unit: '%', sub: passRate == null ? '待聚合接口' : '异常 0 的记录占比', cls: passRate == null ? '' : 'k-ok' },
     { icon: 'bolt', label: '超时候车工单', value: overtime, unit: '单', sub: '需升级 / 改派', cls: overtime ? 'k-sig' : 'k-ok' },
     { icon: 'clock', label: 'SLA 达成率', value: slaRate == null ? '—' : slaRate, unit: '%', sub: slaRate == null ? '待聚合接口' : '未超时工单占比' },
-    { icon: 'signature', label: '双签完整率', value: dualRate == null ? '—' : dualRate, unit: '%', sub: dualRate == null ? '待聚合接口' : '主检 + 配合人均签' },
+    { icon: 'signature', label: '双签完整率', value: dualRate == null ? '—' : dualRate, unit: '%', sub: dualRate == null ? '待聚合接口' : '主检人 + 配合人均签' },
     { icon: 'clipboard', label: '待复核积压', value: pendingReview == null ? '—' : pendingReview, unit: '单', sub: pendingReview == null ? '待聚合接口' : '维保主管复核' },
     { icon: 'file-sign', label: '合同临期数', value: contracts.value.length ? expiring : '—', unit: '份', sub: contracts.value.length ? '≤90 天' : '待聚合接口' }
   ]
@@ -156,7 +158,9 @@ async function load() {
   const safe = async (url, pick) => { try { const d = await http.get(url); return pick ? pick(d) : d } catch { return pick ? [] : {} } }
   stats.value = await safe('/stats')
   faults.value = await safe('/faults', asList)
-  records.value = await safe('/records', asList)
+  const recordPage = await safe('/admin/records')
+  records.value = asList(recordPage)
+  recordTotal.value = Number(recordPage.total) || records.value.length
   contracts.value = await safe('/contracts', asList)
   elevators.value = await safe('/elevators', asList)
   approvals.value = await safe('/export-approvals', asList)

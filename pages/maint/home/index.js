@@ -1,6 +1,6 @@
 const { definePage } = require('../../../utils/guard')
 const { ROUTES } = require('../../../config/routes')
-const { greetPeriod } = require('../../../utils/util')
+const { greetPeriod, gmt8Calendar } = require('../../../utils/util')
 const home = require('../../../services/home')
 const nav = require('../../../utils/nav')
 
@@ -14,12 +14,12 @@ definePage(ROUTES['/pages/maint/home/index'], {
   onShow() {
     const app = getApp()
     const u = (app.globalData && app.globalData.userInfo) || {}
-    const d = new Date()
+    const d = gmt8Calendar()
     this.setData({
       greeting: {
-        date: d.getFullYear() + '.' + String(d.getMonth() + 1).padStart(2, '0') + '.' + String(d.getDate()).padStart(2, '0'),
-        weekday: WEEKDAYS[d.getDay()],
-        period: greetPeriod(d),
+        date: d.year + '.' + String(d.month).padStart(2, '0') + '.' + String(d.day).padStart(2, '0'),
+        weekday: WEEKDAYS[d.weekday],
+        period: greetPeriod(),
         name: u.name || '',
         org: (u.groupName || u.unitName || ''),
         jobNo: u.jobNo || '',

@@ -60,9 +60,11 @@ function voidHandover(id, data) {
 
 function getReceiverCandidates() {
   return get('/employees').then(function (list) {
+    // 后端返回规范码（MAINT_TECH 等），旧数据为 WORKER/ASSISTANT，两种口径都认
+    var RECEIVER_ROLES = ['MAINT_TECH', 'WORKER', 'ASSISTANT']
     return (list || [])
       .filter(function (e) {
-        return (e.role === 'WORKER' || e.role === 'ASSISTANT') && e.enabled !== false
+        return RECEIVER_ROLES.indexOf(e.role) > -1 && e.enabled !== false
       })
       .map(function (e) {
         return { id: e.id, name: e.name, roleText: e.roleText || '', groupName: e.groupName || '' }

@@ -8,7 +8,7 @@ export const DEVICE_FIELDS = [
   { key: 'certNo', label: '登记证编码', required: false, mono: true, placeholder: '使用登记证编号，如：梯11渝BSP8194(20)' },
   { key: 'projectName', label: '项目名称（小区名称）', required: false, placeholder: '如：蓝湾国际（与使用单位名称不同）' },
   { key: 'regionId', label: '所在区域', required: false, type: 'region' },
-  { key: 'nextCheckDate', label: '年检日期', required: false, type: 'date' }
+  { key: 'nextCheckDate', label: '下次年检日期', required: false, type: 'date' }
 ]
 
 /** 必传项（顺序固定，前端校验与后端提示同序） */

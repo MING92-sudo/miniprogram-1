@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -32,6 +33,22 @@ class DataDomainServiceTest {
         assertThrows(BizException.class, () -> service.setConfig("sla_minutes", "0", "admin"));
         assertThrows(BizException.class, () -> service.setConfig("sla_minutes", "241", "admin"));
         assertThrows(BizException.class, () -> service.setConfig("spotcheck_ratio", "101", "admin"));
+    }
+
+    /** 小程序统计页四格：managed/done/openFaults/pendingSigns 必须下发（openFaults 未注入 FaultMapper 时为 0） */
+    @Test
+    void statsExposesMiniprogramKpis() {
+        when(elevatorMapper.selectCount(null)).thenReturn(12L);
+        when(workOrderMapper.selectCount(null)).thenReturn(30L);
+        when(workOrderMapper.selectCount(any())).thenReturn(20L);
+        when(recordMapper.selectCount(any())).thenReturn(3L);
+
+        java.util.Map<String, Object> stats = service.stats();
+
+        assertEquals(12L, stats.get("managed"));
+        assertEquals(20L, stats.get("done"));
+        assertEquals(0L, stats.get("openFaults"));
+        assertEquals(3L, stats.get("pendingSigns"));
     }
 
     @Test

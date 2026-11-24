@@ -6,7 +6,7 @@
 
     <div class="mt16">
       <DataTable :columns="cols" :rows="rows" :loading="loading" clickable
-        :search-keys="['elevatorCode', 'elevatorName', 'workerName', 'originalRecordId']" search-placeholder="搜索记录单号 / 设备码 / 主检"
+        :search-keys="['elevatorCode', 'elevatorName', 'workerName', 'originalRecordId']" search-placeholder="搜索记录单号 / 设备码 / 主检人"
         :filters="filters" empty-hint="当前数据范围内没有记录单。" @row-click="openDetail">
         <template #toolbar>
           <PermButton code="record:export" label="导出记录单" variant="ghost" icon="download" @click="exportCurrent" />
@@ -25,7 +25,7 @@
           <span v-else class="tag tag-signal">{{ abnormalCodes(value).join(' ') }}</span>
         </template>
         <template #cell-confirmStatus="{ row }">
-          <StatusTag :status="row.confirmStatus" />
+          <StatusTag :status="row.confirmStatus" :label="confirmStatusLabel(row.confirmStatus)" />
           <div v-if="row.lifecycleStatus === 'REFUSED_RETURNED'" class="cell-2">
             <span class="tag tag-signal">拒签{{ row.refuseCode ? ' ' + row.refuseCode : '' }}</span>
           </div>
@@ -43,13 +43,13 @@
         </template>
       </DataTable>
     </div>
-    <RuleNote class="mt12">双签三条件：① 主检≠配合人（不同账号）② 主检先签、配合人后签 ③ 双签完成才可送使用单位——②③ 由服务端在送签时强校验（含存量单人豁免标记）。归档后修订生成 v2 与版本留痕，v1 与签名永久保留，<b>不触发任何上报</b>（P-5）。</RuleNote>
+    <RuleNote class="mt12">双签三条件：① 主检人≠配合人（不同账号）② 主检人先签、配合人后签 ③ 双签完成才可送使用单位——②③ 由服务端在送签时强校验（含存量单人豁免标记）。归档后修订生成 v2 与版本留痕，v1 与签名永久保留，<b>不触发任何上报</b>（P-5）。</RuleNote>
 
     <!-- 详情抽屉 -->
     <Drawer :open="detailOpen" :title="detail.originalRecordId || detail.id || '记录单'" :sub="(detail.elevatorCode || '') + ' · ' + (detail.elevatorName || '')"
       :meta="{ perm: 'record:view' }" note="按权限码渲染 · 后端强校验" @close="detailOpen = false">
       <template #meta>
-        <StatusTag :status="detail.confirmStatus" />
+        <StatusTag :status="detail.confirmStatus" :label="confirmStatusLabel(detail.confirmStatus)" />
         <span class="scope-pill">{{ reportLabel(detail.reportStatus) }}</span>
       </template>
 
@@ -68,12 +68,12 @@
           <div class="chk-list">
             <div :class="['chk-row', dualOk ? 'pass' : 'fail']">
               <svg class="ic" aria-hidden="true"><use :href="dualOk ? '#i-check' : '#i-x'" /></svg>
-              <span class="cr-t">① 主检与配合人为两个不同账号（{{ detail.workerName || '—' }} / {{ detail.assistantName || '—' }}）</span>
+              <span class="cr-t">① 主检人与配合人为两个不同账号（{{ detail.workerName || '—' }} / {{ detail.assistantName || '—' }}）</span>
               <span class="cr-d">{{ dualOk ? '通过' : '待补全' }}</span>
             </div>
             <div class="chk-row">
               <svg class="ic" aria-hidden="true"><use href="#i-clock" /></svg>
-              <span class="cr-t">② 主检先签、配合人后签（时序有序）</span>
+              <span class="cr-t">② 主检人先签、配合人后签（时序有序）</span>
               <span class="cr-d">服务端门控</span>
             </div>
             <div class="chk-row">
@@ -91,14 +91,14 @@
             <div class="kv"><span class="k">设备码</span><span class="v mono">{{ detail.elevatorCode }}</span></div>
             <div class="kv"><span class="k">梯号</span><span class="v">{{ detail.elevatorName }}</span></div>
             <div class="kv"><span class="k">维保类别</span><span class="v">{{ detail.workType }}</span></div>
-            <div class="kv"><span class="k">主检</span><span class="v">{{ detail.workerName || '—' }}</span></div>
+            <div class="kv"><span class="k">主检人</span><span class="v">{{ detail.workerName || '—' }}</span></div>
             <div class="kv"><span class="k">配合人</span><span class="v">{{ detail.assistantName || '—' }}</span></div>
             <div class="kv"><span class="k">签到时间</span><span class="v mono">{{ detail.checkinTime || '—' }}</span></div>
             <div class="kv"><span class="k">签退时间</span><span class="v mono">{{ detail.checkoutTime || '—' }}</span></div>
             <div class="kv"><span class="k">作业时长</span><span class="v mono">{{ detail.duration || '—' }}</span></div>
             <div class="kv"><span class="k">隐患码</span><span class="v mono">{{ (detail.problemCodes || []).join(' ') || 'S0' }}</span></div>
             <div class="kv"><span class="k">上报状态</span><span class="v">{{ reportLabel(detail.reportStatus) }}</span></div>
-            <div class="kv"><span class="k">确认状态</span><span class="v">{{ statusLabel(detail.confirmStatus) }}</span></div>
+            <div class="kv"><span class="k">确认状态</span><span class="v">{{ confirmStatusLabel(detail.confirmStatus) }}</span></div>
             <div class="kv"><span class="k">使用单位</span><span class="v">{{ ctx.useUnitName || '—' }}</span></div>
             <div class="kv"><span class="k">作业地点</span><span class="v">{{ ctx.address || '—' }}</span></div>
             <div class="kv"><span class="k">记录版本</span><span class="v mono">{{ detail.version ? 'v' + detail.version : 'v1' }}</span></div>
@@ -146,12 +146,12 @@
             <div class="grid2 mt8">
               <div :class="['sign-box', detail.workerSignatureUrl ? '' : 'todo']">
                 <template v-if="detail.workerName || detail.workerSignatureUrl">
-                  <div class="sb-name">{{ detail.workerName || '主检' }}</div>
-                  <img v-if="detail.workerSignatureUrl" class="sig-img" :src="detail.workerSignatureUrl" alt="主检签字"
+                  <div class="sb-name">{{ detail.workerName || '主检人' }}</div>
+                  <img v-if="detail.workerSignatureUrl" class="sig-img" :src="detail.workerSignatureUrl" alt="主检人签字"
                     @click="openPhoto(detail.workerSignatureUrl)" />
-                  <div class="sb-meta">主检 · {{ detail.workerSignatureUrl ? '已签字' : '待签字' }}</div>
+                  <div class="sb-meta">主检人 · {{ detail.workerSignatureUrl ? '已签字' : '待签字' }}</div>
                 </template>
-                <template v-else>待主检签字</template>
+                <template v-else>待主检人签字</template>
               </div>
               <div :class="['sign-box', detail.assistantSignatureUrl ? '' : 'todo']">
                 <template v-if="detail.assistantName || detail.assistantSignatureUrl">
@@ -274,11 +274,11 @@ import RuleNote from '../ui/RuleNote.vue'
 import StatusTag from '../ui/StatusTag.vue'
 import PermButton from '../ui/PermButton.vue'
 import { useToast } from '../ui/stores/ui'
-import { statusLabel, refuseCodeLabel, archiveStateTag } from '../ui/labels'
+import { statusLabel, confirmStatusLabel, refuseCodeLabel, archiveStateTag } from '../ui/labels'
 import { PROBLEM_CODES } from '../constants'
 
 const toast = useToast()
-const REPORT_LABEL = { DRAFT: '草稿', SUBMITTED: '已提交', REPORTING: '上报中', REPORTED: '已上报', RETRY_WAIT: '待重试', FAILED_MAX: '重试超限', FAILED: '上报失败', CONFIRMED: '已确认' }
+const REPORT_LABEL = { DRAFT: '草稿', SUBMITTED: '已提交', REPORTING: '上报中', REPORTED: '已上报平台', RETRY_WAIT: '待重试', FAILED_MAX: '重试超限', FAILED: '上报异常', CONFIRMED: '已确认' }
 function reportLabel(s) { return REPORT_LABEL[s] || statusLabel(s) }
 function abnormalCodes(codes) { return (codes || []).filter((c) => c && c !== 'S0') }
 const problemOptions = Object.entries(PROBLEM_CODES).map(([value, text]) => ({ value, label: `${value} ${text}` }))
@@ -289,7 +289,7 @@ const cols = [
   { key: 'recordNo', label: '记录单号' },
   { key: 'elevatorCode', label: '设备码', sortable: true },
   { key: 'workType', label: '类别' },
-  { key: 'signers', label: '主检 / 配合人' },
+  { key: 'signers', label: '主检人 / 配合人' },
   { key: 'problemCodes', label: '隐患码' },
   { key: 'confirmStatus', label: '确认 / 上报', sortable: true },
   { key: 'createdAt', label: '创建时间', sortable: true }
@@ -297,7 +297,7 @@ const cols = [
 const filters = [
   { key: 'confirmStatus', label: '确认', options: [{ value: 'PENDING', label: '待确认' }, { value: 'CONFIRMED', label: '已确认' }] },
   { key: 'reportStatus', label: '上报', options: Object.keys(REPORT_LABEL).map((c) => ({ value: c, label: REPORT_LABEL[c] })) },
-  { key: 'lifecycleStatus', label: '拒签', options: [{ value: 'REFUSED_RETURNED', label: '已拒签退回' }] }
+  { key: 'lifecycleStatus', label: '拒签', options: [{ value: 'REFUSED_RETURNED', label: '拒签退回' }] }
 ]
 
 async function load() {
