@@ -132,6 +132,36 @@ class DemoDataSeederTest {
         assertTrue(unknown.isEmpty(), "以下 platformId 不属于任何人员档案，作业人员将看不到对应工单：" + unknown);
     }
 
+    @Test
+    void seededNonBlankPlatformIdsAreUnique() throws Exception {
+        seeder.run(null);
+
+        ArgumentCaptor<Employee> employees = ArgumentCaptor.forClass(Employee.class);
+        verify(employeeMapper, atLeastOnce()).insert(employees.capture());
+        List<String> platformIds = employees.getAllValues().stream()
+                .map(e -> e.platformId)
+                .filter(id -> id != null && !id.isBlank())
+                .collect(Collectors.toList());
+        List<String> duplicates = platformIds.stream()
+                .filter(id -> java.util.Collections.frequency(platformIds, id) > 1)
+                .distinct()
+                .collect(Collectors.toList());
+        assertTrue(duplicates.isEmpty(), "演示人员 platform_id 撞 uk_employee_platform_id：" + duplicates);
+    }
+
+    @Test
+    void seededBlankPlatformIdsPersistAsNull() throws Exception {
+        seeder.run(null);
+
+        ArgumentCaptor<Employee> employees = ArgumentCaptor.forClass(Employee.class);
+        verify(employeeMapper, atLeastOnce()).insert(employees.capture());
+        List<String> emptyIds = employees.getAllValues().stream()
+                .filter(e -> e.platformId != null && e.platformId.isEmpty())
+                .map(e -> e.id)
+                .collect(Collectors.toList());
+        assertTrue(emptyIds.isEmpty(), "空 platform_id 必须落 NULL 以兼容唯一索引：" + emptyIds);
+    }
+
     /** 班组长（陈刚）可见范围 = 本班组全部人员的 platformId，必须覆盖种子里工单用到的作业人员 */
     @Test
     void seededLeaderGroupCoversAllSeededOrderWorkers() throws Exception {
