@@ -44,7 +44,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-      - name: Regression scripts (dispatch / templates / handover-template / login-flow / report-recovery / config-examples)
+      - name: Regression scripts (dispatch / templates / handover-template / login-flow / report-recovery / config-examples / location-auth)
         run: |
           node scripts/verify-dispatch.js
           node scripts/verify-templates.js
@@ -52,6 +52,7 @@ jobs:
           node scripts/verify-login-flow.js
           node scripts/verify-report-recovery.js
           node scripts/verify-config-examples.js
+          node scripts/verify-location-auth.js
       - name: Root lint (mini-program)
         run: |
           npm ci --no-audit --no-fund

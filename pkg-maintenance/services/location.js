@@ -20,7 +20,8 @@ function reverseGeocode(lat, lng) {
       console.warn('[location] 逆地址解析超时（10s），已回退坐标。若反复出现：请检查开发者工具"详情→本地设置→不校验合法域名"，或 request 合法域名是否包含后端域名')
       finish(fallback)
     }, 10000)
-    get('/location/reverse', { lng: String(lng), lat: String(lat) }, { needAuth: false })
+    // needAuth 必须为 true（request.js 默认）：该端点不在鉴权白名单，匿名 401 会触发全局登出（AGENTS §2）
+    get('/location/reverse', { lng: String(lng), lat: String(lat) })
       .then((data) => finish((data && data.address) || fallback))
       .catch((err) => {
         console.warn('[location] 后端逆地址解析失败，已回退坐标：', err && err.message)

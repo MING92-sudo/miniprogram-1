@@ -275,7 +275,7 @@ async function runSmokeCases(ctx) {
 
   // ══════════ 15. Location / Calendar ══════════
   suite('C15. 地理与日历 /location /maintenance-calendar')
-  record('GET /location/reverse（白名单）', await get('/location/reverse?lat=29.56&lng=106.55'), 'any')
+  record('GET /location/reverse（已登录员工，端点不在白名单）', await get('/location/reverse?lat=29.56&lng=106.55', tech), 'any')
   record('GET /maintenance-calendar', await get('/maintenance-calendar', tech), 'ok')
 
   await probe(ctx, 'C16')
