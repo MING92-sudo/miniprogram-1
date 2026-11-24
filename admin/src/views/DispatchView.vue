@@ -188,7 +188,7 @@ function exportOrders() {
   toast.success('已导出 ' + n + ' 条工单', 'CSV · 按导出人权限脱敏')
 }
 function minutesBetween(a, b) { return Math.round((new Date(b) - new Date(a)) / 60000) }function decorate(f) {
-  const isRescue = Boolean(f.rescue || f.trapped || String(f.faultType || '').includes('困人') || f.priority === 'P1')
+  const isRescue = Boolean((f.trappedCount > 0) || String(f.faultType || '').includes('困人'))
   const now = new Date()
   let remaining = null
   if (f.deadline) remaining = minutesBetween(now, f.deadline)
@@ -198,7 +198,7 @@ function minutesBetween(a, b) { return Math.round((new Date(b) - new Date(a)) / 
     ...f,
     isRescue,
     typeLabel: isRescue ? '急修' : '报修',
-    levelLabel: f.priority || (isRescue ? 'P1' : 'P2'),
+    levelLabel: isRescue ? 'P1' : 'P2',
     remaining,
     overtime,
     sourceLabel: f.proxySource ? '电话代报修' : (String(f.createdBy || '').startsWith('unit:') ? '使用单位' : '小程序')

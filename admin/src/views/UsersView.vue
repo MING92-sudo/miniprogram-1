@@ -33,7 +33,7 @@
     <RuleNote class="mt12" icon="lock">手机号按 §6 脱敏随角色变化（使用单位管理员掩码、平台明文）；关闭系统配置脱敏开关后出明文。停用即吊销 token；离职转交将未完成工单迁移给同区域接手人。</RuleNote>
 
     <!-- 账号详情抽屉 -->
-    <Drawer :open="!!detail" :title="detail ? detail.name + ' · ' + (detail.empNo || detail.jobNo || detail.id) : ''"
+    <Drawer :open="!!detail" :title="detail ? detail.name + ' · ' + detail.id : ''"
       :sub="detail ? (detail.orgName || deptLabel(detail.department) || detail.groupName || '') : ''" :meta="{ scope: perspective.scope }"
       note="写操作按权限码渲染" @close="detail = null">
       <template v-if="detail">
@@ -41,13 +41,11 @@
           <div class="sec-t"><svg class="ic" aria-hidden="true"><use href="#i-user" /></svg>账号信息</div>
           <div class="kv-grid">
             <div class="kv"><span class="k">姓名</span><span class="v">{{ detail.name }}</span></div>
-            <div class="kv"><span class="k">工号</span><span class="v mono">{{ detail.empNo || detail.jobNo || '—' }}</span></div>
             <div class="kv"><span class="k">手机号</span><span class="v mono">{{ detail.phone || '—' }}</span></div>
             <div class="kv"><span class="k">所属组织</span><span class="v">{{ detail.orgName || deptLabel(detail.department) || detail.groupName || '—' }}</span></div>
             <div class="kv"><span class="k">所属区域</span><span class="v">{{ detail.regionName || '—' }}</span></div>
             <div class="kv"><span class="k">数据范围</span><span class="v mono">{{ detail.scope || defaultScope(roleArr(detail)[0]) || '—' }}</span></div>
             <div class="kv"><span class="k">状态</span><span class="v"><StatusTag :status="statusOf(detail)" /></span></div>
-            <div class="kv"><span class="k">最近登录</span><span class="v mono">{{ detail.lastLogin || '—' }}</span></div>
             <div class="kv"><span class="k">未闭环工单</span><span class="v">{{ detail.openOrders ?? '—' }}</span></div>
           </div>
         </div>

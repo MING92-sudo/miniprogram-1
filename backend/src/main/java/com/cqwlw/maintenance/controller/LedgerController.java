@@ -46,7 +46,7 @@ public class LedgerController {
     }
 
     @GetMapping("/org")
-    public ApiResponse<List<SysOrg>> org(HttpServletRequest req) {
+    public ApiResponse<List<Map<String, Object>>> org(HttpServletRequest req) {
         MultiRoleGate.requireRead(req, PermissionMatrix.USER_VIEW);
         return ApiResponse.ok(ledger.orgTree());
     }

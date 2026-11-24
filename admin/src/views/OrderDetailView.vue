@@ -51,20 +51,15 @@
         <div class="card-head"><h3><svg class="ic" aria-hidden="true"><use href="#i-wrench" /></svg>故障处置记录</h3></div>
         <div class="card-body">
           <RuleNote icon="alert">{{ order.descr || order.desc || order.siteDesc || '—' }}</RuleNote>
-          <template v-if="parts.length">
-            <div class="sec-t mt16">更换配件</div>
-            <div class="spec-list"><div v-for="(p, i) in parts" :key="i">{{ p.name }} ×{{ p.qty || 1 }}</div></div>
-          </template>
-          <template v-if="order.handleDesc">
+          <template v-if="order.result">
             <div class="sec-t mt16">处理结果</div>
-            <div class="spec-list"><div>{{ order.handleDesc }}</div></div>
+            <div class="spec-list"><div>{{ order.result }}</div></div>
           </template>
           <div class="sec-t mt16">现场照片（水印缩略图）</div>
           <div class="thumbs">
             <span v-for="n in photoCount" :key="n" :class="['thumb', { sig: isRescue }]" aria-hidden="true" />
             <span v-if="!photoCount" class="dim f12">暂无照片</span>
           </div>
-          <div v-if="order.gps" class="f11 dim mt8 mono">GPS {{ order.gps }}</div>
         </div>
       </div>
 
@@ -183,8 +178,8 @@ const ORDER_STATES = ['待接单', '已接单', '处置中', '待使用单位确
 const FAULT_STATUS = { OPEN: '待接单', ASSIGNED: '已接单', PROCESSING: '处置中', PENDING_CONFIRM: '待使用单位确认', REFUSED: '待整改', CLOSED: '已闭环', CANCELLED: '已取消' }
 function faultStatusLabel(s) { return FAULT_STATUS[s] || s }
 function fmtTime(t) { return String(t || '').replace('T', ' ').slice(0, 16) }
-const isRescue = computed(() => Boolean(order.value && (order.value.rescue || order.value.trapped || String(order.value.faultType || '').includes('困人') || order.value.priority === 'P1')))
-const levelLabel = computed(() => (order.value && order.value.priority) || (isRescue.value ? 'P1' : 'P2'))
+const isRescue = computed(() => Boolean(order.value && ((order.value.trappedCount > 0) || String(order.value.faultType || '').includes('困人'))))
+const levelLabel = computed(() => (isRescue.value ? 'P1' : 'P2'))
 function minutesBetween(a, b) { return Math.round((new Date(b) - new Date(a)) / 60000) }
 const elapsed = computed(() => {
   const o = order.value
@@ -220,10 +215,6 @@ const slaTagText = computed(() => {
   if (remaining.value < 0) return '超时 ' + Math.abs(remaining.value) + '′'
   if (o.slaMinutes && remaining.value <= o.slaMinutes * 0.3) return '临期 ' + remaining.value + '′'
   return '剩 ' + remaining.value + '′'
-})
-const parts = computed(() => {
-  const p = order.value && order.value.parts
-  return Array.isArray(p) ? p : []
 })
 const photoCount = computed(() => {
   const p = order.value && order.value.photos

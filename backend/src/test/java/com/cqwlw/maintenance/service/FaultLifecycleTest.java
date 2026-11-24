@@ -252,4 +252,29 @@ class FaultLifecycleTest {
                 () -> svc.evaluate("f1", Set.of("CLIENT_ADMIN"), "u1", Map.of("score", 6)));
         assertEquals(422, ex.getCode());
     }
+
+    /** 急修投影补齐管理端展示字段：SLA/期限/代报修来源/录音编号/升级/取消/拒签原因/被指派人 */
+    @Test
+    void faultViewExposesSlaProxyAndLifecycleFields() {
+        Fault f = fault("OPEN");
+        f.dispatchWorkerId = "emp_9";
+        f.slaMinutes = 120;
+        f.deadline = java.time.LocalDateTime.of(2026, 11, 24, 18, 0);
+        f.proxySource = "PHONE";
+        f.recordingNo = "REC-1";
+        f.escalatedAt = java.time.LocalDateTime.of(2026, 11, 24, 17, 0);
+        f.cancelReason = "重复报修";
+        f.refuseReason = "配件缺失";
+
+        Map<String, Object> v = svc.faultView(f);
+
+        assertEquals("emp_9", v.get("dispatchWorkerId"));
+        assertEquals(120, v.get("slaMinutes"));
+        assertEquals("2026-11-24 18:00:00", v.get("deadline"));
+        assertEquals("PHONE", v.get("proxySource"));
+        assertEquals("REC-1", v.get("recordingNo"));
+        assertEquals("2026-11-24 17:00:00", v.get("escalatedAt"));
+        assertEquals("重复报修", v.get("cancelReason"));
+        assertEquals("配件缺失", v.get("refuseReason"));
+    }
 }

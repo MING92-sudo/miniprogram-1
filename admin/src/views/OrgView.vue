@@ -28,9 +28,8 @@
             <div class="kv"><span class="k">组织名称</span><span class="v">{{ detail.name }}</span></div>
             <div class="kv"><span class="k">类型</span><span class="v">{{ orgTypeLabel(detail.type) }}</span></div>
             <div class="kv"><span class="k">编码</span><span class="v mono">{{ detail.code || '—' }}</span></div>
-            <div class="kv"><span class="k">负责人</span><span class="v">{{ detail.leader || '—' }}</span></div>
-            <div class="kv"><span class="k">联系电话</span><span class="v mono">{{ detail.phone || '—' }}</span></div>
-            <div class="kv"><span class="k">在管台量</span><span class="v">{{ detail.elevatorCount ?? '—' }}</span></div>
+            <div class="kv"><span class="k">负责人</span><span class="v">{{ detail.leaderName || '—' }}</span></div>
+            <div class="kv"><span class="k">联系电话</span><span class="v mono">{{ detail.leaderPhone || '—' }}</span></div>
             <div class="kv"><span class="k">账号数</span><span class="v">{{ detail.accountCount ?? '—' }}</span></div>
             <div class="kv"><span class="k">状态</span><span class="v"><StatusTag :status="detail.status || 'NORMAL'" /></span></div>
           </div>
@@ -93,8 +92,12 @@
             <div class="dim f11 mt4">{{ typeHint }}</div>
           </FormField>
           <FormField label="编码"><input v-model="model.code" class="ctl mono" /></FormField>
-          <FormField label="负责人"><input v-model="model.leader" class="ctl" /></FormField>
-          <FormField label="联系电话"><input v-model="model.phone" class="ctl mono" /></FormField>
+          <FormField label="负责人（从员工档案选择）">
+            <select v-model="model.leaderId" class="ctl">
+              <option value="">未指定</option>
+              <option v-for="e in employeeOptions" :key="e.id" :value="e.id">{{ e.name }}（{{ e.phone || '无手机号' }}）</option>
+            </select>
+          </FormField>
           <FormField v-if="!formId && model.type !== 'COMPANY'" label="上级组织" required :error="errors.parentId">
             <select v-model="model.parentId" class="ctl">
               <option value="">请选择上级</option>
@@ -144,6 +147,7 @@ import { exportCsv } from '../ui/export-csv'
 import { usePerspectiveStore } from '../ui/stores/perspective'
 import { orgTypeLabel, scopeLabel, roleLabel, enabledLabel } from '../ui/labels'
 import { listOrg, createOrg, updateOrg, orgMembers, moveEmployee } from '../api/ledger'
+import { employees as listEmployees } from '../api/archive'
 const toast = useToast()
 const perspective = usePerspectiveStore()
 const rows = ref([])
@@ -158,7 +162,15 @@ const showDisable = ref(false)
 const formId = ref(null)
 const formParent = ref(null)
 const formRef = ref(null)
-const model = ref({ name: '', type: 'DEPT', code: '', leader: '', phone: '', parentId: '' })
+const model = ref({ name: '', type: 'DEPT', code: '', leaderId: '', parentId: '' })
+// 负责人下拉候选（员工档案）
+const employeeOptions = ref([])
+async function loadEmployees() {
+  try {
+    const r = await listEmployees()
+    employeeOptions.value = Array.isArray(r) ? r : r.list || []
+  } catch { employeeOptions.value = [] }
+}
 const rules = {
   name: [(v) => (v ? '' : '请输入组织名称')],
   type: [(v) => (v ? '' : '类型必填')],
@@ -212,7 +224,7 @@ function nodeHtml(o) {
     '<span class="tn-name">' + esc(o.name) + '</span>' +
     '<span class="tn-type">' + esc(orgTypeLabel(o.type)) + (isFlat(o) ? ' · 单级' : '') + '</span>' +
     '<span class="tn-meta">' + (o.status === 'DISABLED' ? '<span class="tag tag-dim">停用</span>' : '') +
-    '台量 ' + esc(o.elevatorCount ?? '—') + ' · 账号 ' + esc(o.accountCount ?? '—') + '</span></div>'
+    '账号 ' + esc(o.accountCount ?? '—') + '</span></div>'
   if (kids.length) h += '<ul>' + kids.map(nodeHtml).join('') + '</ul>'
   return h + '</li>'
 }
@@ -268,15 +280,14 @@ function openForm(id, parentId) {
     name: o ? o.name : '',
     type: o ? o.type : defaultType,
     code: o ? o.code || '' : '',
-    leader: o ? o.leader || '' : '',
-    phone: o ? o.phone || '' : '',
+    leaderId: o ? o.leaderId || '' : '',
     parentId: parentId || (o || !company.value ? '' : company.value.id)
   }
   showForm.value = true
 }
 async function submitForm() {
   if (!formRef.value.validate()) return
-  const body = { name: model.value.name, type: model.value.type, code: model.value.code, leader: model.value.leader, phone: model.value.phone }
+  const body = { name: model.value.name, type: model.value.type, code: model.value.code, leaderId: model.value.leaderId }
   // 公司为顶级组织，不带上 parentId
   const parentId = model.value.type === 'COMPANY' ? null : (model.value.parentId || null)
   try {
@@ -296,11 +307,11 @@ function exportOrg() {
     { key: 'name', label: '组织名称' },
     { key: 'type', label: '类型' },
     { key: 'code', label: '编码' },
-    { key: 'leader', label: '负责人' },
-    { key: 'phone', label: '联系电话' },
+    { key: 'leaderName', label: '负责人' },
+    { key: 'leaderPhone', label: '联系电话' },
     { key: 'status', label: '状态' }
   ], rows.value)
   toast.success('已导出 ' + n + ' 个组织', 'CSV · 按导出人权限脱敏')
 }
-onMounted(load)
+onMounted(() => { load(); loadEmployees() })
 </script>

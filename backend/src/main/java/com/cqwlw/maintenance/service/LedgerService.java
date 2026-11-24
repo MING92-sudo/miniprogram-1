@@ -56,15 +56,47 @@ public class LedgerService {
         this.audit = audit;
     }
 
-    /** 组织树（GET /org）：只渲染内部组织（公司 → 部门 → 班组）。 */
-    public List<SysOrg> orgTree() {
-        List<SysOrg> out = new ArrayList<>();
-        for (SysOrg o : orgMapper.selectList(new LambdaQueryWrapper<SysOrg>().orderByAsc(SysOrg::getSortOrder))) {
-            if (!"UNIT".equals(o.type)) {
-                out.add(o);
+    /** 组织树（GET /org）：只渲染内部组织（公司 → 部门 → 班组）；投影补齐负责人姓名/电话与账号数。 */
+    public List<Map<String, Object>> orgTree() {
+        List<SysOrg> orgs = orgMapper.selectList(new LambdaQueryWrapper<SysOrg>().orderByAsc(SysOrg::getSortOrder));
+        List<Employee> employees = employeeMapper.selectList(new LambdaQueryWrapper<>());
+        List<Map<String, Object>> out = new ArrayList<>();
+        for (SysOrg o : orgs) {
+            if ("UNIT".equals(o.type)) {
+                continue;
             }
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("id", o.id);
+            m.put("type", o.type);
+            m.put("name", o.name);
+            m.put("code", nz(o.code));
+            m.put("parentId", o.parentId);
+            m.put("leaderId", o.leaderId);
+            m.put("status", o.status);
+            m.put("sortOrder", o.sortOrder);
+            m.put("createdAt", o.createdAt);
+            Employee leader = o.leaderId == null ? null : employees.stream()
+                    .filter(e -> o.leaderId.equals(e.id)).findFirst().orElse(null);
+            m.put("leaderName", leader == null ? "" : nz(leader.name));
+            m.put("leaderPhone", leader == null ? "" : nz(leader.phone));
+            m.put("accountCount", employees.stream().filter(e -> memberOf(o, e)).count());
+            out.add(m);
         }
         return out;
+    }
+
+    /** 成员归属谓词（TEAM 按班组名 / DEPT 按部门码 / COMPANY 取维保+安装部；UNIT 与未知类型恒 false） */
+    private static boolean memberOf(SysOrg org, Employee e) {
+        String type = org.type == null ? "" : org.type;
+        return switch (type) {
+            case "TEAM" -> org.name != null && org.name.equals(e.groupName);
+            case "DEPT" -> {
+                String deptCode = deptCodeOf(org.name);
+                yield deptCode != null && deptCode.equals(e.department);
+            }
+            case "COMPANY" -> "MAINT".equals(e.department) || "INSTALL".equals(e.department);
+            default -> false;
+        };
     }
 
     /** 只读，不写审计。 */
@@ -73,20 +105,9 @@ public class LedgerService {
         if (org == null) {
             throw new BizException(1404, "组织不存在");
         }
-        String type = org.type == null ? "" : org.type;
-        String deptCode = "DEPT".equals(type) ? deptCodeOf(org.name) : null;
-        if ("UNIT".equals(type) || ("DEPT".equals(type) && deptCode == null)) {
-            return List.of();
-        }
         List<Map<String, Object>> out = new ArrayList<>();
         for (Employee e : employeeMapper.selectList(new LambdaQueryWrapper<Employee>().orderByAsc(Employee::getId))) {
-            boolean match = switch (type) {
-                case "TEAM" -> org.name != null && org.name.equals(e.groupName);
-                case "DEPT" -> deptCode.equals(e.department);
-                case "COMPANY" -> "MAINT".equals(e.department) || "INSTALL".equals(e.department);
-                default -> false;
-            };
-            if (match) {
+            if (memberOf(org, e)) {
                 out.add(memberRow(e));
             }
         }

@@ -159,10 +159,43 @@ class ClientExclusionTest {
                 mock(ElevatorMapper.class), mock(EmployeeMapper.class), mock(RegionMapper.class),
                 mock(AuditLogService.class));
 
-        List<SysOrg> out = service.orgTree();
+        List<Map<String, Object>> out = service.orgTree();
 
-        assertTrue(out.stream().noneMatch(o -> "UNIT".equals(o.type)), "内部组织树不得渲染 UNIT 节点");
-        assertEquals(List.of("org_c", "org_d", "org_t"), out.stream().map(o -> o.id).toList());
+        assertTrue(out.stream().noneMatch(o -> "UNIT".equals(o.get("type"))), "内部组织树不得渲染 UNIT 节点");
+        assertEquals(List.of("org_c", "org_d", "org_t"), out.stream().map(o -> o.get("id")).toList());
+    }
+
+    /** 组织树投影：负责人 leaderId 解析为姓名/电话，账号数按成员归属谓词聚合 */
+    @Test
+    void orgTreeEnrichesLeaderAndAccountCount() {
+        SysOrgMapper orgMapper = mock(SysOrgMapper.class);
+        SysOrg team = org("org_t", "TEAM");
+        team.name = "维保一班";
+        team.leaderId = "emp_leader";
+        when(orgMapper.selectList(any())).thenReturn(List.of(team));
+        EmployeeMapper employeeMapper = mock(EmployeeMapper.class);
+        Employee leader = new Employee();
+        leader.id = "emp_leader";
+        leader.name = "张班长";
+        leader.phone = "13800000001";
+        leader.groupName = "维保一班";
+        Employee member = new Employee();
+        member.id = "emp_m1";
+        member.groupName = "维保一班";
+        Employee outsider = new Employee();
+        outsider.id = "emp_m2";
+        outsider.groupName = "维保二班";
+        when(employeeMapper.selectList(any())).thenReturn(List.of(leader, member, outsider));
+        LedgerService service = new LedgerService(orgMapper, mock(BizProjectMapper.class),
+                mock(SysInviteMapper.class), mock(BizElevatorChangeMapper.class),
+                mock(ElevatorMapper.class), employeeMapper, mock(RegionMapper.class),
+                mock(AuditLogService.class));
+
+        List<Map<String, Object>> out = service.orgTree();
+
+        assertEquals("张班长", out.get(0).get("leaderName"));
+        assertEquals("13800000001", out.get(0).get("leaderPhone"));
+        assertEquals(2L, out.get(0).get("accountCount"));
     }
 
     // ── ②' 使用单位不得作为内部组织新建（外部客户主体走「使用单位档案」） ──

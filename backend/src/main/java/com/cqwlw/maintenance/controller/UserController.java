@@ -9,9 +9,13 @@ import com.cqwlw.maintenance.common.ApiResponse;
 import com.cqwlw.maintenance.common.BizException;
 import com.cqwlw.maintenance.common.Ids;
 import com.cqwlw.maintenance.entity.Employee;
+import com.cqwlw.maintenance.entity.Region;
 import com.cqwlw.maintenance.entity.SysUserRole;
+import com.cqwlw.maintenance.entity.WorkOrder;
 import com.cqwlw.maintenance.mapper.EmployeeMapper;
+import com.cqwlw.maintenance.mapper.RegionMapper;
 import com.cqwlw.maintenance.mapper.SysUserRoleMapper;
+import com.cqwlw.maintenance.mapper.WorkOrderMapper;
 import com.cqwlw.maintenance.service.UserLifecycleService;
 import com.cqwlw.maintenance.util.TimeUtil;
 import jakarta.servlet.http.HttpServletRequest;
@@ -38,6 +42,8 @@ public class UserController {
     private final SysUserRoleMapper userRoleMapper;
     private final BCryptPasswordEncoder enc = new BCryptPasswordEncoder();
     private UserLifecycleService userLifecycleService;
+    private RegionMapper regionMapper;
+    private WorkOrderMapper workOrderMapper;
 
     public UserController(EmployeeMapper employeeMapper, SysUserRoleMapper userRoleMapper) {
         this.employeeMapper = employeeMapper;
@@ -49,6 +55,17 @@ public class UserController {
         this.userLifecycleService = userLifecycleService;
     }
 
+    /** setter 注入保持既有构造器签名（单测不传时为 null，对应字段留空/0） */
+    @Autowired(required = false)
+    public void setRegionMapper(RegionMapper regionMapper) {
+        this.regionMapper = regionMapper;
+    }
+
+    @Autowired(required = false)
+    public void setWorkOrderMapper(WorkOrderMapper workOrderMapper) {
+        this.workOrderMapper = workOrderMapper;
+    }
+
     private static String actor(HttpServletRequest req) {
         return String.valueOf(req.getAttribute(AuthInterceptor.ATTR_EMP_ID));
     }
@@ -56,8 +73,28 @@ public class UserController {
     @GetMapping("/users")
     public ApiResponse<List<Map<String, Object>>> list(HttpServletRequest req) {
         MultiRoleGate.requireRead(req, PermissionMatrix.USER_VIEW);
+        List<Employee> employees = employeeMapper.selectList(new LambdaQueryWrapper<Employee>().orderByAsc(Employee::getId));
+        // 所属区域名与未闭环工单数（在途工单按主/配合人 platformId 归集）一次性批量取，避免逐行查询
+        Map<String, String> regionNames = new java.util.HashMap<>();
+        if (regionMapper != null) {
+            for (Region r : regionMapper.selectList(new LambdaQueryWrapper<>())) {
+                regionNames.put(r.id, r.name == null ? "" : r.name);
+            }
+        }
+        Map<String, Integer> openOrdersByPlatformId = new java.util.HashMap<>();
+        if (workOrderMapper != null) {
+            for (WorkOrder o : workOrderMapper.selectList(new LambdaQueryWrapper<WorkOrder>()
+                    .ne(WorkOrder::getStatus, "DONE"))) {
+                if (o.workerPlatformId != null && !o.workerPlatformId.isBlank()) {
+                    openOrdersByPlatformId.merge(o.workerPlatformId, 1, Integer::sum);
+                }
+                if (o.assistantPlatformId != null && !o.assistantPlatformId.isBlank()) {
+                    openOrdersByPlatformId.merge(o.assistantPlatformId, 1, Integer::sum);
+                }
+            }
+        }
         List<Map<String, Object>> out = new ArrayList<>();
-        for (Employee e : employeeMapper.selectList(new LambdaQueryWrapper<Employee>().orderByAsc(Employee::getId))) {
+        for (Employee e : employees) {
             List<String> roles = rolesOf(e.id);
             Set<String> effective = new LinkedHashSet<>(roles);
             if (e.role != null && !e.role.isBlank()) {
@@ -71,6 +108,10 @@ public class UserController {
             row.put("name", e.name);
             row.put("phone", e.phone);
             row.put("department", e.department);
+            row.put("groupName", e.groupName);
+            row.put("regionName", e.regionId == null ? "" : regionNames.getOrDefault(e.regionId, ""));
+            row.put("openOrders", e.platformId == null ? 0
+                    : openOrdersByPlatformId.getOrDefault(e.platformId, 0));
             row.put("status", Boolean.FALSE.equals(e.enabled) ? "DISABLED" : "NORMAL");
             row.put("roles", roles);
             out.add(row);

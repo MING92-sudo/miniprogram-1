@@ -467,6 +467,15 @@ public class DirectoryService {
         m.put("signature", fileStorageService.resolveStoredUrl(f.signature));
         m.put("confirmedAt", f.confirmedAt == null ? "" : TimeUtil.format(f.confirmedAt));
         m.put("createdAt", TimeUtil.format(f.createdAt));
+        // 管理端派单/详情展示：SLA、代报修来源、取消/拒签原因、升级标记
+        m.put("dispatchWorkerId", f.dispatchWorkerId == null ? "" : f.dispatchWorkerId);
+        m.put("slaMinutes", f.slaMinutes == null ? "" : f.slaMinutes);
+        m.put("deadline", TimeUtil.format(f.deadline));
+        m.put("proxySource", f.proxySource == null ? "" : f.proxySource);
+        m.put("recordingNo", f.recordingNo == null ? "" : f.recordingNo);
+        m.put("escalatedAt", TimeUtil.format(f.escalatedAt));
+        m.put("cancelReason", f.cancelReason == null ? "" : f.cancelReason);
+        m.put("refuseReason", f.refuseReason == null ? "" : f.refuseReason);
         return m;
     }
 

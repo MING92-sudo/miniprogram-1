@@ -4,9 +4,8 @@
       <template #meta><PageMeta perm="region:view" :extra="[{ k: '区域数', v: rows.length, icon: 'map-pin', cls: 'count' }]" /></template>
     </ViewHead>
     <div class="mt16">
-      <DataTable :columns="cols" :rows="rows" :loading="loading" :search-keys="['name', 'code']"
-        search-placeholder="搜索区域名称 / 编码" empty-hint="暂无区域数据。">
-        <template #cell-code="{ value }"><span class="mono f12">{{ value || '—' }}</span></template>
+      <DataTable :columns="cols" :rows="rows" :loading="loading" :search-keys="['name']"
+        search-placeholder="搜索区域名称" empty-hint="暂无区域数据。">
       </DataTable>
     </div>
     <RuleNote class="mt12" icon="lock">区域主数据为合规保留模块；写操作仅平台（region:write），数据范围谓词引用区域锚点。</RuleNote>
@@ -27,7 +26,6 @@ const rows = ref([])
 const loading = ref(false)
 const cols = [
   { key: 'name', label: '区域名称', sortable: true },
-  { key: 'code', label: '编码' },
   { key: 'remark', label: '备注' }
 ]
 onMounted(async () => { loading.value = true; try { rows.value = await http.get('/regions') } finally { loading.value = false } })

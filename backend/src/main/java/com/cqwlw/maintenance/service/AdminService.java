@@ -23,6 +23,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /** 上报日志仅返回脱敏摘要（request_digest 落库时已脱敏，AGENTS §2.4），本服务不做明文还原。 */
 @Service
@@ -208,9 +209,19 @@ public class AdminService {
         // SQL 分页（LIMIT 下推），避免全量载入 MEDIUMTEXT 大字段后内存切片
         Page<MaintainRecord> p = recordMapper.selectPage(new Page<>(page, size), w);
 
+        // 项目详情「近 3 条记录单」等项目名展示：按 elevatorId 批量取电梯项目名，避免逐行查询
+        Map<String, String> projectByElevatorId = new java.util.HashMap<>();
+        List<String> elevatorIds = p.getRecords().stream()
+                .map(r -> r.elevatorId).filter(Objects::nonNull).distinct().toList();
+        if (!elevatorIds.isEmpty()) {
+            for (Elevator el : elevatorMapper.selectList(new LambdaQueryWrapper<Elevator>()
+                    .in(Elevator::getId, elevatorIds))) {
+                projectByElevatorId.put(el.id, el.projectName == null ? "" : el.projectName);
+            }
+        }
         List<Map<String, Object>> list = new ArrayList<>();
         for (MaintainRecord r : p.getRecords()) {
-            list.add(recordRow(r));
+            list.add(recordRow(r, projectByElevatorId));
         }
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("list", list);
@@ -220,7 +231,7 @@ public class AdminService {
         return out;
     }
 
-    private Map<String, Object> recordRow(MaintainRecord r) {
+    private Map<String, Object> recordRow(MaintainRecord r, Map<String, String> projectByElevatorId) {
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("id", r.id);
         m.put("elevatorName", nz(r.elevatorName));
@@ -229,6 +240,9 @@ public class AdminService {
         m.put("workTypeCode", nz(r.workTypeCode));
         m.put("workerName", nz(r.workerName));
         m.put("assistantName", nz(r.assistantName));
+        // 作业日期：以签退日为准，未签退退签到日
+        m.put("workDate", TimeUtil.date(r.checkoutTime != null ? r.checkoutTime : r.checkinTime));
+        m.put("projectName", r.elevatorId == null ? "" : projectByElevatorId.getOrDefault(r.elevatorId, ""));
         m.put("checkinTime", TimeUtil.format(r.checkinTime));
         m.put("checkoutTime", TimeUtil.format(r.checkoutTime));
         m.put("duration", nz(r.duration));

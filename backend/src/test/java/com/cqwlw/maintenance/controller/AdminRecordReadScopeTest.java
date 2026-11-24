@@ -34,6 +34,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -97,6 +98,36 @@ class AdminRecordReadScopeTest {
         String sql = captor.getValue().getSqlSegment();
         assertTrue(sql.contains("worker_platform_id"), sql);
         assertTrue(sql.contains("assistant_platform_id"), sql);
+    }
+
+    /** 记录行投影补 workDate（签退日优先）与 projectName（按 elevatorId 批量关联，不逐行查询） */
+    @Test
+    void recordRowExposesWorkDateAndProjectName() {
+        MaintainRecordMapper records = mock(MaintainRecordMapper.class);
+        MaintainRecord r = new MaintainRecord();
+        r.id = "r1";
+        r.elevatorId = "el_1";
+        r.checkinTime = java.time.LocalDateTime.of(2026, 11, 20, 9, 0);
+        r.checkoutTime = java.time.LocalDateTime.of(2026, 11, 20, 10, 30);
+        Page<MaintainRecord> page = new Page<>(1, 20);
+        page.setRecords(List.of(r));
+        page.setTotal(1);
+        when(records.selectPage(any(), any())).thenReturn(page);
+        ElevatorMapper elevators = mock(ElevatorMapper.class);
+        com.cqwlw.maintenance.entity.Elevator el = new com.cqwlw.maintenance.entity.Elevator();
+        el.id = "el_1";
+        el.projectName = "蓝湾国际";
+        when(elevators.selectList(any())).thenReturn(List.of(el));
+        AdminService service = new AdminService(mock(WorkOrderMapper.class), records,
+                mock(RegUploadLogMapper.class), elevators, mock(EmployeeMapper.class),
+                mock(FaultMapper.class), mock(PlatformTokenService.class), null);
+
+        Map<String, Object> out = service.records(Map.of("page", "1", "size", "20"), Set.of("pid_team"));
+        Map<String, Object> row = ((List<Map<String, Object>>) out.get("list")).get(0);
+
+        assertEquals("2026-11-20", row.get("workDate"));
+        assertEquals("蓝湾国际", row.get("projectName"));
+        verify(elevators, times(1)).selectList(any());
     }
 
     @Test

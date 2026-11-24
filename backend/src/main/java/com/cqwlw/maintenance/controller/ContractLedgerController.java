@@ -24,9 +24,12 @@ public class ContractLedgerController {
     private static final Set<String> FULL_AMOUNT = Set.of("MAINT_MGR", "PLATFORM_ADMIN", "SYS_ADMIN");
 
     private final MaintenanceContractMapper contractMapper;
+    private final com.cqwlw.maintenance.mapper.ContractElevatorMapper contractElevatorMapper;
 
-    public ContractLedgerController(MaintenanceContractMapper contractMapper) {
+    public ContractLedgerController(MaintenanceContractMapper contractMapper,
+                                    com.cqwlw.maintenance.mapper.ContractElevatorMapper contractElevatorMapper) {
         this.contractMapper = contractMapper;
+        this.contractElevatorMapper = contractElevatorMapper;
     }
 
     @GetMapping("/contracts-ledger")
@@ -40,14 +43,23 @@ public class ContractLedgerController {
                 break;
             }
         }
+        List<MaintenanceContract> contracts = contractMapper.selectList(
+                new LambdaQueryWrapper<MaintenanceContract>().orderByDesc(MaintenanceContract::getEndDate));
+        // 台量按 contract_elevator 关联一次性聚合，避免逐行 count
+        Map<String, Long> unitsByContract = new java.util.HashMap<>();
+        for (com.cqwlw.maintenance.entity.ContractElevator ce : contractElevatorMapper.selectList(null)) {
+            unitsByContract.merge(ce.contractId, 1L, Long::sum);
+        }
         List<Map<String, Object>> out = new ArrayList<>();
-        for (MaintenanceContract c : contractMapper.selectList(new LambdaQueryWrapper<MaintenanceContract>().orderByDesc(MaintenanceContract::getEndDate))) {
+        for (MaintenanceContract c : contracts) {
             Map<String, Object> row = new LinkedHashMap<>();
             row.put("id", c.id);
             row.put("contractNo", c.contractNo);
             row.put("useUnitId", c.useUnitId);
             row.put("startDate", String.valueOf(c.startDate));
             row.put("endDate", String.valueOf(c.endDate));
+            row.put("cycle", c.startDate + " ~ " + c.endDate);
+            row.put("units", unitsByContract.getOrDefault(c.id, 0L));
             row.put("status", c.status);
             if (full) {
                 row.put("amount", c.amount);

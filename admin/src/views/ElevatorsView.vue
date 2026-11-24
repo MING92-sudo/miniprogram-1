@@ -67,8 +67,8 @@
             <span class="k">{{ f.label }}<em v-if="f.required" class="req-mark">必传</em></span>
             <span class="v" :class="f.mono ? 'mono' : ''">{{ devInfo[f.key] || '—' }}</span>
           </div>
-          <div class="kv"><span class="k">上次维保</span><span class="v mono">{{ current.lastMaintenanceDate || '—' }}</span></div>
-          <div class="kv"><span class="k">下次到期</span><span class="v mono">{{ current.nextMaintenanceDate || '—' }}</span></div>
+          <div class="kv"><span class="k">上次维保</span><span class="v mono">{{ (current.lastMaintenanceAt || '').slice(0, 10) || '—' }}</span></div>
+          <div class="kv"><span class="k">下次维保到期</span><span class="v mono">{{ current.nextMaintenanceDate || '—' }}</span></div>
           <div class="kv"><span class="k">状态</span><span class="v">{{ statusLabel(current.status) }}</span></div>
           <div class="kv"><span class="k">详细地址</span><span class="v">{{ current.location || '—' }}</span></div>
           <div class="kv"><span class="k">经度（GCJ-02）</span><span class="v mono">{{ current.lng || '—' }}</span></div>
@@ -273,7 +273,7 @@ async function load() {
   loading.value = true
   try {
     const e = await http.get('/admin/elevators')
-    rows.value = (Array.isArray(e) ? e : e.list || []).map(r => ({ ...r, last: r.lastMaintenanceDate || '', next: r.nextMaintenanceDate || '' }))
+    rows.value = Array.isArray(e) ? e : e.list || []
     changes.value = await listChanges()
   } catch (e) { toast.error(e.message || '加载失败') } finally { loading.value = false }
 }
@@ -414,7 +414,10 @@ async function submitForm() {
     }
     showForm.value = false
     await load()
-    if (formMode.value === 'edit' && archiveOpen.value) openArchive(current.value)
+    // load() 后列表行是新对象，重开抽屉必须按 id 取新行，否则档案展示编辑前的旧值
+    if (formMode.value === 'edit' && archiveOpen.value) {
+      openArchive(rows.value.find(r => r.id === current.value.id) || current.value)
+    }
   } catch (e) { toast.error(e.message || '保存失败') }
 }
 
@@ -433,7 +436,9 @@ async function toggleSuspend(row) {
     await updateElevator(row.id, { status: suspend ? 'INACTIVE' : 'ACTIVE' })
     toast.success((row.elevatorCode || '电梯') + (suspend ? ' 已停保' : ' 已恢复启用'))
     await load()
-    if (archiveOpen.value && current.value.id === row.id) openArchive(row)
+    if (archiveOpen.value && current.value.id === row.id) {
+      openArchive(rows.value.find(r => r.id === row.id) || row)
+    }
   } catch (e) { toast.error(e.message || '操作失败') }
 }
 

@@ -22,6 +22,8 @@ import static org.mockito.Mockito.when;
 class ContractLedgerAmountMaskTest {
 
     private final MaintenanceContractMapper contractMapper = mock(MaintenanceContractMapper.class);
+    private final com.cqwlw.maintenance.mapper.ContractElevatorMapper contractElevatorMapper =
+            mock(com.cqwlw.maintenance.mapper.ContractElevatorMapper.class);
 
     @BeforeAll
     static void initTableInfo() {
@@ -52,7 +54,7 @@ class ContractLedgerAmountMaskTest {
     @Test
     void clientAdminNoLongerUnmasksAmount() {
         when(contractMapper.selectList(any())).thenReturn(List.of(contract()));
-        List<Map<String, Object>> rows = new ContractLedgerController(contractMapper)
+        List<Map<String, Object>> rows = new ContractLedgerController(contractMapper, contractElevatorMapper)
                 .list(request(Set.of("MAINT_SUP", "CLIENT_ADMIN"))).getData();
         assertEquals(Boolean.TRUE, rows.get(0).get("amountMasked"));
         assertNull(rows.get(0).get("amount"));
@@ -62,9 +64,28 @@ class ContractLedgerAmountMaskTest {
     @Test
     void maintMgrKeepsFullAmount() {
         when(contractMapper.selectList(any())).thenReturn(List.of(contract()));
-        List<Map<String, Object>> rows = new ContractLedgerController(contractMapper)
+        List<Map<String, Object>> rows = new ContractLedgerController(contractMapper, contractElevatorMapper)
                 .list(request(Set.of("MAINT_MGR"))).getData();
         assertEquals(Boolean.FALSE, rows.get(0).get("amountMasked"));
         assertEquals(new BigDecimal("120000"), rows.get(0).get("amount"));
+    }
+
+    /** 周期 = 起止日期拼接；台量按 contract_elevator 关联聚合 */
+    @Test
+    void rowIncludesCycleAndUnits() {
+        when(contractMapper.selectList(any())).thenReturn(List.of(contract()));
+        com.cqwlw.maintenance.entity.ContractElevator ce1 = new com.cqwlw.maintenance.entity.ContractElevator();
+        ce1.contractId = "ct_1";
+        com.cqwlw.maintenance.entity.ContractElevator ce2 = new com.cqwlw.maintenance.entity.ContractElevator();
+        ce2.contractId = "ct_1";
+        com.cqwlw.maintenance.entity.ContractElevator other = new com.cqwlw.maintenance.entity.ContractElevator();
+        other.contractId = "ct_other";
+        when(contractElevatorMapper.selectList(null)).thenReturn(List.of(ce1, ce2, other));
+
+        List<Map<String, Object>> rows = new ContractLedgerController(contractMapper, contractElevatorMapper)
+                .list(request(Set.of("MAINT_MGR"))).getData();
+
+        assertEquals("2026-01-01 ~ 2027-01-01", rows.get(0).get("cycle"));
+        assertEquals(2L, rows.get(0).get("units"));
     }
 }
