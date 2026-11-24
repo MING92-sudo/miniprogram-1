@@ -58,6 +58,7 @@ public class DemoDataSeeder implements ApplicationRunner {
     private static final String PID_ZHANGWEI = "6901282369105174537";
     private static final String PID_CHENGANG = "990002";
     private static final String PID_LIQIANG = "6901284774286860288";
+    private static final String PID_LIZHENGUO = "DEMO_PID_LIZHENGUO";
     /** 缺失时 sameGroup() 只返回自己，陈刚(LEADER) 登录后工单列表恒为空。 */
     private static final String DEMO_GROUP = "维保一班";
 
@@ -153,7 +154,7 @@ public class DemoDataSeeder implements ApplicationRunner {
                 "", "", "", 0, enc);
 
         employee("emp_lzg", "李振国", "13800000011", "MAINT_TECH", "维保人员", "维保一组",
-                PID_ZHANGWEI, "CQ3601030011", "2023-03-01", 400, enc);
+                PID_LIZHENGUO, "CQ3601030011", "2023-03-01", 400, enc);
         employee("emp_wq", "王强", "13800000013", "INST_PM", "安装部项目负责人", "安装一部",
                 "", "", "2022-05-01", 500, enc);
         employee("emp_lq", "刘倩", "13800000014", "INST_CLERK", "安装部资料员", "安装一部",
@@ -434,7 +435,7 @@ public class DemoDataSeeder implements ApplicationRunner {
         e.department = RoleCatalog.departmentOf(role);
         e.groupName = groupName;
         e.openid = null;
-        e.platformId = platformId;
+        e.platformId = platformId == null || platformId.isBlank() ? null : platformId;
         e.certificate = certificate;
         e.workStartDate = workStartDate;
         e.workEndDate = TimeUtil.date(TimeUtil.now().plusDays(workEndInDays));
