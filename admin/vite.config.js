@@ -46,7 +46,6 @@ export default defineConfig({
       output: {
         manualChunks: {
           'vendor-vue': ['vue', 'vue-router', 'pinia'],
-          'vendor-echarts': ['echarts'],
           'vendor-http': ['axios']
         }
       }
