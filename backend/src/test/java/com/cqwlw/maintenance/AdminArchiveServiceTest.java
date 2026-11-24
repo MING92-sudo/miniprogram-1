@@ -663,6 +663,135 @@ class AdminArchiveServiceTest {
         assertEquals(422, e.getCode());
     }
 
+    /** 建档保存后触发单台 2.7 同步，返回行标注同步结果 */
+    @Test
+    void createElevatorSyncsSingleElevatorAfterInsert() {
+        com.cqwlw.maintenance.service.PlatformSyncService sync =
+                mock(com.cqwlw.maintenance.service.PlatformSyncService.class);
+        service.setPlatformSyncService(sync);
+        when(sync.configured()).thenReturn(true);
+        when(sync.syncElevator(any(Elevator.class))).thenReturn(true);
+
+        Map<String, Object> body = new java.util.HashMap<>();
+        body.put("elevatorCode", "EM-9");
+        body.put("deviceCode", "DT-9");
+        body.put("registrationCode", "REG-9");
+        body.put("insideNumber", "KT-9");
+        body.put("factoryNumber", "FN-9");
+        Map<String, Object> row = service.createElevator(body);
+
+        assertEquals("OK", row.get("platformSync"));
+        verify(sync).syncElevator(any(Elevator.class));
+    }
+
+    /** 凭证未配置时静默跳过（SKIPPED）；同步异常不阻断建档（FAILED） */
+    @Test
+    void createElevatorSyncSkippedOrFailedNeverBlocksCreate() {
+        com.cqwlw.maintenance.service.PlatformSyncService sync =
+                mock(com.cqwlw.maintenance.service.PlatformSyncService.class);
+        service.setPlatformSyncService(sync);
+        when(sync.configured()).thenReturn(false);
+
+        Map<String, Object> body = new java.util.HashMap<>();
+        body.put("elevatorCode", "EM-9");
+        body.put("deviceCode", "DT-9");
+        body.put("registrationCode", "REG-9");
+        body.put("insideNumber", "KT-9");
+        body.put("factoryNumber", "FN-9");
+        Map<String, Object> row = service.createElevator(body);
+        assertEquals("SKIPPED", row.get("platformSync"));
+        verify(sync, never()).syncElevator(any(Elevator.class));
+
+        when(sync.configured()).thenReturn(true);
+        when(sync.syncElevator(any(Elevator.class))).thenThrow(new IllegalStateException("platform down"));
+        Map<String, Object> row2 = service.createElevator(body);
+        assertEquals("FAILED", row2.get("platformSync"));
+        verify(elevatorMapper, times(2)).insert(any(Elevator.class));
+    }
+
+    /** 使用单位空串 = 清除关联：存 NULL 且编辑时显式 SET NULL（updateById 跳过 null 字段） */
+    @Test
+    void updateElevatorBlankUseUnitClearsExplicitly() {
+        com.baomidou.mybatisplus.core.metadata.TableInfoHelper.initTableInfo(
+                new org.apache.ibatis.builder.MapperBuilderAssistant(
+                        new com.baomidou.mybatisplus.core.MybatisConfiguration(), ""), Elevator.class);
+        Map<String, Object> body = new java.util.HashMap<>();
+        body.put("elevatorCode", "EM-9");
+        body.put("deviceCode", "DT-9");
+        body.put("registrationCode", "REG-9");
+        body.put("insideNumber", "KT-9");
+        body.put("factoryNumber", "FN-9");
+        body.put("useUnitId", "");
+        service.createElevator(body);
+        ArgumentCaptor<Elevator> captor = ArgumentCaptor.forClass(Elevator.class);
+        verify(elevatorMapper).insert(captor.capture());
+        assertNull(captor.getValue().useUnitId);
+
+        Elevator el = new Elevator();
+        el.id = "el_9";
+        el.elevatorCode = "EM-9";
+        el.useUnitId = "uu_old";
+        when(elevatorMapper.selectById("el_9")).thenReturn(el);
+        service.updateElevator("el_9", Map.of("useUnitId", ""));
+        assertNull(el.useUnitId);
+        verify(elevatorMapper).update(isNull(), any(LambdaUpdateWrapper.class));
+    }
+
+    /** 使用单位建档保存后自动查平台主体ID（2.2），返回行标注同步结果 */
+    @Test
+    void createUseUnitSyncsEntityIdAfterInsert() {
+        com.cqwlw.maintenance.service.PlatformSyncService sync =
+                mock(com.cqwlw.maintenance.service.PlatformSyncService.class);
+        service.setPlatformSyncService(sync);
+        when(sync.configured()).thenReturn(true);
+        when(sync.syncUseUnitEntityId(any(UseUnit.class))).thenReturn(true);
+
+        Map<String, Object> row = service.createUseUnit(Map.of(
+                "unitName", "新物业",
+                "organizationCode", "91500000TEST0001X",
+                "unitPrincipal", "李雷",
+                "unitPrincipalPhone", "13900001111",
+                "elevatorAdminister", "韩梅梅",
+                "elevatorAdministerPhone", "13900002222",
+                "emergencyPhone", "023-12345678"));
+
+        assertEquals("OK", row.get("platformSync"));
+        verify(sync).syncUseUnitEntityId(any(UseUnit.class));
+    }
+
+    /** 凭证未配置跳过（SKIPPED）；平台未查到或异常均不阻断建档（NO_MATCH/FAILED） */
+    @Test
+    void createUseUnitSyncSkippedOrFailedNeverBlocksCreate() {
+        com.cqwlw.maintenance.service.PlatformSyncService sync =
+                mock(com.cqwlw.maintenance.service.PlatformSyncService.class);
+        service.setPlatformSyncService(sync);
+        when(sync.configured()).thenReturn(false);
+        Map<String, Object> body = Map.of(
+                "unitName", "新物业",
+                "organizationCode", "91500000TEST0001X",
+                "unitPrincipal", "李雷",
+                "unitPrincipalPhone", "13900001111",
+                "elevatorAdminister", "韩梅梅",
+                "elevatorAdministerPhone", "13900002222",
+                "emergencyPhone", "023-12345678");
+
+        Map<String, Object> row = service.createUseUnit(body);
+        assertEquals("SKIPPED", row.get("platformSync"));
+        verify(sync, never()).syncUseUnitEntityId(any(UseUnit.class));
+
+        when(sync.configured()).thenReturn(true);
+        when(sync.syncUseUnitEntityId(any(UseUnit.class)))
+                .thenThrow(new BizException(404, "平台未查询到该单位主体，请核对单位名称与统一社会信用代码"));
+        Map<String, Object> row2 = service.createUseUnit(body);
+        assertEquals("NO_MATCH", row2.get("platformSync"));
+
+        when(sync.syncUseUnitEntityId(any(UseUnit.class)))
+                .thenThrow(new IllegalStateException("platform down"));
+        Map<String, Object> row3 = service.createUseUnit(body);
+        assertEquals("FAILED", row3.get("platformSync"));
+        verify(useUnitMapper, times(3)).insert(any(UseUnit.class));
+    }
+
     /** 必传项不得清空：更新时传空串直接 422，避免设备档案与维保记录脱钩 */
     @Test
     void updateElevatorRejectsClearingRequiredField() {

@@ -25,6 +25,7 @@
           <div class="kv"><span class="k">电梯编码</span><span class="v mono">{{ row.elevatorCode || '—' }}</span></div>
           <div class="kv"><span class="k">登记证编码</span><span class="v mono">{{ row.certNo || '—' }}</span></div>
           <div class="kv"><span class="k">使用单位</span><span class="v">{{ row.useUnitName || '—' }}</span></div>
+          <div class="kv"><span class="k">所在区域</span><span class="v">{{ row.regionName || '重庆市（全市）' }}</span></div>
           <div class="kv"><span class="k">单位内编号</span><span class="v mono">{{ row.insideNumber || '—' }}</span></div>
           <div class="kv"><span class="k">下次检验日期</span><span class="v mono">{{ row.nextCheckDate || '—' }}</span></div>
           <div class="kv"><span class="k">应急救援电话</span><span class="v mono">{{ row.emergencyPhone || '—' }}</span></div>

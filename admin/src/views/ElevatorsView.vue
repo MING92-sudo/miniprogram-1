@@ -179,6 +179,12 @@
               <option v-for="c in categories" :key="c" :value="c">{{ c }}</option>
             </select>
           </FormField>
+          <FormField label="使用单位（选填，保存后 2.7 可按平台主体自动挂接）">
+            <select v-model="formModel.useUnitId" class="ctl">
+              <option value="">未关联</option>
+              <option v-for="u in useUnitList" :key="u.id" :value="u.id">{{ u.unitName }}</option>
+            </select>
+          </FormField>
         </div>
         <div class="sec-t mt16">其他信息（选填，不参与上传维保记录校验）</div>
         <div class="form-grid">
@@ -237,7 +243,7 @@ import { useAuthStore } from '../stores/auth'
 import { canEditElevator } from '../ui/permission-v2'
 import { elevatorActionLabel, statusLabel, scopeLabel } from '../ui/labels'
 import { listChanges, confirmChange } from '../api/ledger'
-import { createElevator, updateElevator, deleteElevator, elevatorProfile, elevatorArchive, elevatorQrPng } from '../api/archive'
+import { createElevator, updateElevator, deleteElevator, elevatorProfile, elevatorArchive, elevatorQrPng, useUnits } from '../api/archive'
 const toast = useToast()
 const router = useRouter()
 const perspective = usePerspectiveStore()
@@ -279,7 +285,15 @@ async function loadRegions() {
     regions.value = Array.isArray(r) ? r : r.list || []
   } catch { regions.value = [] }
 }
-onMounted(() => { load(); loadRegions() })
+// 使用单位下拉（新建/编辑表单关联本地使用单位档案）
+const useUnitList = ref([])
+async function loadUseUnits() {
+  try {
+    const u = await useUnits()
+    useUnitList.value = Array.isArray(u) ? u : u.list || []
+  } catch { useUnitList.value = [] }
+}
+onMounted(() => { load(); loadRegions(); loadUseUnits() })
 function exportElev(payload) {
   const ids = payload && Array.isArray(payload.ids) ? payload.ids : []
   const n = exportCsv('电梯台账', cols, selectExportRows(rows.value, ids))
@@ -306,7 +320,8 @@ async function geoSaved(updated) {
 // 档案展示值：所在区域显示名称（不暴露内部 id）；缺必传项时抽屉顶部给出明确清单
 const devInfo = computed(() => {
   const f = deviceFormOf(current.value, profile.value)
-  f.regionId = current.value.regionName || (regions.value.find(r => r.id === f.regionId) || {}).name || ''
+  f.regionId = current.value.regionName || (regions.value.find(r => r.id === f.regionId) || {}).name
+    || (f.regionId ? '' : '重庆市（全市）')
   return f
 })
 const missingOf = missingRequiredOf
@@ -358,6 +373,7 @@ const formRules = deviceRules()
 function blankForm() {
   return {
     ...deviceFormOf(null, null),
+    useUnitId: '',
     location: '', brand: '', manufacturer: '', driveMode: '',
     lastMaintenanceAt: ''
   }
@@ -374,6 +390,7 @@ function openEdit() {
   const l = (profile.value && profile.value.local) || {}
   formModel.value = {
     ...deviceFormOf(current.value, profile.value),
+    useUnitId: current.value.useUnitId || '',
     // 其他信息（选填）：非设备档案 8 字段，沿用既有的本地维护字段
     location: l.address || current.value.location || '',
     brand: l.brand || '', manufacturer: l.manufacturer || '',
@@ -381,12 +398,20 @@ function openEdit() {
   }
   showForm.value = true
 }
+function syncHint(s) {
+  return { OK: ' · 平台信息已同步', NO_MATCH: ' · 平台 2.7 未查到该梯', FAILED: ' · 平台同步失败，可稍后在平台同步重试' }[s] || ''
+}
 async function submitForm() {
   if (!formRef.value.validate()) return
   try {
     const body = { ...formModel.value }
-    if (formMode.value === 'create') { await createElevator(body); toast.success('电梯已创建') }
-    else { await updateElevator(current.value.id, body); toast.success('已提交 · 关键字段进入审核') }
+    if (formMode.value === 'create') {
+      const res = await createElevator(body)
+      toast.success('电梯已创建' + syncHint(res && res.platformSync))
+    } else {
+      const res = await updateElevator(current.value.id, body)
+      toast.success('已提交 · 关键字段进入审核' + syncHint(res && res.platformSync))
+    }
     showForm.value = false
     await load()
     if (formMode.value === 'edit' && archiveOpen.value) openArchive(current.value)

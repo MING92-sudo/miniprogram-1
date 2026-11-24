@@ -48,6 +48,10 @@ public class PlatformSyncService {
         this.reportService = reportService;
     }
 
+    public boolean configured() {
+        return tokenService.configured();
+    }
+
     public Map<String, Object> syncAll() {
         if (!tokenService.configured()) {
             throw new com.cqwlw.maintenance.common.BizException(2001, "监管平台凭证未配置（REG_* 环境变量）");
@@ -147,6 +151,17 @@ public class PlatformSyncService {
         }
         return sb.toString();
     }
+    /** 单单位 2.2 主体ID回填：单位名称+统一社会信用代码缺一即不查；平台未登记时 queryEntityId 抛 404。 */
+    public boolean syncUseUnitEntityId(UseUnit u) {
+        if (u.unitName == null || u.unitName.isBlank()
+                || u.organizationCode == null || u.organizationCode.isBlank()) {
+            return false;
+        }
+        u.entityId = platformClient.queryEntityId(u.organizationCode, u.unitName);
+        useUnitMapper.updateById(u);
+        return true;
+    }
+
     private int syncEntities() {
         int n = 0;
         Company c = companyMapper.selectList(null).stream().findFirst().orElse(null);
@@ -161,9 +176,7 @@ public class PlatformSyncService {
             n++;
         }
         for (UseUnit u : useUnitMapper.selectList(null)) {
-            if (u.unitName != null && u.organizationCode != null) {
-                u.entityId = platformClient.queryEntityId(u.organizationCode, u.unitName);
-                useUnitMapper.updateById(u);
+            if (syncUseUnitEntityId(u)) {
                 n++;
             }
         }
@@ -174,40 +187,58 @@ public class PlatformSyncService {
         int n = 0;
         for (Elevator el : elevatorMapper.selectList(new LambdaQueryWrapper<>())) {
             try {
-                Map<String, String> cond = new LinkedHashMap<>();
-                cond.put("factoryNumber", el.factoryNumber);
-                cond.put("registrationCode", el.regCode);
-                cond.put("deviceCode", el.deviceCode);
-                List<Map<String, Object>> list = platformClient.queryElevatorInfo(cond);
-                Map<String, Object> p = matchRecord(cond, list);
-                if (p == null) {
-                    log.warn("电梯 2.7 同步跳过：返回 {} 条但无一条与本地标识匹配, code={}",
-                            list.size(), el.elevatorCode);
-                    continue;
+                if (syncElevator(el)) {
+                    n++;
+                } else {
+                    log.warn("电梯 2.7 同步跳过：无一条平台记录与本地标识匹配, code={}", el.elevatorCode);
                 }
-                if (p.get("elevatorCode") != null) {
-                    el.elevatorCode = String.valueOf(p.get("elevatorCode"));
-                }
-                if (p.get("useUnitEntityId") != null) {
-                    el.useUnitEntityId = String.valueOf(p.get("useUnitEntityId"));
-                }
-                if (hasRealValue(str(p.get("elevatorAdministerPhone")))) {
-                    el.elevatorAdministerPhone = str(p.get("elevatorAdministerPhone"));
-                }
-                if (hasRealValue(str(p.get("emergencyPhone")))) {
-                    el.emergencyPhone = str(p.get("emergencyPhone"));
-                }
-                if (hasRealValue(str(p.get("elevatorAdminister")))) {
-                    el.elevatorAdminister = str(p.get("elevatorAdminister"));
-                }
-                el.platformSyncedAt = TimeUtil.now();
-                elevatorMapper.updateById(el);
-                n++;
             } catch (Exception e) {
                 log.warn("电梯 2.7 同步失败: code={}, {}", el.elevatorCode, e.getMessage());
             }
         }
         return n;
+    }
+
+    /** 单台 2.7 同步：按出厂编号/注册代码/设备代码查询，匹配成功才回填；返回是否命中平台记录。 */
+    public boolean syncElevator(Elevator el) {
+        Map<String, String> cond = new LinkedHashMap<>();
+        cond.put("factoryNumber", el.factoryNumber);
+        cond.put("registrationCode", el.regCode);
+        cond.put("deviceCode", el.deviceCode);
+        List<Map<String, Object>> list = platformClient.queryElevatorInfo(cond);
+        Map<String, Object> p = matchRecord(cond, list);
+        if (p == null) {
+            return false;
+        }
+        if (p.get("elevatorCode") != null) {
+            el.elevatorCode = String.valueOf(p.get("elevatorCode"));
+        }
+        // 使用单位主体ID实测键名为 useUnitEntityID（大写 ID），规范示例误作 useUnitEntityId，兼容两种拼写
+        String platformUnitEntityId = firstText(p, "useUnitEntityID", "useUnitEntityId");
+        if (!platformUnitEntityId.isEmpty()) {
+            el.useUnitEntityId = platformUnitEntityId;
+        }
+        if (hasRealValue(str(p.get("elevatorAdministerPhone")))) {
+            el.elevatorAdministerPhone = str(p.get("elevatorAdministerPhone"));
+        }
+        if (hasRealValue(str(p.get("emergencyPhone")))) {
+            el.emergencyPhone = str(p.get("emergencyPhone"));
+        }
+        if (hasRealValue(str(p.get("elevatorAdminister")))) {
+            el.elevatorAdminister = str(p.get("elevatorAdminister"));
+        }
+        // 未手动指定使用单位时，按平台主体ID挂接本地使用单位档案
+        if ((el.useUnitId == null || el.useUnitId.isBlank())
+                && el.useUnitEntityId != null && !el.useUnitEntityId.isBlank()) {
+            UseUnit uu = useUnitMapper.selectList(new LambdaQueryWrapper<UseUnit>()
+                    .eq(UseUnit::getEntityId, el.useUnitEntityId)).stream().findFirst().orElse(null);
+            if (uu != null) {
+                el.useUnitId = uu.id;
+            }
+        }
+        el.platformSyncedAt = TimeUtil.now();
+        elevatorMapper.updateById(el);
+        return true;
     }
 
     /** 平台 2.7 会回显这些标识字段，故可据此确认归属； */
@@ -233,6 +264,17 @@ public class PlatformSyncService {
 
     private static String str(Object o) {
         return o == null ? null : String.valueOf(o);
+    }
+
+    /** 按优先级取第一个非空键的文本值（平台字段拼写兼容用） */
+    private static String firstText(Map<String, Object> m, String... keys) {
+        for (String k : keys) {
+            Object v = m.get(k);
+            if (v != null && !String.valueOf(v).trim().isEmpty()) {
+                return String.valueOf(v).trim();
+            }
+        }
+        return "";
     }
 
     /** 2.7 返回的"null"/空串/脱敏值均视为平台未登记，不覆盖本地档案字段 */

@@ -24,6 +24,8 @@ import com.cqwlw.maintenance.entity.ClientAccount;
 import com.cqwlw.maintenance.entity.MaintainRecord;
 import com.cqwlw.maintenance.mapper.WorkOrderMapper;
 import com.cqwlw.maintenance.util.TimeUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -41,6 +43,8 @@ import java.util.regex.Pattern;
 
 @Service
 public class AdminArchiveService {
+
+    private static final Logger log = LoggerFactory.getLogger(AdminArchiveService.class);
 
     private static final Pattern MOBILE = Pattern.compile("^1[3-9]\\d{9}$");
 
@@ -63,6 +67,13 @@ public class AdminArchiveService {
     private com.cqwlw.maintenance.mapper.ClientAccountMapper clientAccountMapper;
     /** 维保记录：删单位前解绑客户签字外键，避免悬空引用 */
     private com.cqwlw.maintenance.mapper.MaintainRecordMapper maintainRecordMapper;
+    /** 建档/编辑保存后单台 2.7 回填（setter 注入，单测构造器不传时跳过） */
+    private PlatformSyncService platformSyncService;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    public void setPlatformSyncService(PlatformSyncService platformSyncService) {
+        this.platformSyncService = platformSyncService;
+    }
 
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     public void setRegionMapper(com.cqwlw.maintenance.mapper.RegionMapper regionMapper) {
@@ -158,7 +169,10 @@ public class AdminArchiveService {
         requireNoConflict(phoneMutexService.checkUseUnit(u.id, u.unitPrincipalPhone, u.elevatorAdministerPhone));
         requireUseUnitForReport(u);
         useUnitMapper.insert(u);
-        return useUnitRow(u);
+        String platformSync = syncUseUnitAfterWrite(u);
+        Map<String, Object> row = useUnitRow(u);
+        row.put("platformSync", platformSync);
+        return row;
     }
 
     public Map<String, Object> updateUseUnit(String id, Map<String, Object> body) {
@@ -170,7 +184,26 @@ public class AdminArchiveService {
         requireNoConflict(phoneMutexService.checkUseUnit(u.id, u.unitPrincipalPhone, u.elevatorAdministerPhone));
         requireUseUnitForReport(u);
         useUnitMapper.updateById(u);
-        return useUnitRow(u);
+        String platformSync = syncUseUnitAfterWrite(u);
+        Map<String, Object> row = useUnitRow(u);
+        row.put("platformSync", platformSync);
+        return row;
+    }
+
+    /** 使用单位保存后自动回填平台主体ID（2.2 查询接口）：凭证未配置跳过，失败不阻断保存 */
+    private String syncUseUnitAfterWrite(UseUnit u) {
+        if (platformSyncService == null || !platformSyncService.configured()) {
+            return "SKIPPED";
+        }
+        try {
+            return platformSyncService.syncUseUnitEntityId(u) ? "OK" : "NO_MATCH";
+        } catch (BizException e) {
+            log.warn("使用单位保存后平台主体查询失败: {}, {}", u.unitName, e.getMessage());
+            return e.getCode() == 404 ? "NO_MATCH" : "FAILED";
+        } catch (Exception e) {
+            log.warn("使用单位保存后平台主体查询失败: {}, {}", u.unitName, e.getMessage());
+            return "FAILED";
+        }
     }
 
     // ── 人员（GET/POST/PUT /employees）──
@@ -604,7 +637,11 @@ public class AdminArchiveService {
                     .plusDays(el.intervalDays != null ? el.intervalDays : 15);
         }
         elevatorMapper.insert(el);
-        return elevatorAdminRow(el);
+        // 先同步再投影，让返回行带上 2.7 回填的电梯编码/使用单位
+        String platformSync = syncAfterWrite(el);
+        Map<String, Object> row = elevatorAdminRow(el);
+        row.put("platformSync", platformSync);
+        return row;
     }
 
     @Transactional
@@ -629,8 +666,9 @@ public class AdminArchiveService {
         boolean clearLat = body.get("lat") != null && str(body, "lat").isBlank();
         // 所在区域置空同理（updateById 跳过 null 字段，必须显式 SET NULL）
         boolean clearRegion = body.get("regionId") != null && str(body, "regionId").isBlank();
+        boolean clearUseUnit = body.get("useUnitId") != null && str(body, "useUnitId").isBlank();
         boolean clearStatus = body.get("status") != null && !"INACTIVE".equals(str(body, "status"));
-        if (clearLng || clearLat || clearRegion || clearStatus) {
+        if (clearLng || clearLat || clearRegion || clearUseUnit || clearStatus) {
             LambdaUpdateWrapper<Elevator> uw = new LambdaUpdateWrapper<Elevator>().eq(Elevator::getId, id);
             if (clearLng) {
                 uw.set(Elevator::getLng, null);
@@ -641,12 +679,31 @@ public class AdminArchiveService {
             if (clearRegion) {
                 uw.set(Elevator::getRegionId, null);
             }
+            if (clearUseUnit) {
+                uw.set(Elevator::getUseUnitId, null);
+            }
             if (clearStatus) {
                 uw.set(Elevator::getStatus, null);
             }
             elevatorMapper.update(null, uw);
         }
-        return elevatorAdminRow(el);
+        String platformSync = syncAfterWrite(el);
+        Map<String, Object> row = elevatorAdminRow(el);
+        row.put("platformSync", platformSync);
+        return row;
+    }
+
+    /** 建档/编辑保存后单台 2.7 回填（查询接口）：凭证未配置跳过，失败不影响保存，仅在返回行标注 */
+    private String syncAfterWrite(Elevator el) {
+        if (platformSyncService == null || !platformSyncService.configured()) {
+            return "SKIPPED";
+        }
+        try {
+            return platformSyncService.syncElevator(el) ? "OK" : "NO_MATCH";
+        } catch (Exception e) {
+            log.warn("电梯保存后 2.7 同步失败: code={}, {}", el.elevatorCode, e.getMessage());
+            return "FAILED";
+        }
     }
 
     // ── 私有 ──
@@ -794,10 +851,14 @@ public class AdminArchiveService {
         }
         if (body.get("useUnitId") != null) {
             String useUnitId = str(body, "useUnitId");
-            if (!useUnitId.isBlank() && useUnitMapper.selectById(useUnitId) == null) {
-                throw new BizException(422, "使用单位不存在：" + useUnitId);
+            if (useUnitId.isBlank()) {
+                el.useUnitId = null;
+            } else {
+                if (useUnitMapper.selectById(useUnitId) == null) {
+                    throw new BizException(422, "使用单位不存在：" + useUnitId);
+                }
+                el.useUnitId = useUnitId;
             }
-            el.useUnitId = useUnitId;
         }
         if (body.get("category") != null) {
             el.category = str(body, "category");

@@ -1,6 +1,7 @@
 package com.cqwlw.maintenance;
 
 import com.cqwlw.maintenance.entity.Elevator;
+import com.cqwlw.maintenance.entity.UseUnit;
 import com.cqwlw.maintenance.mapper.CompanyMapper;
 import com.cqwlw.maintenance.mapper.ElevatorMapper;
 import com.cqwlw.maintenance.mapper.EmployeeMapper;
@@ -17,10 +18,13 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -145,5 +149,70 @@ class PlatformSyncServiceTest {
         assertEquals("5633318206815862786", el.useUnitEntityId);
         assertEquals("张三", el.elevatorAdminister);
         assertEquals("13800000001", el.elevatorAdministerPhone);
+    }
+
+    /** 2.7 实测键名为 useUnitEntityID（大写 ID），规范示例误作 useUnitEntityId */
+    @Test
+    void syncElevatorReadsUppercaseUseUnitEntityIdKey() {
+        Elevator el = localElevator();
+        when(platformClient.queryElevatorInfo(any())).thenReturn(List.of(platformRecord(Map.of(
+                "factoryNumber", "SGL20131212-1", "useUnitEntityID", "ent_9"))));
+
+        assertTrue(service.syncElevator(el));
+        assertEquals("ent_9", el.useUnitEntityId);
+    }
+
+    /** 电梯未手动指定使用单位时，按平台主体ID自动挂接本地使用单位档案 */
+    @Test
+    void syncElevatorAutoLinksLocalUseUnitByEntityId() {
+        Elevator el = localElevator();
+        when(platformClient.queryElevatorInfo(any())).thenReturn(List.of(platformRecord(Map.of(
+                "factoryNumber", "SGL20131212-1", "useUnitEntityID", "ent_9"))));
+        UseUnit uu = new UseUnit();
+        uu.id = "uu_9";
+        uu.entityId = "ent_9";
+        when(useUnitMapper.selectList(any(com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper.class)))
+                .thenReturn(List.of(uu));
+
+        assertTrue(service.syncElevator(el));
+        assertEquals("uu_9", el.useUnitId);
+    }
+
+    /** 已手动指定使用单位的电梯不被 2.7 挂接覆盖 */
+    @Test
+    void syncElevatorKeepsManuallyAssignedUseUnit() {
+        Elevator el = localElevator();
+        el.useUnitId = "uu_manual";
+        when(platformClient.queryElevatorInfo(any())).thenReturn(List.of(platformRecord(Map.of(
+                "factoryNumber", "SGL20131212-1", "useUnitEntityID", "ent_9"))));
+
+        assertTrue(service.syncElevator(el));
+
+        assertEquals("uu_manual", el.useUnitId);
+        assertEquals("ent_9", el.useUnitEntityId);
+        verify(useUnitMapper, never()).selectList(
+                any(com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper.class));
+    }
+
+    /** 使用单位 2.2 主体ID回填：单位名称+统一社会信用代码缺一即不查 */
+    @Test
+    void syncUseUnitEntityIdBackfillsAndSkipsBlank() {
+        UseUnit u = new UseUnit();
+        u.id = "uu_1";
+        u.unitName = "某物业";
+        u.organizationCode = "91500000TEST0001X";
+        when(platformClient.queryEntityId("91500000TEST0001X", "某物业")).thenReturn("ent_1");
+
+        assertTrue(service.syncUseUnitEntityId(u));
+        assertEquals("ent_1", u.entityId);
+        verify(useUnitMapper).updateById(u);
+
+        UseUnit noOrg = new UseUnit();
+        noOrg.unitName = "某物业";
+        assertFalse(service.syncUseUnitEntityId(noOrg));
+        UseUnit noName = new UseUnit();
+        noName.organizationCode = "91500000TEST0001X";
+        assertFalse(service.syncUseUnitEntityId(noName));
+        verify(platformClient, times(1)).queryEntityId(any(), any());
     }
 }

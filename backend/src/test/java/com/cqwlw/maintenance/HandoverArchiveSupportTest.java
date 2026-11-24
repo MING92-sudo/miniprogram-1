@@ -60,7 +60,8 @@ class HandoverArchiveSupportTest {
         p.put("registrationCode", "REG-2026-001");
         p.put("deviceCode", "DEV-2026-001");
         p.put("factoryNumber", "SGL-2026-001");
-        p.put("useUnitEntityId", "entity-1");
+        // 实测键名为 useUnitEntityID（大写 ID），规范示例误作 useUnitEntityId
+        p.put("useUnitEntityID", "entity-1");
         p.put("elevatorAdminister", "安全管理员");
         p.put("elevatorAdministerPhone", "13800000001");
         p.put("emergencyPhone", "023-12345678");

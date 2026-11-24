@@ -77,8 +77,11 @@ public class HandoverArchiveSupport {
         elevator.elevatorCode = order.elevatorCode;
         elevator.regCode = order.regCode;
         elevator.deviceCode = order.deviceCode;
-        if (hasRealValue(platform.get("useUnitEntityId"))) {
-            elevator.useUnitEntityId = text(platform.get("useUnitEntityId"));
+        // 使用单位主体ID实测键名为 useUnitEntityID（大写 ID），规范示例误作 useUnitEntityId，兼容两种拼写
+        String useUnitEntityId = hasRealValue(platform.get("useUnitEntityID"))
+                ? text(platform.get("useUnitEntityID")) : text(platform.get("useUnitEntityId"));
+        if (hasRealValue(useUnitEntityId)) {
+            elevator.useUnitEntityId = useUnitEntityId;
         }
         if (hasRealValue(platform.get("elevatorAdminister"))) {
             elevator.elevatorAdminister = text(platform.get("elevatorAdminister"));

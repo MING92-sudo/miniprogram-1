@@ -309,6 +309,9 @@ function conflictMessage(e) {
   }
   return (e && e.message) || '保存失败'
 }
+function syncHint(s) {
+  return { OK: ' · 平台主体ID已回填', NO_MATCH: ' · 平台未查到该单位主体，请核对名称与统一社会信用代码', FAILED: ' · 平台同步失败，可稍后重试' }[s] || ''
+}
 async function submit() {
   if (!formRef.value.validate()) return
   if (model.value.unitPrincipalPhone.trim() === model.value.elevatorAdministerPhone.trim()) {
@@ -321,8 +324,13 @@ async function submit() {
     emergencyPhone: model.value.emergencyPhone.trim()
   }
   try {
-    if (formId.value) { await updateUseUnit(formId.value, body); toast.success('使用单位已保存') }
-    else { await createUseUnit(body); toast.success('使用单位已创建') }
+    if (formId.value) {
+      const res = await updateUseUnit(formId.value, body)
+      toast.success('使用单位已保存' + syncHint(res && res.platformSync))
+    } else {
+      const res = await createUseUnit(body)
+      toast.success('使用单位已创建' + syncHint(res && res.platformSync))
+    }
     showForm.value = false
     load()
   } catch (e) { toast.error(conflictMessage(e)) }
