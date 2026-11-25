@@ -14,7 +14,7 @@ definePage(ROUTES['/pages/order/detail/index'], {
   data: {
     id: '', fault: null, statusText: '', statusTone: 'dim', loading: true, error: '',
     siteDesc: '', todoDesc: '', handleDesc: '', submitting: false,
-    canConfirm: false, isClient: false
+    canConfirm: false, isClient: false, text: ORDER_TEXT
   },
   onLoad(query) { this.setData({ id: (query && query.id) || '' }); this.fetchDetail() },
   onShow() { if (this.data.id) this.fetchDetail() },
