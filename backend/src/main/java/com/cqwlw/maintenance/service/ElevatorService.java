@@ -75,6 +75,8 @@ public class ElevatorService {
     private com.cqwlw.maintenance.mapper.FaultMapper faultMapper;
     private com.cqwlw.maintenance.mapper.ContractElevatorMapper contractElevatorMapper;
     private com.cqwlw.maintenance.mapper.MaintenanceContractMapper contractMapper;
+    /** 联系人卡「配合人电话」按 platformId 反查员工手机号；缺失时该格留空 */
+    private com.cqwlw.maintenance.mapper.EmployeeMapper employeeMapper;
 
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     public void setRegionMapper(com.cqwlw.maintenance.mapper.RegionMapper regionMapper) {
@@ -95,6 +97,11 @@ public class ElevatorService {
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     public void setContractMapper(com.cqwlw.maintenance.mapper.MaintenanceContractMapper contractMapper) {
         this.contractMapper = contractMapper;
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    public void setEmployeeMapper(com.cqwlw.maintenance.mapper.EmployeeMapper employeeMapper) {
+        this.employeeMapper = employeeMapper;
     }
 
     private String regionNameOf(String regionId) {
@@ -319,7 +326,8 @@ public class ElevatorService {
         contact.put("unit", uu == null ? "" : nz(uu.unitPrincipal));
         contact.put("unitPhone", uu == null ? "" : nz(uu.unitPrincipalPhone));
         contact.put("main", latest == null ? "" : nz(latest.workerName));
-        contact.put("assist", latest == null ? "" : nz(latest.assistantName));
+        // 「配合人电话」标签对应手机号：按配合人 platformId 反查员工档案；无配合人/未登记/缺依赖时留空，绝不回退姓名
+        contact.put("assist", assistantPhoneOf(latest));
         contact.put("addr", nz(el.location));
         contact.put("contractNo", contractNo);
 
@@ -338,6 +346,17 @@ public class ElevatorService {
         overview.put("stats", stats);
         overview.put("contact", contact);
         return overview;
+    }
+
+    /** 配合人电话：最近工单配合人 platformId 反查员工手机号；查不到一律空串（不回退姓名，防标签/数据错位） */
+    private String assistantPhoneOf(WorkOrder latest) {
+        if (latest == null || latest.assistantPlatformId == null || latest.assistantPlatformId.isBlank()
+                || employeeMapper == null) {
+            return "";
+        }
+        Employee assistant = employeeMapper.selectOne(new LambdaQueryWrapper<Employee>()
+                .eq(Employee::getPlatformId, latest.assistantPlatformId).last("LIMIT 1"));
+        return assistant == null ? "" : nz(assistant.phone);
     }
 
     private static String joinNonBlank(String sep, String... parts) {

@@ -45,6 +45,7 @@ class ElevatorRegionScopeTest {
         MapperBuilderAssistant assistant = new MapperBuilderAssistant(new MybatisConfiguration(), "");
         TableInfoHelper.initTableInfo(assistant, Elevator.class);
         TableInfoHelper.initTableInfo(assistant, WorkOrder.class);
+        TableInfoHelper.initTableInfo(assistant, Employee.class);
     }
 
     private void setUp(Employee emp) {
@@ -151,6 +152,43 @@ class ElevatorRegionScopeTest {
         org.junit.jupiter.api.Assertions.assertNotNull(overview.get("stats"));
         org.junit.jupiter.api.Assertions.assertNotNull(overview.get("contact"));
         assertEquals(List.of(), overview.get("serviceLog"));
+    }
+
+    /** 联系人卡「配合人电话」：取最近工单配合人的员工手机号（platformId 关联），不是配合人姓名 */
+    @Test
+    @SuppressWarnings("unchecked")
+    void profileContactAssistUsesAssistantEmployeePhone() {
+        setUp(worker("rg_1", "pid_zhang"));
+        stubNonManagementRead();
+        Elevator el = pooledElevator("el_c", "rg_1");
+        when(elevatorMapper.selectById("el_c")).thenReturn(el);
+        WorkOrder o = new WorkOrder();
+        o.id = "wo_1";
+        o.elevatorId = "el_c";
+        o.workerName = "张伟";
+        o.assistantName = "李配合";
+        o.assistantPlatformId = "pid_li";
+        o.status = "PROCESSING";
+        o.planTime = java.time.LocalDateTime.now();
+        when(workOrderMapper.selectList(any())).thenReturn(List.of(o));
+        com.cqwlw.maintenance.mapper.EmployeeMapper employees =
+                mock(com.cqwlw.maintenance.mapper.EmployeeMapper.class);
+        Employee li = new Employee();
+        li.platformId = "pid_li";
+        li.phone = "13866668888";
+        when(employees.selectOne(any())).thenReturn(li);
+        service.setEmployeeMapper(employees);
+
+        Map<String, Object> overview = (Map<String, Object>) service.profile("el_c", "emp_1").get("overview");
+        Map<String, Object> contact = (Map<String, Object>) overview.get("contact");
+        assertEquals("张伟", contact.get("main"));
+        assertEquals("13866668888", contact.get("assist"), "配合人电话应取配合人员工手机号，不得回显姓名");
+
+        // 无配合人 / 员工未登记手机号 / 依赖缺失时一律空串，不回退姓名
+        o.assistantPlatformId = null;
+        Map<String, Object> contact2 = (Map<String, Object>) ((Map<String, Object>)
+                service.profile("el_c", "emp_1").get("overview")).get("contact");
+        assertEquals("", contact2.get("assist"), "无配合人时配合人电话留空");
     }
 
     @Test

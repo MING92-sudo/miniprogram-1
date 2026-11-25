@@ -201,6 +201,15 @@ const HANDOVER_RESULT_TEXT = {
   NA: '不适用'
 }
 
+// 不适用原因码（74 项查验置 NA 必选）
+const HANDOVER_NA_CODES = [
+  { code: 'NA-01', label: '本梯无此配置/部件' },
+  { code: 'NA-02', label: '品种/型式不涉及' },
+  { code: 'NA-03', label: '建筑无此要求' },
+  { code: 'NA-04', label: '特殊类别不涉及' },
+  { code: 'NA-05', label: '现场条件限制无法检测' }
+]
+
 const ELEVATOR_CATEGORIES = ['曳引与强制驱动电梯', '液压驱动电梯', '杂物电梯', '自动扶梯与自动人行道']
 
 const HANDOVER_WRITE_ROLES = [
@@ -395,21 +404,15 @@ const ORDER_TEXT = {
 const ELEVATOR_TEXT = {
   TITLE: '电梯档案',
   IN_SERVICE: '在保',
-  USE_UNIT: 'USE UNIT',
-  CONTRACT: 'MAINT. CONTRACT',
-  NEXT_SERVICE: 'NEXT SERVICE',
-  INSPECTION: 'INSPECTION',
-  SERVICE_LOG: 'SERVICE LOG / 维保记录',
+  USE_UNIT: '使用单位',
+  CONTRACT: '维保合同',
+  NEXT_SERVICE: '下次维保',
+  INSPECTION: '下次年检',
+  SERVICE_LOG: '维保记录',
   ALL: '全部',
   STAT_FAULT: '近 30 天故障',
   STAT_RESPONSE: '平均响应',
   STAT_INSPECT: '距年检 / 天',
-  CONTACT: 'CONTACT / 联系与合同',
-  C_UNIT: '使用单位联系人',
-  C_MAIN: '维保负责人',
-  C_ASSIST: '配合人电话',
-  C_ADDR: '设备地址',
-  C_CONTRACT: '合同编号',
   QR: '设备二维码',
   LIST_TITLE: '电梯',
   SEARCH_PH: '搜索名称 / 编号 / 项目',
@@ -518,6 +521,7 @@ module.exports = {
   HANDOVER_DOCS,
   HANDOVER_RESULTS,
   HANDOVER_RESULT_TEXT,
+  HANDOVER_NA_CODES,
   ELEVATOR_CATEGORIES,
   HANDOVER_WRITE_ROLES,
   HANDOVER_TEXT,
