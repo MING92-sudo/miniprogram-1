@@ -25,6 +25,7 @@
           <PermButton code="elevator:view" label="电梯档案" variant="ghost" size="xs" icon="file-text" @click="openDetail(row)" />
           <PermButton code="elevator:qr" label="设备码" variant="ghost" size="xs" icon="qr" @click="openQr(row)" />
           <PermButton code="elevator:edit" label="编辑" variant="ghost" size="xs" icon="edit" @click="openEditRow(row)" />
+          <PermButton v-if="row.status !== 'INACTIVE'" code="order:dispatch" label="提前保养" variant="ghost" size="xs" icon="bolt" @click="askEarlyDispatch(row)" />
           <PermButton v-if="canGeoEdit" code="elevator:edit" label="定位" variant="ghost" size="xs" icon="map-pin" @click="openGeo(row)" />
           <PermButton v-if="row.status === 'INACTIVE'" code="elevator:edit" label="启用" variant="ghost" size="xs" icon="check" @click="toggleSuspend(row)" />
           <PermButton v-else code="elevator:edit" label="停用" variant="ghost" size="xs" icon="ban" c-tip="停用后不派单、小程序不可见" @click="toggleSuspend(row)" />
@@ -205,6 +206,12 @@
       <RuleNote class="mt12">前 5 项（电梯编码 / 设备代码 / 注册代码 / 单位内编号 / 出厂编号）为上传维保记录的必传项，缺任一项签退即被拦截；项目名称（小区名称）、所在区域、下次年检日期可留空后补。</RuleNote>
     </Modal>
 
+    <!-- 提前保养（手动派单：不看到期日，直接生成待接单工单进区域池） -->
+    <Modal :open="showEarlyDispatch" title="提前保养" :sub="current.elevatorCode" icon="bolt" require-confirm note="order:dispatch"
+      confirm-text="我已知悉，确认提前保养" confirm-label="确认提前保养" @close="showEarlyDispatch = false" @confirm="submitEarlyDispatch">
+      <RuleNote icon="calendar">确认提前保养 {{ current.elevatorCode }}？将生成一张待接单（半月保）工单进入区域池，维保员到场签到抢单后开始保养。</RuleNote>
+    </Modal>
+
     <!-- 删除确认 -->
     <Modal :open="showDelete" title="删除电梯" :sub="current.elevatorCode" icon="ban" danger require-confirm note="elevator:edit"
       confirm-text="我已知悉，确认删除" confirm-label="确认删除" @close="showDelete = false" @confirm="submitDelete">
@@ -243,7 +250,7 @@ import { useAuthStore } from '../stores/auth'
 import { canEditElevator } from '../ui/permission-v2'
 import { elevatorActionLabel, statusLabel, scopeLabel } from '../ui/labels'
 import { listChanges, confirmChange } from '../api/ledger'
-import { createElevator, updateElevator, deleteElevator, elevatorProfile, elevatorArchive, elevatorQrPng, useUnits } from '../api/archive'
+import { createElevator, updateElevator, deleteElevator, elevatorProfile, elevatorArchive, elevatorQrPng, useUnits, dispatchElevator } from '../api/archive'
 const toast = useToast()
 const router = useRouter()
 const perspective = usePerspectiveStore()
@@ -440,6 +447,14 @@ async function toggleSuspend(row) {
       openArchive(rows.value.find(r => r.id === row.id) || row)
     }
   } catch (e) { toast.error(e.message || '操作失败') }
+}
+
+// 提前保养（手动派单：不看到期日，直接生成待接单工单进区域池）
+const showEarlyDispatch = ref(false)
+function askEarlyDispatch(row) { current.value = row; showEarlyDispatch.value = true }
+async function submitEarlyDispatch() {
+  try { await dispatchElevator(current.value.id); toast.success('已生成提前保养工单 · 进入区域池待接单'); showEarlyDispatch.value = false; await load() }
+  catch (e) { toast.error(e.message || '提前保养派单失败') }
 }
 
 // 变更确认（双人确认第二段；发起入口已由「停用/删除电梯」直操作替代，仅保留存量变更单确认）
