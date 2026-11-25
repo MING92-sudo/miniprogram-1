@@ -4,6 +4,7 @@
       <template #meta><PageMeta perm="elevator:view" :extra="[{ k: '内部编号', v: row.insideNumber || '—', icon: 'elevator' }]" /></template>
       <template #actions>
         <PermButton v-if="canGeoEdit" code="elevator:edit" label="修改定位" variant="primary" icon="map-pin" @click="geoOpen = true" />
+        <PermButton v-if="row.status !== 'INACTIVE'" code="order:dispatch" label="提前保养" variant="primary" icon="bolt" @click="earlyOpen = true" />
         <PermButton code="elevator:view" label="返回台账" variant="ghost" icon="chevron-left" @click="$router.push('/elevators')" />
       </template>
     </ViewHead>
@@ -118,6 +119,12 @@
       </DataTable>
     </div>
     <ElevatorGeoModal :open="geoOpen" :row="row" @close="geoOpen = false" @saved="geoSaved" />
+
+    <!-- 提前保养（手动派单：不看到期日，直接生成待接单工单进区域池） -->
+    <Modal :open="earlyOpen" title="提前保养" :sub="row.elevatorCode" icon="bolt" require-confirm note="order:dispatch"
+      confirm-text="我已知悉，确认提前保养" confirm-label="确认提前保养" @close="earlyOpen = false" @confirm="submitEarlyDispatch">
+      <p>确认提前保养 {{ row.elevatorCode }}？将生成一张待接单（半月保）工单进入区域池，维保员到场签到抢单后开始保养。</p>
+    </Modal>
   </div>
 </template>
 <script setup>
@@ -125,12 +132,14 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import http from '../api/client'
 import { exportPdf, exportFaultPdf } from '../api/report'
+import { dispatchElevator } from '../api/archive'
 import DataTable from '../ui/DataTable.vue'
 import ViewHead from '../ui/ViewHead.vue'
 import PageMeta from '../ui/PageMeta.vue'
 import PermButton from '../ui/PermButton.vue'
 import StatusTag from '../ui/StatusTag.vue'
 import ElevatorGeoModal from '../ui/ElevatorGeoModal.vue'
+import Modal from '../ui/Modal.vue'
 import { faultStatusLabel, reportStatusLabel } from '../ui/labels'
 const CONFIRM_LABEL = { PENDING: '待确认', CONFIRMED: '已确认' }
 function confirmStatusLabel(v) { return CONFIRM_LABEL[String(v || '').toUpperCase()] || String(v || '') }
@@ -146,6 +155,13 @@ const row = ref({})
 const geoOpen = ref(false)
 function geoSaved(updated) {
   row.value = { ...row.value, ...updated }
+}
+
+// 提前保养（手动派单）
+const earlyOpen = ref(false)
+async function submitEarlyDispatch() {
+  try { await dispatchElevator(row.value.id); toast.success('已生成提前保养工单 · 进入区域池待接单'); earlyOpen.value = false }
+  catch (e) { toast.error(e.message || '提前保养派单失败') }
 }
 // 载重/额定速度：台账行投影为数值 + 独立单位列，展示时合并（缺省单位 kg / m/s）
 const ratedLoadText = computed(() => row.value.ratedLoad ? row.value.ratedLoad + ' ' + (row.value.ratedLoadUnit || 'kg') : '—')
