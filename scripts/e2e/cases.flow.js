@@ -290,13 +290,13 @@ async function runFlowCases(ctx) {
     const shareToken = (sr.data && sr.data.shareToken) ||
       dbExec(`SELECT IFNULL(share_token,'') FROM maintain_record WHERE id='${recordId}'`)
     assert(shareToken, '发起签字后应能拿到 share_token')
-    const signView = await get(`/unit/records/${recordId}/sign-view?token=${shareToken}`)
+    const signView = await get(`/unit/records/${recordId}/sign-view`, null, { headers: { 'X-Share-Token': shareToken } })
     record('⑰ 分享链接签字视图（share_token）', signView, 'ok')
 
     // 签名图必须先落 app_file，而 POST /files/upload 不在客户令牌白名单（客户只有 GET /files/*），因此签名文件用员工令牌上传，确认动作仍走匿名令牌——与真实分享页一致。
     const clientSig = await uploadSignature(tech, 'client-sign.png')
-    const conf = await post(`/unit/records/${recordId}/confirm-by-token?token=${shareToken}`,
-      { signatureFileId: clientSig, satisfaction: 5 }, null)
+    const conf = await post(`/unit/records/${recordId}/confirm-by-token`,
+      { signatureFileId: clientSig, satisfaction: 5 }, null, { headers: { 'X-Share-Token': shareToken } })
     record('⑱ 客户凭分享令牌确认签字（匿名）', conf, 'ok')
     if (conf.code === 0) {
       const after = dbExec(`SELECT CONCAT(IFNULL(confirm_status,''),'|',IFNULL(client_signer_name,'')) FROM maintain_record WHERE id='${recordId}'`)

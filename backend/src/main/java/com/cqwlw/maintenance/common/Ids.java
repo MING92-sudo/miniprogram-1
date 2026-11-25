@@ -3,6 +3,7 @@ package com.cqwlw.maintenance.common;
 import java.nio.ByteBuffer;
 import java.security.SecureRandom;
 import java.util.Base64;
+import java.util.HexFormat;
 import java.util.Locale;
 import java.util.UUID;
 
@@ -25,5 +26,12 @@ public final class Ids {
     public static String nextRecordId() {
         long random = RANDOM.nextLong(1_000_000_000_000_000L);
         return "1948" + String.format(Locale.ROOT, "%015d", random);
+    }
+
+    /** 匿名签署令牌：128 位安全随机，禁止时间戳/记录 id 拼接（可预测即可代客户签署）。 */
+    public static String nextShareToken() {
+        byte[] bytes = new byte[16];
+        RANDOM.nextBytes(bytes);
+        return "sg" + HexFormat.of().formatHex(bytes);
     }
 }

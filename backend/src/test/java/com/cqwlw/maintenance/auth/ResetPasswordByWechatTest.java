@@ -7,6 +7,7 @@ import com.cqwlw.maintenance.mapper.EmployeeMapper;
 import com.cqwlw.maintenance.service.ClientLoginService;
 import com.cqwlw.maintenance.service.WxAuthService;
 import org.junit.jupiter.api.Test;
+import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
 import java.util.Map;
@@ -33,6 +34,10 @@ class ResetPasswordByWechatTest {
                 clientLoginService, mock(UserRoleService.class));
     }
 
+    private static MockHttpServletRequest req() {
+        return new MockHttpServletRequest("POST", "/auth/reset-password-by-wechat");
+    }
+
     private Employee bound() {
         Employee e = new Employee();
         e.id = "emp_1";
@@ -54,7 +59,7 @@ class ResetPasswordByWechatTest {
         when(employeeMapper.selectOne(any())).thenReturn(e);
 
         Map<String, Object> data = controller().resetPasswordByWechat(
-                Map.of("code", "code_ok", "newPassword", "NewPass123")).getData();
+                Map.of("code", "code_ok", "newPassword", "NewPass123"), req()).getData();
 
         assertEquals(true, data.get("ok"));
         assertEquals("13800000001", data.get("account"));
@@ -71,7 +76,7 @@ class ResetPasswordByWechatTest {
         when(clientLoginService.activeAccountsByOpenid("wx_unknown")).thenReturn(java.util.List.of());
 
         BizException ex = assertThrows(BizException.class, () -> controller().resetPasswordByWechat(
-                Map.of("code", "code_ok", "newPassword", "NewPass123")));
+                Map.of("code", "code_ok", "newPassword", "NewPass123"), req()));
 
         assertEquals(422, ex.getCode());
         verify(employeeMapper, never()).updateById(any(Employee.class));
@@ -85,7 +90,7 @@ class ResetPasswordByWechatTest {
         when(employeeMapper.selectOne(any())).thenReturn(bound());
 
         BizException ex = assertThrows(BizException.class, () -> controller().resetPasswordByWechat(
-                Map.of("code", "code_ok", "newPassword", "123")));
+                Map.of("code", "code_ok", "newPassword", "123"), req()));
 
         assertEquals(422, ex.getCode());
         verify(employeeMapper, never()).updateById(any(Employee.class));
@@ -101,7 +106,7 @@ class ResetPasswordByWechatTest {
         when(employeeMapper.selectOne(any())).thenReturn(e);
 
         BizException ex = assertThrows(BizException.class, () -> controller().resetPasswordByWechat(
-                Map.of("code", "code_ok", "newPassword", "NewPass123")));
+                Map.of("code", "code_ok", "newPassword", "NewPass123"), req()));
 
         assertEquals(403, ex.getCode());
         verify(employeeMapper, never()).updateById(any(Employee.class));
@@ -119,12 +124,36 @@ class ResetPasswordByWechatTest {
         when(clientLoginService.activeAccountsByOpenid("wx_client_1")).thenReturn(java.util.List.of(c));
 
         Map<String, Object> data = controller().resetPasswordByWechat(
-                Map.of("code", "code_c", "newPassword", "NewPass123")).getData();
+                Map.of("code", "code_c", "newPassword", "NewPass123"), req()).getData();
 
         assertEquals(true, data.get("ok"));
         assertEquals("13800000003", data.get("account"));
         assertEquals("CUSTOMER", data.get("principalType"));
         verify(clientLoginService).resetPasswordByWechat("ca_1", "NewPass123");
+    }
+
+    /** L5：openid 绑多个活跃客户账号时不任选其一重置 → 422 引导登录后选单位自助改密，不落库 */
+    @Test
+    void multipleClientAccountsRejectedWithoutReset() {
+        when(wxAuthService.openidFromCode("code_m")).thenReturn("wx_multi");
+        when(employeeMapper.selectOne(any())).thenReturn(null);
+        ClientAccount c1 = new ClientAccount();
+        c1.id = "ca_1";
+        c1.phone = "13800000003";
+        c1.status = ClientAccount.STATUS_ACTIVE;
+        ClientAccount c2 = new ClientAccount();
+        c2.id = "ca_2";
+        c2.phone = "13800000003";
+        c2.status = ClientAccount.STATUS_ACTIVE;
+        when(clientLoginService.activeAccountsByOpenid("wx_multi"))
+                .thenReturn(java.util.List.of(c1, c2));
+
+        BizException ex = assertThrows(BizException.class, () -> controller().resetPasswordByWechat(
+                Map.of("code", "code_m", "newPassword", "NewPass123"), req()));
+
+        assertEquals(422, ex.getCode());
+        assertTrue(ex.getMessage().contains("选择单位"));
+        verify(clientLoginService, never()).resetPasswordByWechat(any(), any());
     }
 
     /** code 无效：WxAuthService 422 透传，不得落库 */
@@ -134,7 +163,7 @@ class ResetPasswordByWechatTest {
                 .thenThrow(new BizException(422, "微信登录凭证已失效，请重新进入小程序登录"));
 
         BizException ex = assertThrows(BizException.class, () -> controller().resetPasswordByWechat(
-                Map.of("code", "bad", "newPassword", "NewPass123")));
+                Map.of("code", "bad", "newPassword", "NewPass123"), req()));
 
         assertEquals(422, ex.getCode());
         verify(employeeMapper, never()).updateById(any(Employee.class));

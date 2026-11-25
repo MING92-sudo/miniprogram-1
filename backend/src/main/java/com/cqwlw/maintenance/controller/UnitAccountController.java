@@ -17,6 +17,14 @@ public class UnitAccountController {
     private final UnitAccountService accountService;
     /** 客户主体改密走 client_account（setter 注入，保持既有构造器签名） */
     private com.cqwlw.maintenance.service.ClientAccountService clientAccountService;
+    /** 邀请码绑定限流（8 位邀请码可枚举；setter 注入，默认实例与 yml 默认值一致） */
+    private com.cqwlw.maintenance.auth.LoginRateLimiter loginRateLimiter =
+            new com.cqwlw.maintenance.auth.LoginRateLimiter(60, 5, 600, System::currentTimeMillis);
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    public void setLoginRateLimiter(com.cqwlw.maintenance.auth.LoginRateLimiter loginRateLimiter) {
+        this.loginRateLimiter = loginRateLimiter;
+    }
 
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     public void setClientAccountService(com.cqwlw.maintenance.service.ClientAccountService clientAccountService) {
@@ -50,8 +58,19 @@ public class UnitAccountController {
 
     /** 邀请码绑定微信（openid 由服务端用 wx.login code 换取） */
     @PostMapping("/unit/bind-wechat")
-    public ApiResponse<Map<String, Object>> bindWechat(@RequestBody(required = false) Map<String, Object> body) {
-        return ApiResponse.ok(accountService.bindWechat(str(body, "inviteCode"), str(body, "code")));
+    public ApiResponse<Map<String, Object>> bindWechat(@RequestBody(required = false) Map<String, Object> body,
+                                                       HttpServletRequest request) {
+        String inviteCode = str(body, "inviteCode");
+        String ip = request.getRemoteAddr();
+        loginRateLimiter.checkOrThrow("bind-wechat", ip, inviteCode);
+        try {
+            Map<String, Object> result = accountService.bindWechat(inviteCode, str(body, "code"));
+            loginRateLimiter.onSuccess("bind-wechat", ip, inviteCode);
+            return ApiResponse.ok(result);
+        } catch (BizException e) {
+            loginRateLimiter.onFailure("bind-wechat", ip, inviteCode);
+            throw e;
+        }
     }
 
     /** 自助改口令（门户令牌）：旧口令 + 新口令，改完旧令牌不失效、下次登录用新口令 */

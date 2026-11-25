@@ -21,6 +21,7 @@ import java.util.Map;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -135,6 +136,43 @@ class RecordControllerTest {
 
         assertEquals("ur_3", controller.get("ur_3", req(Set.of("MAINT_SUP"), "emp_l")).getData().get("id"));
         assertEquals("ur_4", controller.get("ur_4", req(Set.of("MAINT_SUP"), "emp_l")).getData().get("id"));
+    }
+
+    /** M2：同班组非主/配合人读取（班组长读组员记录）→ 200 但不得携带匿名签署令牌 shareToken */
+    @Test
+    void groupReaderWhoIsNotAssigneeGetsNoShareToken() {
+        Employee leader = emp("emp_l", "LEADER", "P_L", "g1");
+        when(employees.selectById("emp_l")).thenReturn(leader);
+        when(employees.selectList(any())).thenReturn(List.of(leader, emp("emp_m", "WORKER", "P_M", "g1")));
+        when(records.selectById("ur_3")).thenReturn(record("ur_3", "P_M", ""));
+
+        Map<String, Object> m = controller.get("ur_3", req(Set.of("MAINT_SUP"), "emp_l")).getData();
+
+        assertEquals("ur_3", m.get("id"));
+        assertFalse(m.containsKey("shareToken"));
+    }
+
+    /** M2：配合人本人读取 → shareToken 保留（复制签署链接链路依赖） */
+    @Test
+    void assistantAssigneeKeepsShareToken() {
+        when(employees.selectById("emp_a")).thenReturn(emp("emp_a", "MAINT_TECH", "P_A", "g1"));
+        when(records.selectById("ur_1")).thenReturn(record("ur_1", "P_W", "P_A"));
+
+        Map<String, Object> m = controller.get("ur_1", req(Set.of("MAINT_TECH"), "emp_a")).getData();
+
+        assertEquals("sg-1", m.get("shareToken"));
+    }
+
+    /** M2：部门级/平台级管理角色可读记录，但非主/配合人同样剔除 shareToken */
+    @Test
+    void managerReadingOthersRecordGetsNoShareToken() {
+        when(employees.selectById("emp_mm")).thenReturn(emp("emp_mm", "MAINT_MANAGER", "P_MM", ""));
+        when(records.selectById("ur_5")).thenReturn(record("ur_5", "P_X", "P_Y"));
+
+        Map<String, Object> m = controller.get("ur_5", req(Set.of("MAINT_MGR"), "emp_mm")).getData();
+
+        assertEquals("ur_5", m.get("id"));
+        assertFalse(m.containsKey("shareToken"));
     }
 
     /** MAINT_MGR（旧码 MAINT_MANAGER 部门级）/PLATFORM_ADMIN（旧码 ADMIN 平台级）→ null 不限，全量 200 */

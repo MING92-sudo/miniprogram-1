@@ -35,6 +35,7 @@ import java.util.function.Supplier;
 @Service
 public class IdempotencyService {
 
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(IdempotencyService.class);
     private static final Set<String> SECRET_RESPONSE_FIELDS = Set.of("initialPassword", "password");
     private static final ObjectMapper CANONICAL_MAPPER = JsonUtil.MAPPER.copy()
             .enable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS);
@@ -78,7 +79,19 @@ public class IdempotencyService {
                 }
                 throw e;
             }
-            transactions.executeWithoutResult(status -> complete(execution, result));
+            try {
+                transactions.executeWithoutResult(status -> complete(execution, result));
+            } catch (RuntimeException | Error completeFailure) {
+                // 业务侧（可能含监管平台写）已成功而 complete 落库失败：键停留态会被 takeover 重放、向平台重复登记。
+                // 补偿清空 ownerToken 使后续同键请求走「需人工核对」422 分支；补偿自身失败只记日志，原异常照常抛出。
+                try {
+                    transactions.executeWithoutResult(status ->
+                            mapper.markNeedsReview(execution.key, execution.ownerToken));
+                } catch (RuntimeException | Error compensateFailure) {
+                    log.error("幂等完成写失败后补偿置核对态失败, key={}", execution.key);
+                }
+                throw completeFailure;
+            }
             return result;
         } finally {
             activeExternal.remove(execution.ownerToken, execution);

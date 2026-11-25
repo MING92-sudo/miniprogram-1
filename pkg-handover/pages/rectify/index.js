@@ -8,7 +8,11 @@ const nav = require('../../../utils/nav')
 definePage(ROUTES['/pkg-handover/pages/rectify/index'], {
   data: { id: '', handover: null, rects: [], loading: true, error: '', submitting: false, canRectify: false, canRecheck: false },
   onLoad(query) { this.setData({ id: (query && query.id) || '' }); this.load() },
-  onShow() { if (this.data.id) this.load() },
+  // onLoad 已首载，onShow 仅在再次进入时刷新，避免首进双发
+  onShow() {
+    if (this._loaded && this.data.id) this.load()
+    this._loaded = true
+  },
   onBack() { nav.back() },
   load() {
     const perms = getPerms() || []

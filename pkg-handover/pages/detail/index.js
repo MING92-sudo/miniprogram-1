@@ -7,7 +7,6 @@ const {
   assignHandoverReceiver,
   getReceiverCandidates
 } = require('../../../services/handover')
-const { uploadImage } = require('../../../services/upload')
 const {
   ROLE,
   HANDOVER_STATUS,
@@ -85,7 +84,6 @@ definePage(ROUTES['/pkg-handover/pages/detail/index'], {
     manualReceiverId: '',
     manualReceiverName: '',
     submitting: false,
-    uploadingIndex: -1,
     text: HANDOVER_TEXT
   },
 
@@ -146,8 +144,7 @@ definePage(ROUTES['/pkg-handover/pages/detail/index'], {
   apply(h) {
     const hasRole = hasAnyRole
     const status = h.status
-    const session = this._fileIds || {}
-    // 资料格：优先 D 目录（上传页 docs），回退 3 必传
+    // 资料格只读展示：优先 D 目录（上传页 docs），回退 3 必传；上传一律走 upload 页
     let docs
     if (h.docs && h.docs.length) {
       docs = h.docs.map(function (d) {
@@ -155,7 +152,7 @@ definePage(ROUTES['/pkg-handover/pages/detail/index'], {
       })
     } else {
       docs = HANDOVER_DOCS.map(function (d) {
-        return { field: d.field, label: d.label, uploaded: !!h[d.field] || !!session[d.field], missing: false }
+        return { field: d.field, label: d.label, uploaded: !!h[d.field], missing: false }
       })
     }
     const missingCount = docs.filter(function (d) { return !d.uploaded }).length
@@ -232,62 +229,17 @@ definePage(ROUTES['/pkg-handover/pages/detail/index'], {
     this.setData({ submitting: false })
   },
 
-  // 资料格点击：可上传岗位走上传；其余只读
-  onPickDoc(e) {
-    if (!this.data.canDocs) return
-    const index = Number(e.currentTarget.dataset.index)
-    if (this.data.uploadingIndex > -1) return
-    wx.showActionSheet({
-      itemList: ['拍照或相册选择', '聊天记录中的文件'],
-      success: (res) => {
-        if (res.tapIndex === 0) this.chooseImage(index)
-        else this.chooseFile(index)
-      }
-    })
-  },
-
-  chooseImage(index) {
-    wx.chooseMedia({
-      count: 1,
-      mediaType: ['image'],
-      success: (res) => this.uploadDoc(index, res.tempFiles[0].tempFilePath)
-    })
-  },
-
-  chooseFile(index) {
-    wx.chooseMessageFile({
-      count: 1,
-      type: 'file',
-      extension: ['pdf', 'jpg', 'jpeg', 'png'],
-      success: (res) => this.uploadDoc(index, res.tempFiles[0].path)
-    })
-  },
-
-  async uploadDoc(index, filePath) {
-    this.setData({ uploadingIndex: index })
-    wx.showLoading({ title: '上传中' })
-    try {
-      const up = await uploadImage(filePath)
-      const patch = {}
-      patch['docs[' + index + '].uploaded'] = true
-      this.setData(patch)
-      this._fileIds = this._fileIds || {}
-      this._fileIds[this.data.docs[index].field] = up.fileId
-      wx.showToast({ title: '已上传', icon: 'success' })
-    } catch (e) {
-      wx.showToast({ title: e.message || '上传失败', icon: 'none' })
-    }
-    wx.hideLoading()
-    this.setData({ uploadingIndex: -1 })
+  // 资料格只读；可上传岗位点击跳转 upload 页（docType→平铺字段映射在上传页）
+  onPickDoc() {
+    if (this.data.canDocs) this.goUpload()
   },
 
   async onSubmitDocs() {
     const d = this.data
     const h = d.handover || {}
-    const ids = this._fileIds || {}
     // 后端契约恒为 3 平铺必传字段（HandoverService.submitDocs 缺一 422）；D 目录格仅展示，不进提交体
     const payload = {}
-    HANDOVER_DOCS.forEach(function (doc) { payload[doc.field] = ids[doc.field] || h[doc.field] || '' })
+    HANDOVER_DOCS.forEach(function (doc) { payload[doc.field] = h[doc.field] || '' })
     if (HANDOVER_DOCS.some(function (doc) { return !payload[doc.field] })) {
       wx.showToast({ title: HANDOVER_TEXT.DOCS_REQUIRED, icon: 'none' })
       return

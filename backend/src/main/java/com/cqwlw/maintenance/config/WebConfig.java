@@ -29,7 +29,7 @@ public class WebConfig implements WebMvcConfigurer {
         registry.addInterceptor(authInterceptor)
                 .addPathPatterns("/**")
                 .excludePathPatterns(
-                        "/health", "/api/count",
+                        "/health",
                 "/auth/login", "/auth/wx-login", "/auth/logout",
                 "/auth/reset-password-by-wechat",
                 // select-unit 不在此列——必须经 AuthInterceptor 校验短时 sel 令牌（sel=1 仅可用于该端点）

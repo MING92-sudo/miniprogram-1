@@ -34,7 +34,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.stereotype.Service;
 
-import java.security.SecureRandom;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
@@ -59,7 +58,6 @@ public class WorkOrderService {
     private static final int DYNAMIC_CODE_STEP_SECONDS = 5;
     /** 绑定工单，60 秒内可校验且一次性使用。 */
     private static final int DYNAMIC_CODE_TTL_SECONDS = 60;
-    private static final SecureRandom SHARE_TOKEN_RANDOM = new SecureRandom();
 
     private final WorkOrderMapper orderMapper;
     private final ElevatorMapper elevatorMapper;
@@ -1259,9 +1257,7 @@ public class WorkOrderService {
         r.workOrderId = o.id;
         if (tenantSnapshotService != null) tenantSnapshotService.applyRecord(r, o, el);
         r.lifecycleStatus = recordLifecycleService == null ? null : recordLifecycleService.initialStatus();
-        byte[] shareTokenBytes = new byte[16];
-        SHARE_TOKEN_RANDOM.nextBytes(shareTokenBytes);
-        r.shareToken = "sg" + java.util.HexFormat.of().formatHex(shareTokenBytes);
+        r.shareToken = Ids.nextShareToken();
         r.createdAt = TimeUtil.now();
         r.reportPayloadJson = rework ? null : JsonUtil.write(buildReportPayload(r, el, uu));
         r.previewContextJson = JsonUtil.write(buildPreviewContext(o, el, uu, items.size(), mustRun.size()));

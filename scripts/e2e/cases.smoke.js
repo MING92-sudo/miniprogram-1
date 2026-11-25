@@ -164,10 +164,8 @@ async function runSmokeCases(ctx) {
   record('POST /contracts', await post('/contracts', { contractNo: 'E2E-CT-1', useUnitId: seed.useUnits.uu1, startDate: '2026-01-01', endDate: '2027-01-01' }, admin), 'any')
   record('GET /contracts-ledger', await get('/contracts-ledger', admin), 'ok')
 
-  // ══════════ 7. Count / DataDomain ══════════
-  suite('C7. 计数与数据域 /api/count /stats /audit /settings')
-  record('GET /api/count（白名单）', await get('/api/count'), 'any')
-  record('POST /api/count（白名单）', await post('/api/count', { count: 1 }), 'any')
+  // ══════════ 7. DataDomain ══════════
+  suite('C7. 数据域 /stats /audit /settings')
   record('GET /stats', await get('/stats', admin), 'ok')
   record('GET /audit', await get('/audit', admin), 'ok')
   record('GET /settings', await get('/settings', admin), 'ok')

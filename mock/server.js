@@ -250,6 +250,11 @@ function findOr401Token(list, id) {
   return item
 }
 
+// 与后端同口径：签字 token 只取 X-Share-Token 头（query 会进 access log）
+function shareTokenOf(header) {
+  return (header && header['X-Share-Token']) || ''
+}
+
 const HANDOVER_IMPORTANT = new Set([2, 3, 5, 8, 9, 10, 12, 13, 16, 18, 20, 21, 22, 23, 24, 25, 26, 29, 30, 32, 33, 35, 36, 37, 38, 39, 42, 43, 45, 46, 47, 48, 49, 50, 51, 52, 53, 58, 62, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73])
 const HANDOVER_TEMPLATE = [
   [1, 'G01', '5.1.1', '通道', '通往机器空间/滑轮间通道符合 GB/T 7588.1 5.2.2；畅通、安全、有照明，无杂物积水'],
@@ -654,9 +659,10 @@ const routes = [
     return { ok: true, shareToken: rec.shareToken || '' }
   }],
   ['GET', '/work-orders/:id/archive', () => ({ url: 'https://mock/files/arch?s=mock', hash: '0'.repeat(64), archivedAt: '2026-11-15 00:00:00' })],
-  ['POST', '/unit/records/:id/refuse-by-token', ({ params, query, body }) => {
+  ['POST', '/unit/records/:id/refuse-by-token', ({ params, query, body, header }) => {
     const r = findOr401Token(d.db.unitRecords, params.id) // C-25⑧：不存在 → 401 同错 token 文案
-    if (!query.token || query.token !== r.shareToken) {
+    const token = shareTokenOf(header)
+    if (!token || token !== r.shareToken) {
       throw { code: 401, message: '确认链接无效或已失效' }
     }
     if (r.lifecycleStatus !== 'PENDING_CLIENT_SIGNATURE') throw { code: 422, message: '记录不在待使用单位签署状态' }
@@ -1262,9 +1268,10 @@ const routes = [
     return signRecord(r, body) // 先签为准；satisfaction 不接收（§4.7 评价关闭）
   }],
   // 签名链接确认（用户需求：无需登录，凭一次性令牌远程签字或本机代签）；token 401 先于状态披露
-  ['GET', '/unit/records/:id/sign-view', ({ params, query }) => {
+  ['GET', '/unit/records/:id/sign-view', ({ params, query, header }) => {
     const r = findOr401Token(d.db.unitRecords, params.id) // C-25⑧：不存在 → 401 同错 token 文案
-    if (!query.token || query.token !== r.shareToken) {
+    const token = shareTokenOf(header)
+    if (!token || token !== r.shareToken) {
       throw { code: 401, message: '确认链接无效或已失效' }
     }
     // 不返回 satisfaction（§4.7）、不回显 shareToken
@@ -1307,17 +1314,19 @@ const routes = [
     }
   }],
   // 已签/旧版本一律 422，不再回 already 幂等体
-  ['POST', '/unit/records/:id/confirm-by-token', ({ params, query, body }) => {
+  ['POST', '/unit/records/:id/confirm-by-token', ({ params, query, body, header }) => {
     const r = findOr401Token(d.db.unitRecords, params.id) // C-25⑧：不存在 → 401 同错 token 文案
-    if (!query.token || query.token !== r.shareToken) {
+    const token = shareTokenOf(header)
+    if (!token || token !== r.shareToken) {
       throw { code: 401, message: '确认链接无效或已失效' }
     }
     requireSignable(r)
     return signRecord(r, body)
   }],
-  ['POST', '/unit/records/:id/signature-upload', ({ params, query }) => {
+  ['POST', '/unit/records/:id/signature-upload', ({ params, query, header }) => {
     const r = findOr401Token(d.db.unitRecords, params.id)
-    if (!query.token || query.token !== r.shareToken) {
+    const token = shareTokenOf(header)
+    if (!token || token !== r.shareToken) {
       throw { code: 401, message: '确认链接无效或已失效' }
     }
     requireSignable(r)
@@ -1712,7 +1721,7 @@ function mockRequest(options) {
         const params = matchPath(r[1], path)
         if (!params) continue
         try {
-          resolve(r[2]({ params, query, body: options.data || {} }))
+          resolve(r[2]({ params, query, body: options.data || {}, header: options.header || {} }))
         } catch (e) {
           reject(e && e.code ? e : { code: 500, message: (e && e.message) || 'Mock 内部错误' })
         }

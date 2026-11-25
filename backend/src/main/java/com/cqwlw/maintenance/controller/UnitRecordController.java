@@ -106,7 +106,6 @@ public class UnitRecordController {
     /** 使用单位拒签（凭分享 token，原因必填，退回维保人员） */
     @PostMapping("/unit/records/{id}/refuse-by-token")
     public ApiResponse<Object> refuseByToken(@PathVariable String id,
-                                             @RequestParam(required = false) String token,
                                              @RequestBody(required = false) Map<String, Object> body,
                                              @org.springframework.web.bind.annotation.RequestHeader(
                                                      value = "X-Idempotency-Key", required = false) String idemKey,
@@ -115,7 +114,7 @@ public class UnitRecordController {
         String code = body == null || body.get("refuseCode") == null ? "" : String.valueOf(body.get("refuseCode"));
         Map<String, Object> safeBody = body == null ? Map.of() : body;
         return ApiResponse.ok(idempotencyService.executeDb(idemKey, safeBody, request,
-                () -> recordLifecycleService.refuseByToken(id, token, code, reason)));
+                () -> recordLifecycleService.refuseByToken(id, shareToken(request), code, reason)));
     }
 
     @PostMapping("/unit/records/batch-confirm")
@@ -142,29 +141,33 @@ public class UnitRecordController {
 
     @GetMapping("/unit/records/{id}/sign-view")
     public ApiResponse<Map<String, Object>> signView(@PathVariable String id,
-                                                     @RequestParam(required = false) String token) {
-        return ApiResponse.ok(unitRecordService.signView(id, token));
+                                                     jakarta.servlet.http.HttpServletRequest request) {
+        return ApiResponse.ok(unitRecordService.signView(id, shareToken(request)));
     }
 
     @PostMapping("/unit/records/{id}/confirm-by-token")
     public ApiResponse<Object> confirmByToken(@PathVariable String id,
-                                              @RequestParam(required = false) String token,
                                               @RequestBody(required = false) Map<String, Object> body,
                                               @org.springframework.web.bind.annotation.RequestHeader(
                                                       value = "X-Idempotency-Key", required = false) String idemKey,
                                               jakarta.servlet.http.HttpServletRequest request) {
         Map<String, Object> safeBody = body == null ? Map.of() : body;
         return ApiResponse.ok(idempotencyService.executeExternal(idemKey, safeBody, request,
-                () -> unitRecordService.confirmByToken(id, token, safeBody)));
+                () -> unitRecordService.confirmByToken(id, shareToken(request), safeBody)));
     }
 
     @PostMapping("/unit/records/{id}/signature-upload")
     public ApiResponse<Map<String, Object>> signatureUpload(@PathVariable String id,
-                                                            @RequestParam(required = false) String token,
                                                             @RequestParam("file") org.springframework.web.multipart.MultipartFile file,
                                                             jakarta.servlet.http.HttpServletRequest request) throws Exception {
         String schemeHost = request.getScheme() + "://" + request.getServerName()
                 + (request.getServerPort() == 80 || request.getServerPort() == 443 ? "" : ":" + request.getServerPort());
-        return ApiResponse.ok(unitRecordService.signatureUploadByToken(id, token, file, schemeHost));
+        return ApiResponse.ok(unitRecordService.signatureUploadByToken(id, shareToken(request), file, schemeHost));
+    }
+
+    /** 签字 token 只取 X-Share-Token 头（query 会进 access log，AGENTS §3.4）；小程序全量替换后不再兼容 query。 */
+    private static String shareToken(jakarta.servlet.http.HttpServletRequest request) {
+        String header = request.getHeader("X-Share-Token");
+        return header == null || header.isBlank() ? null : header.trim();
     }
 }

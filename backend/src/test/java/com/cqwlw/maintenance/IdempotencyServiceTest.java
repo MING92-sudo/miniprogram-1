@@ -236,6 +236,48 @@ class IdempotencyServiceTest {
         verify(mapper, never()).deleteById(anyString());
     }
 
+    /** M5：complete 落库失败 → 补偿置 ownerToken 空进入人工核对终态；同键再请求 422 而非 takeover 重放（防平台重复登记） */
+    @Test
+    void completeFailureMarksKeyForManualReviewAndBlocksReplay() {
+        AtomicInteger calls = new AtomicInteger();
+        when(mapper.complete(anyString(), anyString(), anyString()))
+                .thenThrow(new IllegalStateException("completion failed"));
+        HttpServletRequest request = request("POST", "/completion", null, "emp_1");
+
+        assertThrows(IllegalStateException.class, () -> run("cf-key", Map.of(), request, calls));
+
+        ArgumentCaptor<IdempotencyKey> inserted = ArgumentCaptor.forClass(IdempotencyKey.class);
+        verify(mapper).insert(inserted.capture());
+        verify(mapper).markNeedsReview("cf-key", inserted.getValue().ownerToken);
+
+        // 补偿后同键再请求：ownerToken 为空 → 422 需人工核对，绝不重放执行
+        IdempotencyKey compensated = inserted.getValue();
+        compensated.ownerToken = null;
+        when(mapper.selectById("cf-key")).thenReturn(compensated);
+
+        BizException ex = assertThrows(BizException.class, () -> run("cf-key", Map.of(), request, calls));
+        assertEquals(422, ex.getCode());
+        assertTrue(ex.getMessage().contains("人工核对"));
+        assertEquals(1, calls.get());
+        verify(mapper, never()).takeover(anyString(), anyString(), any());
+    }
+
+    /** M5：补偿更新自身失败只记日志不再抛，原始的 complete 失败异常照常传播 */
+    @Test
+    void compensateFailureOnlyLoggedAndOriginalExceptionPropagates() {
+        AtomicInteger calls = new AtomicInteger();
+        when(mapper.complete(anyString(), anyString(), anyString()))
+                .thenThrow(new IllegalStateException("completion failed"));
+        when(mapper.markNeedsReview(anyString(), anyString()))
+                .thenThrow(new IllegalStateException("compensate failed"));
+
+        IllegalStateException ex = assertThrows(IllegalStateException.class,
+                () -> run("cf-compensate", Map.of(), request("POST", "/completion", null, "emp_1"), calls));
+
+        assertEquals("completion failed", ex.getMessage());
+        assertEquals(1, calls.get());
+    }
+
     @Test
     void externalBusinessFailureReleasesOnlySameOwner() {
         when(mapper.release(anyString(), anyString())).thenReturn(1);

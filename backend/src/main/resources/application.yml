@@ -86,3 +86,8 @@ app:
   # LBS 逆地址解析 key（前端不接触 key，docs/08 审查 #5）
   lbs-amap-key: ${LBS_AMAP_KEY:}
   lbs-tencent-key: ${LBS_TENCENT_KEY:}
+  # 登录/绑定/重置密码限流（单实例内存口径，多副本各自计数）：窗口内最多 max-attempts 次，连续失败同上限锁定 lock-seconds
+  rate-limit:
+    window-seconds: ${APP_RATE_LIMIT_WINDOW_SECONDS:60}
+    max-attempts: ${APP_RATE_LIMIT_MAX_ATTEMPTS:5}
+    lock-seconds: ${APP_RATE_LIMIT_LOCK_SECONDS:600}

@@ -5,19 +5,19 @@ function getRecord(id) {
   return get('/unit/records/' + id)
 }
 
-// 打开签名链接：校验令牌，返回记录摘要与确认状态（无需登录）
+// 打开签名链接：校验令牌，返回记录摘要与确认状态（无需登录）；token 走 X-Share-Token 头
 function getSignView(id, token) {
-  return get('/unit/records/' + id + '/sign-view?token=' + token, { needAuth: false })
+  return get('/unit/records/' + id + '/sign-view', undefined, { needAuth: false, header: { 'X-Share-Token': token } })
 }
 
 // 安全管理员签字确认（签名图 + 满意度）
 function confirmByToken(id, token, data) {
-  return post('/unit/records/' + id + '/confirm-by-token?token=' + token, data, { needAuth: false })
+  return post('/unit/records/' + id + '/confirm-by-token', data, { needAuth: false, header: { 'X-Share-Token': token } })
 }
 
 function refuseRecordByToken(id, token, reason, refuseCode) {
-  return post(`/unit/records/${id}/refuse-by-token?token=${encodeURIComponent(token)}`,
-    { reason, refuseCode: refuseCode || '' }, { needAuth: false })
+  return post(`/unit/records/${id}/refuse-by-token`,
+    { reason, refuseCode: refuseCode || '' }, { needAuth: false, header: { 'X-Share-Token': token } })
 }
 
 function batchConfirmRecords(recordIds, data) {

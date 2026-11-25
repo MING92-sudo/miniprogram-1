@@ -48,7 +48,7 @@ function judge(c) {
 
   // 门户签字的两个写入口（幂等键缺失时应是 4xx 业务码，不应 500）
   console.log('')
-  const m1 = await post('/unit/records/nope/confirm-by-token?token=bad', {}, null)
+  const m1 = await post('/unit/records/nope/confirm-by-token', {}, null, { headers: { 'X-Share-Token': 'bad' } })
   console.log(`  GET-ish 匿名签字（错 token） → code=${m1.code} ${m1.message} （期望 401 链接无效）`)
 
   console.log('')

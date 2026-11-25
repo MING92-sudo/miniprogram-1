@@ -135,6 +135,20 @@ class WorkDomainServiceTest {
         assertNotNull(v2.shareToken);
     }
 
+    /** 修订版本 shareToken 与签退建档同规格：sg + SecureRandom 16 字节 hex，不可由时间戳/记录 id 预测，且两次生成不同 */
+    @Test
+    void amendShareTokenUsesSecureRandomSpec() {
+        when(recordMapper.selectById("r1")).thenReturn(archived());
+        MaintainRecord a = service.amend("r1", Map.of("reason", "内容有误", "todoDesc", "待办"), "emp1");
+        when(recordMapper.selectById("r1")).thenReturn(archived());
+        MaintainRecord b = service.amend("r1", Map.of("reason", "再次修订", "todoDesc", "待办2"), "emp1");
+
+        assertTrue(a.shareToken.matches("^sg[0-9a-f]{32}$"));
+        assertTrue(b.shareToken.matches("^sg[0-9a-f]{32}$"));
+        assertFalse(a.shareToken.equals(b.shareToken));
+        assertFalse(a.shareToken.contains(a.id));
+    }
+
     @Test
     void amendRejectsEmptyItems() {
         when(recordMapper.selectById("r1")).thenReturn(archived());

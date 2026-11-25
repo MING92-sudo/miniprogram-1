@@ -111,7 +111,7 @@ public class WorkDomainService {
         v2.retryCount = 0;
         v2.confirmStatus = "PENDING";
         v2.lifecycleStatus = recordLifecycle.initialStatus();
-        v2.shareToken = "sg" + Long.toString(System.currentTimeMillis(), 36) + v2.id;
+        v2.shareToken = Ids.nextShareToken();
         v2.createdAt = TimeUtil.now();
         recordMapper.insert(v2);
         audit(actor, "record:amend", v2.id, "SUCCESS", reason);

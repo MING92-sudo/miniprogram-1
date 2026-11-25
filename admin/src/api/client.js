@@ -72,6 +72,10 @@ http.interceptors.response.use(
       }
     }
     const status = error.response ? error.response.status : 0
+    // 网关/代理直返的 401（无 envelope）也要统一跳登录；envelope 路径已在上面 return，不会重复触发
+    if (status === 401 && unauthorizedHandler) {
+      unauthorizedHandler()
+    }
     const err = new Error(status === 0 ? '网络异常，请检查后端服务' : `请求失败 (${status})`)
     err.code = status || -1
     return Promise.reject(err)

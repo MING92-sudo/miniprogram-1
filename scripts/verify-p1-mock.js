@@ -23,17 +23,19 @@ const FORBIDDEN = ['context', 'previewContext', 'reportPayload', 'shareToken', '
   'workerPlatformId', 'assistantPlatformId', 'refuseReason', 'reportStatus', 'uploadStatus',
   'satisfaction', 'retryCount']
 
-function req(method, url, data) {
-  return mockRequest({ method, url, data })
+function req(method, url, data, header) {
+  return mockRequest({ method, url, data, header })
 }
+// 签字链 token 走 X-Share-Token 头（M1 全量替换后不再兼容 query）
+function TOK(t) { return { 'X-Share-Token': t } }
 async function login(account) {
   const r = await req('POST', '/auth/login', { phone: account, password: '123456' })
   return r
 }
 /** 断言请求以指定业务码失败（mock 与后端同口径：throw {code,message}） */
-async function expectCode(code, method, url, data) {
+async function expectCode(code, method, url, data, header) {
   try {
-    const r = await req(method, url, data)
+    const r = await req(method, url, data, header)
     throw new assert.AssertionError({ message: '期望 ' + code + '，实际成功返回 ' + JSON.stringify(r).slice(0, 120) })
   } catch (e) {
     if (e instanceof assert.AssertionError) throw e
@@ -270,70 +272,70 @@ async function check(name, fn) {
   // ── F. sign-view / confirm-by-token / refuse-by-token（token 免登录链路） ──
   await login(CLIENT_ACCOUNT)
   await check('F1 sign-view 含 recordVersion/hashPrefix，不含 satisfaction', async () => {
-    const v = await req('GET', '/unit/records/' + OWN_RECORD + '/sign-view?token=' + OWN_TOKEN)
+    const v = await req('GET', '/unit/records/' + OWN_RECORD + '/sign-view', undefined, TOK(OWN_TOKEN))
     assert(v.recordVersion, '缺 recordVersion')
     assert(v.hashPrefix, '缺 hashPrefix')
     assert(!Object.prototype.hasOwnProperty.call(v, 'satisfaction'), 'sign-view 不应返回 satisfaction')
     assert(!Object.prototype.hasOwnProperty.call(v, 'shareToken'), 'sign-view 不应回显 shareToken')
   })
   await check('F2 sign-view token 不符 → 401', async () => {
-    await expectCode(401, 'GET', '/unit/records/' + OWN_RECORD + '/sign-view?token=bad')
+    await expectCode(401, 'GET', '/unit/records/' + OWN_RECORD + '/sign-view', undefined, TOK('bad'))
     await expectCode(401, 'GET', '/unit/records/' + OWN_RECORD + '/sign-view')
   })
   await check('F3 confirm-by-token token 401 先于状态披露', async () => {
     await withRecord(OWN_RECORD, { lifecycleStatus: 'SIGNED', confirmStatus: 'CONFIRMED' },
-      () => expectCode(401, 'POST', '/unit/records/' + OWN_RECORD + '/confirm-by-token?token=bad', { signatureUrl: 'https://mock/s.png' }))
+      () => expectCode(401, 'POST', '/unit/records/' + OWN_RECORD + '/confirm-by-token', { signatureUrl: 'https://mock/s.png' }, TOK('bad')))
   })
   await check('F4 confirm-by-token 非待签 → 422（不再是无门禁 stub）', async () => {
     await withRecord(OWN_RECORD, { lifecycleStatus: 'PENDING_CLIENT_SIGN', confirmStatus: 'PENDING' },
-      () => expectCode(422, 'POST', '/unit/records/' + OWN_RECORD + '/confirm-by-token?token=' + OWN_TOKEN, { signatureUrl: 'https://mock/s.png' }))
+      () => expectCode(422, 'POST', '/unit/records/' + OWN_RECORD + '/confirm-by-token', { signatureUrl: 'https://mock/s.png' }, TOK(OWN_TOKEN)))
   })
   await check('F5 confirm-by-token 旧版本 → 422', async () => {
     d.db.unitRecords.push({ id: 'ur_tmp_v2', prevVersionId: OWN_RECORD, elevatorCode: 'EM-2024-001', version: 2 })
     try {
-      await expectCode(422, 'POST', '/unit/records/' + OWN_RECORD + '/confirm-by-token?token=' + OWN_TOKEN, { signatureUrl: 'https://mock/s.png' })
+      await expectCode(422, 'POST', '/unit/records/' + OWN_RECORD + '/confirm-by-token', { signatureUrl: 'https://mock/s.png' }, TOK(OWN_TOKEN))
     } finally { d.db.unitRecords = d.db.unitRecords.filter((x) => x.id !== 'ur_tmp_v2') }
   })
   await check('F6 confirm-by-token 缺签名 → 422', async () => {
-    await expectCode(422, 'POST', '/unit/records/' + OWN_RECORD + '/confirm-by-token?token=' + OWN_TOKEN, {})
+    await expectCode(422, 'POST', '/unit/records/' + OWN_RECORD + '/confirm-by-token', {}, TOK(OWN_TOKEN))
   })
   await check('F7 confirm-by-token 成功不写 satisfaction，重复签字 422 且无 already', async () => {
     await withRecord(OWN_RECORD, { lifecycleStatus: 'PENDING_CLIENT_SIGNATURE', confirmStatus: 'PENDING', signatureUrl: '' }, async (r) => {
-      const ok = await req('POST', '/unit/records/' + OWN_RECORD + '/confirm-by-token?token=' + OWN_TOKEN,
-        { signatureUrl: 'https://mock/s.png', satisfaction: 5 })
+      const ok = await req('POST', '/unit/records/' + OWN_RECORD + '/confirm-by-token',
+        { signatureUrl: 'https://mock/s.png', satisfaction: 5 }, TOK(OWN_TOKEN))
       assert.strictEqual(ok.ok, true)
       assert(!Object.prototype.hasOwnProperty.call(ok, 'already'), '不应返回 already 幂等体')
       assert.strictEqual(r.satisfaction, null, 'satisfaction 不应被签字端点写入')
       assert.strictEqual(r.lifecycleStatus, 'SIGNED')
-      await expectCode(422, 'POST', '/unit/records/' + OWN_RECORD + '/confirm-by-token?token=' + OWN_TOKEN, { signatureUrl: 'https://mock/x.png' })
+      await expectCode(422, 'POST', '/unit/records/' + OWN_RECORD + '/confirm-by-token', { signatureUrl: 'https://mock/x.png' }, TOK(OWN_TOKEN))
       assert.strictEqual(r.signatureUrl, 'https://mock/s.png', '首签被覆盖')
     })
   })
   await check('F8 refuse-by-token token 不符 → 401（不再是 ()=>({ok:true}) stub）', async () => {
-    await expectCode(401, 'POST', '/unit/records/' + OWN_RECORD + '/refuse-by-token?token=bad', { reason: '数据不符' })
+    await expectCode(401, 'POST', '/unit/records/' + OWN_RECORD + '/refuse-by-token', { reason: '数据不符' }, TOK('bad'))
     await expectCode(401, 'POST', '/unit/records/' + OWN_RECORD + '/refuse-by-token', { reason: '数据不符' })
   })
   await check('F9 refuse-by-token reason 空 → 422', async () => {
-    await expectCode(422, 'POST', '/unit/records/' + OWN_RECORD + '/refuse-by-token?token=' + OWN_TOKEN, { reason: '  ' })
-    await expectCode(422, 'POST', '/unit/records/' + OWN_RECORD + '/refuse-by-token?token=' + OWN_TOKEN, {})
+    await expectCode(422, 'POST', '/unit/records/' + OWN_RECORD + '/refuse-by-token', { reason: '  ' }, TOK(OWN_TOKEN))
+    await expectCode(422, 'POST', '/unit/records/' + OWN_RECORD + '/refuse-by-token', {}, TOK(OWN_TOKEN))
   })
   await check('F10 refuse-by-token 非待签 → 422', async () => {
     await withRecord(OWN_RECORD, { lifecycleStatus: 'PENDING_CLIENT_SIGN' },
-      () => expectCode(422, 'POST', '/unit/records/' + OWN_RECORD + '/refuse-by-token?token=' + OWN_TOKEN, { reason: '数据不符' }))
+      () => expectCode(422, 'POST', '/unit/records/' + OWN_RECORD + '/refuse-by-token', { reason: '数据不符' }, TOK(OWN_TOKEN)))
     await withRecord(OWN_RECORD, { lifecycleStatus: 'PENDING_CLIENT_SIGNATURE', confirmStatus: 'CONFIRMED' },
-      () => expectCode(422, 'POST', '/unit/records/' + OWN_RECORD + '/refuse-by-token?token=' + OWN_TOKEN, { reason: '数据不符' }))
+      () => expectCode(422, 'POST', '/unit/records/' + OWN_RECORD + '/refuse-by-token', { reason: '数据不符' }, TOK(OWN_TOKEN)))
   })
   await check('F11 refuse-by-token 成功 → REFUSED_RETURNED，客户只读可见且不可再签', async () => {
     await withRecord(OWN_RECORD, { lifecycleStatus: 'PENDING_CLIENT_SIGNATURE', confirmStatus: 'PENDING' }, async (r) => {
       try {
-        const ok = await req('POST', '/unit/records/' + OWN_RECORD + '/refuse-by-token?token=' + OWN_TOKEN, { reason: '检查项照片缺失' })
+        const ok = await req('POST', '/unit/records/' + OWN_RECORD + '/refuse-by-token', { reason: '检查项照片缺失' }, TOK(OWN_TOKEN))
         assert.strictEqual(ok.ok, true)
         assert.strictEqual(r.lifecycleStatus, 'REFUSED_RETURNED')
         assert.strictEqual(r.refuseReason, '检查项照片缺失')
         const view = await req('GET', '/unit/records/' + OWN_RECORD)
         noForbidden(view, '拒签后详情')
         assert(!Object.prototype.hasOwnProperty.call(view, 'refuseReason'), '内部拒签原因不得回显客户')
-        await expectCode(422, 'POST', '/unit/records/' + OWN_RECORD + '/confirm-by-token?token=' + OWN_TOKEN, { signatureUrl: 'https://mock/s.png' })
+        await expectCode(422, 'POST', '/unit/records/' + OWN_RECORD + '/confirm-by-token', { signatureUrl: 'https://mock/s.png' }, TOK(OWN_TOKEN))
       } finally {
         delete r.refuseReason // 拒签写入的内部字段不在 withRecord 还原范围，避免残留共享 db
       }
@@ -342,9 +344,9 @@ async function check(name, fn) {
     assert(!Object.prototype.hasOwnProperty.call(seed, 'refuseReason'), '断言后 refuseReason 残留')
   })
   await check('F12 匿名端点记录不存在 → 401 归一（C-25⑧，同错 token 文案消除存在性 oracle；认证路径仍 1404）', async () => {
-    await expectCode(401, 'GET', '/unit/records/ur_missing/sign-view?token=' + OWN_TOKEN)
-    await expectCode(401, 'POST', '/unit/records/ur_missing/confirm-by-token?token=' + OWN_TOKEN, { signatureUrl: 'https://mock/s.png' })
-    await expectCode(401, 'POST', '/unit/records/ur_missing/refuse-by-token?token=' + OWN_TOKEN, { reason: '数据不符' })
+    await expectCode(401, 'GET', '/unit/records/ur_missing/sign-view', undefined, TOK(OWN_TOKEN))
+    await expectCode(401, 'POST', '/unit/records/ur_missing/confirm-by-token', { signatureUrl: 'https://mock/s.png' }, TOK(OWN_TOKEN))
+    await expectCode(401, 'POST', '/unit/records/ur_missing/refuse-by-token', { reason: '数据不符' }, TOK(OWN_TOKEN))
     // 对照：客户认证路径（本机确认）不归一，记录不存在仍 1404（后端 confirmAs.findOr404 同口径）
     await expectCode(1404, 'POST', '/unit/records/ur_missing/confirm', { signatureUrl: 'https://mock/s.png' })
   })

@@ -32,8 +32,9 @@ public class AuditInterceptor implements HandlerInterceptor {
             log.operatorId = String.valueOf(request.getAttribute(AuthInterceptor.ATTR_EMP_ID));
             log.operatorName = null; // 列表侧按 id 反查姓名，避免拦截器额外查库
             log.method = method;
-            log.path = request.getRequestURI();
-            log.action = request.getRequestURI().substring(Math.max(0, request.getRequestURI().length() - 64));
+            String uri = request.getRequestURI();
+            log.path = uri;
+            log.action = uri.substring(0, Math.min(uri.length(), 64)); // 取前 64 字符，保住 /admin/ 等路由前缀
             log.result = ex == null ? "SUCCESS" : "FAILED";
             log.ip = request.getRemoteAddr();
             log.createdAt = TimeUtil.now();

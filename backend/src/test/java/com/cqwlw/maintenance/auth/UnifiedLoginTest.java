@@ -10,6 +10,7 @@ import com.cqwlw.maintenance.service.ClientAccountService;
 import com.cqwlw.maintenance.service.ClientLoginService;
 import com.cqwlw.maintenance.service.WxAuthService;
 import org.junit.jupiter.api.Test;
+import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
 import java.util.List;
@@ -45,6 +46,10 @@ class UnifiedLoginTest {
                 clientLoginService, userRoleService);
     }
 
+    private static MockHttpServletRequest req() {
+        return new MockHttpServletRequest("POST", "/auth/login");
+    }
+
     // ── 员工分支 ───────────────────────────────────────────────
 
     /** 员工账号：自动走员工 JWT，响应 EMPLOYEE + 维保工作台 */
@@ -63,7 +68,7 @@ class UnifiedLoginTest {
                 .thenReturn("emp-token");
 
         Map<String, Object> data = controller().login(
-                Map.of("phone", "13800000001", "password", "123456")).getData();
+                Map.of("phone", "13800000001", "password", "123456"), req()).getData();
 
         assertEquals("emp-token", data.get("token"));
         assertEquals("EMPLOYEE", data.get("principalType"));
@@ -87,7 +92,7 @@ class UnifiedLoginTest {
                 .thenReturn("mixed-token");
 
         Map<String, Object> data = controller().login(
-                Map.of("phone", "13800000099", "password", "123456")).getData();
+                Map.of("phone", "13800000099", "password", "123456"), req()).getData();
 
         assertEquals("EMPLOYEE", data.get("principalType"));
         assertTrue(((List<?>) data.get("roles")).containsAll(List.of("MAINT_TECH", "CLIENT_SIGNER")));
@@ -106,7 +111,7 @@ class UnifiedLoginTest {
                 .thenReturn("client-token");
 
         Map<String, Object> data = controller().login(
-                Map.of("phone", "13800000003", "password", "000003")).getData();
+                Map.of("phone", "13800000003", "password", "000003"), req()).getData();
 
         assertEquals("client-token", data.get("token"));
         assertEquals("CUSTOMER", data.get("principalType"));
@@ -131,7 +136,7 @@ class UnifiedLoginTest {
         when(jwtService.issueSelection("13800000003")).thenReturn("sel-token");
 
         Map<String, Object> data = controller().login(
-                Map.of("phone", "13800000003", "password", "000003")).getData();
+                Map.of("phone", "13800000003", "password", "000003"), req()).getData();
 
         assertEquals(true, data.get("needSelectUnit"));
         assertEquals("sel-token", data.get("selectionToken"));
@@ -149,7 +154,7 @@ class UnifiedLoginTest {
         when(clientAccountService.findByPhone("13800000003")).thenReturn(List.of(c));
 
         BizException ex = assertThrows(BizException.class, () -> controller().login(
-                Map.of("phone", "13800000003", "password", "000003")));
+                Map.of("phone", "13800000003", "password", "000003"), req()));
 
         assertEquals(403, ex.getCode());
         assertTrue(ex.getMessage().contains("停用"));
@@ -163,7 +168,7 @@ class UnifiedLoginTest {
                 .thenReturn(List.of(client("ca_1", "uu_1", "13800000003", "000003")));
 
         BizException ex = assertThrows(BizException.class, () -> controller().login(
-                Map.of("phone", "13800000003", "password", "wrong")));
+                Map.of("phone", "13800000003", "password", "wrong"), req()));
 
         assertEquals(401, ex.getCode());
     }
@@ -175,7 +180,7 @@ class UnifiedLoginTest {
         when(clientAccountService.findByPhone("13900000000")).thenReturn(List.of());
 
         BizException ex = assertThrows(BizException.class, () -> controller().login(
-                Map.of("phone", "13900000000", "password", "123456")));
+                Map.of("phone", "13900000000", "password", "123456"), req()));
 
         assertEquals(401, ex.getCode());
     }
@@ -197,11 +202,11 @@ class UnifiedLoginTest {
                 .thenReturn("client-token");
 
         BizException oldPwd = assertThrows(BizException.class, () -> controller().login(
-                Map.of("phone", "13800000003", "password", "123456")));
+                Map.of("phone", "13800000003", "password", "123456"), req()));
         assertEquals(401, oldPwd.getCode());
 
         Map<String, Object> data = controller().login(
-                Map.of("phone", "13800000003", "password", "000003")).getData();
+                Map.of("phone", "13800000003", "password", "000003"), req()).getData();
         assertEquals("CUSTOMER", data.get("principalType"));
         assertEquals("client-token", data.get("token"));
     }
@@ -214,10 +219,28 @@ class UnifiedLoginTest {
                 .thenReturn(List.of(client("ca_1", "uu_1", "13800000003", "000003")));
 
         BizException ex = assertThrows(BizException.class, () -> controller().login(
-                Map.of("phone", "13800000003", "password", "000003", "client", "admin")));
+                Map.of("phone", "13800000003", "password", "000003", "client", "admin"), req()));
 
         assertEquals(403, ex.getCode());
         assertTrue(ex.getMessage().contains("小程序"));
+    }
+
+    /** M3：连续 5 次口令错误后第 6 次请求被限流 429（锁定期间不再走账号校验） */
+    @Test
+    void loginRateLimitedAfterRepeatedFailures() {
+        AuthController controller = controller();
+        when(employeeMapper.selectOne(any())).thenReturn(null);
+        when(clientAccountService.findByPhone("13900000000")).thenReturn(List.of());
+
+        for (int i = 0; i < 5; i++) {
+            int round = i;
+            BizException ex = assertThrows(BizException.class, () -> controller.login(
+                    Map.of("phone", "13900000000", "password", "123456"), req()), "round=" + round);
+            assertEquals(401, ex.getCode(), "round=" + round);
+        }
+        BizException limited = assertThrows(BizException.class, () -> controller.login(
+                Map.of("phone", "13900000000", "password", "123456"), req()));
+        assertEquals(429, limited.getCode());
     }
 
     // ── 微信登录（同一入口）────────────────────────────────────

@@ -41,6 +41,17 @@ public class RecordController {
                 && (r.assistantPlatformId == null || !ids.contains(r.assistantPlatformId))) {
             throw new BizException(1403, "仅可查看本人或本班组记录");
         }
-        return ApiResponse.ok(unitRecordService.toMap(r));
+        Map<String, Object> m = unitRecordService.toMap(r);
+        // shareToken 是匿名签署令牌：仅派单主/配合人本人可读，同班组其他读者剔除（否则可代客户签/拒签）
+        if (!isAssignee(e, r)) {
+            m.remove("shareToken");
+        }
+        return ApiResponse.ok(m);
+    }
+
+    private static boolean isAssignee(Employee e, MaintainRecord r) {
+        String pid = e.platformId;
+        return pid != null && !pid.isBlank()
+                && (pid.equals(r.workerPlatformId) || pid.equals(r.assistantPlatformId));
     }
 }

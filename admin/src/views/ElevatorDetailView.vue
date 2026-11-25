@@ -82,6 +82,8 @@
     </div>
 
     <div v-if="tab === 'orders'" class="mt16">
+      <AlertStrip v-if="recordsTruncated" tone="as-sig" icon="alert" title="记录过多"
+        :text="'仅显示最近 ' + records.length + ' 条维保记录，完整历史请前往维保记录页查询。'" />
       <DataTable :columns="recordCols" :rows="records" :loading="ordersLoading"
         :search-keys="['workerName', 'assistantName', 'workType']" search-placeholder="搜索维保人员 / 类别"
         empty-hint="该电梯暂无维保记录。">
@@ -124,8 +126,9 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import http from '../api/client'
-import { exportPdf, exportFaultPdf } from '../api/report'
+import { listAllRecords, exportPdf, exportFaultPdf } from '../api/report'
 import DataTable from '../ui/DataTable.vue'
+import AlertStrip from '../ui/AlertStrip.vue'
 import ViewHead from '../ui/ViewHead.vue'
 import PageMeta from '../ui/PageMeta.vue'
 import PermButton from '../ui/PermButton.vue'
@@ -212,6 +215,7 @@ const faultCols = [
 ]
 
 const records = ref([]), faults = ref([])
+const recordsTruncated = ref(false)
 const plansLoading = ref(false), ordersLoading = ref(false), faultsLoading = ref(false)
 const loaded = { plans: false, orders: false, faults: false }
 
@@ -238,9 +242,12 @@ async function loadPlans() {
 async function loadOrders() {
   ordersLoading.value = true
   try {
-    // 该梯全部维保记录（后端 /admin/records 支持 elevatorCode 过滤）
-    const kw = row.value.elevatorCode ? '?elevatorCode=' + encodeURIComponent(row.value.elevatorCode) + '&' : '?'
-    records.value = listOf(await http.get('/admin/records' + kw + 'size=200'))
+    // 该梯全部维保记录：按后端 total 逐页拉满（listAllRecords 带页数硬上限，截断时给出提示）
+    const params = { size: 200 }
+    if (row.value.elevatorCode) params.elevatorCode = row.value.elevatorCode
+    const data = await listAllRecords(params)
+    records.value = data.list || []
+    recordsTruncated.value = Boolean(data.truncated)
   } catch (e) { toast.error(e.message || '维保记录加载失败') } finally { ordersLoading.value = false }
 }
 

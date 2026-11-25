@@ -3,24 +3,14 @@ const { getHandoverChecklist, submitHandoverChecklist } = require('../../../serv
 const { uploadImage } = require('../../../services/upload')
 const { definePage } = require('../../../utils/guard')
 const { ROUTES } = require('../../../config/routes')
-const { HANDOVER_GROUP_LABEL } = require('../../../constants/index')
+const { HANDOVER_GROUP_LABEL, HANDOVER_RESULTS, HANDOVER_RESULT_TEXT, HANDOVER_NA_CODES } = require('../../../constants/index')
 const nav = require('../../../utils/nav')
-
-const NA_CODES = [
-  { code: 'NA-01', label: '本梯无此配置/部件' },
-  { code: 'NA-02', label: '品种/型式不涉及' },
-  { code: 'NA-03', label: '建筑无此要求' },
-  { code: 'NA-04', label: '特殊类别不涉及' },
-  { code: 'NA-05', label: '现场条件限制无法检测' }
-]
-const RESULTS = ['PASS', 'FAIL', 'NA']
-const RESULT_TEXT = { PASS: '合格', FAIL: '不合格', NA: '不适用' }
 
 definePage(ROUTES['/pkg-handover/pages/inspect/index'], {
   data: {
     id: '', check: null, groups: [], items: [], loading: true, error: '', submitting: false,
-    naCodes: NA_CODES, naLabels: NA_CODES.map((n) => n.code + ' ' + n.label),
-    results: RESULTS, resultText: RESULT_TEXT,
+    naCodes: HANDOVER_NA_CODES, naLabels: HANDOVER_NA_CODES.map((n) => n.code + ' ' + n.label),
+    results: HANDOVER_RESULTS, resultText: HANDOVER_RESULT_TEXT,
     conditional: { siteLimited: false, tripartiteAgreed: false, controlMeasures: '' },
     doneCount: 0
   },
@@ -53,7 +43,7 @@ definePage(ROUTES['/pkg-handover/pages/inspect/index'], {
   onResult(e) { this.updateItem(Number(e.currentTarget.dataset.idx), { result: e.currentTarget.dataset.value }) },
   onMeasure(e) { this.updateItem(Number(e.currentTarget.dataset.idx), { measuredValue: e.detail.value }) },
   onFailDesc(e) { this.updateItem(Number(e.currentTarget.dataset.idx), { failDesc: e.detail.value }) },
-  onNaReason(e) { this.updateItem(Number(e.currentTarget.dataset.idx), { naReason: NA_CODES[Number(e.detail.value)].code }) },
+  onNaReason(e) { this.updateItem(Number(e.currentTarget.dataset.idx), { naReason: HANDOVER_NA_CODES[Number(e.detail.value)].code }) },
   choosePhoto(e) {
     const idx = Number(e.currentTarget.dataset.idx)
     this._photoIdx = idx

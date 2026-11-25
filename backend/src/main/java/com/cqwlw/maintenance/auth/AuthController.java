@@ -43,6 +43,13 @@ public class AuthController {
     private com.cqwlw.maintenance.mapper.ClientAccountMapper clientAccountMapper;
     /** 客户账号自助能力（改密/绑微信）：白名单端点接待客户主体时委托给它 */
     private com.cqwlw.maintenance.service.ClientAccountService clientAccountService;
+    /** 登录/重置密码限流（setter 注入，保持既有构造器签名；默认实例与 yml 默认值一致） */
+    private LoginRateLimiter loginRateLimiter = new LoginRateLimiter(60, 5, 600, System::currentTimeMillis);
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    public void setLoginRateLimiter(LoginRateLimiter loginRateLimiter) {
+        this.loginRateLimiter = loginRateLimiter;
+    }
 
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     public void setClientAccountMapper(com.cqwlw.maintenance.mapper.ClientAccountMapper clientAccountMapper) {
@@ -76,7 +83,8 @@ public class AuthController {
     }
 
     @PostMapping("/auth/login")
-    public ApiResponse<Map<String, Object>> login(@RequestBody Map<String, Object> body) {
+    public ApiResponse<Map<String, Object>> login(@RequestBody Map<String, Object> body,
+                                                  HttpServletRequest request) {
         String account = body.get("phone") == null ? "" : String.valueOf(body.get("phone")).trim();
         String password = body.get("password") == null ? "" : String.valueOf(body.get("password"));
         if (account.isEmpty() || password.isEmpty()) {
@@ -84,6 +92,21 @@ public class AuthController {
         }
         boolean adminConsole = "admin".equals(String.valueOf(body.get("client")));
 
+        String ip = request.getRemoteAddr();
+        loginRateLimiter.checkOrThrow("login", ip, account);
+        try {
+            Map<String, Object> result = doLogin(account, password, adminConsole);
+            loginRateLimiter.onSuccess("login", ip, account);
+            return ApiResponse.ok(result);
+        } catch (BizException e) {
+            if (e.getCode() == 401) {
+                loginRateLimiter.onFailure("login", ip, account);
+            }
+            throw e;
+        }
+    }
+
+    private Map<String, Object> doLogin(String account, String password, boolean adminConsole) {
         Employee user = employeeMapper.selectOne(new LambdaQueryWrapper<Employee>()
                 .eq(Employee::getAccount, account).last("LIMIT 1"));
         // 历史残留的客户角色员工行不算内部人员：统一走客户账号校验（旧口令不再有效）
@@ -98,14 +121,14 @@ public class AuthController {
             if (adminConsole && !AdminRoles.canUseAdminConsole(user.role)) {
                 throw new BizException(403, "该账号无管理端权限，请使用小程序登录");
             }
-            return ApiResponse.ok(loginResult(user, null, adminConsole ? "admin" : "mp"));
+            return loginResult(user, null, adminConsole ? "admin" : "mp");
         }
 
         if (clientLoginService.hasAnyAccount(account)) {
             if (adminConsole) {
                 throw new BizException(403, "使用单位客户账号请使用小程序登录");
             }
-            return ApiResponse.ok(clientLoginService.loginByPassword(account, password));
+            return clientLoginService.loginByPassword(account, password);
         }
 
         if (user != null) {
@@ -204,7 +227,21 @@ public class AuthController {
     /** 忘记密码（登录页入口，免登录）：code 换 openid 匹配账号后重置； */
     @PostMapping("/auth/reset-password-by-wechat")
     @Transactional
-    public ApiResponse<Map<String, Object>> resetPasswordByWechat(@RequestBody Map<String, Object> body) {
+    public ApiResponse<Map<String, Object>> resetPasswordByWechat(@RequestBody Map<String, Object> body,
+                                                                  HttpServletRequest request) {
+        String ip = request.getRemoteAddr();
+        loginRateLimiter.checkOrThrow("reset-password", ip, "");
+        try {
+            Map<String, Object> result = doResetPasswordByWechat(body);
+            loginRateLimiter.onSuccess("reset-password", ip, "");
+            return ApiResponse.ok(result);
+        } catch (BizException e) {
+            loginRateLimiter.onFailure("reset-password", ip, "");
+            throw e;
+        }
+    }
+
+    private Map<String, Object> doResetPasswordByWechat(Map<String, Object> body) {
         String openid = wxAuthService.openidFromCode(text(body.get("code")));
         String newPassword = text(body.get("newPassword"));
         if (newPassword.length() < 6) {
@@ -220,16 +257,20 @@ public class AuthController {
             employeeMapper.updateById(user);
             employeeMapper.clearSessions(user.id);
             log.info("微信验证重置密码成功: empId={}", user.id); // 不打印 openid/新密码（脱敏）
-            return ApiResponse.ok(Map.of("ok", true, "account", user.account == null ? "" : user.account,
-                    "principalType", RoleCatalog.PrincipalType.EMPLOYEE.name()));
+            return Map.of("ok", true, "account", user.account == null ? "" : user.account,
+                    "principalType", RoleCatalog.PrincipalType.EMPLOYEE.name());
         }
         List<ClientAccount> clients = clientLoginService.activeAccountsByOpenid(openid);
+        if (clients.size() > 1) {
+            // 多单位活跃账号无法确定重置对象，不得任选其一：引导走「账号密码登录 → 选单位 → 自助改密」既有链路
+            throw new BizException(422, "该微信绑定了多个单位的账号，请先用账号密码登录并选择单位后，在「我的」中修改密码");
+        }
         if (!clients.isEmpty()) {
             ClientAccount c = clients.get(0);
             clientLoginService.resetPasswordByWechat(c.id, newPassword);
             log.info("微信验证重置客户密码成功: accountId={}", c.id);
-            return ApiResponse.ok(Map.of("ok", true, "account", c.phone,
-                    "principalType", RoleCatalog.PrincipalType.CUSTOMER.name()));
+            return Map.of("ok", true, "account", c.phone,
+                    "principalType", RoleCatalog.PrincipalType.CUSTOMER.name());
         }
         throw new BizException(422, "该微信尚未绑定账号，请联系单位管理员重置密码");
     }

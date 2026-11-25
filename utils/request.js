@@ -15,11 +15,11 @@ function handleUnauthorized() {
 }
 
 // 统一处理两种传输（callContainer / request）的响应：状态码与业务码口径一致
-function handleResponse(res, resolve, reject) {
+function handleResponse(res, resolve, reject, needAuth) {
   const body = res.data || {}
-  // 401：登录态失效
+  // 401：登录态失效；免登录链（needAuth:false）以 401 表链接失效，只按业务错误返回、不清会话
   if (res.statusCode === 401 || body.code === 401) {
-    handleUnauthorized()
+    if (needAuth !== false) handleUnauthorized()
     reject({ code: 401, message: (body && body.message) || ERROR_CODES[401] })
     return
   }
@@ -82,7 +82,7 @@ function request(options) {
       if (settled) return
       settled = true
       clearTimeout(timer)
-      handleResponse(res, resolve, reject)
+      handleResponse(res, resolve, reject, needAuth)
     }
     const onFail = (err) => {
       if (settled) return

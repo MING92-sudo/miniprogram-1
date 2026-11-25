@@ -54,13 +54,14 @@ export const useAuthStore = defineStore('auth', {
       persist(data.token, data.userInfo, data.role, this.roles)
       return data
     },
-    logout() {
+    async logout() {
+      // 先吊销服务端会话：此时 token 仍在 localStorage，请求正常携带 Authorization
+      await authApi.logout().catch(() => {})
       this.token = ''
       this.user = null
       this.role = ''
       this.roles = []
       persist('', null, '', [])
-      authApi.logout().catch(() => {})
       router.push('/login')
     },
     clearSession() {

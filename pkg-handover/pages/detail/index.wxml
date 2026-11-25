@@ -39,9 +39,9 @@
         <text wx:else class="fs18 ok">{{docs.length}} 项齐全</text>
       </view>
       <view class="doc-grid mt6">
-        <view wx:for="{{docs}}" wx:key="field" class="doc {{item.uploaded ? '' : 'bad'}}" data-index="{{index}}" bindtap="onPickDoc">
+        <view wx:for="{{docs}}" wx:key="field" class="doc {{item.uploaded ? '' : 'bad'}}" bindtap="onPickDoc">
           <text class="i {{item.uploaded ? 'i-file-circle-check' : 'i-file-circle-exclamation'}}"></text>
-          <text>{{uploadingIndex === index ? '上传中…' : item.label}}</text>
+          <text>{{item.label}}</text>
         </view>
       </view>
       <view wx:if="{{missingCount}}" class="gate-note mt6"><text class="i i-circle-exclamation"></text> 容缺 {{missingCount}} 项：缺件由安装部发起人补传，维保侧只核验不代传；容缺受理后进入现场验收。</view>

@@ -6,20 +6,26 @@ export function listRecords(params) {
 }
 
 /** 按后端 total 逐页拉取全部记录，直到累计行数达到 total（不使用固定大 size 兜底）。 */
+const MAX_PAGES = 200 // 硬上限：后端分页异常（total 偏大/不返空页）时防止无限刷接口
 export async function listAllRecords(params = {}) {
   const size = params.size || 20
   const all = []
   let total = 0
   let page = 1
   let list = []
+  let truncated = false
   do {
     const data = await listRecords({ ...params, page, size })
     list = (data && data.list) || []
     total = (data && data.total) || all.length + list.length
     all.push(...list)
     page += 1
+    if (page > MAX_PAGES) {
+      truncated = all.length < total
+      break
+    }
   } while (list.length > 0 && all.length < total)
-  return { list: all, total: Math.max(total, all.length), page: 1, size }
+  return { list: all, total: Math.max(total, all.length), page: 1, size, truncated }
 }
 
 export function reupload(id) {
