@@ -22,6 +22,8 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -70,6 +72,14 @@ class PlatformSyncServiceTest {
 
     private Map<String, Object> platformRecord(Map<String, Object> fields) {
         return new LinkedHashMap<>(fields);
+    }
+
+    /** 2.5 的 workEndDate 是合同有效期下界：拉全量名单不得传，否则名单为空导致人员永不同步 */
+    @Test
+    void syncAllQueriesWorkersWithoutWorkEndDate() {
+        service.syncAll();
+
+        verify(platformClient, times(1)).queryWorkList(eq("0"), isNull());
     }
 
     @Test

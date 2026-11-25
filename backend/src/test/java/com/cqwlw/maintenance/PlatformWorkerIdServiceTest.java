@@ -16,6 +16,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -64,6 +66,8 @@ class PlatformWorkerIdServiceTest {
         assertEquals("123456", e.platformId);
         assertEquals("SYNCED", e.syncStatus);
         verify(employeeMapper).updateById(e);
+        // workEndDate 是合同有效期下界：传日期会漏人，必须与「平台登记人员」页一致不传
+        verify(platformClient).queryWorkList(eq("0"), isNull());
     }
 
     @Test
@@ -149,8 +153,8 @@ class PlatformWorkerIdServiceTest {
 
         Map<String, Object> r = service.backfillAllFromPlatform();
 
-        // 只查一次 2.5，即便要回填多人
-        verify(platformClient, org.mockito.Mockito.times(1)).queryWorkList(anyString(), any());
+        // 只查一次 2.5，即便要回填多人；且不传 workEndDate（传日期会按合同有效期下界过滤掉人）
+        verify(platformClient, org.mockito.Mockito.times(1)).queryWorkList(eq("0"), isNull());
         assertEquals(3, r.get("platformWorkers"));
         assertEquals(2, r.get("scanned"));
         assertEquals(2, r.get("synced"));

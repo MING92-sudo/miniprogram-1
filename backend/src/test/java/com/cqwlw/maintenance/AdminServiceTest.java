@@ -101,11 +101,21 @@ class AdminServiceTest {
 
         Employee synced = new Employee();
         synced.id = "emp_1";
+        synced.name = "张伟";
+        synced.role = com.cqwlw.maintenance.auth.AdminRoles.WORKER;
         synced.syncStatus = "SYNCED";
         Employee pending = new Employee();
         pending.id = "emp_2";
+        pending.name = "李强";
+        pending.role = com.cqwlw.maintenance.auth.AdminRoles.LEADER;
         pending.syncStatus = "NOT_SYNCED";
-        when(employeeMapper.selectList(any())).thenReturn(List.of(synced, pending));
+        // 管理账号永不同步监管平台，不得计入「维保人员待同步」
+        Employee sysAdmin = new Employee();
+        sysAdmin.id = "emp_3";
+        sysAdmin.name = "系统管理员";
+        sysAdmin.role = "SYS_ADMIN";
+        sysAdmin.syncStatus = "NOT_SYNCED";
+        when(employeeMapper.selectList(any())).thenReturn(List.of(synced, pending, sysAdmin));
 
         Map<String, Object> d = service.dashboard();
 
@@ -124,7 +134,10 @@ class AdminServiceTest {
         @SuppressWarnings("unchecked")
         Map<String, Object> platform = (Map<String, Object>) d.get("platform");
         assertEquals(1, platform.get("elevatorGeoMissing"));
+        // employeeTotal 仍是全部账号数；待同步只计维保人员角色中未 SYNCED 的
+        assertEquals(3, platform.get("employeeTotal"));
         assertEquals(1, platform.get("employeePendingSync"));
+        assertEquals(List.of("李强"), platform.get("employeePendingSyncNames"));
         assertEquals(Boolean.TRUE, platform.get("platformConfigured"));
         assertFalse(String.valueOf(platform.get("lastSyncAt")).isEmpty());
 
@@ -132,6 +145,35 @@ class AdminServiceTest {
         List<Map<String, Object>> trend = (List<Map<String, Object>>) d.get("trend");
         assertEquals(7, trend.size());
         assertEquals(1, trend.get(6).get("completed"));
+    }
+
+    @Test
+    void syncStatusCountsOnlyMaintenanceWorkersPendingSync() {
+        Employee synced = employee("emp_1", "张伟", com.cqwlw.maintenance.auth.AdminRoles.WORKER, "SYNCED");
+        Employee admin = employee("emp_2", "系统管理员", "SYS_ADMIN", "NOT_SYNCED");
+        Employee platformAdmin = employee("emp_3", "平台管理员", "PLATFORM_ADMIN", null);
+        Employee pending = employee("emp_4", "赵芳", com.cqwlw.maintenance.auth.AdminRoles.WORKER, "NOT_SYNCED");
+        pending.certificate = ""; // 无证书号仍计入：无法回填平台ID
+        Employee pendingLeader = employee("emp_5", "王刚", com.cqwlw.maintenance.auth.AdminRoles.LEADER, "NOT_FOUND");
+        when(employeeMapper.selectList(any())).thenReturn(List.of(synced, admin, platformAdmin, pending, pendingLeader));
+        when(elevatorMapper.selectList(any())).thenReturn(List.of());
+
+        Map<String, Object> out = service.syncStatus();
+
+        assertEquals(5, out.get("employeeTotal"));
+        assertEquals(2, out.get("employeePendingSync"));
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> list = (List<Map<String, Object>>) out.get("employeePendingList");
+        assertEquals(List.of("emp_4", "emp_5"), list.stream().map(m -> m.get("id")).toList());
+    }
+
+    private static Employee employee(String id, String name, String role, String syncStatus) {
+        Employee e = new Employee();
+        e.id = id;
+        e.name = name;
+        e.role = role;
+        e.syncStatus = syncStatus;
+        return e;
     }
 
     @Test

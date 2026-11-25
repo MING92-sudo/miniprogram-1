@@ -66,6 +66,27 @@ describe('Workbench（数据来自 GET /admin/dashboard）', () => {
     expect(w.text()).toContain('SLA 超时')
   })
 
+  it('renders pending-sync alert with the new wording and worker names', async () => {
+    dashboard.mockResolvedValue({ ...payload, platform: { ...payload.platform, employeePendingSync: 2, employeePendingSyncNames: ['王刚', '李燚'] } })
+    await router.isReady()
+    const w = mount(DashboardView, { global: { plugins: [router] } })
+    await flushPromises()
+    const text = w.text()
+    expect(text).toContain('人员待同步')
+    expect(text).toContain('2 名维保人员未回填监管平台人员ID，影响维保记录上报')
+    expect(text).toContain('王刚、李燚')
+    expect(text).not.toContain('尚未同步监管平台')
+  })
+
+  it('caps pending-sync names at five and appends 等', async () => {
+    dashboard.mockResolvedValue({ ...payload, platform: { ...payload.platform, employeePendingSyncNames: ['甲', '乙', '丙', '丁', '戊', '己'] } })
+    await router.isReady()
+    const w = mount(DashboardView, { global: { plugins: [router] } })
+    await flushPromises()
+    expect(w.text()).toContain('（甲、乙、丙、丁、戊 等）')
+    expect(w.text()).not.toContain('己')
+  })
+
   it('falls back to zeros and no alerts when the API fails', async () => {
     dashboard.mockRejectedValue(new Error('boom'))
     await router.isReady()

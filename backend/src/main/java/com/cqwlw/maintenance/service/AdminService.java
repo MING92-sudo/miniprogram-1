@@ -2,6 +2,7 @@ package com.cqwlw.maintenance.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.cqwlw.maintenance.auth.AdminRoles;
 import com.cqwlw.maintenance.entity.Elevator;
 import com.cqwlw.maintenance.entity.Employee;
 import com.cqwlw.maintenance.entity.Fault;
@@ -100,8 +101,7 @@ public class AdminService {
         List<Elevator> elevators = elevatorMapper.selectList(null);
         int geoMissing = (int) elevators.stream().filter(e -> e.lng == null || e.lat == null).count();
         List<Employee> employees = employeeMapper.selectList(new LambdaQueryWrapper<>());
-        int pendingSync = (int) employees.stream()
-                .filter(e -> !"SYNCED".equals(e.syncStatus)).count();
+        List<Employee> pendingSyncEmployees = pendingSyncEmployees(employees);
         String lastSyncAt = elevators.stream()
                 .map(e -> e.platformSyncedAt)
                 .filter(t -> t != null)
@@ -133,7 +133,8 @@ public class AdminService {
 
         Map<String, Object> platform = new LinkedHashMap<>();
         platform.put("employeeTotal", employees.size());
-        platform.put("employeePendingSync", pendingSync);
+        platform.put("employeePendingSync", pendingSyncEmployees.size());
+        platform.put("employeePendingSyncNames", pendingSyncEmployees.stream().map(e -> nz(e.name)).sorted().toList());
         platform.put("elevatorGeoMissing", geoMissing);
         platform.put("lastSyncAt", lastSyncAt);
         platform.put("platformConfigured", tokenService.configured());
@@ -328,8 +329,7 @@ public class AdminService {
 
     public Map<String, Object> syncStatus() {
         List<Employee> employees = employeeMapper.selectList(new LambdaQueryWrapper<>());
-        List<Map<String, Object>> pendingEmployees = employees.stream()
-                .filter(e -> !"SYNCED".equals(e.syncStatus))
+        List<Map<String, Object>> pendingEmployees = pendingSyncEmployees(employees).stream()
                 .map(e -> {
                     Map<String, Object> m = new LinkedHashMap<>();
                     m.put("id", e.id);
@@ -436,6 +436,14 @@ public class AdminService {
         out.put("byWorker", topN(byWorker, 10));
         out.put("byElevator", topN(byElevator, 10));
         return out;
+    }
+
+    /** 待同步人员仅限维保人员/班组长（与派工候选同口径）；管理账号永不同步，不计入 */
+    private static List<Employee> pendingSyncEmployees(List<Employee> employees) {
+        return employees.stream()
+                .filter(e -> AdminRoles.WORKER.equals(e.role) || AdminRoles.LEADER.equals(e.role))
+                .filter(e -> !PlatformWorkerIdService.SYNCED.equals(e.syncStatus))
+                .toList();
     }
 
     private static List<Map<String, Object>> topN(Map<String, Integer> src, int n) {

@@ -173,26 +173,40 @@ public class PlatformController {
             // 2.4 建立(changState=0)/中止(changState=1) → 回写本地绑定状态（档案删除门禁与状态展示用）
             archiveService.updateBindStatusByCertificate(workManCertificate,
                     "1".equals(changState) ? 1 : 0);
-            // 用户需求①：2.4 平台登记成功 → 本地人员档案自动建档（按证书号去重；随机初始密码走账号流程）
+            // 2.4 建立（changState=0）登记成功 → 本地人员档案自动建档（按证书号去重；随机初始密码走账号流程）
+            // 终止（changState=1）只解绑：不查重、不建号，响应不带 employeeCreated/employeeCreateReason（表示未尝试）
             String employeeId = "";
             String account = workManPhone;
             String initialPassword = "";
-            try {
-                Long dup = archiveService.employeeCertificateExists(workManCertificate);
-                if (dup == null || dup == 0) {
-                    Map<String, Object> created = archiveService.createEmployee(java.util.Map.of(
-                            "name", workManName,
-                            "phone", workManPhone,
-                            "role", "WORKER",
-                            "certificate", workManCertificate,
-                            "workStartDate", workStartDate,
-                            "workEndDate", workEndDate));
-                    employeeId = String.valueOf(created.get("id"));
-                    account = String.valueOf(created.get("account"));
-                    initialPassword = String.valueOf(created.get("initialPassword"));
+            Boolean employeeCreated = null;
+            String employeeCreateReason = "";
+            if (!"1".equals(changState)) {
+                employeeCreated = false;
+                try {
+                    Long dup = archiveService.employeeCertificateExists(workManCertificate);
+                    if (dup == null || dup == 0) {
+                        Map<String, Object> created = archiveService.createEmployee(java.util.Map.of(
+                                "name", workManName,
+                                "phone", workManPhone,
+                                "role", "WORKER",
+                                "certificate", workManCertificate,
+                                "workStartDate", workStartDate,
+                                "workEndDate", workEndDate));
+                        employeeId = String.valueOf(created.get("id"));
+                        account = String.valueOf(created.get("account"));
+                        initialPassword = String.valueOf(created.get("initialPassword"));
+                        employeeCreated = true;
+                    } else {
+                        employeeCreateReason = "本地已存在该证书号的人员档案，账号请在「账号管理」查看";
+                    }
+                } catch (BizException e) {
+                    // 建档失败不影响登记结果（可用同步兜底），但须显告知用户未建号及原因
+                    employeeCreateReason = e.getCode() == 1002 ? phoneMutexReason(e) : e.getMessage();
+                } catch (Exception e) {
+                    employeeCreateReason = "本地建档异常：" + e.getClass().getSimpleName();
+                    org.slf4j.LoggerFactory.getLogger(PlatformController.class)
+                            .warn("2.4 登记成功但本地建号失败: certificate={}, {}", workManCertificate, e.toString());
                 }
-            } catch (Exception ignored) {
-                // 建档失败不影响登记结果（可用同步兜底）
             }
             // 2.4 本身不返回人员ID，必须靠 2.5 查询获得。
             Map<String, Object> platformBackfill = Map.of("status", "SKIPPED");
@@ -209,6 +223,12 @@ public class PlatformController {
             out.put("ok", true);
             out.put("employeeId", employeeId);
             out.put("account", account);
+            if (employeeCreated != null) {
+                out.put("employeeCreated", employeeCreated);
+                if (!employeeCreated) {
+                    out.put("employeeCreateReason", employeeCreateReason);
+                }
+            }
             out.put("platformBackfill", platformBackfill);
             if (!initialPassword.isEmpty()) {
                 out.put("initialPassword", initialPassword);
@@ -220,6 +240,24 @@ public class PlatformController {
             }
             return out;
         }));
+    }
+
+    /** 1002 手机号互斥：从 conflicts[].roles[].role 去重收集角色名，让用户看懂与谁冲突。 */
+    private static String phoneMutexReason(BizException e) {
+        java.util.Set<String> roles = new java.util.LinkedHashSet<>();
+        if (e.getData() != null && e.getData().get("conflicts") instanceof List<?> conflicts) {
+            for (Object c : conflicts) {
+                if (!(c instanceof Map<?, ?> conflict) || !(conflict.get("roles") instanceof List<?> roleList)) {
+                    continue;
+                }
+                for (Object r : roleList) {
+                    if (r instanceof Map<?, ?> role && role.get("role") != null) {
+                        roles.add(String.valueOf(role.get("role")));
+                    }
+                }
+            }
+        }
+        return roles.isEmpty() ? e.getMessage() : "手机号互斥（1002）：该手机号已是 " + String.join("、", roles);
     }
 
     private static void requireFile(MultipartFile file, String name) {

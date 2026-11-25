@@ -11,7 +11,7 @@
     <div class="alert-strip as-ok mt16" v-if="backfillResult">
       <svg class="ic" aria-hidden="true"><use href="#i-exchange" /></svg>
       <b>回填完成</b>
-      <span>扫描 {{ backfillResult.scanned }} 人 · 成功 {{ backfillResult.synced }} · 未找到 {{ backfillResult.notFound }} · 证书重复 {{ backfillResult.ambiguous }} · 无证书号 {{ backfillResult.noCertificate }}</span>
+      <span>平台 {{ backfillResult.platformWorkers ?? '—' }} 人 · 扫描 {{ backfillResult.scanned }} 人 · 成功 {{ backfillResult.synced }} · 未找到 {{ backfillResult.notFound }} · 证书重复 {{ backfillResult.ambiguous }} · 无证书号 {{ backfillResult.noCertificate }}</span>
       <span v-if="backfillResult.conflictCertificates && backfillResult.conflictCertificates.length" class="as-sig">证书号重复需人工处理：{{ backfillResult.conflictCertificates.join('、') }}</span>
     </div>
     <div class="row gap10 mt16">
@@ -33,13 +33,25 @@
       </DataTable>
     </div>
 
-    <!-- 建档成功回显：一次性账号/初始密码 + 全量回填统计 -->
-    <div class="alert-strip as-ok mt16" v-if="registerResult">
+    <!-- 平台登记成功但本地未建号（如手机号互斥）：警示而非绿色成功，避免误以为账号已开通 -->
+    <div class="alert-strip as-sig mt16" v-if="registerResult && registerResult.employeeCreated === false">
+      <svg class="ic" aria-hidden="true"><use href="#i-alert" /></svg>
+      <div>
+        <b>平台登记成功 · 本地账号未开通</b>
+        <span>{{ registerResult.employeeCreateReason || '本地建档未完成' }} · 可在「账号管理 → 新增用户」补开（同一手机号不能同时担任互斥角色）</span>
+        <span v-if="registerResult.platformBackfill"> · 2.5 全量回填：平台 {{ registerResult.platformBackfill.platformWorkers ?? '—' }} 人 / 本地回填 {{ registerResult.platformBackfill.synced ?? '—' }} 人 / 冲突 {{ registerResult.platformBackfill.ambiguous ?? '—' }} 人（{{ registerResult.platformBackfill.status || '' }}）</span>
+      </div>
+      <span class="as-link" @click="registerResult = null">关闭</span>
+    </div>
+    <!-- 建档成功回显：一次性账号/初始密码 + 全量回填统计（旧幂等重放响应无 employeeCreated，按成功处理）；终止只解绑不建号，不显示账号行 -->
+    <div class="alert-strip as-ok mt16" v-if="registerResult && registerResult.employeeCreated !== false">
       <svg class="ic" aria-hidden="true"><use href="#i-user-check" /></svg>
       <div>
-        <b>建档成功</b>
-        <span v-if="registerResult.account">已开通维保账号：{{ registerResult.account }}</span>
-        <span v-if="registerResult.initialPassword"> · 初始密码：{{ registerResult.initialPassword }}（仅显示一次，请安全转交）</span>
+        <b>{{ registerResultTerminate ? '平台 2.4 已终止绑定' : '建档成功' }}</b>
+        <template v-if="!registerResultTerminate">
+          <span v-if="registerResult.account">已开通维保账号：{{ registerResult.account }}</span>
+          <span v-if="registerResult.initialPassword"> · 初始密码：{{ registerResult.initialPassword }}（仅显示一次，请安全转交）</span>
+        </template>
         <span v-if="registerResult.platformBackfill"> · 2.5 全量回填：平台 {{ registerResult.platformBackfill.platformWorkers ?? '—' }} 人 / 本地回填 {{ registerResult.platformBackfill.synced ?? '—' }} 人 / 冲突 {{ registerResult.platformBackfill.ambiguous ?? '—' }} 人（{{ registerResult.platformBackfill.status || '' }}）</span>
       </div>
       <span class="as-link" @click="registerResult = null">关闭</span>
@@ -78,7 +90,7 @@
             <span v-if="registerModel.certificateFileName" class="fhelp">已选择：{{ registerModel.certificateFileName }}</span>
           </FormField>
         </div>
-        <div class="fhelp mt8">证书文件为平台 2.4 必传项（PDF，≤20M）。确认建档后，平台 2.4 登记成功即自动生成本地维保账号，并调 2.5 查询整个单位所有绑定人员回填平台ID。</div>
+        <div class="fhelp mt8">证书文件为平台 2.4 必传项（PDF，≤20M）。确认建档后，平台 2.4 登记成功即自动生成本地维保账号（仅「建立」；「终止」只解除绑定，不建号），并调 2.5 查询整个单位所有绑定人员回填平台ID（手机号与维保经理等互斥角色重复时不会建号，结果会明确提示）。</div>
       </Form>
     </Modal>
 
@@ -111,6 +123,8 @@ const showRegister = ref(false)
 const registering = ref(false)
 const registerFormRef = ref(null)
 const registerResult = ref(null)
+// 本次成功提交是否为「终止」：决定回显条是否显示账号/初始密码行（弹窗重开会把 registerModel 重置为建立，故单独记录）
+const registerResultTerminate = ref(false)
 const registerIdemKey = ref('')
 const emptyRegister = () => ({ workManName: '', workManCertificate: '', workStartDate: '', workEndDate: '', workManPhone: '', changState: '0', certificateFile: null, certificateFileName: '' })
 const registerModel = ref(emptyRegister())
@@ -125,6 +139,7 @@ const registerRules = {
 function openCreate() {
   registerModel.value = emptyRegister()
   registerResult.value = null
+  registerResultTerminate.value = false
   registerIdemKey.value = idempotencyKey()
   showRegister.value = true
 }
@@ -152,9 +167,11 @@ async function submitRegister() {
     }, { idempotencyKey: registerIdemKey.value })
     // 成功后才轮换：失败重试必须复用同一幂等键，避免平台 2.4 重复建档。
     registerIdemKey.value = idempotencyKey()
+    registerResultTerminate.value = String(m.changState) === '1'
     registerResult.value = res || { account: m.workManPhone.trim() }
     showRegister.value = false
-    toast.success(m.changState === '1' ? '平台 2.4 已终止绑定' : '建档成功，已自动回填平台人员ID')
+    if (res && res.employeeCreated === false) toast.warn(m.changState === '1' ? '平台 2.4 已终止绑定，但本地账号未开通' : '平台登记成功，但本地账号未开通')
+    else toast.success(m.changState === '1' ? '平台 2.4 已终止绑定' : '建档成功，已自动回填平台人员ID')
     await load()
   } catch (e) { toast.error('建档失败：' + (e.message || '监管平台暂不可达')) }
   finally { registering.value = false }

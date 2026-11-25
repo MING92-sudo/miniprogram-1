@@ -33,7 +33,7 @@
         <AlertStrip v-if="d.platform.elevatorGeoMissing" icon="map-pin" title="位置待补"
           :text="d.platform.elevatorGeoMissing + ' 台电梯缺少经纬度，影响调度与围栏'" to="/elevators" />
         <AlertStrip v-if="d.platform.employeePendingSync" icon="user-check" title="人员待同步"
-          :text="d.platform.employeePendingSync + ' 名维保人员尚未同步监管平台'" to="/register/workers" />
+          :text="pendingSyncText" to="/register/workers" />
         <AlertStrip v-if="!hasAlert && isEmptyDb" tone="as-info" icon="info" title="尚未录入业务数据"
           text="系统已就绪。请依次在「组织架构 → 使用单位档案 → 电梯台账」建立基础数据，再为客户开通账号" />
         <AlertStrip v-else-if="!hasAlert" tone="as-ok" icon="check" title="运行正常"
@@ -123,7 +123,7 @@ const error = ref('')
 const empty = () => ({
   orders: { dueToday: 0, dueSoon: 0, overdue: 0, inProgress: 0, elevatorTotal: 0 },
   reports: { failed: 0, reported: 0, submitted: 0, unconfirmed: 0, openFaults: 0 },
-  platform: { employeeTotal: 0, employeePendingSync: 0, elevatorGeoMissing: 0, lastSyncAt: '', platformConfigured: false },
+  platform: { employeeTotal: 0, employeePendingSync: 0, employeePendingSyncNames: [], elevatorGeoMissing: 0, lastSyncAt: '', platformConfigured: false },
   trend: [],
   warnCount: 0
 })
@@ -167,6 +167,13 @@ const kpis = computed(() => {
 })
 const hasAlert = computed(() => d.value.orders.overdue || d.value.reports.failed || d.value.reports.unconfirmed
   || d.value.platform.elevatorGeoMissing || d.value.platform.employeePendingSync)
+const pendingSyncText = computed(() => {
+  const names = (d.value.platform.employeePendingSyncNames || []).filter(Boolean)
+  let text = d.value.platform.employeePendingSync + ' 名维保人员未回填监管平台人员ID，影响维保记录上报'
+  if (!names.length) return text
+  const shown = names.slice(0, 5).join('、')
+  return text + '（' + shown + (names.length > 5 ? ' 等' : '') + '）'
+})
 /** 空库判定：无电梯、无记录、无工单 —— 只看业务数据，不计管理员自身账号（用于建库引导而非「运行正常」） */
 const isEmptyDb = computed(() => !d.value.orders.elevatorTotal && !d.value.reports.reported
   && !d.value.reports.submitted && !d.value.orders.dueToday && !d.value.reports.failed)

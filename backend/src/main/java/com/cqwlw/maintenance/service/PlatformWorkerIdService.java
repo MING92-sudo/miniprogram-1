@@ -115,8 +115,8 @@ public class PlatformWorkerIdService {
             stats.put("backfilledAt", TimeUtil.format(TimeUtil.now()));
             return new BackfillOutcome(stats, syncedCertificates, Set.of(), DISABLED);
         }
-        String workEndDate = TimeUtil.date(TimeUtil.now().plusYears(1));
-        List<Map<String, Object>> workers = platformClient.queryWorkList("0", workEndDate);
+        // 2.5 的 workEndDate 为合同有效期下界，传滚动 +1 年会把名单排空（实测返回 0 人）；与「平台登记人员」页一致不传
+        List<Map<String, Object>> workers = platformClient.queryWorkList("0", null);
         // 按证书号分组；id 缺失的条目忽略
         Map<String, List<Object>> byCert = new LinkedHashMap<>();
         for (Map<String, Object> w : workers) {
@@ -206,8 +206,8 @@ public class PlatformWorkerIdService {
         if (!tokenService.configured()) {
             return DISABLED;
         }
-        String workEndDate = TimeUtil.date(TimeUtil.now().plusYears(1));
-        List<Map<String, Object>> workers = platformClient.queryWorkList("0", workEndDate);
+        // 同上：workEndDate 会排除合同已到期的人员，拉全量名单必须不传
+        List<Map<String, Object>> workers = platformClient.queryWorkList("0", null);
         List<Map<String, Object>> matched = workers.stream()
                 .filter(w -> certificate.equals(str(w.get("workManCertificate"))))
                 .toList();

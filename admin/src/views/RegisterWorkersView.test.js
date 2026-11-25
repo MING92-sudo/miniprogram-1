@@ -155,4 +155,52 @@ describe('RegisterWorkersView 平台建档幂等（Task 20）', () => {
     expect(postedKey(http.post.mock.calls[1])).toBeTruthy()
     expect(postedKey(http.post.mock.calls[1])).not.toBe(postedKey(http.post.mock.calls[0]))
   })
+
+  it('平台登记成功但本地未建号（手机号互斥）时显示警示而非已开通账号', async () => {
+    http.post.mockResolvedValue({ employeeCreated: false, account: '13800000001', employeeCreateReason: '手机号互斥（1002）：该手机号已是 维保经理' })
+    const { wrapper, modal } = await mountModal()
+    await fillForm(modal)
+    modal.vm.$emit('confirm')
+    await flushPromises()
+
+    expect(http.post).toHaveBeenCalledTimes(1)
+    const text = wrapper.text()
+    expect(text).toContain('本地账号未开通')
+    expect(text).toContain('维保经理')
+    expect(text).toContain('账号管理 → 新增用户')
+    expect(text).not.toContain('已开通维保账号')
+    expect(wrapper.findAll('.alert-strip.as-sig').some(w => w.text().includes('本地账号未开通'))).toBe(true)
+  })
+
+  it('旧幂等重放响应无 employeeCreated 字段时仍按成功显示已开通账号', async () => {
+    http.post.mockResolvedValue({ account: '13800000001' })
+    const { wrapper, modal } = await mountModal()
+    await fillForm(modal)
+    modal.vm.$emit('confirm')
+    await flushPromises()
+
+    const text = wrapper.text()
+    expect(text).toContain('建档成功')
+    expect(text).toContain('已开通维保账号')
+    expect(text).not.toContain('本地账号未开通')
+  })
+
+  it('建立状态选「终止」提交成功后显示已终止绑定，不显示已开通账号', async () => {
+    http.post.mockResolvedValue({ ok: true, employeeId: '', account: '13800000001', platformBackfill: { status: 'SKIPPED' } })
+    const { wrapper, modal } = await mountModal()
+    await fillForm(modal)
+    expect(modal.findAll('select')).toHaveLength(1)
+    await modal.find('select').setValue('1')
+    modal.vm.$emit('confirm')
+    await flushPromises()
+
+    expect(http.post).toHaveBeenCalledTimes(1)
+    expect(http.post.mock.calls[0][1].get('changState')).toBe('1')
+    const text = wrapper.text()
+    expect(text).toContain('已终止绑定')
+    expect(text).not.toContain('已开通维保账号')
+    expect(text).not.toContain('初始密码')
+    expect(text).not.toContain('建档成功')
+    expect(text).not.toContain('本地账号未开通')
+  })
 })

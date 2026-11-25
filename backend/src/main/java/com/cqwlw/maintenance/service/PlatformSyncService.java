@@ -58,7 +58,8 @@ public class PlatformSyncService {
         }
         int entitySynced = syncEntities();
         int elevatorsSynced = syncElevators();
-        List<Map<String, Object>> platformWorkers = platformClient.queryWorkList("0", TimeUtil.date(TimeUtil.now().plusYears(1)));
+        // 2.5 的 workEndDate 为合同有效期下界，传滚动 +1 年会拿到空名单；与「平台登记人员」页一致不传
+        List<Map<String, Object>> platformWorkers = platformClient.queryWorkList("0", null);
         int workersSynced = syncWorkers(platformWorkers);
         int workersCreated = autoCreateWorkers(platformWorkers);
         PlatformReportService.SyncLegacyResult legacy = reportService.syncLegacy();
