@@ -1,5 +1,7 @@
 package com.cqwlw.maintenance.controller;
 
+import com.cqwlw.maintenance.auth.PermissionMatrix;
+import com.cqwlw.maintenance.auth.RequirePerm;
 import com.cqwlw.maintenance.common.ApiResponse;
 import com.cqwlw.maintenance.entity.WorkOrder;
 import com.cqwlw.maintenance.service.DispatchService;
@@ -124,6 +126,7 @@ public class ElevatorController {
         return String.valueOf(request.getAttribute(com.cqwlw.maintenance.auth.AuthInterceptor.ATTR_EMP_ID));
     }
 
+    @RequirePerm(PermissionMatrix.ORDER_DISPATCH)
     @PostMapping("/elevators/{id}/dispatch")
     public ApiResponse<WorkOrder> dispatchNow(@PathVariable String id) {
         return ApiResponse.ok(dispatchService.dispatchNow(id));
