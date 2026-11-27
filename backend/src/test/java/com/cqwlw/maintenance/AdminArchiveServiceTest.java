@@ -843,6 +843,107 @@ class AdminArchiveServiceTest {
         assertEquals(1002, e.getCode());
     }
 
+    /** 维保单位保存后自动查平台主体ID（2.2），平台名称覆盖本地并标注同步结果 */
+    @Test
+    void updateCompanySyncsEntityIdAfterSave() {
+        when(companyMapper.updateById(any(Company.class))).thenReturn(1);
+        when(platformClient.configured()).thenReturn(true);
+        when(platformClient.queryEntity(anyString(), anyString()))
+                .thenReturn(Map.of("entityID", "5633318206815862786", "unitName", "重庆博威电梯有限公司"));
+        Map<String, Object> row = service.updateCompany(Map.of(
+                "name", "博威电梯", "organizationCode", "91500000TEST0001X",
+                "workMenegerName", "赵敏", "workMenegerPhone", "13700000088"));
+
+        assertEquals("OK", row.get("platformSync"));
+        assertEquals("5633318206815862786", row.get("entityId"));
+        assertEquals("重庆博威电梯有限公司", row.get("name"));
+        verify(platformClient).queryEntity("91500000TEST0001X", "博威电梯");
+        verify(companyMapper, times(1)).updateById(any(Company.class));
+    }
+
+    /** 凭证未配置 / 平台无此主体 / 平台异常都不阻断保存，仅标注同步状态 */
+    @Test
+    void updateCompanySyncDegradesWithoutBlockingSave() {
+        when(companyMapper.updateById(any(Company.class))).thenReturn(1);
+        Map<String, Object> body = Map.of(
+                "name", "博威电梯", "organizationCode", "91500000TEST0001X",
+                "workMenegerName", "赵敏", "workMenegerPhone", "13700000077");
+
+        assertEquals("SKIPPED", service.updateCompany(body).get("platformSync"));
+
+        when(platformClient.configured()).thenReturn(true);
+        doThrow(new BizException(404, "平台未查询到该单位主体"))
+                .when(platformClient).queryEntity(anyString(), anyString());
+        assertEquals("NO_MATCH", service.updateCompany(body).get("platformSync"));
+
+        doThrow(new IllegalStateException("platform down"))
+                .when(platformClient).queryEntity(anyString(), anyString());
+        assertEquals("FAILED", service.updateCompany(body).get("platformSync"));
+        // 先查平台再落库：每次保存只写一次（首次改信用代码时同时清空旧主体ID）
+        verify(companyMapper, times(3)).updateById(any(Company.class));
+    }
+
+    /** 信用代码变更后 2.2 未命中：旧主体ID必须清空，避免新代码挂旧 ID */
+    @Test
+    void updateCompanyClearsStaleEntityIdWhenCodeChangedAndNotFound() {
+        Company existing = new Company();
+        existing.id = "co_x";
+        existing.name = "博威电梯";
+        existing.organizationCode = "CODE1";
+        existing.entityId = "E1";
+        existing.workMenegerPhone = "13700000001";
+        when(companyMapper.selectList(any())).thenReturn(List.of(existing));
+        when(companyMapper.updateById(any(Company.class))).thenReturn(1);
+        when(platformClient.configured()).thenReturn(true);
+        doThrow(new BizException(404, "平台未查询到该单位主体"))
+                .when(platformClient).queryEntity(anyString(), anyString());
+
+        Map<String, Object> row = service.updateCompany(Map.of(
+                "name", "博威电梯", "organizationCode", "CODE2",
+                "workMenegerName", "赵敏", "workMenegerPhone", "13700000011"));
+
+        assertEquals("NO_MATCH", row.get("platformSync"));
+        assertEquals("", row.get("entityId"));
+        assertEquals("CODE2", existing.organizationCode);
+        verify(companyMapper, times(1)).updateById(any(Company.class));
+    }
+
+    /** 手工同步端点返回空 entityID 时不得写库或覆盖名称 */
+    @Test
+    void syncCompanyEntityIdTreatsBlankIdAsNotFound() {
+        Company existing = new Company();
+        existing.id = "co_y";
+        existing.name = "博威电梯";
+        existing.organizationCode = "CODE1";
+        when(companyMapper.selectList(any())).thenReturn(List.of(existing));
+        when(platformClient.configured()).thenReturn(true);
+        when(platformClient.queryEntity(anyString(), anyString()))
+                .thenReturn(Map.of("entityID", "", "unitName", "平台名称"));
+
+        Map<String, Object> r = service.syncCompanyEntityId();
+
+        assertEquals(false, r.get("found"));
+        assertEquals("博威电梯", existing.name);
+        verify(companyMapper, never()).updateById(any(Company.class));
+    }
+
+    /** 平台返回空 entityID 视为未命中，不得当成功写入或覆盖平台名称 */
+    @Test
+    void updateCompanyTreatsBlankEntityIdAsNoMatch() {
+        when(companyMapper.updateById(any(Company.class))).thenReturn(1);
+        when(platformClient.configured()).thenReturn(true);
+        when(platformClient.queryEntity(anyString(), anyString()))
+                .thenReturn(Map.of("entityID", "", "unitName", "平台名称"));
+
+        Map<String, Object> row = service.updateCompany(Map.of(
+                "name", "博威电梯", "organizationCode", "91500000TEST0001X",
+                "workMenegerName", "赵敏", "workMenegerPhone", "13700000066"));
+
+        assertEquals("NO_MATCH", row.get("platformSync"));
+        assertEquals("", row.get("entityId"));
+        assertEquals("博威电梯", row.get("name"));
+    }
+
     @Test
     void updateCompanyRejectsIncompleteManager() {
         BizException e = assertThrows(BizException.class, () -> service.updateCompany(Map.of(

@@ -38,7 +38,7 @@ public class AdminArchiveController {
     public ApiResponse<Object> updateCompany(@RequestBody Map<String, Object> body,
                                              @RequestHeader(value = "X-Idempotency-Key", required = false) String idemKey,
                                              HttpServletRequest request) {
-        return ApiResponse.ok(idempotencyService.executeDb(idemKey, body, request,
+        return ApiResponse.ok(idempotencyService.executeExternal(idemKey, body, request,
                 () -> archiveService.updateCompany(body)));
     }
 

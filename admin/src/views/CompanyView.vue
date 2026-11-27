@@ -12,34 +12,44 @@
         </RuleNote>
         <div class="form-grid">
           <FormField label="维保单位名称" required :error="errors.name">
-            <input v-model="form.name" class="ctl" placeholder="如：重庆博威电梯有限公司" />
+            <input v-model="form.name" class="ctl" :disabled="!editing" placeholder="如：重庆博威电梯有限公司" />
           </FormField>
           <FormField label="统一社会信用代码" required :error="errors.organizationCode">
-            <input v-model="form.organizationCode" class="ctl mono" placeholder="18 位统一社会信用代码" />
+            <input v-model="form.organizationCode" class="ctl mono" :disabled="!editing" placeholder="18 位统一社会信用代码" />
           </FormField>
           <FormField label="维保经理姓名" required :error="errors.workMenegerName">
-            <input v-model="form.workMenegerName" class="ctl" placeholder="2.6 上报 workMenegerName" />
+            <input v-model="form.workMenegerName" class="ctl" :disabled="!editing" placeholder="2.6 上报 workMenegerName" />
           </FormField>
           <FormField label="维保经理手机" required :error="errors.workMenegerPhone">
-            <input v-model="form.workMenegerPhone" class="ctl mono" placeholder="11 位手机号，与其他四类人员互斥" />
+            <input v-model="form.workMenegerPhone" class="ctl mono" :disabled="!editing" placeholder="11 位手机号，与其他四类人员互斥" />
           </FormField>
           <FormField label="平台主体 ID（只读）">
             <input :value="form.entityId || '—'" class="ctl mono" disabled />
           </FormField>
-          <FormField label="平台 orgid（只读）">
-            <input :value="form.orgId || '—'" class="ctl mono" disabled />
-          </FormField>
         </div>
         <div class="row mt12">
-          <PermButton code="config:manage" label="保存单位信息" variant="primary" icon="check" @click="save" />
+          <template v-if="editing">
+            <PermButton code="config:manage" :label="saving ? '提交中…' : '保存单位信息'" variant="primary" icon="check" @click="save" />
+            <PermButton v-if="canRetry" code="config:manage" :label="saving ? '提交中…' : '重试同步主体ID'" variant="ghost" icon="refresh" @click="save" />
+          </template>
+          <template v-else>
+            <PermButton code="config:manage" label="编辑" variant="ghost" icon="edit" @click="startEdit" />
+            <PermButton code="config:manage" :label="saving ? '提交中…' : '重新同步'" variant="ghost" icon="refresh" @click="save" />
+          </template>
         </div>
+        <RuleNote v-if="!editing" class="mt12">
+          当前档案已记录平台主体ID，名称与统一社会信用代码以平台为准；需修改请点「编辑」，平台侧变更可点「重新同步」复核。
+        </RuleNote>
+        <RuleNote v-else-if="syncHint" icon="alert" class="mt12">
+          主体ID未同步：{{ syncHint }}。保存内容已生效{{ canRetry ? '，可点「重试同步主体ID」' : '' }}。
+        </RuleNote>
       </div>
     </div>
   </div>
 </template>
 <script setup>
 defineProps({ embedded: Boolean })
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { company as fetchCompany, updateCompany } from '../api/archive'
 import ViewHead from '../ui/ViewHead.vue'
 import PageMeta from '../ui/PageMeta.vue'
@@ -48,17 +58,37 @@ import FormField from '../ui/FormField.vue'
 import PermButton from '../ui/PermButton.vue'
 import { useToast } from '../ui/stores/ui'
 const toast = useToast()
-const form = ref({ name: '', organizationCode: '', workMenegerName: '', workMenegerPhone: '', entityId: '', orgId: '' })
+const SYNC_HINT = {
+  SKIPPED: '监管平台凭证未配置',
+  NO_MATCH: '平台未查询到该单位主体，请核对名称与统一社会信用代码',
+  FAILED: '平台同步失败，可稍后重试'
+}
+const form = ref({ name: '', organizationCode: '', workMenegerName: '', workMenegerPhone: '', entityId: '' })
 const errors = ref({})
+const editing = ref(true)
+const saved = ref(false)
+const saving = ref(false)
+const syncState = ref('')
+const syncHint = computed(() => (saved.value ? SYNC_HINT[syncState.value] || '' : ''))
+const canRetry = computed(() => saved.value && ['NO_MATCH', 'FAILED'].includes(syncState.value))
+function apply(c) {
+  form.value = {
+    name: c.name || '', organizationCode: c.organizationCode || '',
+    workMenegerName: c.workMenegerName || '', workMenegerPhone: c.workMenegerPhone || '',
+    entityId: c.entityId || ''
+  }
+}
 async function load() {
   try {
     const c = await fetchCompany()
-    form.value = {
-      name: c.name || '', organizationCode: c.organizationCode || '',
-      workMenegerName: c.workMenegerName || '', workMenegerPhone: c.workMenegerPhone || '',
-      entityId: c.entityId || '', orgId: c.orgId || ''
-    }
+    apply(c)
+    saved.value = true
+    syncState.value = ''
+    editing.value = !c.entityId
   } catch (e) { toast.error(e.message || '加载失败') }
+}
+function startEdit() {
+  editing.value = true
 }
 function validate() {
   const e = {}
@@ -70,15 +100,25 @@ function validate() {
   return !Object.keys(e).length
 }
 async function save() {
-  if (!validate()) return
+  if (saving.value || !validate()) return
+  saving.value = true
   try {
-    await updateCompany({
+    const row = await updateCompany({
       name: form.value.name.trim(), organizationCode: form.value.organizationCode.trim(),
       workMenegerName: form.value.workMenegerName.trim(), workMenegerPhone: form.value.workMenegerPhone.trim()
     })
-    toast.success('单位信息已保存')
-    await load()
-  } catch (e) { toast.error(e.message || '保存失败') }
+    apply(row)
+    saved.value = true
+    syncState.value = row.platformSync || ''
+    if (row.platformSync === 'OK' && row.entityId) {
+      editing.value = false
+      toast.success('单位信息已保存，平台主体ID已同步')
+    } else if (row.platformSync === 'SKIPPED') {
+      toast.success('单位信息已保存（监管平台凭证未配置，未同步主体ID）')
+    } else {
+      toast.error('单位信息已保存，但平台主体ID未同步：' + (SYNC_HINT[syncState.value] || '未知原因'))
+    }
+  } catch (e) { toast.error(e.message || '保存失败') } finally { saving.value = false }
 }
 onMounted(load)
 </script>

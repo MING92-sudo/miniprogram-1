@@ -119,6 +119,7 @@ public class AdminArchiveService {
     public Map<String, Object> updateCompany(Map<String, Object> body) {
         Company c = companyMapper.selectList(null).stream().findFirst().orElse(null);
         boolean create = c == null;
+        String previousOrganizationCode = c == null ? null : c.organizationCode;
         if (create) {
             c = new Company();
             c.id = Ids.next("co");
@@ -137,12 +138,54 @@ public class AdminArchiveService {
         }
         requireNoConflict(phoneMutexService.checkCompany(c.workMenegerPhone));
         requireCompanyForReport(c);
+        // 先查平台再落库：避免 2.2 失败时留下「新信用代码 + 旧主体ID」的中间态
+        boolean organizationCodeChanged = !create
+                && !java.util.Objects.equals(previousOrganizationCode, c.organizationCode);
+        String platformSync = syncCompanyAfterWrite(c, organizationCodeChanged);
         if (create) {
             companyMapper.insert(c);
         } else {
             companyMapper.updateById(c);
         }
-        return companyRow(c);
+        Map<String, Object> row = companyRow(c);
+        row.put("platformSync", platformSync);
+        return row;
+    }
+
+    /** 维保单位保存后回填平台主体ID（2.2 查询接口）；失败不阻断保存 */
+    private String syncCompanyAfterWrite(Company c, boolean organizationCodeChanged) {
+        if (platformClient == null || !platformClient.configured()
+                || c.organizationCode == null || c.organizationCode.isBlank()) {
+            if (organizationCodeChanged) {
+                c.entityId = "";
+            }
+            return "SKIPPED";
+        }
+        String result;
+        try {
+            Map<String, Object> entity = platformClient.queryEntity(c.organizationCode, c.name);
+            String entityId = entity.get("entityID") == null ? "" : String.valueOf(entity.get("entityID")).trim();
+            if (entityId.isEmpty()) {
+                result = "NO_MATCH";
+            } else {
+                c.entityId = entityId;
+                String platformName = entity.get("unitName") == null ? "" : String.valueOf(entity.get("unitName"));
+                if (!platformName.isEmpty()) {
+                    c.name = platformName;
+                }
+                result = "OK";
+            }
+        } catch (BizException e) {
+            log.warn("维保单位保存后平台主体查询失败: {}, {}", c.name, e.getMessage());
+            result = e.getCode() == 404 ? "NO_MATCH" : "FAILED";
+        } catch (Exception e) {
+            log.warn("维保单位保存后平台主体查询失败: {}, {}", c.name, e.getMessage());
+            result = "FAILED";
+        }
+        if (organizationCodeChanged && !"OK".equals(result)) {
+            c.entityId = "";
+        }
+        return result;
     }
 
     // ── 使用单位（GET/POST/PUT /use-units）──
@@ -990,7 +1033,6 @@ public class AdminArchiveService {
         m.put("name", nz(c.name));
         m.put("organizationCode", nz(c.organizationCode));
         m.put("entityId", nz(c.entityId));
-        m.put("orgId", nz(c.orgId));
         m.put("workMenegerName", nz(c.workMenegerName));
         m.put("workMenegerPhone", nz(c.workMenegerPhone));
         return m;
@@ -1157,13 +1199,16 @@ public class AdminArchiveService {
                 .orElseThrow(() -> new BizException(1404, "维保单位档案不存在"));
         return syncEntityId(c.organizationCode, c.name, () -> {
             Map<String, Object> entity = platformClient.queryEntity(c.organizationCode, c.name);
-            c.entityId = String.valueOf(entity.get("entityID"));
-            String platformName = entity.get("unitName") == null ? "" : String.valueOf(entity.get("unitName"));
-            if (!platformName.isEmpty()) {
-                c.name = platformName;
+            String entityId = entity.get("entityID") == null ? "" : String.valueOf(entity.get("entityID")).trim();
+            if (!entityId.isEmpty()) {
+                c.entityId = entityId;
+                String platformName = entity.get("unitName") == null ? "" : String.valueOf(entity.get("unitName"));
+                if (!platformName.isEmpty()) {
+                    c.name = platformName;
+                }
+                companyMapper.updateById(c);
             }
-            companyMapper.updateById(c);
-            return c.entityId;
+            return entityId;
         });
     }
 

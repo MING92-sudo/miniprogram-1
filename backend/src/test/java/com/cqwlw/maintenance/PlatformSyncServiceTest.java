@@ -1,5 +1,7 @@
 package com.cqwlw.maintenance;
 
+import com.cqwlw.maintenance.common.BizException;
+import com.cqwlw.maintenance.entity.Company;
 import com.cqwlw.maintenance.entity.Elevator;
 import com.cqwlw.maintenance.entity.UseUnit;
 import com.cqwlw.maintenance.mapper.CompanyMapper;
@@ -22,6 +24,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
@@ -80,6 +83,42 @@ class PlatformSyncServiceTest {
         service.syncAll();
 
         verify(platformClient, times(1)).queryWorkList(eq("0"), isNull());
+    }
+
+    /** 全量同步回填维保单位主体ID（2.2） */
+    @Test
+    void syncAllStoresCompanyEntityId() {
+        Company c = new Company();
+        c.id = "co_1";
+        c.name = "重庆博威电梯有限公司";
+        c.organizationCode = "91500106MAABU3795M";
+        when(companyMapper.selectList(any())).thenReturn(List.of(c));
+        when(platformClient.queryEntity(anyString(), anyString()))
+                .thenReturn(Map.of("entityID", "311715940563360", "unitName", "重庆博威电梯有限公司"));
+
+        Map<String, Object> summary = service.syncAll();
+
+        assertEquals(1, summary.get("entitySynced"));
+        assertEquals("311715940563360", c.entityId);
+        verify(companyMapper).updateById(c);
+    }
+
+    /** 主体回填 404 不得中断后续电梯/人员同步 */
+    @Test
+    void syncEntitiesFailureDoesNotAbortSyncAll() {
+        Company c = new Company();
+        c.id = "co_1";
+        c.name = "博威电梯";
+        c.organizationCode = "BAD-CODE";
+        when(companyMapper.selectList(any())).thenReturn(List.of(c));
+        when(platformClient.queryEntity(anyString(), anyString()))
+                .thenThrow(new BizException(404, "平台未查询到该单位主体"));
+
+        Map<String, Object> summary = service.syncAll();
+
+        assertEquals(0, summary.get("entitySynced"));
+        verify(platformClient).queryWorkList(eq("0"), isNull());
+        verify(companyMapper, never()).updateById(any(Company.class));
     }
 
     @Test

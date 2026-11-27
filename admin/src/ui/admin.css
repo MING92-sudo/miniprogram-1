@@ -173,7 +173,8 @@ h1,h2,h3,h4{font-weight:600;letter-spacing:.01em;line-height:1.3}
 .crumbs b{color:#DCE7EA;font-weight:500}
 
 /* ---------- 视图容器 ---------- */
-.view{padding:12px 24px 40px;position:relative;z-index:1;max-width:1720px}
+/* 不设 z-index：否则形成层叠上下文，弹窗/抽屉的 fixed 遮罩会被顶部栏（z28）/侧栏（z30）压住 */
+.view{padding:12px 24px 40px;position:relative;max-width:1720px}
 .view-head{margin-top:8px}
 .view-title{display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap}
 .view-title h1{font-size:var(--fs-h2);letter-spacing:.02em;color:#F1F6F7}
@@ -389,6 +390,13 @@ input.ctl::placeholder,textarea.ctl::placeholder{color:#5C717A}
 .ctl:focus{border-color:var(--amber);background:#122026}
 .ctl.mono{font-family:var(--font-mono)}
 .ctl:disabled{background:#101619;color:var(--dim);cursor:not-allowed;border-color:var(--line)}
+/* 原生日期/时间控件宽度自适应，避免固有宽度撑破表单栅格 */
+input[type="date"].ctl,input[type="datetime-local"].ctl,input[type="time"].ctl,
+.field input[type="date"],.field input[type="datetime-local"],.field input[type="time"]{width:100%;min-width:0}
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="datetime-local"]::-webkit-calendar-picker-indicator{opacity:.65;cursor:pointer}
+/* 原生文件选择按钮高度随内容收缩，避免被 .ctl 固定 34px 截断 */
+input[type="file"].ctl{height:auto;min-height:34px;padding:4px 8px;line-height:1.5}
 .field.bad .ctl{border-color:var(--signal);background:rgba(255,75,43,.05)}
 .field.bad>label{color:var(--signal-soft)}
 .err{display:none;align-items:center;gap:5px;font-size:var(--fs-label);color:var(--signal-soft);font-family:var(--font-mono)}
@@ -413,22 +421,24 @@ fieldset.fs>legend{font-family:var(--font-mono);font-size:var(--fs-label);letter
 .field.bad input,.field.bad select,.field.bad textarea{border-color:var(--signal);background:rgba(255,75,43,.05)}
 
 /* ---------- Modal / Drawer ---------- */
-.scrim{position:fixed;inset:0;z-index:70;background:var(--scrim);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;padding:32px}
+.scrim{position:fixed;inset:0;z-index:70;background:var(--scrim);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;padding:24px}
 .scrim.fade{animation:fadein .14s ease-out}
 @keyframes fadein{from{opacity:0}to{opacity:1}}
-.modal{width:min(680px,100%);max-height:calc(100vh - 64px);overflow:auto;background:linear-gradient(160deg,#16212A,#101A1F);
+/* 头部/底部固定，只有内容区滚动：长表单（移交单、电梯档案）不再把标题和按钮滚出视口 */
+.modal{width:min(720px,100%);max-height:calc(100vh - 48px);display:flex;flex-direction:column;overflow:hidden;
+  background:linear-gradient(160deg,#16212A,#101A1F);
   border:1px solid var(--line-2);border-radius:var(--r-card);box-shadow:0 40px 90px -30px #000;animation:pop .16s ease-out}
 @keyframes pop{from{transform:translateY(10px) scale(.99);opacity:.4}to{transform:none;opacity:1}}
 .modal.danger{border-color:var(--signal-a32)}
-.modal-head{display:flex;align-items:flex-start;gap:12px;padding:16px 18px;border-bottom:1px solid var(--line)}
+.modal-head{display:flex;align-items:flex-start;gap:12px;padding:16px 18px;border-bottom:1px solid var(--line);flex:none}
 .modal-head h3{font-size:16px;color:#EFF5F6;font-weight:600}
 .modal-head .mh-sub{font-size:var(--fs-sm);color:var(--dim);margin-top:3px}
 .modal-head .mh-ico{width:34px;height:34px;border-radius:var(--r-tag);border:1px solid var(--amber-a18);background:rgba(255,176,32,.08);
   color:var(--amber);display:flex;align-items:center;justify-content:center;flex:none}
 .modal.danger .mh-ico{border-color:var(--signal-a32);background:rgba(255,75,43,.1);color:var(--signal-soft)}
 .modal-head .mh-x{margin-left:auto}
-.modal-body{padding:18px}
-.modal-foot{display:flex;align-items:center;gap:10px;justify-content:flex-end;padding:14px 18px;border-top:1px solid var(--line);
+.modal-body{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:18px}
+.modal-foot{display:flex;align-items:center;gap:10px;justify-content:flex-end;padding:14px 18px;border-top:1px solid var(--line);flex:none;
   background:rgba(255,255,255,.02);flex-wrap:wrap}
 .modal-foot .mf-note{margin-right:auto;font-size:var(--fs-label);color:var(--dim);font-family:var(--font-mono)}
 .drawer-scrim{position:fixed;inset:0;z-index:66;background:var(--scrim)}
@@ -703,6 +713,11 @@ table.matrix tbody tr:hover td.fixed{background:#16232A}
   .role-switch>button .rs-txt,.role-switch>.rs-static .rs-txt{display:none}
   .top{padding:0 12px;gap:8px}
   .top-user .tu-txt{display:none}
+  .scrim{padding:12px}
+  .modal{max-height:calc(100vh - 24px)}
+  .modal-head{padding:12px 14px}
+  .modal-body{padding:14px}
+  .modal-foot{padding:10px 14px;flex-wrap:wrap}
 }
 
 /* ===== 现场照片受门控的「查看原图」入口 ===== */

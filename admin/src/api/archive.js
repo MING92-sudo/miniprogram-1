@@ -5,8 +5,9 @@ export function company() {
   return http.get('/company')
 }
 
+/** 保存后自动同步 2.2 主体ID；平台慢时留足 60s，避免浏览器 30s 提前报网络错误 */
 export function updateCompany(body) {
-  return http.put('/company', body)
+  return http.put('/company', body, { timeout: 60000 })
 }
 
 export function useUnits() {

@@ -47,12 +47,12 @@ public class WebConfig implements WebMvcConfigurer {
         registry.addInterceptor(adminRoleInterceptor)
                 .addPathPatterns(
                         "/admin/**", "/reg/**", "/platform/**",
-                        "/company", "/use-units/**", "/employees/**", "/elevators/**");
+                        "/company/**", "/use-units/**", "/employees/**", "/elevators/**");
         // 审计：管理端写操作留痕（afterCompletion 按方法过滤 GET）
         registry.addInterceptor(auditInterceptor)
                 .addPathPatterns(
                         "/admin/**", "/reg/**", "/platform/**",
-                        "/company", "/use-units/**", "/employees/**", "/elevators/**");
+                        "/company/**", "/use-units/**", "/employees/**", "/elevators/**");
         registry.addInterceptor(legacyModuleInterceptor)
                 .addPathPatterns(
                         "/rescues", "/rescues/**",

@@ -166,19 +166,30 @@ public class PlatformSyncService {
     private int syncEntities() {
         int n = 0;
         Company c = companyMapper.selectList(null).stream().findFirst().orElse(null);
-        if (c != null && c.organizationCode != null) {
-            Map<String, Object> entity = platformClient.queryEntity(c.organizationCode, c.name);
-            c.entityId = String.valueOf(entity.get("entityID"));
-            String platformName = entity.get("unitName") == null ? "" : String.valueOf(entity.get("unitName"));
-            if (!platformName.isEmpty()) {
-                c.name = platformName;
+        if (c != null && c.organizationCode != null && !c.organizationCode.isBlank()) {
+            try {
+                Map<String, Object> entity = platformClient.queryEntity(c.organizationCode, c.name);
+                String entityId = entity.get("entityID") == null ? "" : String.valueOf(entity.get("entityID")).trim();
+                if (!entityId.isEmpty()) {
+                    c.entityId = entityId;
+                    String platformName = entity.get("unitName") == null ? "" : String.valueOf(entity.get("unitName"));
+                    if (!platformName.isEmpty()) {
+                        c.name = platformName;
+                    }
+                    companyMapper.updateById(c);
+                    n++;
+                }
+            } catch (Exception e) {
+                log.warn("维保单位主体同步失败，继续后续同步: {}", e.getMessage());
             }
-            companyMapper.updateById(c);
-            n++;
         }
         for (UseUnit u : useUnitMapper.selectList(null)) {
-            if (syncUseUnitEntityId(u)) {
-                n++;
+            try {
+                if (syncUseUnitEntityId(u)) {
+                    n++;
+                }
+            } catch (Exception e) {
+                log.warn("使用单位主体同步失败，继续后续同步: {}", u.unitName);
             }
         }
         return n;
