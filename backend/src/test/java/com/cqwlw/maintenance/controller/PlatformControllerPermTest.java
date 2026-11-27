@@ -25,4 +25,12 @@ class PlatformControllerPermTest {
         assertEquals(PermissionMatrix.REPORT_RETRY_NEW, reupload.value());
         assertEquals(PermissionMatrix.REPORT_RETRY_NEW, reconcile.value());
     }
+
+    @Test
+    void queryElevatorRequiresElevatorEditPerm() throws Exception {
+        RequirePerm perm = PlatformController.class
+                .getMethod("queryElevator", Map.class).getAnnotation(RequirePerm.class);
+        assertNotNull(perm, "queryElevator 缺少 @RequirePerm");
+        assertEquals(PermissionMatrix.ELEVATOR_EDIT, perm.value());
+    }
 }

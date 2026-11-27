@@ -257,14 +257,22 @@ public class PlatformSyncService {
     private static Map<String, Object> matchRecord(Map<String, String> cond,
                                                    List<Map<String, Object>> list) {
         for (Map<String, Object> p : list) {
-            if (sameValue(cond.get("factoryNumber"), p.get("factoryNumber"))
-                    || sameValue(cond.get("registrationCode"), p.get("registrationCode"))
-                    || sameValue(cond.get("deviceCode"), p.get("deviceCode"))
-                    || sameValue(cond.get("elevatorCode"), p.get("elevatorCode"))) {
+            if (matchesQuery(cond, p)) {
                 return p;
             }
         }
         return null;
+    }
+
+    /** 2.7 记录是否命中查询条件（任一同值即命中；查询条件为空的项不参与比较） */
+    public static boolean matchesQuery(Map<String, String> cond, Map<String, Object> record) {
+        if (record == null) {
+            return false;
+        }
+        return sameValue(cond.get("factoryNumber"), record.get("factoryNumber"))
+                || sameValue(cond.get("registrationCode"), record.get("registrationCode"))
+                || sameValue(cond.get("deviceCode"), record.get("deviceCode"))
+                || sameValue(cond.get("elevatorCode"), record.get("elevatorCode"));
     }
 
     private static boolean sameValue(String local, Object remote) {

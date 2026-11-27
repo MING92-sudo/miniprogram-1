@@ -68,6 +68,7 @@ public class PlatformController {
 
     /** 实测平台不支持按 elevatorCode 查询，仅接受 deviceCode / factoryNumber / registrationCode 之一 */
     @PostMapping("/platform/query/elevator")
+    @RequirePerm(PermissionMatrix.ELEVATOR_EDIT)
     public ApiResponse<Object> queryElevator(@RequestBody Map<String, Object> body) {
         if (!platformClient.configured()) {
             return ApiResponse.ok(Map.of("found", false, "reason", "监管平台凭证未配置"));
@@ -82,10 +83,23 @@ public class PlatformController {
         if (cond.isEmpty()) {
             throw new BizException(422, "至少填写 设备代码/出厂编号/注册代码 之一（平台不支持按电梯编号查询）");
         }
-        List<Map<String, Object>> list = platformClient.queryElevatorInfo(cond);
-        return ApiResponse.ok(list.isEmpty()
-                ? Map.of("found", false, "reason", "平台未查询到该电梯")
-                : Map.of("found", true, "elevator", list.get(0)));
+        List<Map<String, Object>> matched = platformClient.queryElevatorInfo(cond).stream()
+                .filter(p -> PlatformSyncService.matchesQuery(cond, p))
+                .toList();
+        if (matched.isEmpty()) {
+            return ApiResponse.ok(Map.of("found", false, "reason", "平台未查询到该电梯"));
+        }
+        if (matched.size() > 1) {
+            return ApiResponse.ok(Map.of("found", false, "reason", "平台返回多条匹配记录，请补充查询条件后重试"));
+        }
+        Map<String, Object> p = matched.get(0);
+        Map<String, Object> elevator = new java.util.LinkedHashMap<>();
+        for (String key : List.of("elevatorCode", "deviceCode", "registrationCode", "factoryNumber")) {
+            if (p.get(key) != null) {
+                elevator.put(key, p.get(key));
+            }
+        }
+        return ApiResponse.ok(Map.of("found", true, "elevator", elevator));
     }
 
     /** 手动重报平台 2.6（仅 reportStatus=FAILED；不自动重试红线不变，AGENTS §2.3） */

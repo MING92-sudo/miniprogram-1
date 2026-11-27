@@ -45,6 +45,34 @@ export function deviceFormOf(row, profile) {
   }
 }
 
+/** 2.7 记录可回填的标识字段（顺序与 DEVICE_FIELDS 一致） */
+const PLATFORM_FILL_KEYS = ['elevatorCode', 'deviceCode', 'registrationCode', 'factoryNumber']
+
+/** 平台占位值（空串 / null / undefined / 脱敏 *）不参与回填，与后端 hasRealValue 同口径 */
+function platformValue(v) {
+  const s = v == null ? '' : String(v).trim()
+  return s === '' || s.includes('*') || /^(null|undefined)$/i.test(s) ? '' : s
+}
+
+/**
+ * 把 2.7 平台记录写入设备档案表单（只覆盖平台有值的标识字段）。
+ * @param {Record<string, unknown>} form 表单模型，原地修改
+ * @param {Record<string, unknown>} platform 平台 2.7 原始记录
+ * @returns {string[]} 实际回填的字段 key
+ */
+export function applyPlatformElevator(form, platform) {
+  const p = platform || {}
+  const filled = []
+  for (const key of PLATFORM_FILL_KEYS) {
+    const v = platformValue(p[key])
+    if (v) {
+      form[key] = v
+      filled.push(key)
+    }
+  }
+  return filled
+}
+
 /** 缺失的必传项标签（后端下发的 missingRequired 优先，兜底前端自查） */
 export function missingRequiredOf(row) {
   if (row && Array.isArray(row.missingRequired)) return row.missingRequired

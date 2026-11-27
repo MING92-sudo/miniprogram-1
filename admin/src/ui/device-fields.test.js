@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   DEVICE_FIELDS, REQUIRED_DEVICE_FIELDS, REQUIRED_DEVICE_LABELS,
-  deviceRules, deviceFormOf, missingRequiredOf
+  deviceRules, deviceFormOf, missingRequiredOf, applyPlatformElevator
 } from './device-fields'
 
 describe('设备信息档案字段口径', () => {
@@ -67,5 +67,36 @@ describe('设备信息档案字段口径', () => {
       elevatorCode: 'EM-1', deviceCode: 'DT-1', regCode: 'R-1',
       insideNumber: 'KT-1', factoryNumber: 'F-1'
     })).toEqual([])
+  })
+
+  it('2.7 回填只覆盖平台有值的标识字段，不回填脱敏手机号', () => {
+    const form = { elevatorCode: 'LOCAL-1', deviceCode: '', registrationCode: 'R-LOCAL', factoryNumber: '' }
+    const filled = applyPlatformElevator(form, {
+      elevatorCode: '130421', deviceCode: 'DT-1', registrationCode: '',
+      factoryNumber: 'FN-1', elevatorAdministerPhone: '1582****892', emergencyPhone: '400****588'
+    })
+
+    expect(form).toEqual({
+      elevatorCode: '130421', deviceCode: 'DT-1', registrationCode: 'R-LOCAL', factoryNumber: 'FN-1'
+    })
+    expect(filled).toEqual(['elevatorCode', 'deviceCode', 'factoryNumber'])
+    expect(form.elevatorAdministerPhone).toBeUndefined()
+  })
+
+  it('平台占位值（null/undefined/脱敏 *）不写入必填字段', () => {
+    const form = { elevatorCode: '', deviceCode: 'KEEP', registrationCode: '', factoryNumber: '' }
+    const filled = applyPlatformElevator(form, {
+      elevatorCode: 'null', deviceCode: 'undefined', registrationCode: '**', factoryNumber: ''
+    })
+
+    expect(filled).toEqual([])
+    expect(form).toEqual({ elevatorCode: '', deviceCode: 'KEEP', registrationCode: '', factoryNumber: '' })
+  })
+
+  it('平台记录为空时不改动表单', () => {
+    const form = { elevatorCode: 'LOCAL-1', deviceCode: '', registrationCode: '', factoryNumber: '' }
+    expect(applyPlatformElevator(form, null)).toEqual([])
+    expect(form.elevatorCode).toBe('LOCAL-1')
+    expect(form.deviceCode).toBe('')
   })
 })

@@ -164,6 +164,10 @@
       :sub="formMode === 'create' ? '前 5 项为上传维保记录的必传项' : (current.elevatorCode || '') + ' · 必传项不可清空'"
       icon="edit" note="elevator:edit" :confirm-label="formMode === 'create' ? '确认创建' : '提交'"
       @close="showForm = false" @confirm="submitForm">
+      <div class="row between mb8">
+        <span class="fhelp">可按 出厂编号 / 注册代码 / 设备代码 从监管平台 2.7 查询回填设备代码等</span>
+        <PermButton code="elevator:edit" :label="platformQuerying ? '查询中…' : '平台查询(2.7)'" size="xs" variant="ghost" icon="search" @click="queryPlatform" />
+      </div>
       <Form ref="formRef" :rules="formRules" v-model="formModel" v-slot="{ errors }">
         <div class="form-grid">
           <FormField v-for="f in DEVICE_FIELDS" :key="f.key" :label="f.label" :required="f.required" :error="errors[f.key]">
@@ -227,7 +231,7 @@
   </div>
 </template>
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import http from '../api/client'
 import DataTable from '../ui/DataTable.vue'
@@ -244,7 +248,8 @@ import RuleNote from '../ui/RuleNote.vue'
 import ElevatorGeoModal from '../ui/ElevatorGeoModal.vue'
 import { useToast } from '../ui/stores/ui'
 import { exportCsv, selectExportRows } from '../ui/export-csv'
-import { DEVICE_FIELDS, deviceRules, deviceFormOf, missingRequiredOf } from '../ui/device-fields'
+import { DEVICE_FIELDS, deviceRules, deviceFormOf, missingRequiredOf, applyPlatformElevator } from '../ui/device-fields'
+import { queryElevator } from '../api/platform'
 import { usePerspectiveStore } from '../ui/stores/perspective'
 import { useAuthStore } from '../stores/auth'
 import { canEditElevator } from '../ui/permission-v2'
@@ -377,6 +382,8 @@ const formMode = ref('create')
 const formRef = ref(null)
 const formModel = ref({})
 const formRules = deviceRules()
+const platformQuerying = ref(false)
+let platformQueryToken = 0
 function blankForm() {
   return {
     ...deviceFormOf(null, null),
@@ -385,7 +392,11 @@ function blankForm() {
     lastMaintenanceAt: ''
   }
 }
-function openCreate() { formMode.value = 'create'; current.value = {}; formModel.value = blankForm(); showForm.value = true }
+function resetPlatformQuery() {
+  platformQueryToken += 1
+  platformQuerying.value = false
+}
+function openCreate() { resetPlatformQuery(); formMode.value = 'create'; current.value = {}; formModel.value = blankForm(); showForm.value = true }
 async function openEditRow(row) {
   current.value = row
   profile.value = null
@@ -393,6 +404,7 @@ async function openEditRow(row) {
   openEdit()
 }
 function openEdit() {
+  resetPlatformQuery()
   formMode.value = 'edit'
   const l = (profile.value && profile.value.local) || {}
   formModel.value = {
@@ -408,6 +420,47 @@ function openEdit() {
 function syncHint(s) {
   return { OK: ' · 平台信息已同步', NO_MATCH: ' · 平台 2.7 未查到该梯', FAILED: ' · 平台同步失败，可稍后在平台同步重试' }[s] || ''
 }
+/** 按当前表单的设备代码/出厂编号/注册代码查 2.7，并回填平台标识字段。 @returns {Promise<void>} */
+async function queryPlatform() {
+  if (platformQuerying.value) return
+  const target = formModel.value
+  const token = ++platformQueryToken
+  const cond = {}
+  for (const key of ['deviceCode', 'factoryNumber', 'registrationCode']) {
+    const v = String(target[key] || '').trim()
+    if (v) cond[key] = v
+  }
+  if (!Object.keys(cond).length) {
+    toast.error('请先填写 出厂编号 / 注册代码 / 设备代码 之一')
+    return
+  }
+  platformQuerying.value = true
+  try {
+    const res = await queryElevator(cond)
+    // 请求期间关闭弹窗或切换到另一台电梯：丢弃结果，避免 A 梯数据写进 B 梯
+    if (token !== platformQueryToken || formModel.value !== target || !showForm.value) return
+    if (!res || !res.found) {
+      toast.error((res && res.reason) || '平台未查询到该电梯')
+      return
+    }
+    const filled = applyPlatformElevator(target, res.elevator)
+    if (!filled.length) {
+      toast.error('平台记录为空，未回填')
+      return
+    }
+    const labels = filled.map((key) => (DEVICE_FIELDS.find((f) => f.key === key) || {}).label || key)
+    toast.success('已回填：' + labels.join('、'))
+    await nextTick()
+    filled.forEach((key) => formRef.value?.validateField?.(key))
+  } catch (e) {
+    if (token === platformQueryToken && formModel.value === target && showForm.value) {
+      toast.error(e.message || '平台查询失败')
+    }
+  } finally {
+    if (token === platformQueryToken) platformQuerying.value = false
+  }
+}
+
 async function submitForm() {
   if (!formRef.value.validate()) return
   try {
