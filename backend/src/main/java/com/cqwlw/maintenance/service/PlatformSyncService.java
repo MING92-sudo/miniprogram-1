@@ -230,24 +230,14 @@ public class PlatformSyncService {
         if (!platformUnitEntityId.isEmpty()) {
             el.useUnitEntityId = platformUnitEntityId;
         }
-        if (hasRealValue(str(p.get("elevatorAdministerPhone")))) {
-            el.elevatorAdministerPhone = str(p.get("elevatorAdministerPhone"));
-        }
-        if (hasRealValue(str(p.get("emergencyPhone")))) {
-            el.emergencyPhone = str(p.get("emergencyPhone"));
-        }
-        if (hasRealValue(str(p.get("elevatorAdminister")))) {
-            el.elevatorAdminister = str(p.get("elevatorAdminister"));
-        }
-        // 未手动指定使用单位时，按平台主体ID挂接本地使用单位档案
-        if ((el.useUnitId == null || el.useUnitId.isBlank())
-                && el.useUnitEntityId != null && !el.useUnitEntityId.isBlank()) {
-            UseUnit uu = useUnitMapper.selectList(new LambdaQueryWrapper<UseUnit>()
-                    .eq(UseUnit::getEntityId, el.useUnitEntityId)).stream().findFirst().orElse(null);
-            if (uu != null) {
-                el.useUnitId = uu.id;
-            }
-        }
+        UseUnit uu = resolveUseUnit(el);
+        // 安全管理员/电话：平台有真实值用平台；平台缺值时回退使用单位档案，避免新建电梯留空
+        el.elevatorAdministerPhone = pickSafety(p.get("elevatorAdministerPhone"),
+                el.elevatorAdministerPhone, uu == null ? null : uu.elevatorAdministerPhone);
+        el.emergencyPhone = pickSafety(p.get("emergencyPhone"),
+                el.emergencyPhone, uu == null ? null : uu.emergencyPhone);
+        el.elevatorAdminister = pickSafety(p.get("elevatorAdminister"),
+                el.elevatorAdminister, uu == null ? null : uu.elevatorAdminister);
         el.platformSyncedAt = TimeUtil.now();
         elevatorMapper.updateById(el);
         return true;
@@ -301,5 +291,33 @@ public class PlatformSyncService {
     private static boolean hasRealValue(String v) {
         return v != null && !v.isBlank() && !v.contains("*")
                 && !"null".equalsIgnoreCase(v) && !"undefined".equalsIgnoreCase(v);
+    }
+
+    /** 解析电梯所属使用单位：手动指定优先，否则按平台主体ID挂接本地档案；均无则 null */
+    private UseUnit resolveUseUnit(Elevator el) {
+        if (el.useUnitId != null && !el.useUnitId.isBlank()) {
+            return useUnitMapper.selectById(el.useUnitId);
+        }
+        if (el.useUnitEntityId != null && !el.useUnitEntityId.isBlank()) {
+            UseUnit uu = useUnitMapper.selectList(new LambdaQueryWrapper<UseUnit>()
+                    .eq(UseUnit::getEntityId, el.useUnitEntityId)).stream().findFirst().orElse(null);
+            if (uu != null) {
+                el.useUnitId = uu.id;
+            }
+            return uu;
+        }
+        return null;
+    }
+
+    /** 安全字段取值：平台有真实值优先；其次保留本地已有值；最后回退使用单位档案值 */
+    private static String pickSafety(Object platformRaw, String current, String useUnitValue) {
+        String pv = str(platformRaw);
+        if (hasRealValue(pv)) {
+            return pv;
+        }
+        if (current != null && !current.isBlank()) {
+            return current;
+        }
+        return hasRealValue(useUnitValue) ? useUnitValue : current;
     }
 }

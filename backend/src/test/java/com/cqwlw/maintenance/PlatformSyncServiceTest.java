@@ -227,6 +227,48 @@ class PlatformSyncServiceTest {
         assertEquals("uu_9", el.useUnitId);
     }
 
+    /** 平台查询未返回安全管理员/电话时，回退使用单位档案（新建电梯不留空） */
+    @Test
+    void syncElevatorFallsBackToUseUnitSafetyWhenPlatformEmpty() {
+        Elevator el = localElevator();
+        el.elevatorAdminister = null;
+        el.elevatorAdministerPhone = null;
+        el.emergencyPhone = null;
+        el.useUnitId = "uu_9";
+        when(platformClient.queryElevatorInfo(any())).thenReturn(List.of(platformRecord(Map.of(
+                "factoryNumber", "SGL20131212-1"))));
+        UseUnit uu = new UseUnit();
+        uu.id = "uu_9";
+        uu.elevatorAdminister = "李四";
+        uu.elevatorAdministerPhone = "13900000000";
+        uu.emergencyPhone = "023-12345678";
+        when(useUnitMapper.selectById("uu_9")).thenReturn(uu);
+
+        assertTrue(service.syncElevator(el));
+        assertEquals("李四", el.elevatorAdminister);
+        assertEquals("13900000000", el.elevatorAdministerPhone);
+        assertEquals("023-12345678", el.emergencyPhone);
+    }
+
+    /** 平台有真实值时优先于使用单位；平台缺电话时仍回退使用单位 */
+    @Test
+    void syncElevatorPlatformSafetyWinsOverUseUnit() {
+        Elevator el = localElevator();
+        el.elevatorAdministerPhone = null;
+        el.useUnitId = "uu_9";
+        when(platformClient.queryElevatorInfo(any())).thenReturn(List.of(platformRecord(Map.of(
+                "factoryNumber", "SGL20131212-1", "elevatorAdminister", "张三"))));
+        UseUnit uu = new UseUnit();
+        uu.id = "uu_9";
+        uu.elevatorAdminister = "李四";
+        uu.elevatorAdministerPhone = "13900000000";
+        when(useUnitMapper.selectById("uu_9")).thenReturn(uu);
+
+        assertTrue(service.syncElevator(el));
+        assertEquals("张三", el.elevatorAdminister);
+        assertEquals("13900000000", el.elevatorAdministerPhone);
+    }
+
     /** 已手动指定使用单位的电梯不被 2.7 挂接覆盖 */
     @Test
     void syncElevatorKeepsManuallyAssignedUseUnit() {
