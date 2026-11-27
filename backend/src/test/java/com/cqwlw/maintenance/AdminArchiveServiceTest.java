@@ -585,6 +585,53 @@ class AdminArchiveServiceTest {
         verify(elevatorMapper, never()).insert(any(Elevator.class));
     }
 
+    /** 电梯编码/设备代码/注册代码/出厂编号任一与现存电梯重复，创建即 422 且不落库 */
+    @Test
+    void createElevatorRejectsDuplicateElevatorCode() {
+        when(elevatorMapper.selectCount(any())).thenReturn(1L);
+        BizException e = assertThrows(BizException.class, () -> service.createElevator(Map.of(
+                "elevatorCode", "EM-9", "deviceCode", "DT-9", "registrationCode", "REG-9",
+                "insideNumber", "KT-9", "factoryNumber", "FN-9")));
+        assertEquals(422, e.getCode());
+        assertTrue(e.getMessage().contains("该电梯已存在"), e.getMessage());
+        assertTrue(e.getMessage().contains("电梯编码"), e.getMessage());
+        verify(elevatorMapper, never()).insert(any(Elevator.class));
+    }
+
+    @Test
+    void createElevatorRejectsDuplicateDeviceCode() {
+        when(elevatorMapper.selectCount(any())).thenReturn(0L, 1L);
+        BizException e = assertThrows(BizException.class, () -> service.createElevator(Map.of(
+                "elevatorCode", "EM-9", "deviceCode", "DT-9", "registrationCode", "REG-9",
+                "insideNumber", "KT-9", "factoryNumber", "FN-9")));
+        assertEquals(422, e.getCode());
+        assertTrue(e.getMessage().contains("该电梯已存在"), e.getMessage());
+        assertTrue(e.getMessage().contains("设备代码"), e.getMessage());
+        verify(elevatorMapper, never()).insert(any(Elevator.class));
+    }
+
+    @Test
+    void createElevatorRejectsDuplicateRegistrationCode() {
+        when(elevatorMapper.selectCount(any())).thenReturn(0L, 0L, 1L);
+        BizException e = assertThrows(BizException.class, () -> service.createElevator(Map.of(
+                "elevatorCode", "EM-9", "deviceCode", "DT-9", "registrationCode", "REG-9",
+                "insideNumber", "KT-9", "factoryNumber", "FN-9")));
+        assertEquals(422, e.getCode());
+        assertTrue(e.getMessage().contains("注册代码"), e.getMessage());
+        verify(elevatorMapper, never()).insert(any(Elevator.class));
+    }
+
+    @Test
+    void createElevatorRejectsDuplicateFactoryNumber() {
+        when(elevatorMapper.selectCount(any())).thenReturn(0L, 0L, 0L, 1L);
+        BizException e = assertThrows(BizException.class, () -> service.createElevator(Map.of(
+                "elevatorCode", "EM-9", "deviceCode", "DT-9", "registrationCode", "REG-9",
+                "insideNumber", "KT-9", "factoryNumber", "FN-9")));
+        assertEquals(422, e.getCode());
+        assertTrue(e.getMessage().contains("出厂编号"), e.getMessage());
+        verify(elevatorMapper, never()).insert(any(Elevator.class));
+    }
+
     /** 5 项齐备时允许创建；选填字段（项目名称/所在区域/下次年检日期）可为空 */
     @Test
     void createElevatorAcceptsRequiredOnly() {

@@ -2,6 +2,7 @@ package com.cqwlw.maintenance.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import com.baomidou.mybatisplus.core.toolkit.support.SFunction;
 import com.cqwlw.maintenance.auth.AdminRoles;
 import com.cqwlw.maintenance.auth.RoleCatalog;
 import com.cqwlw.maintenance.common.BizException;
@@ -668,6 +669,7 @@ public class AdminArchiveService {
         el.id = Ids.next("el");
         applyElevator(el, body);
         DeviceProfileValidator.requireForCreate(el);
+        requireUniqueIdentifiers(el);
         // elevator_name 为库表 NOT NULL：未填项目名称时以单位内编号（梯号）兜底，再退电梯编码
         if (isBlank(el.elevatorName)) {
             el.elevatorName = isBlank(el.insideNumber) ? el.elevatorCode : el.insideNumber;
@@ -750,6 +752,24 @@ public class AdminArchiveService {
         } catch (Exception e) {
             log.warn("电梯保存后 2.7 同步失败: code={}, {}", el.elevatorCode, e.getMessage());
             return "FAILED";
+        }
+    }
+
+    /** 设备代码/注册代码/出厂编号/电梯编号任一与现存电梯相同即视为重复，创建时拦截 */
+    private void requireUniqueIdentifiers(Elevator el) {
+        checkUnique(Elevator::getElevatorCode, el.getElevatorCode(), "电梯编码");
+        checkUnique(Elevator::getDeviceCode, el.getDeviceCode(), "设备代码");
+        checkUnique(Elevator::getRegCode, el.getRegCode(), "注册代码");
+        checkUnique(Elevator::getFactoryNumber, el.getFactoryNumber(), "出厂编号");
+    }
+
+    private void checkUnique(SFunction<Elevator, String> getter, String value, String label) {
+        if (value == null || value.isBlank()) {
+            return;
+        }
+        Long dup = elevatorMapper.selectCount(new LambdaQueryWrapper<Elevator>().eq(getter, value));
+        if (dup != null && dup > 0) {
+            throw new BizException(422, "该电梯已存在：" + label + " " + value);
         }
     }
 
