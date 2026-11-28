@@ -321,8 +321,9 @@ public class RecordPdfService {
                 "签署日期：" + checkoutDate, f));
         t.addCell(signBlock(signCaption("维保人员 2", r.assistantName), r.assistantSignatureUrl,
                 "签署日期：" + checkoutDate, f));
-        t.addCell(signBlock("使用单位安全管理人员（签字）", r.signatureUrl,
-                "签署日期：＿＿＿＿年＿＿月＿＿日", f));
+        String clientDate = r.clientSignedAt == null ? "＿＿＿＿年＿＿月＿＿日" : TimeUtil.format(r.clientSignedAt);
+        t.addCell(signBlock(signCaption("使用单位安全管理人员", r.clientSignerName), r.signatureUrl,
+                "签署日期：" + clientDate, f));
         t.addCell(signBlock("维保单位（盖章）", null, "", f));
         return t;
     }
@@ -822,14 +823,16 @@ public class RecordPdfService {
                     }
                 }
             }
-            resolved.addAll(itemUrls);
+            for (String url : itemUrls) {
+                if (!resolved.contains(url)) {
+                    resolved.add(url);
+                }
+            }
         }
-        if (!resolved.isEmpty()) {
-            return resolved;
-        }
+        // 记录级照片与检查项照片合并展示，去重后全部进 PDF
         for (String photo : JsonUtil.readStringList(r.photosJson)) {
             String url = fileStorage.resolveStoredUrl(photo);
-            if (WorkOrderService.isHttpUrl(url)) {
+            if (WorkOrderService.isHttpUrl(url) && !resolved.contains(url)) {
                 resolved.add(url);
             }
         }

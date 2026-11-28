@@ -360,6 +360,22 @@ class RecordPdfServiceTest {
     }
 
     @Test
+    void recordPhotoUrlsIncludeItemAndRecordPhotos() {
+        MaintainRecord r = record();
+        r.photosJson = JsonUtil.write(List.of("https://bucket.cos.example/record.jpg"));
+        when(fileStorage.resolveStoredUrl("https://bucket.cos.example/record.jpg"))
+                .thenReturn("https://bucket.cos.example/record.jpg");
+        when(fileStorage.resolveStoredUrl("https://bucket.cos.example/item.jpg"))
+                .thenReturn("https://bucket.cos.example/item.jpg");
+
+        List<String> urls = service.recordPhotoUrls(r,
+                List.of(Map.of("photos", List.of("https://bucket.cos.example/item.jpg"))));
+
+        assertTrue(urls.contains("https://bucket.cos.example/item.jpg"));
+        assertTrue(urls.contains("https://bucket.cos.example/record.jpg"));
+    }
+
+    @Test
     void faultDeviceRowsUseFactoryNumberAndOmitTechnicalFields() {
         List<String[]> rows = service.deviceRowsOfMap(faultView());
         StringBuilder flat = new StringBuilder();

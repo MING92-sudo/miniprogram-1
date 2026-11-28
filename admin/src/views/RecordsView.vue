@@ -314,7 +314,14 @@ const archiveInfo = ref({})
 const detailLoading = ref(false)
 const previewUrl = ref('')
 const items = computed(() => detail.value.items || [])
-const photos = computed(() => detail.value.photos || [])
+const photos = computed(() => {
+  const out = []
+  const add = (u) => { if (u && !out.includes(u)) out.push(u) }
+  ;(items.value || []).forEach((it) => (it.photos || []).forEach(add))
+  const recordPhotos = detail.value.photos
+  if (Array.isArray(recordPhotos)) recordPhotos.forEach(add)
+  return out
+})
 const ctx = computed(() => detail.value.context || {})
 const RESULT_LABEL = { NORMAL: '正常', ABNORMAL: '异常' }
 function resultLabel(r) { return RESULT_LABEL[r] || (r || '—') }

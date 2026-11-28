@@ -39,7 +39,14 @@ definePage(ROUTES['/pkg-maintenance/pages/record-detail/index'], {
       ctx.maintUnitName = ctx.companyName || ''
       ctx.workDate = ctx.workDate || String(r.checkoutTime || r.checkinTime || '').slice(0, 10)
       const photoList = []
-      executed.forEach((i) => (i.photos || []).forEach((url) => photoList.push({ url, abnormal: i.result === 'ABNORMAL', itemName: i.name })))
+      const seenPhotos = {}
+      const addPhoto = (url, abnormal, itemName) => {
+        if (!url || seenPhotos[url]) return
+        seenPhotos[url] = true
+        photoList.push({ url, abnormal: !!abnormal, itemName: itemName || '' })
+      }
+      executed.forEach((i) => (i.photos || []).forEach((url) => addPhoto(url, i.result === 'ABNORMAL', i.name)))
+      ;(r.photos || []).forEach((url) => addPhoto(url, false, ''))
       const lc = r.lifecycleStatus || ''
       // 结论/统计/分组走纯函数投影：有异常项不得显示合格，无整改数据不得虚报已整改
       const summary = buildRecordSummary(executed)
@@ -57,7 +64,7 @@ definePage(ROUTES['/pkg-maintenance/pages/record-detail/index'], {
           remark: i.abnormalDesc || i.valueText || (i.value != null ? '读数 ' + i.value + (i.valueUnit || '') : '') || i.skipReason || ''
         })),
         itemTotal: ctx.itemTotal || all.length,
-        photoList: photoList.length ? photoList : (r.photos || []).map((url) => ({ url, abnormal: false, itemName: '' })),
+        photoList,
         problemText: (r.problemCodes && r.problemCodes.length) ? r.problemCodes.join('、') : 'S0',
         confirmed: r.confirmStatus === 'CONFIRMED',
         lifecycleText: LIFECYCLE_TEXT[lc] || '', lifecycleTone: LIFECYCLE_TONE[lc] || 'dim'
