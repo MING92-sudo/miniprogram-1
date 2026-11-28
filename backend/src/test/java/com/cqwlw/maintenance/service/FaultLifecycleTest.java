@@ -18,6 +18,7 @@ import com.cqwlw.maintenance.mapper.WorkOrderMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -25,6 +26,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -173,6 +175,37 @@ class FaultLifecycleTest {
         assertEquals("门锁故障", f.siteDesc);
         assertEquals("复查门触点", f.todoDesc);
         assertNotNull(f.finishedAt);
+    }
+
+    @Test
+    void submitPersistsWorkerSignatureAndRepairPhotos() {
+        Fault f = fault("PROCESSING");
+        svc.submitFault("f1", "e1", Map.of(
+                "faultReason", "门锁故障", "handleDesc", "更换触点",
+                "workerSignature", "https://cdn.example/sig.png",
+                "repairPhotos", List.of("https://cdn.example/p1.jpg")));
+
+        assertEquals("https://cdn.example/sig.png", f.workerSignature);
+        assertTrue(f.repairPhotos.contains("p1.jpg"));
+    }
+
+    @Test
+    void submitRejectsEmptyWorkerSignatureWhenProvided() {
+        fault("PROCESSING");
+        BizException ex = assertThrows(BizException.class, () -> svc.submitFault("f1", "e1", Map.of(
+                "faultReason", "门锁故障", "handleDesc", "更换触点", "workerSignature", " ")));
+        assertEquals(422, ex.getCode());
+    }
+
+    @Test
+    void updatePersistsWorkerSignatureAndRepairPhotos() {
+        Fault f = fault("PROCESSING");
+        svc.updateFault("f1", Map.of(
+                "repairPhotos", List.of("https://cdn.example/p2.jpg"),
+                "workerSignature", "https://cdn.example/sig2.png"), "e1");
+
+        assertTrue(f.repairPhotos.contains("p2.jpg"));
+        assertEquals("https://cdn.example/sig2.png", f.workerSignature);
     }
 
     @Test

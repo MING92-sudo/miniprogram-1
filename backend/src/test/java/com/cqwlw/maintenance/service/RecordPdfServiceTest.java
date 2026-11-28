@@ -239,6 +239,8 @@ class RecordPdfServiceTest {
         v.put("result", "清洁门锁触点并调整平层感应器，更换门锁触点 1 只");
         v.put("todoDesc", "");
         v.put("photos", List.of("https://bucket.cos.example/f1.jpg"));
+        v.put("repairPhotos", List.of("https://bucket.cos.example/r1.jpg"));
+        v.put("workerSignature", "https://bucket.cos.example/worker-sign.png");
         v.put("signature", "https://bucket.cos.example/sign.png");
         v.put("confirmedAt", "2026-10-01 14:00:00");
         v.put("useUnitName", "重庆渝达物业管理有限公司");

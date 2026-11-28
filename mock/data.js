@@ -931,6 +931,8 @@ function createFault(body) {
     trappedCount: trapped,
     desc: body.desc || '',
     photos: Array.isArray(body.photos) ? body.photos : [],
+    repairPhotos: [],
+    workerSignature: '',
     status: 'OPEN',
     createdBy: body.createdBy || '',
     reporterName: body.reporter || '',
@@ -950,7 +952,9 @@ function faultView(f) {
   return Object.assign({}, f, {
     reporterName: f.reporterName || f.reporter || f.createdByName || '',
     reporterPhone: f.reporterPhone || '',
-    createdByName: f.createdByName || f.reporterName || f.reporter || ''
+    createdByName: f.createdByName || f.reporterName || f.reporter || '',
+    repairPhotos: f.repairPhotos || [],
+    workerSignature: f.workerSignature || ''
   })
 }
 

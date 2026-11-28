@@ -352,7 +352,13 @@ public class RecordPdfService {
             for (Object url : v.get("photos") instanceof List<?> l ? l : List.of()) {
                 photos.add(String.valueOf(url));
             }
-            doc.add(photoSection("四、现场照片（" + photos.size() + " 张）", photos, f));
+            int reportCount = photos.size();
+            for (Object url : v.get("repairPhotos") instanceof List<?> l ? l : List.of()) {
+                photos.add(String.valueOf(url));
+            }
+            int repairCount = photos.size() - reportCount;
+            doc.add(photoSection("四、现场照片（报修 " + reportCount + " 张 / 维修 " + repairCount + " 张）",
+                    photos, f));
             doc.add(faultSignTable(v, f));
 
             doc.close();
@@ -432,8 +438,10 @@ public class RecordPdfService {
         section.setBackgroundColor(LABEL_BG);
         section.setPadding(4);
         t.addCell(section);
+        String finished = nz(str(v.get("finishedAt")));
         t.addCell(signBlock(signCaption("维保人员", str(v.get("dispatchedWorkerName"))),
-                null, "签署日期：＿＿＿＿年＿＿月＿＿日", f));
+                str(v.get("workerSignature")),
+                "签署日期：" + (finished.isEmpty() ? "＿＿＿＿年＿＿月＿＿日" : finished), f));
         String confirmed = nz(str(v.get("confirmedAt")));
         t.addCell(signBlock("使用单位安全管理人员（签字）", str(v.get("signature")),
                 "签署日期：" + (confirmed.isEmpty() ? "＿＿＿＿年＿＿月＿＿日" : confirmed), f));

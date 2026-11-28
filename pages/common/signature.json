@@ -1,6 +1,7 @@
 {
   "navigationBarTitleText": "手写签名",
   "disableScroll": true,
+  "pageOrientation": "landscape",
   "usingComponents": {},
   "navigationStyle": "default"
 }

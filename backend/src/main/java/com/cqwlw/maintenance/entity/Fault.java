@@ -35,6 +35,10 @@ public class Fault {
     public String floor;
     public String todoDesc;
     public String photos;
+    /** 维修过程照片 url 列表（JSON 数组） */
+    public String repairPhotos;
+    /** 维保人员签字图 url */
+    public String workerSignature;
     public String signature;
     public LocalDateTime confirmedAt;
     public String proxySource;

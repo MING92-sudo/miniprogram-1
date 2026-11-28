@@ -50,6 +50,13 @@
         <image wx:for="{{fault.photos}}" wx:key="*this" class="thumb" src="{{item}}" mode="aspectFill" data-url="{{item}}" bindtap="onPreviewPhoto"></image>
       </view>
 
+      <view wx:if="{{!editable && fault.repairPhotos.length}}" class="card col gap6">
+        <view class="panel-title">维修照片</view>
+        <view class="od-photo-row">
+          <image wx:for="{{fault.repairPhotos}}" wx:key="*this" class="od-photo" src="{{item}}" mode="aspectFill" data-url="{{item}}" bindtap="onPreviewRepairPhoto"></image>
+        </view>
+      </view>
+
       <view wx:if="{{fault.status === 'CLOSED'}}" class="sync-note">
         <text class="i i-file-signature"></text>
         <view class="grow"><view class="fs22 w6">{{text.CONFIRMED}}</view><view class="fs18 dim">{{fault.confirmedAt}} {{text.SIGNED}}</view></view>
@@ -60,6 +67,10 @@
         <image class="od-sign" src="{{fault.signature}}" mode="aspectFit"></image>
         <view class="row between fs18 dim"><text>{{fault.id}} · {{text.SIGN_NOTE}}</text><text>{{text.SIGN_GPS}}</text></view>
       </view>
+      <view wx:if="{{!editable && fault.workerSignature}}" class="paper">
+        <view class="row between"><text class="fs20">维保人员签字</text><text class="fs18">{{fault.finishedAt || ''}}</text></view>
+        <image class="od-sign" src="{{fault.workerSignature}}" mode="aspectFit"></image>
+      </view>
 
       <view class="card col gap6">
         <view class="panel-title">处置信息</view>
@@ -69,11 +80,28 @@
         <view wx:if="{{fault.refuseReason}}" class="kv-row"><text class="dim">拒绝原因</text><text>{{fault.refuseReason}}</text></view>
       </view>
 
-      <view wx:if="{{!isClient && (fault.status === 'PROCESSING' || fault.status === 'REFUSED')}}" class="card col gap8">
+      <view wx:if="{{editable}}" class="card col gap8">
         <view class="panel-title">维修过程</view>
         <textarea class="od-textarea" value="{{siteDesc}}" bindinput="onSiteInput" placeholder="现场情况（原因，必填）" placeholder-class="od-ph"></textarea>
         <textarea class="od-textarea" value="{{handleDesc}}" bindinput="onHandleInput" placeholder="处理结果（措施，必填）" placeholder-class="od-ph"></textarea>
         <textarea class="od-textarea" value="{{todoDesc}}" bindinput="onTodoInput" placeholder="待办事项（留空视为无）" placeholder-class="od-ph"></textarea>
+
+        <view class="panel-title mt8">维修照片</view>
+        <view class="od-photo-row">
+          <view wx:for="{{repairPhotos}}" wx:key="*this" class="od-photo-wrap">
+            <image class="od-photo" src="{{item}}" mode="aspectFill" data-url="{{item}}" bindtap="onPreviewRepairPhoto"></image>
+            <text class="od-photo-del" data-url="{{item}}" catchtap="onRemoveRepairPhoto"><text class="i i-xmark fs18"></text></text>
+          </view>
+          <view wx:if="{{repairPhotos.length < 6}}" class="od-photo-add" bindtap="onAddRepairPhoto" aria-role="button"><text class="i i-camera"></text></view>
+        </view>
+
+        <view class="panel-title mt8">维保人员签字</view>
+        <view wx:if="{{workerSignature}}" class="od-sign-wrap">
+          <image class="od-worker-sign" src="{{workerSignature}}" mode="aspectFit"></image>
+          <button class="link" bindtap="onSignWorker">重新签字</button>
+        </view>
+        <button wx:else class="btn btn-ghost" bindtap="onSignWorker">点击签字</button>
+
         <view class="row gap8">
           <button class="btn btn-ghost grow" disabled="{{submitting}}" bindtap="onSaveProcess">保存过程</button>
           <button class="btn btn-primary grow" bindtap="onSubmitFault">提交急修单</button>

@@ -311,11 +311,20 @@ public class DirectoryService {
         if (reason.isEmpty() || handle.isEmpty()) {
             throw new BizException(422, "故障原因与处理措施必填");
         }
+        if (body.containsKey("workerSignature") && trimmed(body.get("workerSignature")).isEmpty()) {
+            throw new BizException(422, "请先由维保人员签字");
+        }
         if (body.get("siteDesc") != null) {
             f.siteDesc = trimmed(body.get("siteDesc"));
         }
         if (body.get("todoDesc") != null) {
             f.todoDesc = trimmed(body.get("todoDesc"));
+        }
+        if (body.get("repairPhotos") != null) {
+            f.repairPhotos = JsonUtil.write(body.get("repairPhotos"));
+        }
+        if (body.get("workerSignature") != null) {
+            f.workerSignature = trimmed(body.get("workerSignature"));
         }
         f.faultReason = reason;
         f.handleDesc = handle;
@@ -489,9 +498,12 @@ public class DirectoryService {
         m.put("todoDesc", f.todoDesc == null ? "" : f.todoDesc);
         m.put("photos", JsonUtil.readStringList(f.photos).stream()
                 .map(fileStorageService::resolveStoredUrl).collect(Collectors.toList()));
+        m.put("repairPhotos", JsonUtil.readStringList(f.repairPhotos).stream()
+                .map(fileStorageService::resolveStoredUrl).collect(Collectors.toList()));
         m.put("status", f.status);
         m.put("result", f.handleDesc);
         m.put("faultReason", f.faultReason == null ? "" : f.faultReason);
+        m.put("workerSignature", fileStorageService.resolveStoredUrl(f.workerSignature));
         m.put("signature", fileStorageService.resolveStoredUrl(f.signature));
         m.put("confirmedAt", f.confirmedAt == null ? "" : TimeUtil.format(f.confirmedAt));
         m.put("createdAt", TimeUtil.format(f.createdAt));
@@ -714,6 +726,12 @@ public class DirectoryService {
         }
         if (body.get("handleDesc") != null) {
             f.handleDesc = strOrEmpty(body.get("handleDesc"));
+        }
+        if (body.get("repairPhotos") != null) {
+            f.repairPhotos = JsonUtil.write(body.get("repairPhotos"));
+        }
+        if (body.get("workerSignature") != null) {
+            f.workerSignature = strOrEmpty(body.get("workerSignature"));
         }
         if (body.get("finishedAt") != null) {
             f.finishedAt = TimeUtil.parse(strOrEmpty(body.get("finishedAt")));

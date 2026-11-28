@@ -584,8 +584,9 @@ const routes = [
   }],
   ['PUT', '/faults/:id', ({ params, body }) => {
     const f = findOr404(d.db.faults, params.id, '急修单')
-    // 与后端 DirectoryService.updateFault 同口径：维修过程五字段
-    ;['siteDesc', 'todoDesc', 'handleDesc', 'finishedAt', 'rescuedAt'].forEach((k) => { if (body[k] != null) f[k] = body[k] })
+    // 与后端 DirectoryService.updateFault 同口径：维修过程字段 + 维修照片/维保签字
+    ;['siteDesc', 'todoDesc', 'handleDesc', 'finishedAt', 'rescuedAt', 'repairPhotos', 'workerSignature']
+      .forEach((k) => { if (body[k] != null) f[k] = body[k] })
     return f
   }],
   ['GET', '/roles-matrix', () => [...permMirror.canonicalCodes()].map((code) => {
@@ -692,15 +693,26 @@ const routes = [
     f.dispatchedAt = formatTime()
     return d.faultView(f)
   }],
-  ['POST', '/faults/:id/arrive', () => ({ ok: true, status: 'PROCESSING' })],
+  ['POST', '/faults/:id/arrive', ({ params }) => {
+    const f = findOr404(d.db.faults, params.id, '急修单')
+    if (f.status !== 'ASSIGNED') throw { code: 422, message: '仅已接单的急修单可到场打卡' }
+    f.status = 'PROCESSING'
+    f.arrivedAt = formatTime()
+    return d.faultView(f)
+  }],
   ['POST', '/faults/:id/submit', ({ params, body }) => {
     const f = findOr404(d.db.faults, params.id, '急修单')
     if (['PROCESSING', 'REFUSED'].indexOf(f.status) < 0) throw { code: 422, message: '仅处置中或已退回的急修单可提交' }
     const reason = String(body.faultReason || '').trim() || String(body.siteDesc || '').trim()
     const handle = String(body.handleDesc || '').trim()
     if (!reason || !handle) throw { code: 422, message: '故障原因与处理措施必填' }
+    if (body.workerSignature != null && !String(body.workerSignature).trim()) {
+      throw { code: 422, message: '请先由维保人员签字' }
+    }
     if (body.siteDesc != null) f.siteDesc = String(body.siteDesc).trim()
     if (body.todoDesc != null) f.todoDesc = String(body.todoDesc).trim()
+    if (body.repairPhotos != null) f.repairPhotos = Array.isArray(body.repairPhotos) ? body.repairPhotos : []
+    if (body.workerSignature != null) f.workerSignature = String(body.workerSignature).trim()
     f.faultReason = reason
     f.handleDesc = handle
     f.result = handle
