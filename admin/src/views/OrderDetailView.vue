@@ -232,7 +232,9 @@ const photoUrls = computed(() => {
   return out
 })
 function openPhoto(url) {
-  if (url) window.open(url, '_blank', 'noopener')
+  if (!url) return
+  if (!/^https?:\/\//i.test(url) && !/^\/files\//.test(url)) return
+  window.open(url, '_blank', 'noopener')
 }
 const timeline = computed(() => {
   const o = order.value

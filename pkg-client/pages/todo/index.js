@@ -54,7 +54,7 @@ definePage(ROUTES['/pkg-client/pages/todo/index'], {
       unit.getUnitMessages().catch(() => [])
     ]).then(([records, faults, messages]) => {
       const list = (records || []).map(decorate).sort(urgency)
-      const groupMap = {}
+      const groupMap = Object.create(null)
       const projectGroups = []
       list.forEach((r) => {
         const key = r.projectName || '未分类项目'

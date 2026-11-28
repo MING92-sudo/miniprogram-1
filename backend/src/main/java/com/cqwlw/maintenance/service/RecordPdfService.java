@@ -440,12 +440,14 @@ public class RecordPdfService {
         section.setPadding(4);
         t.addCell(section);
         String finished = nz(str(v.get("finishedAt")));
+        String signDate = finished.length() >= 10 ? finished.substring(0, 10) : finished;
         t.addCell(signBlock(signCaption("维保人员", str(v.get("dispatchedWorkerName"))),
                 str(v.get("workerSignature")),
-                "签署日期：" + (finished.isEmpty() ? "＿＿＿＿年＿＿月＿＿日" : finished), f));
+                "签署日期：" + (signDate.isEmpty() ? "＿＿＿＿年＿＿月＿＿日" : signDate), f));
         String confirmed = nz(str(v.get("confirmedAt")));
+        String confirmedDate = confirmed.length() >= 10 ? confirmed.substring(0, 10) : confirmed;
         t.addCell(signBlock("使用单位安全管理人员（签字）", str(v.get("signature")),
-                "签署日期：" + (confirmed.isEmpty() ? "＿＿＿＿年＿＿月＿＿日" : confirmed), f));
+                "签署日期：" + (confirmedDate.isEmpty() ? "＿＿＿＿年＿＿月＿＿日" : confirmedDate), f));
         t.addCell(signBlock("维保单位（盖章）", null, "", f));
         return t;
     }

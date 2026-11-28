@@ -321,10 +321,10 @@ public class DirectoryService {
             f.todoDesc = trimmed(body.get("todoDesc"));
         }
         if (body.get("repairPhotos") != null) {
-            f.repairPhotos = JsonUtil.write(body.get("repairPhotos"));
+            f.repairPhotos = JsonUtil.write(systemFileUrls(body.get("repairPhotos"), "维修照片"));
         }
         if (body.get("workerSignature") != null) {
-            f.workerSignature = trimmed(body.get("workerSignature"));
+            f.workerSignature = systemFileUrl(body.get("workerSignature"), "维保人员签字");
         }
         f.faultReason = reason;
         f.handleDesc = handle;
@@ -351,6 +351,9 @@ public class DirectoryService {
         checkUnit(f, unitId);
         if (pass) {
             boolean hasSignature = signature != null && !signature.isBlank();
+            if (hasSignature && FileStorageService.fileIdFromUrl(signature.trim()) == null) {
+                throw new BizException(422, "签名图片必须来自本系统文件");
+            }
             int updated = hasSignature
                     ? faultMapper.closePendingWithSignature(id, signature.trim())
                     : faultMapper.closePending(id);
@@ -465,6 +468,36 @@ public class DirectoryService {
 
     private static String trimmed(Object o) {
         return o == null ? "" : String.valueOf(o).trim();
+    }
+
+    /** 签字/照片只允许落本系统 /files/ 文件，防止外部 URL 进入监管/PDF 链路。 */
+    private static String systemFileUrl(Object raw, String label) {
+        String url = trimmed(raw);
+        if (url.isEmpty()) {
+            return "";
+        }
+        if (FileStorageService.fileIdFromUrl(url) == null) {
+            throw new BizException(422, label + "必须来自本系统文件");
+        }
+        return url;
+    }
+
+    private static List<String> systemFileUrls(Object raw, String label) {
+        if (!(raw instanceof List<?> list)) {
+            throw new BizException(422, label + "格式不正确");
+        }
+        List<String> out = new ArrayList<>();
+        for (Object item : list) {
+            String url = trimmed(item);
+            if (url.isEmpty()) {
+                continue;
+            }
+            if (FileStorageService.fileIdFromUrl(url) == null) {
+                throw new BizException(422, label + "必须来自本系统文件");
+            }
+            out.add(url);
+        }
+        return out;
     }
 
     /** 急修单编号：BWJX + yyyyMMddHHmm + 当日 3 位顺序 = 19 位 */
@@ -740,10 +773,10 @@ public class DirectoryService {
             f.handleDesc = strOrEmpty(body.get("handleDesc"));
         }
         if (body.get("repairPhotos") != null) {
-            f.repairPhotos = JsonUtil.write(body.get("repairPhotos"));
+            f.repairPhotos = JsonUtil.write(systemFileUrls(body.get("repairPhotos"), "维修照片"));
         }
         if (body.get("workerSignature") != null) {
-            f.workerSignature = strOrEmpty(body.get("workerSignature"));
+            f.workerSignature = systemFileUrl(body.get("workerSignature"), "维保人员签字");
         }
         if (body.get("finishedAt") != null) {
             f.finishedAt = TimeUtil.parse(strOrEmpty(body.get("finishedAt")));

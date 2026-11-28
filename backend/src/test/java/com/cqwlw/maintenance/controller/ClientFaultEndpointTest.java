@@ -54,12 +54,12 @@ class ClientFaultEndpointTest {
         MockHttpServletRequest request = new MockHttpServletRequest();
         request.setAttribute(AuthInterceptor.ATTR_UNIT_ID, "u1");
         request.setAttribute(AuthInterceptor.ATTR_ROLES, Set.of("CLIENT_SIGNER"));
-        when(portal.confirmFault("f1", Set.of("CLIENT_SIGNER"), "u1", true, "", "https://cdn/sig.png"))
+        when(portal.confirmFault("f1", Set.of("CLIENT_SIGNER"), "u1", true, "", "/files/sig.png"))
                 .thenReturn(Map.of("status", "CLOSED"));
 
         assertEquals("CLOSED", controller.confirmFault("f1",
-                Map.of("pass", true, "signature", "https://cdn/sig.png"), request, "idem-sig").getData().get("status"));
+                Map.of("pass", true, "signature", "/files/sig.png"), request, "idem-sig").getData().get("status"));
 
-        verify(portal).confirmFault("f1", Set.of("CLIENT_SIGNER"), "u1", true, "", "https://cdn/sig.png");
+        verify(portal).confirmFault("f1", Set.of("CLIENT_SIGNER"), "u1", true, "", "/files/sig.png");
     }
 }

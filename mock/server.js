@@ -720,7 +720,20 @@ const routes = [
     f.status = 'PENDING_CONFIRM'
     return { ok: true, status: f.status }
   }],
-  ['POST', '/faults/:id/confirm', ({ body }) => ({ ok: true, status: body.pass === false ? 'REFUSED' : 'CLOSED' })],
+  ['POST', '/faults/:id/confirm', ({ params, body }) => {
+    const f = findOr404(d.db.faults, params.id, '急修单')
+    if (f.status !== 'PENDING_CONFIRM') throw { code: 422, message: '仅待使用单位确认的急修单可确认' }
+    const pass = !body || body.pass !== false
+    if (!pass && !String((body && body.reason) || '').trim()) throw { code: 422, message: '拒绝原因必填' }
+    f.status = pass ? 'CLOSED' : 'REFUSED'
+    if (pass) {
+      f.confirmedAt = formatTime()
+      if (body && body.signature) f.signature = String(body.signature)
+    } else {
+      f.refuseReason = String(body.reason).trim()
+    }
+    return d.faultView(f)
+  }],
   ['POST', '/faults/:id/cancel', () => ({ ok: true, status: 'CANCELLED' })],
   ['POST', '/faults/:id/evaluate', () => ({ ok: true })],
   ['POST', '/auth/login', ({ body }) => {
@@ -1630,9 +1643,13 @@ const routes = [
     const pass = !body || body.pass !== false
     if (!pass && !String((body && body.reason) || '').trim()) throw { code: 422, message: '拒绝原因必填' }
     f.status = pass ? 'CLOSED' : 'REFUSED'
-    if (pass) f.confirmedAt = formatTime()
-    else f.refuseReason = String(body.reason).trim()
-    return f
+    if (pass) {
+      f.confirmedAt = formatTime()
+      if (body && body.signature) f.signature = String(body.signature)
+    } else {
+      f.refuseReason = String(body.reason).trim()
+    }
+    return d.faultView(f)
   }],
   ['POST', '/unit/faults/:id/cancel', ({ params, body }) => {
     const unitId = requirePortalUnit()

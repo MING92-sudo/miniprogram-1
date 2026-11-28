@@ -183,10 +183,10 @@ class FaultLifecycleTest {
         Fault f = fault("PROCESSING");
         svc.submitFault("f1", "e1", Map.of(
                 "faultReason", "门锁故障", "handleDesc", "更换触点",
-                "workerSignature", "https://cdn.example/sig.png",
-                "repairPhotos", List.of("https://cdn.example/p1.jpg")));
+                "workerSignature", "/files/sig.png",
+                "repairPhotos", List.of("/files/p1.jpg")));
 
-        assertEquals("https://cdn.example/sig.png", f.workerSignature);
+        assertEquals("/files/sig.png", f.workerSignature);
         assertTrue(f.repairPhotos.contains("p1.jpg"));
     }
 
@@ -199,23 +199,40 @@ class FaultLifecycleTest {
     }
 
     @Test
+    void submitRejectsExternalMediaUrls() {
+        fault("PROCESSING");
+        BizException ex = assertThrows(BizException.class, () -> svc.submitFault("f1", "e1", Map.of(
+                "faultReason", "门锁故障", "handleDesc", "更换触点",
+                "workerSignature", "https://evil.example/sig.png")));
+        assertEquals(422, ex.getCode());
+    }
+
+    @Test
     void updatePersistsWorkerSignatureAndRepairPhotos() {
         Fault f = fault("PROCESSING");
         svc.updateFault("f1", Map.of(
-                "repairPhotos", List.of("https://cdn.example/p2.jpg"),
-                "workerSignature", "https://cdn.example/sig2.png"), "e1");
+                "repairPhotos", List.of("/files/p2.jpg"),
+                "workerSignature", "/files/sig2.png"), "e1");
 
         assertTrue(f.repairPhotos.contains("p2.jpg"));
-        assertEquals("https://cdn.example/sig2.png", f.workerSignature);
+        assertEquals("/files/sig2.png", f.workerSignature);
     }
 
     @Test
     void confirmPersistsClientSignatureOnPass() {
         Fault f = fault("PENDING_CONFIRM");
-        svc.confirmFault("f1", Set.of("CLIENT_SIGNER"), "u1", true, "", "https://cdn.example/client-sig.png");
+        svc.confirmFault("f1", Set.of("CLIENT_SIGNER"), "u1", true, "", "/files/file_client_sig?s=abc");
 
         assertEquals("CLOSED", f.status);
-        assertEquals("https://cdn.example/client-sig.png", f.signature);
+        assertEquals("/files/file_client_sig?s=abc", f.signature);
+    }
+
+    @Test
+    void confirmRejectsExternalSignatureUrl() {
+        fault("PENDING_CONFIRM");
+        BizException ex = assertThrows(BizException.class, () -> svc.confirmFault(
+                "f1", Set.of("CLIENT_SIGNER"), "u1", true, "", "https://evil.example/sig.png"));
+        assertEquals(422, ex.getCode());
     }
 
     @Test
