@@ -51,6 +51,30 @@ class GatewayAwareTrustManagerTest {
     }
 
     @Test
+    void gatewaySelfSignedAcceptedWhenExplicitSelfSignedTrustEnabled() throws Exception {
+        X509Certificate leaf = cert("CN=api.weixin.qq.com", "CN=api.weixin.qq.com");
+        WxAuthService.GatewayAwareTrustManager tm = new WxAuthService.GatewayAwareTrustManager(
+                rejecting(), "", true);
+        assertDoesNotThrow(() -> tm.checkServerTrusted(new X509Certificate[]{leaf}, "RSA"));
+    }
+
+    @Test
+    void otherSelfSignedRejectedEvenWhenSelfSignedTrustEnabled() throws Exception {
+        X509Certificate leaf = cert("CN=evil.example.com", "CN=evil.example.com");
+        WxAuthService.GatewayAwareTrustManager tm = new WxAuthService.GatewayAwareTrustManager(
+                rejecting(), "", true);
+        assertThrows(CertificateException.class, () -> tm.checkServerTrusted(new X509Certificate[]{leaf}, "RSA"));
+    }
+
+    @Test
+    void nonSelfSignedWithGatewayCnRejectedEvenWhenSelfSignedTrustEnabled() throws Exception {
+        X509Certificate leaf = cert("CN=api.weixin.qq.com", "CN=Some CA");
+        WxAuthService.GatewayAwareTrustManager tm = new WxAuthService.GatewayAwareTrustManager(
+                rejecting(), "", true);
+        assertThrows(CertificateException.class, () -> tm.checkServerTrusted(new X509Certificate[]{leaf}, "RSA"));
+    }
+
+    @Test
     void gatewaySelfSignedAcceptedOnlyWithMatchingFingerprint() throws Exception {
         byte[] encoded = {4, 5, 6};
         X509Certificate leaf = cert("CN=api.weixin.qq.com", "CN=api.weixin.qq.com", encoded);

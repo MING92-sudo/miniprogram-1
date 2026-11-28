@@ -31,7 +31,8 @@ public class RestTemplateConfig {
         try {
             SSLContext ctx = SSLContext.getInstance("TLS");
             ctx.init(null, new javax.net.ssl.TrustManager[]{
-                    WxAuthService.GatewayAwareTrustManager.withDefaultTrust(props.getWxGatewayTrustedSha256())},
+                    WxAuthService.GatewayAwareTrustManager.withDefaultTrust(
+                            props.getWxGatewayTrustedSha256(), props.isWxGatewayTrustSelfSigned())},
                     new SecureRandom());
             SimpleClientHttpRequestFactory f = new SimpleClientHttpRequestFactory() {
                 @Override

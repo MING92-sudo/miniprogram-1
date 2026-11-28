@@ -60,6 +60,9 @@ app:
   wx-appsecret: ${WX_APPSECRET:}
   # 云出口自签网关证书 SHA-256 白名单（逗号分隔，支持轮换）；默认空=严格 PKIX，绝不只凭 CN 放行
   wx-gateway-trusted-sha256: ${WX_GATEWAY_TRUSTED_SHA256:}
+  # 云托管 Pod 每次发布会换出口自签证书，固定指纹不可持续；置 true 时仅对 jscode2session 按
+  # CN=api.weixin.qq.com + 自签放行（其余 HTTPS 仍严格 PKIX），默认 false 保持 fail-closed
+  wx-gateway-trust-self-signed: ${WX_GATEWAY_TRUST_SELF_SIGNED:false}
   # 演示种子数据（生产置 false）
   # C5：默认关闭——生产首启不得自动写入弱口令账号与假电梯（虚假数据风险）
   seed-demo-data: ${SEED_DEMO_DATA:${DB_SEED_DEMO:false}}

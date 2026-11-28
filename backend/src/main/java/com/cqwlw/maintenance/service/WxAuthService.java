@@ -172,18 +172,25 @@ public class WxAuthService {
         }
     }
 
-    /** 未配置指纹一律拒绝，绝不只凭 CN 信任。 */
+    /** 未配置指纹一律拒绝；仅显式开启 WX_GATEWAY_TRUST_SELF_SIGNED 时按 CN 放行云网关自签证书。 */
     public static final class GatewayAwareTrustManager implements X509TrustManager {
         private final X509TrustManager delegate;
         private final java.util.Set<String> trustedFingerprints;
+        private final boolean allowCloudGatewaySelfSigned;
 
         public GatewayAwareTrustManager(X509TrustManager delegate) {
             this(delegate, "");
         }
 
         public GatewayAwareTrustManager(X509TrustManager delegate, String trustedSha256) {
+            this(delegate, trustedSha256, false);
+        }
+
+        public GatewayAwareTrustManager(X509TrustManager delegate, String trustedSha256,
+                                        boolean allowCloudGatewaySelfSigned) {
             this.delegate = delegate;
             this.trustedFingerprints = parseFingerprints(trustedSha256);
+            this.allowCloudGatewaySelfSigned = allowCloudGatewaySelfSigned;
         }
 
         private static java.util.Set<String> parseFingerprints(String raw) {
@@ -206,12 +213,17 @@ public class WxAuthService {
         }
 
         public static GatewayAwareTrustManager withDefaultTrust(String trustedSha256) {
+            return withDefaultTrust(trustedSha256, false);
+        }
+
+        public static GatewayAwareTrustManager withDefaultTrust(String trustedSha256,
+                                                                boolean allowCloudGatewaySelfSigned) {
             try {
                 TrustManagerFactory tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
                 tmf.init((KeyStore) null);
                 for (TrustManager tm : tmf.getTrustManagers()) {
                     if (tm instanceof X509TrustManager x) {
-                        return new GatewayAwareTrustManager(x, trustedSha256);
+                        return new GatewayAwareTrustManager(x, trustedSha256, allowCloudGatewaySelfSigned);
                     }
                 }
                 throw new IllegalStateException("no X509TrustManager");
@@ -241,6 +253,11 @@ public class WxAuthService {
                                 MessageDigest.getInstance("SHA-256").digest(chain[0].getEncoded()));
                         if (trustedFingerprints.contains(fingerprint)) {
                             log.warn("信任显式配置的云出口网关证书: sha256={}", fingerprint);
+                            return;
+                        }
+                        if (allowCloudGatewaySelfSigned) {
+                            log.warn("按 WX_GATEWAY_TRUST_SELF_SIGNED 信任云出口自签证书（仅 CN 校验）: sha256={}",
+                                    fingerprint);
                             return;
                         }
                         log.warn("拒绝未配置指纹的云出口自签证书: sha256={}", fingerprint);

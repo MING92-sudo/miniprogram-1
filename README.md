@@ -186,6 +186,7 @@ npm run build:backend   # = vite build + 清空并用 dist 覆盖后端 static�
 | `JWT_SECRET` | 自建 JWT 签名密钥，≥32 字节，必填；无默认值 |
 | `JWT_EXPIRE_HOURS` | 会话有效期，默认 72 小时 |
 | `WX_APPID` / `WX_APPSECRET` | 微信 `jscode2session` 换取 openid；未配置时绑定/一键登录返回 `2001` |
+| `WX_GATEWAY_TRUST_SELF_SIGNED` | 云托管 Pod 每次发布会换出口自签证书；置 `true` 时仅微信登录链路按 `CN=api.weixin.qq.com` + 自签放行，默认 `false` |
 | `REG_AUTH_LOGIN_URL` / `REG_API_BASE_URL` | 平台登录地址与业务根路径 |
 | `REG_USERNAME` / `REG_KEY` / `REG_APPCODE` / `REG_SECRET` | 平台凭证，只允许环境变量 |
 | `REG_LEGACY_UPLOAD_ENABLED` | 平台 2.8 存量记录提交开关，默认 `false` |
