@@ -50,6 +50,7 @@ class FaultLifecycleTest {
                 mock(WorkOrderMapper.class), mock(CompanyMapper.class), mock(FileStorageService.class),
                 mock(TenantSnapshotService.class));
         when(faults.closePending(any())).thenReturn(1);
+        when(faults.closePendingWithSignature(any(), any())).thenReturn(1);
         when(faults.refusePending(any(), any())).thenReturn(1);
     }
 
@@ -206,6 +207,15 @@ class FaultLifecycleTest {
 
         assertTrue(f.repairPhotos.contains("p2.jpg"));
         assertEquals("https://cdn.example/sig2.png", f.workerSignature);
+    }
+
+    @Test
+    void confirmPersistsClientSignatureOnPass() {
+        Fault f = fault("PENDING_CONFIRM");
+        svc.confirmFault("f1", Set.of("CLIENT_SIGNER"), "u1", true, "", "https://cdn.example/client-sig.png");
+
+        assertEquals("CLOSED", f.status);
+        assertEquals("https://cdn.example/client-sig.png", f.signature);
     }
 
     @Test

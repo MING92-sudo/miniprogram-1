@@ -92,9 +92,14 @@ public class DirectoryController {
                                             HttpServletRequest request) {
         boolean pass = !Boolean.FALSE.equals(body.get("pass"));
         String reason = body.get("reason") == null ? "" : String.valueOf(body.get("reason"));
+        String signature = body.get("signature") == null ? "" : String.valueOf(body.get("signature"));
         return ApiResponse.ok(idempotencyService.executeDb(idemKey, body, request,
-                () -> directoryService.confirmFault(id,
-                        com.cqwlw.maintenance.auth.MultiRoleGate.roles(request), unitAnchor(request), pass, reason)));
+                () -> signature.isBlank()
+                        ? directoryService.confirmFault(id,
+                                com.cqwlw.maintenance.auth.MultiRoleGate.roles(request), unitAnchor(request), pass, reason)
+                        : directoryService.confirmFault(id,
+                                com.cqwlw.maintenance.auth.MultiRoleGate.roles(request), unitAnchor(request), pass, reason,
+                                signature)));
     }
 
     @PostMapping("/faults/{id}/cancel")

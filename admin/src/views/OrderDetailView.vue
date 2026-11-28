@@ -54,10 +54,11 @@
             <div class="sec-t mt16">处理结果</div>
             <div class="spec-list"><div>{{ order.result }}</div></div>
           </template>
-          <div class="sec-t mt16">现场照片（水印缩略图）</div>
+          <div class="sec-t mt16">现场照片（报修 / 维修）</div>
           <div class="thumbs">
-            <span v-for="n in photoCount" :key="n" :class="['thumb', { sig: isRescue }]" aria-hidden="true" />
-            <span v-if="!photoCount" class="dim f12">暂无照片</span>
+            <img v-for="(url, idx) in photoUrls" :key="url + idx" class="thumb thumb-img"
+              :class="{ sig: isRescue }" :src="url" :alt="'照片 ' + (idx + 1)" @click="openPhoto(url)" />
+            <span v-if="!photoUrls.length" class="dim f12">暂无照片</span>
           </div>
         </div>
       </div>
@@ -212,12 +213,27 @@ const slaTagText = computed(() => {
   if (o.slaMinutes && remaining.value <= o.slaMinutes * 0.3) return '临期 ' + remaining.value + '′'
   return '剩 ' + remaining.value + '′'
 })
-const photoCount = computed(() => {
-  const p = order.value && order.value.photos
-  if (Array.isArray(p)) return p.length
-  if (typeof p === 'string' && p) { try { const a = JSON.parse(p); return Array.isArray(a) ? a.length : 1 } catch { return 1 } }
-  return 0
+const photoUrls = computed(() => {
+  const o = order.value || {}
+  const out = []
+  const add = (p) => {
+    if (Array.isArray(p)) {
+      p.forEach((u) => { if (u) out.push(String(u)) })
+    } else if (typeof p === 'string' && p) {
+      try {
+        const a = JSON.parse(p)
+        if (Array.isArray(a)) a.forEach((u) => { if (u) out.push(String(u)) })
+        else out.push(p)
+      } catch { out.push(p) }
+    }
+  }
+  add(o.photos)
+  add(o.repairPhotos)
+  return out
 })
+function openPhoto(url) {
+  if (url) window.open(url, '_blank', 'noopener')
+}
 const timeline = computed(() => {
   const o = order.value
   if (!o) return []

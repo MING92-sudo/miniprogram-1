@@ -42,4 +42,24 @@ class ClientFaultEndpointTest {
         verify(portal).confirmFault("f1", Set.of("CLIENT_ADMIN", "CLIENT_SIGNER"), "u1", true, "");
         verify(portal).cancelFault("f1", Set.of("CLIENT_ADMIN", "CLIENT_SIGNER"), "u1", "误报");
     }
+
+    @Test
+    void clientConfirmPassesSafetyAdminSignature() {
+        UnitPortalService portal = mock(UnitPortalService.class);
+        UnitPortalController controller = new UnitPortalController(portal, mock(SysUserRoleMapper.class));
+        com.cqwlw.maintenance.service.IdempotencyService idempotency = mock(com.cqwlw.maintenance.service.IdempotencyService.class);
+        when(idempotency.executeDb(any(), any(), any(), any())).thenAnswer(invocation ->
+                ((java.util.function.Supplier<?>) invocation.getArgument(3)).get());
+        controller.setIdempotencyService(idempotency);
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setAttribute(AuthInterceptor.ATTR_UNIT_ID, "u1");
+        request.setAttribute(AuthInterceptor.ATTR_ROLES, Set.of("CLIENT_SIGNER"));
+        when(portal.confirmFault("f1", Set.of("CLIENT_SIGNER"), "u1", true, "", "https://cdn/sig.png"))
+                .thenReturn(Map.of("status", "CLOSED"));
+
+        assertEquals("CLOSED", controller.confirmFault("f1",
+                Map.of("pass", true, "signature", "https://cdn/sig.png"), request, "idem-sig").getData().get("status"));
+
+        verify(portal).confirmFault("f1", Set.of("CLIENT_SIGNER"), "u1", true, "", "https://cdn/sig.png");
+    }
 }

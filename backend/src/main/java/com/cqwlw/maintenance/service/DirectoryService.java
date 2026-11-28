@@ -336,6 +336,11 @@ public class DirectoryService {
 
     public Map<String, Object> confirmFault(String id, java.util.Set<String> roles, String unitId,
                                             boolean pass, String reason) {
+        return confirmFault(id, roles, unitId, pass, reason, null);
+    }
+
+    public Map<String, Object> confirmFault(String id, java.util.Set<String> roles, String unitId,
+                                            boolean pass, String reason, String signature) {
         Fault f = faultOr404(id);
         if (!"PENDING_CONFIRM".equals(f.status)) {
             throw new BizException(422, "仅待使用单位确认的急修单可确认");
@@ -345,11 +350,18 @@ public class DirectoryService {
         }
         checkUnit(f, unitId);
         if (pass) {
-            if (faultMapper.closePending(id) != 1) {
+            boolean hasSignature = signature != null && !signature.isBlank();
+            int updated = hasSignature
+                    ? faultMapper.closePendingWithSignature(id, signature.trim())
+                    : faultMapper.closePending(id);
+            if (updated != 1) {
                 throw new BizException(422, "急修单已被其他请求确认，请刷新后查看");
             }
             f.status = "CLOSED";
             f.confirmedAt = TimeUtil.now();
+            if (hasSignature) {
+                f.signature = signature.trim();
+            }
         } else {
             if (reason.trim().isEmpty()) {
                 throw new BizException(422, "拒绝原因必填");

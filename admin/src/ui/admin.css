@@ -537,6 +537,7 @@ fieldset.fs>legend{font-family:var(--font-mono);font-size:var(--fs-label);letter
   display:flex;align-items:center;justify-content:center;color:#42585F;position:relative;overflow:hidden;flex:none}
 .thumb::after{content:"W";position:absolute;right:3px;bottom:1px;font-family:var(--font-mono);font-size:9px;color:rgba(255,176,32,.55)}
 .thumb.sig{border-color:var(--signal-a32)}
+.thumb-img{display:block;object-fit:cover;cursor:zoom-in}
 .thumbs{display:flex;gap:6px;flex-wrap:wrap}
 
 /* ---------- 四态 ---------- */

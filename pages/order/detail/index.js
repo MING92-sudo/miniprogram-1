@@ -19,7 +19,11 @@ definePage(ROUTES['/pages/order/detail/index'], {
     canConfirm: false, isClient: false, text: ORDER_TEXT
   },
   onLoad(query) { this.setData({ id: (query && query.id) || '' }); this.fetchDetail() },
-  onShow() { if (this.data.id) this.fetchDetail() },
+  onShow() {
+    // 签名页返回时，签名回调先于 navigateBack 执行；此处清理未完成的确认标记
+    this._pendingConfirmSignature = false
+    if (this.data.id) this.fetchDetail()
+  },
   onBack() { nav.back() },
   fetchDetail() {
     this.setData({ loading: true, error: '' })
@@ -113,7 +117,25 @@ definePage(ROUTES['/pages/order/detail/index'], {
   onSignatureReady(data) {
     if (!data || !data.path || this._signing) return
     this._signing = true
-    wx.showLoading({ title: '上传中' })
+    wx.showLoading({ title: this._pendingConfirmSignature ? '签署中' : '上传中' })
+    if (this._pendingConfirmSignature) {
+      this._pendingConfirmSignature = false
+      const confirm = this.data.isClient ? confirmUnitFault : confirmFault
+      uploadImage(data.path)
+        .then((up) => confirm(this.data.id, true, '', up.url))
+        .then(() => {
+          wx.hideLoading()
+          this._signing = false
+          wx.showToast({ title: '已确认闭环', icon: 'success' })
+          this.fetchDetail()
+        })
+        .catch((e) => {
+          wx.hideLoading()
+          this._signing = false
+          wx.showToast({ title: (e && e.message) || '确认失败', icon: 'none' })
+        })
+      return
+    }
     uploadImage(data.path)
       .then((up) => updateFault(this.data.id, { workerSignature: up.url }))
       .then(() => {
@@ -166,9 +188,9 @@ definePage(ROUTES['/pages/order/detail/index'], {
         }
       })
     }
-    const confirm = this.data.isClient ? confirmUnitFault : confirmFault
-    confirm(this.data.id, true, '').then(() => { wx.showToast({ title: '已确认闭环', icon: 'success' }); this.fetchDetail() })
-      .catch((er) => wx.showToast({ title: (er && er.message) || '操作失败', icon: 'none' }))
+    // 确认闭环须使用单位安全管理员横屏签字，签名落在急修单 PDF 第五区块
+    this._pendingConfirmSignature = true
+    wx.navigateTo({ url: '/pages/common/signature?from=fault-confirm&orderId=' + this.data.id })
   },
   onCancel() {
     wx.showModal({

@@ -71,8 +71,8 @@ function getUnitFaultDetail(id) {
   return get(`/unit/faults/${id}`)
 }
 
-function confirmUnitFault(id, pass, reason) {
-  return post(`/unit/faults/${id}/confirm`, { pass, reason })
+function confirmUnitFault(id, pass, reason, signature) {
+  return post(`/unit/faults/${id}/confirm`, { pass, reason, signature })
 }
 
 function cancelUnitFault(id, reason) {

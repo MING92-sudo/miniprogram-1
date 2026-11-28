@@ -42,8 +42,8 @@ function submitFault(id, data) {
   return post(`/faults/${id}/submit`, data)
 }
 
-function confirmFault(id, pass, reason) {
-  return post(`/faults/${id}/confirm`, { pass, reason })
+function confirmFault(id, pass, reason, signature) {
+  return post(`/faults/${id}/confirm`, { pass, reason, signature })
 }
 
 function cancelFault(id, reason) {

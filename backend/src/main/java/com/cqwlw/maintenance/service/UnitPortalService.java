@@ -182,7 +182,12 @@ public class UnitPortalService {
 
     public Map<String, Object> confirmFault(String faultId, Set<String> roles, String useUnitId,
                                             boolean pass, String reason) {
-        return directoryService.confirmFault(faultId, roles, useUnitId, pass, reason);
+        return confirmFault(faultId, roles, useUnitId, pass, reason, null);
+    }
+
+    public Map<String, Object> confirmFault(String faultId, Set<String> roles, String useUnitId,
+                                            boolean pass, String reason, String signature) {
+        return directoryService.confirmFault(faultId, roles, useUnitId, pass, reason, signature);
     }
 
     public Map<String, Object> cancelFault(String faultId, Set<String> roles, String useUnitId, String reason) {

@@ -22,6 +22,11 @@ public interface FaultMapper extends BaseMapper<Fault> {
             + "WHERE id = #{id} AND status = 'PENDING_CONFIRM'")
     int closePending(@Param("id") String id);
 
+    /** 使用单位确认闭环并落安全管理员签字图，状态守卫与 closePending 一致。 */
+    @Update("UPDATE fault SET status = 'CLOSED', confirmed_at = CURRENT_TIMESTAMP, signature = #{signature} "
+            + "WHERE id = #{id} AND status = 'PENDING_CONFIRM'")
+    int closePendingWithSignature(@Param("id") String id, @Param("signature") String signature);
+
     @Update("UPDATE fault SET status = 'REFUSED', refuse_reason = #{reason} "
             + "WHERE id = #{id} AND status = 'PENDING_CONFIRM'")
     int refusePending(@Param("id") String id, @Param("reason") String reason);

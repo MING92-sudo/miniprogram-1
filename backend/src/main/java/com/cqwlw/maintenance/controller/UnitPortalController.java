@@ -98,9 +98,13 @@ public class UnitPortalController {
                                                          @org.springframework.web.bind.annotation.RequestHeader(value = "X-Idempotency-Key", required = false) String idemKey) {
         boolean pass = body == null || !Boolean.FALSE.equals(body.get("pass"));
         String reason = body == null || body.get("reason") == null ? "" : String.valueOf(body.get("reason"));
+        String signature = body == null || body.get("signature") == null ? "" : String.valueOf(body.get("signature"));
         return withIdempotency(idemKey, body, request, () ->
-                portalService.confirmFault(id, com.cqwlw.maintenance.auth.MultiRoleGate.roles(request),
-                        unitId(request), pass, reason));
+                signature.isBlank()
+                        ? portalService.confirmFault(id, com.cqwlw.maintenance.auth.MultiRoleGate.roles(request),
+                                unitId(request), pass, reason)
+                        : portalService.confirmFault(id, com.cqwlw.maintenance.auth.MultiRoleGate.roles(request),
+                                unitId(request), pass, reason, signature));
     }
 
     @PostMapping("/unit/faults/{id}/cancel")
