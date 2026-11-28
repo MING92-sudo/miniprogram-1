@@ -5,6 +5,7 @@ const menus = require('../../config/menus')
 const { getRoles, getPerms, isCustomerPrincipal } = require('../../utils/auth')
 const nav = require('../../utils/nav')
 const { TOAST_TEXT, PROFILE_TEXT, ROLE_DESC } = require('../../constants/index')
+const { miniProgramVersionBadge } = require('../../utils/version')
 
 const WECHAT_BOUND_KEY = 'em_wechat_bound'
 const GROUPS = [
@@ -66,10 +67,7 @@ definePage(ROUTES['/pages/profile/index'], {
   },
   goAdminEntry(e) { nav.open(e.currentTarget.dataset.path) },
   readVersion() {
-    try {
-      const mp = wx.getAccountInfoSync().miniProgram
-      return mp.version ? 'V' + mp.version : (mp.envVersion === 'trial' ? '体验版' : '开发版')
-    } catch (e) { return '' }
+    return miniProgramVersionBadge()
   },
   onSwitchWs(e) {
     const state = e.currentTarget.dataset.state

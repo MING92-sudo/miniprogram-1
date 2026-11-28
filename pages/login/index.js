@@ -3,6 +3,7 @@ const { clearUnitSession } = require('../../services/unit')
 const { isLoggedIn, getRoles, getHome } = require('../../utils/auth')
 const { resolveHome } = require('../../config/menus')
 const nav = require('../../utils/nav')
+const { miniProgramVersionBadge } = require('../../utils/version')
 const { TOAST_TEXT, LOGIN_TEXT, BRAND } = require('../../constants/index')
 
 const REMEMBER_KEY = 'em_remember_login'
@@ -19,13 +20,14 @@ Page({
   data: {
     phone: '', password: '', showPassword: false,
     agreed: false, logging: false, remember: false,
-    text: LOGIN_TEXT, appName: BRAND.APP_NAME, versionBadge: BRAND.VERSION_BADGE, companyFoot: BRAND.LOGIN_FOOT
+    text: LOGIN_TEXT, appName: BRAND.APP_NAME, versionBadge: '', companyFoot: BRAND.LOGIN_FOOT
   },
 
   onLoad(query) {
     this._redirect = (query && query.redirect) || ''
     this._pendingBindCode = ''
     this._signedIn = isLoggedIn()
+    this.setData({ versionBadge: miniProgramVersionBadge() })
     const saved = wx.getStorageSync(REMEMBER_KEY)
     if (saved && saved.phone) this.setData({ phone: saved.phone, remember: true })
   },

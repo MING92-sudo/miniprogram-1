@@ -286,7 +286,6 @@ const BRAND = {
   APP_NAME: '博威无纸化',
   APP_SUB: '电梯无纸化维保系统',
   COMPANY: '重庆博威电梯公司',
-  VERSION_BADGE: 'V1.4 / 2026',
   LOGIN_FOOT: '该小程序为重庆博威电梯公司内部相关人员登录使用 · 账号由所属单位管理员开通 · 首次使用请联系项目负责人'
 }
 const LOGIN_TEXT = {
