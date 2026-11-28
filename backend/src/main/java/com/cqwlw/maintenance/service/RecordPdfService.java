@@ -368,7 +368,7 @@ public class RecordPdfService {
         }
         List<String[]> rows = new ArrayList<>();
         rows.add(new String[]{"报修时间", orDash(created), "报修人", orDash(reporter)});
-        rows.add(new String[]{"联系电话", orDash(str(v.get("reporterPhone"))), "故障等级", faultTypeText(v)});
+        rows.add(new String[]{"联系电话", orDash(str(v.get("reporterPhone"))), "故障类型", faultTypeText(v)});
         rows.add(new String[]{"报修来源", faultSourceText(v)});
         rows.add(new String[]{"派单时间", orDash(str(v.get("dispatchedAt"))), "接单维保员",
                 orDash(str(v.get("dispatchedWorkerName")))});
@@ -387,12 +387,15 @@ public class RecordPdfService {
             rows.add(new String[]{"被困人数", trappedCountText(v), "事发楼层", orDash(str(v.get("floor")))});
             rows.add(new String[]{"安全解救时刻", orDash(str(v.get("rescuedAt")))});
         }
-        rows.add(new String[]{"现场检查情况", orDash(str(v.get("siteDesc")))});
+        String site = nz(str(v.get("siteDesc")));
+        rows.add(new String[]{"现场检查情况", orDash(site)});
         String reason = nz(str(v.get("faultReason")));
         if (reason.isEmpty()) {
-            reason = nz(str(v.get("siteDesc")));
+            reason = site.isEmpty() ? "—" : "—（见上栏「现场检查情况」）";
+        } else if (reason.equals(site)) {
+            reason = "同现场检查情况";
         }
-        rows.add(new String[]{"故障原因分析", reason.isEmpty() ? "—" : reason});
+        rows.add(new String[]{"故障原因分析", reason});
         rows.add(new String[]{"处理措施（含更换零部件）", orDash(str(v.get("result")))});
         rows.add(new String[]{"恢复运行时间", orDash(str(v.get("finishedAt")))});
         String todo = nz(str(v.get("todoDesc")));
@@ -714,7 +717,7 @@ public class RecordPdfService {
         return "小程序报修";
     }
 
-    /** 故障等级（faultType）：空值按一般故障 */
+    /** 故障类型（faultType）：空值按一般故障 */
     private static String faultTypeText(Map<String, Object> v) {
         String type = nz(str(v.get("faultType")));
         return type.isEmpty() ? "一般故障" : type;

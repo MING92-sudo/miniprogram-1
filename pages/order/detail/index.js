@@ -34,8 +34,10 @@ definePage(ROUTES['/pages/order/detail/index'], {
       push(ORDER_TEXT.TL_DONE, fault.finishedAt || fault.confirmedAt, fault.status === 'CLOSED' ? 'amber' : 'dim')
       const heroTitle = (fault.rescue && fault.status === 'CLOSED') ? ORDER_TEXT.RESCUE_DONE : (fault.desc || '')
       const responseText = fault.responseMinutes != null ? fault.responseMinutes + "'00\"" : ''
-      const sourceText = fault.proxySource ? '电话代报修'
-        : (String(fault.createdBy || '').indexOf('unit:') === 0 ? '使用单位报修' : '小程序报修')
+      const sourceText = fault.proxySource === 'WECHAT' ? '微信代报修'
+        : fault.proxySource === 'ONSITE' ? '现场代报修'
+          : fault.proxySource ? '电话代报修'
+            : (String(fault.createdBy || '').indexOf('unit:') === 0 ? '使用单位报修' : '小程序报修')
       const heroSub = [fault.elevatorName, fault.floor ? fault.floor + 'F' : '', fault.trappedCount ? '被困 ' + fault.trappedCount + ' ' + ORDER_TEXT.TRAPPED_UNIT : '', fault.confirmedAt ? ORDER_TEXT.CONFIRMED_SHORT : ''].filter(Boolean).join(' · ')
       this.setData({
         fault, loading: false, timeline: tl, heroTitle, responseText, heroSub, sourceText,

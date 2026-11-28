@@ -41,6 +41,20 @@ public class UnitPortalController {
         this.clientAccountMapper = clientAccountMapper;
     }
 
+    private com.cqwlw.maintenance.mapper.EmployeeMapper employeeMapper;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    public void setEmployeeMapper(com.cqwlw.maintenance.mapper.EmployeeMapper employeeMapper) {
+        this.employeeMapper = employeeMapper;
+    }
+
+    private com.cqwlw.maintenance.mapper.UseUnitMapper useUnitMapper;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    public void setUseUnitMapper(com.cqwlw.maintenance.mapper.UseUnitMapper useUnitMapper) {
+        this.useUnitMapper = useUnitMapper;
+    }
+
     public UnitPortalController(UnitPortalService portalService,
                                 com.cqwlw.maintenance.mapper.SysUserRoleMapper userRoleMapper) {
         this.portalService = portalService;
@@ -129,22 +143,49 @@ public class UnitPortalController {
     @PostMapping("/unit/faults")
     public ApiResponse<Map<String, Object>> reportFault(@RequestBody(required = false) Map<String, Object> body,
                                                         HttpServletRequest request) {
+        String unitId = unitId(request);
         Map<String, Object> payload = body == null
                 ? new java.util.LinkedHashMap<>() : new java.util.LinkedHashMap<>(body);
+        String reporterName = "";
+        String reporterPhone = "";
         Object accountId = request.getAttribute(AuthInterceptor.ATTR_EMP_ID);
         if (clientAccountMapper != null && accountId != null) {
             com.cqwlw.maintenance.entity.ClientAccount account =
                     clientAccountMapper.selectById(String.valueOf(accountId));
             if (account != null) {
-                if (account.name != null && !account.name.isBlank()) {
-                    payload.putIfAbsent("reporter", account.name);
-                }
-                if (account.phone != null && !account.phone.isBlank()) {
-                    payload.putIfAbsent("reporterPhone", account.phone);
+                reporterName = account.name == null ? "" : account.name;
+                reporterPhone = account.phone == null ? "" : account.phone;
+            }
+        }
+        // 旧统一令牌：客户主体可能仍落在员工表（ATTR_EMP_ID=员工ID），退回员工档案取联系方式
+        if (reporterName.isBlank() && employeeMapper != null && accountId != null) {
+            com.cqwlw.maintenance.entity.Employee employee =
+                    employeeMapper.selectById(String.valueOf(accountId));
+            if (employee != null) {
+                reporterName = employee.name == null ? "" : employee.name;
+                reporterPhone = employee.phone == null ? "" : employee.phone;
+            }
+        }
+        // ut=1 旧门户令牌没有登录账号：退回使用单位档案的安全管理员/负责人
+        if (reporterName.isBlank() && useUnitMapper != null) {
+            com.cqwlw.maintenance.entity.UseUnit unit = useUnitMapper.selectById(unitId);
+            if (unit != null) {
+                if (unit.elevatorAdminister != null && !unit.elevatorAdminister.isBlank()) {
+                    reporterName = unit.elevatorAdminister;
+                    reporterPhone = unit.elevatorAdministerPhone == null ? "" : unit.elevatorAdministerPhone;
+                } else if (unit.unitPrincipal != null && !unit.unitPrincipal.isBlank()) {
+                    reporterName = unit.unitPrincipal;
+                    reporterPhone = unit.unitPrincipalPhone == null ? "" : unit.unitPrincipalPhone;
                 }
             }
         }
-        return ApiResponse.ok(portalService.reportFault(unitId(request), payload));
+        if (!reporterName.isBlank()) {
+            payload.put("reporter", reporterName);
+        }
+        if (!reporterPhone.isBlank()) {
+            payload.put("reporterPhone", reporterPhone);
+        }
+        return ApiResponse.ok(portalService.reportFault(unitId, payload));
     }
 
     private ApiResponse<Map<String, Object>> withIdempotency(String key, Object body, HttpServletRequest request,

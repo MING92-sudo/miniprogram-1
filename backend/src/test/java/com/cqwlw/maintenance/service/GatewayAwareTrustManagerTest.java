@@ -124,5 +124,9 @@ class GatewayAwareTrustManagerTest {
                 cert("CN=api.weixin.qq.com", "CN=Other")));
         assertFalse(WxAuthService.GatewayAwareTrustManager.isGatewayProfile(
                 cert("CN=other.qq.com", "CN=other.qq.com")));
+        assertFalse(WxAuthService.GatewayAwareTrustManager.isGatewayProfile(
+                cert("CN=api.weixin.qq.com.attacker.com", "CN=api.weixin.qq.com.attacker.com")));
+        assertFalse(WxAuthService.GatewayAwareTrustManager.isGatewayProfile(
+                cert("O=api.weixin.qq.com,CN=other.example.com", "O=api.weixin.qq.com,CN=other.example.com")));
     }
 }

@@ -3,9 +3,13 @@ package com.cqwlw.maintenance.controller;
 import com.cqwlw.maintenance.auth.AuthInterceptor;
 import com.cqwlw.maintenance.common.BizException;
 import com.cqwlw.maintenance.entity.ClientAccount;
+import com.cqwlw.maintenance.entity.Employee;
 import com.cqwlw.maintenance.entity.SysUserRole;
+import com.cqwlw.maintenance.entity.UseUnit;
 import com.cqwlw.maintenance.mapper.ClientAccountMapper;
+import com.cqwlw.maintenance.mapper.EmployeeMapper;
 import com.cqwlw.maintenance.mapper.SysUserRoleMapper;
+import com.cqwlw.maintenance.mapper.UseUnitMapper;
 import com.cqwlw.maintenance.service.UnitPortalService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.junit.jupiter.api.Test;
@@ -86,7 +90,43 @@ class UnitPortalUnifiedTokenTest {
         UnitPortalController controller = new UnitPortalController(portalService, userRoleMapper);
         controller.setClientAccountMapper(clientAccountMapper);
 
+        controller.reportFault(Map.of("elevatorCode", "EM-1", "reporter", "伪造", "reporterPhone", "13900000000"),
+                employeeRequest(Set.of("CLIENT_ADMIN")));
+
+        verify(portalService).reportFault(anyString(), argThat(m ->
+                "王芳".equals(m.get("reporter")) && "13800000003".equals(m.get("reporterPhone"))));
+    }
+
+    @Test
+    void employeeReportFaultFallsBackToEmployeeContact() {
+        anchor("uu_1");
+        EmployeeMapper employeeMapper = mock(EmployeeMapper.class);
+        Employee employee = new Employee();
+        employee.name = "李强";
+        employee.phone = "13800000004";
+        when(employeeMapper.selectById("e1")).thenReturn(employee);
+        UnitPortalController controller = new UnitPortalController(portalService, userRoleMapper);
+        controller.setEmployeeMapper(employeeMapper);
+
         controller.reportFault(Map.of("elevatorCode", "EM-1"), employeeRequest(Set.of("CLIENT_ADMIN")));
+
+        verify(portalService).reportFault(anyString(), argThat(m ->
+                "李强".equals(m.get("reporter")) && "13800000004".equals(m.get("reporterPhone"))));
+    }
+
+    @Test
+    void legacyPortalReportFaultFallsBackToUnitContact() {
+        UseUnitMapper useUnitMapper = mock(UseUnitMapper.class);
+        UseUnit unit = new UseUnit();
+        unit.elevatorAdminister = "王芳";
+        unit.elevatorAdministerPhone = "13800000003";
+        when(useUnitMapper.selectById("uu_9")).thenReturn(unit);
+        UnitPortalController controller = new UnitPortalController(portalService, userRoleMapper);
+        controller.setUseUnitMapper(useUnitMapper);
+        HttpServletRequest request = mock(HttpServletRequest.class);
+        when(request.getAttribute(AuthInterceptor.ATTR_UNIT_ID)).thenReturn("uu_9");
+
+        controller.reportFault(Map.of("elevatorCode", "EM-1"), request);
 
         verify(portalService).reportFault(anyString(), argThat(m ->
                 "王芳".equals(m.get("reporter")) && "13800000003".equals(m.get("reporterPhone"))));

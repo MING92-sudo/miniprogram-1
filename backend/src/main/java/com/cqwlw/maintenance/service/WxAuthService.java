@@ -233,8 +233,22 @@ public class WxAuthService {
         }
 
         static boolean isGatewayProfile(X509Certificate leaf) {
-            return leaf.getSubjectX500Principal().equals(leaf.getIssuerX500Principal())
-                    && leaf.getSubjectX500Principal().getName().contains("CN=api.weixin.qq.com");
+            if (!leaf.getSubjectX500Principal().equals(leaf.getIssuerX500Principal())) {
+                return false;
+            }
+            try {
+                javax.naming.ldap.LdapName name = new javax.naming.ldap.LdapName(
+                        leaf.getSubjectX500Principal().getName());
+                for (javax.naming.ldap.Rdn rdn : name.getRdns()) {
+                    if ("CN".equalsIgnoreCase(rdn.getType())
+                            && "api.weixin.qq.com".equalsIgnoreCase(String.valueOf(rdn.getValue()))) {
+                        return true;
+                    }
+                }
+            } catch (javax.naming.InvalidNameException e) {
+                return false;
+            }
+            return false;
         }
 
         @Override

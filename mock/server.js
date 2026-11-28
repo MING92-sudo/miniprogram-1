@@ -1157,6 +1157,16 @@ const routes = [
   }],
   // 管理端代报修：建单 + 来源一次落库（真实后端同事务）
   ['POST', '/faults/proxy', ({ body }) => d.createProxyFault(body)],
+  // 已有急修单补登代报修来源（工单详情页；真实后端 WorkDomainService.proxyRepair 同口径）
+  ['POST', '/faults/:id/proxy', ({ params, body }) => {
+    const f = findOr404(d.db.faults, params.id, '急修单')
+    if (!['PHONE', 'WECHAT', 'ONSITE'].includes(body && body.proxySource)) {
+      throw { code: 422, message: '代报修来源须 PHONE/WECHAT/ONSITE' }
+    }
+    f.proxySource = body.proxySource
+    f.proxyBy = body.createdBy || currentRole || ''
+    return d.faultView(f)
+  }],
   ['GET', '/faults', ({ query }) => {
     let list = d.db.faults.map(d.faultView)
     if (query && query.status) {
