@@ -44,7 +44,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/** 组合代报修：参数全部校验后，建单 + 来源/录音 + 审计必须同事务落库。 */
+/** 组合代报修：参数全部校验后，建单 + 来源 + 审计必须同事务落库。 */
 class ProxyFaultTransactionTest {
 
     private static final String ACTOR = "emp_1";
@@ -83,7 +83,7 @@ class ProxyFaultTransactionTest {
     void invalidProxyMetadataLeavesNoFaultAndNoAudit() {
         BizException e = assertThrows(BizException.class, () -> service.createProxyFault(Map.of(
                 "elevatorCode", "EM-1", "desc", "厅门异响",
-                "proxySource", "PHONE", "recordingNo", "BAD"), ACTOR));
+                "proxySource", "BAD"), ACTOR));
 
         assertEquals(422, e.getCode());
         verify(faultMapper, never()).insert(any(Fault.class));
@@ -114,7 +114,6 @@ class ProxyFaultTransactionTest {
         Fault saved = update.getValue();
         assertEquals(insert.getValue().id, view.get("id"));
         assertEquals("PHONE", saved.proxySource);
-        assertEquals("REC-1234", saved.recordingNo);
         assertEquals(ACTOR, saved.proxyBy);
 
         ArgumentCaptor<SysAuditLog> auditRow = ArgumentCaptor.forClass(SysAuditLog.class);
@@ -127,6 +126,6 @@ class ProxyFaultTransactionTest {
 
     private static Map<String, Object> validBody() {
         return Map.of("elevatorCode", "EM-1", "desc", "厅门异响",
-                "proxySource", "PHONE", "recordingNo", "REC-1234");
+                "proxySource", "PHONE");
     }
 }

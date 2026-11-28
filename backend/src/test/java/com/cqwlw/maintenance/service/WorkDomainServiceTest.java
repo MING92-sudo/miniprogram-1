@@ -272,12 +272,12 @@ class WorkDomainServiceTest {
     }
 
     @Test
-    void proxyValidatesRecordingNo() {
+    void proxyRepairSetsSourceAndActor() {
         Fault f = new Fault();
         f.id = "f1";
         when(faultMapper.selectById("f1")).thenReturn(f);
-        assertThrows(BizException.class, () -> service.proxyRepair("f1", Map.of("proxySource", "PHONE", "recordingNo", "BAD"), "u"));
-        Fault ok = service.proxyRepair("f1", Map.of("proxySource", "PHONE", "recordingNo", "REC-1234"), "u");
+        assertThrows(BizException.class, () -> service.proxyRepair("f1", Map.of("proxySource", "BAD"), "u"));
+        Fault ok = service.proxyRepair("f1", Map.of("proxySource", "PHONE"), "u");
         assertEquals("PHONE", ok.proxySource);
         assertEquals("u", ok.proxyBy);
     }

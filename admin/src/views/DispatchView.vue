@@ -120,18 +120,24 @@
             <option v-for="e in elevators" :key="e.elevatorCode" :value="e.elevatorCode">{{ e.elevatorCode }} · {{ e.elevatorName || e.projectName || '' }}</option>
           </select>
         </FormField>
+        <FormField label="故障类型" required>
+          <select v-model="proxyForm.faultType" class="ctl">
+            <option value="一般故障">一般故障</option>
+            <option value="困人（紧急）">困人（紧急）</option>
+          </select>
+        </FormField>
         <FormField label="来源" required>
           <select v-model="proxyForm.source" class="ctl">
             <option value="PHONE">电话</option><option value="WECHAT">微信</option><option value="ONSITE">现场</option>
           </select>
         </FormField>
-        <FormField label="录音编号" required hint="^REC-\d{4,6}$" :error="proxyErr.recNo">
-          <input v-model="proxyForm.recNo" class="ctl mono" placeholder="REC-20261" />
+        <FormField v-if="isProxyTrapped" label="被困人数" required :error="proxyErr.trapped">
+          <input v-model="proxyForm.trappedCount" class="ctl" type="number" placeholder="1-99" />
         </FormField>
       </div>
       <div class="form-grid one mt12">
         <FormField label="故障描述" required :error="proxyErr.fault">
-          <textarea v-model="proxyForm.fault" class="ctl" placeholder="必填，≥5 字" />
+          <textarea v-model="proxyForm.fault" class="ctl" placeholder="简单描述故障现象，≥5 字" />
         </FormField>
       </div>
     </Modal>
@@ -160,6 +166,7 @@ import Modal from '../ui/Modal.vue'
 import FormField from '../ui/FormField.vue'
 import { useToast } from '../ui/stores/ui'
 import { exportCsv } from '../ui/export-csv'
+import { channelLabel } from '../ui/labels'
 const toast = useToast()
 const rows = ref([])
 const loading = ref(false)
@@ -202,7 +209,7 @@ function decorate(f) {
     levelLabel: isRescue ? 'P1' : 'P2',
     remaining,
     overtime,
-    sourceLabel: f.proxySource ? '电话代报修' : (String(f.createdBy || '').startsWith('unit:') ? '使用单位' : '小程序')
+    sourceLabel: f.proxySource ? channelLabel(f.proxySource) + '代报修' : (String(f.createdBy || '').startsWith('unit:') ? '使用单位' : '小程序')
   }
 }
 const overtimeCount = computed(() => rows.value.filter(r => r.overtime).length)
@@ -270,34 +277,39 @@ async function submitDispatch() {
   } catch (e) { toast.error(e.message || '派单失败') } finally { dispatching.value = false }
 }
 
-// ── 代报修（一次请求原子完成建单 + 来源/录音登记） ──
+// ── 代报修（一次请求原子完成建单 + 来源登记） ──
 const proxyOpen = ref(false)
 const proxySubmitting = ref(false)
-const proxyForm = ref({ reporter: '', phone: '', device: '', source: 'PHONE', recNo: '', fault: '' })
-const proxyErr = ref({ reporter: '', phone: '', device: '', recNo: '', fault: '' })
+const proxyForm = ref({ reporter: '', phone: '', device: '', source: 'PHONE', faultType: '一般故障', trappedCount: '', fault: '' })
+const proxyErr = ref({ reporter: '', phone: '', device: '', trapped: '', fault: '' })
+const isProxyTrapped = computed(() => String(proxyForm.value.faultType || '').includes('困人'))
 function openProxy() {
-  proxyForm.value = { reporter: '', phone: '', device: '', source: 'PHONE', recNo: '', fault: '' }
-  proxyErr.value = { reporter: '', phone: '', device: '', recNo: '', fault: '' }
+  proxyForm.value = { reporter: '', phone: '', device: '', source: 'PHONE', faultType: '一般故障', trappedCount: '', fault: '' }
+  proxyErr.value = { reporter: '', phone: '', device: '', trapped: '', fault: '' }
   proxySubmitting.value = false
   proxyOpen.value = true
 }
 async function submitProxy() {
   if (proxySubmitting.value) return
   const f = proxyForm.value
-  const err = { reporter: '', phone: '', device: '', recNo: '', fault: '' }
+  const err = { reporter: '', phone: '', device: '', trapped: '', fault: '' }
   if (!f.reporter.trim()) err.reporter = '报修人姓名必填'
   if (!/^1[3-9]\d{9}$/.test(f.phone)) err.phone = '手机号格式不正确'
   if (!f.device) err.device = '请选择设备'
-  if (!/^REC-\d{4,6}$/.test(f.recNo)) err.recNo = '录音编号格式 REC-####'
+  const trapped = Number(f.trappedCount)
+  if (isProxyTrapped.value && (!Number.isInteger(trapped) || trapped < 1 || trapped > 99)) {
+    err.trapped = '被困人数须为 1-99 的整数'
+  }
   if (f.fault.trim().length < 5) err.fault = '故障描述至少 5 字'
   proxyErr.value = err
   if (Object.values(err).some(Boolean)) { toast.warn('请修正表单错误后再提交'); return }
   proxySubmitting.value = true
   try {
     const created = await http.post('/faults/proxy', {
-      elevatorCode: f.device, desc: f.fault, faultType: '一般故障',
+      elevatorCode: f.device, desc: f.fault, faultType: f.faultType,
+      trappedCount: isProxyTrapped.value ? trapped : 0,
       reporter: f.reporter, reporterPhone: f.phone,
-      proxySource: f.source, recordingNo: f.recNo
+      proxySource: f.source
     })
     toast.success('代报修已提交 · 进入报修池', (created && created.faultNo) || '')
     proxyOpen.value = false

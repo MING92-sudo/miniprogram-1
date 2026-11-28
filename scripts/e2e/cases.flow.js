@@ -389,11 +389,11 @@ async function runFlowCases(ctx) {
     assert(proxyId, '代报修返回故障 id')
     f4ids.push(proxyId)
 
-    const px = await step('⑫ 标记代报修来源（PHONE + 录音编号）', () =>
-      post(`/faults/${proxyId}/proxy`, { proxySource: 'PHONE', recordingNo: 'REC-1234' }, admin))
+    const px = await step('⑫ 标记代报修来源（PHONE）', () =>
+      post(`/faults/${proxyId}/proxy`, { proxySource: 'PHONE' }, admin))
     assertEq(px.data && px.data.proxySource, 'PHONE', 'proxySource 落单')
 
-    record('⑬ 录音编号格式错误被拒（422）', await post(`/faults/${proxyId}/proxy`, { proxySource: 'PHONE', recordingNo: 'BAD' }, admin), 'biz')
+    record('⑬ 代报修来源非法被拒（422）', await post(`/faults/${proxyId}/proxy`, { proxySource: 'BAD' }, admin), 'biz')
 
     const pool2 = await step('⑭ 代报修单进抢单池（维保端可见）', () => get('/faults?status=OPEN', tech))
     assert(((pool2.data && pool2.data.list) || []).some((f) => f.id === proxyId), '代报修单对维保端可见')

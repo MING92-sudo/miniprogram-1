@@ -40,6 +40,9 @@ public class Fault {
     public String proxySource;
     public String recordingNo;
     public String proxyBy;
+    /** 报修人姓名/电话：客户报修取登录账号，管理端代报修取录入值 */
+    public String reporterName;
+    public String reporterPhone;
     public Integer slaMinutes;
     public LocalDateTime deadline;
     public String faultReason;

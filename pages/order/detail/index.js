@@ -115,5 +115,10 @@ definePage(ROUTES['/pages/order/detail/index'], {
       }
     })
   },
+  onCallReporter() {
+    const phone = this.data.fault && this.data.fault.reporterPhone
+    if (!phone) return
+    wx.makePhoneCall({ phoneNumber: phone, fail: () => {} })
+  },
   onPreviewPhoto(e) { wx.previewImage({ urls: this.data.fault.photos || [], current: e.currentTarget.dataset.url }) }
 })

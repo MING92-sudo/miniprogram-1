@@ -225,6 +225,11 @@ class RecordPdfServiceTest {
         v.put("createdByName", "张伟");
         v.put("reporterPhone", "13800000000");
         v.put("faultType", "困人（紧急）");
+        v.put("faultReason", "门锁触点氧化，平层感应器偏移");
+        v.put("trappedCount", 2);
+        v.put("floor", "5-6 层之间");
+        v.put("rescuedAt", "2026-10-01 11:05:00");
+        v.put("proxySource", "PHONE");
         v.put("dispatchedAt", "2026-10-01 10:32:00");
         v.put("dispatchedWorkerName", "张伟");
         v.put("arrivedAt", "2026-10-01 10:55:00");
@@ -350,6 +355,26 @@ class RecordPdfServiceTest {
         byte[] pdf = service.renderFault(v);
         assertTrue(pdf.length > 1000);
         assertEquals("%PDF", new String(pdf, 0, 4, StandardCharsets.US_ASCII));
+    }
+
+    @Test
+    void faultStatusTextCoversSevenStates() {
+        assertEquals("待接单", RecordPdfService.faultStatusText("OPEN"));
+        assertEquals("已接单", RecordPdfService.faultStatusText("ASSIGNED"));
+        assertEquals("处置中", RecordPdfService.faultStatusText("PROCESSING"));
+        assertEquals("待使用单位确认", RecordPdfService.faultStatusText("PENDING_CONFIRM"));
+        assertEquals("待整改", RecordPdfService.faultStatusText("REFUSED"));
+        assertEquals("已闭环", RecordPdfService.faultStatusText("CLOSED"));
+        assertEquals("已取消", RecordPdfService.faultStatusText("CANCELLED"));
+    }
+
+    @Test
+    void faultSourceTextDistinguishesProxyAndPortal() {
+        assertEquals("电话代报修", RecordPdfService.faultSourceText(Map.<String, Object>of("proxySource", "PHONE")));
+        assertEquals("微信代报修", RecordPdfService.faultSourceText(Map.<String, Object>of("proxySource", "WECHAT")));
+        assertEquals("现场代报修", RecordPdfService.faultSourceText(Map.<String, Object>of("proxySource", "ONSITE")));
+        assertEquals("使用单位报修", RecordPdfService.faultSourceText(Map.<String, Object>of("createdBy", "unit:uu_1")));
+        assertEquals("小程序报修", RecordPdfService.faultSourceText(Map.<String, Object>of("createdBy", "emp_1")));
     }
 
     /** 签字回退：记录未落签字 URL 时按来源工单的签字 fileId 解析（与签退 resolveSignatureUrl 同口径，仅内存回填）； */

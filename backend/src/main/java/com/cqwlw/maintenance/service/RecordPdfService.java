@@ -369,6 +369,7 @@ public class RecordPdfService {
         List<String[]> rows = new ArrayList<>();
         rows.add(new String[]{"报修时间", orDash(created), "报修人", orDash(reporter)});
         rows.add(new String[]{"联系电话", orDash(str(v.get("reporterPhone"))), "故障等级", faultTypeText(v)});
+        rows.add(new String[]{"报修来源", faultSourceText(v)});
         rows.add(new String[]{"派单时间", orDash(str(v.get("dispatchedAt"))), "接单维保员",
                 orDash(str(v.get("dispatchedWorkerName")))});
         rows.add(new String[]{"到场时间", orDash(arrived), "响应时长", responseCost(created, arrived)});
@@ -382,13 +383,35 @@ public class RecordPdfService {
     private List<String[]> faultRows(Map<String, Object> v) {
         List<String[]> rows = new ArrayList<>();
         rows.add(new String[]{"故障现象", orDash(str(v.get("desc")))});
+        if (isTrappedFault(v)) {
+            rows.add(new String[]{"被困人数", trappedCountText(v), "事发楼层", orDash(str(v.get("floor")))});
+            rows.add(new String[]{"安全解救时刻", orDash(str(v.get("rescuedAt")))});
+        }
         rows.add(new String[]{"现场检查情况", orDash(str(v.get("siteDesc")))});
-        rows.add(new String[]{"故障原因分析", "—（系统未单独采集，见上栏「现场检查情况」）"});
+        String reason = nz(str(v.get("faultReason")));
+        if (reason.isEmpty()) {
+            reason = nz(str(v.get("siteDesc")));
+        }
+        rows.add(new String[]{"故障原因分析", reason.isEmpty() ? "—" : reason});
         rows.add(new String[]{"处理措施（含更换零部件）", orDash(str(v.get("result")))});
         rows.add(new String[]{"恢复运行时间", orDash(str(v.get("finishedAt")))});
         String todo = nz(str(v.get("todoDesc")));
         rows.add(new String[]{"待办事项", todo.isEmpty() ? "无待办，销项后归档" : todo});
         return rows;
+    }
+
+    /** 困人单判定：人数 > 0 或故障类型含“困人” */
+    private static boolean isTrappedFault(Map<String, Object> v) {
+        String count = nz(str(v.get("trappedCount")));
+        if (!count.isEmpty() && !"0".equals(count)) {
+            return true;
+        }
+        return nz(str(v.get("faultType"))).contains("困人");
+    }
+
+    private static String trappedCountText(Map<String, Object> v) {
+        String count = nz(str(v.get("trappedCount")));
+        return count.isEmpty() || "0".equals(count) ? "—" : count + " 人";
     }
 
     /** 五、确认签字：维保人员手签 + 使用单位安全管理人员签字图 + 盖章位 */
@@ -651,15 +674,44 @@ public class RecordPdfService {
         }
     }
 
-    /** 急修单状态文案（OPEN 处理中 / ASSIGNED 已派单 / CLOSED 已闭环） */
-    private static String faultStatusText(String status) {
-        if ("CLOSED".equals(status)) {
-            return "已闭环";
+    /** 急修七态文案，与小程序/管理端 FAULT_STATUS 同口径 */
+    static String faultStatusText(String status) {
+        switch (nz(status)) {
+            case "OPEN":
+                return "待接单";
+            case "ASSIGNED":
+                return "已接单";
+            case "PROCESSING":
+                return "处置中";
+            case "PENDING_CONFIRM":
+                return "待使用单位确认";
+            case "REFUSED":
+                return "待整改";
+            case "CLOSED":
+                return "已闭环";
+            case "CANCELLED":
+                return "已取消";
+            default:
+                return nz(status);
         }
-        if ("ASSIGNED".equals(status)) {
-            return "已派单";
+    }
+
+    /** 报修来源：代报修来源优先，其次使用单位报修，最后小程序报修。 */
+    static String faultSourceText(Map<String, Object> v) {
+        String proxy = nz(str(v.get("proxySource")));
+        if ("PHONE".equals(proxy)) {
+            return "电话代报修";
         }
-        return "处理中";
+        if ("WECHAT".equals(proxy)) {
+            return "微信代报修";
+        }
+        if ("ONSITE".equals(proxy)) {
+            return "现场代报修";
+        }
+        if (nz(str(v.get("createdBy"))).startsWith(UnitPortalService.REPORTER_PREFIX)) {
+            return "使用单位报修";
+        }
+        return "小程序报修";
     }
 
     /** 故障等级（faultType）：空值按一般故障 */

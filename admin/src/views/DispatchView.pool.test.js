@@ -150,7 +150,6 @@ describe('DispatchView 代报修原子提交（Task 20）', () => {
     await modal.find('input[placeholder="必填"]').setValue('王芳')
     await modal.find('input[placeholder="11 位手机号"]').setValue('13800000001')
     await modal.findAll('select')[0].setValue('EM-1')
-    await modal.find('input[placeholder="REC-20261"]').setValue('REC-1234')
     await modal.find('textarea').setValue('厅门异响明显')
     return { w, modal }
   }
@@ -166,8 +165,9 @@ describe('DispatchView 代报修原子提交（Task 20）', () => {
     expect(http.post.mock.calls[0][1]).toMatchObject({
       elevatorCode: 'EM-1',
       desc: '厅门异响明显',
-      proxySource: 'PHONE',
-      recordingNo: 'REC-1234'
+      faultType: '一般故障',
+      trappedCount: 0,
+      proxySource: 'PHONE'
     })
     expect(http.post.mock.calls.some(([url]) => url === '/faults' || /\/faults\/[^/]+\/proxy$/.test(url))).toBe(false)
   })

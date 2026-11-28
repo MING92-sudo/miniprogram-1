@@ -218,7 +218,6 @@ describe('OrderDetailView 路由复用', () => {
     await w.findAll('button').find((b) => b.text().trim() === '代报修').trigger('click')
     await flushPromises()
     const modal = findModal(w, '代报修录入')
-    await modal.find('input').setValue('REC-1234')
     switchTo('B')
     modal.vm.$emit('confirm')
     await flushPromises()
@@ -272,10 +271,9 @@ describe('OrderDetailView 路由复用', () => {
     await w.findAll('button').find((b) => b.text().trim() === '代报修').trigger('click')
     await flushPromises()
     const proxy = findModal(w, '代报修录入')
-    await proxy.find('input').setValue('REC-1234')
     proxy.vm.$emit('confirm')
     await flushPromises()
-    expect(http.post).toHaveBeenCalledWith('/faults/A/proxy', { proxySource: 'PHONE', recordingNo: 'REC-1234' })
+    expect(http.post).toHaveBeenCalledWith('/faults/A/proxy', { proxySource: 'PHONE' })
   })
 
   it('切换工单后四类弹窗表单均恢复默认值', async () => {
@@ -283,7 +281,7 @@ describe('OrderDetailView 路由复用', () => {
     w.vm.dispatchForm = { workerId: 'w1', reason: 'A 的派单原因' }
     w.vm.closeForm = { result: 'A 的处理结果', signature: 'A 的签字' }
     w.vm.cancelReason = 'A 的取消原因'
-    w.vm.proxyForm = { proxySource: 'RECORD', recordingNo: 'REC-9999' }
+    w.vm.proxyForm = { proxySource: 'ONSITE' }
 
     switchTo('B')
     await flushPromises()
@@ -291,6 +289,6 @@ describe('OrderDetailView 路由复用', () => {
     expect(w.vm.dispatchForm).toEqual({ workerId: '', reason: '' })
     expect(w.vm.closeForm).toEqual({ result: '', signature: '' })
     expect(w.vm.cancelReason).toBe('')
-    expect(w.vm.proxyForm).toEqual({ proxySource: 'PHONE', recordingNo: '' })
+    expect(w.vm.proxyForm).toEqual({ proxySource: 'PHONE' })
   })
 })

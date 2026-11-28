@@ -34,6 +34,13 @@ public class UnitPortalController {
         this.clientMessageService = clientMessageService;
     }
 
+    private com.cqwlw.maintenance.mapper.ClientAccountMapper clientAccountMapper;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    public void setClientAccountMapper(com.cqwlw.maintenance.mapper.ClientAccountMapper clientAccountMapper) {
+        this.clientAccountMapper = clientAccountMapper;
+    }
+
     public UnitPortalController(UnitPortalService portalService,
                                 com.cqwlw.maintenance.mapper.SysUserRoleMapper userRoleMapper) {
         this.portalService = portalService;
@@ -118,11 +125,26 @@ public class UnitPortalController {
         return ApiResponse.ok(clientMessageService.markAllRead(unitId(request)));
     }
 
-    /** 使用单位报修（从本单位电梯选，派给该梯责任人） */
+    /** 使用单位报修（从本单位电梯选，派给该梯责任人）；报修人自动取当前登录客户账号。 */
     @PostMapping("/unit/faults")
     public ApiResponse<Map<String, Object>> reportFault(@RequestBody(required = false) Map<String, Object> body,
                                                         HttpServletRequest request) {
-        return ApiResponse.ok(portalService.reportFault(unitId(request), body));
+        Map<String, Object> payload = body == null
+                ? new java.util.LinkedHashMap<>() : new java.util.LinkedHashMap<>(body);
+        Object accountId = request.getAttribute(AuthInterceptor.ATTR_EMP_ID);
+        if (clientAccountMapper != null && accountId != null) {
+            com.cqwlw.maintenance.entity.ClientAccount account =
+                    clientAccountMapper.selectById(String.valueOf(accountId));
+            if (account != null) {
+                if (account.name != null && !account.name.isBlank()) {
+                    payload.putIfAbsent("reporter", account.name);
+                }
+                if (account.phone != null && !account.phone.isBlank()) {
+                    payload.putIfAbsent("reporterPhone", account.phone);
+                }
+            }
+        }
+        return ApiResponse.ok(portalService.reportFault(unitId(request), payload));
     }
 
     private ApiResponse<Map<String, Object>> withIdempotency(String key, Object body, HttpServletRequest request,

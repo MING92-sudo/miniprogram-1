@@ -32,6 +32,11 @@
         <view class="kv-row"><text class="dim">{{text.FAULT_PHEN}}</text><text>{{fault.desc || '—'}}</text></view>
         <view wx:if="{{fault.trappedCount}}" class="kv-row"><text class="dim">{{text.FAULT_TRAPPED}}</text><text>{{fault.trappedCount}} {{text.TRAPPED_UNIT}}{{fault.rescuedAt ? ' · 安全救出' : ''}}</text></view>
         <view class="kv-row"><text class="dim">{{text.FAULT_SOURCE}}</text><text>{{sourceText}}</text></view>
+        <view wx:if="{{fault.createdByName}}" class="kv-row"><text class="dim">{{text.FAULT_REPORTER}}</text><text>{{fault.createdByName}}</text></view>
+        <view wx:if="{{fault.reporterPhone}}" class="kv-row" bindtap="onCallReporter">
+          <text class="dim">{{text.FAULT_PHONE}}</text>
+          <text class="link">{{fault.reporterPhone}}</text>
+        </view>
       </view>
 
       <view wx:if="{{fault.handleDesc || fault.result}}" class="card col gap6">

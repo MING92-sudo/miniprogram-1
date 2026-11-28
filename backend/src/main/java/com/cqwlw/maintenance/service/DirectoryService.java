@@ -172,6 +172,19 @@ public class DirectoryService {
         Fault f = new Fault();
         f.id = Ids.next("ft");
         f.createdBy = empId;
+        f.reporterName = strOrEmpty(body.get("reporter"));
+        f.reporterPhone = strOrEmpty(body.get("reporterPhone"));
+        if (f.reporterName.isEmpty() || f.reporterPhone.isEmpty()) {
+            Employee reporter = employeeMapper.selectById(empId);
+            if (reporter != null) {
+                if (f.reporterName.isEmpty()) {
+                    f.reporterName = reporter.name == null ? "" : reporter.name;
+                }
+                if (f.reporterPhone.isEmpty()) {
+                    f.reporterPhone = reporter.phone == null ? "" : reporter.phone;
+                }
+            }
+        }
         f.elevatorCode = strOrEmpty(body.get("elevatorCode"));
         f.faultType = strOrEmpty(body.get("faultType")).isEmpty() ? "一般故障" : strOrEmpty(body.get("faultType"));
         // 困人人数：仅困人类型保留，必须为整数 1-99；非困人恒 0，禁止类型与 KPI 相互矛盾。
@@ -461,6 +474,8 @@ public class DirectoryService {
         m.put("id", f.id);
         m.put("faultNo", f.faultNo == null || f.faultNo.isBlank() ? f.id : f.faultNo);
         m.put("createdBy", f.createdBy == null ? "" : f.createdBy);
+        m.put("reporterName", f.reporterName == null ? "" : f.reporterName);
+        m.put("reporterPhone", f.reporterPhone == null ? "" : f.reporterPhone);
         m.put("elevatorCode", f.elevatorCode);
         m.put("faultType", f.faultType);
         m.put("trappedCount", f.trappedCount == null ? 0 : f.trappedCount);
@@ -476,6 +491,7 @@ public class DirectoryService {
                 .map(fileStorageService::resolveStoredUrl).collect(Collectors.toList()));
         m.put("status", f.status);
         m.put("result", f.handleDesc);
+        m.put("faultReason", f.faultReason == null ? "" : f.faultReason);
         m.put("signature", fileStorageService.resolveStoredUrl(f.signature));
         m.put("confirmedAt", f.confirmedAt == null ? "" : TimeUtil.format(f.confirmedAt));
         m.put("createdAt", TimeUtil.format(f.createdAt));
@@ -578,13 +594,18 @@ public class DirectoryService {
         Company comp = companyRows == null ? null : companyRows.stream().findFirst().orElse(null);
         for (Map<String, Object> v : views) {
             String by = String.valueOf(v.get("createdBy"));
+            String storedName = v.get("reporterName") == null ? "" : String.valueOf(v.get("reporterName")).trim();
+            String storedPhone = v.get("reporterPhone") == null ? "" : String.valueOf(v.get("reporterPhone")).trim();
             if (by.startsWith(UnitPortalService.REPORTER_PREFIX)) {
                 String unitId = by.substring(UnitPortalService.REPORTER_PREFIX.length());
-                v.put("createdByName", "使用单位报修（" + unitNames.getOrDefault(unitId, "") + "）");
-                v.put("reporterPhone", "");
+                v.put("createdByName", storedName.isEmpty()
+                        ? "使用单位报修（" + unitNames.getOrDefault(unitId, "") + "）" : storedName);
+                v.put("reporterPhone", storedPhone);
             } else {
-                v.put("createdByName", by.isEmpty() ? "" : names.getOrDefault(by, by));
-                v.put("reporterPhone", by.isEmpty() ? "" : phones.getOrDefault(by, ""));
+                v.put("createdByName", storedName.isEmpty()
+                        ? (by.isEmpty() ? "" : names.getOrDefault(by, by)) : storedName);
+                v.put("reporterPhone", storedPhone.isEmpty()
+                        ? (by.isEmpty() ? "" : phones.getOrDefault(by, "")) : storedPhone);
             }
             String dispatchId = String.valueOf(v.get("dispatchWorkerId"));
             v.put("dispatchedWorkerName", "null".equals(dispatchId) || dispatchId.isEmpty()

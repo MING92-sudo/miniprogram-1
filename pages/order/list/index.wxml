@@ -14,6 +14,7 @@
           <status-tag text="{{item.statusText}}" tone="{{item.statusTone}}"></status-tag>
         </view>
         <view class="fs22 mt4">{{item.desc}}</view>
+        <view wx:if="{{item.createdByName || item.reporterPhone}}" class="fs20 dim mt4">{{text.FAULT_REPORTER}}：{{item.createdByName || '—'}}{{item.reporterPhone ? ' · ' + item.reporterPhone : ''}}</view>
         <view class="row between mt8">
           <text class="mono fs20 dim">{{item.createdAt}}{{item.trappedCount ? ' · 困人 ' + item.trappedCount + ' 人' : ''}}</text>
           <button wx:if="{{item.status === 'OPEN'}}" class="btn btn-signal btn-xs" data-id="{{item.id}}" catchtap="onGrab">抢单</button>

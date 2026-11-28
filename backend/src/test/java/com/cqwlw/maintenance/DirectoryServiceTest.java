@@ -105,6 +105,19 @@ class DirectoryServiceTest {
     }
 
     @Test
+    void createFaultStoresReporterContact() {
+        Map<String, Object> body = Map.of("elevatorCode", "EM-2024-002", "desc", "厅门异响",
+                "reporter", "王芳", "reporterPhone", "13800000003");
+
+        service.createFault(body, "unit:uu_1");
+
+        ArgumentCaptor<Fault> c = ArgumentCaptor.forClass(Fault.class);
+        verify(faultMapper).insert(c.capture());
+        assertEquals("王芳", c.getValue().reporterName);
+        assertEquals("13800000003", c.getValue().reporterPhone);
+    }
+
+    @Test
     void createFaultSetsTenantSnapshotFromElevator() {
         Elevator el = new Elevator();
         el.elevatorCode = "EM-2024-002";

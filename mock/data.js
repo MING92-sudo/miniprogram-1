@@ -933,6 +933,9 @@ function createFault(body) {
     photos: Array.isArray(body.photos) ? body.photos : [],
     status: 'OPEN',
     createdBy: body.createdBy || '',
+    reporterName: body.reporter || '',
+    reporterPhone: body.reporterPhone || '',
+    createdByName: body.reporter || '',
     result: '',
     signature: '',
     confirmedAt: '',
@@ -942,16 +945,22 @@ function createFault(body) {
   return f
 }
 
+/** 急修单列表/详情投影：补齐报修人展示字段（存量种子用 reporter 字段） */
+function faultView(f) {
+  return Object.assign({}, f, {
+    reporterName: f.reporterName || f.reporter || f.createdByName || '',
+    reporterPhone: f.reporterPhone || '',
+    createdByName: f.createdByName || f.reporterName || f.reporter || ''
+  })
+}
+
 function createProxyFault(body) {
   if (!['PHONE', 'WECHAT', 'ONSITE'].includes(body.proxySource)) {
     throw { code: 422, message: '代报修来源须 PHONE/WECHAT/ONSITE' }
   }
-  if (!body.recordingNo || !/^REC-\d{4,6}$/.test(body.recordingNo)) {
-    throw { code: 422, message: '录音编号须 REC-\\d{4,6}' }
-  }
   const f = createFault(body)
   f.proxySource = body.proxySource
-  f.recordingNo = body.recordingNo
+  f.recordingNo = body.recordingNo || ''
   f.proxyBy = body.createdBy || ''
   return f
 }
@@ -1115,6 +1124,7 @@ module.exports = {
   createInspect,
   createRescue,
   createFault,
+  faultView,
   createProxyFault,
   dispatchFault,
   closeFault

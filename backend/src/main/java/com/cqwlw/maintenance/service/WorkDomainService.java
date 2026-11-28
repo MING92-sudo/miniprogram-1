@@ -246,19 +246,17 @@ public class WorkDomainService {
         throw new BizException(422, "检查项缺少稳定 id/itemCode，无法安全修订");
     }
 
-    /** 组合代报修：先校验全部参数，再在同一事务内建单并落来源/录音与审计，失败不留半成品。 */
+    /** 组合代报修：先校验参数，再在同一事务内建单并落来源与审计，失败不留半成品。 */
     public Map<String, Object> createProxyFault(Map<String, Object> body, String actor) {
         return transactionTemplate.execute(status -> doCreateProxyFault(body, actor));
     }
 
     private Map<String, Object> doCreateProxyFault(Map<String, Object> body, String actor) {
         String source = proxySource(body);
-        String recordingNo = recordingNo(body);
         Map<String, Object> view = directoryService.createFault(body, actor);
         String faultId = String.valueOf(view.get("id"));
         Fault f = faultMapper.selectById(faultId);
         f.proxySource = source;
-        f.recordingNo = recordingNo;
         f.proxyBy = actor;
         faultMapper.updateById(f);
         audit(actor, "order:create_proxy", faultId, "SUCCESS", source);
@@ -271,9 +269,7 @@ public class WorkDomainService {
             throw new BizException(404, "急修单不存在");
         }
         String source = proxySource(body);
-        String recordingNo = recordingNo(body);
         f.proxySource = source;
-        f.recordingNo = recordingNo;
         f.proxyBy = actor;
         faultMapper.updateById(f);
         audit(actor, "order:create_proxy", faultId, "SUCCESS", source);
@@ -286,14 +282,6 @@ public class WorkDomainService {
             throw new BizException(422, "代报修来源须 PHONE/WECHAT/ONSITE");
         }
         return source;
-    }
-
-    private static String recordingNo(Map<String, Object> body) {
-        String recordingNo = str(body, "recordingNo");
-        if (recordingNo == null || !recordingNo.matches("^REC-\\d{4,6}$")) {
-            throw new BizException(422, "录音编号须 REC-\\d{4,6}");
-        }
-        return recordingNo;
     }
 
     private void audit(String actor, String action, String target, String result, String reason) {

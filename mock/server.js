@@ -1148,11 +1148,17 @@ const routes = [
   ['GET', '/rescues/:id', ({ params }) => { requireLegacyModule(); return findOr404(d.db.rescues, params.id, '救援记录') }],
 
   // ── 故障 ──
-  ['POST', '/faults', ({ body }) => d.createFault(body)],
-  // 管理端代报修：建单 + 来源/录音一次落库（真实后端同事务）
+  ['POST', '/faults', ({ body }) => {
+    const emp = d.db.employees[currentRole]
+    return d.createFault(Object.assign({}, body, {
+      reporter: (body && body.reporter) || (emp && emp.name) || '',
+      reporterPhone: (body && body.reporterPhone) || (emp && emp.phone) || ''
+    }))
+  }],
+  // 管理端代报修：建单 + 来源一次落库（真实后端同事务）
   ['POST', '/faults/proxy', ({ body }) => d.createProxyFault(body)],
   ['GET', '/faults', ({ query }) => {
-    let list = d.db.faults
+    let list = d.db.faults.map(d.faultView)
     if (query && query.status) {
       list = list.filter((f) => f.status === query.status)
     }
@@ -1163,7 +1169,7 @@ const routes = [
     }
     return paginate(list, query)
   }],
-  ['GET', '/faults/:id', ({ params }) => findOr404(d.db.faults, params.id, '故障记录')],
+  ['GET', '/faults/:id', ({ params }) => d.faultView(findOr404(d.db.faults, params.id, '故障记录'))],
   ['POST', '/faults/:id/close', () => {
     throw { code: 1403, message: '急修闭环须由使用单位确认，员工不可代签关闭' }
   }],
@@ -1576,13 +1582,13 @@ const routes = [
   }],
   ['GET', '/unit/faults', () => {
     const unitId = requirePortalUnit()
-    return (d.db.faults || []).filter((f) => f.useUnitId === unitId).slice(0, 50)
+    return (d.db.faults || []).filter((f) => f.useUnitId === unitId).slice(0, 50).map(d.faultView)
   }],
   ['GET', '/unit/faults/:id', ({ params }) => {
     const unitId = requirePortalUnit()
     const f = findOr404(d.db.faults, params.id, '急修单')
     if (f.useUnitId !== unitId) throw { code: 1403, message: '仅本单位急修单可查看' }
-    return f
+    return d.faultView(f)
   }],
   ['POST', '/unit/faults/:id/confirm', ({ params, body }) => {
     const unitId = requirePortalUnit()
@@ -1615,7 +1621,11 @@ const routes = [
     if (!code) throw { code: 422, message: '请选择电梯' }
     if (!String((body && body.desc) || '').trim()) throw { code: 422, message: '请填写故障描述' }
     if (!ownElevatorCodes(unitId).has(code)) throw { code: 1403, message: '仅可为本单位电梯报修' }
-    const created = d.createFault(Object.assign({}, body, { createdBy: 'unit:' + unitId }))
+    const created = d.createFault(Object.assign({}, body, {
+      createdBy: 'unit:' + unitId,
+      reporter: (currentClient && currentClient.name) || '',
+      reporterPhone: (currentClient && currentClient.phone) || ''
+    }))
     const el = (d.db.elevators || []).find((x) => x.elevatorCode === code)
     const platformId = el && (el.workerPlatformId || (el.maintenance && el.maintenance.workerPlatformId))
     if (platformId) {

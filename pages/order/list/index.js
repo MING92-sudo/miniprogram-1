@@ -4,7 +4,7 @@ const { definePage } = require('../../../utils/guard')
 const { ROUTES } = require('../../../config/routes')
 const nav = require('../../../utils/nav')
 const { getPerms } = require('../../../utils/auth')
-const { TOAST_TEXT, FAULT_STATUS_TEXT, FAULT_STATUS_SHORT, FAULT_STATUS_TONE } = require('../../../constants/index')
+const { TOAST_TEXT, ORDER_TEXT, FAULT_STATUS_TEXT, FAULT_STATUS_SHORT, FAULT_STATUS_TONE } = require('../../../constants/index')
 
 const STATUS_TEXT = FAULT_STATUS_TEXT
 const STATUS_TONE = FAULT_STATUS_TONE
@@ -15,7 +15,7 @@ const TABS = [
 ]
 
 definePage(ROUTES['/pages/order/list/index'], {
-  data: { tabs: TABS, activeTab: '', list: [], page: 1, size: 20, total: 0, status: '', trapped: '', loading: true, error: '', emptyMode: 'empty', canReport: false },
+  data: { tabs: TABS, activeTab: '', list: [], page: 1, size: 20, total: 0, status: '', trapped: '', loading: true, error: '', emptyMode: 'empty', canReport: false, text: ORDER_TEXT },
   onLoad(query) {
     const perms = getPerms() || []
     this.setData({ canReport: perms.indexOf('order:create') > -1 || perms.indexOf('order:create_proxy') > -1 })

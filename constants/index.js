@@ -387,6 +387,8 @@ const ORDER_TEXT = {
   FAULT_PHEN: '故障现象',
   FAULT_TRAPPED: '困人情况',
   FAULT_SOURCE: '报修来源',
+  FAULT_REPORTER: '报修人',
+  FAULT_PHONE: '联系电话',
   REPAIR: 'REPAIR / 处置记录',
   PARTS: '更换配件',
   STOCK: '库存扣减',

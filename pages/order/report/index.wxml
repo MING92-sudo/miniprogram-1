@@ -17,7 +17,7 @@
     </view>
 
     <view class="card col gap8">
-      <view class="panel-title">故障等级</view>
+      <view class="panel-title">故障类型</view>
       <picker mode="selector" range="{{faultTypes}}" bindchange="onTypeChange">
         <view class="rp-input">{{faultType}}</view>
       </picker>

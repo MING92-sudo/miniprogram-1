@@ -2,7 +2,9 @@ package com.cqwlw.maintenance.controller;
 
 import com.cqwlw.maintenance.auth.AuthInterceptor;
 import com.cqwlw.maintenance.common.BizException;
+import com.cqwlw.maintenance.entity.ClientAccount;
 import com.cqwlw.maintenance.entity.SysUserRole;
+import com.cqwlw.maintenance.mapper.ClientAccountMapper;
 import com.cqwlw.maintenance.mapper.SysUserRoleMapper;
 import com.cqwlw.maintenance.service.UnitPortalService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -16,6 +18,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -70,6 +73,23 @@ class UnitPortalUnifiedTokenTest {
         Map<String, Object> body = Map.of("elevatorCode", "EM-1");
         controller().reportFault(body, employeeRequest(Set.of("CLIENT_ADMIN")));
         verify(portalService).reportFault("uu_1", body);
+    }
+
+    @Test
+    void employeeReportFaultFillsReporterFromClientAccount() {
+        anchor("uu_1");
+        ClientAccountMapper clientAccountMapper = mock(ClientAccountMapper.class);
+        ClientAccount account = new ClientAccount();
+        account.name = "王芳";
+        account.phone = "13800000003";
+        when(clientAccountMapper.selectById("e1")).thenReturn(account);
+        UnitPortalController controller = new UnitPortalController(portalService, userRoleMapper);
+        controller.setClientAccountMapper(clientAccountMapper);
+
+        controller.reportFault(Map.of("elevatorCode", "EM-1"), employeeRequest(Set.of("CLIENT_ADMIN")));
+
+        verify(portalService).reportFault(anyString(), argThat(m ->
+                "王芳".equals(m.get("reporter")) && "13800000003".equals(m.get("reporterPhone"))));
     }
 
     @Test

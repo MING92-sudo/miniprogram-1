@@ -150,7 +150,7 @@ public class DirectoryController {
         return ApiResponse.ok(directoryService.getRescue(id));
     }
 
-    /** 管理端代报修：一次请求原子完成建单 + 来源/录音登记 + 审计。 */
+    /** 管理端代报修：一次请求原子完成建单 + 来源登记 + 审计。 */
     @PostMapping("/faults/proxy")
     public ApiResponse<Object> createProxyFault(@RequestBody Map<String, Object> body,
                                                 HttpServletRequest request,

@@ -32,7 +32,6 @@
             <div class="kv"><span class="k">责任人</span><span class="v">{{ order.dispatchedWorkerName || '待派' }}</span></div>
             <div class="kv"><span class="k">来源</span><span class="v">{{ order.proxySource ? channelLabel(order.proxySource) + '代报修' : '小程序' }}</span></div>
             <div class="kv"><span class="k">创建时间</span><span class="v mono">{{ fmtTime(order.createdAt) }}</span></div>
-            <div v-if="order.recordingNo" class="kv"><span class="k">录音编号</span><span class="v mono">{{ order.recordingNo }}</span></div>
           </div>
         </div>
       </div>
@@ -134,17 +133,14 @@
       </div>
     </Modal>
 
-    <!-- 代报修登记（真实契约：来源 + 录音编号） -->
-    <Modal :open="proxyOpen" title="代报修录入" sub="维保主管代使用单位报修 → 登记来源与录音编号" icon="phone" note="order:create_proxy"
+    <!-- 代报修登记（真实契约：来源） -->
+    <Modal :open="proxyOpen" title="代报修录入" sub="维保主管代使用单位报修 → 登记来源" icon="phone" note="order:create_proxy"
       confirm-label="提交报修" @close="proxyOpen = false" @confirm="submitProxy">
       <div class="form-grid">
         <FormField label="来源" required>
           <select v-model="proxyForm.proxySource" class="ctl">
             <option value="PHONE">电话</option><option value="WECHAT">微信</option><option value="ONSITE">现场</option>
           </select>
-        </FormField>
-        <FormField label="录音编号" required hint="^REC-\d{4,6}$" :error="proxyErr">
-          <input v-model="proxyForm.recordingNo" class="ctl mono" placeholder="REC-20261" />
         </FormField>
       </div>
     </Modal>
@@ -319,12 +315,9 @@ async function submitCancel() {
 }
 // ── 代报修登记 ──
 const proxyOpen = ref(false)
-const proxyForm = ref({ proxySource: 'PHONE', recordingNo: '' })
-const proxyErr = ref('')
+const proxyForm = ref({ proxySource: 'PHONE' })
 async function submitProxy() {
   const targetId = id.value
-  if (!/^REC-\d{4,6}$/.test(proxyForm.value.recordingNo)) { proxyErr.value = '录音编号格式 REC-####'; return }
-  proxyErr.value = ''
   if (!ensureCurrentOrder(targetId)) return
   try {
     await http.post(`/faults/${targetId}/proxy`, proxyForm.value)
@@ -342,11 +335,10 @@ function resetActions() {
   dispatchErr.value = { worker: '', reason: '' }
   closeErr.value = { result: '', signature: '' }
   cancelErr.value = ''
-  proxyErr.value = ''
   dispatchForm.value = { workerId: '', reason: '' }
   closeForm.value = { result: '', signature: '' }
   cancelReason.value = ''
-  proxyForm.value = { proxySource: 'PHONE', recordingNo: '' }
+  proxyForm.value = { proxySource: 'PHONE' }
 }
 watch(id, () => {
   order.value = null
