@@ -9,13 +9,20 @@ const { TOAST_TEXT, ORDER_TEXT, FAULT_STATUS_TEXT, FAULT_STATUS_SHORT, FAULT_STA
 const STATUS_TEXT = FAULT_STATUS_TEXT
 const STATUS_TONE = FAULT_STATUS_TONE
 const TABS = [
-  { key: '', label: '全部' }, { key: 'OPEN', label: FAULT_STATUS_SHORT.OPEN },
+  { key: '', label: '全部' },
+  { key: 'OPEN', label: FAULT_STATUS_SHORT.OPEN },
+  { key: 'ASSIGNED', label: FAULT_STATUS_SHORT.ASSIGNED },
   { key: 'PROCESSING', label: FAULT_STATUS_SHORT.PROCESSING },
-  { key: 'PENDING_CONFIRM', label: FAULT_STATUS_SHORT.PENDING_CONFIRM }, { key: 'CLOSED', label: FAULT_STATUS_SHORT.CLOSED }
+  { key: 'PENDING_CONFIRM', label: FAULT_STATUS_SHORT.PENDING_CONFIRM },
+  { key: 'CLOSED', label: FAULT_STATUS_SHORT.CLOSED }
 ]
 
 definePage(ROUTES['/pages/order/list/index'], {
-  data: { tabs: TABS, activeTab: '', list: [], page: 1, size: 20, total: 0, status: '', trapped: '', loading: true, error: '', emptyMode: 'empty', canReport: false, text: ORDER_TEXT },
+  data: {
+    tabs: TABS, activeTab: '', list: [], page: 1, size: 20, total: 0, status: '', trapped: '',
+    loading: true, error: '', emptyMode: 'empty', canReport: false, text: ORDER_TEXT,
+    emptyTitle: '本区域暂无待接单工单', emptyDesc: '新工单进入待接单池后按急修优先排序，并通过消息提醒。'
+  },
   onLoad(query) {
     const perms = getPerms() || []
     this.setData({ canReport: perms.indexOf('order:create') > -1 || perms.indexOf('order:create_proxy') > -1 })
@@ -34,14 +41,26 @@ definePage(ROUTES['/pages/order/list/index'], {
         statusText: STATUS_TEXT[f.status] || f.status, statusTone: STATUS_TONE[f.status] || 'dim'
       })).sort((a, b) => (b.trappedCount || 0) - (a.trappedCount || 0))
       const merged = reset ? list : this.data.list.concat(list)
-      this.setData({ list: merged, total: (data && data.total) || 0, page, loading: false, emptyMode: this.data.status ? 'filtered' : 'empty' })
+      const assigned = this.data.activeTab === 'ASSIGNED'
+      this.setData({
+        list: merged, total: (data && data.total) || 0, page, loading: false,
+        emptyMode: this.data.status ? 'filtered' : 'empty',
+        emptyTitle: assigned ? '暂无已接单工单'
+          : (this.data.status ? '当前筛选没有匹配工单' : '本区域暂无待接单工单'),
+        emptyDesc: assigned ? '在待接单列表抢单后，工单会出现在这里。'
+          : (this.data.status ? '数据仍在，换个筛选条件试试。' : '新工单进入待接单池后按急修优先排序，并通过消息提醒。')
+      })
     }).catch((e) => this.setData({ loading: false, error: (e && e.message) || TOAST_TEXT.LOAD_FAILED }))
   },
   onRetry() { this.fetchList(true) },
   onGrab(e) {
     const id = e.currentTarget.dataset.id
-    grabFault(id).then(() => { wx.showToast({ title: '已接单', icon: 'success' }); this.fetchList(true) })
-      .catch((er) => wx.showToast({ title: (er && er.message) || '抢单失败', icon: 'none' }))
+    grabFault(id).then(() => {
+      wx.showToast({ title: '已接单', icon: 'success' })
+      // 抢单后原 OPEN 筛选里会消失，切到「已接单」让操作人看到刚接的单
+      this.setData({ status: 'ASSIGNED', activeTab: 'ASSIGNED', trapped: '' })
+      this.fetchList(true)
+    }).catch((er) => wx.showToast({ title: (er && er.message) || '抢单失败', icon: 'none' }))
   },
   goDetail(e) { nav.open('/pages/order/detail/index?id=' + e.currentTarget.dataset.id) },
   goReport() { nav.open('/pages/order/report/index') },

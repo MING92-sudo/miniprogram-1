@@ -27,6 +27,8 @@
         </block>
       </view>
 
+      <view wx:if="{{!isClient && fault.status === 'ASSIGNED'}}" class="hint">已接工单，请到场后点击「到场签到」</view>
+
       <view class="card col gap6">
         <view class="sec-head"><text class="panel-title mono">{{text.FAULT}}</text><text wx:if="{{fault.status === 'CLOSED'}}" class="tag tag-ok">已恢复运行</text></view>
         <view class="kv-row"><text class="dim">{{text.FAULT_PHEN}}</text><text>{{fault.desc || '—'}}</text></view>

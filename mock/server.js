@@ -682,7 +682,16 @@ const routes = [
     r.refuseCode = code || null
     return { ok: true }
   }],
-  ['POST', '/faults/:id/grab', () => ({ ok: true, status: 'ASSIGNED' })],
+  ['POST', '/faults/:id/grab', ({ params }) => {
+    const f = findOr404(d.db.faults, params.id, '急修单')
+    if (f.status !== 'OPEN') throw { code: 422, message: '仅待接单的急修单可抢单' }
+    const emp = d.db.employees[currentRole]
+    f.status = 'ASSIGNED'
+    f.dispatchWorkerId = emp ? emp.id : currentRole
+    f.dispatchedWorkerName = emp ? emp.name : ''
+    f.dispatchedAt = formatTime()
+    return d.faultView(f)
+  }],
   ['POST', '/faults/:id/arrive', () => ({ ok: true, status: 'PROCESSING' })],
   ['POST', '/faults/:id/submit', ({ params, body }) => {
     const f = findOr404(d.db.faults, params.id, '急修单')

@@ -27,7 +27,7 @@ const FAULT_STATUS_TEXT = {
   CLOSED: '已闭环', REFUSED: '待整改', CANCELLED: '已取消'
 }
 // 急修列表筛选 Tab 短文案（空间受限，文案与七态一一对应）
-const FAULT_STATUS_SHORT = { OPEN: '待接单', PROCESSING: '处置中', PENDING_CONFIRM: '待确认', CLOSED: '已闭环' }
+const FAULT_STATUS_SHORT = { OPEN: '待接单', ASSIGNED: '已接单', PROCESSING: '处置中', PENDING_CONFIRM: '待确认', CLOSED: '已闭环' }
 const FAULT_STATUS_TONE = {
   OPEN: 'signal', ASSIGNED: 'amber', PROCESSING: 'amber', PENDING_CONFIRM: 'amber',
   CLOSED: 'ok', REFUSED: 'signal', CANCELLED: 'dim'
