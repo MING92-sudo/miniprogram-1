@@ -252,6 +252,9 @@ public class UnitPortalService {
         m.put("id", r.id);
         m.put("elevatorCode", r.elevatorCode);
         m.put("elevatorName", r.elevatorName);
+        Elevator el = elevatorMapper.selectOne(new LambdaQueryWrapper<Elevator>()
+                .eq(Elevator::getElevatorCode, r.elevatorCode).last("LIMIT 1"));
+        m.put("projectName", el == null || el.projectName == null ? "" : el.projectName);
         m.put("workType", r.workType);
         m.put("workerName", r.workerName);
         m.put("assistantName", r.assistantName);

@@ -17,20 +17,25 @@
 
       <sec-head title="待签记录单" action-text="{{records.length ? (batchMode ? '退出批量' : '批量签字') : ''}}" bind:action="toggleBatch"></sec-head>
       <block wx:if="{{records.length}}">
-        <view wx:for="{{records}}" wx:key="id" class="card row between"
-          data-item="{{item}}" data-id="{{item.id}}"
-          bindtap="onRecordTap" aria-role="button">
-          <view class="row gap8 grow">
-            <view wx:if="{{batchMode}}" class="cb todo-cb {{selected[item.id] ? 'on' : ''}}">
-              <text wx:if="{{selected[item.id]}}" class="i i-check cb-ico"></text>
-            </view>
-            <view class="grow">
-              <view class="fs22 w6">{{item.elevatorName}} · {{item.workType || '维保'}}记录单</view>
-              <view class="fs20 dim mt2">{{item.id}} · 待签署</view>
-              <view wx:if="{{item.deadlineLabel}}" class="fs20 mt2 {{item.deadlineClass}}">签字截止 {{item.signDeadline}}（{{item.deadlineLabel}}）</view>
-            </view>
+        <view wx:for="{{projectGroups}}" wx:key="key" class="col gap8">
+          <view class="row between">
+            <text class="fs22 w6">{{item.name}}</text>
+            <button wx:if="{{!batchMode && item.records.length}}" class="link" data-key="{{item.key}}" catchtap="signProject">签署本项目全部（{{item.records.length}}）</button>
           </view>
-          <button wx:if="{{!batchMode}}" class="btn btn-primary btn-xs">去签字</button>
+          <view wx:for="{{item.records}}" wx:for-item="r" wx:key="id" class="card row between"
+            data-item="{{r}}" data-id="{{r.id}}" bindtap="onRecordTap" aria-role="button">
+            <view class="row gap8 grow">
+              <view wx:if="{{batchMode}}" class="cb todo-cb {{selected[r.id] ? 'on' : ''}}">
+                <text wx:if="{{selected[r.id]}}" class="i i-check cb-ico"></text>
+              </view>
+              <view class="grow">
+                <view class="fs22 w6">{{r.elevatorName}} · {{r.workType || '维保'}}记录单</view>
+                <view class="fs20 dim mt2">{{r.id}} · 待签署</view>
+                <view wx:if="{{r.deadlineLabel}}" class="fs20 mt2 {{r.deadlineClass}}">签字截止 {{r.signDeadline}}（{{r.deadlineLabel}}）</view>
+              </view>
+            </view>
+            <button wx:if="{{!batchMode}}" class="btn btn-primary btn-xs">去签字</button>
+          </view>
         </view>
       </block>
       <empty-state wx:else mode="empty" title="暂无待签记录单" desc="维保发起签署后会出现在这里。"></empty-state>

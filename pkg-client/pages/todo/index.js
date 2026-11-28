@@ -40,7 +40,7 @@ function urgency(a, b) {
 
 definePage(ROUTES['/pkg-client/pages/todo/index'], {
   data: {
-    records: [], faults: [], loading: true, error: '', showFaults: false,
+    records: [], projectGroups: [], faults: [], loading: true, error: '', showFaults: false,
     messages: [], batchMode: false, selected: {}, selectedCount: 0, batchLimit: BATCH_LIMIT
   },
   onShow() { this.load() },
@@ -53,8 +53,23 @@ definePage(ROUTES['/pkg-client/pages/todo/index'], {
       customer ? Promise.resolve([]) : unit.getUnitFaults().catch(() => []),
       unit.getUnitMessages().catch(() => [])
     ]).then(([records, faults, messages]) => {
+      const list = (records || []).map(decorate).sort(urgency)
+      const groupMap = {}
+      const projectGroups = []
+      list.forEach((r) => {
+        const key = r.projectName || '未分类项目'
+        let g = groupMap[key]
+        if (!g) {
+          g = { key: key, name: key, records: [], ids: [] }
+          groupMap[key] = g
+          projectGroups.push(g)
+        }
+        g.records.push(r)
+        g.ids.push(r.id)
+      })
       this.setData({
-        records: (records || []).map(decorate).sort(urgency),
+        records: list,
+        projectGroups: projectGroups,
         faults: (faults || []).filter((f) => f.status === 'PENDING_CONFIRM'),
         messages: (messages || []).filter((m) => !m.readFlag).slice(0, 3),
         loading: false
@@ -89,6 +104,18 @@ definePage(ROUTES['/pkg-client/pages/todo/index'], {
     const ids = Object.keys(this.data.selected)
     if (!ids.length) return wx.showToast({ title: '请先勾选要签署的记录', icon: 'none' })
     nav.open('/pkg-client/pages/sign/index?mode=batch&ids=' + ids.join(','))
+  },
+  signProject(e) {
+    const key = e.currentTarget.dataset.key
+    const group = (this.data.projectGroups || []).find((g) => g.key === key)
+    if (!group || !group.ids.length) return
+    if (group.ids.length > this.data.batchLimit) {
+      return wx.showToast({
+        title: '本项目待签 ' + group.ids.length + ' 条，超过单次 ' + this.data.batchLimit + ' 条，请分批勾选',
+        icon: 'none'
+      })
+    }
+    nav.open('/pkg-client/pages/sign/index?mode=batch&ids=' + group.ids.join(','))
   },
   // 记录卡点击：WXML 事件绑定为静态字符串，按模式在 JS 内分支（批量=勾选，否则=去签字）
   onRecordTap(e) {
