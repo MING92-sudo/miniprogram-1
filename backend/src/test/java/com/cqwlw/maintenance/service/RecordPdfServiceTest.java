@@ -358,6 +358,26 @@ class RecordPdfServiceTest {
     }
 
     @Test
+    void faultDeviceRowsUseFactoryNumberAndOmitTechnicalFields() {
+        List<String[]> rows = service.deviceRowsOfMap(faultView());
+        StringBuilder flat = new StringBuilder();
+        for (String[] row : rows) {
+            for (String cell : row) {
+                flat.append(cell).append('|');
+            }
+        }
+        String text = flat.toString();
+        assertTrue(text.contains("产品编号"));
+        assertTrue(text.contains("OT-2021-0088"));
+        assertFalse(text.contains("制造单位"));
+        assertFalse(text.contains("安装/改造/重大修理单位"));
+        assertFalse(text.contains("驱动方式"));
+        assertFalse(text.contains("额定载重量"));
+        assertFalse(text.contains("额定速度"));
+        assertFalse(text.contains("电梯型号"));
+    }
+
+    @Test
     void faultStatusTextCoversSevenStates() {
         assertEquals("待接单", RecordPdfService.faultStatusText("OPEN"));
         assertEquals("已接单", RecordPdfService.faultStatusText("ASSIGNED"));

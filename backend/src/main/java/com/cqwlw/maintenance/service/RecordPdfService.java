@@ -164,7 +164,7 @@ public class RecordPdfService {
         v.put("项目名称（小区）", el == null ? "" : nz(el.projectName));
         v.put("电梯品种（型式）", el == null ? "" : nz(el.category));
         v.put("特殊类别（消防/防爆）", el == null ? "" : nz(el.specialType));
-        v.put("出厂编号", el == null ? "" : nz(el.factoryNumber));
+        v.put("产品编号", el == null ? "" : nz(el.factoryNumber));
         v.put("设备代码", el == null ? "" : nz(el.deviceCode));
         v.put("注册代码/登记证号", el == null ? "" : nz(el.regCode));
         v.put("电梯型号", el == null ? "" : nz(el.model));
@@ -179,8 +179,8 @@ public class RecordPdfService {
         return layoutDeviceRows(v, el == null ? null : el.category);
     }
 
-    /** 急修单的一、区块：设备信息来自 /faults、/admin/faults 视图（DirectoryService.enrichFaultViews） */
-    private List<String[]> deviceRowsOfMap(Map<String, Object> v) {
+    /** 急修单的一、区块：只保留报修/救援需要的基础字段（技术参数不上急修单）。 */
+    List<String[]> deviceRowsOfMap(Map<String, Object> v) {
         Map<String, String> m = new LinkedHashMap<>();
         m.put("使用单位", str(v.get("useUnitName")));
         m.put("使用单位内编号", str(v.get("insideNumber")));
@@ -188,17 +188,22 @@ public class RecordPdfService {
         m.put("项目名称（小区）", str(v.get("projectName")));
         m.put("电梯品种（型式）", str(v.get("category")));
         m.put("特殊类别（消防/防爆）", str(v.get("specialType")));
-        m.put("出厂编号", str(v.get("factoryNumber")));
+        m.put("产品编号", str(v.get("factoryNumber")));
         m.put("设备代码", str(v.get("deviceCode")));
         m.put("注册代码/登记证号", str(v.get("regCode")));
-        m.put("电梯型号", str(v.get("model")));
-        m.put("制造单位", str(v.get("manufacturer")));
-        m.put("安装/改造/重大修理单位", NOT_COLLECTED);
-        m.put("驱动方式", str(v.get("driveMode")));
-        m.put("额定载重量", str(v.get("ratedLoadSpec")));
-        m.put("额定速度", str(v.get("ratedSpeedSpec")));
         m.put("层站门数", str(v.get("stationsDoors")));
-        return layoutDeviceRows(m, str(v.get("category")));
+        String[][] fields = {
+                {"使用单位", "使用单位内编号"},
+                {"使用地点", "项目名称（小区）"},
+                {"电梯品种（型式）", "特殊类别（消防/防爆）"},
+                {"产品编号", "设备代码"},
+                {"注册代码/登记证号", "层站门数"}
+        };
+        List<String[]> rows = new ArrayList<>();
+        for (String[] pair : fields) {
+            rows.add(new String[]{pair[0], orDash(m.get(pair[0])), pair[1], orDash(m.get(pair[1]))});
+        }
+        return rows;
     }
 
     /** 设备字段固定 8 行 × 2 列排布；第八条按品种追加参数行（未采集字段打印明确占位） */
